@@ -1,0 +1,89 @@
+# WoW Live's M+ rules: the spell and buff names it checks, built into the app by backend/cmd/app/build.sh.
+
+[kicks]
+# Each class's interrupt, as the live M+ page counts kicks: one of these that interrupts nothing is a wasted kick.
+# Spells that interrupt as a side effect (Avenger's Shield) are left out, so using them isn't a wasted kick.
+names = [
+  "Axe Toss", "Counter Shot", "Counterspell", "Disrupt", "Kick", "Mind Freeze", "Muzzle", "Pummel", "Quell", "Rebuke",
+  "Silence", "Skull Bash", "Solar Beam", "Spear Hand Strike", "Spell Lock", "Wind Shear",
+]
+
+[cc]
+# Crowd control: each class's stuns, incapacitates, fears, roots, knocks and grips, as the live M+ page counts them per player
+# (casts, so an area stun counts once). Interrupts are [kicks].
+names = [
+  "Asphyxiate", "Binding Shot", "Blind", "Blinding Light", "Blinding Sleet", "Capacitor Totem", "Chaos Nova",
+  "Cheap Shot", "Death Grip", "Dragon's Breath", "Entangling Roots", "Fear", "Freezing Trap", "Frost Nova", "Gouge",
+  "Gorefiend's Grasp", "Hammer of Justice", "Hex", "Holy Word: Chastise", "Howl of Terror", "Imprison",
+  "Incapacitating Roar", "Intimidating Shout", "Intimidation", "Kidney Shot", "Leg Sweep", "Mass Entanglement",
+  "Mighty Bash", "Mortal Coil", "Paralysis", "Polymorph", "Psychic Scream", "Repentance", "Ring of Frost",
+  "Ring of Peace", "Sap", "Shadowfury", "Shockwave", "Sigil of Chains", "Sigil of Misery", "Sleep Walk", "Storm Bolt",
+  "Tail Swipe", "Thunderstorm", "Typhoon", "Ursol's Vortex", "Wing Buffet",
+]
+
+[lust]
+# Bloodlust and its copies, as the live M+ review finds when the party had it, to check combat potions were used then.
+names = ["Bloodlust", "Heroism", "Time Warp", "Primal Rage", "Fury of the Aspects", "Harrier's Cry"]
+
+[defensives]
+# Each death shows what covered it (a defensive buff of theirs or an external was up, or they used one of their own in
+# window_seconds) or what they still had ready. Exact spell or item names as the combat log shows them.
+window_seconds = 10
+healthstones = ["Healthstone", "Demonic Healthstone"]
+health_potions = ["Concentrated Silvermoon Health Potion"]
+# Each class's own defensive buttons, checked Nov 5 against a top +13 run of every spec on Warcraft Logs (the buffs
+# each player had). Spec barriers count. Left out: Metamorphosis (defensive for Vengeance, a damage cooldown for
+# Havoc) and rotational mitigation (Ignore Pain, Demon Spikes, Ironfur, Shield Block).
+names = [
+  # Death Knight (Blood: Vampiric Blood, Dancing Rune Weapon)
+  "Anti-Magic Shell", "Dancing Rune Weapon", "Death Pact", "Icebound Fortitude", "Lichborne", "Vampiric Blood",
+  # Demon Hunter (Vengeance: Fiery Brand)
+  "Blur", "Darkness", "Fiery Brand", "Netherwalk",
+  # Druid
+  "Barkskin", "Frenzied Regeneration", "Survival Instincts",
+  # Evoker
+  "Obsidian Scales", "Renewing Blaze", "Zephyr",
+  # Hunter
+  "Aspect of the Turtle", "Exhilaration", "Fortitude of the Bear", "Survival of the Fittest",
+  # Mage (each spec's barrier: Prismatic for Arcane, Blazing for Fire, Ice for Frost)
+  "Alter Time", "Blazing Barrier", "Greater Invisibility", "Ice Barrier", "Ice Block", "Ice Cold", "Mirror Image",
+  "Prismatic Barrier",
+  # Monk
+  "Dampen Harm", "Diffuse Magic", "Fortifying Brew", "Touch of Karma",
+  # Paladin (Protection: Ardent Defender, Guardian of Ancient Kings)
+  "Ardent Defender", "Divine Protection", "Divine Shield", "Guardian of Ancient Kings", "Lay on Hands",
+  "Shield of Vengeance",
+  # Priest (Shadow: Dispersion, Vampiric Embrace)
+  "Desperate Prayer", "Dispersion", "Fade", "Vampiric Embrace",
+  # Rogue
+  "Cloak of Shadows", "Crimson Vial", "Evasion", "Feint",
+  # Shaman
+  "Astral Shift", "Earth Elemental", "Stone Bulwark Totem",
+  # Warlock
+  "Dark Pact", "Unending Resolve",
+  # Warrior (Protection: Shield Wall, Last Stand)
+  "Die by the Sword", "Enraged Regeneration", "Last Stand", "Rallying Cry", "Shield Wall", "Spell Reflection",
+]
+# Damage reduction other players put on you (externals and raid cooldowns); active at death counts as covered.
+externals = [
+  "Anti-Magic Zone", "Aura Mastery", "Blessing of Protection", "Blessing of Sacrifice", "Darkness", "Guardian Spirit",
+  "Ironbark", "Life Cocoon", "Pain Suppression", "Power Word: Barrier", "Rallying Cry", "Spirit Link Totem",
+  "Time Dilation", "Zephyr",
+]
+
+[buffs]
+# Party buffs and the class that gives each: the live M+ page checks at the key's start that everyone has the buff
+# of every class in the group.
+"Arcane Intellect" = "Mage"
+"Power Word: Fortitude" = "Priest"
+"Battle Shout" = "Warrior"
+"Mark of the Wild" = "Druid"
+"Skyfury" = "Shaman"
+"Blessing of the Bronze" = "Evoker"
+
+[consumables]
+# Pull-start buffs count as a flask or food when their name contains one of these.
+flask = ["Flask of", "Phial of"]
+food = ["Well Fed"]
+# Throughput potions (exact names).
+combat_potions = ["Light's Potential", "Potion of Recklessness"]

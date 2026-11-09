@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <!-- WoW Live's icon under 48 px, on its own pixel grid: the same tile, timer ring and keystone, without the
+       glow, facets and crown that blur at this size. -->
+  <rect x="0" y="0" width="32" height="32" rx="7" fill="#151b36"/>
+  <circle cx="16" cy="17" r="11" fill="none" stroke="#ffffff" stroke-opacity="0.2" stroke-width="3"/>
+  <circle cx="16" cy="17" r="11" fill="none" stroke="#5b8def" stroke-width="3" stroke-dasharray="46 70"
+    transform="rotate(-90 16 17)"/>
+  <path d="M16 11 L21 14 L21 20 L16 23 L11 20 L11 14 Z" fill="#f0b552"/>
+  <circle cx="26" cy="6" r="4" fill="#ff4d5e"/>
+</svg>

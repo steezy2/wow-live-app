@@ -1,0 +1,158 @@
+import { type FormEvent, useEffect, useState } from 'react'
+import {
+  moveOverlay,
+  type OverlaySettings,
+  readOldKeys,
+  resetOverlay,
+  saveSettings,
+  type Settings,
+  type SettingsView,
+} from './api'
+import { type Note, track } from './note'
+import { NoteLine } from './NoteLine'
+import { useOverlayMoving } from './useLiveKey'
+import { WCLKeys } from './WCLKeys'
+
+/** What each of the app's overlay choices is called. */
+const SHOW_LABELS: Record<OverlaySettings['show'], string> = {
+  keys: 'During keys',
+  always: 'Always',
+  off: 'Off',
+}
+
+/** How long after the last change to the overlay it's saved, so dragging the opacity slider saves once. */
+const OVERLAY_SAVE_MS = 300
+
+/** The desktop app's settings in four sections: the game (combat log folder, with when the game last wrote a log
+ * there, and region), the overlay (saved as it changes), the Warcraft Logs keys, and reading old keys. Shown first
+ * when the log folder isn't found. */
+export function SettingsPage({ view, onSaved }: { view: SettingsView; onSaved: (view: SettingsView) => void }) {
+  const [logsDir, setLogsDir] = useState(view.logsDir)
+  const [region, setRegion] = useState(view.region)
+  const [overlay, setOverlay] = useState(view.overlay)
+  const [game, setGame] = useState<Note>(null)
+  const [overlayNote, setOverlayNote] = useState<Note>(null)
+  const [oldKeys, setOldKeys] = useState<Note>(null)
+  const moving = useOverlayMoving()
+  useEffect(() => {
+    if (
+      overlay.show === view.overlay.show &&
+      overlay.opacity === view.overlay.opacity &&
+      overlay.split === view.overlay.split
+    )
+      return
+    const timer = setTimeout(() => {
+      const call = saveSettings({ logsDir: view.logsDir, region: view.region, overlay })
+      track(call, setOverlayNote, 'Saving…', () => 'Saved').then(onSaved, () => undefined)
+    }, OVERLAY_SAVE_MS)
+    return () => clearTimeout(timer)
+  }, [overlay, view, onSaved])
+  const save = (e: FormEvent) => {
+    e.preventDefault()
+    const call = saveSettings({ logsDir: logsDir.trim(), region, overlay })
+    track(call, setGame, 'Saving…', () => 'Saved').then(onSaved, () => undefined)
+  }
+  const minutes = view.lastLogMS ? Math.round((Date.now() - view.lastLogMS) / 60_000) : null
+  return (
+    <div className="settings-page">
+      <form className="panel settings" onSubmit={save}>
+        <h2>Game</h2>
+        <label>
+          Combat log folder
+          <input value={logsDir} onChange={(e) => setLogsDir(e.target.value)} spellCheck={false} />
+        </label>
+        <p className={view.logsDirFound ? 'muted' : 'warning'}>
+          {!view.logsDirFound
+            ? 'Folder not found: it is Logs, inside _retail_, where the game is installed.'
+            : minutes !== null
+              ? `The game last wrote a combat log here ${minutes} min ago.`
+              : 'No combat log here yet: turn on Advanced Combat Logging and type /combatlog in game.'}
+        </p>
+        <label>
+          Region (for affix names, from the next start)
+          <select value={region} onChange={(e) => setRegion(e.target.value as Settings['region'])}>
+            {view.regions.map((r) => (
+              <option key={r} value={r}>
+                {r.toUpperCase()}
+              </option>
+            ))}
+          </select>
+        </label>
+        <div className="actions">
+          <button type="submit" disabled={!!game?.busy}>
+            Save
+          </button>
+        </div>
+        <NoteLine note={game} />
+      </form>
+      <section className="panel settings">
+        <h2>Overlay</h2>
+        <p className="muted small">Saved as you change it.</p>
+        <label>
+          Show the overlay
+          <select
+            value={overlay.show}
+            onChange={(e) => setOverlay({ ...overlay, show: e.target.value as OverlaySettings['show'] })}
+          >
+            {view.overlayShows.map((s) => (
+              <option key={s} value={s}>
+                {SHOW_LABELS[s]}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Background opacity {overlay.opacity}%
+          <input
+            type="range"
+            min={view.minOpacity}
+            max={100}
+            value={overlay.opacity}
+            onChange={(e) => setOverlay({ ...overlay, opacity: Number(e.target.value) })}
+          />
+        </label>
+        <label className="inline">
+          <input
+            type="checkbox"
+            checked={overlay.split}
+            onChange={(e) => setOverlay({ ...overlay, split: e.target.checked })}
+          />{' '}
+          The pull and the whole key as two cards (taller)
+        </label>
+        <div className="actions">
+          <button type="button" aria-pressed={moving} onClick={() => moveOverlay(!moving)}>
+            {moving ? 'Done moving' : 'Move overlay'}
+          </button>
+          <button type="button" onClick={resetOverlay}>
+            Reset position
+          </button>
+        </div>
+        <p className="muted small">
+          {moving
+            ? 'Drag the overlay to move it, or an edge to resize it; Ctrl+Alt+O also locks it.'
+            : 'Ctrl+Alt+O moves it too, even mid-key.'}
+        </p>
+        <NoteLine note={overlayNote} />
+      </section>
+      <WCLKeys />
+      <section className="panel settings">
+        <h2>Your data</h2>
+        <p className="muted">Saves every finished key in the log folder, so the estimate has your earlier runs to go on.</p>
+        <div className="actions">
+          <button
+            type="button"
+            disabled={!!oldKeys?.busy}
+            onClick={() =>
+              void track(readOldKeys(), setOldKeys, 'Reading the log folder…', (n) => `${n} keys saved.`).catch(
+                () => undefined,
+              )
+            }
+          >
+            Read old keys
+          </button>
+        </div>
+        <NoteLine note={oldKeys} />
+      </section>
+    </div>
+  )
+}

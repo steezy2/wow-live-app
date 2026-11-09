@@ -1,0 +1,82 @@
+// Package controller is the HTTP API (Gin) the site's pages call: it reads the request, asks the service, and
+// writes JSON. The page files themselves are served from frontend/dist.
+package controller
+
+import (
+	"fmt"
+	"io/fs"
+	"net/http"
+	"path"
+	"slices"
+	"strings"
+
+	"github.com/gin-gonic/gin"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
+)
+
+// Router is the site for hosts (LocalHosts, or the app's own): the API under /api, the settings and Warcraft Logs
+// keys when settings isn't nil (the desktop app), its spec at /swagger/index.html, and the built page from pages
+// (frontend/dist, on disk or built into the app) for every other path, so the page's own routes load index.html. Only requests addressed
+// to this PC by name are answered, so another website can't read the API by pointing its domain at 127.0.0.1 (DNS
+// rebinding), and requests sent by another website's page are refused, so it can't spend points or delete keys
+// through a plain form post.
+func Router(mplus MPlus, settings *SettingsAPI, pages fs.FS, hosts ...string) *gin.Engine {
+	gin.SetMode(gin.ReleaseMode)
+	r := gin.New()
+	r.Use(gin.Recovery())
+	r.Use(func(c *gin.Context) {
+		if !slices.Contains(hosts, c.Request.Host) {
+			c.AbortWithStatusJSON(http.StatusMisdirectedRequest, ErrorResponse{Error: "use http://localhost"})
+			return
+		}
+		if origin := c.GetHeader("Origin"); origin != "" && origin != "http://"+c.Request.Host {
+			c.AbortWithStatusJSON(http.StatusForbidden, ErrorResponse{Error: "only this site's pages can call the API"})
+		}
+	})
+	api := r.Group("/api")
+	api.GET("/mplus/live", mplus.Live)
+	api.GET("/mplus/events", mplus.Events)
+	api.GET("/mplus/ready", mplus.Ready)
+	api.GET("/mplus/keys", mplus.Saved)
+	api.DELETE("/mplus/keys", mplus.ClearSaved)
+	api.GET("/mplus/keys/:start", mplus.SavedKey)
+	api.DELETE("/mplus/keys/:start", mplus.DeleteSaved)
+	api.GET("/mplus/keys/:start/track", mplus.Track)
+	api.GET("/mplus/keys/:start/review", mplus.Review)
+	api.POST("/mplus/keys/:start/review", mplus.MakeReview)
+	api.GET("/mplus/dungeons/:mapID/map", mplus.DungeonMap)
+	api.GET("/mplus/dungeons/:mapID/floors/:uiMapID/tiles/:x/:y", mplus.Tile)
+	if settings != nil {
+		api.GET("/settings", settings.Get)
+		api.PUT("/settings", settings.Put)
+		api.GET("/settings/warcraftlogs", settings.KeysStatus)
+		api.PUT("/settings/warcraftlogs", settings.SaveKeys)
+		api.POST("/settings/warcraftlogs/test", settings.TestKeys)
+		api.DELETE("/settings/warcraftlogs", settings.RemoveKeys)
+		api.POST("/settings/read-keys", settings.ReadKeys)
+	}
+	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+	r.NoRoute(func(c *gin.Context) {
+		if strings.HasPrefix(c.Request.URL.Path, "/api/") {
+			c.JSON(http.StatusNotFound, ErrorResponse{Error: "no such endpoint"})
+			return
+		}
+		name := strings.TrimPrefix(path.Clean("/"+c.Request.URL.Path), "/")
+		if info, err := fs.Stat(pages, name); err != nil || info.IsDir() {
+			name = "index.html"
+		}
+		http.ServeFileFS(c.Writer, c.Request, pages, name)
+	})
+	return r
+}
+
+// LocalHosts are the names a page on this PC reaches port by.
+func LocalHosts(port int) []string {
+	return []string{fmt.Sprintf("localhost:%d", port), fmt.Sprintf("127.0.0.1:%d", port)}
+}
+
+// ErrorResponse is the body of every API error.
+type ErrorResponse struct {
+	Error string `json:"error"`
+}

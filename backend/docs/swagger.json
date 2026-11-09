@@ -1,0 +1,1738 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "The site's API: the live Mythic+ key read from the combat log.",
+        "title": "WoW Live API",
+        "contact": {},
+        "version": "1"
+    },
+    "basePath": "/",
+    "paths": {
+        "/api/mplus/dungeons/{mapID}/floors/{uiMapID}/tiles/{x}/{y}": {
+            "get": {
+                "produces": [
+                    "image/webp"
+                ],
+                "tags": [
+                    "mplus"
+                ],
+                "summary": "One map tile of a dungeon floor (384 by 256 WebP, Keystone.guru's zoom 2: 4 by 4 tiles a floor)",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "the dungeon's map ID (challenge mode ID)",
+                        "name": "mapID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "the floor's map ID in the combat log",
+                        "name": "uiMapID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "tile column, 0 to 3",
+                        "name": "x",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "tile row, 0 to 3",
+                        "name": "y",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "502": {
+                        "description": "Keystone.guru failed",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/mplus/dungeons/{mapID}/map": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "mplus"
+                ],
+                "summary": "A dungeon's map: its floors with Keystone.guru tiles, and where parties have walked in its saved runs",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "the dungeon's map ID (challenge mode ID)",
+                        "name": "mapID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.DungeonMap"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/mplus/events": {
+            "get": {
+                "description": "Server-sent events: a \"change\" event with the keys' new version whenever the running key or the\nsaved keys change, at most one every 250 ms, and a comment line every 15 s while nothing does. The\npage then reads the endpoints it shows again.",
+                "produces": [
+                    "text/event-stream"
+                ],
+                "tags": [
+                    "mplus"
+                ],
+                "summary": "Notices that the keys changed",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ChangeEvent"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/mplus/keys": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "mplus"
+                ],
+                "summary": "The saved Mythic+ keys, newest first",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.KeySummary"
+                            }
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "mplus"
+                ],
+                "summary": "Delete every saved Mythic+ key",
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/mplus/keys/{start}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "mplus"
+                ],
+                "summary": "One saved Mythic+ key",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "the key's start (ms since the epoch)",
+                        "name": "start",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.KeyView"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "mplus"
+                ],
+                "summary": "Delete one saved Mythic+ key",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "the key's start (ms since the epoch)",
+                        "name": "start",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/mplus/keys/{start}/review": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "mplus"
+                ],
+                "summary": "A finished key's review, if one was made",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "the key's start (ms since the epoch)",
+                        "name": "start",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.KeyReview"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "no Warcraft Logs credentials",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "mplus"
+                ],
+                "summary": "Review a finished key against Warcraft Logs' top runs and the players' earlier runs (spends points)",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "the key's start (ms since the epoch)",
+                        "name": "start",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.KeyReview"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "the key is still running",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "fewer than 100 Warcraft Logs points left this hour",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "502": {
+                        "description": "Warcraft Logs failed",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "no Warcraft Logs credentials",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/mplus/keys/{start}/track": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "mplus"
+                ],
+                "summary": "Where a key's party went and its mobs died, for the map",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "the key's start (ms since the epoch): the running key's, the last one's or a saved one's",
+                        "name": "start",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.KeyTrack"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/mplus/live": {
+            "get": {
+                "description": "The key being played (its clock read now, death penalty included) or, between keys, the last one\nthat ended. The page reads it again on each notice from /api/mplus/events.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "mplus"
+                ],
+                "summary": "The running Mythic+ key, or the last one",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.KeyView"
+                        }
+                    },
+                    "204": {
+                        "description": "No key in the combat log yet"
+                    }
+                }
+            }
+        },
+        "/api/mplus/ready": {
+            "get": {
+                "description": "While the party is in a Mythic dungeon with no key running: each member's missing flask, food and\nparty buffs, and those not seen since the party zoned in (from the combat log, so a buff from before\nlogging started there is never seen). Read again on each notice from /api/mplus/events.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "mplus"
+                ],
+                "summary": "The ready check before the next key",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.ReadyCheck"
+                        }
+                    },
+                    "204": {
+                        "description": "Not in a Mythic dungeon between keys"
+                    }
+                }
+            }
+        },
+        "/api/settings": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "The desktop app's settings",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.SettingsView"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "The log folder and the overlay change right away; a new region's affix names show from the next\nstart.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "Save the desktop app's settings",
+                "parameters": [
+                    {
+                        "description": "the settings",
+                        "name": "settings",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.Settings"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.SettingsView"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/settings/read-keys": {
+            "post": {
+                "description": "Reads every combat log in the folder and saves each finished key, so the estimate has earlier runs\nto go on. Takes about a minute for a few hundred MB of logs.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "Save the keys already in the log folder",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/controller.OldKeys"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/settings/warcraftlogs": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "Whether Warcraft Logs keys are saved, and their last test (never the secret)",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.KeyStatus"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "Gets a token and reads the points left this hour, then saves the keys in Windows Credential\nManager. With force=true they're saved even when the test fails.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "Test and save the Warcraft Logs client ID and secret",
+                "parameters": [
+                    {
+                        "description": "the client ID and secret",
+                        "name": "keys",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.Credentials"
+                        }
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "save even if the test fails",
+                        "name": "force",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.KeyStatus"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Warcraft Logs turned the keys down",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Windows Credential Manager failed",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "502": {
+                        "description": "Warcraft Logs couldn't be reached",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "settings"
+                ],
+                "summary": "Remove the saved Warcraft Logs keys",
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/settings/warcraftlogs/test": {
+            "post": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "Test the saved Warcraft Logs keys again",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.KeyStatus"
+                        }
+                    },
+                    "404": {
+                        "description": "No keys saved",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "Warcraft Logs turned the keys down",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "502": {
+                        "description": "Warcraft Logs couldn't be reached",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "controller.ChangeEvent": {
+            "type": "object",
+            "properties": {
+                "version": {
+                    "type": "integer"
+                }
+            }
+        },
+        "controller.ErrorResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                }
+            }
+        },
+        "controller.OldKeys": {
+            "type": "object",
+            "properties": {
+                "saved": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.Affix": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.Credentials": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "secret": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.DungeonFloor": {
+            "type": "object",
+            "properties": {
+                "maxX": {
+                    "type": "number"
+                },
+                "maxY": {
+                    "type": "number"
+                },
+                "minX": {
+                    "type": "number"
+                },
+                "minY": {
+                    "type": "number"
+                },
+                "tiles": {
+                    "type": "string"
+                },
+                "uiMapID": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.DungeonMap": {
+            "type": "object",
+            "properties": {
+                "floors": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.DungeonFloor"
+                    }
+                },
+                "walked": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.TrackPoint"
+                    }
+                }
+            }
+        },
+        "models.ForcesPoint": {
+            "type": "object",
+            "properties": {
+                "clockMS": {
+                    "type": "integer"
+                },
+                "pct": {
+                    "type": "number"
+                }
+            }
+        },
+        "models.KeyBoss": {
+            "type": "object",
+            "properties": {
+                "endMS": {
+                    "type": "integer"
+                },
+                "kill": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "startMS": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.KeyBuffCheck": {
+            "type": "object",
+            "properties": {
+                "missing": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "player": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.KeyCast": {
+            "type": "object",
+            "properties": {
+                "ability": {
+                    "type": "string"
+                },
+                "clockMS": {
+                    "type": "integer"
+                },
+                "kind": {
+                    "type": "string",
+                    "enum": [
+                        "defensive",
+                        "healthstone",
+                        "health potion",
+                        "combat potion",
+                        "kick",
+                        "cc"
+                    ]
+                },
+                "player": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.KeyDeath": {
+            "type": "object",
+            "properties": {
+                "ability": {
+                    "type": "string"
+                },
+                "clockMS": {
+                    "type": "integer"
+                },
+                "defensive": {
+                    "type": "string"
+                },
+                "killer": {
+                    "type": "string"
+                },
+                "player": {
+                    "type": "string"
+                },
+                "ready": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "models.KeyDispel": {
+            "type": "object",
+            "properties": {
+                "afterMS": {
+                    "type": "integer"
+                },
+                "by": {
+                    "type": "string"
+                },
+                "clockMS": {
+                    "type": "integer"
+                },
+                "player": {
+                    "type": "string"
+                },
+                "spell": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.KeyForces": {
+            "type": "object",
+            "properties": {
+                "at": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.ForcesPoint"
+                    }
+                },
+                "count": {
+                    "type": "integer"
+                },
+                "needsCheck": {
+                    "type": "boolean"
+                },
+                "pct": {
+                    "type": "number"
+                },
+                "referencePct": {
+                    "type": "number"
+                },
+                "total": {
+                    "type": "integer"
+                },
+                "uncounted": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.UncountedNPC"
+                    }
+                }
+            }
+        },
+        "models.KeyGhost": {
+            "type": "object",
+            "properties": {
+                "killMS": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "needByMS": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.KeyHit": {
+            "type": "object",
+            "properties": {
+                "ability": {
+                    "type": "string"
+                },
+                "damage": {
+                    "type": "integer"
+                },
+                "player": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.KeyInterrupt": {
+            "type": "object",
+            "properties": {
+                "clockMS": {
+                    "type": "integer"
+                },
+                "kick": {
+                    "description": "the player's spell that did it (\"Wind Shear\"); empty in keys saved before Nov 8",
+                    "type": "string"
+                },
+                "player": {
+                    "type": "string"
+                },
+                "spell": {
+                    "type": "string"
+                },
+                "target": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.KeyMeter": {
+            "type": "object",
+            "properties": {
+                "endMS": {
+                    "type": "integer"
+                },
+                "ongoing": {
+                    "description": "the pull is still being fought (no pullGapMS pause yet)",
+                    "type": "boolean"
+                },
+                "rows": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.KeyMeterRow"
+                    }
+                },
+                "startMS": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.KeyMeterRow": {
+            "type": "object",
+            "properties": {
+                "avoidable": {
+                    "type": "integer"
+                },
+                "class": {
+                    "description": "\"Mage\", \"DeathKnight\"; \"\" when unknown",
+                    "type": "string"
+                },
+                "damage": {
+                    "type": "integer"
+                },
+                "damageTaken": {
+                    "type": "integer"
+                },
+                "dispels": {
+                    "type": "integer"
+                },
+                "dps": {
+                    "type": "number"
+                },
+                "healing": {
+                    "type": "integer"
+                },
+                "hps": {
+                    "type": "number"
+                },
+                "interrupts": {
+                    "type": "integer"
+                },
+                "player": {
+                    "type": "string"
+                },
+                "priorityDamage": {
+                    "description": "damage into trash pulls' minibosses and into bosses",
+                    "type": "integer"
+                },
+                "purges": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.KeyMiniboss": {
+            "type": "object",
+            "properties": {
+                "diedMS": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "of": {
+                    "type": "integer"
+                },
+                "order": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.KeyProjection": {
+            "type": "object",
+            "properties": {
+                "best": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.KeyGhost"
+                    }
+                },
+                "chests": {
+                    "type": "integer"
+                },
+                "finalMS": {
+                    "type": "integer"
+                },
+                "highMS": {
+                    "type": "integer"
+                },
+                "lowMS": {
+                    "type": "integer"
+                },
+                "odds": {
+                    "type": "array",
+                    "items": {
+                        "type": "number"
+                    }
+                },
+                "runs": {
+                    "type": "integer"
+                },
+                "source": {
+                    "description": "\"3 of your runs, forces and bosses\"",
+                    "type": "string"
+                }
+            }
+        },
+        "models.KeyPull": {
+            "type": "object",
+            "properties": {
+                "clockMS": {
+                    "type": "integer"
+                },
+                "healthPct": {
+                    "type": "number"
+                },
+                "late": {
+                    "type": "boolean"
+                },
+                "minibosses": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.KeyMiniboss"
+                    }
+                },
+                "openingPct": {
+                    "type": "number"
+                },
+                "priorityPct": {
+                    "type": "number"
+                },
+                "pull": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.KeyReview": {
+            "type": "object",
+            "properties": {
+                "baseline": {
+                    "type": "string"
+                },
+                "notes": {
+                    "description": "the party's must-stop casts and time between pulls",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "party": {
+                    "type": "string"
+                },
+                "players": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.PlayerReview"
+                    }
+                },
+                "points": {
+                    "type": "number"
+                },
+                "start": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.KeySpike": {
+            "type": "object",
+            "properties": {
+                "clockMS": {
+                    "type": "integer"
+                },
+                "damage": {
+                    "type": "integer"
+                },
+                "members": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.KeySpikeMember"
+                    }
+                },
+                "overlap": {
+                    "type": "boolean"
+                },
+                "partyCDs": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "models.KeySpikeMember": {
+            "type": "object",
+            "properties": {
+                "defensive": {
+                    "type": "string"
+                },
+                "player": {
+                    "type": "string"
+                },
+                "ready": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "taken": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.KeyStatus": {
+            "type": "object",
+            "properties": {
+                "idEnd": {
+                    "type": "string"
+                },
+                "limitPerHour": {
+                    "type": "number"
+                },
+                "pointsLeft": {
+                    "type": "number"
+                },
+                "problem": {
+                    "type": "string"
+                },
+                "set": {
+                    "type": "boolean"
+                },
+                "testedMS": {
+                    "type": "integer"
+                },
+                "works": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "models.KeyStop": {
+            "type": "object",
+            "properties": {
+                "by": {
+                    "type": "string"
+                },
+                "clockMS": {
+                    "type": "integer"
+                },
+                "intoMS": {
+                    "type": "integer"
+                },
+                "mob": {
+                    "type": "string"
+                },
+                "outcome": {
+                    "type": "string",
+                    "enum": [
+                        "interrupted",
+                        "stopped",
+                        "went off",
+                        "died"
+                    ]
+                },
+                "pull": {
+                    "type": "integer"
+                },
+                "spell": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.KeySummary": {
+            "type": "object",
+            "properties": {
+                "chests": {
+                    "type": "integer"
+                },
+                "dungeon": {
+                    "type": "string"
+                },
+                "finalMS": {
+                    "type": "integer"
+                },
+                "level": {
+                    "type": "integer"
+                },
+                "start": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.KeyTrack": {
+            "type": "object",
+            "properties": {
+                "classes": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "deaths": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.TrackPoint"
+                    }
+                },
+                "meters": {
+                    "description": "each player's damage and healing so far, about every 2 s",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/definitions/models.MeterPoint"
+                        }
+                    }
+                },
+                "players": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/definitions/models.TrackPoint"
+                        }
+                    }
+                },
+                "pulls": {
+                    "description": "each pull, in order; missing in keys saved before Nov 8",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.PullSpan"
+                    }
+                }
+            }
+        },
+        "models.KeyView": {
+            "type": "object",
+            "properties": {
+                "activity": {
+                    "description": "Activity is each player's share of their time alive in pulls with a cast going or a hit landing (in %).",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "number",
+                        "format": "float64"
+                    }
+                },
+                "affixes": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Affix"
+                    }
+                },
+                "avoidableHits": {
+                    "description": "AvoidableHits is each player's avoidable damage by ability, most first.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.KeyHit"
+                    }
+                },
+                "betweenPulls": {
+                    "description": "BetweenPulls is the time between each pull and the one before it (from the second pull), on the key's clock.",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "bosses": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.KeyBoss"
+                    }
+                },
+                "buffs": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.KeyBuffCheck"
+                    }
+                },
+                "casts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.KeyCast"
+                    }
+                },
+                "chests": {
+                    "type": "integer"
+                },
+                "clockMS": {
+                    "type": "integer"
+                },
+                "deaths": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.KeyDeath"
+                    }
+                },
+                "debuffs": {
+                    "description": "dispellable debuffs on the party and how fast they came off",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.KeyDispel"
+                    }
+                },
+                "dungeon": {
+                    "type": "string"
+                },
+                "end": {
+                    "type": "integer"
+                },
+                "finalMS": {
+                    "description": "the game's own time for the key, once it ends",
+                    "type": "integer"
+                },
+                "forces": {
+                    "description": "nil when the dungeon file doesn't have the dungeon",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.KeyForces"
+                        }
+                    ]
+                },
+                "interrupts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.KeyInterrupt"
+                    }
+                },
+                "lastPull": {
+                    "$ref": "#/definitions/models.KeyMeter"
+                },
+                "level": {
+                    "type": "integer"
+                },
+                "lusts": {
+                    "description": "Lusts is when the party got Bloodlust or a copy, on the key's clock.",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "mapID": {
+                    "type": "integer"
+                },
+                "overall": {
+                    "$ref": "#/definitions/models.KeyMeter"
+                },
+                "penaltyMS": {
+                    "type": "integer"
+                },
+                "players": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "plus2MS": {
+                    "type": "integer"
+                },
+                "plus3MS": {
+                    "type": "integer"
+                },
+                "projection": {
+                    "$ref": "#/definitions/models.KeyProjection"
+                },
+                "pulls": {
+                    "description": "Pulls is each pull that had priority mobs, in order.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.KeyPull"
+                    }
+                },
+                "quiet": {
+                    "description": "Quiet means the key is still running in the log, but nothing was logged for a few minutes, so its clock stops at\nthe last line: the game logs no end for an abandoned key.",
+                    "type": "boolean"
+                },
+                "reference": {
+                    "description": "reference/mplus-dungeons.json has the dungeon (avoidable list, forces)",
+                    "type": "boolean"
+                },
+                "specs": {
+                    "description": "player -\u003e specialization ID, from COMBATANT_INFO",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer"
+                    }
+                },
+                "spikes": {
+                    "description": "the worst bursts of party damage taken, worst first",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.KeySpike"
+                    }
+                },
+                "start": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "running",
+                        "timed",
+                        "depleted",
+                        "abandoned"
+                    ]
+                },
+                "stops": {
+                    "description": "must-stop casts and what happened to each",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.KeyStop"
+                    }
+                },
+                "timerMS": {
+                    "description": "the dungeon's time limit; 0 when Raider.IO doesn't list it",
+                    "type": "integer"
+                },
+                "wastedKicks": {
+                    "description": "kicks that interrupted nothing",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.KeyCast"
+                    }
+                }
+            }
+        },
+        "models.MeterPoint": {
+            "type": "object",
+            "properties": {
+                "d": {
+                    "type": "integer"
+                },
+                "h": {
+                    "type": "integer"
+                },
+                "t": {
+                    "type": "integer"
+                },
+                "tk": {
+                    "description": "damage taken so far; 0 in keys saved before Nov 8",
+                    "type": "integer"
+                }
+            }
+        },
+        "models.OverlaySettings": {
+            "type": "object",
+            "properties": {
+                "opacity": {
+                    "type": "integer",
+                    "maximum": 100,
+                    "minimum": 0
+                },
+                "show": {
+                    "type": "string",
+                    "enum": [
+                        "keys",
+                        "always",
+                        "off"
+                    ]
+                },
+                "split": {
+                    "description": "Split shows the pull and the whole key as two cards, one above the other, instead of one card.",
+                    "type": "boolean"
+                }
+            }
+        },
+        "models.PlayerReview": {
+            "type": "object",
+            "properties": {
+                "advice": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "class": {
+                    "type": "string"
+                },
+                "metrics": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.ReviewMetric"
+                    }
+                },
+                "player": {
+                    "type": "string"
+                },
+                "positive": {
+                    "type": "string"
+                },
+                "spec": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.PullSpan": {
+            "type": "object",
+            "properties": {
+                "endMS": {
+                    "type": "integer"
+                },
+                "startMS": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.ReadyCheck": {
+            "type": "object",
+            "properties": {
+                "dungeon": {
+                    "type": "string"
+                },
+                "players": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.ReadyPlayer"
+                    }
+                },
+                "sinceMS": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.ReadyPlayer": {
+            "type": "object",
+            "properties": {
+                "missing": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "notSeen": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "player": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.ReviewMetric": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "description": "shown shortened (\"2.1M\"), else as a whole number",
+                    "type": "boolean"
+                },
+                "help": {
+                    "description": "what the metric counts, for the page to show on hover",
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "partyRank": {
+                    "type": "integer"
+                },
+                "top": {
+                    "type": "number"
+                },
+                "total": {
+                    "description": "DPS and HPS: the key's damage or healing in all",
+                    "type": "number"
+                },
+                "totalName": {
+                    "description": "what Total is: \"damage\" or \"healing\"",
+                    "type": "string"
+                },
+                "usual": {
+                    "type": "number"
+                },
+                "value": {
+                    "type": "number"
+                }
+            }
+        },
+        "models.Settings": {
+            "type": "object",
+            "properties": {
+                "logsDir": {
+                    "type": "string"
+                },
+                "overlay": {
+                    "$ref": "#/definitions/models.OverlaySettings"
+                },
+                "region": {
+                    "type": "string",
+                    "enum": [
+                        "us",
+                        "eu",
+                        "kr",
+                        "tw"
+                    ]
+                }
+            }
+        },
+        "models.SettingsView": {
+            "type": "object",
+            "properties": {
+                "lastLogMS": {
+                    "type": "integer"
+                },
+                "logsDir": {
+                    "type": "string"
+                },
+                "logsDirFound": {
+                    "type": "boolean"
+                },
+                "minOpacity": {
+                    "type": "integer"
+                },
+                "overlay": {
+                    "$ref": "#/definitions/models.OverlaySettings"
+                },
+                "overlayShows": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "region": {
+                    "type": "string",
+                    "enum": [
+                        "us",
+                        "eu",
+                        "kr",
+                        "tw"
+                    ]
+                },
+                "regions": {
+                    "description": "Regions are the regions to pick from, OverlayShows when the overlay can show, and MinOpacity its least opacity.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "models.TrackPoint": {
+            "type": "object",
+            "properties": {
+                "map": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "t": {
+                    "type": "integer"
+                },
+                "x": {
+                    "type": "number"
+                },
+                "y": {
+                    "type": "number"
+                }
+            }
+        },
+        "models.UncountedNPC": {
+            "type": "object",
+            "properties": {
+                "deaths": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "npc": {
+                    "type": "integer"
+                }
+            }
+        }
+    }
+}

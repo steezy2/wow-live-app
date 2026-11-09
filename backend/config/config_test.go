@@ -1,0 +1,44 @@
+package config
+
+import (
+	"os"
+	"path/filepath"
+	"testing"
+)
+
+func TestRootFindsTheRulesAbove(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, RulesFile), nil, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	deep := filepath.Join(root, "backend", "cmd")
+	if err := os.MkdirAll(deep, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := Root(deep); err != nil || got != root {
+		t.Fatalf("Root = %q, %v; want %q", got, err, root)
+	}
+	if _, err := Root(t.TempDir()); err == nil {
+		t.Fatal("want an error outside the repo")
+	}
+}
+
+func TestLoadEnvSetsMissingKeysOnly(t *testing.T) {
+	path := filepath.Join(t.TempDir(), ".env")
+	text := "# comment\nWOW_TEST_A=\"one\"\nWOW_TEST_B = two\nnot a line\n"
+	if err := os.WriteFile(path, []byte(text), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("WOW_TEST_B", "already")
+	t.Setenv("WOW_TEST_A", "")
+	os.Unsetenv("WOW_TEST_A")
+	if err := LoadEnv(path); err != nil {
+		t.Fatal(err)
+	}
+	if os.Getenv("WOW_TEST_A") != "one" || os.Getenv("WOW_TEST_B") != "already" {
+		t.Fatalf("A=%q B=%q", os.Getenv("WOW_TEST_A"), os.Getenv("WOW_TEST_B"))
+	}
+	if err := LoadEnv(filepath.Join(t.TempDir(), "missing")); err != nil {
+		t.Fatalf("a missing .env is fine, got %v", err)
+	}
+}

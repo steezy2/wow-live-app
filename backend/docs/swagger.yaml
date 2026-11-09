@@ -1,0 +1,1181 @@
+basePath: /
+definitions:
+  controller.ChangeEvent:
+    properties:
+      version:
+        type: integer
+    type: object
+  controller.ErrorResponse:
+    properties:
+      error:
+        type: string
+    type: object
+  controller.OldKeys:
+    properties:
+      saved:
+        type: integer
+    type: object
+  models.Affix:
+    properties:
+      id:
+        type: integer
+      name:
+        type: string
+    type: object
+  models.Credentials:
+    properties:
+      id:
+        type: string
+      secret:
+        type: string
+    type: object
+  models.DungeonFloor:
+    properties:
+      maxX:
+        type: number
+      maxY:
+        type: number
+      minX:
+        type: number
+      minY:
+        type: number
+      tiles:
+        type: string
+      uiMapID:
+        type: integer
+    type: object
+  models.DungeonMap:
+    properties:
+      floors:
+        items:
+          $ref: '#/definitions/models.DungeonFloor'
+        type: array
+      walked:
+        items:
+          $ref: '#/definitions/models.TrackPoint'
+        type: array
+    type: object
+  models.ForcesPoint:
+    properties:
+      clockMS:
+        type: integer
+      pct:
+        type: number
+    type: object
+  models.KeyBoss:
+    properties:
+      endMS:
+        type: integer
+      kill:
+        type: boolean
+      name:
+        type: string
+      startMS:
+        type: integer
+    type: object
+  models.KeyBuffCheck:
+    properties:
+      missing:
+        items:
+          type: string
+        type: array
+      player:
+        type: string
+    type: object
+  models.KeyCast:
+    properties:
+      ability:
+        type: string
+      clockMS:
+        type: integer
+      kind:
+        enum:
+        - defensive
+        - healthstone
+        - health potion
+        - combat potion
+        - kick
+        - cc
+        type: string
+      player:
+        type: string
+    type: object
+  models.KeyDeath:
+    properties:
+      ability:
+        type: string
+      clockMS:
+        type: integer
+      defensive:
+        type: string
+      killer:
+        type: string
+      player:
+        type: string
+      ready:
+        items:
+          type: string
+        type: array
+    type: object
+  models.KeyDispel:
+    properties:
+      afterMS:
+        type: integer
+      by:
+        type: string
+      clockMS:
+        type: integer
+      player:
+        type: string
+      spell:
+        type: string
+    type: object
+  models.KeyForces:
+    properties:
+      at:
+        items:
+          $ref: '#/definitions/models.ForcesPoint'
+        type: array
+      count:
+        type: integer
+      needsCheck:
+        type: boolean
+      pct:
+        type: number
+      referencePct:
+        type: number
+      total:
+        type: integer
+      uncounted:
+        items:
+          $ref: '#/definitions/models.UncountedNPC'
+        type: array
+    type: object
+  models.KeyGhost:
+    properties:
+      killMS:
+        type: integer
+      name:
+        type: string
+      needByMS:
+        type: integer
+    type: object
+  models.KeyHit:
+    properties:
+      ability:
+        type: string
+      damage:
+        type: integer
+      player:
+        type: string
+    type: object
+  models.KeyInterrupt:
+    properties:
+      clockMS:
+        type: integer
+      kick:
+        description: the player's spell that did it ("Wind Shear"); empty in keys
+          saved before Nov 8
+        type: string
+      player:
+        type: string
+      spell:
+        type: string
+      target:
+        type: string
+    type: object
+  models.KeyMeter:
+    properties:
+      endMS:
+        type: integer
+      ongoing:
+        description: the pull is still being fought (no pullGapMS pause yet)
+        type: boolean
+      rows:
+        items:
+          $ref: '#/definitions/models.KeyMeterRow'
+        type: array
+      startMS:
+        type: integer
+    type: object
+  models.KeyMeterRow:
+    properties:
+      avoidable:
+        type: integer
+      class:
+        description: '"Mage", "DeathKnight"; "" when unknown'
+        type: string
+      damage:
+        type: integer
+      damageTaken:
+        type: integer
+      dispels:
+        type: integer
+      dps:
+        type: number
+      healing:
+        type: integer
+      hps:
+        type: number
+      interrupts:
+        type: integer
+      player:
+        type: string
+      priorityDamage:
+        description: damage into trash pulls' minibosses and into bosses
+        type: integer
+      purges:
+        type: integer
+    type: object
+  models.KeyMiniboss:
+    properties:
+      diedMS:
+        type: integer
+      name:
+        type: string
+      of:
+        type: integer
+      order:
+        type: integer
+    type: object
+  models.KeyProjection:
+    properties:
+      best:
+        items:
+          $ref: '#/definitions/models.KeyGhost'
+        type: array
+      chests:
+        type: integer
+      finalMS:
+        type: integer
+      highMS:
+        type: integer
+      lowMS:
+        type: integer
+      odds:
+        items:
+          type: number
+        type: array
+      runs:
+        type: integer
+      source:
+        description: '"3 of your runs, forces and bosses"'
+        type: string
+    type: object
+  models.KeyPull:
+    properties:
+      clockMS:
+        type: integer
+      healthPct:
+        type: number
+      late:
+        type: boolean
+      minibosses:
+        items:
+          $ref: '#/definitions/models.KeyMiniboss'
+        type: array
+      openingPct:
+        type: number
+      priorityPct:
+        type: number
+      pull:
+        type: integer
+    type: object
+  models.KeyReview:
+    properties:
+      baseline:
+        type: string
+      notes:
+        description: the party's must-stop casts and time between pulls
+        items:
+          type: string
+        type: array
+      party:
+        type: string
+      players:
+        items:
+          $ref: '#/definitions/models.PlayerReview'
+        type: array
+      points:
+        type: number
+      start:
+        type: integer
+    type: object
+  models.KeySpike:
+    properties:
+      clockMS:
+        type: integer
+      damage:
+        type: integer
+      members:
+        items:
+          $ref: '#/definitions/models.KeySpikeMember'
+        type: array
+      overlap:
+        type: boolean
+      partyCDs:
+        items:
+          type: string
+        type: array
+    type: object
+  models.KeySpikeMember:
+    properties:
+      defensive:
+        type: string
+      player:
+        type: string
+      ready:
+        items:
+          type: string
+        type: array
+      taken:
+        type: integer
+    type: object
+  models.KeyStatus:
+    properties:
+      idEnd:
+        type: string
+      limitPerHour:
+        type: number
+      pointsLeft:
+        type: number
+      problem:
+        type: string
+      set:
+        type: boolean
+      testedMS:
+        type: integer
+      works:
+        type: boolean
+    type: object
+  models.KeyStop:
+    properties:
+      by:
+        type: string
+      clockMS:
+        type: integer
+      intoMS:
+        type: integer
+      mob:
+        type: string
+      outcome:
+        enum:
+        - interrupted
+        - stopped
+        - went off
+        - died
+        type: string
+      pull:
+        type: integer
+      spell:
+        type: string
+    type: object
+  models.KeySummary:
+    properties:
+      chests:
+        type: integer
+      dungeon:
+        type: string
+      finalMS:
+        type: integer
+      level:
+        type: integer
+      start:
+        type: integer
+      status:
+        type: string
+    type: object
+  models.KeyTrack:
+    properties:
+      classes:
+        additionalProperties:
+          type: string
+        type: object
+      deaths:
+        items:
+          $ref: '#/definitions/models.TrackPoint'
+        type: array
+      meters:
+        additionalProperties:
+          items:
+            $ref: '#/definitions/models.MeterPoint'
+          type: array
+        description: each player's damage and healing so far, about every 2 s
+        type: object
+      players:
+        additionalProperties:
+          items:
+            $ref: '#/definitions/models.TrackPoint'
+          type: array
+        type: object
+      pulls:
+        description: each pull, in order; missing in keys saved before Nov 8
+        items:
+          $ref: '#/definitions/models.PullSpan'
+        type: array
+    type: object
+  models.KeyView:
+    properties:
+      activity:
+        additionalProperties:
+          format: float64
+          type: number
+        description: Activity is each player's share of their time alive in pulls
+          with a cast going or a hit landing (in %).
+        type: object
+      affixes:
+        items:
+          $ref: '#/definitions/models.Affix'
+        type: array
+      avoidableHits:
+        description: AvoidableHits is each player's avoidable damage by ability, most
+          first.
+        items:
+          $ref: '#/definitions/models.KeyHit'
+        type: array
+      betweenPulls:
+        description: BetweenPulls is the time between each pull and the one before
+          it (from the second pull), on the key's clock.
+        items:
+          type: integer
+        type: array
+      bosses:
+        items:
+          $ref: '#/definitions/models.KeyBoss'
+        type: array
+      buffs:
+        items:
+          $ref: '#/definitions/models.KeyBuffCheck'
+        type: array
+      casts:
+        items:
+          $ref: '#/definitions/models.KeyCast'
+        type: array
+      chests:
+        type: integer
+      clockMS:
+        type: integer
+      deaths:
+        items:
+          $ref: '#/definitions/models.KeyDeath'
+        type: array
+      debuffs:
+        description: dispellable debuffs on the party and how fast they came off
+        items:
+          $ref: '#/definitions/models.KeyDispel'
+        type: array
+      dungeon:
+        type: string
+      end:
+        type: integer
+      finalMS:
+        description: the game's own time for the key, once it ends
+        type: integer
+      forces:
+        allOf:
+        - $ref: '#/definitions/models.KeyForces'
+        description: nil when the dungeon file doesn't have the dungeon
+      interrupts:
+        items:
+          $ref: '#/definitions/models.KeyInterrupt'
+        type: array
+      lastPull:
+        $ref: '#/definitions/models.KeyMeter'
+      level:
+        type: integer
+      lusts:
+        description: Lusts is when the party got Bloodlust or a copy, on the key's
+          clock.
+        items:
+          type: integer
+        type: array
+      mapID:
+        type: integer
+      overall:
+        $ref: '#/definitions/models.KeyMeter'
+      penaltyMS:
+        type: integer
+      players:
+        items:
+          type: string
+        type: array
+      plus2MS:
+        type: integer
+      plus3MS:
+        type: integer
+      projection:
+        $ref: '#/definitions/models.KeyProjection'
+      pulls:
+        description: Pulls is each pull that had priority mobs, in order.
+        items:
+          $ref: '#/definitions/models.KeyPull'
+        type: array
+      quiet:
+        description: |-
+          Quiet means the key is still running in the log, but nothing was logged for a few minutes, so its clock stops at
+          the last line: the game logs no end for an abandoned key.
+        type: boolean
+      reference:
+        description: reference/mplus-dungeons.json has the dungeon (avoidable list,
+          forces)
+        type: boolean
+      specs:
+        additionalProperties:
+          type: integer
+        description: player -> specialization ID, from COMBATANT_INFO
+        type: object
+      spikes:
+        description: the worst bursts of party damage taken, worst first
+        items:
+          $ref: '#/definitions/models.KeySpike'
+        type: array
+      start:
+        type: integer
+      status:
+        enum:
+        - running
+        - timed
+        - depleted
+        - abandoned
+        type: string
+      stops:
+        description: must-stop casts and what happened to each
+        items:
+          $ref: '#/definitions/models.KeyStop'
+        type: array
+      timerMS:
+        description: the dungeon's time limit; 0 when Raider.IO doesn't list it
+        type: integer
+      wastedKicks:
+        description: kicks that interrupted nothing
+        items:
+          $ref: '#/definitions/models.KeyCast'
+        type: array
+    type: object
+  models.MeterPoint:
+    properties:
+      d:
+        type: integer
+      h:
+        type: integer
+      t:
+        type: integer
+      tk:
+        description: damage taken so far; 0 in keys saved before Nov 8
+        type: integer
+    type: object
+  models.OverlaySettings:
+    properties:
+      opacity:
+        maximum: 100
+        minimum: 0
+        type: integer
+      show:
+        enum:
+        - keys
+        - always
+        - "off"
+        type: string
+      split:
+        description: Split shows the pull and the whole key as two cards, one above
+          the other, instead of one card.
+        type: boolean
+    type: object
+  models.PlayerReview:
+    properties:
+      advice:
+        items:
+          type: string
+        type: array
+      class:
+        type: string
+      metrics:
+        items:
+          $ref: '#/definitions/models.ReviewMetric'
+        type: array
+      player:
+        type: string
+      positive:
+        type: string
+      spec:
+        type: string
+    type: object
+  models.PullSpan:
+    properties:
+      endMS:
+        type: integer
+      startMS:
+        type: integer
+    type: object
+  models.ReadyCheck:
+    properties:
+      dungeon:
+        type: string
+      players:
+        items:
+          $ref: '#/definitions/models.ReadyPlayer'
+        type: array
+      sinceMS:
+        type: integer
+    type: object
+  models.ReadyPlayer:
+    properties:
+      missing:
+        items:
+          type: string
+        type: array
+      notSeen:
+        items:
+          type: string
+        type: array
+      player:
+        type: string
+    type: object
+  models.ReviewMetric:
+    properties:
+      amount:
+        description: shown shortened ("2.1M"), else as a whole number
+        type: boolean
+      help:
+        description: what the metric counts, for the page to show on hover
+        type: string
+      name:
+        type: string
+      partyRank:
+        type: integer
+      top:
+        type: number
+      total:
+        description: 'DPS and HPS: the key''s damage or healing in all'
+        type: number
+      totalName:
+        description: 'what Total is: "damage" or "healing"'
+        type: string
+      usual:
+        type: number
+      value:
+        type: number
+    type: object
+  models.Settings:
+    properties:
+      logsDir:
+        type: string
+      overlay:
+        $ref: '#/definitions/models.OverlaySettings'
+      region:
+        enum:
+        - us
+        - eu
+        - kr
+        - tw
+        type: string
+    type: object
+  models.SettingsView:
+    properties:
+      lastLogMS:
+        type: integer
+      logsDir:
+        type: string
+      logsDirFound:
+        type: boolean
+      minOpacity:
+        type: integer
+      overlay:
+        $ref: '#/definitions/models.OverlaySettings'
+      overlayShows:
+        items:
+          type: string
+        type: array
+      region:
+        enum:
+        - us
+        - eu
+        - kr
+        - tw
+        type: string
+      regions:
+        description: Regions are the regions to pick from, OverlayShows when the overlay
+          can show, and MinOpacity its least opacity.
+        items:
+          type: string
+        type: array
+    type: object
+  models.TrackPoint:
+    properties:
+      map:
+        type: integer
+      name:
+        type: string
+      t:
+        type: integer
+      x:
+        type: number
+      "y":
+        type: number
+    type: object
+  models.UncountedNPC:
+    properties:
+      deaths:
+        type: integer
+      name:
+        type: string
+      npc:
+        type: integer
+    type: object
+info:
+  contact: {}
+  description: 'The site''s API: the live Mythic+ key read from the combat log.'
+  title: WoW Live API
+  version: "1"
+paths:
+  /api/mplus/dungeons/{mapID}/floors/{uiMapID}/tiles/{x}/{y}:
+    get:
+      parameters:
+      - description: the dungeon's map ID (challenge mode ID)
+        in: path
+        name: mapID
+        required: true
+        type: integer
+      - description: the floor's map ID in the combat log
+        in: path
+        name: uiMapID
+        required: true
+        type: integer
+      - description: tile column, 0 to 3
+        in: path
+        name: x
+        required: true
+        type: integer
+      - description: tile row, 0 to 3
+        in: path
+        name: "y"
+        required: true
+        type: integer
+      produces:
+      - image/webp
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+        "502":
+          description: Keystone.guru failed
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+      summary: 'One map tile of a dungeon floor (384 by 256 WebP, Keystone.guru''s
+        zoom 2: 4 by 4 tiles a floor)'
+      tags:
+      - mplus
+  /api/mplus/dungeons/{mapID}/map:
+    get:
+      parameters:
+      - description: the dungeon's map ID (challenge mode ID)
+        in: path
+        name: mapID
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.DungeonMap'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+      summary: 'A dungeon''s map: its floors with Keystone.guru tiles, and where parties
+        have walked in its saved runs'
+      tags:
+      - mplus
+  /api/mplus/events:
+    get:
+      description: |-
+        Server-sent events: a "change" event with the keys' new version whenever the running key or the
+        saved keys change, at most one every 250 ms, and a comment line every 15 s while nothing does. The
+        page then reads the endpoints it shows again.
+      produces:
+      - text/event-stream
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/controller.ChangeEvent'
+      summary: Notices that the keys changed
+      tags:
+      - mplus
+  /api/mplus/keys:
+    delete:
+      responses:
+        "204":
+          description: No Content
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+      summary: Delete every saved Mythic+ key
+      tags:
+      - mplus
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.KeySummary'
+            type: array
+      summary: The saved Mythic+ keys, newest first
+      tags:
+      - mplus
+  /api/mplus/keys/{start}:
+    delete:
+      parameters:
+      - description: the key's start (ms since the epoch)
+        in: path
+        name: start
+        required: true
+        type: integer
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+      summary: Delete one saved Mythic+ key
+      tags:
+      - mplus
+    get:
+      parameters:
+      - description: the key's start (ms since the epoch)
+        in: path
+        name: start
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.KeyView'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+      summary: One saved Mythic+ key
+      tags:
+      - mplus
+  /api/mplus/keys/{start}/review:
+    get:
+      parameters:
+      - description: the key's start (ms since the epoch)
+        in: path
+        name: start
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.KeyReview'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+        "503":
+          description: no Warcraft Logs credentials
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+      summary: A finished key's review, if one was made
+      tags:
+      - mplus
+    post:
+      parameters:
+      - description: the key's start (ms since the epoch)
+        in: path
+        name: start
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.KeyReview'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+        "409":
+          description: the key is still running
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+        "429":
+          description: fewer than 100 Warcraft Logs points left this hour
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+        "502":
+          description: Warcraft Logs failed
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+        "503":
+          description: no Warcraft Logs credentials
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+      summary: Review a finished key against Warcraft Logs' top runs and the players'
+        earlier runs (spends points)
+      tags:
+      - mplus
+  /api/mplus/keys/{start}/track:
+    get:
+      parameters:
+      - description: 'the key''s start (ms since the epoch): the running key''s, the
+          last one''s or a saved one''s'
+        in: path
+        name: start
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.KeyTrack'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+      summary: Where a key's party went and its mobs died, for the map
+      tags:
+      - mplus
+  /api/mplus/live:
+    get:
+      description: |-
+        The key being played (its clock read now, death penalty included) or, between keys, the last one
+        that ended. The page reads it again on each notice from /api/mplus/events.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.KeyView'
+        "204":
+          description: No key in the combat log yet
+      summary: The running Mythic+ key, or the last one
+      tags:
+      - mplus
+  /api/mplus/ready:
+    get:
+      description: |-
+        While the party is in a Mythic dungeon with no key running: each member's missing flask, food and
+        party buffs, and those not seen since the party zoned in (from the combat log, so a buff from before
+        logging started there is never seen). Read again on each notice from /api/mplus/events.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.ReadyCheck'
+        "204":
+          description: Not in a Mythic dungeon between keys
+      summary: The ready check before the next key
+      tags:
+      - mplus
+  /api/settings:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.SettingsView'
+      summary: The desktop app's settings
+      tags:
+      - settings
+    put:
+      consumes:
+      - application/json
+      description: |-
+        The log folder and the overlay change right away; a new region's affix names show from the next
+        start.
+      parameters:
+      - description: the settings
+        in: body
+        name: settings
+        required: true
+        schema:
+          $ref: '#/definitions/models.Settings'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.SettingsView'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+      summary: Save the desktop app's settings
+      tags:
+      - settings
+  /api/settings/read-keys:
+    post:
+      description: |-
+        Reads every combat log in the folder and saves each finished key, so the estimate has earlier runs
+        to go on. Takes about a minute for a few hundred MB of logs.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/controller.OldKeys'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+      summary: Save the keys already in the log folder
+      tags:
+      - settings
+  /api/settings/warcraftlogs:
+    delete:
+      responses:
+        "204":
+          description: No Content
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+      summary: Remove the saved Warcraft Logs keys
+      tags:
+      - settings
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.KeyStatus'
+      summary: Whether Warcraft Logs keys are saved, and their last test (never the
+        secret)
+      tags:
+      - settings
+    put:
+      consumes:
+      - application/json
+      description: |-
+        Gets a token and reads the points left this hour, then saves the keys in Windows Credential
+        Manager. With force=true they're saved even when the test fails.
+      parameters:
+      - description: the client ID and secret
+        in: body
+        name: keys
+        required: true
+        schema:
+          $ref: '#/definitions/models.Credentials'
+      - description: save even if the test fails
+        in: query
+        name: force
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.KeyStatus'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+        "422":
+          description: Warcraft Logs turned the keys down
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+        "500":
+          description: Windows Credential Manager failed
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+        "502":
+          description: Warcraft Logs couldn't be reached
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+      summary: Test and save the Warcraft Logs client ID and secret
+      tags:
+      - settings
+  /api/settings/warcraftlogs/test:
+    post:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.KeyStatus'
+        "404":
+          description: No keys saved
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+        "422":
+          description: Warcraft Logs turned the keys down
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+        "502":
+          description: Warcraft Logs couldn't be reached
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+      summary: Test the saved Warcraft Logs keys again
+      tags:
+      - settings
+swagger: "2.0"

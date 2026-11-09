@@ -1,0 +1,136 @@
+package service
+
+import (
+	"context"
+	"errors"
+	"io/fs"
+	"reflect"
+	"testing"
+
+	"wow-live/backend/models"
+)
+
+// reviewedKey is a +12 of 25:00 with an Arcane Mage and a Restoration Shaman: the mage died with Ice Block ready,
+// took the most avoidable damage and kicked less while two must-stop casts went off; a fifth of their damage went into
+// priority mobs, and they drank a potion 5 s before the one Bloodlust.
+var reviewedKey = models.Key{Start: 2, MapID: 585, Level: 12, Status: "timed", FinalMS: 1_500_000,
+	Players: []string{"Mage", "Shaman"}, Specs: map[string]int{"Mage": 62, "Shaman": 264},
+	Overall: models.KeyMeter{Rows: []models.KeyMeterRow{
+		{Player: "Mage", DPS: 100_000, Interrupts: 2, DamageTaken: 30_000_000, Avoidable: 4_000_000,
+			Damage: 150_000_000, PriorityDamage: 30_000_000},
+		{Player: "Shaman", HPS: 50_000, Healing: 75_000_000, Interrupts: 9, Dispels: 6, DamageTaken: 20_000_000, Avoidable: 1_000_000}}},
+	Deaths: []models.KeyDeath{{Player: "Mage", ClockMS: 723_000, Ability: "Light Bolt", Ready: []string{"Ice Block"}}},
+	Stops:  []models.KeyStop{{Outcome: "went off"}, {Outcome: "went off"}, {Outcome: "interrupted", By: "Shaman"}},
+	AvoidableHits: []models.KeyHit{{Player: "Mage", Ability: "Burrow", Damage: 4_000_000},
+		{Player: "Shaman", Ability: "Burrow", Damage: 1_000_000}},
+	Activity: map[string]float64{"Mage": 82.5, "Shaman": 70}, Lusts: []int64{60_000},
+	Casts: []models.KeyCast{{Player: "Mage", Kind: "combat potion", ClockMS: 55_000},
+		{Player: "Mage", Ability: "Ring of Frost", Kind: "cc", ClockMS: 90_000}},
+	BetweenPulls: []int64{20_000, 48_000, 12_000}}
+
+func TestBuildReview(t *testing.T) {
+	// The top Arcane runs' median is 105k; the shaman had no baseline but kicked 4 a run before.
+	baselines := map[string][]models.MPlusRanking{"Mage": {{Amount: 50_000}, {Amount: 105_000}, {Amount: 200_000}}}
+	earlier := []models.Key{{Overall: models.KeyMeter{Rows: []models.KeyMeterRow{{Player: "Shaman", Interrupts: 4}}}}}
+	got := buildReview(reviewedKey, earlier, baselines, []float64{20_000, 25_000, 40_000})
+	mage, shaman := got.Players[0], got.Players[1]
+	// Everyone gets DPS then HPS with their totals; only the role's main one is against top runs.
+	if m, s := mage.Metrics, shaman.Metrics; m[0].Name != "DPS" || m[0].Top != 105_000 || m[0].Total != 150_000_000 ||
+		m[1].Name != "HPS" || m[1].Top != 0 || s[0].Name != "DPS" || s[1].Name != "HPS" || s[1].Total != 75_000_000 ||
+		s[1].TotalName != "healing" {
+		t.Fatalf("metrics = %+v, %+v; want DPS and HPS first with totals, the mage's DPS against 105k", m[:2], s[:2])
+	}
+	wantAdvice := []string{"Died to Light Bolt at 12:03 with Ice Block ready",
+		"Took 4.0M avoidable damage, the most in the group, most of it from Burrow",
+		"2 must-stop casts went off; you kicked 2"}
+	if !reflect.DeepEqual(mage.Advice, wantAdvice) {
+		t.Errorf("mage advice = %q\nwant %q", mage.Advice, wantAdvice)
+	}
+	if shaman.Advice == nil {
+		t.Error("shaman advice is nil; want an empty list for the page")
+	}
+	for _, tc := range []struct{ player, want string }{
+		{mage.Positive, "DPS 100k, 95% of top Arcane Mages at +12"},
+		{shaman.Positive, "Better kicks than your usual here: 9 (usually 4)"},
+	} {
+		if tc.player != tc.want {
+			t.Errorf("positive = %q, want %q", tc.player, tc.want)
+		}
+	}
+	metrics := map[string]float64{}
+	for _, m := range mage.Metrics {
+		metrics[m.Name] = m.Value
+	}
+	if _, wasted := metrics["wasted %"]; wasted || metrics["priority %"] != 20 || metrics["active %"] != 82.5 ||
+		metrics["potions at lust"] != 1 || metrics["crowd control"] != 1 {
+		t.Errorf("mage metrics = %v; want 20%% priority, 82.5%% active, a potion at lust, a CC, no wasted %%", metrics)
+	}
+	wantNotes := []string{"Stopped 1 of 3 must-stop casts (33%)",
+		"1:20 between pulls in all; the longest 0:48, before pull 3"}
+	if !reflect.DeepEqual(got.Notes, wantNotes) {
+		t.Errorf("notes = %q, want %q", got.Notes, wantNotes)
+	}
+	// 50M taken in 1,500 s is 33,333 a second, against the similar runs' median of 25,000.
+	if got.Party != "The party took 1.3× the damage per second of 3 top +12 runs of similar time" {
+		t.Errorf("party = %q", got.Party)
+	}
+}
+
+// fakeBaselines is Warcraft Logs for the reviewer: a fixed number of points left, and counting its rankings asks.
+type fakeBaselines struct {
+	left float64
+	asks int
+}
+
+func (f *fakeBaselines) MPlusEncounters(context.Context) (map[string]int, error) {
+	return map[string]int{"Voidscar Arena": 12923}, nil
+}
+func (f *fakeBaselines) MPlusRankings(context.Context, int, int, string, string, string) ([]models.MPlusRanking, error) {
+	f.asks++
+	return []models.MPlusRanking{{Amount: 1, DurationMS: 1_500_000, Code: "x", FightID: 1}}, nil
+}
+func (f *fakeBaselines) RunDamageTaken(context.Context, string, int) (int64, error) { return 1, nil }
+func (f *fakeBaselines) PointsLeft(context.Context) (float64, error)                { return f.left, nil }
+
+type memReviews map[int64]models.KeyReview
+
+func (m memReviews) SaveReview(r models.KeyReview) error { m[r.Start] = r; return nil }
+func (m memReviews) Review(start int64) (models.KeyReview, error) {
+	r, ok := m[start]
+	if !ok {
+		return r, fs.ErrNotExist
+	}
+	return r, nil
+}
+
+func TestReviewerGuardsPointsAndKeepsReviews(t *testing.T) {
+	keys := newTracker(t, nil)
+	key := reviewedKey
+	key.Dungeon = "Voidscar Arena"
+	keys.history = []models.Key{key}
+	source := &fakeBaselines{left: 50}
+	r := Reviewer{Keys: keys, Baselines: source, Store: memReviews{}}
+	if _, err := r.Review(context.Background(), key.Start); !errors.Is(err, ErrNoPoints) {
+		t.Fatalf("with 50 points left: %v, want ErrNoPoints", err)
+	}
+	source.left = 900
+	if _, err := r.Review(context.Background(), key.Start); err != nil || source.asks != 2 {
+		t.Fatalf("review: %v after %d rankings asks; want one per player", err, source.asks)
+	}
+	if _, err := r.Review(context.Background(), key.Start); err != nil || source.asks != 2 {
+		t.Fatalf("second review asked Warcraft Logs again (%d asks, %v); want the kept one", source.asks, err)
+	}
+	if _, err := r.Cached(99); !errors.Is(err, ErrNoSuchKey) {
+		t.Fatalf("an unreviewed key: %v, want ErrNoSuchKey", err)
+	}
+}
+
+func TestOlderSavedKeysGetEmptyLists(t *testing.T) {
+	keys := newTracker(t, nil)
+	keys.history = []models.Key{{Start: 5, Status: "timed"}} // saved before stops, spikes and the rest existed
+	got, err := keys.SavedKey(5)
+	if err != nil || got.Stops == nil || got.WastedKicks == nil || got.Debuffs == nil || got.Spikes == nil ||
+		got.AvoidableHits == nil {
+		t.Fatalf("saved key = %+v, %v; want empty lists, not null", got.Key, err)
+	}
+}

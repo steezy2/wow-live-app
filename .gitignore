@@ -1,0 +1,6 @@
+.env
+logs/
+bin/
+backend/cmd/app/embed/*
+!backend/cmd/app/embed/README.md
+backend/cmd/app/*.syso

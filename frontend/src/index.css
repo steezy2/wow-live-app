@@ -1,0 +1,722 @@
+:root {
+  /* Surfaces step up in lightness; each colour has one meaning: accent = you/now, good, warn, bad. */
+  --bg: #0b0d12;
+  --panel: #151922;
+  --panel-2: #1c212c;
+  --border: #272d3a;
+  --text: #e7eaf0;
+  --muted: #9aa3b5;
+  --accent: #5b8def;
+  --good: #34d399;
+  --warn: #fbbf24;
+  --bad: #f87171;
+  --nav: 48px;
+  /* Spacing and type scales: every gap and size below comes from these. */
+  --s1: 4px;
+  --s2: 8px;
+  --s3: 12px;
+  --s4: 16px;
+  --s5: 24px;
+  --s6: 32px;
+  --t-small: 12px;
+  --t-body: 14px;
+  --t-h2: 16px;
+  --t-h1: 28px;
+  --t-clock: 56px;
+  color-scheme: dark;
+  font-size: var(--t-body);
+  font-variant-numeric: tabular-nums;
+  font-family: system-ui, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+body {
+  margin: 0;
+}
+
+.page {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: var(--s5);
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.small {
+  font-size: 0.85rem;
+}
+
+.warning {
+  color: var(--warn);
+}
+
+.title {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+h1 {
+  margin: 0;
+  font-size: var(--t-h1);
+}
+
+h2 {
+  font-size: var(--t-h2);
+  margin: 0 0 var(--s2);
+}
+
+.level {
+  color: var(--accent);
+}
+
+.status {
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: var(--panel);
+}
+
+.status.timed {
+  color: var(--good);
+}
+
+.status.depleted,
+.status.abandoned {
+  color: var(--bad);
+}
+
+.clock {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 16px 0 8px;
+}
+
+.big {
+  font-size: var(--t-clock);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.chests {
+  margin-left: auto;
+  font-weight: 600;
+}
+
+.chests.c3,
+.chests.c2 {
+  color: var(--good);
+}
+
+.chests.c1 {
+  color: var(--warn);
+}
+
+.chests.c0 {
+  color: var(--bad);
+}
+
+.bar {
+  position: relative;
+  height: 18px;
+  background: var(--panel);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.fill {
+  height: 100%;
+  background: var(--accent);
+  opacity: 0.55;
+}
+
+.mark,
+.boss,
+.death {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+}
+
+.mark {
+  background: var(--text);
+  opacity: 0.6;
+}
+
+.boss {
+  background: var(--good);
+}
+
+.death {
+  background: var(--bad);
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.list li {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 10px;
+  background: var(--panel);
+  border-radius: 4px;
+  margin-bottom: 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  min-height: calc(100vh - var(--nav));
+}
+
+.side {
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+  max-height: calc(100vh - var(--nav));
+  position: sticky;
+  top: var(--nav);
+}
+
+.side h2 {
+  margin-top: 16px;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.item {
+  display: flex;
+  align-items: stretch;
+  border-radius: 4px;
+  text-align: left;
+  padding: 6px 8px;
+}
+
+.item.active,
+.item:hover {
+  background: var(--bg);
+}
+
+.item .open {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  padding: 0;
+}
+
+.delete {
+  color: var(--muted);
+  padding: 0 4px;
+}
+
+.delete:hover,
+.clear:hover {
+  color: var(--bad);
+}
+
+.clear {
+  margin-top: 12px;
+  color: var(--muted);
+  text-align: left;
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-top: 16px;
+}
+
+.panel p {
+  margin: 4px 0;
+}
+
+.list li.stack {
+  flex-direction: column;
+  gap: 2px;
+}
+
+.scroll {
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.result {
+  margin: 16px 0 8px;
+  padding: 12px 16px;
+  border-radius: 6px;
+  background: var(--panel);
+  font-size: 1.6rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.result.timed {
+  color: var(--good);
+}
+
+.result.depleted,
+.result.abandoned {
+  color: var(--bad);
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--s4);
+  margin-top: var(--s5);
+}
+
+@media (max-width: 1280px) {
+  .cards {
+    grid-template-columns: 1fr;
+  }
+}
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: var(--s3) var(--s4);
+  /* Room for five players, so the cards don't jump as rows arrive. */
+  min-height: 210px;
+}
+
+.card-row {
+  display: grid;
+  gap: var(--s2);
+  align-items: center;
+  padding: var(--s1) 0;
+}
+
+.card-row > span {
+  text-align: right;
+}
+
+.card-row > .name,
+.card-head > span:first-child {
+  text-align: left;
+}
+
+.card-head {
+  font-size: var(--t-small);
+}
+
+.card-row {
+  position: relative;
+}
+
+.card-row > span:not(.meter-bar) {
+  position: relative;
+  padding: 0 var(--s1);
+}
+
+.meter-bar {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 4px;
+  border-left: 3px solid var(--bar);
+  background: color-mix(in srgb, var(--bar) 22%, transparent);
+}
+
+.tabs {
+  margin-top: var(--s5);
+}
+
+.tabs [role='tablist'] {
+  display: flex;
+  gap: var(--s4);
+  margin-bottom: var(--s3);
+  border-bottom: 1px solid var(--panel);
+}
+
+.tabs [role='tab'] {
+  padding: var(--s2) 0;
+  color: var(--muted);
+  border-bottom: 2px solid transparent;
+}
+
+.tabs [role='tab'][aria-selected='true'] {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+  }
+}
+
+.ghost {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  border-left: 2px dashed var(--muted);
+}
+
+.forces {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--s3);
+  align-items: center;
+  margin-top: var(--s2);
+}
+
+.fill.ahead {
+  background: var(--good);
+}
+
+.fill.behind {
+  background: var(--warn);
+}
+
+.bad {
+  color: var(--bad);
+}
+
+.map {
+  margin-top: var(--s5);
+}
+
+.map-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+  align-items: center;
+  margin-bottom: var(--s2);
+}
+
+.map-controls button,
+.map-controls select {
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--panel);
+  border-radius: 4px;
+  padding: var(--s1) var(--s2);
+}
+
+.map-controls button[aria-pressed='true'] {
+  border-color: var(--accent);
+}
+
+/* The replay's slider with its boss kills and deaths under it, at the same width so a mark sits under the thumb
+ * at its moment (inset by half the thumb). */
+.replay-slider {
+  flex: 1;
+  min-width: 120px;
+  display: grid;
+  gap: 2px;
+}
+
+.replay-slider input {
+  width: 100%;
+  margin: 0;
+}
+
+.map-canvas {
+  width: 100%;
+  height: auto;
+  background: var(--panel);
+  border-radius: 6px;
+}
+
+.map-marks {
+  position: relative;
+  height: 6px;
+  margin: 0 8px;
+}
+
+/* A table wider than its panel (the review's metrics) scrolls sideways inside it. */
+.table-scroll {
+  overflow-x: auto;
+}
+
+.review-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: var(--s3) 0;
+}
+
+.review-table th,
+.review-table td {
+  text-align: right;
+  padding: var(--s1) var(--s2);
+  vertical-align: top;
+}
+
+.review-table th:first-child,
+.review-table td:first-child {
+  text-align: left;
+}
+
+.review-player {
+  margin-top: var(--s3);
+}
+
+.review-player p {
+  margin: 2px 0;
+}
+
+.good {
+  color: var(--good);
+}
+
+.action {
+  background: var(--accent);
+  color: var(--text);
+  border-radius: 4px;
+  padding: var(--s2) var(--s3);
+}
+
+.topnav {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  height: var(--nav);
+  display: flex;
+  align-items: stretch;
+  gap: var(--s5);
+  padding: 0 var(--s5);
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+
+.brand {
+  align-self: center;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.section-tab {
+  display: flex;
+  align-items: center;
+  background: none;
+  border: none;
+  font: inherit;
+  cursor: pointer;
+  color: var(--muted);
+  text-decoration: none;
+  border-bottom: 2px solid transparent;
+}
+
+.section-tab[aria-current='page'] {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+
+.attention {
+  border-left: 3px solid var(--warn);
+}
+
+.map-panel {
+  margin-top: var(--s5);
+}
+
+.map-panel .map {
+  margin-top: 0;
+}
+
+/* The map and its four meter cards fit one screen: the cards 2 × 2 beside the map, or in a row under it. */
+.map-panel .map-canvas {
+  display: block;
+  max-height: calc(100vh - 140px);
+  object-fit: contain;
+}
+
+.map-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 520px;
+  gap: var(--s4);
+  align-items: start;
+}
+
+.replay-meters {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--s2);
+}
+
+.replay-meters .card {
+  min-height: 0;
+  padding: var(--s2) var(--s3);
+  font-size: var(--t-small);
+}
+
+@media (max-width: 1400px) {
+  .map-body {
+    grid-template-columns: 1fr;
+  }
+
+  .replay-meters {
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  }
+}
+
+.settings {
+  display: grid;
+  gap: 12px;
+  max-width: 640px;
+}
+
+/* The Settings tab: one panel per section, stacked. */
+.settings-page {
+  display: grid;
+  gap: var(--s4);
+  max-width: 680px;
+}
+
+.settings-page .settings p {
+  margin: 0;
+}
+
+.settings label {
+  display: grid;
+  gap: 4px;
+}
+
+.settings .actions {
+  display: flex;
+  gap: 8px;
+}
+
+.settings label.inline {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* The overlay window over the game: see-through, compact. */
+html:has(.overlay),
+html:has(.overlay) body {
+  background: transparent;
+}
+
+.overlay {
+  --wails-draggable: drag; /* the app moves the window by any part of it while it takes clicks */
+  --t-clock: 1.5rem;
+  box-sizing: border-box;
+  min-height: 100vh;
+  align-content: start;
+  display: grid;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  line-height: 1.25;
+  background: color-mix(in srgb, var(--bg) var(--overlay-bg, 75%), transparent); /* the opacity setting */
+}
+
+/* The opacity setting reaches the cards and bars too, so at 0% only the text and the bars' colours are left. */
+.overlay .card,
+.overlay .bar {
+  background: color-mix(in srgb, var(--panel) var(--overlay-bg, 75%), transparent);
+  border-color: color-mix(in srgb, var(--border) var(--overlay-bg, 75%), transparent);
+}
+
+.overlay .bar {
+  height: 10px;
+}
+
+.overlay .forces {
+  margin-top: 0;
+}
+
+.overlay .card-row {
+  padding: 0;
+}
+
+.overlay p {
+  margin: 0;
+}
+
+.overlay .card {
+  min-height: 0;
+  padding: 2px 4px;
+}
+
+.overlay .card h2 {
+  font-size: 0.78rem;
+  margin: 0;
+}
+
+/* Strip mode: an overlay made this short keeps only the clock, timer, forces and deaths. */
+@media (max-height: 160px) {
+  .overlay-extra {
+    display: none;
+  }
+}
+
+.overlay.moving {
+  outline: 2px dashed var(--accent);
+  outline-offset: -2px;
+}
+
+/* The key's damage graph: lines per player, faint axes, boss kills and deaths marked. */
+.graph {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.graph-axis {
+  stroke: var(--border);
+  fill: var(--muted);
+  font-size: 12px;
+}
+
+.graph-axis text,
+text.graph-axis {
+  stroke: none;
+}
+
+.graph-boss {
+  stroke: var(--good);
+  stroke-dasharray: 4 4;
+}
+
+.graph-death {
+  stroke: var(--bad);
+  stroke-width: 2;
+}
+
+/* The healing graph's party lines: all the healing, and the damage it has to keep up with. */
+polyline.graph-healing {
+  stroke: var(--text);
+  stroke-dasharray: 6 3;
+}
+
+span.graph-healing {
+  color: var(--text);
+}
+
+polyline.graph-taken {
+  stroke: var(--bad);
+}
+
+span.graph-taken {
+  color: var(--bad);
+}
