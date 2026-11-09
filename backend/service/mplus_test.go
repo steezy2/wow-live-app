@@ -221,6 +221,25 @@ var earlierRun = models.Key{MapID: 585, Level: 10, Status: "timed", FinalMS: 1_5
 	Forces: &models.KeyForces{At: []models.ForcesPoint{{ClockMS: 100_000, Pct: 25}, {ClockMS: 200_000, Pct: 50},
 		{ClockMS: 300_000, Pct: 60}, {ClockMS: 1_200_000, Pct: 100}}}}
 
+// TestKillLoggedOnlyAsPartyKillCounts: the game sometimes logs a party's kill as PARTY_KILL with no UNIT_DIED (Nov 9's
+// Blinding Vale +13 missed 32 forces that way); either line counts the mob's forces, once.
+func TestKillLoggedOnlyAsPartyKillCounts(t *testing.T) {
+	keys := newTracker(t, nil)
+	mob := func(id string) string {
+		return `Creature-0-3882-2859-27547-245336-` + id + `,"Radiant Spellsower",0x10a48,0x80000000`
+	}
+	feed(t, keys,
+		`11/4/2026 19:01:00.000-7  CHALLENGE_MODE_START,"Voidscar Arena",2923,585,10,[9]`,
+		`11/4/2026 19:01:30.000-7  PARTY_KILL,`+testPlayer+`,`+mob("00006BE4EA")+`,0`,
+		`11/4/2026 19:01:31.000-7  PARTY_KILL,`+testPlayer+`,`+mob("00006BE4EB")+`,0`,
+		`11/4/2026 19:01:31.000-7  UNIT_DIED,0000000000000000,nil,0x80000000,0x80000000,`+mob("00006BE4EB")+`,0`,
+	)
+	got, _ := keys.Latest(0)
+	if f := got.Forces; f == nil || f.Count != 20 {
+		t.Fatalf("forces = %+v; want 20: the PARTY_KILL-only mob counted, the one with both lines once", f)
+	}
+}
+
 func TestProjectionFromForcesAndBosses(t *testing.T) {
 	for _, tc := range []struct {
 		name   string

@@ -191,9 +191,9 @@ func (k *KeyTracker) Add(line models.LogLine) {
 			run.auras[f[0]] = auraIDs(f)
 			run.party = append(run.party, f[0])
 		}
-	case "UNIT_DIED":
+	case "UNIT_DIED", "PARTY_KILL": // the game sometimes logs a party's kill only as PARTY_KILL
 		switch {
-		case len(f) >= 9 && strings.HasPrefix(f[4], "Player-") && f[len(f)-1] != "1":
+		case line.Event == "UNIT_DIED" && len(f) >= 9 && strings.HasPrefix(f[4], "Player-") && f[len(f)-1] != "1":
 			k.death(line.Time, f)
 		case len(f) >= 5:
 			k.mobDeathAt(line.Time, f[4])
