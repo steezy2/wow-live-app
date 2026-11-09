@@ -1,0 +1,4 @@
+# Go files stay LF on every checkout (gofmt and the Go tools expect it).
+*.go text eol=lf
+go.mod text eol=lf
+*.sh text eol=lf
