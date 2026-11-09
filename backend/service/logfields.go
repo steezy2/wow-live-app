@@ -1,6 +1,7 @@
 package service
 
 import (
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -47,6 +48,14 @@ type specInfo struct {
 	Class, Name string
 	Healer      bool
 }
+
+// label is the spec and class with spaces, as players say them: "Beast Mastery Hunter", "Blood Death Knight".
+func (s specInfo) label() string {
+	return spaced.ReplaceAllString(s.Name+" "+s.Class, "$1 $2")
+}
+
+// spaced finds a lower-case letter followed by an upper-case one, where Warcraft Logs' names drop a space.
+var spaced = regexp.MustCompile(`([a-z])([A-Z])`)
 
 // specs is each specialization ID's class and name.
 var specs = map[int]specInfo{

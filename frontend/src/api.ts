@@ -248,7 +248,7 @@ export interface KeyReview {
   start: number
   players: {
     player: string
-    class: string
+    /** The spec and class, as the page shows them ("Blood Death Knight"). */
     spec: string
     metrics: ReviewMetric[]
     advice: string[]

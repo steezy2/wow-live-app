@@ -587,8 +587,6 @@ definitions:
         items:
           type: string
         type: array
-      class:
-        type: string
       metrics:
         items:
           $ref: '#/definitions/models.ReviewMetric'
@@ -598,6 +596,8 @@ definitions:
       positive:
         type: string
       spec:
+        description: the spec and class, as the page shows them
+        example: Blood Death Knight
         type: string
     type: object
   models.PullSpan:

@@ -89,7 +89,7 @@ func buildReview(key models.Key, history []models.Key, baselines map[string][]mo
 	for _, player := range key.Players {
 		spec := specs[key.Specs[player]]
 		row := rows[player]
-		pr := models.PlayerReview{Player: player, Class: spec.Class, Spec: spec.Name, Advice: []string{}}
+		pr := models.PlayerReview{Player: player, Spec: spec.label(), Advice: []string{}}
 		for _, m := range reviewed {
 			value := m.value(key, row)
 			if math.IsNaN(value) { // a key saved before the metric existed
@@ -178,8 +178,8 @@ func advice(key models.Key, player string, spec specInfo, metrics []models.Revie
 		out = append(out, fmt.Sprintf("%d must-stop casts went off; you kicked %.0f", wentOff, k.Value))
 	}
 	if main := byName[mainMetric(spec)]; main.Top > 0 && main.Value < lowShare*main.Top {
-		out = append(out, fmt.Sprintf("%s %s, %.0f%% of top %s %ss at +%d in similar time (%s)", main.Name,
-			short(main.Value), 100*main.Value/main.Top, spec.Name, spec.Class, key.Level, short(main.Top)))
+		out = append(out, fmt.Sprintf("%s %s, %.0f%% of top %ss at +%d in similar time (%s)", main.Name,
+			short(main.Value), 100*main.Value/main.Top, spec.label(), key.Level, short(main.Top)))
 	}
 	if readyIn, ready := unusedDefensives(key, player); readyIn >= 2 {
 		out = append(out, fmt.Sprintf("Took big hits with %s ready in %d damage spikes", ready, readyIn))
@@ -268,8 +268,8 @@ func partyNotes(key models.Key) []string {
 func positive(key models.Key, spec specInfo, metrics []models.ReviewMetric) string {
 	main := metrics[slices.IndexFunc(metrics, func(m models.ReviewMetric) bool { return m.Name == mainMetric(spec) })]
 	if main.Top > 0 && main.Value >= highShare*main.Top {
-		return fmt.Sprintf("%s %s, %.0f%% of top %s %ss at +%d", main.Name, short(main.Value),
-			100*main.Value/main.Top, spec.Name, spec.Class, key.Level)
+		return fmt.Sprintf("%s %s, %.0f%% of top %ss at +%d", main.Name, short(main.Value),
+			100*main.Value/main.Top, spec.label(), key.Level)
 	}
 	all := make([]reviewMetric, len(metrics)) // the rules of each metric, in the same order
 	for i, m := range metrics {
