@@ -14,3 +14,4 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 
 ### Fixed
 - The damage graph's last time label is no longer cut off at the right edge.
+- Enemy forces count a kill the game logs only as `PARTY_KILL`, with no `UNIT_DIED`: a timed Blinding Vale +13 read 654/686 and asked for the dungeon file to be checked, when the file was right.
