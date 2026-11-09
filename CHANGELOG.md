@@ -7,6 +7,9 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 ### Added
 - A privacy policy (`PRIVACY.md`), for the Microsoft Store listing: what the app keeps on the PC and the public data it downloads.
 
+### Changed
+- CI and the release workflow use the GitHub actions' Node 24 versions (checkout, setup-go and setup-node v7, upload-artifact v7, download-artifact v8, attest-build-provenance v4), ahead of Node 20's removal from the runners.
+
 ## [0.1.4] - 2026-11-09
 
 ### Added
