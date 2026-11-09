@@ -29,7 +29,7 @@ type readyWatch struct {
 
 // watchReady starts the ready check on entering a Mythic dungeon (ZONE_CHANGE,2813,"Murder Row",23), and stops it
 // anywhere else.
-func (k *KeyTracker) watchReady(at int64, f []string) {
+func (k *LogTracker) watchReady(at int64, f []string) {
 	k.ready = nil
 	if len(f) >= 3 && f[2] == readyDifficulty {
 		k.ready = &readyWatch{since: at, dungeon: f[1], members: map[string]bool{}, up: map[string]map[string]bool{},
@@ -38,7 +38,7 @@ func (k *KeyTracker) watchReady(at int64, f []string) {
 }
 
 // readyLine keeps what a line says about the party and their buffs for the ready check; true when a buff changed.
-func (k *KeyTracker) readyLine(event string, f []string) bool {
+func (k *LogTracker) readyLine(event string, f []string) bool {
 	r := k.ready
 	if len(f) < 8 {
 		return false
@@ -73,7 +73,7 @@ func (k *KeyTracker) readyLine(event string, f []string) bool {
 // Ready is the ready check before the next key, while the party is in a Mythic dungeon with no key running: for each
 // member, the flask, food and party buffs they're missing (seen fade, or a party buff someone else has) and the ones
 // not seen since logging started there. False outside such a dungeon.
-func (k *KeyTracker) Ready() (models.ReadyCheck, bool) {
+func (k *LogTracker) Ready() (models.ReadyCheck, bool) {
 	k.mu.RLock()
 	defer k.mu.RUnlock()
 	r := k.ready

@@ -1,6 +1,6 @@
 // Package app starts the live M+ and raid site the same way for cmd/site (run from the repo) and the desktop app
-// (installed): the key tracker with its saved keys and raid pulls, key reviews, map tiles, change notices, the page's router, and the
-// follower that reads the game's log into them. It's wiring, not rules.
+// (installed): the log tracker with its saved keys and raid pulls, key reviews, map tiles, change notices, the page's
+// router, and the follower that reads the game's log into them. It's wiring, not rules.
 package app
 
 import (
@@ -42,13 +42,13 @@ type Options struct {
 
 // Site is a started site: its keys and change notices, and the page and API.
 type Site struct {
-	Keys    *service.KeyTracker
+	Keys    *service.LogTracker
 	Changes *service.Changes
 	Handler http.Handler
 	opts    Options
 	reviews controller.Reviews
 	topRuns func(ctx context.Context, key models.Key) ([]int64, error) // nil without Warcraft Logs
-	newKeys func() (*service.KeyTracker, error)                        // another tracker on the same saved keys, for Learn
+	newKeys func() (*service.LogTracker, error)                        // another tracker on the same saved keys, for Learn
 }
 
 // Start builds the site from opts. Follow, Learn or a replay then feed it the game's log.
@@ -56,8 +56,8 @@ func Start(ctx context.Context, opts Options) (*Site, error) {
 	timers, affixes := dungeonData(ctx, opts.Cache, opts.Region)
 	store := keystore.Store{Dir: filepath.Join(opts.Cache, "local-keys")}
 	pulls := keystore.Pulls{Dir: filepath.Join(opts.Cache, "raid-pulls")}
-	newKeys := func() (*service.KeyTracker, error) {
-		keys, err := service.NewKeyTracker(timers, affixes, opts.Rules, opts.Dungeons, store)
+	newKeys := func() (*service.LogTracker, error) {
+		keys, err := service.NewLogTracker(timers, affixes, opts.Rules, opts.Dungeons, store)
 		if err != nil {
 			return nil, err
 		}
@@ -102,7 +102,7 @@ func (s *Site) Add(lines ...string) {
 }
 
 // add feeds parsed lines to keys, skipping a line that doesn't parse.
-func add(keys *service.KeyTracker, lines []string) {
+func add(keys *service.LogTracker, lines []string) {
 	for _, text := range lines {
 		if line, err := combatlog.ParseLine(text); err == nil {
 			keys.Add(line)

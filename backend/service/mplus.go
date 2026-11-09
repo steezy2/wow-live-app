@@ -37,10 +37,11 @@ const (
 var activity = map[string]bool{"SPELL_CAST_START": true, "SPELL_CAST_SUCCESS": true, "SPELL_DAMAGE": true,
 	"SPELL_HEAL": true}
 
-// KeyTracker follows Mythic+ keys through combat log lines: the running one live, and the last one that ended.
-// Finished keys go to the store (SaveFinished) and the history the projection learns from. Safe for one writer
+// LogTracker follows Mythic+ keys and raid pulls through combat log lines: the running one live, and the last one
+// that ended. Finished keys and pulls go to their stores (SaveFinished), keys also to the history the projection
+// learns from. Safe for one writer
 // (the log follower) and many readers (the page).
-type KeyTracker struct {
+type LogTracker struct {
 	mu           sync.RWMutex
 	timers       map[int]int64
 	affixes      map[int]string
@@ -75,7 +76,7 @@ type keyRun struct {
 	deaths    []models.Death
 	casts     []models.Cast
 	buffs     []models.BuffUp
-	lastHit   map[string][2]string
+	recent    map[string][]hitAt           // player GUID -> their last hits (absorbed ones too), newest last
 	dead      map[string]bool              // mobs whose death was handled, so its second death line does nothing
 	uncounted map[int]*models.UncountedNPC // enemies that died without being in the dungeon file, by NPC ID
 	down      map[string]bool              // party members dead in this pull, by name
@@ -91,7 +92,7 @@ type keyRun struct {
 	mobAt     map[string]models.TrackPoint // mob GUID -> where it was last seen
 	taken     map[string]map[int64]int64   // player -> second of the log -> damage taken
 	pullOf    map[int64]int                // second of the log -> the pull damage was taken in
-	avoidable map[string]map[string]int64  // player -> ability -> avoidable damage taken
+	avoidable map[[2]string]*models.KeyHit // (player, ability) -> avoidable damage taken and direct hits
 	pulls     map[int]*pullStat            // pull -> what it did to the priority mobs
 	mobHP     map[string]int64             // mob GUID -> max health, from advanced logging
 	bossPull  map[int]bool                 // pulls that are boss fights
@@ -110,10 +111,10 @@ type keyRun struct {
 	raid      *raidRun // nil for a key
 }
 
-// NewKeyTracker tracks keys with each dungeon's time limit (map ID -> ms), affix names (ID -> name), the page's
+// NewLogTracker tracks keys with each dungeon's time limit (map ID -> ms), affix names (ID -> name), the page's
 // rules from mplus.toml, the season's dungeon facts by map ID, and the store of finished keys.
-func NewKeyTracker(timers map[int]int64, affixes map[int]string, rules models.MPlusRules,
-	facts map[int]models.DungeonFacts, store models.KeyStore) (*KeyTracker, error) {
+func NewLogTracker(timers map[int]int64, affixes map[int]string, rules models.MPlusRules,
+	facts map[int]models.DungeonFacts, store models.KeyStore) (*LogTracker, error) {
 	history, err := store.List()
 	if err != nil {
 		return nil, fmt.Errorf("reading saved keys: %w", err)
@@ -127,7 +128,7 @@ func NewKeyTracker(timers map[int]int64, affixes map[int]string, rules models.MP
 			kinds[name] = kind
 		}
 	}
-	return &KeyTracker{timers: timers, affixes: affixes, rules: rules, kinds: kinds, facts: facts, store: store,
+	return &LogTracker{timers: timers, affixes: affixes, rules: rules, kinds: kinds, facts: facts, store: store,
 		history: history,
 		spells:  map[int]string{}, specs: map[string]int{}, owners: map[string]string{}, names: map[string]string{},
 		up: map[[2]string]int64{}, top: map[[2]int][]int64{}, asked: map[[2]int]bool{}}, nil
@@ -135,7 +136,7 @@ func NewKeyTracker(timers map[int]int64, affixes map[int]string, rules models.MP
 
 // Reload reads the saved keys and raid pulls again (after Learn saved more from old logs), for the lists and the
 // estimate.
-func (k *KeyTracker) Reload() error {
+func (k *LogTracker) Reload() error {
 	history, err := k.store.List()
 	if err != nil {
 		return fmt.Errorf("reading saved keys: %w", err)
@@ -154,14 +155,14 @@ func (k *KeyTracker) Reload() error {
 }
 
 // Version goes up whenever the keys change, so the page knows when to read them again.
-func (k *KeyTracker) Version() int64 {
+func (k *LogTracker) Version() int64 {
 	k.mu.RLock()
 	defer k.mu.RUnlock()
 	return k.version
 }
 
 // Add reads one line.
-func (k *KeyTracker) Add(line models.LogLine) {
+func (k *LogTracker) Add(line models.LogLine) {
 	k.mu.Lock()
 	defer k.mu.Unlock()
 	if k.current != nil || line.Event == "CHALLENGE_MODE_START" {
@@ -244,7 +245,7 @@ func (k *KeyTracker) Add(line models.LogLine) {
 
 // learn keeps what every line tells about names, specs, spell names, pets (from summons and advanced logging's owner
 // field) and defensive buffs, in keys or not, so COMBATANT_INFO's aura IDs get names from lines seen elsewhere.
-func (k *KeyTracker) learn(at int64, event string, f []string) {
+func (k *LogTracker) learn(at int64, event string, f []string) {
 	if event == "COMBATANT_INFO" && len(f) >= 25 {
 		k.specs[f[0]] = atoi(f[24])
 		return
@@ -285,7 +286,7 @@ func advancedAt(event string) int {
 }
 
 // start opens a key: CHALLENGE_MODE_START,"Voidscar Arena",2923,585,17,[9,10,147].
-func (k *KeyTracker) start(line models.LogLine) {
+func (k *LogTracker) start(line models.LogLine) {
 	f := line.Fields
 	k.closeCurrent(line.Time, "abandoned", 0)
 	k.ready = nil // COMBATANT_INFO at the start has everyone's buffs
@@ -308,11 +309,11 @@ func (k *KeyTracker) start(line models.LogLine) {
 
 // newRun is a run starting with key in the instance the log names (a key's or a raid pull's), with nothing seen yet.
 func newRun(key models.Key, instance string) *keyRun {
-	return &keyRun{instance: instance, key: key, lastHit: map[string][2]string{}, dead: map[string]bool{},
+	return &keyRun{instance: instance, key: key, recent: map[string][]hitAt{}, dead: map[string]bool{},
 		casting: map[string]*openCast{}, lastKick: map[string]int64{}, debuffs: map[[2]string]int64{},
 		removed: map[[2]string][2]int64{}, uncounted: map[int]*models.UncountedNPC{},
 		down: map[string]bool{}, fighting: map[string]map[int64]bool{}, acting: map[string]map[int64]bool{},
-		avoidable: map[string]map[string]int64{}, pullOf: map[int64]int{}, pulls: map[int]*pullStat{},
+		avoidable: map[[2]string]*models.KeyHit{}, pullOf: map[int64]int{}, pulls: map[int]*pullStat{},
 		mobHP: map[string]int64{}, bossPull: map[int]bool{}, mobPull: map[string]int{},
 		taken: map[string]map[int64]int64{}, sampled: map[string]int64{}, mobAt: map[string]models.TrackPoint{},
 		track: models.KeyTrack{Players: map[string][]models.TrackPoint{}, Deaths: []models.TrackPoint{},
@@ -322,7 +323,7 @@ func newRun(key models.Key, instance string) *keyRun {
 
 // end closes the running key: CHALLENGE_MODE_END,2923,1,17,1686807,... (timed or not, level, the game's time).
 // An abandoned key ends with 0,0,0.
-func (k *KeyTracker) end(line models.LogLine) {
+func (k *LogTracker) end(line models.LogLine) {
 	f := line.Fields
 	status, final := "abandoned", int64(atoi(f[3]))
 	switch {
@@ -336,7 +337,7 @@ func (k *KeyTracker) end(line models.LogLine) {
 }
 
 // closeCurrent ends the running key, keeps it as the last one, and queues it for saving unless it was a reset.
-func (k *KeyTracker) closeCurrent(at int64, status string, final int64) {
+func (k *LogTracker) closeCurrent(at int64, status string, final int64) {
 	run := k.current
 	if run == nil {
 		return
@@ -363,20 +364,39 @@ func (k *KeyTracker) closeCurrent(at int64, status string, final int64) {
 }
 
 // death records a player dying, killed by the last thing that hit them (absorbed hits too, as Warcraft Logs counts).
-func (k *KeyTracker) death(at int64, f []string) {
+func (k *LogTracker) death(at int64, f []string) {
 	run := k.current
 	name, _ := splitName(f[5])
-	hit := run.lastHit[f[4]]
-	run.deaths = append(run.deaths, models.Death{Fight: run.pull, At: at, Player: name, Ability: hit[1]})
+	var hit hitAt
+	if hits := run.recent[f[4]]; len(hits) > 0 {
+		hit = hits[len(hits)-1]
+	}
+	run.deaths = append(run.deaths, models.Death{Fight: run.pull, At: at, Player: name, Ability: hit.ability})
 	run.down[name] = true
-	run.key.Deaths = append(run.key.Deaths, models.KeyDeath{Player: name, ClockMS: k.clockAt(at), Killer: hit[0],
-		Ability: hit[1]})
-	delete(run.lastHit, f[4])
+	run.key.Deaths = append(run.key.Deaths, models.KeyDeath{Player: name, ClockMS: k.clockAt(at), Killer: hit.source,
+		Ability: hit.ability})
+	delete(run.recent, f[4])
+}
+
+// hitAt is a hit a player took.
+type hitAt struct {
+	ability, source string
+	amount, at      int64
+}
+
+// recentHits is how many of a player's last hits a run keeps: the newest is their killer, all of them a raid
+// death's recap.
+const recentHits = 3
+
+// took keeps a hit a player (by GUID) took, dropping the oldest past recentHits.
+func (r *keyRun) took(guid string, hit hitAt) {
+	hits := append(r.recent[guid], hit)
+	r.recent[guid] = hits[max(0, len(hits)-recentHits):]
 }
 
 // kill counts a mob's forces when it dies (Creature-0-3882-2859-27547-245336-00006BE4EA: NPC 245336),
 // or keeps an enemy the dungeon file doesn't have at all (bosses aside), so the file can be fixed.
-func (k *KeyTracker) kill(at int64, f []string) {
+func (k *LogTracker) kill(at int64, f []string) {
 	run, guid := k.current, f[4]
 	npc := npcOf(guid)
 	count, listed := run.facts.Forces.NPCs[npc]
@@ -399,7 +419,7 @@ func (k *KeyTracker) kill(at int64, f []string) {
 
 // event handles the lines inside a key that the page reads: players, tracked casts and buffs, interrupts, damage
 // and healing.
-func (k *KeyTracker) event(at int64, event string, f []string) {
+func (k *LogTracker) event(at int64, event string, f []string) {
 	run := k.current
 	if len(f) < 8 {
 		return
@@ -441,8 +461,9 @@ func (k *KeyTracker) event(at int64, event string, f []string) {
 			})
 		}
 	case "ENVIRONMENTAL_DAMAGE":
-		if strings.HasPrefix(f[4], "Player-") && len(f) > 8+advancedFields {
-			run.lastHit[f[4]] = [2]string{"Environment", f[8+advancedFields]}
+		if strings.HasPrefix(f[4], "Player-") && len(f) > 9+advancedFields {
+			run.took(f[4], hitAt{ability: f[8+advancedFields], source: "Environment",
+				amount: int64(atoi(f[9+advancedFields])), at: at})
 		}
 	case "SPELL_DAMAGE", "SPELL_PERIODIC_DAMAGE", "RANGE_DAMAGE", "SWING_DAMAGE", "SPELL_MISSED",
 		"SPELL_PERIODIC_MISSED", "SWING_MISSED", "RANGE_MISSED":
@@ -464,20 +485,20 @@ func (k *KeyTracker) event(at int64, event string, f []string) {
 
 // damage counts a hit: to the raid's meters when a player (or their pet) hit an enemy, as damage taken (and avoidable
 // damage) when it hit a party member, and as the killer-to-be. Fighting between the two sides keeps the pull going.
-func (k *KeyTracker) damage(at int64, event string, f []string, src, dst string) {
+func (k *LogTracker) damage(at int64, event string, f []string, src, dst string) {
 	run := k.current
 	ability := "Melee"
 	if !strings.HasPrefix(event, "SWING") && len(f) > 9 {
 		ability = f[9]
 	}
+	amount := hitAmount(event, f)
 	if strings.HasPrefix(f[4], "Player-") {
-		run.lastHit[f[4]] = [2]string{unitName(f[1]), ability}
+		run.took(f[4], hitAt{ability: ability, source: unitName(f[1]), amount: amount, at: at})
 	}
 	dealt := src != "" && hasFlag(f[6], hostileFlag)
 	if dealt || (dst != "" && hasFlag(f[2], hostileFlag)) {
 		k.keepPull(at)
 	}
-	amount := hitAmount(event, f)
 	if dealt {
 		k.tally(src, func(r *models.KeyMeterRow) { r.Damage += amount })
 		k.hitMob(at, f[4], f[5], src, amount)
@@ -497,10 +518,12 @@ func (k *KeyTracker) damage(at int64, event string, f []string, src, dst string)
 			}
 		})
 		if avoidable {
-			if run.avoidable[name] == nil {
-				run.avoidable[name] = map[string]int64{}
+			hit := run.avoidable[[2]string{name, f[9]}]
+			if hit == nil {
+				hit = &models.KeyHit{Player: name, Ability: f[9]}
+				run.avoidable[[2]string{name, f[9]}] = hit
 			}
-			run.avoidable[name][f[9]] += amount
+			hit.Damage, hit.Hits = hit.Damage+amount, hit.Hits+1
 		}
 	}
 }
@@ -525,7 +548,7 @@ func hitAmount(event string, f []string) int64 {
 
 // defensiveBuff opens or closes a defensive buff on a player, in a key or not, so one up before the key started
 // still counts; a span ending in a key is kept for the party's deaths.
-func (k *KeyTracker) defensiveBuff(at int64, applied bool, guid, ability string) {
+func (k *LogTracker) defensiveBuff(at int64, applied bool, guid, ability string) {
 	key := [2]string{guid, ability}
 	if applied {
 		k.up[key] = at
@@ -541,7 +564,7 @@ func (k *KeyTracker) defensiveBuff(at int64, applied bool, guid, ability string)
 
 // player is the party member a unit is or belongs to (a pet counts as its owner), or "" for anything else. The party
 // is who COMBATANT_INFO listed at the key's start.
-func (k *KeyTracker) player(guid, flags string) string {
+func (k *LogTracker) player(guid, flags string) string {
 	if owner, ok := k.owners[guid]; ok {
 		guid = owner
 	}
@@ -552,7 +575,7 @@ func (k *KeyTracker) player(guid, flags string) string {
 }
 
 // keepPull starts a new pull when fighting resumes after pullGapMS, else extends the current one.
-func (k *KeyTracker) keepPull(at int64) {
+func (k *LogTracker) keepPull(at int64) {
 	run := k.current
 	if run.pullLast == 0 || at-run.pullLast > pullGapMS {
 		k.newPull(at)
@@ -568,7 +591,7 @@ func (k *KeyTracker) keepPull(at int64) {
 }
 
 // newPull closes the current pull's meter and starts the next.
-func (k *KeyTracker) newPull(at int64) {
+func (k *LogTracker) newPull(at int64) {
 	run := k.current
 	if len(run.inPull) > 0 {
 		run.lastPull = k.pullMeter(run)
@@ -598,7 +621,7 @@ func endPull(run *keyRun) {
 }
 
 // tally updates a player's meter row for the pull and the key.
-func (k *KeyTracker) tally(player string, update func(*models.KeyMeterRow)) {
+func (k *LogTracker) tally(player string, update func(*models.KeyMeterRow)) {
 	for _, m := range []map[string]*models.KeyMeterRow{k.current.total, k.current.inPull} {
 		if m[player] == nil {
 			m[player] = &models.KeyMeterRow{Player: player}
@@ -608,7 +631,7 @@ func (k *KeyTracker) tally(player string, update func(*models.KeyMeterRow)) {
 }
 
 // clockAt is the running run's clock at a log time (keyRun.clock).
-func (k *KeyTracker) clockAt(at int64) int64 {
+func (k *LogTracker) clockAt(at int64) int64 {
 	return k.current.clock(at)
 }
 

@@ -45,7 +45,7 @@ type pendingKick struct {
 
 // stopEvent follows must-stop casts, kicks and dispellable debuffs. It runs for
 // every line inside a key, after event's own handling.
-func (k *KeyTracker) stopEvent(at int64, event string, f []string, src, dst string) {
+func (k *LogTracker) stopEvent(at int64, event string, f []string, src, dst string) {
 	run := k.current
 	if p := run.kick; p != nil && at-p.at > kickWindowMS {
 		run.key.WastedKicks = append(run.key.WastedKicks, models.KeyCast{Player: p.player, Ability: p.spell,
@@ -122,7 +122,7 @@ func (k *KeyTracker) stopEvent(at int64, event string, f []string, src, dst stri
 
 // endCast records a must-stop cast's outcome: interrupted (by a player), stopped (by a debuff, or unknown), went
 // off, or the mob died first.
-func (k *KeyTracker) endCast(guid, outcome, by string, at int64) {
+func (k *LogTracker) endCast(guid, outcome, by string, at int64) {
 	run := k.current
 	c := run.casting[guid]
 	delete(run.casting, guid)
@@ -135,7 +135,7 @@ func (k *KeyTracker) endCast(guid, outcome, by string, at int64) {
 }
 
 // recordDebuff keeps a dispellable debuff that came off a party member: dispelled by someone, or it ran out (by "").
-func (k *KeyTracker) recordDebuff(key [2]string, span [2]int64, by string) {
+func (k *LogTracker) recordDebuff(key [2]string, span [2]int64, by string) {
 	run := k.current
 	delete(run.removed, key)
 	run.key.Debuffs = append(run.key.Debuffs, models.KeyDispel{Player: k.names[key[0]], Spell: key[1], By: by,
@@ -143,7 +143,7 @@ func (k *KeyTracker) recordDebuff(key [2]string, span [2]int64, by string) {
 }
 
 // mobDied ends a must-stop cast whose caster died: stopped when a debuff landed during it, else the mob died first.
-func (k *KeyTracker) mobDied(guid string, at int64) {
+func (k *LogTracker) mobDied(guid string, at int64) {
 	if c, ok := k.current.casting[guid]; ok {
 		outcome := "died"
 		if c.cc != "" {
@@ -155,7 +155,7 @@ func (k *KeyTracker) mobDied(guid string, at int64) {
 
 // spikes is the run's worst bursts of party damage taken (the top spikeShare of spikeMS stretches), worst first,
 // with each hit member's cover by the death rules and the party cooldowns used for it.
-func (k *KeyTracker) spikes(run *keyRun, casts []models.KeyCast, buffs []models.BuffUp, kit models.Kit) []models.KeySpike {
+func (k *LogTracker) spikes(run *keyRun, casts []models.KeyCast, buffs []models.BuffUp, kit models.Kit) []models.KeySpike {
 	party := map[int64]int64{}
 	for _, bySecond := range run.taken {
 		for s, n := range bySecond {
@@ -192,7 +192,7 @@ func (k *KeyTracker) spikes(run *keyRun, casts []models.KeyCast, buffs []models.
 
 // spike is one burst starting at a second of the key (log time / 1000): who was hit and their cover, and the party
 // cooldowns used from the death window before it to its end.
-func (k *KeyTracker) spike(run *keyRun, second, damage int64, casts []models.KeyCast, buffs []models.BuffUp,
+func (k *LogTracker) spike(run *keyRun, second, damage int64, casts []models.KeyCast, buffs []models.BuffUp,
 	kit models.Kit) models.KeySpike {
 	at := second * 1000
 	sp := models.KeySpike{ClockMS: k.clockAt(at), Damage: damage, PartyCDs: []string{}, Members: []models.KeySpikeMember{}}

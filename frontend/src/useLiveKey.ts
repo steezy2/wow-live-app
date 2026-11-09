@@ -68,22 +68,27 @@ export function useReady(): ReadyCheck | null {
   return usePushed(fetchReady)
 }
 
-/** The raid now, read again on each change the site pushes; null until the first answer. */
-export function useRaidLive(): RaidLive | null {
-  return usePushed(fetchRaidLive)
+/** The raid now, read again on each change the site pushes while enabled (no raid pull runs during a key, so the
+ * overlay skips it then); null until the first answer. */
+export function useRaidLive(enabled = true): RaidLive | null {
+  return usePushed(fetchRaidLive, enabled)
 }
 
-/** read's answer, asked again on each change the site pushes; null until the first answer. */
-function usePushed<T>(read: (signal: AbortSignal) => Promise<T | null>): T | null {
+/** read's answer, asked again on each change the site pushes while enabled; null until the first answer. */
+function usePushed<T>(read: (signal: AbortSignal) => Promise<T | null>, enabled = true): T | null {
   const [value, setValue] = useState<T | null>(null)
   useEffect(() => {
+    if (!enabled) {
+      setValue(null)
+      return
+    }
     const controller = new AbortController()
     const unsubscribe = subscribe(() => void read(controller.signal).then(setValue, () => undefined))
     return () => {
       controller.abort()
       unsubscribe()
     }
-  }, [read])
+  }, [read, enabled])
   return value
 }
 

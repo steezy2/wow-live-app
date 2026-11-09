@@ -199,8 +199,8 @@ function Mechanics({ pull }: { pull: RaidPull }) {
     <section className="panel">
       <h2>Mechanics</h2>
       <ul className="list">
-        {lines.map(([what, detail]) => (
-          <li key={what} className="stack">
+        {lines.map(([what, detail], i) => (
+          <li key={i} className="stack">
             <b>{what}</b>
             <span className="muted small">{detail}</span>
           </li>

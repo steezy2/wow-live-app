@@ -25,8 +25,6 @@ const (
 	// cooldownRepeatMS: a raid cooldown cast again this soon by the same raider is the same use (a channel logs
 	// each tick).
 	cooldownRepeatMS = 10_000
-	// recapHits is how many of a raider's last hits their death shows.
-	recapHits = 3
 	// nightStartsHour: a pull before this hour belongs to the raid night before.
 	nightStartsHour = 6
 	// bossShare: hostile units with at least this share of the biggest one's max health are the boss (a boss with a
@@ -45,23 +43,19 @@ type raidSetup struct {
 	cooldowns map[string]bool
 }
 
-// raidRun is what a raid pull adds to its run: the encounter, the boss's mechanics and phases, the hostile units
-// seen, each raider's last hits, and the mechanics' tallies.
+// raidRun is what a raid pull adds to its run: the difficulty, the boss's mechanics and phases, the hostile units
+// seen, each death's last hits, and the mechanics' tallies.
 type raidRun struct {
 	difficulty string
 	boss       models.RaidBoss
 	phases     []models.PhaseTrigger
 	phase      string
-	units      map[string]*raidUnit // hostile creature GUID -> what it is and its health
-	recent     map[string][]hitAt   // raider -> their last hits
-	recaps     [][]models.RaidHit   // each death's last hits, in the order of the run's deaths
-	hits       map[[2]string]int    // (ability, raider) -> avoidable direct hits
-	soaks      map[int]*soakTally   // soak spell ID -> its casts
-	stacks     map[[2]string]int    // (debuff, raider) -> most stacks
-	limits     map[string]int       // debuff name -> stacks that are too many
-	priority   map[string]int64     // unit to burst -> the raid's damage into it
-	cooldowns  []models.KeyCast     // raid cooldowns used
-	names      map[int]string       // soak spell ID -> name
+	units      map[string]*raidUnit   // hostile creature GUID -> what it is and its health
+	recaps     [][]models.RaidHit     // each death's last hits, in the order of the run's deaths
+	soaks      map[int]*soakTally     // soak spell ID -> its casts
+	stacks     map[int]map[string]int // debuff spell ID -> raider -> most stacks
+	priority   map[string]int64       // unit to burst -> the raid's damage into it
+	cooldowns  []models.KeyCast       // raid cooldowns used
 }
 
 // raidUnit is a hostile creature in a pull: its name, health (from advanced logging), when it was first seen and
@@ -73,12 +67,6 @@ type raidUnit struct {
 	seen, died int64
 }
 
-// hitAt is a hit a raider took.
-type hitAt struct {
-	ability, source string
-	amount, at      int64
-}
-
 // soakTally is one soak spell's casts: when the last hit came, and who each cast hit.
 type soakTally struct {
 	last  int64
@@ -87,7 +75,8 @@ type soakTally struct {
 
 // EnableRaid has the tracker read raid pulls (every raid difficulty) with the raid rules and each boss's mechanics
 // (by boss name), keeping finished pulls in store; it reads the saved ones.
-func (k *KeyTracker) EnableRaid(rules models.RaidRules, bosses map[string]models.RaidBoss, store models.PullStore) error {
+func (k *LogTracker) EnableRaid(rules models.RaidRules, bosses map[string]models.RaidBoss,
+	store models.PullStore) error {
 	pulls, err := store.ListPulls()
 	if err != nil {
 		return fmt.Errorf("reading saved raid pulls: %w", err)
@@ -104,16 +93,15 @@ func (k *KeyTracker) EnableRaid(rules models.RaidRules, bosses map[string]models
 
 // startPull opens a raid pull: ENCOUNTER_START,3180,"Ula'tek",16,20,2939 (encounter, boss, difficulty, size,
 // instance).
-func (k *KeyTracker) startPull(line models.LogLine) {
+func (k *LogTracker) startPull(line models.LogLine) {
 	f := line.Fields
 	run := newRun(models.Key{Dungeon: f[1], Start: line.Time, Status: "running"}, f[4])
 	boss := k.raid.bosses[f[1]]
 	run.facts = &models.DungeonFacts{Name: f[1], Avoidable: boss.Avoidable, Soak: boss.Soak, Dispel: boss.Dispel,
 		MustStop: boss.MustStop}
 	run.raid = &raidRun{difficulty: raidDifficulties[f[2]], boss: boss, phases: k.raid.rules.Phases[f[1]],
-		units: map[string]*raidUnit{}, recent: map[string][]hitAt{}, hits: map[[2]string]int{},
-		soaks: map[int]*soakTally{}, stacks: map[[2]string]int{}, limits: map[string]int{},
-		priority: map[string]int64{}, names: map[int]string{}}
+		units: map[string]*raidUnit{}, soaks: map[int]*soakTally{}, stacks: map[int]map[string]int{},
+		priority: map[string]int64{}}
 	if len(run.raid.phases) > 0 {
 		run.raid.phase = "P1"
 	}
@@ -121,7 +109,7 @@ func (k *KeyTracker) startPull(line models.LogLine) {
 }
 
 // raidLine reads a line inside a raid pull before the run's own handling; true when it ended the pull.
-func (k *KeyTracker) raidLine(line models.LogLine) bool {
+func (k *LogTracker) raidLine(line models.LogLine) bool {
 	run, f, at := k.current, line.Fields, line.Time
 	r := run.raid
 	switch line.Event {
@@ -143,8 +131,7 @@ func (k *KeyTracker) raidLine(line models.LogLine) bool {
 			u.died, u.hp = at, 0
 		}
 		if line.Event == "UNIT_DIED" && len(f) >= 9 && strings.HasPrefix(f[4], "Player-") && f[len(f)-1] != "1" {
-			name, _ := splitName(f[5])
-			r.recaps = append(r.recaps, recap(r.recent[name], at))
+			r.recaps = append(r.recaps, recap(run.recent[f[4]], at)) // before the run's death takes them
 		}
 		return false
 	}
@@ -165,13 +152,16 @@ func (k *KeyTracker) raidLine(line models.LogLine) bool {
 	case "SPELL_DAMAGE", "SPELL_PERIODIC_DAMAGE", "RANGE_DAMAGE", "SWING_DAMAGE", "SPELL_MISSED":
 		k.raidHit(at, line.Event, f, victim)
 	case "SPELL_AURA_APPLIED", "SPELL_AURA_APPLIED_DOSE":
-		if limit, ok := r.boss.Stacks[atoi(f[8])]; ok && victim != "" && len(f) > 9 {
+		id := atoi(f[8])
+		if _, tracked := r.boss.Stacks[id]; tracked && victim != "" {
 			n := 1
 			if line.Event == "SPELL_AURA_APPLIED_DOSE" {
 				n = atoi(f[len(f)-1])
 			}
-			key := [2]string{f[9], victim}
-			r.stacks[key], r.limits[f[9]] = max(r.stacks[key], n), limit
+			if r.stacks[id] == nil {
+				r.stacks[id] = map[string]int{}
+			}
+			r.stacks[id][victim] = max(r.stacks[id][victim], n)
 		}
 	case "SPELL_CAST_SUCCESS":
 		if who := k.player(f[0], f[2]); who != "" && len(f) > 9 && k.raid.cooldowns[f[9]] &&
@@ -186,7 +176,7 @@ func (k *KeyTracker) raidLine(line models.LogLine) bool {
 }
 
 // raidUnits notes the hostile creatures a line names, and their health from its advanced-logging block.
-func (k *KeyTracker) raidUnits(at int64, event string, f []string) {
+func (k *LogTracker) raidUnits(at int64, event string, f []string) {
 	r := k.current.raid
 	for _, i := range []int{0, 4} {
 		guid := f[i]
@@ -202,25 +192,12 @@ func (k *KeyTracker) raidUnits(at int64, event string, f []string) {
 	}
 }
 
-// raidHit counts a hit: a raider's last hits, avoidable direct hits and soaks taken, and the raid's damage into a
-// unit to burst.
-func (k *KeyTracker) raidHit(at int64, event string, f []string, victim string) {
+// raidHit counts a hit: soaks raiders took (direct hits, not ticks), and the raid's damage into a unit to burst.
+func (k *LogTracker) raidHit(at int64, event string, f []string, victim string) {
 	r := k.current.raid
-	if victim != "" {
-		ability, id := "Melee", 0
-		if !strings.HasPrefix(event, "SWING") && len(f) > 9 {
-			ability, id = f[9], atoi(f[8])
-		}
-		if amount := hitAmount(event, f); amount > 0 {
-			hits := append(r.recent[victim], hitAt{ability: ability, source: unitName(f[1]), amount: amount, at: at})
-			r.recent[victim] = hits[max(0, len(hits)-recapHits):]
-		}
-		if event == "SPELL_DAMAGE" && slices.Contains(r.boss.Avoidable, id) {
-			r.hits[[2]string{ability, victim}]++
-		}
-		if slices.Contains(r.boss.Soak, id) && (event == "SPELL_DAMAGE" || event == "SPELL_MISSED") {
-			r.soak(id, ability, victim, at, k.raid.rules.Soaks.WindowMS)
-		}
+	if id := atoi(f[8]); victim != "" && (event == "SPELL_DAMAGE" || event == "SPELL_MISSED") &&
+		slices.Contains(r.boss.Soak, id) {
+		r.soak(id, victim, at, k.raid.rules.Soaks.WindowMS)
 	}
 	if k.player(f[0], f[2]) == "" {
 		return
@@ -234,11 +211,11 @@ func (k *KeyTracker) raidHit(at int64, event string, f []string, victim string) 
 }
 
 // soak counts a raider hit by a soak spell, in the same cast as the last hit within window ms, else a new one.
-func (r *raidRun) soak(id int, ability, victim string, at, window int64) {
+func (r *raidRun) soak(id int, victim string, at, window int64) {
 	t := r.soaks[id]
 	if t == nil {
 		t = &soakTally{}
-		r.soaks[id], r.names[id] = t, ability
+		r.soaks[id] = t
 	}
 	if len(t.casts) == 0 || at-t.last > window {
 		t.casts = append(t.casts, map[string]bool{})
@@ -246,18 +223,20 @@ func (r *raidRun) soak(id int, ability, victim string, at, window int64) {
 	t.casts[len(t.casts)-1][victim], t.last = true, at
 }
 
-// recap is a raider's last hits before dying at at, oldest first.
+// recap is a raider's last hits that did damage before dying at at, oldest first.
 func recap(hits []hitAt, at int64) []models.RaidHit {
 	out := []models.RaidHit{}
 	for _, h := range hits {
-		out = append(out, models.RaidHit{Ability: h.ability, Source: h.source, Amount: h.amount, BeforeMS: at - h.at})
+		if h.amount > 0 {
+			out = append(out, models.RaidHit{Ability: h.ability, Source: h.source, Amount: h.amount, BeforeMS: at - h.at})
+		}
 	}
 	return out
 }
 
 // finishPull closes the running raid pull (a kill or a wipe), keeps it as the newest pull and queues it for saving.
 // A pull the game ended (ENCOUNTER_END) has its end set; one closed by anything else ends at its last fighting.
-func (k *KeyTracker) finishPull(kill bool) {
+func (k *LogTracker) finishPull(kill bool) {
 	run := k.current
 	if run.key.End == 0 {
 		run.key.End = max(run.pullLast, run.key.Start)
@@ -280,14 +259,12 @@ func (k *KeyTracker) finishPull(kill bool) {
 
 // raidPull is a finished run as the raid overview shows it, from the run's key view (deaths, meters, dispels,
 // must-stops, casts) and its raid tallies.
-func (k *KeyTracker) raidPull(run *keyRun, key models.Key, at int64, kill bool) models.RaidPull {
+func (k *LogTracker) raidPull(run *keyRun, key models.Key, at int64, kill bool) models.RaidPull {
 	r, rules := run.raid, k.raid.rules
 	p := models.RaidPull{Start: key.Start, End: at, Night: night(key.Start), Boss: key.Dungeon,
 		Difficulty: r.difficulty, DurationMS: at - key.Start, Kill: kill, BossPct: r.bossPct(kill), Phase: r.phase,
-		Players: key.Players, Meter: key.Overall, Lusts: key.Lusts, Dispels: list(key.Debuffs), WentOff: []models.KeyStop{}}
-	p.Number = 1 + countFunc(k.pulls, func(o models.RaidPull) bool {
-		return o.Night == p.Night && o.Boss == p.Boss && o.Difficulty == p.Difficulty && o.Start < p.Start
-	})
+		Players: key.Players, Meter: key.Overall, Lusts: key.Lusts, Dispels: list(key.Debuffs),
+		WentOff: []models.KeyStop{}}
 	for i, d := range key.Deaths {
 		early := i < rules.Deaths.First || p.DurationMS-d.ClockMS > int64(rules.Deaths.BeforeWipeSeconds*1000)
 		death := models.RaidDeath{KeyDeath: d, Early: early, Recap: []models.RaidHit{}}
@@ -298,13 +275,22 @@ func (k *KeyTracker) raidPull(run *keyRun, key models.Key, at int64, kill bool) 
 	}
 	p.Deaths = list(p.Deaths)
 	p.MassKills = massKills(key.Deaths, rules.Deaths.MassKillPlayers, int64(rules.Deaths.MassKillWindowSeconds*1000))
-	p.Avoidable, p.Stacks = byAbility(r.hits), []models.RaidStacks{}
-	for _, s := range byAbility(r.stacks) {
-		p.Stacks = append(p.Stacks, models.RaidStacks{Ability: s.Ability, Limit: r.limits[s.Ability], Players: s.Players})
+	hits := map[string]map[string]int{}
+	for _, h := range key.AvoidableHits {
+		if hits[h.Ability] == nil {
+			hits[h.Ability] = map[string]int{}
+		}
+		hits[h.Ability][h.Player] = h.Hits
 	}
+	p.Avoidable, p.Stacks = byAbility(hits), []models.RaidStacks{}
+	for id, players := range r.stacks {
+		p.Stacks = append(p.Stacks, models.RaidStacks{Ability: k.spells[id], Limit: r.boss.Stacks[id],
+			Players: playerCounts(players)})
+	}
+	slices.SortFunc(p.Stacks, func(a, b models.RaidStacks) int { return cmp.Compare(a.Ability, b.Ability) })
 	p.Soaks = []models.RaidSoak{}
 	for id, t := range r.soaks {
-		soak := models.RaidSoak{Ability: r.names[id], Casts: len(t.casts), Fewest: len(t.casts[0]), Died: []string{}}
+		soak := models.RaidSoak{Ability: k.spells[id], Casts: len(t.casts), Fewest: len(t.casts[0]), Died: []string{}}
 		for _, c := range t.casts {
 			soak.Fewest, soak.Most = min(soak.Fewest, len(c)), max(soak.Most, len(c))
 		}
@@ -340,37 +326,50 @@ func (k *KeyTracker) raidPull(run *keyRun, key models.Key, at int64, kill bool) 
 	return p
 }
 
-// bossPct is the boss's health left: the units with at least bossShare of the biggest one's max health, together;
-// 0 on a kill, -1 without advanced logging.
+// bossPct is the boss's health left, its units together (bossUnits); 0 on a kill, -1 without advanced logging.
 func (r *raidRun) bossPct(kill bool) float64 {
-	var biggest, hp, maxHP int64
-	for _, u := range r.units {
-		biggest = max(biggest, u.maxHP)
+	var hp, maxHP int64
+	for _, u := range r.bossUnits() {
+		hp, maxHP = hp+u.hp, maxHP+u.maxHP
 	}
 	switch {
 	case kill:
 		return 0
-	case biggest == 0:
+	case maxHP == 0:
 		return -1
 	}
-	for _, u := range r.units {
-		if float64(u.maxHP) >= bossShare*float64(biggest) {
-			hp, maxHP = hp+u.hp, maxHP+u.maxHP
+	return 100 * float64(hp) / float64(maxHP)
+}
+
+// bossUnits are the pull's boss: the units of the reference's boss NPCs when it names them, else those with at least
+// bossShare of the biggest unit's max health (a boss with a tail, or two or three bosses).
+func (r *raidRun) bossUnits() map[string]*raidUnit {
+	boss := map[string]*raidUnit{}
+	var biggest int64
+	for guid, u := range r.units {
+		biggest = max(biggest, u.maxHP)
+		if slices.Contains(r.boss.NPCs, npcOf(guid)) {
+			boss[guid] = u
 		}
 	}
-	return 100 * float64(hp) / float64(maxHP)
+	if len(boss) > 0 {
+		return boss
+	}
+	for guid, u := range r.units {
+		if biggest > 0 && float64(u.maxHP) >= bossShare*float64(biggest) {
+			boss[guid] = u
+		}
+	}
+	return boss
 }
 
 // adds is each kind of hostile unit the raid hit that isn't the boss (not a soak circle or a lure): how many showed
 // up, died and were up at the end, and the longest one lived; those still up first, at most shownAdds.
 func (r *raidRun) adds(end int64) []models.RaidAdd {
-	var biggest int64
-	for _, u := range r.units {
-		biggest = max(biggest, u.maxHP)
-	}
+	boss := r.bossUnits()
 	byName := map[string]*models.RaidAdd{}
-	for _, u := range r.units {
-		if !u.hit || biggest > 0 && float64(u.maxHP) >= bossShare*float64(biggest) {
+	for guid, u := range r.units {
+		if !u.hit || boss[guid] != nil {
 			continue
 		}
 		a := byName[u.name]
@@ -398,18 +397,11 @@ func (r *raidRun) adds(end int64) []models.RaidAdd {
 	return adds[:min(len(adds), shownAdds)]
 }
 
-// byAbility groups per-raider counts by ability, most per raider first and the ability with the most first.
-func byAbility(counts map[[2]string]int) []models.RaidHits {
-	grouped := map[string][]models.PlayerCount{}
-	for key, n := range counts {
-		grouped[key[0]] = append(grouped[key[0]], models.PlayerCount{Player: key[1], Count: n})
-	}
+// byAbility is per-raider counts by ability (ability -> raider -> count), the ability with the most first.
+func byAbility(counts map[string]map[string]int) []models.RaidHits {
 	out := []models.RaidHits{}
-	for ability, players := range grouped {
-		slices.SortFunc(players, func(a, b models.PlayerCount) int {
-			return cmp.Or(cmp.Compare(b.Count, a.Count), cmp.Compare(a.Player, b.Player))
-		})
-		out = append(out, models.RaidHits{Ability: ability, Players: players})
+	for ability, players := range counts {
+		out = append(out, models.RaidHits{Ability: ability, Players: playerCounts(players)})
 	}
 	slices.SortFunc(out, func(a, b models.RaidHits) int {
 		return cmp.Or(cmp.Compare(total(b.Players), total(a.Players)), cmp.Compare(a.Ability, b.Ability))
@@ -417,6 +409,19 @@ func byAbility(counts map[[2]string]int) []models.RaidHits {
 	return out
 }
 
+// playerCounts is raiders' counts, most first.
+func playerCounts(counts map[string]int) []models.PlayerCount {
+	out := []models.PlayerCount{}
+	for player, n := range counts {
+		out = append(out, models.PlayerCount{Player: player, Count: n})
+	}
+	slices.SortFunc(out, func(a, b models.PlayerCount) int {
+		return cmp.Or(cmp.Compare(b.Count, a.Count), cmp.Compare(a.Player, b.Player))
+	})
+	return out
+}
+
+// total is the sum of raiders' counts.
 func total(players []models.PlayerCount) int {
 	n := 0
 	for _, p := range players {
@@ -429,7 +434,9 @@ func total(players []models.PlayerCount) int {
 func massKills(deaths []models.KeyDeath, players int, window int64) []models.MassKill {
 	byAbility := map[string][]int64{}
 	for _, d := range deaths {
-		byAbility[d.Ability] = append(byAbility[d.Ability], d.ClockMS)
+		if d.Ability != "" { // no hit seen: not one ability
+			byAbility[d.Ability] = append(byAbility[d.Ability], d.ClockMS)
+		}
 	}
 	kills := []models.MassKill{}
 	for ability, at := range byAbility {

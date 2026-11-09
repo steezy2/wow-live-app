@@ -35,11 +35,13 @@ type RaidReference struct {
 	Bosses  map[string]RaidBoss `json:"bosses"` // by boss name as ENCOUNTER_START gives it
 }
 
-// RaidBoss is one boss's mechanics by kind: spell IDs to dodge, soak, dispel and interrupt, debuffs whose stacks
-// matter (spell ID to the stacks that are too many, 0 when the guide gives no number), and units to burst (names).
+// RaidBoss is one boss's NPC IDs (the units whose health is the boss's) and mechanics by kind: spell IDs to dodge,
+// soak, dispel and interrupt, debuffs whose stacks matter (spell ID to the stacks that are too many, 0 when the guide
+// gives no number), and units to burst (names).
 type RaidBoss struct {
 	Name      string      `json:"name"`
 	Guide     string      `json:"guide"`
+	NPCs      []int       `json:"npcs"`
 	Avoidable []int       `json:"avoidable"`
 	Soak      []int       `json:"soak"`
 	Dispel    []int       `json:"dispel"`
@@ -70,7 +72,7 @@ type RaidPull struct {
 	Night       string           `json:"night" example:"2026-11-03"` // the raid night: the start's date, before 6 am counting as the day before
 	Boss        string           `json:"boss"`
 	Difficulty  string           `json:"difficulty" enums:"LFR,Normal,Heroic,Mythic"`
-	Number      int              `json:"number"` // the pull's number on this boss and difficulty tonight
+	Number      int              `json:"number"` // the pull's number on this boss and difficulty tonight, from the pulls known when it's read
 	DurationMS  int64            `json:"durationMS"`
 	Kill        bool             `json:"kill"`
 	BossPct     float64          `json:"bossPct"` // the boss's health left, 0-100; -1 without advanced logging

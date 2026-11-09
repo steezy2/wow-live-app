@@ -55,7 +55,7 @@ export function Overlay() {
   const moving = useOverlayMoving()
   const settings = useOverlaySettings()
   const ready = useReady()
-  const raid = useRaidLive()
+  const raid = useRaidLive(key?.status !== 'running')
   return (
     <div
       className={moving ? 'overlay moving' : 'overlay'}

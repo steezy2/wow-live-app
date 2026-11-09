@@ -32,7 +32,7 @@ var (
 // Reviewer reviews finished keys against Warcraft Logs' top runs and the players' own earlier runs, keeping each
 // review in the store.
 type Reviewer struct {
-	Keys      *KeyTracker
+	Keys      *LogTracker
 	Baselines models.MPlusBaselines
 	Store     models.ReviewStore
 }
@@ -140,7 +140,7 @@ func (r Reviewer) TopRuns(ctx context.Context, key models.Key) ([]int64, error) 
 }
 
 // finished is a finished key by its start time and the earlier saved runs of its dungeon.
-func (k *KeyTracker) finished(start int64) (models.Key, []models.Key, error) {
+func (k *LogTracker) finished(start int64) (models.Key, []models.Key, error) {
 	k.mu.RLock()
 	defer k.mu.RUnlock()
 	if k.current != nil && k.current.key.Start == start {

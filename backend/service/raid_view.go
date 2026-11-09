@@ -11,7 +11,7 @@ import (
 
 // RaidLive is the raid as of now (ms since the epoch): whether a pull is on, and the last pull that ended with the
 // pulls it's compared with.
-func (k *KeyTracker) RaidLive(now int64) models.RaidLive {
+func (k *LogTracker) RaidLive(now int64) models.RaidLive {
 	k.mu.RLock()
 	defer k.mu.RUnlock()
 	var live models.RaidLive
@@ -27,7 +27,7 @@ func (k *KeyTracker) RaidLive(now int64) models.RaidLive {
 }
 
 // BetweenPulls is whether the overlay shows the last raid pull at now (ms since the epoch).
-func (k *KeyTracker) BetweenPulls(now int64) bool {
+func (k *LogTracker) BetweenPulls(now int64) bool {
 	k.mu.RLock()
 	defer k.mu.RUnlock()
 	return k.betweenPulls(now)
@@ -35,7 +35,7 @@ func (k *KeyTracker) BetweenPulls(now int64) bool {
 
 // betweenPulls is whether a raid pull ended less than RaidLinger before now, no pull or key is on, and no key
 // ended since.
-func (k *KeyTracker) betweenPulls(now int64) bool {
+func (k *LogTracker) betweenPulls(now int64) bool {
 	if k.current != nil || len(k.pulls) == 0 {
 		return false
 	}
@@ -44,7 +44,7 @@ func (k *KeyTracker) betweenPulls(now int64) bool {
 }
 
 // RaidNights is every raid night's pulls in order, newest night first.
-func (k *KeyTracker) RaidNights() []models.RaidNight {
+func (k *LogTracker) RaidNights() []models.RaidNight {
 	k.mu.RLock()
 	defer k.mu.RUnlock()
 	nights := []models.RaidNight{}
@@ -53,13 +53,13 @@ func (k *KeyTracker) RaidNights() []models.RaidNight {
 		if len(nights) == 0 || nights[0].Night != p.Night {
 			nights = append([]models.RaidNight{{Night: p.Night, Pulls: []models.RaidPullSummary{}}}, nights...)
 		}
-		nights[0].Pulls = append(nights[0].Pulls, pullSummary(p))
+		nights[0].Pulls = append(nights[0].Pulls, pullSummary(k.numbered(p)))
 	}
 	return nights
 }
 
 // RaidPull is one saved pull, compared with tonight's best and the best ever.
-func (k *KeyTracker) RaidPull(start int64) (models.RaidPull, error) {
+func (k *LogTracker) RaidPull(start int64) (models.RaidPull, error) {
 	k.mu.RLock()
 	defer k.mu.RUnlock()
 	i := slices.IndexFunc(k.pulls, func(p models.RaidPull) bool { return p.Start == start })
@@ -69,9 +69,19 @@ func (k *KeyTracker) RaidPull(start int64) (models.RaidPull, error) {
 	return k.compared(k.pulls[i]), nil
 }
 
-// compared is a pull with tonight's best and the best ever on its boss and difficulty, each left out when it's the
-// pull itself.
-func (k *KeyTracker) compared(p models.RaidPull) models.RaidPull {
+// numbered is a pull with its number among the night's pulls on its boss and difficulty, from the pulls known now
+// (so pulls read later from an older log of the night still count).
+func (k *LogTracker) numbered(p models.RaidPull) models.RaidPull {
+	p.Number = 1 + countFunc(k.pulls, func(o models.RaidPull) bool {
+		return o.Night == p.Night && o.Boss == p.Boss && o.Difficulty == p.Difficulty && o.Start < p.Start
+	})
+	return p
+}
+
+// compared is a pull, numbered, with tonight's best and the best ever on its boss and difficulty, each left out
+// when it's the pull itself.
+func (k *LogTracker) compared(p models.RaidPull) models.RaidPull {
+	p = k.numbered(p)
 	var tonight, ever *models.RaidPull
 	for i := range k.pulls {
 		o := &k.pulls[i]
@@ -87,11 +97,11 @@ func (k *KeyTracker) compared(p models.RaidPull) models.RaidPull {
 	}
 	c := models.RaidComparisons{}
 	if tonight != nil && tonight.Start != p.Start {
-		s := pullSummary(*tonight)
+		s := pullSummary(k.numbered(*tonight))
 		c.Tonight = &s
 	}
 	if ever != nil && ever.Start != p.Start {
-		s := pullSummary(*ever)
+		s := pullSummary(k.numbered(*ever))
 		c.Ever = &s
 	}
 	if c.Tonight != nil || c.Ever != nil {
@@ -137,7 +147,7 @@ func pullSummary(p models.RaidPull) models.RaidPullSummary {
 }
 
 // savePulls saves the raid pulls that ended since the last call, keeping the failed ones for the next.
-func (k *KeyTracker) savePulls() error {
+func (k *LogTracker) savePulls() error {
 	k.mu.Lock()
 	done := k.unsavedPulls
 	k.unsavedPulls = nil

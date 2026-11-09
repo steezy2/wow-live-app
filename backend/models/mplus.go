@@ -107,11 +107,12 @@ type KeyMiniboss struct {
 	Of     int    `json:"of"`
 }
 
-// KeyHit is damage a player took from one ability.
+// KeyHit is the damage and direct hits a player took from one avoidable ability.
 type KeyHit struct {
 	Player  string `json:"player"`
 	Ability string `json:"ability"`
 	Damage  int64  `json:"damage"`
+	Hits    int    `json:"hits"` // direct hits; 0 in keys saved before Nov 9
 }
 
 // KeyReview is a finished key next to its baselines: a review per party member, a

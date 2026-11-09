@@ -39,7 +39,7 @@ func (m *memStore) Track(start int64) (models.KeyTrack, error) {
 	return t, nil
 }
 
-func newTracker(t *testing.T, timers map[int]int64) *KeyTracker {
+func newTracker(t *testing.T, timers map[int]int64) *LogTracker {
 	t.Helper()
 	rules := models.MPlusRules{
 		Defensives:  models.Defensives{WindowSeconds: 10, Names: []string{"Ice Block"}},
@@ -53,14 +53,14 @@ func newTracker(t *testing.T, timers map[int]int64) *KeyTracker {
 	facts := map[int]models.DungeonFacts{586: {Minibosses: []int{245331, 245332}, Bosses: []int{245333}}, 585: {Avoidable: []int{1238063}, MustStop: []int{1238063}, Dispel: []int{1234846},
 		Floors: []models.DungeonFloor{{UIMapID: 2610, Tiles: "midnight/voidscar_arena/1"}},
 		Forces: models.Forces{Total: 40, NPCs: map[int]int{245336: 10}}}}
-	keys, err := NewKeyTracker(timers, map[int]string{9: "Tyrannical"}, rules, facts, &memStore{})
+	keys, err := NewLogTracker(timers, map[int]string{9: "Tyrannical"}, rules, facts, &memStore{})
 	if err != nil {
 		t.Fatal(err)
 	}
 	return keys
 }
 
-func feed(t *testing.T, keys *KeyTracker, raw ...string) []models.LogLine {
+func feed(t *testing.T, keys *LogTracker, raw ...string) []models.LogLine {
 	t.Helper()
 	var lines []models.LogLine
 	for _, text := range raw {

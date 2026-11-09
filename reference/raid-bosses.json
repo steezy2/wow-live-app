@@ -2,12 +2,17 @@
   "raid": "venomous-abyss",
   "sources": {
     "mechanics": "Wowhead's boss cheat sheets (each boss's guide): spell IDs sorted by the words of their line",
+    "npcs": "Warcraft Logs: the boss actors of each encounter's top-ranked kill",
     "written": "2026-11-09"
   },
   "bosses": {
     "Entombed Sentinels": {
       "name": "Entombed Sentinels",
       "guide": "https://www.wowhead.com/guide/midnight/raids/venomous-abyss-entombed-sentinels-boss-strategy-abilities",
+      "npcs": [
+        258557,
+        258558
+      ],
       "avoidable": [],
       "soak": [
         1288232
@@ -25,6 +30,10 @@
     "Nek'zali the Soulcoiler": {
       "name": "Nek'zali the Soulcoiler",
       "guide": "https://www.wowhead.com/guide/midnight/raids/venomous-abyss-nekzali-the-soulcoiler-boss-strategy-abilities",
+      "npcs": [
+        259927,
+        263050
+      ],
       "avoidable": [],
       "soak": [
         1289855,
@@ -40,6 +49,9 @@
     "Sszorak": {
       "name": "Sszorak",
       "guide": "https://www.wowhead.com/guide/midnight/raids/venomous-abyss-sszorak-boss-strategy-abilities",
+      "npcs": [
+        257347
+      ],
       "avoidable": [
         1287072
       ],
@@ -52,6 +64,10 @@
     "The Coiled Altar": {
       "name": "The Coiled Altar",
       "guide": "https://www.wowhead.com/guide/midnight/raids/venomous-abyss-coiled-altar-boss-strategy-abilities",
+      "npcs": [
+        257911,
+        259854
+      ],
       "avoidable": [],
       "soak": [
         1283489
@@ -69,6 +85,12 @@
     "The Lost Explorers": {
       "name": "The Lost Explorers",
       "guide": "https://www.wowhead.com/guide/midnight/raids/venomous-abyss-lost-explorers-boss-strategy-abilities",
+      "npcs": [
+        261584,
+        261835,
+        261848,
+        261843
+      ],
       "avoidable": [
         1296061
       ],
@@ -83,6 +105,10 @@
     "The Twin Fangs": {
       "name": "The Twin Fangs",
       "guide": "https://www.wowhead.com/guide/midnight/raids/venomous-abyss-twin-fangs-boss-strategy-abilities",
+      "npcs": [
+        257368,
+        257361
+      ],
       "avoidable": [
         1290956
       ],
@@ -102,12 +128,16 @@
     "Ula'tek": {
       "name": "Ula'tek",
       "guide": "https://www.wowhead.com/guide/midnight/raids/venomous-abyss-ulatek-boss-strategy-abilities",
+      "npcs": [
+        257758,
+        259555,
+        267460
+      ],
       "avoidable": [
         1292403
       ],
       "soak": [
         1287265,
-        1300685,
         1295905
       ],
       "dispel": [],
@@ -122,6 +152,9 @@
     "Vashnik the Malignant": {
       "name": "Vashnik the Malignant",
       "guide": "https://www.wowhead.com/guide/midnight/raids/venomous-abyss-vashnik-the-malignant-boss-strategy-abilities",
+      "npcs": [
+        259181
+      ],
       "avoidable": [
         1281907
       ],

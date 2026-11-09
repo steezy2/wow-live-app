@@ -27,7 +27,7 @@ func raidAt(day int, s float64, line string) string {
 	return at.Format("1/2/2006 15:04:05.000") + "-7  " + line
 }
 
-func newRaidTracker(t *testing.T) (*KeyTracker, *memPulls) {
+func newRaidTracker(t *testing.T) (*LogTracker, *memPulls) {
 	t.Helper()
 	keys := newTracker(t, nil)
 	rules := models.RaidRules{Phases: map[string][]models.PhaseTrigger{"Testboss": {{ID: 2, Event: "SPELL_CAST_START",
@@ -97,7 +97,7 @@ func TestRaidPullDeathsMechanicsAndProgress(t *testing.T) {
 	if _, err := keys.SaveFinished(); err != nil || len(store.pulls) != 1 {
 		t.Fatalf("saved %d pulls (%v); want the one", len(store.pulls), err)
 	}
-	p := store.pulls[0]
+	p, _ := keys.RaidPull(store.pulls[0].Start) // numbered when read
 	if p.Boss != "Testboss" || p.Difficulty != "Mythic" || p.Number != 1 || p.Kill || p.BossPct != 40 ||
 		p.Phase != "P2" || p.DurationMS != 120_000 || p.Night != "2026-11-03" {
 		t.Fatalf("pull = %+v; want Mythic Testboss pull 1, a wipe at 40%% in P2 after 120 s", p)
@@ -192,5 +192,13 @@ func TestRaidPullWithoutAnEndEndsAtItsLastFighting(t *testing.T) {
 	pulls := keys.RaidNights()[0].Pulls
 	if len(pulls) != 2 || pulls[0].DurationMS != 1000 || pulls[1].DurationMS != 1000 || keys.RaidLive(0).Pulling {
 		t.Fatalf("pulls = %+v; want two pulls, each ended at its last hit (1 s in), none still on", pulls)
+	}
+}
+
+func TestMassKillsLeaveOutDeathsWithNoHitSeen(t *testing.T) {
+	deaths := []models.KeyDeath{{ClockMS: 1000}, {ClockMS: 2000}, {Ability: "Malice", ClockMS: 3000},
+		{Ability: "Malice", ClockMS: 4000}}
+	if got := massKills(deaths, 2, 10_000); len(got) != 1 || got[0].Ability != "Malice" {
+		t.Fatalf("mass kills = %+v; want only Malice's, not the two deaths with no known cause", got)
 	}
 }

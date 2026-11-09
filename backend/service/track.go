@@ -26,7 +26,7 @@ type savedRun struct {
 
 // position keeps where the actor in a line's advanced-logging block was (x, y and map at offsets 14 to 16 of the
 // block): a party member about once a second for the map, and every mob's last place for where it dies.
-func (k *KeyTracker) position(at int64, event string, f []string) {
+func (k *LogTracker) position(at int64, event string, f []string) {
 	i := advancedAt(event)
 	if i == 0 || len(f) < i+advancedFields {
 		return
@@ -60,7 +60,7 @@ const meterEveryMS = 2_000
 
 // sampleMeters keeps each player's damage and healing so far about every meterEveryMS, so the replay can show the
 // meters at any moment.
-func (k *KeyTracker) sampleMeters(at int64) {
+func (k *LogTracker) sampleMeters(at int64) {
 	run := k.current
 	if at-run.meterAt < meterEveryMS {
 		return
@@ -74,7 +74,7 @@ func (k *KeyTracker) sampleMeters(at int64) {
 }
 
 // mobDeathAt puts a mob's death on the map where it was last seen.
-func (k *KeyTracker) mobDeathAt(at int64, guid string) {
+func (k *LogTracker) mobDeathAt(at int64, guid string) {
 	run := k.current
 	if p, ok := run.mobAt[guid]; ok {
 		p.ClockMS = k.clockAt(at)
@@ -84,7 +84,7 @@ func (k *KeyTracker) mobDeathAt(at int64, guid string) {
 }
 
 // trackOf is a copy of a run's track with each player's class, safe to hand out while the run goes on.
-func (k *KeyTracker) trackOf(run *keyRun) models.KeyTrack {
+func (k *LogTracker) trackOf(run *keyRun) models.KeyTrack {
 	t := models.KeyTrack{Players: map[string][]models.TrackPoint{}, Classes: k.classes(run),
 		Deaths: list(run.track.Deaths), Meters: map[string][]models.MeterPoint{}, Pulls: list(run.track.Pulls)}
 	for name, points := range run.track.Players {
@@ -97,7 +97,7 @@ func (k *KeyTracker) trackOf(run *keyRun) models.KeyTrack {
 }
 
 // Track is a key's track by its start time: the running key's, the last one's, or a saved one's.
-func (k *KeyTracker) Track(start int64) (models.KeyTrack, error) {
+func (k *LogTracker) Track(start int64) (models.KeyTrack, error) {
 	k.mu.RLock()
 	defer k.mu.RUnlock()
 	switch {
@@ -115,12 +115,12 @@ func (k *KeyTracker) Track(start int64) (models.KeyTrack, error) {
 
 // DungeonMap is a dungeon's floors with Keystone.guru tiles (from the dungeon file) and where parties have walked in
 // its saved runs, one point per walkedGrid square (Name and ClockMS empty): the shape drawn for floors without tiles.
-func (k *KeyTracker) DungeonMap(mapID int) (models.DungeonMap, error) {
+func (k *LogTracker) DungeonMap(mapID int) (models.DungeonMap, error) {
 	walked, err := k.walked(mapID)
 	return models.DungeonMap{Floors: list(k.facts[mapID].Floors), Walked: walked}, err
 }
 
-func (k *KeyTracker) walked(mapID int) ([]models.TrackPoint, error) {
+func (k *LogTracker) walked(mapID int) ([]models.TrackPoint, error) {
 	k.mu.RLock()
 	var starts []int64
 	for _, key := range k.history {

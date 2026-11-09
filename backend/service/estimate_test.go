@@ -35,7 +35,7 @@ func TestTopRunsAreAskedForWhileNoFinishedRunOfTheDungeonIsSaved(t *testing.T) {
 		{"only an abandoned run", models.Key{MapID: 585, Status: "abandoned"}, true},
 		{"a timed run", models.Key{MapID: 585, Status: "timed", FinalMS: 1_500_000}, false},
 	} {
-		keys, err := NewKeyTracker(nil, nil, models.MPlusRules{}, nil, &memStore{keys: []models.Key{tc.earlier}})
+		keys, err := NewLogTracker(nil, nil, models.MPlusRules{}, nil, &memStore{keys: []models.Key{tc.earlier}})
 		if err != nil {
 			t.Fatal(err)
 		}

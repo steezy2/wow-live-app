@@ -1013,6 +1013,10 @@ const docTemplate = `{
                 "damage": {
                     "type": "integer"
                 },
+                "hits": {
+                    "description": "direct hits; 0 in keys saved before Nov 9",
+                    "type": "integer"
+                },
                 "player": {
                     "type": "string"
                 }
@@ -1907,7 +1911,7 @@ const docTemplate = `{
                     "example": "2026-11-03"
                 },
                 "number": {
-                    "description": "the pull's number on this boss and difficulty tonight",
+                    "description": "the pull's number on this boss and difficulty tonight, from the pulls known when it's read",
                     "type": "integer"
                 },
                 "phase": {

@@ -58,7 +58,7 @@ func (c Client) RaidGuides(ctx context.Context, raid string) ([]models.RaidGuide
 }
 
 // ParseRaidGuide reads a boss cheat sheet: the boss's name from the page title and, from the cheat sheet tab, each
-// list item's spells (those in its bold head before " - " when it has some) and its words without markup.
+// list item headed by spells before " - ": those spells and its words without markup.
 func ParseRaidGuide(page string) models.RaidGuide {
 	page = strings.NewReplacer(`\/`, "/", `\r\n`, "\n", `\"`, `"`).Replace(page)
 	var g models.RaidGuide
@@ -70,12 +70,11 @@ func ParseRaidGuide(page string) models.RaidGuide {
 		return g
 	}
 	for _, m := range item.FindAllStringSubmatch(sheet[1], -1) {
-		text, spells := m[1], spellTag.FindAllStringSubmatch(m[1], -1)
-		if head, _, ok := strings.Cut(text, headSplit); ok && spellTag.MatchString(head) {
-			spells = spellTag.FindAllStringSubmatch(head, -1)
-		}
-		if len(spells) == 0 {
-			continue
+		text := m[1]
+		head, _, ok := strings.Cut(text, headSplit)
+		spells := spellTag.FindAllStringSubmatch(head, -1)
+		if !ok || len(spells) == 0 {
+			continue // a note naming a spell in passing ("split soaks to deal with [debuff]") isn't its mechanic
 		}
 		line := models.RaidGuideLine{Text: strings.TrimSpace(markup.ReplaceAllString(text, ""))}
 		for _, s := range spells {
