@@ -4,6 +4,8 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-11-09
+
 ### Added
 - Screenshots in the README (a key mid-run, the review and the graph), from a replay of a real key with made-up names.
 - A tag also releases the installer on steezy2/wow-live, the installers-only repo the first testers have (`RELEASES_TOKEN`).
