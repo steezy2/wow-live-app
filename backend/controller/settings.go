@@ -54,9 +54,9 @@ type OldKeys struct {
 
 // ReadKeys godoc
 //
-//	@Summary		Save the keys already in the log folder
-//	@Description	Reads every combat log in the folder and saves each finished key, so the estimate has earlier runs
-//	@Description	to go on. Takes about a minute for a few hundred MB of logs.
+//	@Summary		Save the keys and raid pulls already in the log folder
+//	@Description	Reads every combat log in the folder and saves each finished key and raid pull, so the estimate
+//	@Description	and the best pulls have earlier runs to go on. Takes about a minute for a few hundred MB of logs.
 //	@Tags			settings
 //	@Produce		json
 //	@Success		200	{object}	OldKeys
@@ -65,7 +65,7 @@ type OldKeys struct {
 func (s SettingsAPI) ReadKeys(c *gin.Context) {
 	saved, err := s.ReadOldKeys()
 	if err != nil {
-		log.Printf("reading old keys: %v", err)
+		log.Printf("reading old logs: %v", err)
 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "couldn't read the log folder"})
 		return
 	}

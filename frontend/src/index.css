@@ -720,3 +720,11 @@ polyline.graph-taken {
 span.graph-taken {
   color: var(--bad);
 }
+
+.raid-head h1 {
+  margin-bottom: 4px;
+}
+
+.raid-head p {
+  margin: 2px 0;
+}

@@ -178,13 +178,14 @@ type RaidPullSummary struct {
 	Phase      string  `json:"phase"`
 }
 
-// RaidLive is the raid as the overview shows it now: whether a pull is on (its boss and start), and the last pull
-// that ended, compared with the best ones.
+// RaidLive is the raid as the overview shows it now: whether a pull is on (its boss and start), the last pull that
+// ended, compared with the best ones, and whether the overlay shows it (between pulls, for a few minutes).
 type RaidLive struct {
-	Pulling bool      `json:"pulling"`
-	Boss    string    `json:"boss,omitempty"`
-	Since   int64     `json:"since,omitempty"`
-	Last    *RaidPull `json:"last,omitempty"`
+	Pulling      bool      `json:"pulling"`
+	BetweenPulls bool      `json:"betweenPulls"`
+	Boss         string    `json:"boss,omitempty"`
+	Since        int64     `json:"since,omitempty"`
+	Last         *RaidPull `json:"last,omitempty"`
 }
 
 // RaidNight is one raid night's pulls, in order.

@@ -72,6 +72,8 @@ func TestRaidPullDeathsMechanicsAndProgress(t *testing.T) {
 		raidAt(3, 0.6, "COMBATANT_INFO,Player-76-0000CCCC,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,257,[],[],[],[],[]"),
 		raidAt(3, 5, "SPELL_CAST_SUCCESS,"+shamanUnit+","+noUnit+`,740,"Tranquility",0x8,`+
 			advancedOf("Player-76-0000BBBB", "0000000000000000")),
+		raidAt(3, 6, "SPELL_CAST_SUCCESS,"+shamanUnit+","+noUnit+`,740,"Tranquility",0x8,`+ // a channel's tick
+			advancedOf("Player-76-0000BBBB", "0000000000000000")),
 		hitOn(3, 9, "SPELL_DAMAGE", shamanUnit, 1001, "Caustic Waves"),
 		hitOn(3, 9.5, "SPELL_PERIODIC_DAMAGE", shamanUnit, 1001, "Caustic Waves"), // a tick isn't a hit
 		hitOn(3, 9.6, "SPELL_DAMAGE", testPlayer, 1001, "Caustic Waves"),
@@ -113,7 +115,7 @@ func TestRaidPullDeathsMechanicsAndProgress(t *testing.T) {
 	}
 	if len(p.Cooldowns) != 1 || p.Cooldowns[0].Ability != "Tranquility" || p.Cooldowns[0].ClockMS != 5_000 ||
 		len(p.Priority) != 1 || p.Priority[0].Damage != 5_000 {
-		t.Fatalf("cooldowns = %+v, priority = %+v; want Tranquility at 5 s and the hit into the boss", p.Cooldowns,
+		t.Fatalf("cooldowns = %+v, priority = %+v; want Tranquility once at 5 s and the hit into the boss", p.Cooldowns,
 			p.Priority)
 	}
 }
@@ -141,8 +143,8 @@ func TestRaidPullsComparedListedAndOverlayTiming(t *testing.T) {
 		t.Fatalf("unknown pull: %v; want ErrNoSuchPull", err)
 	}
 	end := keys.RaidLive(0).Last.End
-	if !keys.BetweenPulls(end+1000) || keys.BetweenPulls(end+raidLingerMS+1) {
-		t.Fatal("the overlay should show the last pull for raidLingerMS after it ends, then not")
+	if !keys.BetweenPulls(end+1000) || keys.BetweenPulls(end+RaidLinger.Milliseconds()+1) {
+		t.Fatal("the overlay should show the last pull for RaidLinger after it ends, then not")
 	}
 	feed(t, keys, raidAt(4, 200, `ENCOUNTER_START,3180,"Testboss",16,20,2939`))
 	if live := keys.RaidLive(0); !live.Pulling || live.Boss != "Testboss" || keys.BetweenPulls(end+1000) {

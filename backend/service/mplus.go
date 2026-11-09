@@ -468,7 +468,7 @@ func (k *KeyTracker) damage(at int64, event string, f []string, src, dst string)
 		ability = f[9]
 	}
 	if strings.HasPrefix(f[4], "Player-") {
-		run.lastHit[f[4]] = [2]string{f[1], ability}
+		run.lastHit[f[4]] = [2]string{unitName(f[1]), ability}
 	}
 	dealt := src != "" && hasFlag(f[6], hostileFlag)
 	if dealt || (dst != "" && hasFlag(f[2], hostileFlag)) {

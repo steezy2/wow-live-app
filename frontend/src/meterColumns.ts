@@ -9,8 +9,8 @@ export interface Column {
   title?: (r: KeyMeterRow) => string
 }
 
-/** The offense columns. */
-export const offense: Column[] = [
+/** The raid's offense columns: damage, kicks and dispels. */
+export const raidOffense: Column[] = [
   { label: 'DPS', value: (r) => r.dps },
   { label: 'Damage', value: (r) => r.damage },
   {
@@ -24,6 +24,11 @@ export const offense: Column[] = [
     show: (r) => String(r.dispels + r.purges),
     title: (r) => `${r.dispels} dispels, ${r.purges} purges`,
   },
+]
+
+/** The M+ offense columns: the raid's, and the share of damage into minibosses. */
+export const offense: Column[] = [
+  ...raidOffense,
   {
     label: 'Priority',
     value: (r) => (r.damage ? (100 * r.priorityDamage) / r.damage : 0),

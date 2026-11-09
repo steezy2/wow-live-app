@@ -5,7 +5,8 @@ import { ForcesBar, TimerBar } from './KeyDetails'
 import { type Column } from './meterColumns'
 import { MeterCard } from './MeterCards'
 import { ReadyPanel } from './ReadyPanel'
-import { useLiveKey, useOverlayMoving, useReady } from './useLiveKey'
+import { RaidOverlayCard } from './RaidPage'
+import { useLiveKey, useOverlayMoving, useRaidLive, useReady } from './useLiveKey'
 
 /** How long into a key the overlay shows who started without a flask, food, rune or party buff (the countdown and
  * a little after, while there's still time to fix it). */
@@ -46,7 +47,7 @@ function useOverlaySettings(): OverlaySettings {
 }
 
 /** The overlay over the game (/overlay, the desktop app's second window): the clock against the timer, forces,
- * the estimate, deaths and the pull's DPS and HPS. Everything else stays in the full window; when it's made very
+ * the estimate, deaths and the pull's DPS and HPS during a key, and the last raid pull between raid pulls. Everything else stays in the full window; when it's made very
  * short only the clock, forces and deaths stay (index.css). While the app says it's being moved, it shows a border
  * and how to move and resize it. */
 export function Overlay() {
@@ -54,13 +55,16 @@ export function Overlay() {
   const moving = useOverlayMoving()
   const settings = useOverlaySettings()
   const ready = useReady()
+  const raid = useRaidLive()
   return (
     <div
       className={moving ? 'overlay moving' : 'overlay'}
       style={{ '--overlay-bg': `${settings.opacity}%` } as CSSProperties}
     >
       {moving && <p className="small">Drag to move, drag an edge to resize; Ctrl+Alt+O or Settings when done.</p>}
-      {ready && key?.status !== 'running' ? (
+      {raid?.betweenPulls && raid.last ? (
+        <RaidOverlayCard pull={raid.last} />
+      ) : ready && key?.status !== 'running' ? (
         <ReadyPanel ready={ready} compact />
       ) : key ? (
         <OverlayKey keyView={key} clockMS={clockMS} split={settings.split} />

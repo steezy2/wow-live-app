@@ -597,14 +597,14 @@ const docTemplate = `{
         },
         "/api/settings/read-keys": {
             "post": {
-                "description": "Reads every combat log in the folder and saves each finished key, so the estimate has earlier runs\nto go on. Takes about a minute for a few hundred MB of logs.",
+                "description": "Reads every combat log in the folder and saves each finished key and raid pull, so the estimate\nand the best pulls have earlier runs to go on. Takes about a minute for a few hundred MB of logs.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "settings"
                 ],
-                "summary": "Save the keys already in the log folder",
+                "summary": "Save the keys and raid pulls already in the log folder",
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -1780,6 +1780,9 @@ const docTemplate = `{
         "models.RaidLive": {
             "type": "object",
             "properties": {
+                "betweenPulls": {
+                    "type": "boolean"
+                },
                 "boss": {
                     "type": "string"
                 },

@@ -102,7 +102,7 @@ func run() error {
 	if len(site.Keys.Saved()) == 0 { // a first run: the estimate needs earlier runs, and the log folder has them
 		go func() {
 			if _, err := site.Learn(); err != nil {
-				log.Printf("reading old keys: %v", err)
+				log.Printf("reading old logs: %v", err)
 			}
 		}()
 	}
@@ -138,8 +138,10 @@ func run() error {
 		_, ok := site.Keys.Ready()
 		return ok
 	}
+	// ...and between raid pulls, the last pull for service.RaidLinger.
+	betweenPulls := func() bool { return site.Keys.BetweenPulls(time.Now().UnixMilli()) }
 	up := func(show string) bool {
-		return moving.Load() || show == "always" || show == "keys" && (running() || readyCheck())
+		return moving.Load() || show == "always" || show == "keys" && (running() || readyCheck() || betweenPulls())
 	}
 	showOrHide := func(show string) {
 		if up(show) {
@@ -215,6 +217,9 @@ func run() error {
 					hide = nil
 				}
 				overlay.Show()
+				if betweenPulls() { // no change comes between pulls to take it down
+					hide = time.AfterFunc(service.RaidLinger, func() { showOrHide(settings.Current().Overlay.Show) })
+				}
 			case hide == nil && overlay.IsVisible():
 				hide = time.AfterFunc(overlayLinger, func() { showOrHide(settings.Current().Overlay.Show) })
 			}

@@ -34,11 +34,12 @@ export interface KeyInterrupt {
   clockMS: number
 }
 
-/** A defensive, healthstone, health potion or combat potion used, or a kick that interrupted nothing. */
+/** A defensive, healthstone, health potion or combat potion used, a kick that interrupted nothing, crowd control,
+ * or a raid cooldown. */
 export interface KeyCast {
   player: string
   ability: string
-  kind: 'defensive' | 'healthstone' | 'health potion' | 'combat potion' | 'kick' | 'cc'
+  kind: 'defensive' | 'healthstone' | 'health potion' | 'combat potion' | 'kick' | 'cc' | 'raid cooldown'
   clockMS: number
 }
 
@@ -521,4 +522,79 @@ export async function removeKeys(): Promise<void> {
 /** Reads every combat log in the log folder and saves each finished key; says how many keys are saved. */
 export async function readOldKeys(): Promise<number> {
   return ((await (await call('/api/settings/read-keys', { method: 'POST' })).json()) as { saved: number }).saved
+}
+
+/** A raid pull in a list (models.RaidPullSummary): when, which boss, its number tonight, and how far it got (bossPct
+ * -1 without advanced logging; phase "" for a boss without phase triggers). */
+export interface RaidPullSummary {
+  start: number
+  night: string
+  boss: string
+  difficulty: 'LFR' | 'Normal' | 'Heroic' | 'Mythic'
+  number: number
+  durationMS: number
+  kill: boolean
+  bossPct: number
+  phase: string
+}
+
+/** A raider's death in a raid pull: the M+ death with whether it was early (before the wipe) and their last hits. */
+export interface RaidDeath extends KeyDeath {
+  early: boolean
+  recap: { ability: string; source: string; amount: number; beforeMS: number }[]
+}
+
+/** A number for one raider. */
+export interface PlayerCount {
+  player: string
+  count: number
+}
+
+/** One raid pull as the overview shows it (models.RaidPull). */
+export interface RaidPull extends RaidPullSummary {
+  end: number
+  players: string[]
+  deaths: RaidDeath[]
+  massKills: { ability: string; killed: number; clockMS: number }[]
+  avoidable: { ability: string; players: PlayerCount[] }[]
+  soaks: { ability: string; casts: number; fewest: number; most: number; died: string[] }[]
+  stacks: { ability: string; limit: number; players: PlayerCount[] }[]
+  dispels: KeyDispel[]
+  wentOff: KeyStop[]
+  adds: { name: string; spawned: number; killed: number; aliveEnd: number; longestMS: number }[]
+  priority: { target: string; damage: number }[]
+  meter: KeyMeter
+  lusts: number[]
+  cooldowns: KeyCast[]
+  comparisons?: { tonight?: RaidPullSummary; ever?: RaidPullSummary }
+}
+
+/** The raid now: a pull on (its boss and start), the last pull, and whether the overlay shows it. */
+export interface RaidLive {
+  pulling: boolean
+  betweenPulls: boolean
+  boss?: string
+  since?: number
+  last?: RaidPull
+}
+
+/** One raid night's pulls, in order. */
+export interface RaidNight {
+  night: string
+  pulls: RaidPullSummary[]
+}
+
+/** The raid now. */
+export async function fetchRaidLive(signal?: AbortSignal): Promise<RaidLive> {
+  return (await (await call('/api/raid/live', { signal })).json()) as RaidLive
+}
+
+/** Every raid night's pulls, newest night first. */
+export async function fetchRaidNights(signal?: AbortSignal): Promise<RaidNight[]> {
+  return (await (await call('/api/raid/nights', { signal })).json()) as RaidNight[]
+}
+
+/** One raid pull. */
+export async function fetchRaidPull(start: number, signal?: AbortSignal): Promise<RaidPull> {
+  return (await (await call(`/api/raid/pulls/${start}`, { signal })).json()) as RaidPull
 }

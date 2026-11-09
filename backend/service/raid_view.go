@@ -22,19 +22,25 @@ func (k *KeyTracker) RaidLive(now int64) models.RaidLive {
 		last := k.compared(k.pulls[0])
 		live.Last = &last
 	}
+	live.BetweenPulls = k.betweenPulls(now)
 	return live
 }
 
-// BetweenPulls is whether the overlay shows the last raid pull at now (ms since the epoch): one ended less than
-// raidLingerMS ago, no pull or key is on, and no key ended since.
+// BetweenPulls is whether the overlay shows the last raid pull at now (ms since the epoch).
 func (k *KeyTracker) BetweenPulls(now int64) bool {
 	k.mu.RLock()
 	defer k.mu.RUnlock()
+	return k.betweenPulls(now)
+}
+
+// betweenPulls is whether a raid pull ended less than RaidLinger before now, no pull or key is on, and no key
+// ended since.
+func (k *KeyTracker) betweenPulls(now int64) bool {
 	if k.current != nil || len(k.pulls) == 0 {
 		return false
 	}
 	end := k.pulls[0].End
-	return now-end <= raidLingerMS && (k.last == nil || k.last.End < end)
+	return now-end <= RaidLinger.Milliseconds() && (k.last == nil || k.last.End < end)
 }
 
 // RaidNights is every raid night's pulls in order, newest night first.

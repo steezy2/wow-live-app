@@ -18,9 +18,13 @@ var ErrNoSuchPull = errors.New("no saved raid pull starts then")
 // raidDifficulties are the combat log's raid difficulty IDs and their names.
 var raidDifficulties = map[string]string{"14": "Normal", "15": "Heroic", "16": "Mythic", "17": "LFR"}
 
+// RaidLinger is how long the overlay keeps the last raid pull up between pulls, unless a new pull starts first.
+const RaidLinger = 5 * time.Minute
+
 const (
-	// raidLingerMS: between pulls, the overlay keeps the last one up this long, unless a new pull starts first.
-	raidLingerMS = 5 * 60_000
+	// cooldownRepeatMS: a raid cooldown cast again this soon by the same raider is the same use (a channel logs
+	// each tick).
+	cooldownRepeatMS = 10_000
 	// recapHits is how many of a raider's last hits their death shows.
 	recapHits = 3
 	// nightStartsHour: a pull before this hour belongs to the raid night before.
@@ -60,9 +64,10 @@ type raidRun struct {
 	names      map[int]string       // soak spell ID -> name
 }
 
-// raidUnit is a hostile creature in a pull: its name, health (from advanced logging), and when it was first seen
-// and died (0 while up).
+// raidUnit is a hostile creature in a pull: its name, health (from advanced logging), when it was first seen and
+// died (0 while up), and whether a raider hit it.
 type raidUnit struct {
+	hit        bool
 	name       string
 	hp, maxHP  int64
 	seen, died int64
@@ -168,7 +173,10 @@ func (k *KeyTracker) raidLine(line models.LogLine) bool {
 			r.stacks[key], r.limits[f[9]] = max(r.stacks[key], n), limit
 		}
 	case "SPELL_CAST_SUCCESS":
-		if who := k.player(f[0], f[2]); who != "" && len(f) > 9 && k.raid.cooldowns[f[9]] {
+		if who := k.player(f[0], f[2]); who != "" && len(f) > 9 && k.raid.cooldowns[f[9]] &&
+			!slices.ContainsFunc(r.cooldowns, func(c models.KeyCast) bool {
+				return c.Player == who && c.Ability == f[9] && run.clock(at)-c.ClockMS < cooldownRepeatMS
+			}) {
 			r.cooldowns = append(r.cooldowns, models.KeyCast{Player: who, Ability: f[9], Kind: "raid cooldown",
 				ClockMS: run.clock(at)})
 		}
@@ -203,7 +211,7 @@ func (k *KeyTracker) raidHit(at int64, event string, f []string, victim string) 
 			ability, id = f[9], atoi(f[8])
 		}
 		if amount := hitAmount(event, f); amount > 0 {
-			hits := append(r.recent[victim], hitAt{ability: ability, source: f[1], amount: amount, at: at})
+			hits := append(r.recent[victim], hitAt{ability: ability, source: unitName(f[1]), amount: amount, at: at})
 			r.recent[victim] = hits[max(0, len(hits)-recapHits):]
 		}
 		if event == "SPELL_DAMAGE" && slices.Contains(r.boss.Avoidable, id) {
@@ -213,7 +221,13 @@ func (k *KeyTracker) raidHit(at int64, event string, f []string, victim string) 
 			r.soak(id, ability, victim, at, k.raid.rules.Soaks.WindowMS)
 		}
 	}
-	if slices.Contains(r.boss.Priority, f[5]) && k.player(f[0], f[2]) != "" {
+	if k.player(f[0], f[2]) == "" {
+		return
+	}
+	if u := r.units[f[4]]; u != nil {
+		u.hit = true
+	}
+	if slices.Contains(r.boss.Priority, f[5]) {
 		r.priority[f[5]] += hitAmount(event, f)
 	}
 }
@@ -341,8 +355,8 @@ func (r *raidRun) bossPct(kill bool) float64 {
 	return 100 * float64(hp) / float64(maxHP)
 }
 
-// adds is each kind of hostile unit that isn't the boss: how many showed up, died and were up at the end, and the
-// longest one lived; those still up first, at most shownAdds.
+// adds is each kind of hostile unit the raid hit that isn't the boss (not a soak circle or a lure): how many showed
+// up, died and were up at the end, and the longest one lived; those still up first, at most shownAdds.
 func (r *raidRun) adds(end int64) []models.RaidAdd {
 	var biggest int64
 	for _, u := range r.units {
@@ -350,7 +364,7 @@ func (r *raidRun) adds(end int64) []models.RaidAdd {
 	}
 	byName := map[string]*models.RaidAdd{}
 	for _, u := range r.units {
-		if biggest > 0 && float64(u.maxHP) >= bossShare*float64(biggest) {
+		if !u.hit || biggest > 0 && float64(u.maxHP) >= bossShare*float64(biggest) {
 			continue
 		}
 		a := byName[u.name]

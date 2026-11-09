@@ -1,5 +1,15 @@
 import { useEffect, useState } from 'react'
-import { fetchLiveKey, fetchReady, moveOverlay, onAppEvent, type ReadyCheck, subscribe, type KeyView } from './api'
+import {
+  fetchLiveKey,
+  fetchRaidLive,
+  fetchReady,
+  moveOverlay,
+  onAppEvent,
+  type RaidLive,
+  type ReadyCheck,
+  subscribe,
+  type KeyView,
+} from './api'
 
 /** How often a running clock ticks between answers. */
 const TICK_MS = 250
@@ -55,16 +65,26 @@ export function useLiveKey(onEnded?: () => void) {
 /** The ready check before the next key, read again on each change the site pushes; null outside a Mythic dungeon
  * between keys. */
 export function useReady(): ReadyCheck | null {
-  const [ready, setReady] = useState<ReadyCheck | null>(null)
+  return usePushed(fetchReady)
+}
+
+/** The raid now, read again on each change the site pushes; null until the first answer. */
+export function useRaidLive(): RaidLive | null {
+  return usePushed(fetchRaidLive)
+}
+
+/** read's answer, asked again on each change the site pushes; null until the first answer. */
+function usePushed<T>(read: (signal: AbortSignal) => Promise<T | null>): T | null {
+  const [value, setValue] = useState<T | null>(null)
   useEffect(() => {
     const controller = new AbortController()
-    const unsubscribe = subscribe(() => void fetchReady(controller.signal).then(setReady, () => undefined))
+    const unsubscribe = subscribe(() => void read(controller.signal).then(setValue, () => undefined))
     return () => {
       controller.abort()
       unsubscribe()
     }
-  }, [])
-  return ready
+  }, [read])
+  return value
 }
 
 /** Whether the desktop app says the overlay is being moved (it takes clicks to be dragged and resized). */
