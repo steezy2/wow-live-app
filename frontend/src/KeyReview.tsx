@@ -88,9 +88,7 @@ export function KeyReview({ keyView: key, justEnded }: { keyView: KeyView; justE
               <tr key={p.player}>
                 <td>
                   <b>{p.player}</b>
-                  <div className="muted small">
-                    {p.spec} {p.class}
-                  </div>
+                  <div className="muted small">{p.spec}</div>
                 </td>
                 {p.metrics.map((m) => {
                   const show = (v: number) => (m.amount ? amount(v) : String(Math.round(v)))

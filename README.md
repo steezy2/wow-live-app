@@ -4,6 +4,19 @@ A Windows app for World of Warcraft Mythic+ keys. It reads the game's combat log
 
 It's not an addon and doesn't touch the game: it only reads the combat log file the game writes when Advanced Combat Logging is on. Nothing is uploaded, and nothing listens on the network.
 
+![A +15 mid-key: the clock against the timer, forces, the must-stop casts that went off, and DPS for the last pull and the whole key](docs/screenshots/live.png)
+
+<details>
+<summary>After the key: the review and the damage graph</summary>
+
+![Each player against their spec's top runs on Warcraft Logs, with what to work on and what went well](docs/screenshots/review.png)
+
+![Damage per second over the key, a line per player, with boss kills marked](docs/screenshots/graph.png)
+
+</details>
+
+*Screenshots from a replay of a real key, with the players' names made up.*
+
 ## Install
 
 1. Download `WoW.Live.Setup.exe` from the [latest release](../../releases/latest). It installs for your user only, with no admin.
@@ -34,7 +47,7 @@ Settings, saved keys and the log are in `%LOCALAPPDATA%\WoW Live`; uninstalling 
 - **Checks:** `gofmt -l .`, `go vet ./...` and `go test ./...` in `backend/`; `npm run lint`, `npm test` and `npm run build` in `frontend/`. CI runs them on every PR.
 - **In a browser:** after `npm run build` in `frontend/`, `go run ./cmd/site` in `backend/` serves the same page and API at http://localhost:8080 (API spec at `/swagger/index.html`). `--replay PATH --key 2 --speed 30` plays a past log's 2nd key 30 times faster; `--learn` saves every finished key in the log folder. After changing an endpoint, regenerate the spec with `swag init -g cmd/site/main.go -o docs --parseInternal`.
 - **Dungeon facts:** `go run ./cmd/mplusref` rewrites `reference/mplus-dungeons.json` from Mythic Dungeon Tools, Raider.IO and Wowhead; rerun it each season and check the diff.
-- **Releases:** a `v*` tag builds the installer and its SHA-256 on GitHub Actions and releases them here, with a build provenance attestation once the repo is public: `gh attestation verify "WoW.Live.Setup.exe" -R <owner>/<repo>` checks an installer was built by this repo's workflow.
+- **Releases:** a `v*` tag builds the installer and its SHA-256 on GitHub Actions and releases them here, with a build provenance attestation once the repo is public: `gh attestation verify "WoW.Live.Setup.exe" -R <owner>/<repo>` checks an installer was built by this repo's workflow. The same files also go to [steezy2/wow-live](https://github.com/steezy2/wow-live), the installers-only repo, with the `RELEASES_TOKEN` secret.
 - **Icon:** `backend/cmd/appicon/icon.svg` (and `icon-small.svg` under 48 px), rendered to the committed PNGs by `render.sh`. Original art, no Blizzard logos.
 
 World of Warcraft is a trademark of Blizzard Entertainment; this project isn't affiliated with Blizzard. Maps are Keystone.guru's, credited on the page.

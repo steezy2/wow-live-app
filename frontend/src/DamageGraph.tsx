@@ -75,7 +75,7 @@ export function DamageGraph({ keyView: key }: { keyView: KeyView }) {
           </g>
         ))}
         {[0, 0.25, 0.5, 0.75, 1].map((f) => (
-          <text key={f} className="graph-axis" x={x(end * f)} y={H - 4} textAnchor="middle">
+          <text key={f} className="graph-axis" x={x(end * f)} y={H - 4} textAnchor={f === 1 ? 'end' : 'middle'}>
             {clock(end * f)}
           </text>
         ))}

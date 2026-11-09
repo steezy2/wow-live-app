@@ -69,3 +69,12 @@ jobs:
           gh release create "$GITHUB_REF_NAME" "WoW Live Setup.exe" "WoW Live Setup.exe.sha256"
           --repo "$GITHUB_REPOSITORY" --title "WoW Live $GITHUB_REF_NAME"
           --notes "It's unsigned, so Windows SmartScreen warns on first run: More info, then Run anyway. Install steps are in the README."
+      # The same files on steezy2/wow-live, the installers-only repo the first testers have the link to (RELEASES_TOKEN:
+      # a fine-grained token with Contents read and write on that repo alone).
+      - if: github.repository == 'steezy2/wow-live-app'
+        env:
+          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
+        run: >
+          gh release create "$GITHUB_REF_NAME" "WoW Live Setup.exe" "WoW Live Setup.exe.sha256"
+          --repo steezy2/wow-live --title "WoW Live $GITHUB_REF_NAME"
+          --notes "Built and attested in https://github.com/steezy2/wow-live-app. It's unsigned, so Windows SmartScreen warns on first run: More info, then Run anyway."

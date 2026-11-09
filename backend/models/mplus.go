@@ -129,8 +129,7 @@ type KeyReview struct {
 // evidence, and exactly one thing they did well.
 type PlayerReview struct {
 	Player   string         `json:"player"`
-	Class    string         `json:"class"`
-	Spec     string         `json:"spec"`
+	Spec     string         `json:"spec" example:"Blood Death Knight"` // the spec and class, as the page shows them
 	Metrics  []ReviewMetric `json:"metrics"`
 	Advice   []string       `json:"advice"`
 	Positive string         `json:"positive"`

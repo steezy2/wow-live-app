@@ -1541,9 +1541,6 @@ const docTemplate = `{
                         "type": "string"
                     }
                 },
-                "class": {
-                    "type": "string"
-                },
                 "metrics": {
                     "type": "array",
                     "items": {
@@ -1557,7 +1554,9 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "spec": {
-                    "type": "string"
+                    "description": "the spec and class, as the page shows them",
+                    "type": "string",
+                    "example": "Blood Death Knight"
                 }
             }
         },
