@@ -21,12 +21,12 @@ jobs:
       run:
         shell: bash
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
         with:
           go-version-file: backend/go.mod
           cache-dependency-path: backend/go.sum
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: "22"
       - run: bash backend/cmd/app/build.sh
@@ -45,7 +45,7 @@ jobs:
           export PATH="$PATH:/c/Program Files (x86)/NSIS"
           makensis -DVERSION="$VERSION" backend/cmd/app/installer.nsi
           cd bin && sha256sum "WoW Live Setup.exe" > "WoW Live Setup.exe.sha256" && cat "WoW Live Setup.exe.sha256"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: wow-live-installer
           path: bin/WoW Live Setup.exe*
@@ -60,7 +60,7 @@ jobs:
           MSIX_PUBLISHER_NAME: ${{ vars.MSIX_PUBLISHER_NAME }}
         run: bash backend/cmd/app/msix/pack.sh "$VERSION"
       - if: vars.MSIX_PUBLISHER != ''
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: wow-live-msix
           path: bin/WoW Live.msix
@@ -74,11 +74,11 @@ jobs:
       id-token: write # with attestations, to sign the provenance
       attestations: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: wow-live-installer
       - if: github.event.repository.visibility == 'public'
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@v4
         with:
           subject-path: WoW Live Setup.exe
       - env:
