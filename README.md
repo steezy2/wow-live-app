@@ -38,7 +38,7 @@ Play in Windowed or Windowed (Fullscreen) so the overlay shows over the game.
 - **After the key:** a review of each player against their spec's top runs on Warcraft Logs and their own earlier runs (DPS or HPS, priority damage, active time, kicks, dispels, avoidable damage, deaths with a defensive ready, potions with Bloodlust), with up to three things to work on and one done well; a damage or healing per second graph; and a replay on Keystone.guru's maps.
 - **Overlay:** see-through and click-through. Ctrl+Alt+O (or *Move overlay* in Settings) moves and resizes it; Settings also has when it shows, its background opacity and one or two cards.
 
-Settings, saved keys and the log are in `%LOCALAPPDATA%\WoW Live`; uninstalling keeps them. Warcraft Logs keys are kept in Windows Credential Manager. Nothing from the combat log leaves your PC: see the [privacy policy](PRIVACY.md).
+Settings, saved keys and the log are in `%LOCALAPPDATA%\WoW Live`; uninstalling keeps them. The Microsoft Store version keeps them in its own package folder instead, which uninstalling removes. Warcraft Logs keys are kept in Windows Credential Manager. Nothing from the combat log leaves your PC: see the [privacy policy](PRIVACY.md).
 
 ## Working on it
 
@@ -47,7 +47,7 @@ Settings, saved keys and the log are in `%LOCALAPPDATA%\WoW Live`; uninstalling 
 - **Checks:** `gofmt -l .`, `go vet ./...` and `go test ./...` in `backend/`; `npm run lint`, `npm test` and `npm run build` in `frontend/`. CI runs them on every PR.
 - **In a browser:** after `npm run build` in `frontend/`, `go run ./cmd/site` in `backend/` serves the same page and API at http://localhost:8080 (API spec at `/swagger/index.html`). `--replay PATH --key 2 --speed 30` plays a past log's 2nd key 30 times faster; `--learn` saves every finished key in the log folder. After changing an endpoint, regenerate the spec with `swag init -g cmd/site/main.go -o docs --parseInternal`.
 - **Dungeon facts:** `go run ./cmd/mplusref` rewrites `reference/mplus-dungeons.json` from Mythic Dungeon Tools, Raider.IO and Wowhead; rerun it each season and check the diff.
-- **Releases:** a `v*` tag builds the installer and its SHA-256 on GitHub Actions and releases them here with a build provenance attestation: `gh attestation verify "WoW.Live.Setup.exe" -R <owner>/<repo>` checks an installer was built by this repo's workflow. The same files also go to [steezy2/wow-live](https://github.com/steezy2/wow-live), the installers-only repo, with the `RELEASES_TOKEN` secret.
+- **Releases:** a `v*` tag builds the installer and its SHA-256 on GitHub Actions and releases them here with a build provenance attestation: `gh attestation verify "WoW.Live.Setup.exe" -R <owner>/<repo>` checks an installer was built by this repo's workflow. The same files also go to [steezy2/wow-live](https://github.com/steezy2/wow-live), the installers-only repo, with the `RELEASES_TOKEN` secret. Once the repo's `MSIX_NAME`, `MSIX_PUBLISHER` and `MSIX_PUBLISHER_NAME` variables hold the identity from Partner Center's *Product identity* page, the same run also packs `WoW Live.msix` (`backend/cmd/app/msix/pack.sh`) as the `wow-live-msix` artifact, to upload to the Microsoft Store, which signs it.
 - **Icon:** `backend/cmd/appicon/icon.svg` (and `icon-small.svg` under 48 px), rendered to the committed PNGs by `render.sh`. Original art, no Blizzard logos.
 
 World of Warcraft is a trademark of Blizzard Entertainment; this project isn't affiliated with Blizzard. Maps are Keystone.guru's, credited on the page.
