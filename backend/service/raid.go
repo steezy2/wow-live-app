@@ -126,10 +126,11 @@ func (k *KeyTracker) raidLine(line models.LogLine) bool {
 	r := run.raid
 	switch line.Event {
 	case "ENCOUNTER_END":
-		k.finishPull(at, len(f) >= 5 && f[4] == "1")
+		k.current.key.End = at
+		k.finishPull(len(f) >= 5 && f[4] == "1")
 		return true
 	case "ENCOUNTER_START": // the last pull never logged its end
-		k.finishPull(at, false)
+		k.finishPull(false)
 		if len(f) >= 5 && raidDifficulties[f[2]] != "" {
 			k.startPull(line)
 		}
@@ -217,7 +218,7 @@ func (k *KeyTracker) raidHit(at int64, event string, f []string, victim string) 
 		if event == "SPELL_DAMAGE" && slices.Contains(r.boss.Avoidable, id) {
 			r.hits[[2]string{ability, victim}]++
 		}
-		if slices.Contains(r.boss.Soak, id) {
+		if slices.Contains(r.boss.Soak, id) && (event == "SPELL_DAMAGE" || event == "SPELL_MISSED") {
 			r.soak(id, ability, victim, at, k.raid.rules.Soaks.WindowMS)
 		}
 	}
@@ -255,9 +256,14 @@ func recap(hits []hitAt, at int64) []models.RaidHit {
 }
 
 // finishPull closes the running raid pull (a kill or a wipe), keeps it as the newest pull and queues it for saving.
-func (k *KeyTracker) finishPull(at int64, kill bool) {
+// A pull the game ended (ENCOUNTER_END) has its end set; one closed by anything else ends at its last fighting.
+func (k *KeyTracker) finishPull(kill bool) {
 	run := k.current
-	run.key.End, run.key.Status = at, "wipe"
+	if run.key.End == 0 {
+		run.key.End = max(run.pullLast, run.key.Start)
+	}
+	at := run.key.End
+	run.key.Status = "wipe"
 	if kill {
 		run.key.Status = "kill"
 	}

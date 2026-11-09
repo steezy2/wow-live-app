@@ -167,6 +167,9 @@ func (k *KeyTracker) Add(line models.LogLine) {
 	if k.current != nil || line.Event == "CHALLENGE_MODE_START" {
 		k.version++
 	}
+	if run := k.current; run != nil && run.raid != nil && line.Time-k.lastAt > quietMS {
+		k.finishPull(false) // the game logged nothing for a while (a crash or a disconnect), so no end is coming
+	}
 	k.lastAt = line.Time
 	f := line.Fields
 	k.learn(line.Time, line.Event, f)
@@ -339,7 +342,7 @@ func (k *KeyTracker) closeCurrent(at int64, status string, final int64) {
 		return
 	}
 	if run.raid != nil {
-		k.finishPull(at, false)
+		k.finishPull(false)
 		return
 	}
 	run.key.End, run.key.Status, run.key.FinalMS = at, status, final

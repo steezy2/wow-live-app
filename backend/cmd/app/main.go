@@ -208,6 +208,7 @@ func run() error {
 	versions, _ := site.Changes.Subscribe()
 	go func() {
 		var hide *time.Timer
+		forRaid := false // the overlay is up for the last raid pull, until the next pull or key
 		for v := range versions {
 			wails.Event.Emit("change", v)
 			switch {
@@ -217,9 +218,13 @@ func run() error {
 					hide = nil
 				}
 				overlay.Show()
-				if betweenPulls() { // no change comes between pulls to take it down
+				if forRaid = betweenPulls(); forRaid { // no change comes between pulls to take it down
 					hide = time.AfterFunc(service.RaidLinger, func() { showOrHide(settings.Current().Overlay.Show) })
 				}
+			case forRaid: // a pull or a key started
+				hide.Stop()
+				hide, forRaid = nil, false
+				showOrHide(settings.Current().Overlay.Show)
 			case hide == nil && overlay.IsVisible():
 				hide = time.AfterFunc(overlayLinger, func() { showOrHide(settings.Current().Overlay.Show) })
 			}

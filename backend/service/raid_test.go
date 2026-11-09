@@ -3,6 +3,7 @@ package service
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"wow-live/backend/models"
 )
@@ -22,7 +23,8 @@ func (m *memPulls) ListPulls() ([]models.RaidPull, error) { return nil, nil }
 
 // raidAt is a log line s seconds after 20:00 on day (of November 2026).
 func raidAt(day int, s float64, line string) string {
-	return fmt.Sprintf("11/%d/2026 20:%02d:%06.3f-7  %s", day, int(s)/60, s-float64(int(s)/60*60), line)
+	at := time.Date(2026, 11, day, 20, 0, 0, 0, time.UTC).Add(time.Duration(s * float64(time.Second)))
+	return at.Format("1/2/2006 15:04:05.000") + "-7  " + line
 }
 
 func newRaidTracker(t *testing.T) (*KeyTracker, *memPulls) {
@@ -50,7 +52,12 @@ func pullLines(day int, s, length float64, hp int, kill bool, extra ...string) [
 	if kill {
 		end = "1"
 	}
-	lines := partyOfTwo(raidAt(day, s, `ENCOUNTER_START,3180,"Testboss",16,20,2939`))
+	info := func(guid, spec string) string {
+		return raidAt(day, s+0.5, "COMBATANT_INFO,"+guid+",1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,"+spec+
+			",[],[],[],[],[]")
+	}
+	lines := []string{raidAt(day, s, `ENCOUNTER_START,3180,"Testboss",16,20,2939`),
+		info("Player-76-0000AAAA", "62"), info("Player-76-0000BBBB", "262")}
 	lines = append(lines, raidAt(day, s+1, "SPELL_DAMAGE,"+testPlayer+","+bossUnit+`,44425,"Arcane Barrage",0x40,`+
 		fmt.Sprintf("%s,0000000000000000,%d,100,0,0,1470,0,0,0,3,0,100,0,1599.81,-1.23,2610,3.1461,93", bossGUID, hp)+
 		",5000,5000,-1,64,0,0,0,nil,nil,nil,ST"))
@@ -169,5 +176,21 @@ func TestRaidBossFactsSortsLinesByTheirWords(t *testing.T) {
 	if fmt.Sprint(b.Avoidable, b.Soak, b.Dispel, b.MustStop, b.Priority) != "[1] [2] [4] [5] [Ula'tek's Heart]" ||
 		fmt.Sprint(b.Stacks) != "map[3:11 6:0 7:0]" {
 		t.Fatalf("facts = %+v", b)
+	}
+}
+
+func TestRaidPullWithoutAnEndEndsAtItsLastFighting(t *testing.T) {
+	keys, _ := newRaidTracker(t)
+	lines := pullLines(3, 0, 60, 50, false)
+	lines = lines[:len(lines)-1] // no ENCOUNTER_END: the next pull starts
+	lines = append(lines, pullLines(3, 120, 60, 40, false)...)
+	lines = lines[:len(lines)-1] // nor here: nothing in the log for an hour (a crash), then a trash line
+	lines = append(lines, raidAt(3, 3600+120, "SPELL_DAMAGE,"+testPlayer+","+bossUnit+`,44425,"Arcane Barrage",0x40,`+
+		bossGUID+",0000000000000000,40,100,0,0,1470,0,0,0,3,0,100,0,1599.81,-1.23,2610,3.1461,93,"+
+		"5000,5000,-1,64,0,0,0,nil,nil,nil,ST"))
+	feed(t, keys, lines...)
+	pulls := keys.RaidNights()[0].Pulls
+	if len(pulls) != 2 || pulls[0].DurationMS != 1000 || pulls[1].DurationMS != 1000 || keys.RaidLive(0).Pulling {
+		t.Fatalf("pulls = %+v; want two pulls, each ended at its last hit (1 s in), none still on", pulls)
 	}
 }
