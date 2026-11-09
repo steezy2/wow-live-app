@@ -342,11 +342,12 @@ func (m MPlus) deleteSaved(c *gin.Context, start int64) {
 	c.Status(http.StatusNoContent)
 }
 
-// startParam reads the :start path parameter, answering 400 when it isn't a positive number.
+// startParam reads the :start path parameter (a key's or a raid pull's), answering 400 when it isn't a positive
+// number.
 func startParam(c *gin.Context) (int64, bool) {
 	start, err := strconv.ParseInt(c.Param("start"), 10, 64)
 	if err != nil || start <= 0 {
-		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "start must be a key's start time in ms"})
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "start must be a start time in ms"})
 		return 0, false
 	}
 	return start, true

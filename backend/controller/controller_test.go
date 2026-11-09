@@ -55,8 +55,21 @@ func (f *fakeKeys) DeleteSaved(start int64) error {
 	return nil
 }
 
-func TestSavedKeys(t *testing.T) {
-	router := Router(MPlus{Keys: &fakeKeys{}, Now: time.Now}, nil, os.DirFS(t.TempDir()), LocalHosts(port)...)
+// fakeRaid has one raid pull, starting at 1.
+type fakeRaid struct{}
+
+func (fakeRaid) RaidLive(int64) models.RaidLive { return models.RaidLive{} }
+func (fakeRaid) RaidNights() []models.RaidNight { return []models.RaidNight{} }
+func (fakeRaid) RaidPull(start int64) (models.RaidPull, error) {
+	if start != 1 {
+		return models.RaidPull{}, service.ErrNoSuchPull
+	}
+	return models.RaidPull{Start: 1}, nil
+}
+
+func TestSavedKeysAndRaidPulls(t *testing.T) {
+	router := Router(MPlus{Keys: &fakeKeys{}, Now: time.Now}, &Raid{Pulls: fakeRaid{}, Now: time.Now}, nil,
+		os.DirFS(t.TempDir()), LocalHosts(port)...)
 	for _, tc := range []struct {
 		method, path string
 		code         int
@@ -67,6 +80,11 @@ func TestSavedKeys(t *testing.T) {
 		{http.MethodGet, "/api/mplus/keys/x", http.StatusBadRequest},
 		{http.MethodDelete, "/api/mplus/keys/7", http.StatusNoContent},
 		{http.MethodDelete, "/api/mplus/keys", http.StatusNoContent},
+		{http.MethodGet, "/api/raid/live", http.StatusOK},
+		{http.MethodGet, "/api/raid/nights", http.StatusOK},
+		{http.MethodGet, "/api/raid/pulls/1", http.StatusOK},
+		{http.MethodGet, "/api/raid/pulls/2", http.StatusNotFound},
+		{http.MethodGet, "/api/raid/pulls/x", http.StatusBadRequest},
 	} {
 		r := httptest.NewRequest(tc.method, tc.path, nil)
 		r.Host = "localhost:8080"
@@ -93,7 +111,7 @@ func TestLiveKeyIsReadAtNowOrNoContentBeforeAnyKey(t *testing.T) {
 	keys := &fakeKeys{key: models.KeyView{Key: models.Key{Dungeon: "Voidscar Arena", Level: 17}, ClockMS: 75_000},
 		ok: true}
 	now := time.UnixMilli(1_793_800_000_000)
-	router := Router(MPlus{Keys: keys, Now: func() time.Time { return now }}, nil, os.DirFS(t.TempDir()), LocalHosts(port)...)
+	router := Router(MPlus{Keys: keys, Now: func() time.Time { return now }}, nil, nil, os.DirFS(t.TempDir()), LocalHosts(port)...)
 	w := get(t, router, "/api/mplus/live")
 	var got models.KeyView
 	if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil || w.Code != http.StatusOK ||
@@ -111,7 +129,7 @@ func TestPagesAndUnknownAPIPaths(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(pages, "index.html"), []byte("page"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	router := Router(MPlus{Keys: &fakeKeys{}, Now: time.Now}, nil, os.DirFS(pages), LocalHosts(port)...)
+	router := Router(MPlus{Keys: &fakeKeys{}, Now: time.Now}, nil, nil, os.DirFS(pages), LocalHosts(port)...)
 	if w := get(t, router, "/mplus"); w.Code != http.StatusOK || w.Body.String() != "page" {
 		t.Fatalf("a page route: %d %q, want index.html", w.Code, w.Body)
 	}
@@ -148,7 +166,7 @@ func TestEventsStreamAChangeNotice(t *testing.T) {
 		t.Fatal(err)
 	}
 	changes := &service.Changes{}
-	router := Router(MPlus{Keys: &fakeKeys{}, Changes: changes, Now: time.Now}, nil, os.DirFS(t.TempDir()),
+	router := Router(MPlus{Keys: &fakeKeys{}, Changes: changes, Now: time.Now}, nil, nil, os.DirFS(t.TempDir()),
 		LocalHosts(listener.Addr().(*net.TCPAddr).Port)...)
 	server := &httptest.Server{Listener: listener, Config: &http.Server{Handler: router}}
 	server.Start()
@@ -197,7 +215,7 @@ func TestSavingWCLKeysAnswersWithTheTestNeverTheSecret(t *testing.T) {
 		{`{"id": "abcd-1234", "secret": "s3cret"}`, fmt.Errorf("%w: access denied", service.ErrKeyStore),
 			http.StatusInternalServerError},
 	} {
-		router := Router(MPlus{Keys: &fakeKeys{}, Now: time.Now}, &SettingsAPI{Keys: fakeWCLKeys{tc.err}},
+		router := Router(MPlus{Keys: &fakeKeys{}, Now: time.Now}, nil, &SettingsAPI{Keys: fakeWCLKeys{tc.err}},
 			os.DirFS(t.TempDir()), LocalHosts(port)...)
 		r := httptest.NewRequest(http.MethodPut, "/api/settings/warcraftlogs", strings.NewReader(tc.body))
 		r.Host = "localhost:8080"
@@ -226,7 +244,7 @@ func TestSettingsAreSavedOnlyWithChoicesTheAPIOffers(t *testing.T) {
 		{`{}`, http.StatusBadRequest},
 	} {
 		var saved models.Settings
-		router := Router(MPlus{Keys: &fakeKeys{}, Now: time.Now}, &SettingsAPI{Settings: fakeSettings{&saved}},
+		router := Router(MPlus{Keys: &fakeKeys{}, Now: time.Now}, nil, &SettingsAPI{Settings: fakeSettings{&saved}},
 			os.DirFS(t.TempDir()), LocalHosts(port)...)
 		body := `{"logsDir": "D:/Logs", "region": "eu", "overlay": ` + tc.overlay + `}`
 		r := httptest.NewRequest(http.MethodPut, "/api/settings", strings.NewReader(body))

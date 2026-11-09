@@ -80,7 +80,7 @@ type KeyInterrupt struct {
 type KeyCast struct {
 	Player  string `json:"player"`
 	Ability string `json:"ability"`
-	Kind    string `json:"kind" enums:"defensive,healthstone,health potion,combat potion,kick,cc"`
+	Kind    string `json:"kind" enums:"defensive,healthstone,health potion,combat potion,kick,cc,raid cooldown"`
 	ClockMS int64  `json:"clockMS"`
 }
 

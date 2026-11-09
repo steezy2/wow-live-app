@@ -450,6 +450,88 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/raid/live": {
+            "get": {
+                "description": "Whether a raid pull is on (its boss and start), and the last pull that ended with its deaths,\nmechanics, meters and cooldowns, compared with tonight's best and the best ever on the boss. The\npage reads it again on each notice from /api/mplus/events.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "raid"
+                ],
+                "summary": "The raid now: a pull on, and the last pull",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.RaidLive"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/raid/nights": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "raid"
+                ],
+                "summary": "Every raid night's pulls",
+                "responses": {
+                    "200": {
+                        "description": "newest night first, each night's pulls in order",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.RaidNight"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/raid/pulls/{start}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "raid"
+                ],
+                "summary": "One raid pull",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "the pull's start (ms since the epoch)",
+                        "name": "start",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.RaidPull"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/settings": {
             "get": {
                 "produces": [
@@ -821,7 +903,8 @@ const docTemplate = `{
                         "health potion",
                         "combat potion",
                         "kick",
-                        "cc"
+                        "cc",
+                        "raid cooldown"
                     ]
                 },
                 "player": {
@@ -1492,6 +1575,20 @@ const docTemplate = `{
                 }
             }
         },
+        "models.MassKill": {
+            "type": "object",
+            "properties": {
+                "ability": {
+                    "type": "string"
+                },
+                "clockMS": {
+                    "type": "integer"
+                },
+                "killed": {
+                    "type": "integer"
+                }
+            }
+        },
         "models.MeterPoint": {
             "type": "object",
             "properties": {
@@ -1532,6 +1629,17 @@ const docTemplate = `{
                 }
             }
         },
+        "models.PlayerCount": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "player": {
+                    "type": "string"
+                }
+            }
+        },
         "models.PlayerReview": {
             "type": "object",
             "properties": {
@@ -1568,6 +1676,346 @@ const docTemplate = `{
                 },
                 "startMS": {
                     "type": "integer"
+                }
+            }
+        },
+        "models.RaidAdd": {
+            "type": "object",
+            "properties": {
+                "aliveEnd": {
+                    "type": "integer"
+                },
+                "killed": {
+                    "type": "integer"
+                },
+                "longestMS": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "spawned": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.RaidComparisons": {
+            "type": "object",
+            "properties": {
+                "ever": {
+                    "$ref": "#/definitions/models.RaidPullSummary"
+                },
+                "tonight": {
+                    "$ref": "#/definitions/models.RaidPullSummary"
+                }
+            }
+        },
+        "models.RaidDeath": {
+            "type": "object",
+            "properties": {
+                "ability": {
+                    "type": "string"
+                },
+                "clockMS": {
+                    "type": "integer"
+                },
+                "defensive": {
+                    "type": "string"
+                },
+                "early": {
+                    "type": "boolean"
+                },
+                "killer": {
+                    "type": "string"
+                },
+                "player": {
+                    "type": "string"
+                },
+                "ready": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "recap": {
+                    "description": "the last hits before the death, oldest first",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.RaidHit"
+                    }
+                }
+            }
+        },
+        "models.RaidHit": {
+            "type": "object",
+            "properties": {
+                "ability": {
+                    "type": "string"
+                },
+                "amount": {
+                    "type": "integer"
+                },
+                "beforeMS": {
+                    "type": "integer"
+                },
+                "source": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.RaidHits": {
+            "type": "object",
+            "properties": {
+                "ability": {
+                    "type": "string"
+                },
+                "players": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.PlayerCount"
+                    }
+                }
+            }
+        },
+        "models.RaidLive": {
+            "type": "object",
+            "properties": {
+                "boss": {
+                    "type": "string"
+                },
+                "last": {
+                    "$ref": "#/definitions/models.RaidPull"
+                },
+                "pulling": {
+                    "type": "boolean"
+                },
+                "since": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.RaidNight": {
+            "type": "object",
+            "properties": {
+                "night": {
+                    "type": "string"
+                },
+                "pulls": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.RaidPullSummary"
+                    }
+                }
+            }
+        },
+        "models.RaidPriority": {
+            "type": "object",
+            "properties": {
+                "damage": {
+                    "type": "integer"
+                },
+                "target": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.RaidPull": {
+            "type": "object",
+            "properties": {
+                "adds": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.RaidAdd"
+                    }
+                },
+                "avoidable": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.RaidHits"
+                    }
+                },
+                "boss": {
+                    "type": "string"
+                },
+                "bossPct": {
+                    "description": "the boss's health left, 0-100; -1 without advanced logging",
+                    "type": "number"
+                },
+                "comparisons": {
+                    "$ref": "#/definitions/models.RaidComparisons"
+                },
+                "cooldowns": {
+                    "description": "raid cooldowns and combat potions, in order",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.KeyCast"
+                    }
+                },
+                "deaths": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.RaidDeath"
+                    }
+                },
+                "difficulty": {
+                    "type": "string",
+                    "enum": [
+                        "LFR",
+                        "Normal",
+                        "Heroic",
+                        "Mythic"
+                    ]
+                },
+                "dispels": {
+                    "description": "slowest first",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.KeyDispel"
+                    }
+                },
+                "durationMS": {
+                    "type": "integer"
+                },
+                "end": {
+                    "type": "integer"
+                },
+                "kill": {
+                    "type": "boolean"
+                },
+                "lusts": {
+                    "description": "when Bloodlust landed, ms into the pull",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "massKills": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.MassKill"
+                    }
+                },
+                "meter": {
+                    "$ref": "#/definitions/models.KeyMeter"
+                },
+                "night": {
+                    "description": "the raid night: the start's date, before 6 am counting as the day before",
+                    "type": "string",
+                    "example": "2026-11-03"
+                },
+                "number": {
+                    "description": "the pull's number on this boss and difficulty tonight",
+                    "type": "integer"
+                },
+                "phase": {
+                    "description": "the last phase reached (\"P2\"); empty for a boss without phase triggers",
+                    "type": "string"
+                },
+                "players": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "priority": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.RaidPriority"
+                    }
+                },
+                "soaks": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.RaidSoak"
+                    }
+                },
+                "stacks": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.RaidStacks"
+                    }
+                },
+                "start": {
+                    "type": "integer"
+                },
+                "wentOff": {
+                    "description": "must-stop casts that finished",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.KeyStop"
+                    }
+                }
+            }
+        },
+        "models.RaidPullSummary": {
+            "type": "object",
+            "properties": {
+                "boss": {
+                    "type": "string"
+                },
+                "bossPct": {
+                    "type": "number"
+                },
+                "difficulty": {
+                    "type": "string"
+                },
+                "durationMS": {
+                    "type": "integer"
+                },
+                "kill": {
+                    "type": "boolean"
+                },
+                "night": {
+                    "type": "string"
+                },
+                "number": {
+                    "type": "integer"
+                },
+                "phase": {
+                    "type": "string"
+                },
+                "start": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.RaidSoak": {
+            "type": "object",
+            "properties": {
+                "ability": {
+                    "type": "string"
+                },
+                "casts": {
+                    "type": "integer"
+                },
+                "died": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "fewest": {
+                    "type": "integer"
+                },
+                "most": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.RaidStacks": {
+            "type": "object",
+            "properties": {
+                "ability": {
+                    "type": "string"
+                },
+                "limit": {
+                    "type": "integer"
+                },
+                "players": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.PlayerCount"
+                    }
                 }
             }
         },

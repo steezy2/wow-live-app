@@ -96,6 +96,7 @@ definitions:
         - combat potion
         - kick
         - cc
+        - raid cooldown
         type: string
       player:
         type: string
@@ -552,6 +553,15 @@ definitions:
           $ref: '#/definitions/models.KeyCast'
         type: array
     type: object
+  models.MassKill:
+    properties:
+      ability:
+        type: string
+      clockMS:
+        type: integer
+      killed:
+        type: integer
+    type: object
   models.MeterPoint:
     properties:
       d:
@@ -581,6 +591,13 @@ definitions:
           the other, instead of one card.
         type: boolean
     type: object
+  models.PlayerCount:
+    properties:
+      count:
+        type: integer
+      player:
+        type: string
+    type: object
   models.PlayerReview:
     properties:
       advice:
@@ -606,6 +623,235 @@ definitions:
         type: integer
       startMS:
         type: integer
+    type: object
+  models.RaidAdd:
+    properties:
+      aliveEnd:
+        type: integer
+      killed:
+        type: integer
+      longestMS:
+        type: integer
+      name:
+        type: string
+      spawned:
+        type: integer
+    type: object
+  models.RaidComparisons:
+    properties:
+      ever:
+        $ref: '#/definitions/models.RaidPullSummary'
+      tonight:
+        $ref: '#/definitions/models.RaidPullSummary'
+    type: object
+  models.RaidDeath:
+    properties:
+      ability:
+        type: string
+      clockMS:
+        type: integer
+      defensive:
+        type: string
+      early:
+        type: boolean
+      killer:
+        type: string
+      player:
+        type: string
+      ready:
+        items:
+          type: string
+        type: array
+      recap:
+        description: the last hits before the death, oldest first
+        items:
+          $ref: '#/definitions/models.RaidHit'
+        type: array
+    type: object
+  models.RaidHit:
+    properties:
+      ability:
+        type: string
+      amount:
+        type: integer
+      beforeMS:
+        type: integer
+      source:
+        type: string
+    type: object
+  models.RaidHits:
+    properties:
+      ability:
+        type: string
+      players:
+        items:
+          $ref: '#/definitions/models.PlayerCount'
+        type: array
+    type: object
+  models.RaidLive:
+    properties:
+      boss:
+        type: string
+      last:
+        $ref: '#/definitions/models.RaidPull'
+      pulling:
+        type: boolean
+      since:
+        type: integer
+    type: object
+  models.RaidNight:
+    properties:
+      night:
+        type: string
+      pulls:
+        items:
+          $ref: '#/definitions/models.RaidPullSummary'
+        type: array
+    type: object
+  models.RaidPriority:
+    properties:
+      damage:
+        type: integer
+      target:
+        type: string
+    type: object
+  models.RaidPull:
+    properties:
+      adds:
+        items:
+          $ref: '#/definitions/models.RaidAdd'
+        type: array
+      avoidable:
+        items:
+          $ref: '#/definitions/models.RaidHits'
+        type: array
+      boss:
+        type: string
+      bossPct:
+        description: the boss's health left, 0-100; -1 without advanced logging
+        type: number
+      comparisons:
+        $ref: '#/definitions/models.RaidComparisons'
+      cooldowns:
+        description: raid cooldowns and combat potions, in order
+        items:
+          $ref: '#/definitions/models.KeyCast'
+        type: array
+      deaths:
+        items:
+          $ref: '#/definitions/models.RaidDeath'
+        type: array
+      difficulty:
+        enum:
+        - LFR
+        - Normal
+        - Heroic
+        - Mythic
+        type: string
+      dispels:
+        description: slowest first
+        items:
+          $ref: '#/definitions/models.KeyDispel'
+        type: array
+      durationMS:
+        type: integer
+      end:
+        type: integer
+      kill:
+        type: boolean
+      lusts:
+        description: when Bloodlust landed, ms into the pull
+        items:
+          type: integer
+        type: array
+      massKills:
+        items:
+          $ref: '#/definitions/models.MassKill'
+        type: array
+      meter:
+        $ref: '#/definitions/models.KeyMeter'
+      night:
+        description: 'the raid night: the start''s date, before 6 am counting as the
+          day before'
+        example: "2026-11-03"
+        type: string
+      number:
+        description: the pull's number on this boss and difficulty tonight
+        type: integer
+      phase:
+        description: the last phase reached ("P2"); empty for a boss without phase
+          triggers
+        type: string
+      players:
+        items:
+          type: string
+        type: array
+      priority:
+        items:
+          $ref: '#/definitions/models.RaidPriority'
+        type: array
+      soaks:
+        items:
+          $ref: '#/definitions/models.RaidSoak'
+        type: array
+      stacks:
+        items:
+          $ref: '#/definitions/models.RaidStacks'
+        type: array
+      start:
+        type: integer
+      wentOff:
+        description: must-stop casts that finished
+        items:
+          $ref: '#/definitions/models.KeyStop'
+        type: array
+    type: object
+  models.RaidPullSummary:
+    properties:
+      boss:
+        type: string
+      bossPct:
+        type: number
+      difficulty:
+        type: string
+      durationMS:
+        type: integer
+      kill:
+        type: boolean
+      night:
+        type: string
+      number:
+        type: integer
+      phase:
+        type: string
+      start:
+        type: integer
+    type: object
+  models.RaidSoak:
+    properties:
+      ability:
+        type: string
+      casts:
+        type: integer
+      died:
+        items:
+          type: string
+        type: array
+      fewest:
+        type: integer
+      most:
+        type: integer
+    type: object
+  models.RaidStacks:
+    properties:
+      ability:
+        type: string
+      limit:
+        type: integer
+      players:
+        items:
+          $ref: '#/definitions/models.PlayerCount'
+        type: array
     type: object
   models.ReadyCheck:
     properties:
@@ -1025,6 +1271,62 @@ paths:
       summary: The ready check before the next key
       tags:
       - mplus
+  /api/raid/live:
+    get:
+      description: |-
+        Whether a raid pull is on (its boss and start), and the last pull that ended with its deaths,
+        mechanics, meters and cooldowns, compared with tonight's best and the best ever on the boss. The
+        page reads it again on each notice from /api/mplus/events.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.RaidLive'
+      summary: 'The raid now: a pull on, and the last pull'
+      tags:
+      - raid
+  /api/raid/nights:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: newest night first, each night's pulls in order
+          schema:
+            items:
+              $ref: '#/definitions/models.RaidNight'
+            type: array
+      summary: Every raid night's pulls
+      tags:
+      - raid
+  /api/raid/pulls/{start}:
+    get:
+      parameters:
+      - description: the pull's start (ms since the epoch)
+        in: path
+        name: start
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.RaidPull'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+      summary: One raid pull
+      tags:
+      - raid
   /api/settings:
     get:
       produces:

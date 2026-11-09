@@ -75,7 +75,8 @@ func Start(ctx context.Context, opts Options) (*Site, error) {
 	tiles := service.MapTiles{Facts: opts.Dungeons,
 		Source: keystoneguru.Client{CacheDir: filepath.Join(opts.Cache, "keystone-guru")}}
 	s.Handler = controller.Router(controller.MPlus{Keys: keys, Reviews: s.reviews, Changes: s.Changes,
-		Now: opts.Now, Tiles: tiles}, opts.Settings, opts.Pages, opts.Hosts...)
+		Now: opts.Now, Tiles: tiles}, &controller.Raid{Pulls: keys, Now: opts.Now}, opts.Settings, opts.Pages,
+		opts.Hosts...)
 	return s, nil
 }
 
