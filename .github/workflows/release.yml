@@ -1,6 +1,6 @@
 # Builds WoW Live's Windows installer and its SHA-256 on a version tag (v0.2.0) and releases them in this repo, with a
-# build provenance attestation once the repo is public (GitHub attests private repos only on Enterprise), so anyone
-# can check an installer came from this workflow and commit: gh attestation verify "WoW Live Setup.exe" -R <this repo>.
+# build provenance attestation while the repo is public (GitHub attests private repos only on Enterprise); the README
+# says how to check one.
 # Not on PRs: the Windows build takes about 5 minutes and CI covers the code; run it by hand (Actions, Run workflow)
 # to get the installer as an artifact without a release.
 name: Release

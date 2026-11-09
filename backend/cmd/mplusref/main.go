@@ -1,6 +1,6 @@
 // Command mplusref writes reference/mplus-dungeons.json, the season's dungeon facts the M+ page reads: forces from
 // Mythic Dungeon Tools checked against Raider.IO, and the must-stop, avoidable, soak, dispel, purge and priority lists
-// from Wowhead's overviews (docs/specs/mplus-v2.md). Run it each season or patch and review the diff.
+// from Wowhead's overviews. Run it each season or patch and review the diff.
 //
 // Usage, from backend/:
 //

@@ -114,7 +114,7 @@ type KeyHit struct {
 	Damage  int64  `json:"damage"`
 }
 
-// KeyReview is a finished key next to its baselines (docs/specs/mplus-v2.md section 4): a review per party member, a
+// KeyReview is a finished key next to its baselines: a review per party member, a
 // line for the party, what the spec baselines are, and the Warcraft Logs points it spent.
 type KeyReview struct {
 	Start    int64          `json:"start"`

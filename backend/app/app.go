@@ -1,6 +1,6 @@
 // Package app starts the live M+ site the same way for cmd/site (run from the repo) and the desktop app
 // (installed): the key tracker and saved keys, key reviews, map tiles, change notices, the page's router, and the
-// follower that reads the game's log into them (docs/specs/desktop-app.md). It's wiring, not rules.
+// follower that reads the game's log into them. It's wiring, not rules.
 package app
 
 import (

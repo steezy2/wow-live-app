@@ -1,6 +1,5 @@
-// Package wcl is the Warcraft Logs v2 API client: tokens, queries with retries, the points budget, and the fetchers
-// (reports, players, events, boss health, damage and healing graphs) with the per-pull cache they share with the
-// Python tools in logs/cache/.
+// Package wcl is the Warcraft Logs v2 API client: tokens, queries with retries, the points budget, and the Mythic+
+// fetchers (encounters, spec rankings, a run's damage taken), cached in CacheDir.
 package wcl
 
 import (
@@ -44,7 +43,7 @@ type Client struct {
 	TokenURL string
 	APIURL   string
 	Main     Credentials
-	// CacheDir is logs/cache/, shared with the Python tools.
+	// CacheDir is where answers are cached (logs/cache/ in the repo, the app's cache folder when installed).
 	CacheDir string
 	// Now and Sleep are the clock, replaceable in tests.
 	Now   func() time.Time

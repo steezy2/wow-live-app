@@ -43,7 +43,7 @@ type pendingKick struct {
 	spell  string
 }
 
-// stopEvent follows must-stop casts, kicks and dispellable debuffs (docs/specs/mplus-v2.md 7A and 7B). It runs for
+// stopEvent follows must-stop casts, kicks and dispellable debuffs. It runs for
 // every line inside a key, after event's own handling.
 func (k *KeyTracker) stopEvent(at int64, event string, f []string, src, dst string) {
 	run := k.current

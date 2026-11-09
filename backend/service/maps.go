@@ -10,7 +10,7 @@ import (
 // tilesPerSide is how many tiles a floor is wide and tall at the zoom the site uses (Keystone.guru's zoom 2).
 const tilesPerSide = 4
 
-// MapTiles serves the map tiles of the season's dungeon floors (docs/specs/mplus-v2.md section 5).
+// MapTiles serves the map tiles of the season's dungeon floors.
 type MapTiles struct {
 	Facts  map[int]models.DungeonFacts
 	Source models.TileSource

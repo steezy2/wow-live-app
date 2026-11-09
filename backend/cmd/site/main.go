@@ -1,4 +1,4 @@
-// Command site serves the site on this PC: the live Mythic+ page and its API (docs/specs/mplus-live.md). It follows
+// Command site serves the site on this PC: the live Mythic+ page and its API. It follows
 // the game's combat log, so the page shows the running key a few seconds behind the game.
 //
 // Usage, from backend/ (build the page first: cd frontend && npm run build):

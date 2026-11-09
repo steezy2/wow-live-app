@@ -1,5 +1,5 @@
-// Package cachefile writes logs/cache/ files the way the Python tools do: atomically, JSON without HTML escaping,
-// and master.json in the shared format. Every Go writer of the cache goes through it.
+// Package cachefile writes the cache files atomically, as JSON without HTML escaping, and downloads files into the
+// cache. Every Go writer of the cache goes through it.
 package cachefile
 
 import (
@@ -53,7 +53,7 @@ func writeBytes(path string, data []byte) error {
 	return nil
 }
 
-// AppendLine adds one line to a running log under logs/ (points.log, live-delay.log), making the folder.
+// AppendLine adds one line to a running log (live-delay.log), making the folder.
 func AppendLine(path, line string) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return fmt.Errorf("making %s: %w", filepath.Dir(path), err)
@@ -80,7 +80,7 @@ func renameRetrying(from, to string) error {
 	}
 }
 
-// Marshal is JSON without HTML escaping, the way Python writes it.
+// Marshal is JSON without HTML escaping, so names with & or < stay readable in the files.
 func Marshal(value any) ([]byte, error) {
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
@@ -92,7 +92,7 @@ func Marshal(value any) ([]byte, error) {
 }
 
 // UserAgent is how the app names itself to the sites it calls.
-const UserAgent = "wow-live (https://github.com/steezy2/wow-live)"
+const UserAgent = "wow-live (https://github.com/steezy2/wow-live-app)"
 
 // downloadTimeout bounds one download when the caller gives no HTTP client.
 const downloadTimeout = 2 * time.Minute

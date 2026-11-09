@@ -1,7 +1,7 @@
 //go:build windows
 
 // Command app is WoW Live, the desktop app: the live M+ page in its own window, reading the game's combat log on this
-// PC, with nothing listening on the network (docs/specs/desktop-app.md). build.sh builds the page and copies what the
+// PC, with nothing listening on the network. build.sh builds the page and copies what the
 // app carries into embed/ before building it.
 package main
 
