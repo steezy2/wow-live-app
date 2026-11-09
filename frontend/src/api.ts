@@ -207,7 +207,6 @@ export interface TrackPoint {
   name?: string
 }
 
-/** Where a key's party went (each member about once a second, with their class) and where its mobs died. */
 /** A player's damage, healing and damage taken so far at a time on the key's clock (tk is missing in keys saved
  * before Nov 8). */
 export interface MeterPoint {
@@ -217,6 +216,8 @@ export interface MeterPoint {
   tk?: number
 }
 
+/** Where a key's party (or a raid pull's raid) went, each member about once a second with their class, where its mobs
+ * died, and the meters over time. */
 export interface KeyTrack {
   players: Record<string, TrackPoint[]>
   classes: Record<string, string>
@@ -225,6 +226,8 @@ export interface KeyTrack {
   meters: Record<string, MeterPoint[]>
   /** Each pull's start and end on the key's clock (end 0 while fought); missing in keys saved before Nov 8. */
   pulls?: { startMS: number; endMS: number }[]
+  /** A raid boss's units by GUID, about once a second, each point named; none in a key. */
+  bosses?: Record<string, TrackPoint[]>
 }
 
 /** One number of a player's run: the median of their spec's top runs (0 without), their usual here (-1 without), and
@@ -567,6 +570,30 @@ export interface RaidPull extends RaidPullSummary {
   lusts: number[]
   cooldowns: KeyCast[]
   comparisons?: { tonight?: RaidPullSummary; ever?: RaidPullSummary }
+  /** The boss's rooms for the replay. */
+  maps: RaidMap[]
+  lanes: RaidLane[]
+  spike?: { clockMS: number; perSecond: number; covered: string[] }
+  /** What to fix on the next pull, most important first. */
+  suggestions: string[]
+}
+
+/** A raid room's map (the combat log's uiMapID) and its edges in the log's yards: x runs north (maxX at the top), y
+ * west (maxY at the left). */
+export interface RaidMap {
+  uiMapID: number
+  minX: number
+  maxX: number
+  minY: number
+  maxY: number
+}
+
+/** One row of a pull's timeline: a mechanic (or phases, deaths, Bloodlust, cooldowns, an add kind) and each time it
+ * came up; a mark with endMS is a stretch. */
+export interface RaidLane {
+  name: string
+  kind: 'phases' | 'deaths' | 'lust' | 'cooldowns' | 'potions' | 'spike' | 'avoidable' | 'soak' | 'stacks' | 'adds'
+  marks: { clockMS: number; endMS?: number; text: string; bad?: boolean }[]
 }
 
 /** The raid now: a pull on (its boss and start), the last pull, and whether the overlay shows it. */
@@ -597,4 +624,14 @@ export async function fetchRaidNights(signal?: AbortSignal): Promise<RaidNight[]
 /** One raid pull. */
 export async function fetchRaidPull(start: number, signal?: AbortSignal): Promise<RaidPull> {
   return (await (await call(`/api/raid/pulls/${start}`, { signal })).json()) as RaidPull
+}
+
+/** One raid pull's replay track. */
+export async function fetchRaidTrack(start: number, signal?: AbortSignal): Promise<KeyTrack> {
+  return (await (await call(`/api/raid/pulls/${start}/track`, { signal })).json()) as KeyTrack
+}
+
+/** A raid room's map image. */
+export function raidMapURL(uiMapID: number): string {
+  return `/api/raid/maps/${uiMapID}`
 }

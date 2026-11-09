@@ -1,8 +1,9 @@
 {
   "raid": "venomous-abyss",
   "sources": {
+    "maps": "wago.tools' UiMapAssignment: each map's edges",
     "mechanics": "Wowhead's boss cheat sheets (each boss's guide): spell IDs sorted by the words of their line",
-    "npcs": "Warcraft Logs: the boss actors of each encounter's top-ranked kill",
+    "npcs": "Warcraft Logs: the boss actors and maps of each encounter's top-ranked kill",
     "written": "2026-11-09"
   },
   "bosses": {
@@ -25,7 +26,38 @@
         "1284494": 0,
         "1284503": 0
       },
-      "priority": []
+      "priority": [],
+      "maps": [
+        {
+          "uiMapID": 2608,
+          "minX": 265,
+          "maxX": 885,
+          "minY": -802.5,
+          "maxY": 127.5
+        }
+      ]
+    },
+    "Kith'ix": {
+      "name": "Kith'ix",
+      "guide": "",
+      "npcs": [
+        267861
+      ],
+      "avoidable": [],
+      "soak": [],
+      "dispel": [],
+      "mustStop": [],
+      "stacks": {},
+      "priority": [],
+      "maps": [
+        {
+          "uiMapID": 2669,
+          "minX": 1510.4169921875,
+          "maxX": 2022.9169921875,
+          "minY": -393.75,
+          "maxY": 375
+        }
+      ]
     },
     "Nek'zali the Soulcoiler": {
       "name": "Nek'zali the Soulcoiler",
@@ -44,7 +76,38 @@
       ],
       "mustStop": [],
       "stacks": {},
-      "priority": []
+      "priority": [],
+      "maps": [
+        {
+          "uiMapID": 2606,
+          "minX": -110,
+          "maxX": 525,
+          "minY": -476.25,
+          "maxY": 476.25
+        }
+      ]
+    },
+    "Nymrissa Wavecaller": {
+      "name": "Nymrissa Wavecaller",
+      "guide": "",
+      "npcs": [
+        252959
+      ],
+      "avoidable": [],
+      "soak": [],
+      "dispel": [],
+      "mustStop": [],
+      "stacks": {},
+      "priority": [],
+      "maps": [
+        {
+          "uiMapID": 2632,
+          "minX": 4610.419921875,
+          "maxX": 4939.580078125,
+          "minY": -12325,
+          "maxY": -11831.299804688
+        }
+      ]
     },
     "Sszorak": {
       "name": "Sszorak",
@@ -59,7 +122,16 @@
       "dispel": [],
       "mustStop": [],
       "stacks": {},
-      "priority": []
+      "priority": [],
+      "maps": [
+        {
+          "uiMapID": 2609,
+          "minX": 175,
+          "maxX": 940,
+          "minY": -113.75,
+          "maxY": 1033.75
+        }
+      ]
     },
     "The Coiled Altar": {
       "name": "The Coiled Altar",
@@ -80,6 +152,15 @@
       "stacks": {},
       "priority": [
         "Zul'jan"
+      ],
+      "maps": [
+        {
+          "uiMapID": 2610,
+          "minX": 980,
+          "maxX": 1755,
+          "minY": -581.25,
+          "maxY": 581.25
+        }
       ]
     },
     "The Lost Explorers": {
@@ -100,7 +181,16 @@
       "dispel": [],
       "mustStop": [],
       "stacks": {},
-      "priority": []
+      "priority": [],
+      "maps": [
+        {
+          "uiMapID": 2609,
+          "minX": 175,
+          "maxX": 940,
+          "minY": -113.75,
+          "maxY": 1033.75
+        }
+      ]
     },
     "The Twin Fangs": {
       "name": "The Twin Fangs",
@@ -123,7 +213,16 @@
         "1290336": 11,
         "1291404": 0
       },
-      "priority": []
+      "priority": [],
+      "maps": [
+        {
+          "uiMapID": 2607,
+          "minX": 410,
+          "maxX": 1088,
+          "minY": -508.5,
+          "maxY": 508.5
+        }
+      ]
     },
     "Ula'tek": {
       "name": "Ula'tek",
@@ -147,6 +246,15 @@
       "stacks": {},
       "priority": [
         "Ula'tek's Heart"
+      ],
+      "maps": [
+        {
+          "uiMapID": 2610,
+          "minX": 980,
+          "maxX": 1755,
+          "minY": -581.25,
+          "maxY": 581.25
+        }
       ]
     },
     "Vashnik the Malignant": {
@@ -166,7 +274,16 @@
       ],
       "mustStop": [],
       "stacks": {},
-      "priority": []
+      "priority": [],
+      "maps": [
+        {
+          "uiMapID": 2608,
+          "minX": 265,
+          "maxX": 885,
+          "minY": -802.5,
+          "maxY": 127.5
+        }
+      ]
     }
   }
 }

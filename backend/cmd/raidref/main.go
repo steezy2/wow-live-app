@@ -1,7 +1,8 @@
 // Command raidref writes reference/raid-bosses.json, the raid's boss mechanics the raid overview reads: each boss's
 // spells to dodge, soak, dispel and interrupt, the debuffs whose stacks matter and the units to burst, sorted from
-// Wowhead's boss cheat sheets by their words (service.RaidBossFacts), and its NPC IDs from a top Warcraft Logs kill
-// (WCL_CLIENT_ID and WCL_CLIENT_SECRET in .env; without them the overview tells the boss by its health). Run it each
+// Wowhead's boss cheat sheets by their words (service.RaidBossFacts), and its NPC IDs and rooms from a top Warcraft
+// Logs kill (WCL_CLIENT_ID and WCL_CLIENT_SECRET in .env; without them the overview tells the boss by its health and
+// the replay has no map), each room's edges from wago.tools. Run it each
 // tier and review the diff.
 //
 // Usage, from backend/:
@@ -25,6 +26,7 @@ import (
 	"time"
 
 	"wow-live/backend/clients/combatlog"
+	"wow-live/backend/clients/wago"
 	"wow-live/backend/clients/wcl"
 	"wow-live/backend/clients/wowhead"
 	"wow-live/backend/config"
@@ -65,23 +67,46 @@ func generate(ctx context.Context, cache, raid, path string) error {
 		guides[i].Name = strings.ReplaceAll(guides[i].Name, "’", "'") // the combat log's names use a plain apostrophe
 		names = append(names, guides[i].Name)
 	}
-	npcs := map[string][]int{}
+	fights := map[string]models.RaidBoss{}
 	if logs, err := wcl.New(cache); err != nil {
-		log.Printf("no boss NPC IDs: %v", err)
-	} else if npcs, err = logs.RaidBossNPCs(ctx, names); err != nil {
+		log.Printf("no boss NPC IDs or maps: %v", err)
+	} else if fights, err = logs.RaidBosses(ctx, names); err != nil {
 		return err
+	}
+	var mapIDs []int
+	for _, f := range fights {
+		for _, m := range f.Maps {
+			mapIDs = append(mapIDs, m.UIMapID)
+		}
+	}
+	bounds := map[int]models.RaidMap{}
+	if len(mapIDs) > 0 {
+		if bounds, err = (wago.Client{CacheDir: filepath.Join(cache, "wago")}).MapBounds(ctx, mapIDs); err != nil {
+			return err
+		}
 	}
 	ref := models.RaidReference{Raid: raid, Bosses: map[string]models.RaidBoss{}, Sources: map[string]string{
 		"mechanics": "Wowhead's boss cheat sheets (each boss's guide): spell IDs sorted by the words of their line",
-		"npcs":      "Warcraft Logs: the boss actors of each encounter's top-ranked kill",
+		"npcs":      "Warcraft Logs: the boss actors and maps of each encounter's top-ranked kill",
+		"maps":      "wago.tools' UiMapAssignment: each map's edges",
 		"written":   time.Now().Format(time.DateOnly),
 	}}
+	for name := range fights {
+		if !slices.ContainsFunc(guides, func(g models.RaidGuide) bool { return g.Name == name }) {
+			guides = append(guides, models.RaidGuide{Name: name}) // Warcraft Logs has it, Wowhead's overview doesn't
+		}
+	}
 	for _, g := range guides {
 		b := service.RaidBossFacts(g)
-		b.NPCs = append([]int{}, npcs[b.Name]...)
+		b.NPCs, b.Maps = append([]int{}, fights[b.Name].NPCs...), []models.RaidMap{}
+		for _, m := range fights[b.Name].Maps {
+			if edges, ok := bounds[m.UIMapID]; ok {
+				b.Maps = append(b.Maps, edges)
+			}
+		}
 		ref.Bosses[b.Name] = b
-		log.Printf("%s: NPCs %v, %d avoidable, %d soak, %d dispel, %d must-stop, %d stacks, burst %v", b.Name, b.NPCs,
-			len(b.Avoidable), len(b.Soak), len(b.Dispel), len(b.MustStop), len(b.Stacks), b.Priority)
+		log.Printf("%s: NPCs %v, maps %d, %d avoidable, %d soak, %d dispel, %d must-stop, %d stacks, burst %v", b.Name,
+			b.NPCs, len(b.Maps), len(b.Avoidable), len(b.Soak), len(b.Dispel), len(b.MustStop), len(b.Stacks), b.Priority)
 	}
 	data, err := json.MarshalIndent(ref, "", "  ")
 	if err != nil {

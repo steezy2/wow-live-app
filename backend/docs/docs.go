@@ -470,6 +470,50 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/raid/maps/{uiMapID}": {
+            "get": {
+                "description": "Placed by the pull's maps (models.RaidMap): its left edge is maxY, its top maxX.",
+                "produces": [
+                    "image/png"
+                ],
+                "tags": [
+                    "raid"
+                ],
+                "summary": "A raid room's map image (the game's map art, as Warcraft Logs' replay draws it)",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "the room's map ID in the combat log",
+                        "name": "uiMapID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "502": {
+                        "description": "Warcraft Logs failed",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/raid/nights": {
             "get": {
                 "produces": [
@@ -515,6 +559,47 @@ const docTemplate = `{
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/models.RaidPull"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/raid/pulls/{start}/track": {
+            "get": {
+                "description": "Each raider's position about once a second, the boss's units', killed adds' last places, and each\nraider's damage, healing and damage taken so far about every 2 s, on the pull's clock.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "raid"
+                ],
+                "summary": "One raid pull's replay track",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "the pull's start (ms since the epoch)",
+                        "name": "start",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.KeyTrack"
                         }
                     },
                     "400": {
@@ -1349,6 +1434,16 @@ const docTemplate = `{
         "models.KeyTrack": {
             "type": "object",
             "properties": {
+                "bosses": {
+                    "description": "Bosses is a raid boss's units (by GUID, each point named) about once a second; none in a key.",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/definitions/models.TrackPoint"
+                        }
+                    }
+                },
                 "classes": {
                     "type": "object",
                     "additionalProperties": {
@@ -1781,6 +1876,35 @@ const docTemplate = `{
                 }
             }
         },
+        "models.RaidLane": {
+            "type": "object",
+            "properties": {
+                "kind": {
+                    "type": "string",
+                    "enum": [
+                        "phases",
+                        "deaths",
+                        "lust",
+                        "cooldowns",
+                        "potions",
+                        "spike",
+                        "avoidable",
+                        "soak",
+                        "stacks",
+                        "adds"
+                    ]
+                },
+                "marks": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.RaidMark"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
         "models.RaidLive": {
             "type": "object",
             "properties": {
@@ -1798,6 +1922,43 @@ const docTemplate = `{
                 },
                 "since": {
                     "type": "integer"
+                }
+            }
+        },
+        "models.RaidMap": {
+            "type": "object",
+            "properties": {
+                "maxX": {
+                    "type": "number"
+                },
+                "maxY": {
+                    "type": "number"
+                },
+                "minX": {
+                    "type": "number"
+                },
+                "minY": {
+                    "type": "number"
+                },
+                "uiMapID": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.RaidMark": {
+            "type": "object",
+            "properties": {
+                "bad": {
+                    "type": "boolean"
+                },
+                "clockMS": {
+                    "type": "integer"
+                },
+                "endMS": {
+                    "type": "integer"
+                },
+                "text": {
+                    "type": "string"
                 }
             }
         },
@@ -1889,11 +2050,24 @@ const docTemplate = `{
                 "kill": {
                     "type": "boolean"
                 },
+                "lanes": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.RaidLane"
+                    }
+                },
                 "lusts": {
                     "description": "when Bloodlust landed, ms into the pull",
                     "type": "array",
                     "items": {
                         "type": "integer"
+                    }
+                },
+                "maps": {
+                    "description": "the boss's rooms for the replay, from the reference file",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.RaidMap"
                     }
                 },
                 "massKills": {
@@ -1936,6 +2110,14 @@ const docTemplate = `{
                         "$ref": "#/definitions/models.RaidSoak"
                     }
                 },
+                "spike": {
+                    "description": "nil when no damage was taken",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.RaidSpike"
+                        }
+                    ]
+                },
                 "stacks": {
                     "type": "array",
                     "items": {
@@ -1944,6 +2126,13 @@ const docTemplate = `{
                 },
                 "start": {
                     "type": "integer"
+                },
+                "suggestions": {
+                    "description": "Suggestions is what to fix on the next pull, most important first, worked out when the pull is read so it's\ncompared with the best pull as of then.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "wentOff": {
                     "description": "must-stop casts that finished",
@@ -2005,6 +2194,23 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "most": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.RaidSpike": {
+            "type": "object",
+            "properties": {
+                "clockMS": {
+                    "type": "integer"
+                },
+                "covered": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "perSecond": {
                     "type": "integer"
                 }
             }

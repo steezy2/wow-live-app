@@ -66,9 +66,23 @@ func (fakeRaid) RaidPull(start int64) (models.RaidPull, error) {
 	}
 	return models.RaidPull{Start: 1}, nil
 }
+func (f fakeRaid) RaidTrack(start int64) (models.KeyTrack, error) {
+	_, err := f.RaidPull(start)
+	return models.KeyTrack{}, err
+}
+
+// fakeMaps has one raid room's map, 2610.
+type fakeMaps struct{}
+
+func (fakeMaps) Image(_ context.Context, uiMapID int) ([]byte, error) {
+	if uiMapID != 2610 {
+		return nil, service.ErrNoSuchMap
+	}
+	return []byte("png"), nil
+}
 
 func TestSavedKeysAndRaidPulls(t *testing.T) {
-	router := Router(MPlus{Keys: &fakeKeys{}, Now: time.Now}, &Raid{Pulls: fakeRaid{}, Now: time.Now}, nil,
+	router := Router(MPlus{Keys: &fakeKeys{}, Now: time.Now}, &Raid{Pulls: fakeRaid{}, Maps: fakeMaps{}, Now: time.Now}, nil,
 		os.DirFS(t.TempDir()), LocalHosts(port)...)
 	for _, tc := range []struct {
 		method, path string
@@ -85,6 +99,10 @@ func TestSavedKeysAndRaidPulls(t *testing.T) {
 		{http.MethodGet, "/api/raid/pulls/1", http.StatusOK},
 		{http.MethodGet, "/api/raid/pulls/2", http.StatusNotFound},
 		{http.MethodGet, "/api/raid/pulls/x", http.StatusBadRequest},
+		{http.MethodGet, "/api/raid/pulls/1/track", http.StatusOK},
+		{http.MethodGet, "/api/raid/pulls/2/track", http.StatusNotFound},
+		{http.MethodGet, "/api/raid/maps/2610", http.StatusOK},
+		{http.MethodGet, "/api/raid/maps/1", http.StatusNotFound},
 	} {
 		r := httptest.NewRequest(tc.method, tc.path, nil)
 		r.Host = "localhost:8080"

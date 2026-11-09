@@ -4,42 +4,44 @@ import (
 	"context"
 	"fmt"
 	"slices"
+
+	"wow-live/backend/models"
 )
 
 // raidDifficulties are Warcraft Logs' raid difficulties tried for a boss's top kill, Mythic first.
 var raidDifficulties = []int{5, 4, 3}
 
-// RaidBossNPCs is each boss's NPC IDs, by the encounter name both Warcraft Logs and the combat log use: the actors
-// Warcraft Logs marks as bosses in a top-ranked kill of the encounter. A boss Warcraft Logs doesn't list is left out.
-func (c *Client) RaidBossNPCs(ctx context.Context, names []string) (map[string][]int, error) {
+// RaidBosses is every boss of the raid that has the named encounters (the newest Warcraft Logs zone with one of
+// them), by the encounter name both Warcraft Logs and the combat log use, so a boss the caller didn't name is in too.
+// Each has its NPC IDs and the uiMaps it's fought on (Maps has only their IDs), from a top-ranked kill: the actors
+// Warcraft Logs marks as bosses, and the fight's maps. A boss with no ranked kill has only its name.
+func (c *Client) RaidBosses(ctx context.Context, names []string) (map[string]models.RaidBoss, error) {
 	zones, err := c.zones(ctx)
 	if err != nil {
 		return nil, err
 	}
-	npcs := map[string][]int{}
-	for _, name := range names {
-		id := 0
-		for _, z := range zones { // newest zone last, so its encounter wins
-			for _, e := range z.Encounters {
-				if e.Name == name {
-					id = e.ID
-				}
-			}
-		}
-		if id == 0 {
+	bosses := map[string]models.RaidBoss{}
+	for _, z := range slices.Backward(zones) {
+		if !slices.ContainsFunc(z.Encounters, func(e encounter) bool { return slices.Contains(names, e.Name) }) {
 			continue
 		}
-		code, fight, err := c.topKill(ctx, id)
-		if err != nil {
-			return nil, fmt.Errorf("top kill of %s: %w", name, err)
-		}
-		if code != "" {
-			if npcs[name], err = c.bossActors(ctx, code, fight); err != nil {
-				return nil, fmt.Errorf("boss actors of %s: %w", name, err)
+		for _, e := range z.Encounters {
+			code, fight, err := c.topKill(ctx, e.ID)
+			if err != nil {
+				return nil, fmt.Errorf("top kill of %s: %w", e.Name, err)
 			}
+			boss := models.RaidBoss{Name: e.Name}
+			if code != "" {
+				if boss, err = c.bossFight(ctx, code, fight); err != nil {
+					return nil, fmt.Errorf("the top kill of %s: %w", e.Name, err)
+				}
+				boss.Name = e.Name
+			}
+			bosses[e.Name] = boss
 		}
+		break
 	}
-	return npcs, nil
+	return bosses, nil
 }
 
 // topKill is the report and fight of an encounter's top-ranked kill, on the hardest difficulty that has one; "" when
@@ -72,8 +74,8 @@ func (c *Client) topKill(ctx context.Context, encounter int) (string, int, error
 	return "", 0, nil
 }
 
-// bossActors is the NPC IDs of a report's boss actors that fought in the fight.
-func (c *Client) bossActors(ctx context.Context, code string, fight int) ([]int, error) {
+// bossFight is a report fight's boss actors (NPC IDs) and its maps.
+func (c *Client) bossFight(ctx context.Context, code string, fight int) (models.RaidBoss, error) {
 	var data struct {
 		ReportData struct {
 			Report struct {
@@ -81,6 +83,9 @@ func (c *Client) bossActors(ctx context.Context, code string, fight int) ([]int,
 					EnemyNPCs []struct {
 						GameID int `json:"gameID"`
 					} `json:"enemyNPCs"`
+					Maps []struct {
+						ID int `json:"id"`
+					} `json:"maps"`
 				} `json:"fights"`
 				MasterData struct {
 					Actors []struct {
@@ -91,22 +96,25 @@ func (c *Client) bossActors(ctx context.Context, code string, fight int) ([]int,
 		} `json:"reportData"`
 	}
 	gql := `query($c: String!, $f: Int!) { reportData { report(code: $c) { fights(fightIDs: [$f]) {
-		enemyNPCs { gameID } } masterData { actors(type: "NPC", subType: "Boss") { gameID } } } } }`
-	file := fmt.Sprintf("raid-bosses-%s-%d.json", code, fight)
+		enemyNPCs { gameID } maps { id } } masterData { actors(type: "NPC", subType: "Boss") { gameID } } } } }`
+	file := fmt.Sprintf("raid-fight-%s-%d.json", code, fight)
 	if err := c.cachedQuery(ctx, file, 0, gql, map[string]any{"c": code, "f": fight}, &data); err != nil {
-		return nil, err
+		return models.RaidBoss{}, err
 	}
 	var fought []int
+	var boss models.RaidBoss
 	for _, f := range data.ReportData.Report.Fights {
 		for _, n := range f.EnemyNPCs {
 			fought = append(fought, n.GameID)
 		}
-	}
-	var ids []int
-	for _, a := range data.ReportData.Report.MasterData.Actors {
-		if slices.Contains(fought, a.GameID) && !slices.Contains(ids, a.GameID) {
-			ids = append(ids, a.GameID)
+		for _, m := range f.Maps {
+			boss.Maps = append(boss.Maps, models.RaidMap{UIMapID: m.ID})
 		}
 	}
-	return ids, nil
+	for _, a := range data.ReportData.Report.MasterData.Actors {
+		if slices.Contains(fought, a.GameID) && !slices.Contains(boss.NPCs, a.GameID) {
+			boss.NPCs = append(boss.NPCs, a.GameID)
+		}
+	}
+	return boss, nil
 }

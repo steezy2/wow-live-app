@@ -1,7 +1,9 @@
 package service
 
 import (
+	"errors"
 	"fmt"
+	"io/fs"
 	"slices"
 	"strconv"
 	"strings"
@@ -82,6 +84,7 @@ func (k *LogTracker) numbered(p models.RaidPull) models.RaidPull {
 // when it's the pull itself.
 func (k *LogTracker) compared(p models.RaidPull) models.RaidPull {
 	p = k.numbered(p)
+	p.Maps, p.Lanes = list(k.raid.bosses[p.Boss].Maps), list(p.Lanes) // pulls saved before Nov 9 have no lanes
 	var tonight, ever *models.RaidPull
 	for i := range k.pulls {
 		o := &k.pulls[i]
@@ -107,6 +110,12 @@ func (k *LogTracker) compared(p models.RaidPull) models.RaidPull {
 	if c.Tonight != nil || c.Ever != nil {
 		p.Comparisons = &c
 	}
+	var best *models.RaidPull
+	if tonight != nil && tonight.Start != p.Start {
+		b := k.numbered(*tonight)
+		best = &b
+	}
+	p.Suggestions = list(suggestions(p, best, k.raid.rules.Suggestions.Most))
 	return p
 }
 
@@ -146,19 +155,48 @@ func pullSummary(p models.RaidPull) models.RaidPullSummary {
 		Number: p.Number, DurationMS: p.DurationMS, Kill: p.Kill, BossPct: p.BossPct, Phase: p.Phase}
 }
 
-// savePulls saves the raid pulls that ended since the last call, keeping the failed ones for the next.
+// savePulls saves the raid pulls that ended since the last call, keeping the failed ones for the next. Each stays in
+// unsavedPulls until it's written, so RaidTrack always finds its track.
 func (k *LogTracker) savePulls() error {
-	k.mu.Lock()
-	done := k.unsavedPulls
-	k.unsavedPulls = nil
-	k.mu.Unlock()
-	for i, p := range done {
-		if err := k.raid.store.SavePull(p); err != nil {
-			k.mu.Lock()
-			k.unsavedPulls = append(done[i:], k.unsavedPulls...)
-			k.mu.Unlock()
-			return fmt.Errorf("saving the %s pull (retried after the next read): %w", p.Boss, err)
+	k.mu.RLock()
+	done := slices.Clone(k.unsavedPulls)
+	k.mu.RUnlock()
+	saved := 0
+	defer func() {
+		k.mu.Lock()
+		k.unsavedPulls = k.unsavedPulls[saved:] // finished pulls are only appended, so the saved ones come first
+		k.mu.Unlock()
+	}()
+	for _, p := range done {
+		err := k.raid.store.SavePull(p.pull)
+		if err == nil {
+			err = k.raid.store.SaveTrack(p.pull.Start, p.track)
 		}
+		if err != nil {
+			return fmt.Errorf("saving the %s pull (retried after the next read): %w", p.pull.Boss, err)
+		}
+		saved++
 	}
 	return nil
+}
+
+// RaidTrack is a raid pull's replay track by its start time: the pull on now's, one waiting to be saved, or a saved
+// one's; ErrNoSuchPull when there's none.
+func (k *LogTracker) RaidTrack(start int64) (models.KeyTrack, error) {
+	k.mu.RLock()
+	if run := k.current; run != nil && run.raid != nil && run.key.Start == start {
+		defer k.mu.RUnlock()
+		return k.trackOf(run), nil
+	}
+	if i := slices.IndexFunc(k.unsavedPulls, func(p savedPull) bool { return p.pull.Start == start }); i >= 0 {
+		defer k.mu.RUnlock()
+		return k.unsavedPulls[i].track, nil
+	}
+	store := k.raid.store
+	k.mu.RUnlock()
+	t, err := store.Track(start)
+	if errors.Is(err, fs.ErrNotExist) {
+		return t, ErrNoSuchPull
+	}
+	return t, err
 }

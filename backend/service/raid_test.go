@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"io/fs"
 	"testing"
 	"time"
 
@@ -16,10 +17,23 @@ const (
 )
 
 // memPulls is a PullStore in memory.
-type memPulls struct{ pulls []models.RaidPull }
+type memPulls struct {
+	pulls  []models.RaidPull
+	tracks map[int64]models.KeyTrack
+}
 
 func (m *memPulls) SavePull(p models.RaidPull) error      { m.pulls = append(m.pulls, p); return nil }
 func (m *memPulls) ListPulls() ([]models.RaidPull, error) { return nil, nil }
+func (m *memPulls) SaveTrack(start int64, t models.KeyTrack) error {
+	m.tracks[start] = t
+	return nil
+}
+func (m *memPulls) Track(start int64) (models.KeyTrack, error) {
+	if t, ok := m.tracks[start]; ok {
+		return t, nil
+	}
+	return models.KeyTrack{}, fs.ErrNotExist
+}
 
 // raidAt is a log line s seconds after 20:00 on day (of November 2026).
 func raidAt(day int, s float64, line string) string {
@@ -36,9 +50,10 @@ func newRaidTracker(t *testing.T) (*LogTracker, *memPulls) {
 	rules.Deaths.MassKillPlayers, rules.Deaths.MassKillWindowSeconds = 2, 10
 	rules.Soaks.WindowMS = 1500
 	rules.Cooldowns.Names = []string{"Tranquility"}
-	bosses := map[string]models.RaidBoss{"Testboss": {Avoidable: []int{1001}, Soak: []int{1002},
+	rules.Suggestions.Most, rules.Suggestions.SpikeSeconds = 5, 6
+	bosses := map[string]models.RaidBoss{"Testboss": {NPCs: []int{240001}, Avoidable: []int{1001}, Soak: []int{1002},
 		Stacks: map[int]int{1003: 5}, Priority: []string{"Testboss"}}}
-	store := &memPulls{}
+	store := &memPulls{tracks: map[int64]models.KeyTrack{}}
 	if err := keys.EnableRaid(rules, bosses, store); err != nil {
 		t.Fatal(err)
 	}
@@ -162,6 +177,88 @@ func TestRaidPullsComparedListedAndOverlayTiming(t *testing.T) {
 	}
 }
 
+func TestRaidPullLanesPutEachMechanicOnTheTimeline(t *testing.T) {
+	keys, store := newRaidTracker(t)
+	feed(t, keys, pullLines(3, 0, 120, 40, false,
+		raidAt(3, 5, "SPELL_CAST_SUCCESS,"+shamanUnit+","+noUnit+`,740,"Tranquility",0x8,`+
+			advancedOf("Player-76-0000BBBB", "0000000000000000")),
+		hitOn(3, 9, "SPELL_DAMAGE", shamanUnit, 1001, "Caustic Waves"),
+		hitOn(3, 30, "SPELL_DAMAGE", shamanUnit, 1002, "Spectral Coils"),
+		raidAt(3, 40, "SPELL_AURA_APPLIED_DOSE,"+bossUnit+","+shamanUnit+`,1003,"Eternal Venom",0x8,DEBUFF,6`),
+		raidAt(3, 60, "SPELL_CAST_START,"+bossUnit+","+noUnit+`,999,"Phase Shift",0x8`),
+		raidAt(3, 70, "UNIT_DIED,"+noUnit+","+shamanUnit+",0"),
+	)...)
+	if _, err := keys.SaveFinished(); err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	for _, l := range store.pulls[0].Lanes {
+		m := l.Marks[len(l.Marks)-1]
+		got = append(got, fmt.Sprintf("%s/%s %d-%d %s %v", l.Kind, l.Name, m.ClockMS/1000, m.EndMS/1000, m.Text, m.Bad))
+	}
+	want := "[phases/Phases 60-120 P2 false deaths/Deaths 70-0 Testshaman · Spectral Coils true " +
+		"cooldowns/Raid cooldowns 5-0 Testshaman · Tranquility false spike/Damage spike 3-9 22k/s false avoidable/Caustic Waves 9-0 Testshaman true " +
+		"soak/Spectral Coils 30-0 1 soaked false stacks/Eternal Venom 40-0 Testshaman 6 true]"
+	if fmt.Sprint(got) != want {
+		t.Fatalf("lanes' last marks =\n%v\nwant\n%s", got, want)
+	}
+}
+
+func TestSpikeIsTheWorstDamageTakenAndWhoCoveredIt(t *testing.T) {
+	track := models.KeyTrack{Meters: map[string][]models.MeterPoint{
+		"A": {{ClockMS: 2000, Taken: 100}, {ClockMS: 4000, Taken: 200}, {ClockMS: 6000, Taken: 2200}},
+		"B": {{ClockMS: 2000}, {ClockMS: 4000}, {ClockMS: 6000, Taken: 1800}},
+	}}
+	cooldowns := []models.KeyCast{{Player: "C", Ability: "Tranquility", Kind: "raid cooldown", ClockMS: 3000},
+		{Player: "D", Kind: "combat potion", ClockMS: 5000}}
+	s := spike(track, cooldowns, 2000)
+	if s == nil || s.ClockMS != 6000 || s.PerSecond != 1900 || fmt.Sprint(s.Covered) != "[C · Tranquility]" {
+		t.Fatalf("spike = %+v; want 3800 taken from 4 to 6 s, covered by the Tranquility, not the potion", s)
+	}
+	if spike(models.KeyTrack{}, nil, 2000) != nil {
+		t.Fatal("a pull with no damage taken has no spike")
+	}
+}
+
+func TestSuggestionsPutWhatToFixFirst(t *testing.T) {
+	death := func(player, ability string, early bool, ready ...string) models.RaidDeath {
+		return models.RaidDeath{KeyDeath: models.KeyDeath{Player: player, Ability: ability, Ready: ready}, Early: early}
+	}
+	p := models.RaidPull{
+		Deaths: []models.RaidDeath{death("A", "Caustic Waves", true), death("B", "Caustic Waves", true, "Ice Block"),
+			death("C", "Melee", false)},
+		Avoidable: []models.RaidHits{{Ability: "Caustic Waves", Players: []models.PlayerCount{{Player: "A", Count: 1}, {Player: "B", Count: 2}}},
+			{Ability: "Toxic Spill", Players: []models.PlayerCount{{Player: "D", Count: 1}}}},
+		Soaks:     []models.RaidSoak{{Ability: "Spectral Coils", Died: []string{"E"}}},
+		MassKills: []models.MassKill{{Ability: "Caustic Waves", Killed: 2, ClockMS: 61_000}},
+		Spike:     &models.RaidSpike{ClockMS: 90_000, PerSecond: 1_200_000, Covered: []string{}},
+		Stacks:    []models.RaidStacks{{Ability: "Eternal Venom", Limit: 5, Players: []models.PlayerCount{{Player: "F", Count: 6}, {Player: "G", Count: 5}}}},
+		WentOff:   []models.KeyStop{{Spell: "Anguished Cry"}, {Spell: "Anguished Cry"}},
+		Adds:      []models.RaidAdd{{Name: "Blightscale Clutch", LongestMS: 30_000}},
+		Priority:  []models.RaidPriority{{Target: "Ula'tek's Heart", Damage: 1_000_000}},
+	}
+	best := &models.RaidPull{Number: 4, Adds: []models.RaidAdd{{Name: "Blightscale Clutch", LongestMS: 12_000}},
+		Priority: []models.RaidPriority{{Target: "Ula'tek's Heart", Damage: 3_000_000}}}
+	want := []string{
+		"2 deaths to Caustic Waves, which can be dodged: A, B",
+		"1 death soaking Spectral Coils: E",
+		"1 early death with a defensive ready: B (Ice Block)",
+		"Caustic Waves killed 2 raiders at 1:01",
+		"No raid cooldown for the worst damage (1.2M/s at 1:30)",
+		"1 raider went past 5 stacks of Eternal Venom: F",
+		"Anguished Cry went off 2 times",
+		"Blightscale Clutch lived up to 0:30 (0:12 in pull 4)",
+		"Toxic Spill hit 1 raider 1 time",
+		"Damage into Ula'tek's Heart: 1.0M (3.0M in pull 4)",
+	}
+	if got := suggestions(p, best, 20); fmt.Sprint(got) != fmt.Sprint(want) {
+		t.Fatalf("suggestions =\n%q\nwant\n%q", got, want)
+	}
+	if got := suggestions(p, nil, 3); len(got) != 3 {
+		t.Fatalf("suggestions = %q; want the first 3", got)
+	}
+}
+
 func TestRaidBossFactsSortsLinesByTheirWords(t *testing.T) {
 	g := models.RaidGuide{Name: "Testboss", Lines: []models.RaidGuideLine{
 		{Spells: []int{1}, Text: "Caustic Waves - Watch the wings to dodge the waves."},
@@ -192,6 +289,54 @@ func TestRaidPullWithoutAnEndEndsAtItsLastFighting(t *testing.T) {
 	pulls := keys.RaidNights()[0].Pulls
 	if len(pulls) != 2 || pulls[0].DurationMS != 1000 || pulls[1].DurationMS != 1000 || keys.RaidLive(0).Pulling {
 		t.Fatalf("pulls = %+v; want two pulls, each ended at its last hit (1 s in), none still on", pulls)
+	}
+}
+
+func TestAnAddWhoseHealthReachesZeroDiedWithoutADeathLine(t *testing.T) {
+	keys, store := newRaidTracker(t)
+	add := "Creature-0-3882-2939-27547-253032-00006BE4EB"
+	hit := func(s float64, hp int) string {
+		return raidAt(3, s, "SPELL_DAMAGE,"+testPlayer+","+add+`,"Testfin",0xa48,0x80000000,44425,"Arcane Barrage",0x40,`+
+			fmt.Sprintf("%s,0000000000000000,%d,40,0,0,1470,0,0,0,3,0,100,0,1599.81,-1.23,2610,3.1461,93", add, hp)+
+			",5000,5000,-1,64,0,0,0,nil,nil,nil,ST")
+	}
+	feed(t, keys, pullLines(3, 0, 60, 50, false, hit(10, 60), hit(20, 0))...)
+	if _, err := keys.SaveFinished(); err != nil {
+		t.Fatal(err)
+	}
+	if a := store.pulls[0].Adds; len(a) != 1 || a[0].Killed != 1 || a[0].AliveEnd != 0 || a[0].LongestMS != 10_000 {
+		t.Fatalf("adds = %+v; want the add killed after 10 s, as its health reached 0 with no UNIT_DIED", a)
+	}
+}
+
+func TestRaidPullTrackKeepsTheRaidersAndTheBoss(t *testing.T) {
+	keys, store := newRaidTracker(t)
+	feed(t, keys, pullLines(3, 0, 60, 50, false, hitOn(3, 9, "SPELL_DAMAGE", shamanUnit, 1001, "Caustic Waves"))...)
+	if _, err := keys.SaveFinished(); err != nil {
+		t.Fatal(err)
+	}
+	start := store.pulls[0].Start
+	track, err := keys.RaidTrack(start)
+	if err != nil || len(track.Players["Testshaman"]) != 1 || track.Players["Testshaman"][0].Map != 2610 ||
+		len(track.Bosses[bossGUID]) != 1 || track.Bosses[bossGUID][0].Name != "Testboss" ||
+		track.Bosses[bossGUID][0].ClockMS != 1000 {
+		t.Fatalf("track = %+v (%v); want the shaman's place 9 s in and the boss's 1 s in, on map 2610", track, err)
+	}
+	if _, err := keys.RaidTrack(start + 1); err != ErrNoSuchPull {
+		t.Fatalf("unknown pull's track: %v; want ErrNoSuchPull", err)
+	}
+}
+
+func TestAnEncounterNobodyFoughtIsNotAPull(t *testing.T) {
+	keys, store := newRaidTracker(t)
+	feed(t, keys, raidAt(3, 0, `ENCOUNTER_START,3180,"Testboss",16,20,2939`),
+		raidAt(3, 0.004, `ENCOUNTER_END,3180,"Testboss",16,20,0,4`))
+	feed(t, keys, pullLines(3, 60, 60, 50, false)...)
+	if _, err := keys.SaveFinished(); err != nil {
+		t.Fatal(err)
+	}
+	if pulls := keys.RaidNights()[0].Pulls; len(pulls) != 1 || pulls[0].Number != 1 || len(store.pulls) != 1 {
+		t.Fatalf("pulls = %+v, saved %d; want only the fought pull, as pull 1", pulls, len(store.pulls))
 	}
 }
 

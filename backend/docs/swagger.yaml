@@ -391,6 +391,14 @@ definitions:
     type: object
   models.KeyTrack:
     properties:
+      bosses:
+        additionalProperties:
+          items:
+            $ref: '#/definitions/models.TrackPoint'
+          type: array
+        description: Bosses is a raid boss's units (by GUID, each point named) about
+          once a second; none in a key.
+        type: object
       classes:
         additionalProperties:
           type: string
@@ -691,6 +699,28 @@ definitions:
           $ref: '#/definitions/models.PlayerCount'
         type: array
     type: object
+  models.RaidLane:
+    properties:
+      kind:
+        enum:
+        - phases
+        - deaths
+        - lust
+        - cooldowns
+        - potions
+        - spike
+        - avoidable
+        - soak
+        - stacks
+        - adds
+        type: string
+      marks:
+        items:
+          $ref: '#/definitions/models.RaidMark'
+        type: array
+      name:
+        type: string
+    type: object
   models.RaidLive:
     properties:
       betweenPulls:
@@ -703,6 +733,30 @@ definitions:
         type: boolean
       since:
         type: integer
+    type: object
+  models.RaidMap:
+    properties:
+      maxX:
+        type: number
+      maxY:
+        type: number
+      minX:
+        type: number
+      minY:
+        type: number
+      uiMapID:
+        type: integer
+    type: object
+  models.RaidMark:
+    properties:
+      bad:
+        type: boolean
+      clockMS:
+        type: integer
+      endMS:
+        type: integer
+      text:
+        type: string
     type: object
   models.RaidNight:
     properties:
@@ -764,10 +818,19 @@ definitions:
         type: integer
       kill:
         type: boolean
+      lanes:
+        items:
+          $ref: '#/definitions/models.RaidLane'
+        type: array
       lusts:
         description: when Bloodlust landed, ms into the pull
         items:
           type: integer
+        type: array
+      maps:
+        description: the boss's rooms for the replay, from the reference file
+        items:
+          $ref: '#/definitions/models.RaidMap'
         type: array
       massKills:
         items:
@@ -800,12 +863,23 @@ definitions:
         items:
           $ref: '#/definitions/models.RaidSoak'
         type: array
+      spike:
+        allOf:
+        - $ref: '#/definitions/models.RaidSpike'
+        description: nil when no damage was taken
       stacks:
         items:
           $ref: '#/definitions/models.RaidStacks'
         type: array
       start:
         type: integer
+      suggestions:
+        description: |-
+          Suggestions is what to fix on the next pull, most important first, worked out when the pull is read so it's
+          compared with the best pull as of then.
+        items:
+          type: string
+        type: array
       wentOff:
         description: must-stop casts that finished
         items:
@@ -846,6 +920,17 @@ definitions:
       fewest:
         type: integer
       most:
+        type: integer
+    type: object
+  models.RaidSpike:
+    properties:
+      clockMS:
+        type: integer
+      covered:
+        items:
+          type: string
+        type: array
+      perSecond:
         type: integer
     type: object
   models.RaidStacks:
@@ -1293,6 +1378,37 @@ paths:
       summary: 'The raid now: a pull on, and the last pull'
       tags:
       - raid
+  /api/raid/maps/{uiMapID}:
+    get:
+      description: 'Placed by the pull''s maps (models.RaidMap): its left edge is
+        maxY, its top maxX.'
+      parameters:
+      - description: the room's map ID in the combat log
+        in: path
+        name: uiMapID
+        required: true
+        type: integer
+      produces:
+      - image/png
+      responses:
+        "200":
+          description: OK
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+        "502":
+          description: Warcraft Logs failed
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+      summary: A raid room's map image (the game's map art, as Warcraft Logs' replay
+        draws it)
+      tags:
+      - raid
   /api/raid/nights:
     get:
       produces:
@@ -1331,6 +1447,35 @@ paths:
           schema:
             $ref: '#/definitions/controller.ErrorResponse'
       summary: One raid pull
+      tags:
+      - raid
+  /api/raid/pulls/{start}/track:
+    get:
+      description: |-
+        Each raider's position about once a second, the boss's units', killed adds' last places, and each
+        raider's damage, healing and damage taken so far about every 2 s, on the pull's clock.
+      parameters:
+      - description: the pull's start (ms since the epoch)
+        in: path
+        name: start
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.KeyTrack'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+      summary: One raid pull's replay track
       tags:
       - raid
   /api/settings:

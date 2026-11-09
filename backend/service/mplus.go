@@ -66,7 +66,7 @@ type LogTracker struct {
 	lastAt       int64              // the last line's time
 	raid         *raidSetup         // nil until EnableRaid: raid pulls aren't read
 	pulls        []models.RaidPull  // finished raid pulls, newest first
-	unsavedPulls []models.RaidPull
+	unsavedPulls []savedPull
 }
 
 // keyRun is the running key and what it takes to show it.
@@ -143,8 +143,8 @@ func (k *LogTracker) Reload() error {
 	}
 	var pulls []models.RaidPull
 	if k.raid != nil {
-		if pulls, err = k.raid.store.ListPulls(); err != nil {
-			return fmt.Errorf("reading saved raid pulls: %w", err)
+		if pulls, err = savedPulls(k.raid.store); err != nil {
+			return err
 		}
 	}
 	k.mu.Lock()
@@ -317,7 +317,7 @@ func newRun(key models.Key, instance string) *keyRun {
 		mobHP: map[string]int64{}, bossPull: map[int]bool{}, mobPull: map[string]int{},
 		taken: map[string]map[int64]int64{}, sampled: map[string]int64{}, mobAt: map[string]models.TrackPoint{},
 		track: models.KeyTrack{Players: map[string][]models.TrackPoint{}, Deaths: []models.TrackPoint{},
-			Meters: map[string][]models.MeterPoint{}},
+			Meters: map[string][]models.MeterPoint{}, Bosses: map[string][]models.TrackPoint{}},
 		auras: map[string][]int{}, total: map[string]*models.KeyMeterRow{}, inPull: map[string]*models.KeyMeterRow{}}
 }
 

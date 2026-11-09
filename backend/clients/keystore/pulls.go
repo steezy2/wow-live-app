@@ -14,9 +14,19 @@ import (
 )
 
 // Pulls is a folder of finished raid pulls (raid-pulls/ beside the saved keys), one JSON file per pull named by its
-// start time.
+// start time, and their tracks for the replay in its tracks/ folder, as the saved keys keep theirs.
 type Pulls struct {
 	Dir string
+}
+
+// SaveTrack writes a pull's track, replacing an earlier copy.
+func (s Pulls) SaveTrack(start int64, track models.KeyTrack) error {
+	return Store(s).SaveTrack(start, track)
+}
+
+// Track reads a pull's track; the error wraps os.ErrNotExist when it has none.
+func (s Pulls) Track(start int64) (models.KeyTrack, error) {
+	return Store(s).Track(start)
 }
 
 // SavePull writes a pull, replacing an earlier copy of it.

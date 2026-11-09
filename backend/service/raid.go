@@ -50,12 +50,13 @@ type raidRun struct {
 	boss       models.RaidBoss
 	phases     []models.PhaseTrigger
 	phase      string
-	units      map[string]*raidUnit   // hostile creature GUID -> what it is and its health
-	recaps     [][]models.RaidHit     // each death's last hits, in the order of the run's deaths
-	soaks      map[int]*soakTally     // soak spell ID -> its casts
-	stacks     map[int]map[string]int // debuff spell ID -> raider -> most stacks
-	priority   map[string]int64       // unit to burst -> the raid's damage into it
-	cooldowns  []models.KeyCast       // raid cooldowns used
+	units      map[string]*raidUnit       // hostile creature GUID -> what it is and its health
+	recaps     [][]models.RaidHit         // each death's last hits, in the order of the run's deaths
+	soaks      map[int]*soakTally         // soak spell ID -> its casts
+	stacks     map[int]map[string]int     // debuff spell ID -> raider -> most stacks
+	priority   map[string]int64           // unit to burst -> the raid's damage into it
+	cooldowns  []models.KeyCast           // raid cooldowns used
+	marks      map[lane][]models.RaidMark // the timeline marks only seen as they happen (lanes adds the rest)
 }
 
 // raidUnit is a hostile creature in a pull: its name, health (from advanced logging), when it was first seen and
@@ -67,9 +68,10 @@ type raidUnit struct {
 	seen, died int64
 }
 
-// soakTally is one soak spell's casts: when the last hit came, and who each cast hit.
+// soakTally is one soak spell's casts: when the last hit came, and when each cast first hit and who it hit.
 type soakTally struct {
 	last  int64
+	at    []int64
 	casts []map[string]bool
 }
 
@@ -77,9 +79,9 @@ type soakTally struct {
 // (by boss name), keeping finished pulls in store; it reads the saved ones.
 func (k *LogTracker) EnableRaid(rules models.RaidRules, bosses map[string]models.RaidBoss,
 	store models.PullStore) error {
-	pulls, err := store.ListPulls()
+	pulls, err := savedPulls(store)
 	if err != nil {
-		return fmt.Errorf("reading saved raid pulls: %w", err)
+		return err
 	}
 	cooldowns := map[string]bool{}
 	for _, name := range rules.Cooldowns.Names {
@@ -89,6 +91,21 @@ func (k *LogTracker) EnableRaid(rules models.RaidRules, bosses map[string]models
 	defer k.mu.Unlock()
 	k.raid, k.pulls = &raidSetup{rules: rules, bosses: bosses, store: store, cooldowns: cooldowns}, pulls
 	return nil
+}
+
+// savedPulls is the store's pulls that were fought.
+func savedPulls(store models.PullStore) ([]models.RaidPull, error) {
+	pulls, err := store.ListPulls()
+	if err != nil {
+		return nil, fmt.Errorf("reading saved raid pulls: %w", err)
+	}
+	return slices.DeleteFunc(pulls, func(p models.RaidPull) bool { return !fought(p) }), nil
+}
+
+// fought is whether anyone did damage or healing in a pull: an encounter that starts and ends at once (a reset on
+// the way in) isn't a pull.
+func fought(p models.RaidPull) bool {
+	return len(p.Meter.Rows) > 0
 }
 
 // startPull opens a raid pull: ENCOUNTER_START,3180,"Ula'tek",16,20,2939 (encounter, boss, difficulty, size,
@@ -101,7 +118,7 @@ func (k *LogTracker) startPull(line models.LogLine) {
 		MustStop: boss.MustStop}
 	run.raid = &raidRun{difficulty: raidDifficulties[f[2]], boss: boss, phases: k.raid.rules.Phases[f[1]],
 		units: map[string]*raidUnit{}, soaks: map[int]*soakTally{}, stacks: map[int]map[string]int{},
-		priority: map[string]int64{}}
+		priority: map[string]int64{}, marks: map[lane][]models.RaidMark{}}
 	if len(run.raid.phases) > 0 {
 		run.raid.phase = "P1"
 	}
@@ -142,6 +159,7 @@ func (k *LogTracker) raidLine(line models.LogLine) bool {
 	for _, p := range r.phases {
 		if p.Spell != 0 && p.Event == line.Event && len(f) > 8 && atoi(f[8]) == p.Spell {
 			r.phase = "P" + strconv.Itoa(p.ID)
+			r.mark("phases", "Phases", models.RaidMark{ClockMS: run.clock(at), Text: r.phase})
 		}
 	}
 	victim := ""
@@ -161,6 +179,10 @@ func (k *LogTracker) raidLine(line models.LogLine) bool {
 			if r.stacks[id] == nil {
 				r.stacks[id] = map[string]int{}
 			}
+			if limit := r.boss.Stacks[id]; limit > 0 && n > limit && r.stacks[id][victim] <= limit {
+				r.mark("stacks", f[9], models.RaidMark{ClockMS: run.clock(at), Text: fmt.Sprintf("%s %d", victim, n),
+					Bad: true})
+			}
 			r.stacks[id][victim] = max(r.stacks[id][victim], n)
 		}
 	case "SPELL_CAST_SUCCESS":
@@ -175,7 +197,9 @@ func (k *LogTracker) raidLine(line models.LogLine) bool {
 	return false
 }
 
-// raidUnits notes the hostile creatures a line names, and their health from its advanced-logging block.
+// raidUnits notes the hostile creatures a line names, and their health from its advanced-logging block; a unit whose
+// health drops to 0 died there, as some adds die without a UNIT_DIED (Nymrissa's Bubblefin Shorerunners), but one
+// first seen at 0 (dormant, or not targetable yet) didn't.
 func (k *LogTracker) raidUnits(at int64, event string, f []string) {
 	r := k.current.raid
 	for _, i := range []int{0, 4} {
@@ -187,7 +211,11 @@ func (k *LogTracker) raidUnits(at int64, event string, f []string) {
 	}
 	if i := advancedAt(event); i > 0 && len(f) > i+3 {
 		if u := r.units[f[i]]; u != nil && u.died == 0 {
+			alive := u.hp > 0
 			u.hp, u.maxHP = int64(atoi(f[i+2])), int64(atoi(f[i+3]))
+			if alive && u.hp == 0 {
+				u.died = at
+			}
 		}
 	}
 }
@@ -195,9 +223,13 @@ func (k *LogTracker) raidUnits(at int64, event string, f []string) {
 // raidHit counts a hit: soaks raiders took (direct hits, not ticks), and the raid's damage into a unit to burst.
 func (k *LogTracker) raidHit(at int64, event string, f []string, victim string) {
 	r := k.current.raid
-	if id := atoi(f[8]); victim != "" && (event == "SPELL_DAMAGE" || event == "SPELL_MISSED") &&
-		slices.Contains(r.boss.Soak, id) {
-		r.soak(id, victim, at, k.raid.rules.Soaks.WindowMS)
+	if id := atoi(f[8]); victim != "" && (event == "SPELL_DAMAGE" || event == "SPELL_MISSED") {
+		switch {
+		case slices.Contains(r.boss.Soak, id):
+			r.soak(id, victim, at, k.raid.rules.Soaks.WindowMS)
+		case slices.Contains(r.boss.Avoidable, id):
+			r.mark("avoidable", f[9], models.RaidMark{ClockMS: k.current.clock(at), Text: victim, Bad: true})
+		}
 	}
 	if k.player(f[0], f[2]) == "" {
 		return
@@ -218,7 +250,7 @@ func (r *raidRun) soak(id int, victim string, at, window int64) {
 		r.soaks[id] = t
 	}
 	if len(t.casts) == 0 || at-t.last > window {
-		t.casts = append(t.casts, map[string]bool{})
+		t.casts, t.at = append(t.casts, map[string]bool{}), append(t.at, at)
 	}
 	t.casts[len(t.casts)-1][victim], t.last = true, at
 }
@@ -249,12 +281,21 @@ func (k *LogTracker) finishPull(kill bool) {
 	endPull(run)
 	pull := k.raidPull(run, k.details(run, at), at, kill)
 	k.current = nil
+	if !fought(pull) {
+		return
+	}
 	if i := slices.IndexFunc(k.pulls, func(p models.RaidPull) bool { return p.Start == pull.Start }); i >= 0 {
 		k.pulls[i] = pull
 	} else {
 		k.pulls = append([]models.RaidPull{pull}, k.pulls...)
 	}
-	k.unsavedPulls = append(k.unsavedPulls, pull)
+	k.unsavedPulls = append(k.unsavedPulls, savedPull{pull, k.trackOf(run)})
+}
+
+// savedPull is a finished raid pull and its track, waiting to be saved.
+type savedPull struct {
+	pull  models.RaidPull
+	track models.KeyTrack
 }
 
 // raidPull is a finished run as the raid overview shows it, from the run's key view (deaths, meters, dispels,
@@ -323,6 +364,8 @@ func (k *LogTracker) raidPull(run *keyRun, key models.Key, at int64, kill bool) 
 		}
 	}
 	slices.SortStableFunc(p.Cooldowns, func(a, b models.KeyCast) int { return cmp.Compare(a.ClockMS, b.ClockMS) })
+	p.Spike = spike(run.track, p.Cooldowns, k.spikeMS())
+	p.Lanes = k.lanes(run, p, at)
 	return p
 }
 

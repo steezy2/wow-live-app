@@ -51,6 +51,8 @@ func Router(mplus MPlus, raid *Raid, settings *SettingsAPI, pages fs.FS, hosts .
 		api.GET("/raid/live", raid.Live)
 		api.GET("/raid/nights", raid.Nights)
 		api.GET("/raid/pulls/:start", raid.Pull)
+		api.GET("/raid/pulls/:start/track", raid.Track)
+		api.GET("/raid/maps/:uiMapID", raid.Map)
 	}
 	if settings != nil {
 		api.GET("/settings", settings.Get)

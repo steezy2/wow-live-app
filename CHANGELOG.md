@@ -6,6 +6,10 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 
 ### Added
 - Raid live: after each raid pull (any difficulty), a Raid tab and, between pulls, an overlay card with how far it got against tonight's best and the best ever, early deaths with their last hits and the defensives still ready, mass kills, mechanics by kind (avoidable hits, soaks, stacks, dispels, must-stop casts, adds, damage into the unit to burst), cooldowns and the meters (`/api/raid/live`, `/api/raid/nights`, `/api/raid/pulls/{start}`). Rules in `raid-rules.toml`; boss mechanics in `reference/raid-bosses.json` from `go run ./cmd/raidref` (Wowhead's cheat sheets, each boss's NPC IDs from a top Warcraft Logs kill, with `--check`). *Read old keys* is *Read old logs* and saves raid pulls too. Not released yet.
+- Raid replay: each raid pull's raiders and boss on the room's own map (the game's map art Warcraft Logs' replay draws, placed by the game's UiMapAssignment bounds from wago.tools, zoomed to where the raid fought), DPS and HPS graphs per raider or for the raid, a lane per mechanic (phases, deaths, Bloodlust, raid cooldowns, potions, the damage spike, avoidable hits, soaks, stacks, adds) and a "Fix next pull" list of suggestions from rules on the pull's facts against tonight's best pull, all on one clock (`/api/raid/pulls/{start}/track`, `/api/raid/maps/{uiMapID}`). `raidref` adds each boss's rooms and every boss Warcraft Logs lists for the raid (Nymrissa Wavecaller and Kith'ix have no Wowhead cheat sheet). The raid page shows class-coloured names, hides meter columns every raider has 0 in, and groups the night's pulls by boss. The M+ map draws a cross where a player died, and its damage graph can show the party's total or one player.
+
+### Fixed
+- Raid adds that die with no `UNIT_DIED` (Nymrissa's Bubblefin Shorerunners) count as killed when their health reaches 0, instead of "still up at the end"; an encounter nobody fought (a reset on the way in) isn't a pull.
 
 ## [0.1.4] - 2026-11-09
 

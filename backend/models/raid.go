@@ -15,6 +15,10 @@ type RaidRules struct {
 	Cooldowns struct {
 		Names []string `toml:"names"`
 	} `toml:"cooldowns"`
+	Suggestions struct {
+		Most         int     `toml:"most"`
+		SpikeSeconds float64 `toml:"spike_seconds"`
+	} `toml:"suggestions"`
 	Phases map[string][]PhaseTrigger `toml:"phases"`
 }
 
@@ -48,6 +52,17 @@ type RaidBoss struct {
 	MustStop  []int       `json:"mustStop"`
 	Stacks    map[int]int `json:"stacks"`
 	Priority  []string    `json:"priority"`
+	Maps      []RaidMap   `json:"maps"` // the rooms the boss is fought in
+}
+
+// RaidMap is a raid room's map (the combat log's uiMapID) and its edges in the log's yards: x runs north (MaxX at the
+// top), y west (MaxY at the left), as the game's UiMapAssignment gives them.
+type RaidMap struct {
+	UIMapID int     `json:"uiMapID"`
+	MinX    float64 `json:"minX"`
+	MaxX    float64 `json:"maxX"`
+	MinY    float64 `json:"minY"`
+	MaxY    float64 `json:"maxY"`
 }
 
 // RaidGuide is a Wowhead boss cheat sheet: the boss's name, the page and its mechanic lines.
@@ -90,6 +105,12 @@ type RaidPull struct {
 	Meter       KeyMeter         `json:"meter"`
 	Lusts       []int64          `json:"lusts"`     // when Bloodlust landed, ms into the pull
 	Cooldowns   []KeyCast        `json:"cooldowns"` // raid cooldowns and combat potions, in order
+	Maps        []RaidMap        `json:"maps"`      // the boss's rooms for the replay, from the reference file
+	Lanes       []RaidLane       `json:"lanes"`
+	Spike       *RaidSpike       `json:"spike,omitempty"` // nil when no damage was taken
+	// Suggestions is what to fix on the next pull, most important first, worked out when the pull is read so it's
+	// compared with the best pull as of then.
+	Suggestions []string `json:"suggestions"`
 	Comparisons *RaidComparisons `json:"comparisons,omitempty"`
 }
 
@@ -194,4 +215,29 @@ type RaidLive struct {
 type RaidNight struct {
 	Night string            `json:"night"`
 	Pulls []RaidPullSummary `json:"pulls"`
+}
+
+// RaidLane is one row of a pull's timeline: a mechanic (or the phases, deaths, Bloodlust, cooldowns, potions, an add
+// kind) and each time it came up, in order.
+type RaidLane struct {
+	Name  string     `json:"name"`
+	Kind  string     `json:"kind" enums:"phases,deaths,lust,cooldowns,potions,spike,avoidable,soak,stacks,adds"`
+	Marks []RaidMark `json:"marks"`
+}
+
+// RaidMark is a moment on a lane, or a stretch when EndMS is after ClockMS (a phase, an add's life), on the pull's
+// clock: who or what, and whether it went wrong.
+type RaidMark struct {
+	ClockMS int64  `json:"clockMS"`
+	EndMS   int64  `json:"endMS,omitempty"`
+	Text    string `json:"text"`
+	Bad     bool   `json:"bad,omitempty"`
+}
+
+// RaidSpike is the raid's worst damage taken over raid-rules.toml's spike window: when it ended, the damage taken per
+// second, and the raid cooldowns used in it or just before (none: nobody covered it).
+type RaidSpike struct {
+	ClockMS   int64    `json:"clockMS"`
+	PerSecond int64    `json:"perSecond"`
+	Covered   []string `json:"covered"`
 }

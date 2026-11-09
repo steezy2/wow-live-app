@@ -33,24 +33,33 @@ type TileSource interface {
 	Tile(ctx context.Context, tiles string, x, y int) ([]byte, error)
 }
 
+// MapImageSource gives a raid room's map image (by the combat log's uiMapID) as PNG.
+type MapImageSource interface {
+	Image(ctx context.Context, uiMapID int) ([]byte, error)
+}
+
 // ReviewStore keeps key reviews by the key's start time; Review fails with fs.ErrNotExist when there's none.
 type ReviewStore interface {
 	SaveReview(review KeyReview) error
 	Review(start int64) (KeyReview, error)
 }
 
-// RaidSource gives the raid as of now (ms since the epoch), the raid nights' pulls (newest night first) and one pull
-// by its start time.
+// RaidSource gives the raid as of now (ms since the epoch), the raid nights' pulls (newest night first), and one pull
+// and its replay track by its start time.
 type RaidSource interface {
 	RaidLive(now int64) RaidLive
 	RaidNights() []RaidNight
 	RaidPull(start int64) (RaidPull, error)
+	RaidTrack(start int64) (KeyTrack, error)
 }
 
-// PullStore keeps finished raid pulls, each under its start time; List is every saved pull, newest first.
+// PullStore keeps finished raid pulls and their tracks, each under its start time; ListPulls is every saved pull,
+// newest first. Track fails with fs.ErrNotExist for a pull saved without one.
 type PullStore interface {
 	SavePull(pull RaidPull) error
+	SaveTrack(start int64, track KeyTrack) error
 	ListPulls() ([]RaidPull, error)
+	Track(start int64) (KeyTrack, error)
 }
 
 // KeyStore keeps finished Mythic+ keys and their tracks, each under its start time. Track fails with

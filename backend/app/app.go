@@ -15,6 +15,7 @@ import (
 	"wow-live/backend/clients/keystoneguru"
 	"wow-live/backend/clients/keystore"
 	"wow-live/backend/clients/raiderio"
+	"wow-live/backend/clients/wcl"
 	"wow-live/backend/controller"
 	"wow-live/backend/models"
 	"wow-live/backend/service"
@@ -75,7 +76,8 @@ func Start(ctx context.Context, opts Options) (*Site, error) {
 	tiles := service.MapTiles{Facts: opts.Dungeons,
 		Source: keystoneguru.Client{CacheDir: filepath.Join(opts.Cache, "keystone-guru")}}
 	s.Handler = controller.Router(controller.MPlus{Keys: keys, Reviews: s.reviews, Changes: s.Changes,
-		Now: opts.Now, Tiles: tiles}, &controller.Raid{Pulls: keys, Now: opts.Now}, opts.Settings, opts.Pages,
+		Now: opts.Now, Tiles: tiles}, &controller.Raid{Pulls: keys, Now: opts.Now,
+		Maps: service.RaidMaps{Bosses: opts.Bosses, Source: wcl.MapImages{CacheDir: filepath.Join(opts.Cache, "raid-maps")}}}, opts.Settings, opts.Pages,
 		opts.Hosts...)
 	return s, nil
 }

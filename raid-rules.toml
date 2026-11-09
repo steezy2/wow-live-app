@@ -15,6 +15,13 @@ mass_kill_window_seconds = 10
 # Hits of one soak spell this close together (ms) are one soak.
 window_ms = 1500
 
+[suggestions]
+# The "Fix next pull" list at the top of a pull: at most this many, most important first.
+most = 5
+# The pull's damage spike is the raid's damage taken over this many seconds at its worst; a raid cooldown used in it,
+# or up to as long before it, covered it.
+spike_seconds = 6
+
 [cooldowns]
 # Raid healing and damage-reduction cooldowns, shown on the pull's cooldown line with Bloodlust and combat potions.
 names = [

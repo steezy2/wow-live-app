@@ -38,15 +38,15 @@ func (s Store) SaveTrack(start int64, track models.KeyTrack) error {
 	return cachefile.WriteJSON(s.trackPath(start), track)
 }
 
-// Track reads a key's track; the error wraps os.ErrNotExist when the key has none.
+// Track reads a key's (or a raid pull's) track; the error wraps os.ErrNotExist when it has none.
 func (s Store) Track(start int64) (models.KeyTrack, error) {
 	var t models.KeyTrack
 	data, err := os.ReadFile(s.trackPath(start))
 	if err != nil {
-		return t, fmt.Errorf("reading a key's track: %w", err)
+		return t, fmt.Errorf("reading a track: %w", err)
 	}
 	if err := json.Unmarshal(data, &t); err != nil {
-		return t, fmt.Errorf("reading a key's track: %w", err)
+		return t, fmt.Errorf("reading a track: %w", err)
 	}
 	return t, nil
 }

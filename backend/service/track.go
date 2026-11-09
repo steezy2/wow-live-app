@@ -52,6 +52,10 @@ func (k *LogTracker) position(at int64, event string, f []string) {
 			p.Name = f[5]
 		}
 		run.mobAt[guid] = p
+		if run.raid != nil && slices.Contains(run.raid.boss.NPCs, npcOf(guid)) && at-run.sampled[guid] >= trackEveryMS {
+			run.sampled[guid] = at
+			run.track.Bosses[guid] = append(run.track.Bosses[guid], p)
+		}
 	}
 }
 
@@ -92,6 +96,12 @@ func (k *LogTracker) trackOf(run *keyRun) models.KeyTrack {
 	}
 	for name, points := range run.track.Meters {
 		t.Meters[name] = list(points)
+	}
+	if len(run.track.Bosses) > 0 {
+		t.Bosses = map[string][]models.TrackPoint{}
+		for guid, points := range run.track.Bosses {
+			t.Bosses[guid] = list(points)
+		}
 	}
 	return t
 }

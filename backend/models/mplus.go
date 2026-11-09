@@ -168,6 +168,8 @@ type KeyTrack struct {
 	Deaths  []TrackPoint            `json:"deaths"`
 	Meters  map[string][]MeterPoint `json:"meters"` // each player's damage and healing so far, about every 2 s
 	Pulls   []PullSpan              `json:"pulls"`  // each pull, in order; missing in keys saved before Nov 8
+	// Bosses is a raid boss's units (by GUID, each point named) about once a second; none in a key.
+	Bosses map[string][]TrackPoint `json:"bosses,omitempty"`
 }
 
 // PullSpan is a pull's start and end on the key's clock; EndMS is 0 while it's being fought.

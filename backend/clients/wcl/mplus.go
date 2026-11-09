@@ -21,12 +21,15 @@ const zonesMaxAge = 7 * 24 * time.Hour
 
 // zone is a Warcraft Logs zone (a raid, or a Mythic+ season) and its encounters.
 type zone struct {
-	ID         int    `json:"id"`
-	Name       string `json:"name"`
-	Encounters []struct {
-		ID   int    `json:"id"`
-		Name string `json:"name"`
-	} `json:"encounters"`
+	ID         int         `json:"id"`
+	Name       string      `json:"name"`
+	Encounters []encounter `json:"encounters"`
+}
+
+// encounter is a boss (or a dungeon) of a Warcraft Logs zone.
+type encounter struct {
+	ID   int    `json:"id"`
+	Name string `json:"name"`
 }
 
 // zones is every Warcraft Logs zone, oldest first.
