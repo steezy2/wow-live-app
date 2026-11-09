@@ -222,21 +222,30 @@ var earlierRun = models.Key{MapID: 585, Level: 10, Status: "timed", FinalMS: 1_5
 		{ClockMS: 300_000, Pct: 60}, {ClockMS: 1_200_000, Pct: 100}}}}
 
 // TestKillLoggedOnlyAsPartyKillCounts: the game sometimes logs a party's kill as PARTY_KILL with no UNIT_DIED (Nov 9's
-// Blinding Vale +13 missed 32 forces that way); either line counts the mob's forces, once.
+// Blinding Vale +13 missed 32 forces that way); either line counts the mob's death, once, though PARTY_KILL comes
+// before the killing blow's hit and UNIT_DIED after it.
 func TestKillLoggedOnlyAsPartyKillCounts(t *testing.T) {
 	keys := newTracker(t, nil)
-	mob := func(id string) string {
-		return `Creature-0-3882-2859-27547-245336-` + id + `,"Radiant Spellsower",0x10a48,0x80000000`
+	guid := func(id string) string { return `Creature-0-3882-2859-27547-245336-` + id }
+	mob := func(id string) string { return guid(id) + `,"Radiant Spellsower",0x10a48,0x80000000` }
+	hit := func(at, id string) string {
+		return `11/4/2026 ` + at + `-7  SPELL_DAMAGE,` + testPlayer + `,` + mob(id) + `,44425,"Arcane Barrage",0x40,` +
+			advancedOf(guid(id), "0000000000000000") + `,5000,5000,-1,64,0,0,0,nil,nil,nil,ST`
 	}
 	feed(t, keys,
 		`11/4/2026 19:01:00.000-7  CHALLENGE_MODE_START,"Voidscar Arena",2923,585,10,[9]`,
+		hit("19:01:29.000", "00006BE4EA"), hit("19:01:29.000", "00006BE4EB"),
 		`11/4/2026 19:01:30.000-7  PARTY_KILL,`+testPlayer+`,`+mob("00006BE4EA")+`,0`,
 		`11/4/2026 19:01:31.000-7  PARTY_KILL,`+testPlayer+`,`+mob("00006BE4EB")+`,0`,
+		hit("19:01:31.000", "00006BE4EB"),
 		`11/4/2026 19:01:31.000-7  UNIT_DIED,0000000000000000,nil,0x80000000,0x80000000,`+mob("00006BE4EB")+`,0`,
 	)
 	got, _ := keys.Latest(0)
 	if f := got.Forces; f == nil || f.Count != 20 {
 		t.Fatalf("forces = %+v; want 20: the PARTY_KILL-only mob counted, the one with both lines once", f)
+	}
+	if track, err := keys.Track(got.Start); err != nil || len(track.Deaths) != 2 {
+		t.Fatalf("map deaths = %+v (%v); want one per mob", track.Deaths, err)
 	}
 }
 

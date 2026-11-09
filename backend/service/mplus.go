@@ -73,7 +73,7 @@ type keyRun struct {
 	casts     []models.Cast
 	buffs     []models.BuffUp
 	lastHit   map[string][2]string
-	dead      map[string]bool              // mobs whose forces were counted, so one dying twice counts once
+	dead      map[string]bool              // mobs whose death was handled, so its second death line does nothing
 	uncounted map[int]*models.UncountedNPC // enemies that died without being in the dungeon file, by NPC ID
 	down      map[string]bool              // party members dead in this pull, by name
 	fighting  map[string]map[int64]bool    // player -> seconds of the log they were alive in a pull
@@ -191,18 +191,18 @@ func (k *KeyTracker) Add(line models.LogLine) {
 			run.auras[f[0]] = auraIDs(f)
 			run.party = append(run.party, f[0])
 		}
-	case "UNIT_DIED", "PARTY_KILL": // the game sometimes logs a party's kill only as PARTY_KILL
+	// A party's kill is logged as PARTY_KILL before the killing blow and UNIT_DIED after it, sometimes only one of the
+	// two: the first one seen is the mob's death.
+	case "UNIT_DIED", "PARTY_KILL":
 		switch {
 		case line.Event == "UNIT_DIED" && len(f) >= 9 && strings.HasPrefix(f[4], "Player-") && f[len(f)-1] != "1":
 			k.death(line.Time, f)
-		case len(f) >= 5:
+		case len(f) >= 5 && !run.dead[f[4]]:
+			run.dead[f[4]] = true
 			k.mobDeathAt(line.Time, f[4])
 			k.mobDown(line.Time, f[4])
-		}
-		switch {
-		case len(f) >= 7 && run.facts != nil:
-			k.mobDied(f[4], line.Time)
-			if !run.dead[f[4]] {
+			if len(f) >= 7 && run.facts != nil {
+				k.mobDied(f[4], line.Time)
 				k.kill(line.Time, f)
 			}
 		}
@@ -347,13 +347,12 @@ func (k *KeyTracker) death(at int64, f []string) {
 	delete(run.lastHit, f[4])
 }
 
-// kill counts a mob's forces when it dies (UNIT_DIED for Creature-0-3882-2859-27547-245336-00006BE4EA: NPC 245336),
+// kill counts a mob's forces when it dies (Creature-0-3882-2859-27547-245336-00006BE4EA: NPC 245336),
 // or keeps an enemy the dungeon file doesn't have at all (bosses aside), so the file can be fixed.
 func (k *KeyTracker) kill(at int64, f []string) {
 	run, guid := k.current, f[4]
 	npc := npcOf(guid)
 	count, listed := run.facts.Forces.NPCs[npc]
-	run.dead[guid] = true
 	if !listed && npc != 0 && hasFlag(f[6], hostileFlag) && !slices.Contains(run.facts.Bosses, npc) {
 		u := run.uncounted[npc]
 		if u == nil {
