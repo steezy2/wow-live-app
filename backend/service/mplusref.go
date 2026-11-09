@@ -27,7 +27,7 @@ var tipKinds = map[string][]string{
 	"interrupt": {"interrupt"},
 }
 
-// DungeonFacts combines a dungeon's sources into its reference entry (docs/specs/mplus-v2.md "Ground rules"). It fails
+// DungeonFacts combines a dungeon's sources into its reference entry. It fails
 // when Mythic Dungeon Tools has no data for the dungeon or its forces total disagrees with Raider.IO's.
 func DungeonFacts(src DungeonSources) (models.DungeonFacts, error) {
 	m, g := src.MDT, src.Guide

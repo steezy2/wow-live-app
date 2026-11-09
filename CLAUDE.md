@@ -1,6 +1,6 @@
 # WoW Live
 
-A Windows app for Mythic+ keys, read live from the game's combat log (README.md)..
+A Windows app for Mythic+ keys, read live from the game's combat log (README.md).
 
 - `backend/` is one Go module (`clients/` outside systems, `models/` types and interfaces, `service/` the rules, `controller/` the Gin API with swaggo annotations, `app/` the wiring, `cmd/` entry points). Run `gofmt`, `go vet ./...` and `go test ./...` there; after changing an endpoint or its types, run `swag init -g cmd/site/main.go -o docs --parseInternal`.
 - `frontend/` is React + Vite + TypeScript: `api.ts` is the only file that knows URLs, and values the backend owns come from the API. Run `npm run lint`, `npm test` and `npm run build`. No Prettier config: single quotes, no semicolons, 120 columns, never reformat whole files.

@@ -18,7 +18,7 @@ const (
 	forcesCheckPct = 98.0
 )
 
-// projection is the expected final time from earlier runs of the dungeon (docs/specs/mplus-v2.md section 3): each run
+// projection is the expected final time from earlier runs of the dungeon: each run
 // gives an estimate, and the page gets their weighted median, the 20th to 80th percentile, the odds of each result and
 // the best timed run at the key's level as boss-by-boss marks; nil without earlier runs.
 //

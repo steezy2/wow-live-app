@@ -9,7 +9,7 @@ import (
 )
 
 // FallbackEvery is how often a Watcher wakes without a change event. Events from WoW's open log arrived on time on
-// Nov 8 (docs/specs/desktop-app.md), so this is only a safety net.
+// Nov 8, so this is only a safety net.
 const FallbackEvery = 250 * time.Millisecond
 
 // Watcher wakes a reader of the log folder as soon as the game writes to it, and also every Every in case an event

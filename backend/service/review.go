@@ -30,7 +30,7 @@ var (
 )
 
 // Reviewer reviews finished keys against Warcraft Logs' top runs and the players' own earlier runs, keeping each
-// review in the store (docs/specs/mplus-v2.md section 4).
+// review in the store.
 type Reviewer struct {
 	Keys      *KeyTracker
 	Baselines models.MPlusBaselines
