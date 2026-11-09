@@ -4,6 +4,9 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 
 ## [Unreleased]
 
+### Added
+- A privacy policy (`PRIVACY.md`), for the Microsoft Store listing: what the app keeps on the PC and the public data it downloads.
+
 ## [0.1.4] - 2026-11-09
 
 ### Added

@@ -38,7 +38,7 @@ Play in Windowed or Windowed (Fullscreen) so the overlay shows over the game.
 - **After the key:** a review of each player against their spec's top runs on Warcraft Logs and their own earlier runs (DPS or HPS, priority damage, active time, kicks, dispels, avoidable damage, deaths with a defensive ready, potions with Bloodlust), with up to three things to work on and one done well; a damage or healing per second graph; and a replay on Keystone.guru's maps.
 - **Overlay:** see-through and click-through. Ctrl+Alt+O (or *Move overlay* in Settings) moves and resizes it; Settings also has when it shows, its background opacity and one or two cards.
 
-Settings, saved keys and the log are in `%LOCALAPPDATA%\WoW Live`; uninstalling keeps them. Warcraft Logs keys are kept in Windows Credential Manager.
+Settings, saved keys and the log are in `%LOCALAPPDATA%\WoW Live`; uninstalling keeps them. Warcraft Logs keys are kept in Windows Credential Manager. Nothing from the combat log leaves your PC: see the [privacy policy](PRIVACY.md).
 
 ## Working on it
 
