@@ -134,3 +134,11 @@ func TestOlderSavedKeysGetEmptyLists(t *testing.T) {
 		t.Fatalf("saved key = %+v, %v; want empty lists, not null", got.Key, err)
 	}
 }
+
+func TestSpecLabelAddsWarcraftLogsMissingSpaces(t *testing.T) {
+	for id, want := range map[int]string{250: "Blood Death Knight", 253: "Beast Mastery Hunter", 62: "Arcane Mage"} {
+		if got := specs[id].label(); got != want {
+			t.Errorf("specs[%d].label() = %q, want %q", id, got, want)
+		}
+	}
+}
