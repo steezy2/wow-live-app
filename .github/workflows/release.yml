@@ -53,6 +53,7 @@ jobs:
       # installed unsigned. Its identity is in the repo's MSIX_* variables, from Partner Center's Product identity page.
       - name: Store package
         if: vars.MSIX_PUBLISHER != ''
+        continue-on-error: true # a bad package mustn't hold back the installer's release
         env:
           MSIX_NAME: ${{ vars.MSIX_NAME }}
           MSIX_PUBLISHER: ${{ vars.MSIX_PUBLISHER }}
