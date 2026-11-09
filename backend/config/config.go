@@ -1,4 +1,5 @@
-// Package config finds the repo and loads its secrets (.env), its M+ rules (mplus.toml) and the dungeon facts.
+// Package config finds the repo and loads its secrets (.env), its M+ and raid rules (mplus.toml, raid-rules.toml),
+// the dungeon facts and the raid's boss mechanics.
 package config
 
 import (
@@ -82,13 +83,25 @@ func LoadEnv(path string) error {
 // RulesFile holds the M+ rules (the spell and buff names checked) at the repo's root; the app builds it in.
 const RulesFile = "mplus.toml"
 
+// RaidRulesFile holds the raid rules at the repo's root; the app builds it in.
+const RaidRulesFile = "raid-rules.toml"
+
 // LoadRules reads RulesFile under root.
 func LoadRules(root string) (models.MPlusRules, error) {
-	var rules models.MPlusRules
-	if _, err := toml.DecodeFile(filepath.Join(root, RulesFile), &rules); err != nil {
-		return rules, fmt.Errorf("reading %s: %w", RulesFile, err)
+	return loadTOML[models.MPlusRules](filepath.Join(root, RulesFile))
+}
+
+// LoadRaidRules reads RaidRulesFile under root.
+func LoadRaidRules(root string) (models.RaidRules, error) {
+	return loadTOML[models.RaidRules](filepath.Join(root, RaidRulesFile))
+}
+
+func loadTOML[T any](path string) (T, error) {
+	var v T
+	if _, err := toml.DecodeFile(path, &v); err != nil {
+		return v, fmt.Errorf("reading %s: %w", filepath.Base(path), err)
 	}
-	return rules, nil
+	return v, nil
 }
 
 // defaultLogsDir is where the game writes its combat log on a default Windows install.
@@ -107,15 +120,30 @@ func ReferencePath(root string) string {
 	return filepath.Join(root, "reference", "mplus-dungeons.json")
 }
 
+// RaidReferencePath is the raid's boss mechanics for the raid overview, written by cmd/raidref.
+func RaidReferencePath(root string) string {
+	return filepath.Join(root, "reference", "raid-bosses.json")
+}
+
 // LoadReference reads the season's dungeon facts (ReferencePath).
 func LoadReference(path string) (models.MPlusReference, error) {
-	var ref models.MPlusReference
+	return loadJSON[models.MPlusReference](path, "mplusref")
+}
+
+// LoadRaidReference reads the raid's boss mechanics (RaidReferencePath).
+func LoadRaidReference(path string) (models.RaidReference, error) {
+	return loadJSON[models.RaidReference](path, "raidref")
+}
+
+// loadJSON reads a generated reference file, saying which command writes it when it's missing.
+func loadJSON[T any](path, command string) (T, error) {
+	var v T
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return ref, fmt.Errorf("reading %s (run go run ./cmd/mplusref): %w", path, err)
+		return v, fmt.Errorf("reading %s (run go run ./cmd/%s): %w", path, command, err)
 	}
-	if err := json.Unmarshal(data, &ref); err != nil {
-		return ref, fmt.Errorf("reading %s: %w", path, err)
+	if err := json.Unmarshal(data, &v); err != nil {
+		return v, fmt.Errorf("reading %s: %w", path, err)
 	}
-	return ref, nil
+	return v, nil
 }

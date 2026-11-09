@@ -10,6 +10,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"wow-live/backend/models"
 )
 
 // maxRead caps one Read, so starting on a big log works through it in steps instead of loading it all at once.
@@ -74,6 +76,31 @@ func (t *Tail) Rest() string {
 	rest := strings.TrimRight(string(t.partial), "\r")
 	t.partial = nil
 	return rest
+}
+
+// EachLine passes every line of the finished log at path to add, parsed (lines that don't parse are skipped), the last
+// one even without its newline.
+func EachLine(path string, add func(models.LogLine)) error {
+	tail := &Tail{File: path}
+	parse := func(texts ...string) {
+		for _, text := range texts {
+			if line, err := ParseLine(text); err == nil {
+				add(line)
+			}
+		}
+	}
+	for {
+		lines, _, err := tail.Read()
+		if err != nil {
+			return err
+		}
+		if len(lines) == 0 {
+			break
+		}
+		parse(lines...)
+	}
+	parse(tail.Rest())
+	return nil
 }
 
 // Newest is the most recently written WoWCombatLog*.txt in dir, or "" when there is none.

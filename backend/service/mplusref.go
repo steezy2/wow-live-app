@@ -85,29 +85,34 @@ func sorted(ids []int) []int {
 	return slices.Compact(out)
 }
 
-// UnevenHit is an enemy ability that hit some of a key's party often and another member never: a candidate for a
-// dungeon's avoidable list.
+// UnevenHit is an enemy ability that hit some of a key's party or a raid often and another member never: a candidate
+// for a dungeon's or a boss's avoidable list.
 type UnevenHit struct {
-	MapID   int
+	MapID   int // the key's map ID, or the raid encounter's ID
 	SpellID int
 	Name    string
-	Keys    int // keys it was uneven in
+	Keys    int // keys or raid pulls it was uneven in
 }
 
-// HitCounter counts, per key, how often each enemy ability's direct hits landed on each party member, to find the
-// uneven ones, and which mobs died, to find those without a forces count (cmd/mplusref --check).
+// HitCounter counts, per key or raid pull, how often each enemy ability's direct hits landed on each party member, to
+// find the uneven ones, and which mobs died in keys, to find those without a forces count (cmd/mplusref and
+// cmd/raidref --check). A key's abilities are kept by its map ID, a raid pull's by its encounter ID.
 type HitCounter struct {
 	mapID  int
+	raid   bool // the running segment is a raid pull
 	party  []string
 	hits   map[int]map[string]int // spell -> party GUID -> hits, in the running key
 	names  map[int]string
 	uneven map[[2]int]int // (map, spell) -> keys it was uneven in
 	Kills  map[[2]int]int // (map, NPC) -> mobs of it that died in keys
+	// Encounters names the raid encounters seen, by ID.
+	Encounters map[int]string
 }
 
 // NewHitCounter is an empty HitCounter.
 func NewHitCounter() *HitCounter {
-	return &HitCounter{names: map[int]string{}, uneven: map[[2]int]int{}, Kills: map[[2]int]int{}}
+	return &HitCounter{names: map[int]string{}, uneven: map[[2]int]int{}, Kills: map[[2]int]int{},
+		Encounters: map[int]string{}}
 }
 
 // Add reads one line.
@@ -115,13 +120,16 @@ func (h *HitCounter) Add(line models.LogLine) {
 	f := line.Fields
 	switch {
 	case line.Event == "CHALLENGE_MODE_START" && len(f) >= 3:
-		h.mapID, h.party, h.hits = atoi(f[2]), nil, map[int]map[string]int{}
+		h.mapID, h.raid, h.party, h.hits = atoi(f[2]), false, nil, map[int]map[string]int{}
+	case line.Event == "ENCOUNTER_START" && h.hits == nil && len(f) >= 3 && raidDifficulties[f[2]] != "":
+		h.mapID, h.raid, h.party, h.hits = atoi(f[0]), true, nil, map[int]map[string]int{}
+		h.Encounters[h.mapID] = f[1]
 	case h.hits == nil:
-	case line.Event == "CHALLENGE_MODE_END":
+	case line.Event == "CHALLENGE_MODE_END" || h.raid && line.Event == "ENCOUNTER_END":
 		h.endKey()
 	case line.Event == "COMBATANT_INFO" && len(f) > 0:
 		h.party = append(h.party, f[0])
-	case line.Event == "UNIT_DIED" && len(f) > 4 && strings.HasPrefix(f[4], "Creature-"):
+	case line.Event == "UNIT_DIED" && !h.raid && len(f) > 4 && strings.HasPrefix(f[4], "Creature-"):
 		if parts := strings.Split(f[4], "-"); len(parts) > 5 {
 			h.Kills[[2]int{h.mapID, atoi(parts[5])}]++
 		}

@@ -46,8 +46,8 @@ const (
 	overlayW, overlayH, overlayMargin = 420, 340, 24
 )
 
-// files are what build.sh puts in: the built page (dist/), mplus.toml (the M+ rules), mplus-dungeons.json and the
-// tray's icon.ico (from cmd/appicon).
+// files are what build.sh puts in: the built page (dist/), mplus.toml and raid-rules.toml (the rules),
+// mplus-dungeons.json and raid-bosses.json (the reference files) and the tray's icon.ico (from cmd/appicon).
 //
 //go:embed embed
 var files embed.FS
@@ -223,7 +223,7 @@ func run() error {
 	return wails.Run()
 }
 
-// carried reads the page, the M+ rules and the dungeon facts built into the app.
+// carried reads the page, the M+ and raid rules, the dungeon facts and the raid's boss mechanics built into the app.
 func carried() (app.Options, error) {
 	pages, err := fs.Sub(files, "embed/dist")
 	if err != nil {
@@ -242,6 +242,18 @@ func carried() (app.Options, error) {
 		return opts, fmt.Errorf("reading the built-in dungeon facts: %w", err)
 	}
 	opts.Dungeons = ref.Dungeons
+	if _, err := toml.DecodeFS(files, "embed/"+config.RaidRulesFile, &opts.RaidRules); err != nil {
+		return opts, fmt.Errorf("reading the built-in raid rules: %w", err)
+	}
+	bosses, err := files.ReadFile("embed/raid-bosses.json")
+	if err != nil {
+		return opts, err
+	}
+	var raid models.RaidReference
+	if err := json.Unmarshal(bosses, &raid); err != nil {
+		return opts, fmt.Errorf("reading the built-in raid bosses: %w", err)
+	}
+	opts.Bosses = raid.Bosses
 	return opts, nil
 }
 

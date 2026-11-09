@@ -28,24 +28,9 @@ func (s Store) Save(key models.Key) error {
 
 // List is every saved key, newest first; a missing folder is no keys.
 func (s Store) List() ([]models.Key, error) {
-	paths, err := filepath.Glob(filepath.Join(s.Dir, "*.json"))
-	if err != nil {
-		return nil, fmt.Errorf("listing saved keys: %w", err)
-	}
-	keys := []models.Key{}
-	for _, path := range paths {
-		data, err := os.ReadFile(path)
-		if err != nil {
-			return nil, fmt.Errorf("reading %s: %w", path, err)
-		}
-		var key models.Key
-		if err := json.Unmarshal(data, &key); err != nil {
-			return nil, fmt.Errorf("reading %s: %w", path, err)
-		}
-		keys = append(keys, key)
-	}
+	keys, err := readAll[models.Key](s.Dir)
 	slices.SortFunc(keys, func(a, b models.Key) int { return cmp.Compare(b.Start, a.Start) })
-	return keys, nil
+	return keys, err
 }
 
 // SaveTrack writes a key's track, replacing an earlier copy.

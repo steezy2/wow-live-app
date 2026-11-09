@@ -4,18 +4,14 @@
 package wowhead
 
 import (
-	"cmp"
 	"context"
 	"fmt"
 	"net/http"
-	"os"
-	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
-	"wow-live/backend/clients/cachefile"
 	"wow-live/backend/models"
 )
 
@@ -36,18 +32,13 @@ type Client struct {
 func (c Client) Guide(ctx context.Context, slug string) (models.DungeonGuide, error) {
 	var errs []string
 	for i, path := range guidePaths {
-		url := cmp.Or(c.BaseURL, "https://www.wowhead.com") + fmt.Sprintf(path, slug)
-		file := filepath.Join(c.CacheDir, fmt.Sprintf("%s-%d.html", slug, i))
-		if err := cachefile.Fresh(ctx, c.HTTP, url, file, maxAge); err != nil {
+		page, err := c.page(ctx, fmt.Sprintf(path, slug), fmt.Sprintf("%s-%d.html", slug, i))
+		if err != nil {
 			errs = append(errs, err.Error())
 			continue
 		}
-		page, err := os.ReadFile(file)
-		if err != nil {
-			return models.DungeonGuide{}, fmt.Errorf("reading %s: %w", file, err)
-		}
-		guide := ParseGuide(string(page))
-		guide.URL = url
+		guide := ParseGuide(page)
+		guide.URL = c.base() + fmt.Sprintf(path, slug)
 		return guide, nil
 	}
 	return models.DungeonGuide{}, fmt.Errorf("no Wowhead overview for %s: %s", slug, strings.Join(errs, "; "))

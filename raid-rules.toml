@@ -1,0 +1,39 @@
+# WoW Live's raid rules: what the raid overview checks on each pull, built into the app by backend/cmd/app/build.sh.
+# Personal defensives, health potions and Bloodlust are mplus.toml's; each boss's mechanics are generated into
+# reference/raid-bosses.json by cmd/raidref.
+
+[deaths]
+# Early deaths: the first few of a pull, plus any later death this long before the pull ended (the pull kept going).
+# After that it's the wipe, not its cause.
+first = 3
+before_wipe_seconds = 45
+# A mass kill is one ability killing at least this many raiders within this many seconds.
+mass_kill_players = 3
+mass_kill_window_seconds = 10
+
+[soaks]
+# Hits of one soak spell this close together (ms) are one soak.
+window_ms = 1500
+
+[cooldowns]
+# Raid healing and damage-reduction cooldowns, shown on the pull's cooldown line with Bloodlust and combat potions.
+names = [
+  "Anti-Magic Zone", "Apotheosis", "Aura Mastery", "Avenging Crusader", "Convoke the Spirits", "Darkness",
+  "Divine Hymn", "Dream Flight", "Evangelism", "Healing Tide Totem", "Power Word: Barrier", "Rallying Cry",
+  "Restoral", "Revival", "Rewind", "Spirit Link Totem", "Tranquility",
+]
+
+# Per boss (as ENCOUNTER_START names it): its phases after phase 1, numbered as Warcraft Logs numbers them, and what
+# starts each in the combat log (event and spell ID). A phase without a trigger is listed but not marked; find its
+# trigger the first night the raid reaches it.
+[[phases."Ula'tek"]]
+id = 2
+event = "SPELL_CAST_START"
+spell = 1306862  # Hatching Doom, cast by the eggs about 1 s before every phase 2 (10 of 10 on Nov 3)
+
+[[phases."Ula'tek"]]
+id = 3
+intermission = true
+
+[[phases."Ula'tek"]]
+id = 4

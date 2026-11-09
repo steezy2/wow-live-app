@@ -1,0 +1,139 @@
+{
+  "raid": "venomous-abyss",
+  "sources": {
+    "mechanics": "Wowhead's boss cheat sheets (each boss's guide): spell IDs sorted by the words of their line",
+    "written": "2026-11-09"
+  },
+  "bosses": {
+    "Entombed Sentinels": {
+      "name": "Entombed Sentinels",
+      "guide": "https://www.wowhead.com/guide/midnight/raids/venomous-abyss-entombed-sentinels-boss-strategy-abilities",
+      "avoidable": [],
+      "soak": [
+        1288232
+      ],
+      "dispel": [
+        1284471
+      ],
+      "mustStop": [],
+      "stacks": {
+        "1284494": 0,
+        "1284503": 0
+      },
+      "priority": []
+    },
+    "Nek'zali the Soulcoiler": {
+      "name": "Nek'zali the Soulcoiler",
+      "guide": "https://www.wowhead.com/guide/midnight/raids/venomous-abyss-nekzali-the-soulcoiler-boss-strategy-abilities",
+      "avoidable": [],
+      "soak": [
+        1289855,
+        1289875
+      ],
+      "dispel": [
+        1287426
+      ],
+      "mustStop": [],
+      "stacks": {},
+      "priority": []
+    },
+    "Sszorak": {
+      "name": "Sszorak",
+      "guide": "https://www.wowhead.com/guide/midnight/raids/venomous-abyss-sszorak-boss-strategy-abilities",
+      "avoidable": [
+        1287072
+      ],
+      "soak": [],
+      "dispel": [],
+      "mustStop": [],
+      "stacks": {},
+      "priority": []
+    },
+    "The Coiled Altar": {
+      "name": "The Coiled Altar",
+      "guide": "https://www.wowhead.com/guide/midnight/raids/venomous-abyss-coiled-altar-boss-strategy-abilities",
+      "avoidable": [],
+      "soak": [
+        1283489
+      ],
+      "dispel": [],
+      "mustStop": [
+        1286918,
+        1286441
+      ],
+      "stacks": {},
+      "priority": [
+        "Zul'jan"
+      ]
+    },
+    "The Lost Explorers": {
+      "name": "The Lost Explorers",
+      "guide": "https://www.wowhead.com/guide/midnight/raids/venomous-abyss-lost-explorers-boss-strategy-abilities",
+      "avoidable": [
+        1296061
+      ],
+      "soak": [
+        1291933
+      ],
+      "dispel": [],
+      "mustStop": [],
+      "stacks": {},
+      "priority": []
+    },
+    "The Twin Fangs": {
+      "name": "The Twin Fangs",
+      "guide": "https://www.wowhead.com/guide/midnight/raids/venomous-abyss-twin-fangs-boss-strategy-abilities",
+      "avoidable": [
+        1290956
+      ],
+      "soak": [
+        1289993,
+        1290516,
+        1288538
+      ],
+      "dispel": [],
+      "mustStop": [],
+      "stacks": {
+        "1290336": 11,
+        "1291404": 0
+      },
+      "priority": []
+    },
+    "Ula'tek": {
+      "name": "Ula'tek",
+      "guide": "https://www.wowhead.com/guide/midnight/raids/venomous-abyss-ulatek-boss-strategy-abilities",
+      "avoidable": [
+        1292403
+      ],
+      "soak": [
+        1287265,
+        1300685,
+        1295905
+      ],
+      "dispel": [],
+      "mustStop": [
+        1305650
+      ],
+      "stacks": {},
+      "priority": [
+        "Ula'tek's Heart"
+      ]
+    },
+    "Vashnik the Malignant": {
+      "name": "Vashnik the Malignant",
+      "guide": "https://www.wowhead.com/guide/midnight/raids/venomous-abyss-vashnik-the-malignant-boss-strategy-abilities",
+      "avoidable": [
+        1281907
+      ],
+      "soak": [
+        1282525
+      ],
+      "dispel": [
+        1295173
+      ],
+      "mustStop": [],
+      "stacks": {},
+      "priority": []
+    }
+  }
+}

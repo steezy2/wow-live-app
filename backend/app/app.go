@@ -1,5 +1,5 @@
-// Package app starts the live M+ site the same way for cmd/site (run from the repo) and the desktop app
-// (installed): the key tracker and saved keys, key reviews, map tiles, change notices, the page's router, and the
+// Package app starts the live M+ and raid site the same way for cmd/site (run from the repo) and the desktop app
+// (installed): the key tracker with its saved keys and raid pulls, key reviews, map tiles, change notices, the page's router, and the
 // follower that reads the game's log into them. It's wiring, not rules.
 package app
 
@@ -31,6 +31,8 @@ type Options struct {
 	Region    string                      // for this week's affix names
 	Rules     models.MPlusRules           // from mplus.toml
 	Dungeons  map[int]models.DungeonFacts // from reference/mplus-dungeons.json
+	RaidRules models.RaidRules            // from raid-rules.toml
+	Bosses    map[string]models.RaidBoss  // from reference/raid-bosses.json
 	Baselines models.MPlusBaselines       // Warcraft Logs; nil means no key reviews
 	Pages     fs.FS                       // the built page
 	Hosts     []string                    // the names the page reaches the site by, for the router's host check
@@ -53,8 +55,13 @@ type Site struct {
 func Start(ctx context.Context, opts Options) (*Site, error) {
 	timers, affixes := dungeonData(ctx, opts.Cache, opts.Region)
 	store := keystore.Store{Dir: filepath.Join(opts.Cache, "local-keys")}
+	pulls := keystore.Pulls{Dir: filepath.Join(opts.Cache, "raid-pulls")}
 	newKeys := func() (*service.KeyTracker, error) {
-		return service.NewKeyTracker(timers, affixes, opts.Rules, opts.Dungeons, store)
+		keys, err := service.NewKeyTracker(timers, affixes, opts.Rules, opts.Dungeons, store)
+		if err != nil {
+			return nil, err
+		}
+		return keys, keys.EnableRaid(opts.RaidRules, opts.Bosses, pulls)
 	}
 	keys, err := newKeys()
 	if err != nil {
@@ -103,7 +110,7 @@ func add(keys *service.KeyTracker, lines []string) {
 }
 
 // Learn reads every log in the game's folder, oldest first, into a tracker of its own (so it's safe while Follow
-// runs), saves the keys that ended in them, and has the site's keys read the saved ones again, for the list and the
+// runs), saves the keys and raid pulls that ended in them, and has the site's keys read the saved ones again, for the list and the
 // estimate. It returns how many keys are saved.
 func (s *Site) Learn() (int, error) {
 	logs, err := combatlog.WrittenSince(s.opts.LogsDir, time.Time{})
@@ -115,16 +122,8 @@ func (s *Site) Learn() (int, error) {
 		return 0, err
 	}
 	for _, path := range logs {
-		tail := &combatlog.Tail{File: path}
-		for {
-			lines, _, err := tail.Read()
-			if err != nil {
-				return 0, err
-			}
-			if len(lines) == 0 {
-				break
-			}
-			add(keys, lines)
+		if err := combatlog.EachLine(path, keys.Add); err != nil {
+			return 0, err
 		}
 		if _, err := keys.SaveFinished(); err != nil {
 			return 0, err

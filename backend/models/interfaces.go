@@ -39,6 +39,20 @@ type ReviewStore interface {
 	Review(start int64) (KeyReview, error)
 }
 
+// RaidSource gives the raid as of now (ms since the epoch), the raid nights' pulls (newest night first) and one pull
+// by its start time.
+type RaidSource interface {
+	RaidLive(now int64) RaidLive
+	RaidNights() []RaidNight
+	RaidPull(start int64) (RaidPull, error)
+}
+
+// PullStore keeps finished raid pulls, each under its start time; List is every saved pull, newest first.
+type PullStore interface {
+	SavePull(pull RaidPull) error
+	ListPulls() ([]RaidPull, error)
+}
+
 // KeyStore keeps finished Mythic+ keys and their tracks, each under its start time. Track fails with
 // fs.ErrNotExist for a key saved without one.
 type KeyStore interface {

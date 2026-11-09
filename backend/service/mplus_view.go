@@ -18,7 +18,7 @@ func (k *KeyTracker) Latest(now int64) (models.KeyView, bool) {
 	k.mu.RLock()
 	defer k.mu.RUnlock()
 	switch {
-	case k.current != nil:
+	case k.current != nil && k.current.raid == nil:
 		run := k.current
 		quiet := now-k.lastAt > quietMS
 		if quiet {
@@ -47,7 +47,7 @@ func (k *KeyTracker) FirstRun() (models.Key, bool) {
 	k.mu.Lock()
 	defer k.mu.Unlock()
 	run := k.current
-	if run == nil || len(run.party) == 0 {
+	if run == nil || run.raid != nil || len(run.party) == 0 {
 		return models.Key{}, false
 	}
 	id := [2]int{run.key.MapID, run.key.Level}
@@ -91,6 +91,9 @@ func (k *KeyTracker) SaveFinished() ([]int64, error) {
 			return saved, fmt.Errorf("saving the %s key (retried after the next read): %w", run.key.Dungeon, err)
 		}
 		saved = append(saved, run.key.Start)
+	}
+	if k.raid != nil {
+		return saved, k.savePulls()
 	}
 	return saved, nil
 }
@@ -186,8 +189,7 @@ func (k *KeyTracker) details(run *keyRun, at int64) models.Key {
 		key.LastPull.Ongoing = key.Status == "running" && at-run.pullLast <= pullGapMS
 	}
 	key.LastPull.Rows = list(key.LastPull.Rows)
-	key.Overall = meter(run.total, k.classes(run), 0, clock(key.Start, at, len(run.deaths)),
-		max(0, at-key.Start-keyCountdownMS))
+	key.Overall = meter(run.total, k.classes(run), 0, run.clock(at), run.elapsed(at))
 	all := make([]int, 0, len(run.pulls))
 	for n := range run.pulls {
 		all = append(all, n)
@@ -235,8 +237,7 @@ func (k *KeyTracker) details(run *keyRun, at int64) models.Key {
 
 // pullMeter is the meter of the run's current pull.
 func (k *KeyTracker) pullMeter(run *keyRun) models.KeyMeter {
-	return meter(run.inPull, k.classes(run), run.pullAt, clock(run.key.Start, run.pullLast, len(run.deaths)),
-		run.pullLast-run.pullFrom)
+	return meter(run.inPull, k.classes(run), run.pullAt, run.clock(run.pullLast), run.pullLast-run.pullFrom)
 }
 
 // meter is each player's row over a stretch shown from startMS to endMS on the key's clock, with their class, per

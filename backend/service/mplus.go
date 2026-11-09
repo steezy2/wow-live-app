@@ -41,28 +41,31 @@ var activity = map[string]bool{"SPELL_CAST_START": true, "SPELL_CAST_SUCCESS": t
 // Finished keys go to the store (SaveFinished) and the history the projection learns from. Safe for one writer
 // (the log follower) and many readers (the page).
 type KeyTracker struct {
-	mu        sync.RWMutex
-	timers    map[int]int64
-	affixes   map[int]string
-	rules     models.MPlusRules
-	kinds     map[string]string
-	store     models.KeyStore
-	facts     map[int]models.DungeonFacts // by map ID, from reference/mplus-dungeons.json
-	spells    map[int]string              // spell ID -> name, from every line seen
-	specs     map[string]int              // player GUID -> spec, from COMBATANT_INFO
-	owners    map[string]string           // pet GUID -> owner GUID
-	names     map[string]string           // player GUID -> name
-	up        map[[2]string]int64         // (player GUID, defensive) -> when the buff went up, in a key or not
-	history   []models.Key                // saved keys, newest first
-	unsaved   []savedRun
-	lastTrack *models.KeyTrack
-	current   *keyRun
-	last      *models.Key
-	ready     *readyWatch        // the party's buffs before the next key, while in a Mythic dungeon
-	top       map[[2]int][]int64 // (map ID, level) -> top Warcraft Logs run times, for a first run's estimate
-	asked     map[[2]int]bool    // (map ID, level) -> top runs asked for already
-	version   int64              // goes up with every line read during a key, when one starts, and as the ready check changes
-	lastAt    int64              // the last line's time
+	mu           sync.RWMutex
+	timers       map[int]int64
+	affixes      map[int]string
+	rules        models.MPlusRules
+	kinds        map[string]string
+	store        models.KeyStore
+	facts        map[int]models.DungeonFacts // by map ID, from reference/mplus-dungeons.json
+	spells       map[int]string              // spell ID -> name, from every line seen
+	specs        map[string]int              // player GUID -> spec, from COMBATANT_INFO
+	owners       map[string]string           // pet GUID -> owner GUID
+	names        map[string]string           // player GUID -> name
+	up           map[[2]string]int64         // (player GUID, defensive) -> when the buff went up, in a key or not
+	history      []models.Key                // saved keys, newest first
+	unsaved      []savedRun
+	lastTrack    *models.KeyTrack
+	current      *keyRun
+	last         *models.Key
+	ready        *readyWatch        // the party's buffs before the next key, while in a Mythic dungeon
+	top          map[[2]int][]int64 // (map ID, level) -> top Warcraft Logs run times, for a first run's estimate
+	asked        map[[2]int]bool    // (map ID, level) -> top runs asked for already
+	version      int64              // goes up with every line read during a key or pull, when one starts, and as the ready check changes
+	lastAt       int64              // the last line's time
+	raid         *raidSetup         // nil until EnableRaid: raid pulls aren't read
+	pulls        []models.RaidPull  // finished raid pulls, newest first
+	unsavedPulls []models.RaidPull
 }
 
 // keyRun is the running key and what it takes to show it.
@@ -104,6 +107,7 @@ type keyRun struct {
 	total     map[string]*models.KeyMeterRow
 	inPull    map[string]*models.KeyMeterRow
 	lastPull  models.KeyMeter
+	raid      *raidRun // nil for a key
 }
 
 // NewKeyTracker tracks keys with each dungeon's time limit (map ID -> ms), affix names (ID -> name), the page's
@@ -129,15 +133,22 @@ func NewKeyTracker(timers map[int]int64, affixes map[int]string, rules models.MP
 		up: map[[2]string]int64{}, top: map[[2]int][]int64{}, asked: map[[2]int]bool{}}, nil
 }
 
-// Reload reads the saved keys again (after Learn saved more from old logs), for the list and the estimate.
+// Reload reads the saved keys and raid pulls again (after Learn saved more from old logs), for the lists and the
+// estimate.
 func (k *KeyTracker) Reload() error {
 	history, err := k.store.List()
 	if err != nil {
 		return fmt.Errorf("reading saved keys: %w", err)
 	}
+	var pulls []models.RaidPull
+	if k.raid != nil {
+		if pulls, err = k.raid.store.ListPulls(); err != nil {
+			return fmt.Errorf("reading saved raid pulls: %w", err)
+		}
+	}
 	k.mu.Lock()
 	defer k.mu.Unlock()
-	k.history = history
+	k.history, k.pulls = history, pulls
 	k.version++
 	return nil
 }
@@ -172,6 +183,13 @@ func (k *KeyTracker) Add(line models.LogLine) {
 		return
 	}
 	run := k.current
+	if run == nil && line.Event == "ENCOUNTER_START" && k.raid != nil && len(f) >= 5 && raidDifficulties[f[2]] != "" {
+		k.startPull(line)
+		return
+	}
+	if run != nil && run.raid != nil && k.raidLine(line) {
+		return
+	}
 	if run == nil {
 		if line.Event == "ZONE_CHANGE" {
 			k.watchReady(line.Time, f)
@@ -269,20 +287,8 @@ func (k *KeyTracker) start(line models.LogLine) {
 	k.closeCurrent(line.Time, "abandoned", 0)
 	k.ready = nil // COMBATANT_INFO at the start has everyone's buffs
 	mapID := atoi(f[2])
-	run := &keyRun{instance: f[1], key: models.Key{Dungeon: f[0], MapID: mapID, Level: atoi(f[3]), Start: line.Time,
-		Status: "running", TimerMS: k.timers[mapID]}, lastHit: map[string][2]string{}, dead: map[string]bool{},
-		casting: map[string]*openCast{}, lastKick: map[string]int64{}, debuffs: map[[2]string]int64{},
-		removed: map[[2]string][2]int64{}, uncounted: map[int]*models.UncountedNPC{},
-		down: map[string]bool{}, fighting: map[string]map[int64]bool{}, acting: map[string]map[int64]bool{},
-		avoidable: map[string]map[string]int64{},
-		pullOf:    map[int64]int{},
-		pulls:     map[int]*pullStat{},
-		mobHP:     map[string]int64{}, bossPull: map[int]bool{},
-		mobPull: map[string]int{},
-		taken:   map[string]map[int64]int64{}, sampled: map[string]int64{}, mobAt: map[string]models.TrackPoint{},
-		track: models.KeyTrack{Players: map[string][]models.TrackPoint{}, Deaths: []models.TrackPoint{},
-			Meters: map[string][]models.MeterPoint{}},
-		auras: map[string][]int{}, total: map[string]*models.KeyMeterRow{}, inPull: map[string]*models.KeyMeterRow{}}
+	run := newRun(models.Key{Dungeon: f[0], MapID: mapID, Level: atoi(f[3]), Start: line.Time, Status: "running",
+		TimerMS: k.timers[mapID]}, f[1])
 	if facts, ok := k.facts[mapID]; ok {
 		run.facts, run.key.Reference = &facts, true
 		run.key.Forces = &models.KeyForces{Total: facts.Forces.Total, At: []models.ForcesPoint{}}
@@ -295,6 +301,20 @@ func (k *KeyTracker) start(line models.LogLine) {
 		}
 	}
 	k.current = run
+}
+
+// newRun is a run starting with key in the instance the log names (a key's or a raid pull's), with nothing seen yet.
+func newRun(key models.Key, instance string) *keyRun {
+	return &keyRun{instance: instance, key: key, lastHit: map[string][2]string{}, dead: map[string]bool{},
+		casting: map[string]*openCast{}, lastKick: map[string]int64{}, debuffs: map[[2]string]int64{},
+		removed: map[[2]string][2]int64{}, uncounted: map[int]*models.UncountedNPC{},
+		down: map[string]bool{}, fighting: map[string]map[int64]bool{}, acting: map[string]map[int64]bool{},
+		avoidable: map[string]map[string]int64{}, pullOf: map[int64]int{}, pulls: map[int]*pullStat{},
+		mobHP: map[string]int64{}, bossPull: map[int]bool{}, mobPull: map[string]int{},
+		taken: map[string]map[int64]int64{}, sampled: map[string]int64{}, mobAt: map[string]models.TrackPoint{},
+		track: models.KeyTrack{Players: map[string][]models.TrackPoint{}, Deaths: []models.TrackPoint{},
+			Meters: map[string][]models.MeterPoint{}},
+		auras: map[string][]int{}, total: map[string]*models.KeyMeterRow{}, inPull: map[string]*models.KeyMeterRow{}}
 }
 
 // end closes the running key: CHALLENGE_MODE_END,2923,1,17,1686807,... (timed or not, level, the game's time).
@@ -316,6 +336,10 @@ func (k *KeyTracker) end(line models.LogLine) {
 func (k *KeyTracker) closeCurrent(at int64, status string, final int64) {
 	run := k.current
 	if run == nil {
+		return
+	}
+	if run.raid != nil {
+		k.finishPull(at, false)
 		return
 	}
 	run.key.End, run.key.Status, run.key.FinalMS = at, status, final
@@ -566,7 +590,7 @@ func mark(sets map[string]map[int64]bool, player string, seconds ...int64) {
 // endPull closes the track's open pull span at the pull's last fighting.
 func endPull(run *keyRun) {
 	if n := len(run.track.Pulls); n > 0 && run.track.Pulls[n-1].EndMS == 0 {
-		run.track.Pulls[n-1].EndMS = clock(run.key.Start, run.pullLast, len(run.deaths))
+		run.track.Pulls[n-1].EndMS = run.clock(run.pullLast)
 	}
 }
 
@@ -580,10 +604,27 @@ func (k *KeyTracker) tally(player string, update func(*models.KeyMeterRow)) {
 	}
 }
 
-// clockAt is the running key's clock at a log time: time since the countdown ended, plus the penalty of every death
-// so far.
+// clockAt is the running run's clock at a log time (keyRun.clock).
 func (k *KeyTracker) clockAt(at int64) int64 {
-	return clock(k.current.key.Start, at, len(k.current.deaths))
+	return k.current.clock(at)
+}
+
+// clock is the run's clock at a log time: a key's time since its countdown plus the death penalties, a raid pull's
+// time since it started.
+func (r *keyRun) clock(at int64) int64 {
+	if r.raid != nil {
+		return max(0, at-r.key.Start)
+	}
+	return clock(r.key.Start, at, len(r.deaths))
+}
+
+// elapsed is the run's fighting time at a log time: a key's from the end of its countdown, a raid pull's from its
+// start.
+func (r *keyRun) elapsed(at int64) int64 {
+	if r.raid != nil {
+		return max(0, at-r.key.Start)
+	}
+	return max(0, at-r.key.Start-keyCountdownMS)
 }
 
 func clock(start, at int64, deaths int) int64 {
