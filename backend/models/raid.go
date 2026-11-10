@@ -82,35 +82,35 @@ type RaidGuideLine struct {
 // RaidPull is one raid pull as the overview shows it: the boss, difficulty and pull number tonight, how far it got,
 // the deaths, what went wrong by kind of mechanic, the meters and the cooldowns, and the pulls it's compared with.
 type RaidPull struct {
-	Start       int64            `json:"start"`
-	End         int64            `json:"end"`
-	Night       string           `json:"night" example:"2026-11-03"` // the raid night: the start's date, before 6 am counting as the day before
-	Boss        string           `json:"boss"`
-	Difficulty  string           `json:"difficulty" enums:"LFR,Normal,Heroic,Mythic"`
-	Number      int              `json:"number"` // the pull's number on this boss and difficulty tonight, from the pulls known when it's read
-	DurationMS  int64            `json:"durationMS"`
-	Kill        bool             `json:"kill"`
-	BossPct     float64          `json:"bossPct"` // the boss's health left, 0-100; -1 without advanced logging
-	Phase       string           `json:"phase"`   // the last phase reached ("P2"); empty for a boss without phase triggers
-	Players     []string         `json:"players"`
-	Deaths      []RaidDeath      `json:"deaths"`
-	MassKills   []MassKill       `json:"massKills"`
-	Avoidable   []RaidHits       `json:"avoidable"`
-	Soaks       []RaidSoak       `json:"soaks"`
-	Stacks      []RaidStacks     `json:"stacks"`
-	Dispels     []KeyDispel      `json:"dispels"` // slowest first
-	WentOff     []KeyStop        `json:"wentOff"` // must-stop casts that finished
-	Adds        []RaidAdd        `json:"adds"`
-	Priority    []RaidPriority   `json:"priority"`
-	Meter       KeyMeter         `json:"meter"`
-	Lusts       []int64          `json:"lusts"`     // when Bloodlust landed, ms into the pull
-	Cooldowns   []KeyCast        `json:"cooldowns"` // raid cooldowns and combat potions, in order
-	Maps        []RaidMap        `json:"maps"`      // the boss's rooms for the replay, from the reference file
-	Lanes       []RaidLane       `json:"lanes"`
-	Spike       *RaidSpike       `json:"spike,omitempty"` // nil when no damage was taken
+	Start      int64          `json:"start"`
+	End        int64          `json:"end"`
+	Night      string         `json:"night" example:"2026-11-03"` // the raid night: the start's date, before 6 am counting as the day before
+	Boss       string         `json:"boss"`
+	Difficulty string         `json:"difficulty" enums:"LFR,Normal,Heroic,Mythic"`
+	Number     int            `json:"number"` // the pull's number on this boss and difficulty tonight, from the pulls known when it's read
+	DurationMS int64          `json:"durationMS"`
+	Kill       bool           `json:"kill"`
+	BossPct    float64        `json:"bossPct"` // the boss's health left, 0-100; -1 without advanced logging
+	Phase      string         `json:"phase"`   // the last phase reached ("P2"); empty for a boss without phase triggers
+	Players    []string       `json:"players"`
+	Deaths     []RaidDeath    `json:"deaths"`
+	MassKills  []MassKill     `json:"massKills"`
+	Avoidable  []RaidHits     `json:"avoidable"`
+	Soaks      []RaidSoak     `json:"soaks"`
+	Stacks     []RaidStacks   `json:"stacks"`
+	Dispels    []KeyDispel    `json:"dispels"` // slowest first
+	WentOff    []KeyStop      `json:"wentOff"` // must-stop casts that finished
+	Adds       []RaidAdd      `json:"adds"`
+	Priority   []RaidPriority `json:"priority"`
+	Meter      KeyMeter       `json:"meter"`
+	Lusts      []int64        `json:"lusts"`     // when Bloodlust landed, ms into the pull
+	Cooldowns  []KeyCast      `json:"cooldowns"` // raid cooldowns and combat potions, in order
+	Maps       []RaidMap      `json:"maps"`      // the boss's rooms for the replay, from the reference file
+	Lanes      []RaidLane     `json:"lanes"`
+	Spike      *RaidSpike     `json:"spike,omitempty"` // nil when no damage was taken
 	// Suggestions is what to fix on the next pull, most important first, worked out when the pull is read so it's
 	// compared with the best pull as of then.
-	Suggestions []string `json:"suggestions"`
+	Suggestions []string         `json:"suggestions"`
 	Comparisons *RaidComparisons `json:"comparisons,omitempty"`
 }
 
