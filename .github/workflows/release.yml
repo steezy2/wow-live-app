@@ -1,6 +1,6 @@
-# Builds the Microsoft Store's MSIX on a version tag (v0.2.0) and keeps it on a release in this repo, to upload by hand
-# to Partner Center, which signs it (it can't be installed before that). Its identity is in the repo's MSIX_* variables,
-# from Partner Center's Product identity page.
+# Builds the Microsoft Store's MSIX on a version tag (v0.2.0), keeps it on a release in this repo and submits it to the
+# Store (the store job), which signs it (it can't be installed before that). Its identity is in the repo's MSIX_*
+# variables, from Partner Center's Product identity page.
 # Not on PRs: the Windows build takes about 5 minutes and CI covers the code; run it by hand (Actions, Run workflow)
 # to get the MSIX as an artifact without a release.
 name: Release
@@ -64,4 +64,32 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: >
           gh release create "$GITHUB_REF_NAME" "WoW Live.msix" --repo "$GITHUB_REPOSITORY"
-          --title "WoW Live $GITHUB_REF_NAME" --notes "Unsigned: upload it to Partner Center, which signs it for the Store."
+          --title "WoW Live $GITHUB_REF_NAME" --notes "Unsigned: the Store signs it. Upload it to Partner Center by hand if the store job fails."
+
+  # Submits the MSIX to the Microsoft Store on a version tag, through the Store's CLI (msstore) with a Microsoft Entra
+  # app (AZURE_AD_* and SELLER_ID secrets). The environment's required reviewers, if set, approve each publish first.
+  # STORE_PRODUCT_ID is the Store app's ID from Partner Center (the 12-character one, not the package name).
+  store:
+    if: startsWith(github.ref, 'refs/tags/v') && vars.STORE_PRODUCT_ID != ''
+    needs: msix
+    runs-on: windows-latest
+    timeout-minutes: 30
+    environment: microsoft-store
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: wow-live-msix
+          path: store
+      - uses: microsoft/microsoft-store-apppublisher@v1.1
+      - name: Sign in to the Store
+        run: |
+          msstore reconfigure \
+            --tenantId "${{ secrets.AZURE_AD_TENANT_ID }}" \
+            --sellerId "${{ secrets.SELLER_ID }}" \
+            --clientId "${{ secrets.AZURE_AD_APPLICATION_CLIENT_ID }}" \
+            --clientSecret "${{ secrets.AZURE_AD_APPLICATION_SECRET }}"
+      - name: Submit the package
+        run: msstore publish "store/WoW Live.msix" -id "${{ vars.STORE_PRODUCT_ID }}"
