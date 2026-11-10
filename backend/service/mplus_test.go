@@ -195,6 +195,16 @@ func TestKeyStep2(t *testing.T) {
 		t.Fatalf("forces = %+v; want 10 counted once (a mob dying twice counts once), 100%% at the end with the "+
 			"table flagged, and the add the table lacks", f)
 	}
+	wantAbilities := []models.KeyAbility{
+		{Player: "Testmage", Ability: "Arcane Barrage", Damage: 5000, Hits: 1},
+		{Player: "Testshaman", Ability: "Healing Wave", Healing: 2000, Hits: 1},
+		{Player: "Testshaman", Ability: "Melee", Damage: 1000, Hits: 1}, // the pet's, under its owner
+		{Player: "Testmage", Ability: "Ice Block", Casts: 1},
+		{Player: "Testshaman", Ability: "Capacitor Totem", Casts: 1}}
+	wantTaken := []models.KeyHit{{Player: "Testmage", Ability: "Light Bolt", Damage: 9000}}
+	if !reflect.DeepEqual(got.Abilities, wantAbilities) || !reflect.DeepEqual(got.Taken, wantTaken) {
+		t.Fatalf("abilities = %+v\nwant %+v\ntaken = %+v, want %+v", got.Abilities, wantAbilities, got.Taken, wantTaken)
+	}
 	if a := got.Activity["Testmage"]; a <= 0 || a > 100 || got.Lusts == nil || got.BetweenPulls == nil {
 		t.Fatalf("activity = %v, lusts %v, between pulls %v; want the mage busy for part of the pull, and lists",
 			got.Activity, got.Lusts, got.BetweenPulls)
@@ -323,13 +333,15 @@ func TestARunningKeyCountsTheClockToNowAndAnAbandonedKeyEnds(t *testing.T) {
 		got.LastPull.Ongoing {
 		t.Fatalf("running key = %+v; want 75 s on the clock and no timer", got)
 	}
-	feed(t, keys, "11/3/2026 23:05:00.000-7  CHALLENGE_MODE_END,2923,0,0,0,0.000000,0.000000")
-	if got, _ := keys.Latest(now); got.Status != "abandoned" || got.ClockMS != 191_435+15_000 {
-		t.Fatalf("after 0,0,0: %+v at %d ms; want the key abandoned at 3:26", got.Key, got.ClockMS)
+	feed(t, keys, "11/4/2026 18:00:00.000-7  CHALLENGE_MODE_END,2923,0,0,0,0.000000,0.000000")
+	if got, _ := keys.Latest(now); got.Status != "abandoned" || got.ClockMS != 41_435+15_000 {
+		t.Fatalf("after 0,0,0 the next day: %+v at %d ms; want the key abandoned at its last line, 0:56", got.Key,
+			got.ClockMS)
 	}
 }
 
-func TestQuietKeyStopsItsClockAndPullsGetSpans(t *testing.T) {
+// silentKey is a tracker on a key whose log stopped mid-fight, and the time of its last line.
+func silentKey(t *testing.T) (*KeyTracker, int64) {
 	keys := newTracker(t, map[int]int64{585: 1_800_000})
 	lines := feed(t, keys,
 		keyStart+`CHALLENGE_MODE_START,"Voidscar Arena",2923,585,17,[9,10,147]`,
@@ -337,21 +349,56 @@ func TestQuietKeyStopsItsClockAndPullsGetSpans(t *testing.T) {
 		"11/3/2026 23:10:48.564-7  ENCOUNTER_END,3285,\"Taz'Rah\",8,5,1,181004",
 		"11/3/2026 23:12:00.000-7  ENCOUNTER_START,3286,\"Second\",8,5,2923",
 	)
-	last := lines[len(lines)-1].Time
-	for _, tc := range []struct {
-		afterMS int64
-		quiet   bool
-	}{{60_000, false}, {4 * 60_000, true}} {
-		got, _ := keys.Latest(last + tc.afterMS)
-		atLast := clock(got.Start, last, 0)
-		if got.Quiet != tc.quiet || tc.quiet && got.ClockMS != atLast || !tc.quiet && got.ClockMS <= atLast {
-			t.Errorf("%d ms after the last line: quiet %v, clock %d; want quiet %v (clock %d at the last line)",
-				tc.afterMS, got.Quiet, got.ClockMS, tc.quiet, atLast)
-		}
+	return keys, lines[len(lines)-1].Time
+}
+
+func TestASilentKeyClosesAsAbandonedAndGoesOnIfTheLogDoes(t *testing.T) {
+	keys, last := silentKey(t)
+	keys.CloseQuiet(last + 60_000)
+	got, _ := keys.Latest(last + 60_000)
+	track, err := keys.Track(got.Start)
+	if got.Status != "running" || got.ClockMS <= clock(got.Start, last, 0) || err != nil || len(track.Pulls) != 2 ||
+		track.Pulls[0].EndMS < track.Pulls[0].StartMS || track.Pulls[0].EndMS == 0 || track.Pulls[1].EndMS != 0 {
+		t.Fatalf("a minute after the last line: %s at %d ms, pulls %+v (%v); want it running, a closed first pull and "+
+			"an open second one", got.Status, got.ClockMS, track.Pulls, err)
 	}
-	track, err := keys.Track(lines[0].Time)
-	if err != nil || len(track.Pulls) != 2 || track.Pulls[0].EndMS < track.Pulls[0].StartMS ||
-		track.Pulls[0].EndMS == 0 || track.Pulls[1].EndMS != 0 {
-		t.Fatalf("pulls = %+v (%v); want a closed first pull and an open second one", track.Pulls, err)
+	if got.SilentMS != 60_000 {
+		t.Errorf("silent for %d ms a minute after the last line; want 60000", got.SilentMS)
+	}
+	keys.CloseQuiet(last + quietMS + 1)
+	got, _ = keys.Latest(last + quietMS + 1)
+	if saved, err := keys.SaveFinished(); got.Status != "abandoned" || got.End != last ||
+		got.ClockMS != clock(got.Start, last, 0) || err != nil || len(saved) != 1 || keys.Abandon() {
+		t.Fatalf("after the silence: %s, ended %d, %d ms, saved %v (%v); want it abandoned at the last line and saved, "+
+			"with no key left to abandon", got.Status, got.End, got.ClockMS, saved, err)
+	}
+	// The game only wrote its log late: the fight went on, and then the party left.
+	killed := feed(t, keys, "11/3/2026 23:13:00.000-7  ENCOUNTER_END,3286,\"Second\",8,5,1,60000")[0].Time
+	got, _ = keys.Latest(last + 5*60_000)
+	if track, _ := keys.Track(got.Start); got.Status != "running" || !got.Bosses[1].Kill || track.Pulls[1].EndMS != 0 {
+		t.Fatalf("after the log went on: %s, bosses %+v, pulls %+v; want it running with the second boss killed",
+			got.Status, got.Bosses, track.Pulls)
+	}
+	feed(t, keys, `11/3/2026 23:20:00.000-7  ZONE_CHANGE,0,"Silvermoon City",0`)
+	got, _ = keys.Latest(0)
+	if saved, _ := keys.SaveFinished(); got.Status != "abandoned" || got.End != killed || len(saved) != 1 ||
+		len(keys.Saved()) != 1 {
+		t.Fatalf("after leaving: %s, ended %d, saved %v, %d keys; want it abandoned at its last line, saved over its "+
+			"copy", got.Status, got.End, saved, len(keys.Saved()))
+	}
+}
+
+func TestASilentKeyStaysClosedWhenThePartyLeftOrStartedAnother(t *testing.T) {
+	for _, next := range []string{`ZONE_CHANGE,0,"Silvermoon City",0`,
+		`CHALLENGE_MODE_START,"Voidscar Arena",2923,585,17,[9]`} {
+		keys, last := silentKey(t)
+		keys.Abandon()
+		// The next day's log: its header says nothing about the key; the line after it does.
+		feed(t, keys, "11/4/2026 08:00:00.000-7  COMBAT_LOG_VERSION,22,ADVANCED_LOG_ENABLED,1",
+			"11/4/2026 08:00:01.000-7  "+next,
+			"11/4/2026 08:00:02.000-7  ENCOUNTER_START,3286,\"Second\",8,5,2923")
+		if saved := keys.Saved(); len(saved) != 1 || saved[0].Status != "abandoned" || keys.history[0].End != last {
+			t.Errorf("after %s: saved %+v; want the silent key still abandoned at its last line", next, saved)
+		}
 	}
 }

@@ -20,12 +20,8 @@ func (k *KeyTracker) Latest(now int64) (models.KeyView, bool) {
 	switch {
 	case k.current != nil:
 		run := k.current
-		quiet := now-k.lastAt > quietMS
-		if quiet {
-			now = k.lastAt
-		}
 		v := view(k.details(run, now), clock(run.key.Start, now, len(run.deaths)))
-		v.Quiet = quiet
+		v.SilentMS = max(0, now-k.lastAt)
 		v.Projection = projection(v.Key, v.ClockMS, k.history)
 		if v.Projection == nil {
 			v.Projection = fromTopRuns(v.Key, v.ClockMS, k.top[[2]int{v.MapID, v.Level}])
@@ -333,13 +329,17 @@ func view(key models.Key, clockMS int64) models.KeyView {
 	return v
 }
 
-// finished is an ended key at its final time; an abandoned key has none, so it's when it stopped.
+// finished is an ended key at its time.
 func finished(key models.Key) models.KeyView {
-	ms := key.FinalMS
-	if ms == 0 {
-		ms = clock(key.Start, key.End, len(key.Deaths))
+	return view(key, lengthMS(key))
+}
+
+// lengthMS is an ended key's time: the game's own, or for an abandoned key (which has none) its clock when it stopped.
+func lengthMS(key models.Key) int64 {
+	if key.FinalMS > 0 {
+		return key.FinalMS
 	}
-	return view(key, ms)
+	return clock(key.Start, key.End, len(key.Deaths))
 }
 
 // chests is the upgrade a key's time gives: 3, 2, 1, or 0 when over time; -1 without a timer.

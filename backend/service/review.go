@@ -37,10 +37,13 @@ type Reviewer struct {
 	Store     models.ReviewStore
 }
 
-// Cached is a key's review if one was made.
+// Cached is a key's review if one was made, and the key didn't go on after it (a key closed as abandoned can).
 func (r Reviewer) Cached(start int64) (models.KeyReview, error) {
 	review, err := r.Store.Review(start)
 	if errors.Is(err, fs.ErrNotExist) {
+		return review, ErrNoSuchKey
+	}
+	if key, _, kerr := r.Keys.finished(start); err == nil && kerr == nil && review.End != 0 && review.End != key.End {
 		return review, ErrNoSuchKey
 	}
 	return review, err
@@ -72,6 +75,7 @@ func (r Reviewer) Review(ctx context.Context, start int64) (models.KeyReview, er
 		return models.KeyReview{}, err
 	}
 	encounter := encounters[key.Dungeon]
+	length := lengthMS(key)
 	baselines := map[string][]models.MPlusRanking{}
 	var similar []models.MPlusRanking
 	for player, specID := range key.Specs {
@@ -83,12 +87,12 @@ func (r Reviewer) Review(ctx context.Context, start int64) (models.KeyReview, er
 		if err != nil {
 			return models.KeyReview{}, err
 		}
-		baselines[player] = nearTime(runs, key.FinalMS)
+		baselines[player] = nearTime(runs, length)
 		similar = append(similar, baselines[player]...)
 	}
 	var taken []float64 // the similar runs' party damage taken per second
 	slices.SortFunc(similar, func(a, b models.MPlusRanking) int {
-		return cmp.Compare(abs(a.DurationMS-key.FinalMS), abs(b.DurationMS-key.FinalMS))
+		return cmp.Compare(abs(a.DurationMS-length), abs(b.DurationMS-length))
 	})
 	seen := map[string]bool{}
 	for _, run := range similar {

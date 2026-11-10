@@ -20,20 +20,23 @@ const (
 // each member's buffs up, and the ones seen fade (ran out, died, cancelled). Buffs from before logging started there
 // are never seen.
 type readyWatch struct {
-	since   int64
-	dungeon string
-	members map[string]bool            // party GUIDs seen
-	up      map[string]map[string]bool // GUID -> buff names up
-	faded   map[string]map[string]bool // GUID -> buff names seen fade
+	since    int64
+	instance string
+	dungeon  string
+	members  map[string]bool            // party GUIDs seen
+	up       map[string]map[string]bool // GUID -> buff names up
+	faded    map[string]map[string]bool // GUID -> buff names seen fade
 }
 
 // watchReady starts the ready check on entering a Mythic dungeon (ZONE_CHANGE,2813,"Murder Row",23), and stops it
-// anywhere else.
+// anywhere else. Zoning into the same dungeon again keeps it: the log doesn't show the party's buffs a second time.
 func (k *KeyTracker) watchReady(at int64, f []string) {
-	k.ready = nil
-	if len(f) >= 3 && f[2] == readyDifficulty {
-		k.ready = &readyWatch{since: at, dungeon: f[1], members: map[string]bool{}, up: map[string]map[string]bool{},
-			faded: map[string]map[string]bool{}}
+	switch {
+	case len(f) < 3 || f[2] != readyDifficulty:
+		k.ready = nil
+	case k.ready == nil || k.ready.instance != f[0]:
+		k.ready = &readyWatch{since: at, instance: f[0], dungeon: f[1], members: map[string]bool{},
+			up: map[string]map[string]bool{}, faded: map[string]map[string]bool{}}
 	}
 }
 

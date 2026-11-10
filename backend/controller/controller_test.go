@@ -47,6 +47,7 @@ func (f *fakeKeys) Track(int64) (models.KeyTrack, error) {
 
 func (f *fakeKeys) DungeonMap(int) (models.DungeonMap, error) { return models.DungeonMap{}, nil }
 func (f *fakeKeys) Ready() (models.ReadyCheck, bool)          { return models.ReadyCheck{}, false }
+func (f *fakeKeys) Abandon() bool                             { return f.ok }
 
 func (f *fakeKeys) DeleteSaved(start int64) error {
 	if start != 7 && start != 0 {
@@ -103,6 +104,24 @@ func TestLiveKeyIsReadAtNowOrNoContentBeforeAnyKey(t *testing.T) {
 	keys.ok = false
 	if w := get(t, router, "/api/mplus/live"); w.Code != http.StatusNoContent {
 		t.Fatalf("before any key: %d, want 204", w.Code)
+	}
+}
+
+func TestAbandonEndsTheRunningKeyOrConflictsWithoutOne(t *testing.T) {
+	keys := &fakeKeys{}
+	router := Router(MPlus{Keys: keys, Now: time.Now}, nil, os.DirFS(t.TempDir()), LocalHosts(port)...)
+	for _, tc := range []struct {
+		running bool
+		code    int
+	}{{true, http.StatusNoContent}, {false, http.StatusConflict}} {
+		keys.ok = tc.running
+		r := httptest.NewRequest(http.MethodPost, "/api/mplus/live/abandon", nil)
+		r.Host = "localhost:8080"
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, r)
+		if w.Code != tc.code {
+			t.Errorf("abandon with a key running %v: %d, want %d", tc.running, w.Code, tc.code)
+		}
 	}
 }
 
