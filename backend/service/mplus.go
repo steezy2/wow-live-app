@@ -375,6 +375,9 @@ func (k *LogTracker) death(at int64, f []string) {
 	run.down[name] = true
 	run.key.Deaths = append(run.key.Deaths, models.KeyDeath{Player: name, ClockMS: k.clockAt(at), Killer: hit.source,
 		Ability: hit.ability})
+	if run.raid != nil {
+		run.raid.recaps = append(run.raid.recaps, recap(run.recent[f[4]], at))
+	}
 	delete(run.recent, f[4])
 }
 

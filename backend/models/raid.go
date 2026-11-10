@@ -15,11 +15,17 @@ type RaidRules struct {
 	Cooldowns struct {
 		Names []string `toml:"names"`
 	} `toml:"cooldowns"`
-	Suggestions struct {
-		Most         int     `toml:"most"`
-		SpikeSeconds float64 `toml:"spike_seconds"`
-	} `toml:"suggestions"`
-	Phases map[string][]PhaseTrigger `toml:"phases"`
+	Suggestions SuggestionRules           `toml:"suggestions"`
+	Phases      map[string][]PhaseTrigger `toml:"phases"`
+}
+
+// SuggestionRules are raid-rules.toml's [suggestions]: how many "Fix next pull" lines, the damage spike's window, and
+// when an add's life or the damage into a unit to burst is worth a line against tonight's best pull.
+type SuggestionRules struct {
+	Most          int     `toml:"most"`
+	SpikeSeconds  float64 `toml:"spike_seconds"`
+	AddsLonger    float64 `toml:"adds_longer"`
+	PriorityBelow float64 `toml:"priority_below"`
 }
 
 // PhaseTrigger is a boss phase after phase 1, numbered as Warcraft Logs numbers it, and the event and spell ID that

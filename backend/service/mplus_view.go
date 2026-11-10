@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"sync"
 
 	"wow-live/backend/models"
 )
@@ -74,28 +75,44 @@ func (k *LogTracker) SetTopRuns(mapID, level int, ms []int64) {
 // SaveFinished saves the keys that ended since the last call (the log follower calls it after each read), and says
 // which (by start time).
 func (k *LogTracker) SaveFinished() ([]int64, error) {
-	k.mu.Lock()
-	done := k.unsaved
-	k.unsaved = nil
-	k.mu.Unlock()
 	var saved []int64
-	for i, run := range done {
+	err := saveQueued(&k.mu, &k.unsaved, func(run savedRun) error {
 		err := k.store.Save(run.key)
 		if err == nil {
 			err = k.store.SaveTrack(run.key.Start, run.track)
 		}
 		if err != nil {
-			k.mu.Lock()
-			k.unsaved = append(done[i:], k.unsaved...)
-			k.mu.Unlock()
-			return saved, fmt.Errorf("saving the %s key (retried after the next read): %w", run.key.Dungeon, err)
+			return fmt.Errorf("saving the %s key (retried after the next read): %w", run.key.Dungeon, err)
 		}
 		saved = append(saved, run.key.Start)
+		return nil
+	})
+	if err == nil && k.raid != nil {
+		err = k.savePulls()
 	}
-	if k.raid != nil {
-		return saved, k.savePulls()
+	return saved, err
+}
+
+// saveQueued saves queue's items in order with save, then takes the saved ones off it; the first that fails stays
+// queued with those after it, for the next call. Items stay queued while they're written, so readers still find them.
+// Only the tracker appends to queue (under mu), so the saved ones are still its first.
+func saveQueued[T any](mu *sync.RWMutex, queue *[]T, save func(T) error) error {
+	mu.RLock()
+	done := slices.Clone(*queue)
+	mu.RUnlock()
+	saved := 0
+	defer func() {
+		mu.Lock()
+		*queue = (*queue)[saved:]
+		mu.Unlock()
+	}()
+	for _, item := range done {
+		if err := save(item); err != nil {
+			return err
+		}
+		saved++
 	}
-	return saved, nil
+	return nil
 }
 
 // Saved is every saved key, newest first.

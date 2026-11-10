@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"context"
 	"errors"
 	"log"
 	"net/http"
@@ -17,13 +16,8 @@ import (
 // at (the wall clock live, the replay's when replaying a log).
 type Raid struct {
 	Pulls models.RaidSource
-	Maps  RaidMaps
+	Maps  models.MapImageSource
 	Now   func() time.Time
-}
-
-// RaidMaps gives a raid room's map image (by the combat log's uiMapID).
-type RaidMaps interface {
-	Image(ctx context.Context, uiMapID int) ([]byte, error)
 }
 
 // Live godoc

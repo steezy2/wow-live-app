@@ -51,7 +51,7 @@ type raidRun struct {
 	phases     []models.PhaseTrigger
 	phase      string
 	units      map[string]*raidUnit       // hostile creature GUID -> what it is and its health
-	recaps     [][]models.RaidHit         // each death's last hits, in the order of the run's deaths
+	recaps     [][]models.RaidHit         // each death's last hits, kept by death() with the run's deaths
 	soaks      map[int]*soakTally         // soak spell ID -> its casts
 	stacks     map[int]map[string]int     // debuff spell ID -> raider -> most stacks
 	priority   map[string]int64           // unit to burst -> the raid's damage into it
@@ -146,9 +146,6 @@ func (k *LogTracker) raidLine(line models.LogLine) bool {
 		}
 		if u := r.units[f[4]]; u != nil && u.died == 0 {
 			u.died, u.hp = at, 0
-		}
-		if line.Event == "UNIT_DIED" && len(f) >= 9 && strings.HasPrefix(f[4], "Player-") && f[len(f)-1] != "1" {
-			r.recaps = append(r.recaps, recap(run.recent[f[4]], at)) // before the run's death takes them
 		}
 		return false
 	}
@@ -308,11 +305,7 @@ func (k *LogTracker) raidPull(run *keyRun, key models.Key, at int64, kill bool) 
 		WentOff: []models.KeyStop{}}
 	for i, d := range key.Deaths {
 		early := i < rules.Deaths.First || p.DurationMS-d.ClockMS > int64(rules.Deaths.BeforeWipeSeconds*1000)
-		death := models.RaidDeath{KeyDeath: d, Early: early, Recap: []models.RaidHit{}}
-		if i < len(r.recaps) {
-			death.Recap = r.recaps[i]
-		}
-		p.Deaths = append(p.Deaths, death)
+		p.Deaths = append(p.Deaths, models.RaidDeath{KeyDeath: d, Early: early, Recap: r.recaps[i]})
 	}
 	p.Deaths = list(p.Deaths)
 	p.MassKills = massKills(key.Deaths, rules.Deaths.MassKillPlayers, int64(rules.Deaths.MassKillWindowSeconds*1000))

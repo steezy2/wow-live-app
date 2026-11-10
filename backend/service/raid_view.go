@@ -99,9 +99,11 @@ func (k *LogTracker) compared(p models.RaidPull) models.RaidPull {
 		}
 	}
 	c := models.RaidComparisons{}
+	var best *models.RaidPull
 	if tonight != nil && tonight.Start != p.Start {
-		s := pullSummary(k.numbered(*tonight))
-		c.Tonight = &s
+		b := k.numbered(*tonight)
+		s := pullSummary(b)
+		best, c.Tonight = &b, &s
 	}
 	if ever != nil && ever.Start != p.Start {
 		s := pullSummary(k.numbered(*ever))
@@ -110,12 +112,7 @@ func (k *LogTracker) compared(p models.RaidPull) models.RaidPull {
 	if c.Tonight != nil || c.Ever != nil {
 		p.Comparisons = &c
 	}
-	var best *models.RaidPull
-	if tonight != nil && tonight.Start != p.Start {
-		b := k.numbered(*tonight)
-		best = &b
-	}
-	p.Suggestions = list(suggestions(p, best, k.raid.rules.Suggestions.Most))
+	p.Suggestions = list(suggestions(p, best, k.raid.rules.Suggestions))
 	return p
 }
 
@@ -155,19 +152,10 @@ func pullSummary(p models.RaidPull) models.RaidPullSummary {
 		Number: p.Number, DurationMS: p.DurationMS, Kill: p.Kill, BossPct: p.BossPct, Phase: p.Phase}
 }
 
-// savePulls saves the raid pulls that ended since the last call, keeping the failed ones for the next. Each stays in
-// unsavedPulls until it's written, so RaidTrack always finds its track.
+// savePulls saves the raid pulls that ended since the last call, keeping the failed ones for the next (saveQueued),
+// so RaidTrack always finds a pull's track.
 func (k *LogTracker) savePulls() error {
-	k.mu.RLock()
-	done := slices.Clone(k.unsavedPulls)
-	k.mu.RUnlock()
-	saved := 0
-	defer func() {
-		k.mu.Lock()
-		k.unsavedPulls = k.unsavedPulls[saved:] // finished pulls are only appended, so the saved ones come first
-		k.mu.Unlock()
-	}()
-	for _, p := range done {
+	return saveQueued(&k.mu, &k.unsavedPulls, func(p savedPull) error {
 		err := k.raid.store.SavePull(p.pull)
 		if err == nil {
 			err = k.raid.store.SaveTrack(p.pull.Start, p.track)
@@ -175,9 +163,8 @@ func (k *LogTracker) savePulls() error {
 		if err != nil {
 			return fmt.Errorf("saving the %s pull (retried after the next read): %w", p.pull.Boss, err)
 		}
-		saved++
-	}
-	return nil
+		return nil
+	})
 }
 
 // RaidTrack is a raid pull's replay track by its start time: the pull on now's, one waiting to be saved, or a saved

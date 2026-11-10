@@ -626,9 +626,12 @@ export async function fetchRaidPull(start: number, signal?: AbortSignal): Promis
   return (await (await call(`/api/raid/pulls/${start}`, { signal })).json()) as RaidPull
 }
 
-/** One raid pull's replay track. */
-export async function fetchRaidTrack(start: number, signal?: AbortSignal): Promise<KeyTrack> {
-  return (await (await call(`/api/raid/pulls/${start}/track`, { signal })).json()) as KeyTrack
+/** One raid pull's replay track; null for a pull saved before replays were kept. */
+export async function fetchRaidTrack(start: number, signal?: AbortSignal): Promise<KeyTrack | null> {
+  const response = await fetch(`/api/raid/pulls/${start}/track`, { signal })
+  if (response.status === 404) return null
+  if (!response.ok) throw await failure(response)
+  return (await response.json()) as KeyTrack
 }
 
 /** A raid room's map image. */

@@ -21,6 +21,10 @@ most = 5
 # The pull's damage spike is the raid's damage taken over this many seconds at its worst; a raid cooldown used in it,
 # or up to as long before it, covered it.
 spike_seconds = 6
+# An add that lived this many times as long as in tonight's best pull is worth a line.
+adds_longer = 1.25
+# Damage into a unit to burst below this share of tonight's best pull is worth a line.
+priority_below = 0.8
 
 [cooldowns]
 # Raid healing and damage-reduction cooldowns, shown on the pull's cooldown line with Bloodlust and combat potions.

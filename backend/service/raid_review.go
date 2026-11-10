@@ -132,11 +132,11 @@ func spike(track models.KeyTrack, cooldowns []models.KeyCast, window int64) *mod
 	return worst
 }
 
-// suggestions is what to fix on the next pull, most important first, at most most: deaths to what can be dodged or
-// soaked, early deaths with a defensive ready, mass kills, an uncovered damage spike, stacks past the limit, casts
+// suggestions is what to fix on the next pull, most important first, at most rules.Most: deaths to what can be dodged
+// or soaked, early deaths with a defensive ready, mass kills, an uncovered damage spike, stacks past the limit, casts
 // that went off, adds that lived longer than in the best pull, the most avoidable hits, and less damage into the
 // target to burst than the best pull. best is nil for the best pull itself.
-func suggestions(p models.RaidPull, best *models.RaidPull, most int) []string {
+func suggestions(p models.RaidPull, best *models.RaidPull, rules models.SuggestionRules) []string {
 	var out []string
 	say := func(format string, args ...any) { out = append(out, fmt.Sprintf(format, args...)) }
 	avoidable := map[string]bool{}
@@ -194,7 +194,7 @@ func suggestions(p models.RaidPull, best *models.RaidPull, most int) []string {
 	if best != nil {
 		for _, a := range p.Adds {
 			i := slices.IndexFunc(best.Adds, func(b models.RaidAdd) bool { return b.Name == a.Name })
-			if i >= 0 && a.LongestMS > best.Adds[i].LongestMS*5/4 {
+			if i >= 0 && float64(a.LongestMS) > rules.AddsLonger*float64(best.Adds[i].LongestMS) {
 				say("%s lived up to %s (%s in pull %d)", a.Name, clockText(a.LongestMS), clockText(best.Adds[i].LongestMS),
 					best.Number)
 			}
@@ -212,13 +212,13 @@ func suggestions(p models.RaidPull, best *models.RaidPull, most int) []string {
 	if best != nil {
 		for _, t := range p.Priority {
 			i := slices.IndexFunc(best.Priority, func(b models.RaidPriority) bool { return b.Target == t.Target })
-			if i >= 0 && t.Damage < best.Priority[i].Damage*4/5 {
+			if i >= 0 && float64(t.Damage) < rules.PriorityBelow*float64(best.Priority[i].Damage) {
 				say("Damage into %s: %s (%s in pull %d)", t.Target, short(float64(t.Damage)),
 					short(float64(best.Priority[i].Damage)), best.Number)
 			}
 		}
 	}
-	return out[:min(len(out), most)]
+	return out[:min(len(out), rules.Most)]
 }
 
 // nameList is raiders' names joined, the ones past namesShown counted.

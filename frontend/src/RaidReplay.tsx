@@ -13,20 +13,20 @@ const REPLAY_METER_ROWS = 10
 /** A raid pull's replay: the raid and the boss on the room's map with the meters at that moment, the mechanics'
  * lanes, and the DPS and HPS graph, all on one clock: a click on a lane's mark or on the graph moves the map there. */
 export function RaidReplay({ pull }: { pull: RaidPull }) {
-  const [track, setTrack] = useState<KeyTrack | null>(null)
-  const [missing, setMissing] = useState(false)
+  const [track, setTrack] = useState<KeyTrack | null | undefined>(undefined) // null: no replay kept
+  const [error, setError] = useState<string | null>(null)
   const end = pull.durationMS
   const replay = useReplay(end, 0, 4)
   const [trail, setTrail] = useState(10_000)
   const [floor, setFloor] = useState<number | null>(null)
   useEffect(() => {
     const controller = new AbortController()
-    fetchRaidTrack(pull.start, controller.signal).then(setTrack, () => {
-      if (!controller.signal.aborted) setMissing(true)
+    fetchRaidTrack(pull.start, controller.signal).then(setTrack, (err: unknown) => {
+      if (!controller.signal.aborted) setError(err instanceof Error ? err.message : String(err))
     })
     return () => controller.abort()
   }, [pull.start])
-  const floors = useMemo(() => floorsOf(track), [track])
+  const floors = useMemo(() => floorsOf(track ?? null), [track])
   const current = floor ?? floors[0]
   const room = pull.maps.find((m) => m.uiMapID === current)
   const backdrop = useMemo<Backdrop>(() => (room ? { kind: 'image', map: room } : { kind: 'walked', walked: [] }), [room])
@@ -35,7 +35,8 @@ export function RaidReplay({ pull }: { pull: RaidPull }) {
     className: 'death',
     title: `${d.player} died at ${clock(d.clockMS)}`,
   }))
-  if (missing) return <p className="panel muted">No replay for this pull: it was saved before replays were kept.</p>
+  if (error) return <p className="panel warning">Couldn't read the replay: {error}</p>
+  if (track === null) return <p className="panel muted">No replay for this pull: it was saved before replays were kept.</p>
   if (!track) return <p className="panel muted">Loading the replay…</p>
   const now = replay.at
   const sofar = meterBetween(track, 0, now)

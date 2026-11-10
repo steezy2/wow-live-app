@@ -22,3 +22,12 @@ func TestMapBoundsReadsTheFirstRowOfEachMapAsked(t *testing.T) {
 		t.Fatalf("bounds = %v (%v); want Ula'tek's and Nymrissa's rooms from their first rows, not map 9999", got, err)
 	}
 }
+
+func TestMapBoundsFailsOnAnEdgeThatIsntANumber(t *testing.T) {
+	csv := "Region_0,Region_1,Region_3,Region_4,UiMapID\n980,-581.25,,581.25,2610\n"
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { fmt.Fprint(w, csv) }))
+	defer server.Close()
+	if got, err := (Client{CacheDir: t.TempDir(), Base: server.URL}).MapBounds(context.Background(), []int{2610}); err == nil {
+		t.Fatalf("bounds = %v; want an error for map 2610's empty Region_3, not a 0 edge", got)
+	}
+}

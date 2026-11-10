@@ -43,24 +43,26 @@ func (c Client) MapBounds(ctx context.Context, uiMapIDs []int) (map[int]models.R
 	for i, name := range rows[0] {
 		col[name] = i
 	}
-	for _, name := range []string{"UiMapID", "Region_0", "Region_1", "Region_3", "Region_4"} {
+	// Region_0 to Region_2 is the corner with the smallest x, y and z; Region_3 to Region_5 the largest.
+	edges := []string{"Region_0", "Region_1", "Region_3", "Region_4"}
+	for _, name := range append([]string{"UiMapID"}, edges...) {
 		if _, ok := col[name]; !ok {
 			return nil, fmt.Errorf("reading %s: no %s column", path, name)
 		}
 	}
 	bounds := map[int]models.RaidMap{}
 	for _, row := range rows[1:] {
-		num := func(name string) float64 {
-			v, _ := strconv.ParseFloat(row[col[name]], 64)
-			return v
-		}
-		id := int(num("UiMapID"))
-		if _, seen := bounds[id]; seen || !slices.Contains(uiMapIDs, id) {
+		id, err := strconv.Atoi(row[col["UiMapID"]])
+		if _, seen := bounds[id]; err != nil || seen || !slices.Contains(uiMapIDs, id) {
 			continue
 		}
-		// Region_0 to Region_2 is the corner with the smallest x, y and z; Region_3 to Region_5 the largest.
-		bounds[id] = models.RaidMap{UIMapID: id, MinX: num("Region_0"), MinY: num("Region_1"), MaxX: num("Region_3"),
-			MaxY: num("Region_4")}
+		var edge [4]float64
+		for i, name := range edges {
+			if edge[i], err = strconv.ParseFloat(row[col[name]], 64); err != nil {
+				return nil, fmt.Errorf("reading %s: map %d's %s: %w", path, id, name, err)
+			}
+		}
+		bounds[id] = models.RaidMap{UIMapID: id, MinX: edge[0], MinY: edge[1], MaxX: edge[2], MaxY: edge[3]}
 	}
 	return bounds, nil
 }

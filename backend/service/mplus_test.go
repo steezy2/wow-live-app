@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 
 	"wow-live/backend/clients/combatlog"
@@ -353,5 +354,24 @@ func TestQuietKeyStopsItsClockAndPullsGetSpans(t *testing.T) {
 	if err != nil || len(track.Pulls) != 2 || track.Pulls[0].EndMS < track.Pulls[0].StartMS ||
 		track.Pulls[0].EndMS == 0 || track.Pulls[1].EndMS != 0 {
 		t.Fatalf("pulls = %+v (%v); want a closed first pull and an open second one", track.Pulls, err)
+	}
+}
+
+func TestSaveQueuedKeepsWhatFailedForTheNextCall(t *testing.T) {
+	var mu sync.RWMutex
+	queue, written, fail := []int{1, 2, 3}, []int{}, true
+	save := func(n int) error {
+		if n == 2 && fail {
+			return fs.ErrPermission
+		}
+		written = append(written, n)
+		return nil
+	}
+	if err := saveQueued(&mu, &queue, save); err == nil || !slices.Equal(queue, []int{2, 3}) {
+		t.Fatalf("first call: %v, queue %v; want the error and 2, 3 still queued", err, queue)
+	}
+	fail = false
+	if err := saveQueued(&mu, &queue, save); err != nil || len(queue) != 0 || !slices.Equal(written, []int{1, 2, 3}) {
+		t.Fatalf("second call: %v, queue %v, written %v; want 1, 2, 3 written once each", err, queue, written)
 	}
 }

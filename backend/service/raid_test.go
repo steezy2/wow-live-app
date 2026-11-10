@@ -50,7 +50,7 @@ func newRaidTracker(t *testing.T) (*LogTracker, *memPulls) {
 	rules.Deaths.MassKillPlayers, rules.Deaths.MassKillWindowSeconds = 2, 10
 	rules.Soaks.WindowMS = 1500
 	rules.Cooldowns.Names = []string{"Tranquility"}
-	rules.Suggestions.Most, rules.Suggestions.SpikeSeconds = 5, 6
+	rules.Suggestions = models.SuggestionRules{Most: 5, SpikeSeconds: 6, AddsLonger: 1.25, PriorityBelow: 0.8}
 	bosses := map[string]models.RaidBoss{"Testboss": {NPCs: []int{240001}, Avoidable: []int{1001}, Soak: []int{1002},
 		Stacks: map[int]int{1003: 5}, Priority: []string{"Testboss"}}}
 	store := &memPulls{tracks: map[int64]models.KeyTrack{}}
@@ -251,10 +251,12 @@ func TestSuggestionsPutWhatToFixFirst(t *testing.T) {
 		"Toxic Spill hit 1 raider 1 time",
 		"Damage into Ula'tek's Heart: 1.0M (3.0M in pull 4)",
 	}
-	if got := suggestions(p, best, 20); fmt.Sprint(got) != fmt.Sprint(want) {
+	rules := models.SuggestionRules{Most: 20, AddsLonger: 1.25, PriorityBelow: 0.8}
+	if got := suggestions(p, best, rules); fmt.Sprint(got) != fmt.Sprint(want) {
 		t.Fatalf("suggestions =\n%q\nwant\n%q", got, want)
 	}
-	if got := suggestions(p, nil, 3); len(got) != 3 {
+	rules.Most = 3
+	if got := suggestions(p, nil, rules); len(got) != 3 {
 		t.Fatalf("suggestions = %q; want the first 3", got)
 	}
 }
