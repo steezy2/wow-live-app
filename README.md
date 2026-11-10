@@ -19,10 +19,9 @@ It's not an addon and doesn't touch the game: it only reads the combat log file 
 
 ## Install
 
-1. Download `WoW.Live.Setup.exe` from the [latest release](../../releases/latest). It installs for your user only, with no admin.
-2. The installer isn't signed yet, so Windows SmartScreen asks once: **More info**, then **Run anyway**. Each release has the installer's SHA-256; `Get-FileHash .\WoW.Live.Setup.exe` in PowerShell should match it.
-3. In the game, turn on **Advanced Combat Logging** (Options > System > Network) and type `/combatlog` before the key.
-4. Optional, for the review and a dungeon's first estimate: make a Warcraft Logs API client at [warcraftlogs.com/api/clients](https://www.warcraftlogs.com/api/clients) and paste its ID and secret in the **Settings** tab.
+1. Get it from the [Microsoft Store](https://apps.microsoft.com/detail/9pfg7vnt6j89). [steezy2/wow-live](https://github.com/steezy2/wow-live) is its public page, for issues and the privacy policy.
+2. In the game, turn on **Advanced Combat Logging** (Options > System > Network) and type `/combatlog` before the key.
+3. Optional, for the review and a dungeon's first estimate: make a Warcraft Logs API client at [warcraftlogs.com/api/clients](https://www.warcraftlogs.com/api/clients) and paste its ID and secret in the **Settings** tab.
 
 Play in Windowed or Windowed (Fullscreen) so the overlay shows over the game.
 
@@ -39,7 +38,7 @@ Play in Windowed or Windowed (Fullscreen) so the overlay shows over the game.
 - **Raid (Raid tab):** after each raid pull on any difficulty, how far it got (boss health and phase) against tonight's best and the best ever on the boss; the early deaths with what killed them, their last hits and the defensives still ready; mass kills; what went wrong by kind of mechanic (avoidable hits, soaks, stacks, dispels, must-stop casts, adds left up, damage into the unit to burst); Bloodlust, raid cooldowns and combat potions; and the pull's meters. At the top, a short list of what to fix on the next pull; under it a replay of the pull on the room's map (map art from Warcraft Logs) with a lane per mechanic and DPS and HPS graphs on the same clock. Each night's pulls are listed on the side by boss.
 - **Overlay:** see-through and click-through. Between raid pulls it shows the last pull for a few minutes. Ctrl+Alt+O (or *Move overlay* in Settings) moves and resizes it; Settings also has when it shows, its background opacity and one or two cards.
 
-Settings, saved keys and raid pulls, and the log are in `%LOCALAPPDATA%\WoW Live`; uninstalling keeps them. The Microsoft Store version keeps them in its own package folder instead, which uninstalling removes. Warcraft Logs keys are kept in Windows Credential Manager. Nothing from the combat log leaves your PC: see the [privacy policy](PRIVACY.md).
+Settings, saved keys and raid pulls, and the log are in the Store package's own folder, which uninstalling removes; a build run from `bin/` keeps them in `%LOCALAPPDATA%\WoW Live`. Warcraft Logs keys are kept in Windows Credential Manager. Nothing from the combat log leaves your PC: see the [privacy policy](https://github.com/steezy2/wow-live/blob/master/PRIVACY.md).
 
 ## Working on it
 
@@ -49,11 +48,11 @@ Settings, saved keys and raid pulls, and the log are in `%LOCALAPPDATA%\WoW Live
 - **In a browser:** after `npm run build` in `frontend/`, `go run ./cmd/site` in `backend/` serves the same page and API at http://localhost:8080 (API spec at `/swagger/index.html`). `--replay PATH --key 2 --speed 30` plays a past log's 2nd key 30 times faster; `--learn` saves every finished key in the log folder. After changing an endpoint, regenerate the spec with `swag init -g cmd/site/main.go -o docs --parseInternal`.
 - **Dungeon facts:** `go run ./cmd/mplusref` rewrites `reference/mplus-dungeons.json` from Mythic Dungeon Tools, Raider.IO and Wowhead; rerun it each season and check the diff.
 - **Raid bosses:** `go run ./cmd/raidref` rewrites `reference/raid-bosses.json` from Wowhead's boss cheat sheets, and each boss's NPC IDs and rooms from a top Warcraft Logs kill with the rooms' edges from wago.tools (keys in `.env`; `--raid SLUG` for another raid); review the diff, and after a raid night `--check` lists abilities that hit some raiders often and others never that a boss's lists don't have. A phase's trigger, once found, goes in `raid-rules.toml`.
-- **Releases:** a `v*` tag builds the installer and its SHA-256 on GitHub Actions and releases them here with a build provenance attestation: `gh attestation verify "WoW.Live.Setup.exe" -R <owner>/<repo>` checks an installer was built by this repo's workflow. The same files also go to [steezy2/wow-live](https://github.com/steezy2/wow-live), the installers-only repo, with the `RELEASES_TOKEN` secret. Once the repo's `MSIX_NAME`, `MSIX_PUBLISHER` and `MSIX_PUBLISHER_NAME` variables hold the identity from Partner Center's *Product identity* page, the same run also packs `WoW Live.msix` (`backend/cmd/app/msix/pack.sh`) as the `wow-live-msix` artifact, to upload to the Microsoft Store, which signs it.
+- **Releases:** a `v*` tag packs `WoW Live.msix` (`backend/cmd/app/msix/pack.sh`) on GitHub Actions, with the identity from Partner Center's *Product identity* page in the repo's `MSIX_NAME`, `MSIX_PUBLISHER` and `MSIX_PUBLISHER_NAME` variables, keeps it on a release here and submits it to the Microsoft Store, which signs it (the `store` job, once the repo's `STORE_PRODUCT_ID` variable and the Entra secrets are set; it submits without an approval step, and fails while a submission made by hand in Partner Center is in progress).
 - **Icon:** `backend/cmd/appicon/icon.svg` (and `icon-small.svg` under 48 px), rendered to the committed PNGs by `render.sh`. Original art, no Blizzard logos.
 
 World of Warcraft is a trademark of Blizzard Entertainment; this project isn't affiliated with Blizzard. Dungeon maps are Keystone.guru's and raid maps Warcraft Logs', credited on the page.
 
 ## Licence
 
-[MIT](LICENSE).
+Proprietary, all rights reserved: see [LICENSE](LICENSE).
