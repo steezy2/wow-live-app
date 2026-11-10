@@ -19,10 +19,9 @@ It's not an addon and doesn't touch the game: it only reads the combat log file 
 
 ## Install
 
-1. Download `WoW.Live.Setup.exe` from the [latest release](../../releases/latest). It installs for your user only, with no admin.
-2. The installer isn't signed yet, so Windows SmartScreen asks once: **More info**, then **Run anyway**. Each release has the installer's SHA-256; `Get-FileHash .\WoW.Live.Setup.exe` in PowerShell should match it.
-3. In the game, turn on **Advanced Combat Logging** (Options > System > Network) and type `/combatlog` before the key.
-4. Optional, for the review and a dungeon's first estimate: make a Warcraft Logs API client at [warcraftlogs.com/api/clients](https://www.warcraftlogs.com/api/clients) and paste its ID and secret in the **Settings** tab.
+1. Get it from the [Microsoft Store](https://apps.microsoft.com/detail/9pfg7vnt6j89). [steezy2/wow-live](https://github.com/steezy2/wow-live) is its public page, for issues and the privacy policy.
+2. In the game, turn on **Advanced Combat Logging** (Options > System > Network) and type `/combatlog` before the key.
+3. Optional, for the review and a dungeon's first estimate: make a Warcraft Logs API client at [warcraftlogs.com/api/clients](https://www.warcraftlogs.com/api/clients) and paste its ID and secret in the **Settings** tab.
 
 Play in Windowed or Windowed (Fullscreen) so the overlay shows over the game.
 
@@ -38,7 +37,7 @@ Play in Windowed or Windowed (Fullscreen) so the overlay shows over the game.
 - **After the key:** a review of each player against their spec's top runs on Warcraft Logs and their own earlier runs (DPS or HPS, priority damage, active time, kicks, dispels, avoidable damage, deaths with a defensive ready, potions with Bloodlust), with up to three things to work on and one done well; a damage or healing per second graph; and a replay on Keystone.guru's maps.
 - **Overlay:** see-through and click-through. Ctrl+Alt+O (or *Move overlay* in Settings) moves and resizes it; Settings also has when it shows, its background opacity and one or two cards.
 
-Settings, saved keys and the log are in `%LOCALAPPDATA%\WoW Live`; uninstalling keeps them. The Microsoft Store version keeps them in its own package folder instead, which uninstalling removes. Warcraft Logs keys are kept in Windows Credential Manager. Nothing from the combat log leaves your PC: see the [privacy policy](PRIVACY.md).
+Settings, saved keys and the log are in the Store package's own folder, which uninstalling removes; a build run from `bin/` keeps them in `%LOCALAPPDATA%\WoW Live`. Warcraft Logs keys are kept in Windows Credential Manager. Nothing from the combat log leaves your PC: see the [privacy policy](https://github.com/steezy2/wow-live/blob/master/PRIVACY.md).
 
 ## Working on it
 
@@ -47,11 +46,11 @@ Settings, saved keys and the log are in `%LOCALAPPDATA%\WoW Live`; uninstalling 
 - **Checks:** `gofmt -l .`, `go vet ./...` and `go test ./...` in `backend/`; `npm run lint`, `npm test` and `npm run build` in `frontend/`. CI runs them on every PR.
 - **In a browser:** after `npm run build` in `frontend/`, `go run ./cmd/site` in `backend/` serves the same page and API at http://localhost:8080 (API spec at `/swagger/index.html`). `--replay PATH --key 2 --speed 30` plays a past log's 2nd key 30 times faster; `--learn` saves every finished key in the log folder. After changing an endpoint, regenerate the spec with `swag init -g cmd/site/main.go -o docs --parseInternal`.
 - **Dungeon facts:** `go run ./cmd/mplusref` rewrites `reference/mplus-dungeons.json` from Mythic Dungeon Tools, Raider.IO and Wowhead; rerun it each season and check the diff.
-- **Releases:** a `v*` tag builds the installer and its SHA-256 on GitHub Actions and releases them here with a build provenance attestation: `gh attestation verify "WoW.Live.Setup.exe" -R <owner>/<repo>` checks an installer was built by this repo's workflow. The same files also go to [steezy2/wow-live](https://github.com/steezy2/wow-live), the installers-only repo, with the `RELEASES_TOKEN` secret. Once the repo's `MSIX_NAME`, `MSIX_PUBLISHER` and `MSIX_PUBLISHER_NAME` variables hold the identity from Partner Center's *Product identity* page, the same run also packs `WoW Live.msix` (`backend/cmd/app/msix/pack.sh`) as the `wow-live-msix` artifact, to upload to the Microsoft Store, which signs it.
+- **Releases:** a `v*` tag packs `WoW Live.msix` (`backend/cmd/app/msix/pack.sh`) on GitHub Actions, with the identity from Partner Center's *Product identity* page in the repo's `MSIX_NAME`, `MSIX_PUBLISHER` and `MSIX_PUBLISHER_NAME` variables, and keeps it on a release here, to upload to Partner Center, which signs it.
 - **Icon:** `backend/cmd/appicon/icon.svg` (and `icon-small.svg` under 48 px), rendered to the committed PNGs by `render.sh`. Original art, no Blizzard logos.
 
 World of Warcraft is a trademark of Blizzard Entertainment; this project isn't affiliated with Blizzard. Maps are Keystone.guru's, credited on the page.
 
 ## Licence
 
-[MIT](LICENSE).
+Proprietary, all rights reserved: see [LICENSE](LICENSE).
