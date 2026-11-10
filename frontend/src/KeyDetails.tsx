@@ -1,4 +1,3 @@
-import { type ReactNode, useState } from 'react'
 import type { KeyCast, KeyForces, KeyGhost, KeyView } from './api'
 import { chestLabel, clock, coverText, oddsText, resultText, share } from './format'
 import { DamageGraph } from './DamageGraph'
@@ -6,6 +5,7 @@ import { KickLedger, PriorityLedger, SpikeLedger } from './KeyLedgers'
 import { KeyMap } from './KeyMap'
 import { KeyReview } from './KeyReview'
 import { MeterCards } from './MeterCards'
+import { Tabs } from './Tabs'
 
 /** The result's icon, so it doesn't rest on colour alone. */
 const resultIcon: Record<KeyView['status'], string> = {
@@ -109,9 +109,7 @@ export function KeyDetails({
         </p>
       )}
 
-      {key.status !== 'running' && key.status !== 'abandoned' && (
-        <KeyReview key={key.start} keyView={key} justEnded={justEnded} />
-      )}
+      {key.status !== 'running' && <KeyReview key={key.start} keyView={key} justEnded={justEnded} />}
       {key.status !== 'running' && <DamageGraph key={`graph-${key.start}`} keyView={key} />}
 
       {key.buffs.length > 0 && (
@@ -240,23 +238,6 @@ export function KeyDetails({
       />
       <p className="muted small">{key.players.join(' · ')}</p>
     </>
-  )
-}
-
-/** Lists under tabs, one shown at a time. */
-function Tabs({ tabs }: { tabs: { name: string; body: ReactNode }[] }) {
-  const [open, setOpen] = useState(0)
-  return (
-    <section className="tabs">
-      <div role="tablist">
-        {tabs.map((t, i) => (
-          <button key={t.name} role="tab" aria-selected={i === open} onClick={() => setOpen(i)}>
-            {t.name}
-          </button>
-        ))}
-      </div>
-      <div role="tabpanel">{tabs[open].body}</div>
-    </section>
   )
 }
 

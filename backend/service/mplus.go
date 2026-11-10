@@ -1,6 +1,7 @@
 package service
 
 import (
+	"cmp"
 	"fmt"
 	"slices"
 	"strconv"
@@ -27,8 +28,11 @@ const (
 	minSavedMS = 60_000
 	// levelSpread: the estimate prefers earlier runs within this many keystone levels.
 	levelSpread = 2
-	// quietMS: a running key with nothing logged for this long is treated as over (an abandoned key logs no end).
-	quietMS = 3 * 60_000
+	// quietMS: a running key with nothing logged for this long is closed as abandoned. The game logs no end for a key
+	// the party left, and it writes its log in batches as fights start and end (Nov 10: one write held 2:45 of a boss
+	// fight), so the line that says they left can come minutes later, and a boss fight is as silent as an empty
+	// dungeon: this has to outlast the longest fight.
+	quietMS = 10 * 60_000
 	// lustMS: Bloodlust landing this long after the last counts as a new one (it lands on everyone at once).
 	lustMS = 60_000
 )
@@ -57,12 +61,13 @@ type KeyTracker struct {
 	unsaved   []savedRun
 	lastTrack *models.KeyTrack
 	current   *keyRun
+	left      *keyRun // a key Abandon closed, taken up again if the log goes on in it
 	last      *models.Key
 	ready     *readyWatch        // the party's buffs before the next key, while in a Mythic dungeon
 	top       map[[2]int][]int64 // (map ID, level) -> top Warcraft Logs run times, for a first run's estimate
 	asked     map[[2]int]bool    // (map ID, level) -> top runs asked for already
 	version   int64              // goes up with every line read during a key, when one starts, and as the ready check changes
-	lastAt    int64              // the last line's time
+	lastAt    int64              // the time of the last line read before the one being read
 }
 
 // keyRun is the running key and what it takes to show it.
@@ -104,6 +109,8 @@ type keyRun struct {
 	total     map[string]*models.KeyMeterRow
 	inPull    map[string]*models.KeyMeterRow
 	lastPull  models.KeyMeter
+	abilities map[[2]string]*models.KeyAbility // (player, ability) -> what it did
+	takenBy   map[[2]string]int64              // (player, ability) -> damage taken from it
 }
 
 // NewKeyTracker tracks keys with each dungeon's time limit (map ID -> ms), affix names (ID -> name), the page's
@@ -149,15 +156,21 @@ func (k *KeyTracker) Version() int64 {
 	return k.version
 }
 
-// Add reads one line.
+// Add reads one line. The game logs no end for a key the party left, so an abandoned key ends at the last line before
+// the one that shows it's over, which can come much later. COMBAT_LOG_VERSION (the log starting, or a zone loading)
+// says nothing about a key and isn't in step with the lines around it, so it's skipped.
 func (k *KeyTracker) Add(line models.LogLine) {
+	if line.Event == "COMBAT_LOG_VERSION" {
+		return
+	}
 	k.mu.Lock()
 	defer k.mu.Unlock()
+	defer func() { k.lastAt = line.Time }()
+	f := line.Fields
+	k.resume(line.Event, f)
 	if k.current != nil || line.Event == "CHALLENGE_MODE_START" {
 		k.version++
 	}
-	k.lastAt = line.Time
-	f := line.Fields
 	k.learn(line.Time, line.Event, f)
 	switch line.Event {
 	case "CHALLENGE_MODE_START":
@@ -184,7 +197,7 @@ func (k *KeyTracker) Add(line models.LogLine) {
 	switch line.Event {
 	case "ZONE_CHANGE":
 		if len(f) > 0 && f[0] != run.instance {
-			k.closeCurrent(line.Time, "abandoned", 0)
+			k.closeCurrent(k.lastAt, "abandoned", 0)
 		}
 	case "COMBATANT_INFO":
 		if len(f) > 0 && run.auras[f[0]] == nil {
@@ -219,6 +232,50 @@ func (k *KeyTracker) Add(line models.LogLine) {
 	default:
 		k.event(line.Time, line.Event, f)
 	}
+}
+
+// Abandon closes the running key as abandoned at its last line, for a party that left when the log hasn't said so
+// yet; false when no key is running. If the log then goes on in the key, it runs again.
+func (k *KeyTracker) Abandon() bool {
+	k.mu.Lock()
+	defer k.mu.Unlock()
+	run := k.current
+	if run == nil {
+		return false
+	}
+	k.closeCurrent(k.lastAt, "abandoned", 0)
+	k.left = run
+	k.version++
+	return true
+}
+
+// CloseQuiet abandons the running key once nothing was logged for quietMS before now (ms since the epoch); the log
+// follower calls it between reads.
+func (k *KeyTracker) CloseQuiet(now int64) {
+	k.mu.RLock()
+	quiet := now-k.lastAt > quietMS
+	k.mu.RUnlock()
+	if quiet {
+		k.Abandon()
+	}
+}
+
+// resume takes the key Abandon closed up again when the log goes on in it (it was only written late): on the next
+// line, unless that's a new key or a zone outside its dungeon.
+func (k *KeyTracker) resume(event string, f []string) {
+	run := k.left
+	if run == nil {
+		return
+	}
+	k.left = nil
+	if event == "CHALLENGE_MODE_START" || event == "ZONE_CHANGE" && len(f) > 0 && f[0] != run.instance {
+		return
+	}
+	run.key.Status, run.key.End = "running", 0
+	if n := len(run.track.Pulls); n > 0 {
+		run.track.Pulls[n-1].EndMS = 0
+	}
+	k.current = run
 }
 
 // learn keeps what every line tells about names, specs, spell names, pets (from summons and advanced logging's owner
@@ -266,7 +323,7 @@ func advancedAt(event string) int {
 // start opens a key: CHALLENGE_MODE_START,"Voidscar Arena",2923,585,17,[9,10,147].
 func (k *KeyTracker) start(line models.LogLine) {
 	f := line.Fields
-	k.closeCurrent(line.Time, "abandoned", 0)
+	k.closeCurrent(k.lastAt, "abandoned", 0)
 	k.ready = nil // COMBATANT_INFO at the start has everyone's buffs
 	mapID := atoi(f[2])
 	run := &keyRun{instance: f[1], key: models.Key{Dungeon: f[0], MapID: mapID, Level: atoi(f[3]), Start: line.Time,
@@ -282,7 +339,8 @@ func (k *KeyTracker) start(line models.LogLine) {
 		taken:   map[string]map[int64]int64{}, sampled: map[string]int64{}, mobAt: map[string]models.TrackPoint{},
 		track: models.KeyTrack{Players: map[string][]models.TrackPoint{}, Deaths: []models.TrackPoint{},
 			Meters: map[string][]models.MeterPoint{}},
-		auras: map[string][]int{}, total: map[string]*models.KeyMeterRow{}, inPull: map[string]*models.KeyMeterRow{}}
+		auras: map[string][]int{}, total: map[string]*models.KeyMeterRow{}, inPull: map[string]*models.KeyMeterRow{},
+		abilities: map[[2]string]*models.KeyAbility{}, takenBy: map[[2]string]int64{}}
 	if facts, ok := k.facts[mapID]; ok {
 		run.facts, run.key.Reference = &facts, true
 		run.key.Forces = &models.KeyForces{Total: facts.Forces.Total, At: []models.ForcesPoint{}}
@@ -298,18 +356,18 @@ func (k *KeyTracker) start(line models.LogLine) {
 }
 
 // end closes the running key: CHALLENGE_MODE_END,2923,1,17,1686807,... (timed or not, level, the game's time).
-// An abandoned key ends with 0,0,0.
+// 0,0,0 is logged before the next key starts, so a key still running then was abandoned.
 func (k *KeyTracker) end(line models.LogLine) {
 	f := line.Fields
-	status, final := "abandoned", int64(atoi(f[3]))
+	at, status, final := k.lastAt, "abandoned", int64(atoi(f[3]))
 	switch {
 	case final == 0:
 	case f[1] == "1":
-		status = "timed"
+		at, status = line.Time, "timed"
 	default:
-		status = "depleted"
+		at, status = line.Time, "depleted"
 	}
-	k.closeCurrent(line.Time, status, final)
+	k.closeCurrent(at, status, final)
 }
 
 // closeCurrent ends the running key, keeps it as the last one, and queues it for saving unless it was a reset.
@@ -321,6 +379,7 @@ func (k *KeyTracker) closeCurrent(at int64, status string, final int64) {
 	run.key.End, run.key.Status, run.key.FinalMS = at, status, final
 	endPull(run)
 	key := k.details(run, at)
+	key.Abilities, key.Taken = abilities(run)
 	track := k.trackOf(run)
 	k.last, k.lastTrack, k.current = &key, &track, nil
 	if at-key.Start < minSavedMS {
@@ -389,6 +448,9 @@ func (k *KeyTracker) event(at int64, event string, f []string) {
 			run.key.Lusts = append(run.key.Lusts, k.clockAt(at))
 		}
 	case "SPELL_CAST_SUCCESS":
+		if src != "" && strings.HasPrefix(f[0], "Player-") {
+			run.ability(src, f[9]).Casts++
+		}
 		if kind := k.kinds[f[9]]; kind != "" && src != "" {
 			if kind != "cc" { // the death rules' kit is survival buttons
 				run.casts = append(run.casts, models.Cast{Fight: run.pull, At: at, Player: src, Ability: f[9]})
@@ -422,12 +484,12 @@ func (k *KeyTracker) event(at int64, event string, f []string) {
 		k.damage(at, event, f, src, dst)
 	case "SPELL_HEAL", "SPELL_PERIODIC_HEAL":
 		if src != "" && len(f) > 32 {
-			k.tally(src, func(r *models.KeyMeterRow) { r.Healing += int64(atoi(f[30]) - atoi(f[32])) })
+			k.heal(src, f[9], int64(atoi(f[30])-atoi(f[32])))
 		}
 	case "SPELL_ABSORBED":
 		if n := len(f); n >= 18 {
 			if caster := k.player(f[n-10], f[n-8]); caster != "" {
-				k.tally(caster, func(r *models.KeyMeterRow) { r.Healing += int64(atoi(f[n-3])) })
+				k.heal(caster, f[n-5], int64(atoi(f[n-3])))
 			}
 		}
 	}
@@ -453,6 +515,8 @@ func (k *KeyTracker) damage(at int64, event string, f []string, src, dst string)
 	amount := hitAmount(event, f)
 	if dealt {
 		k.tally(src, func(r *models.KeyMeterRow) { r.Damage += amount })
+		a := run.ability(src, ability)
+		a.Damage, a.Hits = a.Damage+amount, a.Hits+1
 		k.hitMob(at, f[4], f[5], src, amount)
 	}
 	if hasFlag(f[6], friendlyFlag) && slices.Contains(run.party, f[4]) {
@@ -462,6 +526,7 @@ func (k *KeyTracker) damage(at int64, event string, f []string, src, dst string)
 			run.taken[name] = map[int64]int64{}
 		}
 		run.taken[name][at/1000] += amount
+		run.takenBy[[2]string{name, ability}] += amount
 		run.pullOf[at/1000] = run.pull
 		k.tally(name, func(r *models.KeyMeterRow) {
 			r.DamageTaken += amount
@@ -476,6 +541,42 @@ func (k *KeyTracker) damage(at int64, event string, f []string, src, dst string)
 			run.avoidable[name][f[9]] += amount
 		}
 	}
+}
+
+// heal counts a player's healing with an ability, to the meters and to the ability.
+func (k *KeyTracker) heal(player, ability string, amount int64) {
+	k.tally(player, func(r *models.KeyMeterRow) { r.Healing += amount })
+	a := k.current.ability(player, ability)
+	a.Healing, a.Hits = a.Healing+amount, a.Hits+1
+}
+
+// ability is a player's row for an ability, made on its first use.
+func (run *keyRun) ability(player, name string) *models.KeyAbility {
+	id := [2]string{player, name}
+	if run.abilities[id] == nil {
+		run.abilities[id] = &models.KeyAbility{Player: player, Ability: name}
+	}
+	return run.abilities[id]
+}
+
+// abilities is what each player's abilities did over the run, and what each took damage from, most first.
+func abilities(run *keyRun) ([]models.KeyAbility, []models.KeyHit) {
+	done := make([]models.KeyAbility, 0, len(run.abilities))
+	for _, a := range run.abilities {
+		done = append(done, *a)
+	}
+	slices.SortFunc(done, func(a, b models.KeyAbility) int {
+		return cmp.Or(cmp.Compare(b.Damage+b.Healing, a.Damage+a.Healing), cmp.Compare(b.Casts, a.Casts),
+			cmp.Compare(a.Player, b.Player), cmp.Compare(a.Ability, b.Ability))
+	})
+	taken := make([]models.KeyHit, 0, len(run.takenBy))
+	for id, damage := range run.takenBy {
+		taken = append(taken, models.KeyHit{Player: id[0], Ability: id[1], Damage: damage})
+	}
+	slices.SortFunc(taken, func(a, b models.KeyHit) int {
+		return cmp.Or(cmp.Compare(b.Damage, a.Damage), cmp.Compare(a.Player, b.Player), cmp.Compare(a.Ability, b.Ability))
+	})
+	return done, taken
 }
 
 // hitAmount is a damage line's amount plus what was absorbed, or a fully absorbed miss's amount.

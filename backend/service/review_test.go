@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io/fs"
 	"reflect"
+	"slices"
 	"testing"
 
 	"wow-live/backend/models"
@@ -76,6 +77,21 @@ func TestBuildReview(t *testing.T) {
 	}
 }
 
+func TestAnAbandonedKeyIsReviewedOverItsOwnTime(t *testing.T) {
+	key := reviewedKey // left 8:20 in, before anyone died
+	key.Status, key.FinalMS, key.End, key.Deaths = "abandoned", 0, key.Start+keyCountdownMS+500_000, nil
+	got := buildReview(key, nil, map[string][]models.MPlusRanking{"Mage": {{Amount: 200_000}}}, []float64{25_000})
+	// 50M taken in 500 s is 100,000 a second, against the top run's 25,000.
+	wantParty := "The party took 4.0× the damage per second of 1 top +12 runs"
+	wantBaseline := "Top runs of each spec at +12 from Warcraft Logs: whole keys, against the 8:20 of this one"
+	wantAdvice := "DPS 100k, 50% of top Arcane Mages at +12 (200k)"
+	if got.Party != wantParty || got.Baseline != wantBaseline || !slices.Contains(got.Players[0].Advice, wantAdvice) ||
+		got.End != key.End {
+		t.Errorf("review = %q, %q, %q, end %d\nwant %q, %q, %q, end %d", got.Party, got.Baseline,
+			got.Players[0].Advice, got.End, wantParty, wantBaseline, wantAdvice, key.End)
+	}
+}
+
 // fakeBaselines is Warcraft Logs for the reviewer: a fixed number of points left, and counting its rankings asks.
 type fakeBaselines struct {
 	left float64
@@ -106,7 +122,7 @@ func (m memReviews) Review(start int64) (models.KeyReview, error) {
 func TestReviewerGuardsPointsAndKeepsReviews(t *testing.T) {
 	keys := newTracker(t, nil)
 	key := reviewedKey
-	key.Dungeon = "Voidscar Arena"
+	key.Dungeon, key.End = "Voidscar Arena", 1_600_000
 	keys.history = []models.Key{key}
 	source := &fakeBaselines{left: 50}
 	r := Reviewer{Keys: keys, Baselines: source, Store: memReviews{}}
@@ -122,6 +138,13 @@ func TestReviewerGuardsPointsAndKeepsReviews(t *testing.T) {
 	}
 	if _, err := r.Cached(99); !errors.Is(err, ErrNoSuchKey) {
 		t.Fatalf("an unreviewed key: %v, want ErrNoSuchKey", err)
+	}
+	keys.history[0].End += 30_000 // closed for a silent log, reviewed, and then it went on
+	if _, err := r.Cached(key.Start); !errors.Is(err, ErrNoSuchKey) {
+		t.Fatalf("a review from before the key went on: %v, want ErrNoSuchKey", err)
+	}
+	if got, err := r.Review(context.Background(), key.Start); err != nil || source.asks != 4 || got.End != 1_630_000 {
+		t.Fatalf("review after the key went on: end %d, %d asks, %v; want it made again", got.End, source.asks, err)
 	}
 }
 

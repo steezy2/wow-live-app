@@ -6,8 +6,9 @@ import (
 
 // KeySource gives the running Mythic+ key read at now (ms since the epoch), or the last one that ended (false before
 // any key), and the saved keys: listed newest first, read or deleted by start time (0 deletes them all); a key's
-// track for the map by its start time, a dungeon's map (by map ID): its floors and where parties have walked, and the
-// ready check before the next key (false outside a Mythic dungeon between keys).
+// track for the map by its start time, a dungeon's map (by map ID): its floors and where parties have walked, the
+// ready check before the next key (false outside a Mythic dungeon between keys), and ending the running key as
+// abandoned (false when none is running).
 type KeySource interface {
 	Latest(now int64) (KeyView, bool)
 	Saved() []KeySummary
@@ -16,6 +17,7 @@ type KeySource interface {
 	Track(start int64) (KeyTrack, error)
 	DungeonMap(mapID int) (DungeonMap, error)
 	Ready() (ReadyCheck, bool)
+	Abandon() bool
 }
 
 // MPlusBaselines gives what a key review compares against from Warcraft Logs: the season's dungeons by name

@@ -473,8 +473,59 @@ button {
   text-align: left;
 }
 
+/* The players' advice beside the player focus card; one under the other when narrow. */
+.review-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--s5);
+  align-items: start;
+}
+
+@media (max-width: 1280px) {
+  .review-split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 .review-player {
   margin-top: var(--s3);
+}
+
+/* The log's age above the live key: one line tall with or without its button, so the page doesn't jump. */
+.log-age {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  min-height: 32px;
+}
+
+.focus {
+  margin-top: var(--s3);
+  background: var(--panel-2);
+}
+
+.focus .tabs {
+  margin-top: var(--s2);
+}
+
+/* The abilities scroll under their headings. */
+.focus .scroll {
+  overflow-x: hidden;
+}
+
+.focus .card-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--panel-2);
+}
+
+.focus select {
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: var(--s1) var(--s2);
 }
 
 .review-player p {

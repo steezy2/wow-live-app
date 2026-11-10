@@ -73,9 +73,14 @@ var (
 // the party's damage taken per second against similar top runs (taken).
 func buildReview(key models.Key, history []models.Key, baselines map[string][]models.MPlusRanking,
 	taken []float64) models.KeyReview {
-	review := models.KeyReview{Start: key.Start, Players: []models.PlayerReview{},
+	review := models.KeyReview{Start: key.Start, End: key.End, Players: []models.PlayerReview{},
 		Baseline: "No Warcraft Logs baseline for this key"}
-	if len(baselines) > 0 {
+	switch {
+	case len(baselines) == 0:
+	case key.Status == "abandoned":
+		review.Baseline = fmt.Sprintf("Top runs of each spec at +%d from Warcraft Logs: whole keys, against the %s of "+
+			"this one", key.Level, clockText(lengthMS(key)))
+	default:
 		review.Baseline = fmt.Sprintf("Top runs of each spec at +%d within %.0f%% of this time, from Warcraft Logs",
 			key.Level, similarTime*100)
 	}
@@ -135,9 +140,9 @@ func buildReview(key models.Key, history []models.Key, baselines map[string][]mo
 		for _, r := range rows {
 			ours += float64(r.DamageTaken)
 		}
-		ratio := ours / float64(max(1, key.FinalMS)) * 1000 / median(taken)
-		review.Party = fmt.Sprintf("The party took %.1f× the damage per second of %d top +%d runs of similar time",
-			ratio, len(taken), key.Level)
+		ratio := ours / float64(max(1, lengthMS(key))) * 1000 / median(taken)
+		review.Party = fmt.Sprintf("The party took %.1f× the damage per second of %d top +%d runs%s",
+			ratio, len(taken), key.Level, unlessAbandoned(key, " of similar time"))
 	}
 	return review
 }
@@ -178,8 +183,9 @@ func advice(key models.Key, player string, spec specInfo, metrics []models.Revie
 		out = append(out, fmt.Sprintf("%d must-stop casts went off; you kicked %.0f", wentOff, k.Value))
 	}
 	if main := byName[mainMetric(spec)]; main.Top > 0 && main.Value < lowShare*main.Top {
-		out = append(out, fmt.Sprintf("%s %s, %.0f%% of top %ss at +%d in similar time (%s)", main.Name,
-			short(main.Value), 100*main.Value/main.Top, spec.label(), key.Level, short(main.Top)))
+		out = append(out, fmt.Sprintf("%s %s, %.0f%% of top %ss at +%d%s (%s)", main.Name,
+			short(main.Value), 100*main.Value/main.Top, spec.label(), key.Level,
+			unlessAbandoned(key, " in similar time"), short(main.Top)))
 	}
 	if readyIn, ready := unusedDefensives(key, player); readyIn >= 2 {
 		out = append(out, fmt.Sprintf("Took big hits with %s ready in %d damage spikes", ready, readyIn))
@@ -188,6 +194,15 @@ func advice(key models.Key, player string, spec specInfo, metrics []models.Revie
 		out = append(out, fmt.Sprintf("%.0f kicks interrupted nothing: call kicks so two don't go on one cast", w.Value))
 	}
 	return out[:min(maxAdvice, len(out))]
+}
+
+// unlessAbandoned is a note about the top runs' time, which holds only for a key that finished: an abandoned key is
+// compared with whole runs.
+func unlessAbandoned(key models.Key, note string) string {
+	if key.Status == "abandoned" {
+		return ""
+	}
+	return note
 }
 
 // reviewed is every metric of a review, in the page's column order: DPS and HPS for everyone, then the rest.

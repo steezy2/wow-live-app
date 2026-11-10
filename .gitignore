@@ -1,5 +1,6 @@
 .env
 logs/
+docs/specs/
 bin/
 backend/cmd/app/embed/*
 !backend/cmd/app/embed/README.md

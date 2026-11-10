@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import type { KeyMeter, KeyView } from './api'
 import { type Column, defense, offense } from './meterColumns'
 import { classColors } from './classColors'
@@ -42,26 +42,40 @@ export function MeterCard({ title, meter, columns }: { title: string; meter: Key
         ))}
       </div>
       {rows.map((r) => (
-        <div key={r.player} className="card-row" style={grid}>
-          <span
-            className="meter-bar"
-            aria-hidden="true"
-            style={
-              {
-                width: `${(first.value(r) / top) * 100}%`,
-                '--bar': classColors[r.class] ?? 'var(--accent)',
-              } as CSSProperties
-            }
-          />
+        <BarRow key={r.player} share={first.value(r) / top} color={classColors[r.class] ?? 'var(--accent)'} grid={grid}>
           <span className="name">{r.player}</span>
           {columns.map((c) => (
             <span key={c.label} title={c.title?.(r)}>
               {c.show ? c.show(r) : amount(c.value(r))}
             </span>
           ))}
-        </div>
+        </BarRow>
       ))}
       {rows.length === 0 && <p className="muted">No pull yet</p>}
+    </div>
+  )
+}
+
+/** A card's row with a coloured bar across it, share (0 to 1) of the row wide. */
+export function BarRow({
+  share,
+  color,
+  grid,
+  children,
+}: {
+  share: number
+  color: string
+  grid: CSSProperties
+  children: ReactNode
+}) {
+  return (
+    <div className="card-row" style={grid}>
+      <span
+        className="meter-bar"
+        aria-hidden="true"
+        style={{ width: `${share * 100}%`, '--bar': color } as CSSProperties}
+      />
+      {children}
     </div>
   )
 }

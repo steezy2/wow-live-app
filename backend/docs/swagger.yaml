@@ -62,6 +62,21 @@ definitions:
       pct:
         type: number
     type: object
+  models.KeyAbility:
+    properties:
+      ability:
+        type: string
+      casts:
+        type: integer
+      damage:
+        type: integer
+      healing:
+        type: integer
+      hits:
+        type: integer
+      player:
+        type: string
+    type: object
   models.KeyBoss:
     properties:
       endMS:
@@ -285,6 +300,8 @@ definitions:
     properties:
       baseline:
         type: string
+      end:
+        type: integer
       notes:
         description: the party's must-stop casts and time between pulls
         items:
@@ -416,6 +433,13 @@ definitions:
     type: object
   models.KeyView:
     properties:
+      abilities:
+        description: |-
+          Abilities is each player's damage, healing and casts by ability, and Taken their damage taken by ability, most
+          first: there once the key is over, and missing in keys saved before Nov 10.
+        items:
+          $ref: '#/definitions/models.KeyAbility'
+        type: array
       activity:
         additionalProperties:
           format: float64
@@ -510,15 +534,15 @@ definitions:
         items:
           $ref: '#/definitions/models.KeyPull'
         type: array
-      quiet:
-        description: |-
-          Quiet means the key is still running in the log, but nothing was logged for a few minutes, so its clock stops at
-          the last line: the game logs no end for an abandoned key.
-        type: boolean
       reference:
         description: reference/mplus-dungeons.json has the dungeon (avoidable list,
           forces)
         type: boolean
+      silentMS:
+        description: |-
+          SilentMS is how long ago the last line of a running key was logged (0 once it's over). The game writes its log
+          in batches as fights start and end, so a long silence is a long fight, or a party that left.
+        type: integer
       specs:
         additionalProperties:
           type: integer
@@ -542,6 +566,10 @@ definitions:
         description: must-stop casts and what happened to each
         items:
           $ref: '#/definitions/models.KeyStop'
+        type: array
+      taken:
+        items:
+          $ref: '#/definitions/models.KeyHit'
         type: array
       timerMS:
         description: the dungeon's time limit; 0 when Raider.IO doesn't list it
@@ -1005,6 +1033,22 @@ paths:
         "204":
           description: No key in the combat log yet
       summary: The running Mythic+ key, or the last one
+      tags:
+      - mplus
+  /api/mplus/live/abandon:
+    post:
+      description: |-
+        For a party that left a key: the game logs no end for it, and writes the line that says they left
+        with its next batch, which can be minutes later. The key ends at its last line and is saved and
+        reviewed like any other; if the log then goes on in it, it runs again.
+      responses:
+        "204":
+          description: No Content
+        "409":
+          description: no key is running
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+      summary: End the running key as abandoned
       tags:
       - mplus
   /api/mplus/ready:
