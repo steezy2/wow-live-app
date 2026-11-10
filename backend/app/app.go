@@ -97,12 +97,6 @@ func dungeonData(ctx context.Context, cache, region string) (map[int]int64, map[
 	return timers, affixes
 }
 
-// Add feeds parsed lines to the keys and tells the pages if the keys changed.
-func (s *Site) Add(lines ...string) {
-	add(s.Keys, lines)
-	s.Changes.Publish(s.Keys.Version())
-}
-
 // add feeds parsed lines to keys, skipping a line that doesn't parse.
 func add(keys *service.LogTracker, lines []string) {
 	for _, text := range lines {
@@ -142,10 +136,10 @@ func (s *Site) Learn() (int, error) {
 	return saved, nil
 }
 
-// Follow reads the newest log in dir into the keys as the game writes it until ctx ends, saving each key once it ends,
-// logging how far behind the game it was read, and reviewing it (when there are Warcraft Logs keys and points to
-// spare); a dungeon's first run gets its top Warcraft Logs runs for the estimate. A failed read is logged and tried
-// again.
+// Follow reads the newest log in dir into the keys as the game writes it until ctx ends, closing a key the log went
+// silent on, saving each key once it ends, logging how far behind the game it was read, and reviewing it (when there
+// are Warcraft Logs keys and points to spare); a dungeon's first run gets its top Warcraft Logs runs for the estimate.
+// A failed read is logged and tried again.
 func (s *Site) Follow(ctx context.Context, dir string) {
 	watcher, err := combatlog.Watch(dir, combatlog.FallbackEvery)
 	if err != nil {
@@ -161,7 +155,11 @@ func (s *Site) Follow(ctx context.Context, dir string) {
 			log.Print(err)
 		}
 		delays.Add(lines, time.Now())
-		s.Add(lines...)
+		add(s.Keys, lines)
+		if len(lines) == 0 { // not while working through a backlog, whose lines are old
+			s.Keys.CloseQuiet(time.Now().UnixMilli())
+		}
+		s.Changes.Publish(s.Keys.Version())
 		saved, err := s.Keys.SaveFinished()
 		if err != nil {
 			log.Print(err)

@@ -1,13 +1,15 @@
 import { useEffect, useState } from 'react'
 import { fetchReview, makeReview, type KeyReview as Review, type KeyView } from './api'
 import { amount } from './format'
+import { PlayerFocus } from './PlayerFocus'
 
 /** How often, and how long, a key that just ended is asked for the review the site makes on its own. */
 const WAIT_POLL_MS = 5000
 const WAIT_MS = 90_000
 
 /** A finished key's review: each player's numbers against their spec's top runs, their usual here and the party,
- * what to work on, and one thing done well. Made by the site when the key ends, or here on request. */
+ * what to work on, and one thing done well, beside one player's key up close. Made by the site when the key ends, or
+ * here on request. */
 export function KeyReview({ keyView: key, justEnded }: { keyView: KeyView; justEnded: boolean }) {
   const [review, setReview] = useState<Review | null>(null)
   const [state, setState] = useState<'loading' | 'waiting' | 'none' | 'making'>('loading')
@@ -56,6 +58,7 @@ export function KeyReview({ keyView: key, justEnded }: { keyView: KeyView; justE
           </button>
         )}
         {error && <p className="warning">{error}</p>}
+        <PlayerFocus keyView={key} />
       </section>
     )
   }
@@ -107,15 +110,20 @@ export function KeyReview({ keyView: key, justEnded }: { keyView: KeyView; justE
           </tbody>
         </table>
       </div>
-      {review.players.map((p) => (
-        <div key={p.player} className="review-player">
-          <b>{p.player}</b>
-          <p className="good">✓ {p.positive}</p>
-          {p.advice.map((a) => (
-            <p key={a}>• {a}</p>
+      <div className="review-split">
+        <div>
+          {review.players.map((p) => (
+            <div key={p.player} className="review-player">
+              <b>{p.player}</b>
+              <p className="good">✓ {p.positive}</p>
+              {p.advice.map((a) => (
+                <p key={a}>• {a}</p>
+              ))}
+            </div>
           ))}
         </div>
-      ))}
+        <PlayerFocus keyView={key} />
+      </div>
     </section>
   )
 }

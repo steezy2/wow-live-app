@@ -37,6 +37,21 @@ type Key struct {
 	LastPull  KeyMeter       `json:"lastPull"`
 	Overall   KeyMeter       `json:"overall"`
 	Buffs     []KeyBuffCheck `json:"buffs"`
+	// Abilities is each player's damage, healing and casts by ability, and Taken their damage taken by ability, most
+	// first: there once the key is over, and missing in keys saved before Nov 10.
+	Abilities []KeyAbility `json:"abilities,omitempty"`
+	Taken     []KeyHit     `json:"taken,omitempty"`
+}
+
+// KeyAbility is one ability in a player's key: its damage to enemies and healing done as the meters count them (pets
+// under their owner, absorbs as healing), how often it was cast, and how often it hit or healed.
+type KeyAbility struct {
+	Player  string `json:"player"`
+	Ability string `json:"ability"`
+	Damage  int64  `json:"damage"`
+	Healing int64  `json:"healing"`
+	Casts   int    `json:"casts"`
+	Hits    int    `json:"hits"`
 }
 
 // KeySummary is a saved key in the list: when it started (its ID), the dungeon, level, how it ended, its time and
@@ -116,9 +131,11 @@ type KeyHit struct {
 }
 
 // KeyReview is a finished key next to its baselines: a review per party member, a
-// line for the party, what the spec baselines are, and the Warcraft Logs points it spent.
+// line for the party, what the spec baselines are, and the Warcraft Logs points it spent. End is the key's end when
+// it was reviewed (0 in reviews made before Nov 10): a key closed as abandoned that then went on is reviewed again.
 type KeyReview struct {
 	Start    int64          `json:"start"`
+	End      int64          `json:"end"`
 	Players  []PlayerReview `json:"players"`
 	Party    string         `json:"party"`
 	Notes    []string       `json:"notes"` // the party's must-stop casts and time between pulls
@@ -392,9 +409,9 @@ type KeyView struct {
 	Plus3MS    int64          `json:"plus3MS"`
 	Chests     int            `json:"chests"`
 	Projection *KeyProjection `json:"projection,omitempty"`
-	// Quiet means the key is still running in the log, but nothing was logged for a few minutes, so its clock stops at
-	// the last line: the game logs no end for an abandoned key.
-	Quiet bool `json:"quiet"`
+	// SilentMS is how long ago the last line of a running key was logged (0 once it's over). The game writes its log
+	// in batches as fights start and end, so a long silence is a long fight, or a party that left.
+	SilentMS int64 `json:"silentMS"`
 }
 
 // Cast is a player pressing a tracked button (a defensive, healthstone or potion) at a time (ms) in a fight.

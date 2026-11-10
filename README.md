@@ -27,14 +27,14 @@ Play in Windowed or Windowed (Fullscreen) so the overlay shows over the game.
 
 ## What it shows
 
-- **Before the key:** once the party zones into a Mythic dungeon, a ready check of who's missing a flask, food or a party buff (from the buffs the log has shown since).
-- **During the key:**
+- **Before the key:** in a Mythic dungeon, a ready check of who's missing a flask, food or a party buff, from the buffs the log has shown since the party zoned in. The game often writes those lines only as the key starts, so the check that counts is the one at the start: who's missing what, on the page for the whole key and on the overlay for its first 30 seconds.
+- **During the key** (the game writes its log in batches as fights start and end, so a pull's numbers arrive when it's over):
   - the clock against the timer, death penalty included, with the +2 and +3 marks, and enemy forces as the dungeon's count;
   - the result it's heading for, with a range and the odds of each, from your earlier runs' forces and boss times (a dungeon's first run uses its top Warcraft Logs runs at that level);
   - each death with what killed the player and which defensives they still had ready;
   - interrupts, the must-stop casts that went off, crowd control, dispels, and the worst bursts of damage with each player's cover;
   - DPS, HPS, damage taken and avoidable damage for the last pull and the whole key.
-- **After the key:** a review of each player against their spec's top runs on Warcraft Logs and their own earlier runs (DPS or HPS, priority damage, active time, kicks, dispels, avoidable damage, deaths with a defensive ready, potions with Bloodlust), with up to three things to work on and one done well; a damage or healing per second graph; and a replay on Keystone.guru's maps.
+- **After the key:** a review of each player against their spec's top runs on Warcraft Logs and their own earlier runs (DPS or HPS, priority damage, active time, kicks, dispels, avoidable damage, deaths with a defensive ready, potions with Bloodlust), with up to three things to work on and one done well; beside it, one player's key up close (their damage and healing by ability with casts and hits, what they took damage from, and what they cast); a damage or healing per second graph; and a replay on Keystone.guru's maps. An abandoned key gets the same, over the time it ran. The game logs no end for a key the party left: the app ends it when the log shows them leaving, after 10 minutes without a line, or when you press *Party left? End the key*.
 - **Raid (Raid tab):** after each raid pull on any difficulty, how far it got (boss health and phase) against tonight's best and the best ever on the boss; the early deaths with what killed them, their last hits and the defensives still ready; mass kills; what went wrong by kind of mechanic (avoidable hits, soaks, stacks, dispels, must-stop casts, adds left up, damage into the unit to burst); Bloodlust, raid cooldowns and combat potions; and the pull's meters. At the top, a short list of what to fix on the next pull; under it a replay of the pull on the room's map (map art from Warcraft Logs) with a lane per mechanic and DPS and HPS graphs on the same clock. Each night's pulls are listed on the side by boss.
 - **Overlay:** see-through and click-through. Between raid pulls it shows the last pull for a few minutes. Ctrl+Alt+O (or *Move overlay* in Settings) moves and resizes it; Settings also has when it shows, its background opacity and one or two cards.
 

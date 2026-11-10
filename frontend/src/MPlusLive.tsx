@@ -1,21 +1,39 @@
-import type { KeyView, ReadyCheck } from './api'
+import { abandonLiveKey, type KeyView, type ReadyCheck } from './api'
+import { clock } from './format'
 import { ReadyPanel } from './ReadyPanel'
 import { useLiveKey, useReady } from './useLiveKey'
 import { KeyDetails } from './KeyDetails'
 
-/** The live key, read from the combat log a few seconds behind the game; onEnded runs when a key ends. Between keys
- * the ready check shows on top, even while the last key's review stays up. */
+/** How long the game's log has to be silent before the page offers to end the key: longer than the walk between
+ * pulls, so the offer isn't up all the time. */
+const END_OFFER_MS = 60_000
+
+/** The live key, read from the combat log as the game writes it: in batches as fights start and end, so a pull's
+ * numbers arrive when it's over, and a line says how long ago the last batch came. The game logs no end for a key the
+ * party left, so after a silence that line offers to end it. onEnded runs when a key ends. Between keys the ready
+ * check shows on top, even while the last key's review stays up. */
 export function MPlusLive({ onEnded }: { onEnded: () => void }) {
-  const { loaded, key, clockMS, error, endedHere } = useLiveKey(onEnded)
+  const { loaded, key, clockMS, silentMS, error, endedHere } = useLiveKey(onEnded)
   const ready = useReady()
   if (!loaded) return <p className="muted">{error ?? 'Connecting to the site…'}</p>
-  if (key === null || (key.status !== 'running' && key.start !== endedHere) || key.quiet) {
+  if (key === null || (key.status !== 'running' && key.start !== endedHere)) {
     return <Waiting last={key} ready={ready} />
   }
   return (
     <>
       {error && <p className="warning">Lost the site: {error}. Showing the last answer.</p>}
       {ready && key.status !== 'running' && <ReadyPanel ready={ready} />}
+      {key.status === 'running' && (
+        <p className="muted small log-age">
+          The game last wrote its log {clock(silentMS)} ago (it writes as fights start and end).
+          {silentMS >= END_OFFER_MS && (
+            // A key that ended meanwhile answers 409, and the next reading shows it.
+            <button className="action" onClick={() => void abandonLiveKey().catch(() => undefined)}>
+              Party left? End the key
+            </button>
+          )}
+        </p>
+      )}
       <KeyDetails keyView={key} clockMS={clockMS} justEnded={endedHere === key.start} />
     </>
   )
@@ -30,12 +48,7 @@ function Waiting({ last, ready }: { last: KeyView | null; ready: ReadyCheck | nu
       <p className="muted">
         It shows here when the key starts, with combat logging on (Advanced Combat Logging, then /combatlog in game).
       </p>
-      {last?.quiet && (
-        <p className="warning">
-          {last.dungeon} +{last.level} has had nothing in the log for a few minutes, so it looks abandoned.
-        </p>
-      )}
-      {last && !last.quiet && (
+      {last && (
         <p className="muted">
           Last key: {last.dungeon} +{last.level}, {last.status}. It's in the saved keys on the side.
         </p>
@@ -44,7 +57,8 @@ function Waiting({ last, ready }: { last: KeyView | null; ready: ReadyCheck | nu
         <ReadyPanel ready={ready} />
       ) : (
         <p className="muted small">
-          Once you're in a Mythic dungeon, the ready check shows who's missing a flask, food or party buff.
+          In a Mythic dungeon, the ready check shows who's missing a flask, food or party buff once the game writes its
+          log, which is often only as the key starts; the key's start checks everyone either way.
         </p>
       )}
     </section>

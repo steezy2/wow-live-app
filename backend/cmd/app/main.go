@@ -128,7 +128,7 @@ func run() error {
 			DisableFramelessWindowDecorations: true}})
 	running := func() bool {
 		key, ok := site.Keys.Latest(time.Now().UnixMilli())
-		return ok && key.Status == "running" && !key.Quiet
+		return ok && key.Status == "running"
 	}
 	// Moving: the overlay takes clicks so it can be dragged and resized, and shows whatever the settings say so it
 	// can be placed.

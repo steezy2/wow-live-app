@@ -192,9 +192,24 @@ export interface KeyView {
   /** Most chests still in reach: 3, 2, 1, or 0 once over time; -1 without a timer. */
   chests: number
   projection?: KeyProjection
-  /** Still running in the log, but nothing logged for a few minutes: the clock stopped at the last line (an abandoned
-   * key logs no end). */
-  quiet: boolean
+  /** How long ago a running key's last line was logged (0 once it's over): the game writes its log in batches as
+   * fights start and end, so a long silence is a long fight, or a party that left. */
+  silentMS: number
+  /** Each player's abilities, most damage and healing first, and their damage taken by ability: there once the key is
+   * over, and missing in keys saved before Nov 10. */
+  abilities?: KeyAbility[]
+  taken?: { player: string; ability: string; damage: number }[]
+}
+
+/** One ability in a player's key (models.KeyAbility): its damage and healing as the meters count them (pets under
+ * their owner), how often it was cast, and how often it hit or healed. */
+export interface KeyAbility {
+  player: string
+  ability: string
+  damage: number
+  healing: number
+  casts: number
+  hits: number
 }
 
 /** A place at a time on the key's clock: x and y in yards as the combat log gives them (x north, y west), the map
@@ -308,6 +323,12 @@ async function failure(response: Response): Promise<Error> {
 export async function fetchLiveKey(signal?: AbortSignal): Promise<KeyView | null> {
   const response = await call('/api/mplus/live', { signal })
   return response.status === 204 ? null : ((await response.json()) as KeyView)
+}
+
+/** Ends the running key as abandoned, for a party that left before the game's log says so; it runs again if the log
+ * goes on in it. */
+export async function abandonLiveKey(): Promise<void> {
+  await call('/api/mplus/live/abandon', { method: 'POST' })
 }
 
 /** The ready check before the next key (models.ReadyCheck): each member's missing flask, food and party buffs, and

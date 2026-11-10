@@ -20,6 +20,7 @@ func TestReadyCheckBeforeAKeyFromBuffsSeenSinceZoningIn(t *testing.T) {
 		buff(2, "SPELL_AURA_APPLIED", testPlayer, "Flask of the Shattered Sun"),
 		buff(3, "SPELL_AURA_APPLIED", shaman, "Well Fed"),
 		buff(4, "SPELL_AURA_REMOVED", shaman, "Arcane Intellect"), // died
+		at(4.5, `ZONE_CHANGE,2813,"Murder Row",23`),               // ran back in: the buffs seen so far still count
 	)
 	got, ok := keys.Ready()
 	want := []models.ReadyPlayer{

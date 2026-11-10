@@ -1,5 +1,5 @@
 // Command site serves the site on this PC: the live Mythic+ page and its API. It follows
-// the game's combat log, so the page shows the running key a few seconds behind the game.
+// the game's combat log, so the page shows the running key as the game writes it: in batches, as fights start and end.
 //
 // Usage, from backend/ (build the page first: cd frontend && npm run build):
 //

@@ -294,6 +294,16 @@ func TestRaidPullWithoutAnEndEndsAtItsLastFighting(t *testing.T) {
 	}
 }
 
+func TestARaidPullStaysOnThroughASilentLog(t *testing.T) {
+	keys, _ := newRaidTracker(t)
+	lines := pullLines(3, 0, 60, 50, false)
+	last := feed(t, keys, lines[:len(lines)-1]...)[len(lines)-2].Time // the game writes nothing during a fight
+	keys.CloseQuiet(last + 2*quietMS)
+	if keys.Abandon() || !keys.RaidLive(0).Pulling {
+		t.Fatal("a raid pull was closed for a silent log; want it still on, however long the fight")
+	}
+}
+
 func TestAnAddWhoseHealthReachesZeroDiedWithoutADeathLine(t *testing.T) {
 	keys, store := newRaidTracker(t)
 	add := "Creature-0-3882-2939-27547-253032-00006BE4EB"

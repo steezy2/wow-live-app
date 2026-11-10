@@ -20,7 +20,8 @@ interface Reading {
 }
 
 /** The live key, read again on each change the site pushes, and its clock ticking between answers; onEnded runs when
- * a key ends. endedHere is the start of a key that ended while watching. */
+ * a key ends. endedHere is the start of a key that ended while watching, and silentMS how long ago the game last
+ * wrote a running key's log. */
 export function useLiveKey(onEnded?: () => void) {
   const [reading, setReading] = useState<Reading | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -57,9 +58,15 @@ export function useLiveKey(onEnded?: () => void) {
   }, [])
 
   const key = reading?.key ?? null
-  const clockMS =
-    key?.status === 'running' && !key.quiet && reading ? Math.max(key.clockMS, key.clockMS + (now - reading.at)) : (key?.clockMS ?? 0)
-  return { loaded: reading !== null, key, clockMS, error, endedHere }
+  const since = key?.status === 'running' && reading ? Math.max(0, now - reading.at) : 0
+  return {
+    loaded: reading !== null,
+    key,
+    clockMS: (key?.clockMS ?? 0) + since,
+    silentMS: (key?.silentMS ?? 0) + since,
+    error,
+    endedHere,
+  }
 }
 
 /** The ready check before the next key, read again on each change the site pushes; null outside a Mythic dungeon

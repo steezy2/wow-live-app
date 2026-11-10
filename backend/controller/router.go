@@ -36,6 +36,7 @@ func Router(mplus MPlus, raid *Raid, settings *SettingsAPI, pages fs.FS, hosts .
 	})
 	api := r.Group("/api")
 	api.GET("/mplus/live", mplus.Live)
+	api.POST("/mplus/live/abandon", mplus.Abandon)
 	api.GET("/mplus/events", mplus.Events)
 	api.GET("/mplus/ready", mplus.Ready)
 	api.GET("/mplus/keys", mplus.Saved)
