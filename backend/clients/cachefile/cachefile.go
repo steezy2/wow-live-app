@@ -15,6 +15,9 @@ import (
 	"time"
 )
 
+// ErrNotFound is returned (wrapped) by Fresh when the server has no such file.
+var ErrNotFound = errors.New("not found")
+
 // renameTries and renameWait: renameRetrying's tries when another process has the file open (Windows).
 const (
 	renameTries = 5
@@ -116,6 +119,9 @@ func Fresh(ctx context.Context, client *http.Client, url, path string, maxAge ti
 		return fmt.Errorf("downloading %s: %w", url, err)
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode == http.StatusNotFound {
+		return fmt.Errorf("downloading %s: %w", url, ErrNotFound)
+	}
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("downloading %s: %s", url, resp.Status)
 	}
