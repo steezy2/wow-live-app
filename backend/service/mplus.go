@@ -53,6 +53,8 @@ type KeyTracker struct {
 	store     models.KeyStore
 	facts     map[int]models.DungeonFacts // by map ID, from reference/mplus-dungeons.json
 	spells    map[int]string              // spell ID -> name, from every line seen
+	schools   map[string]int              // ability name -> spell school (a bit per school), from every line seen
+	logger    string                      // GUID of the player whose game writes the log
 	specs     map[string]int              // player GUID -> spec, from COMBATANT_INFO
 	owners    map[string]string           // pet GUID -> owner GUID
 	names     map[string]string           // player GUID -> name
@@ -132,7 +134,8 @@ func NewKeyTracker(timers map[int]int64, affixes map[int]string, rules models.MP
 	}
 	return &KeyTracker{timers: timers, affixes: affixes, rules: rules, kinds: kinds, facts: facts, store: store,
 		history: history,
-		spells:  map[int]string{}, specs: map[string]int{}, owners: map[string]string{}, names: map[string]string{},
+		spells:  map[int]string{}, schools: map[string]int{"Melee": physicalSchool}, specs: map[string]int{},
+		owners: map[string]string{}, names: map[string]string{},
 		up: map[[2]string]int64{}, top: map[[2]int][]int64{}, asked: map[[2]int]bool{}}, nil
 }
 
@@ -291,10 +294,14 @@ func (k *KeyTracker) learn(at int64, event string, f []string) {
 	for _, i := range []int{0, 4} {
 		if strings.HasPrefix(f[i], "Player-") && f[i+1] != "nil" {
 			k.names[f[i]], _ = splitName(f[i+1])
+			if hasFlag(f[i+2], mineFlag) {
+				k.logger = f[i]
+			}
 		}
 	}
-	if strings.HasPrefix(event, "SPELL_") && len(f) > 10 {
+	if (strings.HasPrefix(event, "SPELL_") || strings.HasPrefix(event, "RANGE_")) && len(f) > 10 {
 		k.spells[atoi(f[8])] = f[9]
+		k.schools[f[9]] = int(hexInt(f[10]))
 	}
 	if event == "SPELL_SUMMON" {
 		k.owners[f[4]] = f[0]
@@ -379,7 +386,10 @@ func (k *KeyTracker) closeCurrent(at int64, status string, final int64) {
 	run.key.End, run.key.Status, run.key.FinalMS = at, status, final
 	endPull(run)
 	key := k.details(run, at)
-	key.Abilities, key.Taken = abilities(run)
+	key.Abilities, key.Taken = abilities(run, k.schools)
+	if slices.Contains(run.party, k.logger) {
+		key.Logger = k.names[k.logger]
+	}
 	track := k.trackOf(run)
 	k.last, k.lastTrack, k.current = &key, &track, nil
 	if at-key.Start < minSavedMS {
@@ -559,10 +569,12 @@ func (run *keyRun) ability(player, name string) *models.KeyAbility {
 	return run.abilities[id]
 }
 
-// abilities is what each player's abilities did over the run, and what each took damage from, most first.
-func abilities(run *keyRun) ([]models.KeyAbility, []models.KeyHit) {
+// abilities is what each player's abilities did over the run, and what each took damage from, most first, each with
+// its spell school (by ability name).
+func abilities(run *keyRun, schools map[string]int) ([]models.KeyAbility, []models.KeyHit) {
 	done := make([]models.KeyAbility, 0, len(run.abilities))
 	for _, a := range run.abilities {
+		a.School = schools[a.Ability]
 		done = append(done, *a)
 	}
 	slices.SortFunc(done, func(a, b models.KeyAbility) int {
@@ -571,7 +583,7 @@ func abilities(run *keyRun) ([]models.KeyAbility, []models.KeyHit) {
 	})
 	taken := make([]models.KeyHit, 0, len(run.takenBy))
 	for id, damage := range run.takenBy {
-		taken = append(taken, models.KeyHit{Player: id[0], Ability: id[1], Damage: damage})
+		taken = append(taken, models.KeyHit{Player: id[0], Ability: id[1], Damage: damage, School: schools[id[1]]})
 	}
 	slices.SortFunc(taken, func(a, b models.KeyHit) int {
 		return cmp.Or(cmp.Compare(b.Damage, a.Damage), cmp.Compare(a.Player, b.Player), cmp.Compare(a.Ability, b.Ability))

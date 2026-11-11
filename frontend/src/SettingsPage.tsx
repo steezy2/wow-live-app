@@ -69,7 +69,7 @@ export function SettingsPage({ view, onSaved }: { view: SettingsView; onSaved: (
               : 'No combat log here yet: turn on Advanced Combat Logging and type /combatlog in game.'}
         </p>
         <label>
-          Region (for affix names, from the next start)
+          Region, for affix names (from the next start)
           <select value={region} onChange={(e) => setRegion(e.target.value as Settings['region'])}>
             {view.regions.map((r) => (
               <option key={r} value={r}>

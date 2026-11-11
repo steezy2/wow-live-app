@@ -813,6 +813,9 @@ const docTemplate = `{
                 },
                 "player": {
                     "type": "string"
+                },
+                "school": {
+                    "type": "integer"
                 }
             }
         },
@@ -975,6 +978,9 @@ const docTemplate = `{
                 },
                 "player": {
                     "type": "string"
+                },
+                "school": {
+                    "type": "integer"
                 }
             }
         },
@@ -1155,7 +1161,7 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "notes": {
-                    "description": "the party's must-stop casts and time between pulls",
+                    "description": "the party as a whole: deaths' cost, must-stop casts, time between pulls",
                     "type": "array",
                     "items": {
                         "type": "string"
@@ -1452,6 +1458,10 @@ const docTemplate = `{
                 },
                 "level": {
                     "type": "integer"
+                },
+                "logger": {
+                    "description": "Logger is the party member whose game wrote the log (\"\" in keys saved before Nov 11).",
+                    "type": "string"
                 },
                 "lusts": {
                     "description": "Lusts is when the party got Bloodlust or a copy, on the key's clock.",

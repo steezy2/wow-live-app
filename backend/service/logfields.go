@@ -14,12 +14,21 @@ const (
 	// friendlyFlag and hostileFlag are the unit-flag bits for "friendly" and "hostile to the logger".
 	friendlyFlag = 0x10
 	hostileFlag  = 0x40
+	// mineFlag is the unit-flag bit for the logger's own character and pets.
+	mineFlag = 0x1
+	// physicalSchool is the spell school of melee swings, which the log gives no school for.
+	physicalSchool = 0x1
 )
+
+// hexInt is a hex field ("0x514") as a number, 0 when it isn't one.
+func hexInt(s string) int64 {
+	v, _ := strconv.ParseInt(strings.TrimPrefix(s, "0x"), 16, 64)
+	return v
+}
 
 // hasFlag is whether unit flags ("0x514") have a bit set.
 func hasFlag(flags string, bit int64) bool {
-	bits, err := strconv.ParseInt(strings.TrimPrefix(flags, "0x"), 16, 64)
-	return err == nil && bits&bit != 0
+	return hexInt(flags)&bit != 0
 }
 
 // splitName splits "Testmage-Illidan-US" into the name and realm Warcraft Logs shows.

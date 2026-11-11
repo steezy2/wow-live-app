@@ -58,7 +58,12 @@ export function WCLKeys() {
           {removing ? (
             <div className="actions">
               <span>Remove the keys? Reviews stop until new ones are saved.</span>
-              <button type="button" disabled={busy} onClick={() => void run(removeKeys(), 'Removing…', 'Removed')}>
+              <button
+                type="button"
+                className="danger"
+                disabled={busy}
+                onClick={() => void run(removeKeys(), 'Removing…', 'Removed')}
+              >
                 Remove
               </button>
               <button type="button" onClick={() => setRemoving(false)}>
@@ -73,7 +78,7 @@ export function WCLKeys() {
               <button type="button" onClick={() => setReplacing(true)}>
                 Replace
               </button>
-              <button type="button" onClick={() => setRemoving(true)}>
+              <button type="button" className="danger" onClick={() => setRemoving(true)}>
                 Remove
               </button>
             </div>

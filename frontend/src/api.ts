@@ -197,7 +197,9 @@ export interface KeyView {
   /** Each player's abilities, most damage and healing first, and their damage taken by ability: there once the key is
    * over, and missing in keys saved before Nov 10. */
   abilities?: KeyAbility[]
-  taken?: { player: string; ability: string; damage: number }[]
+  taken?: { player: string; ability: string; damage: number; school?: number }[]
+  /** The party member whose game wrote the log; missing in keys saved before Nov 11. */
+  logger?: string
 }
 
 /** One ability in a player's key (models.KeyAbility): its damage and healing as the meters count them (pets under
@@ -209,6 +211,8 @@ export interface KeyAbility {
   healing: number
   casts: number
   hits: number
+  /** Its spell school as the combat log gives it, a bit per school (schoolColors.ts); missing before Nov 11. */
+  school?: number
 }
 
 /** A place at a time on the key's clock: x and y in yards as the combat log gives them (x north, y west), the map
@@ -258,7 +262,7 @@ export interface ReviewMetric {
   totalName?: string
 }
 
-/** A finished key's review: each player's numbers, up to three things to work on and one done well. */
+/** A finished key's review: each player's numbers, up to four things to work on and one done well. */
 export interface KeyReview {
   start: number
   players: {

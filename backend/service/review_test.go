@@ -66,14 +66,48 @@ func TestBuildReview(t *testing.T) {
 		metrics["potions at lust"] != 1 || metrics["crowd control"] != 1 {
 		t.Errorf("mage metrics = %v; want 20%% priority, 82.5%% active, a potion at lust, a CC, no wasted %%", metrics)
 	}
-	wantNotes := []string{"Stopped 1 of 3 must-stop casts (33%)",
-		"1:20 between pulls in all; the longest 0:48, before pull 3"}
+	wantNotes := []string{"1 death added 0:15 to the clock", "Stopped 1 of 3 must-stop casts (33%)",
+		"1:20 between pulls in all; the longest 0:48, before pull 3", "1 Bloodlust; 25:00 had room for 3"}
 	if !reflect.DeepEqual(got.Notes, wantNotes) {
 		t.Errorf("notes = %q, want %q", got.Notes, wantNotes)
 	}
 	// 50M taken in 1,500 s is 33,333 a second, against the similar runs' median of 25,000.
 	if got.Party != "The party took 1.3× the damage per second of 3 top +12 runs of similar time" {
 		t.Errorf("party = %q", got.Party)
+	}
+}
+
+// TestAdviceNamesWhatElseToWorkOn: past the first rules, a player hears of a repeat killer, DPS under their usual, a
+// Bloodlust without a potion, a missing flask, idle time and unused crowd control, four at most; the party of its
+// late minibosses, debuffs left to run out and overlapped cooldowns.
+func TestAdviceNamesWhatElseToWorkOn(t *testing.T) {
+	key := models.Key{Level: 12, Status: "timed", FinalMS: 1_500_000, Players: []string{"Mage", "Shaman"},
+		Specs:   map[string]int{"Mage": 62, "Shaman": 264},
+		Overall: models.KeyMeter{Rows: []models.KeyMeterRow{{Player: "Mage", DPS: 80_000}, {Player: "Shaman", HPS: 50_000}}},
+		Deaths:  []models.KeyDeath{{Player: "Mage", Ability: "Burrow"}, {Player: "Mage", Ability: "Burrow"}},
+		Stops:   []models.KeyStop{{Outcome: "went off"}},
+		Lusts:   []int64{60_000, 700_000, 1_300_000}, Activity: map[string]float64{"Mage": 70, "Shaman": 90},
+		Casts: []models.KeyCast{{Player: "Mage", Kind: "combat potion", ClockMS: 61_000}},
+		Buffs: []models.KeyBuffCheck{{Player: "Mage", Missing: []string{"flask", "Skyfury"}}},
+		Pulls: []models.KeyPull{{Late: true}, {}}, Spikes: []models.KeySpike{{Overlap: true}},
+		Debuffs: []models.KeyDispel{{}, {}, {}, {By: "Shaman"}}}
+	earlier := []models.Key{{Overall: models.KeyMeter{Rows: []models.KeyMeterRow{{Player: "Mage", DPS: 100_000}}}}}
+	got := buildReview(key, earlier, nil, nil)
+	wantAdvice := []string{"Died to Burrow 2 times", "DPS 80k, 80% of your usual here (100k)",
+		"Used a combat potion in 1 of 3 Bloodlusts", "Started the key without flask"}
+	if mage := got.Players[0].Advice; !reflect.DeepEqual(mage, wantAdvice) {
+		t.Errorf("mage advice = %q\nwant %q", mage, wantAdvice)
+	}
+	// The shaman kicked nothing either, but a healer isn't told to; their one line is the crowd control.
+	wantShaman := []string{"Used no crowd control while 1 must-stop cast went off: a stun or knock stops a cast too"}
+	if shaman := got.Players[1].Advice; !reflect.DeepEqual(shaman, wantShaman) {
+		t.Errorf("shaman advice = %q\nwant %q", shaman, wantShaman)
+	}
+	wantNotes := []string{"2 deaths added 0:30 to the clock", "Stopped 0 of 1 must-stop casts (0%)",
+		"A miniboss died after most of its pack in 1 of 2 pulls with one",
+		"3 of 4 dispellable debuffs ran their full time", "Party cooldowns overlapped in 1 damage spike"}
+	if !reflect.DeepEqual(got.Notes, wantNotes) {
+		t.Errorf("notes = %q\nwant %q", got.Notes, wantNotes)
 	}
 }
 
