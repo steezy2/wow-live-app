@@ -25,6 +25,8 @@ const (
 	lowActive = 85
 	// lustEveryMS is how long after a Bloodlust the party can have the next.
 	lustEveryMS = 600_000
+	// lustLastMS: a Bloodlust needs this much of the key left to be worth one.
+	lustLastMS = 60_000
 	// lateDebuffs: this many dispellable debuffs running their full time is worth a line.
 	lateDebuffs = 3
 )
@@ -323,8 +325,8 @@ func partyNotes(key models.Key) []string {
 		notes = append(notes, fmt.Sprintf("%s between pulls in all; the longest %s, before pull %d", clockText(total),
 			clockText(key.BetweenPulls[longest]), longest+2))
 	}
-	// A party without a Bloodlust has no class for it. The last minute has no room for another.
-	if room := int(1 + (lengthMS(key)-lustMS)/lustEveryMS); len(key.Lusts) > 0 && len(key.Lusts) < room {
+	// A party without a Bloodlust has no class for it.
+	if room := int(1 + (lengthMS(key)-lustLastMS)/lustEveryMS); len(key.Lusts) > 0 && len(key.Lusts) < room {
 		notes = append(notes, fmt.Sprintf("%s; %s had room for %d", counted(len(key.Lusts), "Bloodlust"),
 			clockText(lengthMS(key)), room))
 	}
