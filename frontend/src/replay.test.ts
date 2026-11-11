@@ -1,8 +1,36 @@
 import { describe, expect, it } from 'vitest'
 import type { KeyTrack, RaidPull, TrackPoint } from './api'
-import { abilitiesBetween, abilitiesUpTo, meterBetween, positionAt } from './replay'
+import { abilitiesBetween, abilitiesUpTo, indexAfter, lastAt, meterBetween, positionAt } from './replay'
 
 const at = (t: number, x: number, map = 1): TrackPoint => ({ t, x, y: 0, map })
+
+describe('indexAfter', () => {
+  it.each([
+    ['empty', [], 5, 0],
+    ['before the first point', [at(10, 0), at(20, 0)], 5, 0],
+    ['exactly on a point', [at(10, 0), at(20, 0), at(30, 0)], 20, 2],
+    ['between two points', [at(10, 0), at(20, 0), at(30, 0)], 25, 2],
+    ['after the last point', [at(10, 0), at(20, 0)], 99, 2],
+    ['duplicate times', [at(10, 0), at(20, 1), at(20, 2), at(30, 0)], 20, 3],
+  ])('%s', (_, points, now, i) => {
+    expect(indexAfter(points, now)).toBe(i)
+  })
+})
+
+describe('lastAt', () => {
+  const points = [at(10, 1), at(20, 2), at(20, 3), at(30, 4)]
+  it.each([
+    [5, undefined],
+    [10, 1],
+    [25, 3],
+    [99, 4],
+  ])('at %i', (now, x) => {
+    expect(lastAt(points, now)?.x).toBe(x)
+  })
+  it('has none without points', () => {
+    expect(lastAt([], 5)).toBeUndefined()
+  })
+})
 
 describe('positionAt', () => {
   it.each([
