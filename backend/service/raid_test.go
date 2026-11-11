@@ -638,3 +638,127 @@ func TestRaidTrackKeepsBossHealthCastsAndAbilities(t *testing.T) {
 		t.Errorf("abilities = %s; want the hit when it came, then the casts at the pull's end", got)
 	}
 }
+
+func TestBuffCheckCountsAuraIDs(t *testing.T) {
+	const mage = "Player-76-0000AAAA"
+	for _, c := range []struct {
+		name    string
+		auras   []int
+		missing bool
+	}{
+		{"by ID only, never named in a line", []int{1303187}, false},
+		{"by name only", []int{3003}, false},
+		{"missing", []int{}, true},
+	} {
+		keys, _ := newRaidTracker(t)
+		keys.raid.rules.Consumables.Vantus = []string{"Vantus Rune"}
+		keys.raid.rules.Consumables.VantusIDs = []int{1303187}
+		keys.spells[3003], keys.names[mage] = "Vantus Rune: Radiant", "Testmage"
+		checks := keys.buffCheck(&keyRun{party: []string{mage}, auras: map[string][]int{mage: c.auras},
+			raid: &raidRun{}})
+		if got := len(checks) > 0 && slices.Contains(checks[0].Missing, "Vantus Rune"); got != c.missing {
+			t.Errorf("%s: missing Vantus Rune = %v (%+v); want %v", c.name, got, checks, c.missing)
+		}
+	}
+}
+
+func TestPrepotFromPullStartAura(t *testing.T) {
+	const priest = "Player-76-0000CCCC"
+	drink := func(s float64) string {
+		return raidAt(3, s, "SPELL_CAST_SUCCESS,"+priestUnit+","+noUnit+`,1295132,"Liquid Luster",0x1,`+
+			advancedOf(priest, "0000000000000000"))
+	}
+	for _, c := range []struct {
+		name  string
+		extra []string
+		want  string
+	}{
+		{"buff at the start, no drink in the pull", nil, "[Testpriest 0 true]"},
+		{"a drink in the pull too: the drink only", []string{drink(20)}, "[Testpriest 20 false]"},
+	} {
+		keys, store := newRaidTracker(t)
+		keys.kinds["Liquid Luster"] = "combat potion"
+		feed(t, keys, drink(-14)) // before the pull: the log names the potion
+		feed(t, keys, pullLines(3, 0, 120, 40, false, append([]string{
+			raidAt(3, 0.6, "COMBATANT_INFO,"+priest+",1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,257,[],[],[],[],["+
+				priest+",1295132,1]"),
+			hitOn(3, 5, "SPELL_DAMAGE", priestUnit, 1004, "Bite")}, c.extra...)...)...)
+		if _, err := keys.SaveFinished(); err != nil {
+			t.Fatal(err)
+		}
+		var got []string
+		for _, p := range store.pulls[0].Cooldowns {
+			got = append(got, fmt.Sprintf("%s %d %v", p.Player, p.ClockMS/1000, p.Prepot))
+		}
+		if fmt.Sprint(got) != c.want {
+			t.Errorf("%s: combat potions = %v; want %s", c.name, got, c.want)
+		}
+	}
+}
+
+func TestHealthPotionLabel(t *testing.T) {
+	keys, store := newRaidTracker(t)
+	keys.kinds["Concentrated Silvermoon Health Potion"] = "health potion"
+	feed(t, keys, pullLines(3, 0, 60, 40, false,
+		raidAt(3, 5, "SPELL_CAST_SUCCESS,"+testPlayer+","+noUnit+`,1234768,"Concentrated Silvermoon Health Potion",0x1,`+
+			advancedOf("Player-76-0000AAAA", "0000000000000000")))...)
+	if _, err := keys.SaveFinished(); err != nil {
+		t.Fatal(err)
+	}
+	if got := store.pulls[0].Casts; len(got) != 1 || got[0].Ability != "Health potion" || got[0].Kind != "health potion" {
+		t.Fatalf("casts = %+v; want the health potion saved as Health potion", got)
+	}
+}
+
+func TestHealerOnlyCooldown(t *testing.T) {
+	const shaman = "Player-76-0000BBBB"
+	for _, c := range []struct {
+		spec int
+		want bool
+	}{{264, true}, {262, false}} { // Restoration, Elemental
+		keys, _ := newRaidTracker(t)
+		keys.raid.cooldowns["Ascendance"] = true
+		keys.raid.rules.Cooldowns.HealerOnly = []string{"Ascendance"}
+		keys.specs[shaman] = c.spec
+		if got := keys.raidCooldown(shaman, "Ascendance"); got != c.want {
+			t.Errorf("spec %d: Ascendance a raid cooldown = %v; want %v", c.spec, got, c.want)
+		}
+	}
+}
+
+func TestRaidSpikeCountsRaidCooldowns(t *testing.T) {
+	keys, store := newRaidTracker(t)
+	keys.rules.Defensives.Externals = []string{"Pain Suppression"}
+	keys.kinds["Pain Suppression"] = "defensive"
+	lines := []string{
+		raidAt(3, 0.6, "COMBATANT_INFO,Player-76-0000CCCC,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,257,[],[],[],[],[]")}
+	// A hit of 1,000 every second for 70 s and 50,000 a second from 40 to 42 s; Tranquility up from 39 to 45 s,
+	// Pain Suppression at 40 s.
+	for s := 1; s <= 70; s++ {
+		amount := 1000
+		if s >= 40 && s <= 42 {
+			amount = 50_000
+		}
+		lines = append(lines, raidAt(3, float64(s), fmt.Sprintf(`SPELL_DAMAGE,%s,%s,1238063,"Light Bolt",0x2,%s,%d,%d,`+
+			`-1,2,0,0,0,nil,nil,nil,ST`, mobUnit(1), testPlayer, advancedOf("Player-76-0000AAAA", "0000000000000000"),
+			amount, amount)))
+		switch s {
+		case 39:
+			lines = append(lines, raidAt(3, 39, "SPELL_CAST_SUCCESS,"+shamanUnit+","+noUnit+`,740,"Tranquility",0x8,`+
+				advancedOf("Player-76-0000BBBB", "0000000000000000")))
+		case 40:
+			lines = append(lines, raidAt(3, 40, "SPELL_CAST_SUCCESS,"+priestUnit+","+testPlayer+
+				`,33206,"Pain Suppression",0x2,`+advancedOf("Player-76-0000CCCC", "0000000000000000")))
+		case 45:
+			lines = append(lines, raidAt(3, 45, "SPELL_AURA_REMOVED,"+shamanUnit+","+testPlayer+
+				`,740,"Tranquility",0x8,BUFF`))
+		}
+	}
+	feed(t, keys, pullLines(3, 0, 75, 40, false, lines...)...)
+	if _, err := keys.SaveFinished(); err != nil {
+		t.Fatal(err)
+	}
+	if s := store.pulls[0].Spikes; len(s) != 1 || fmt.Sprint(s[0].PartyCDs) != "[Tranquility (Testshaman)]" {
+		t.Fatalf("spikes = %+v; want one at 40 s covered by the Tranquility up then, not by Pain Suppression", s)
+	}
+}

@@ -35,6 +35,10 @@ const (
 	quietMS = 10 * 60_000
 	// lustMS: Bloodlust landing this long after the last counts as a new one (it lands on everyone at once).
 	lustMS = 60_000
+	// healthPotion is how a health potion is kept and shown, whichever one it was (their names are long).
+	healthPotion = "Health potion"
+	// combatPotion names a pre-pot whose buff the log never named.
+	combatPotion = "Combat potion"
 )
 
 // activity is the events that show a player busy: casting, or a cast or channel landing.
@@ -513,10 +517,14 @@ func (k *LogTracker) event(at int64, event string, f []string) {
 			run.ability(src, f[9]).Casts++
 		}
 		if kind := k.kinds[f[9]]; kind != "" && src != "" {
-			if kind != "cc" && kind != "combat potion" { // the death rules' kit is survival buttons
-				run.casts = append(run.casts, models.Cast{Fight: run.pull, At: at, Player: src, Ability: f[9]})
+			ability := f[9]
+			if kind == "health potion" {
+				ability = healthPotion
 			}
-			run.key.Casts = append(run.key.Casts, models.KeyCast{Player: src, Ability: f[9], Kind: kind,
+			if kind != "cc" && kind != "combat potion" { // the death rules' kit is survival buttons
+				run.casts = append(run.casts, models.Cast{Fight: run.pull, At: at, Player: src, Ability: ability})
+			}
+			run.key.Casts = append(run.key.Casts, models.KeyCast{Player: src, Ability: ability, Kind: kind,
 				ClockMS: k.clockAt(at)})
 		}
 	case "SPELL_INTERRUPT":

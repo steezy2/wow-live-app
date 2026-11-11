@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
 	"sync"
 
@@ -193,7 +194,7 @@ func (k *LogTracker) details(run *keyRun, at int64) models.Key {
 	}
 	slices.SortFunc(key.AvoidableHits, func(a, b models.KeyHit) int { return cmp.Compare(b.Damage, a.Damage) })
 	key.Bosses, key.Affixes = list(key.Bosses), list(key.Affixes)
-	key.Interrupts, key.Casts = list(key.Interrupts), list(key.Casts)
+	key.Interrupts, key.Casts = list(key.Interrupts), append(k.prepots(run), key.Casts...)
 	key.Stops, key.WastedKicks, key.Debuffs = list(key.Stops), list(key.WastedKicks), list(key.Debuffs)
 	slices.SortStableFunc(key.Stops, func(a, b models.KeyStop) int { return cmp.Compare(a.ClockMS, b.ClockMS) })
 	key.Overall = meter(run.total, k.classes(run), 0, run.clock(at), run.elapsed(at))
@@ -303,28 +304,52 @@ func (k *LogTracker) buffCheck(run *keyRun) []models.KeyBuffCheck {
 	}
 	checks := []models.KeyBuffCheck{}
 	for _, guid := range run.party {
-		ids, player := run.auras[guid], k.names[guid]
-		var have []string
-		for _, id := range ids {
-			have = append(have, k.spells[id])
+		have := map[int]string{}
+		for _, id := range run.auras[guid] {
+			have[id] = k.spells[id]
 		}
 		var missing []string
-		for kind, patterns := range k.consumables(run.raid != nil) {
-			if !slices.ContainsFunc(have, func(name string) bool { return named(name, patterns) }) {
+		for kind, c := range k.consumables(run.raid != nil) {
+			if !c.had(have) {
 				missing = append(missing, kind)
 			}
 		}
+		names := slices.Collect(maps.Values(have))
 		for buff, class := range k.rules.Buffs {
-			if classes[class] && !slices.Contains(have, buff) {
+			if classes[class] && !slices.Contains(names, buff) {
 				missing = append(missing, buff)
 			}
 		}
 		if len(missing) > 0 {
 			slices.Sort(missing)
-			checks = append(checks, models.KeyBuffCheck{Player: player, Missing: missing})
+			checks = append(checks, models.KeyBuffCheck{Player: k.names[guid], Missing: missing})
 		}
 	}
 	return checks
+}
+
+// prepots are the combat potions drunk before the run started, at 0: a potion's buff in a member's pull-start auras,
+// unless the run already has that member's potion of that name (drunk in the run, or its buff seen leaving).
+func (k *LogTracker) prepots(run *keyRun) []models.KeyCast {
+	out := []models.KeyCast{}
+	for _, guid := range run.party {
+		player := k.names[guid]
+		for _, id := range run.auras[guid] {
+			name := k.spells[id]
+			if k.kinds[name] != "combat potion" && !slices.Contains(k.rules.Consumables.CombatPotionIDs, id) {
+				continue
+			}
+			if name == "" {
+				name = combatPotion
+			}
+			if !slices.ContainsFunc(run.key.Casts, func(c models.KeyCast) bool {
+				return c.Player == player && c.Ability == name
+			}) {
+				out = append(out, models.KeyCast{Player: player, Ability: name, Kind: "combat potion", Prepot: true})
+			}
+		}
+	}
+	return out
 }
 
 // killTimes is when each boss died on the key's clock, wipes left out.

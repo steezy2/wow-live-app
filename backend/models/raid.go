@@ -13,10 +13,12 @@ type RaidRules struct {
 		WindowMS int64 `toml:"window_ms"`
 	} `toml:"soaks"`
 	Cooldowns struct {
-		Names []string `toml:"names"`
+		Names      []string `toml:"names"`
+		HealerOnly []string `toml:"healer_only"` // cooldowns that count only from a healer (other specs share the name)
 	} `toml:"cooldowns"`
 	Consumables struct {
-		Vantus []string `toml:"vantus"` // a Vantus Rune's name patterns, checked with flask and food
+		Vantus    []string `toml:"vantus"`     // a Vantus Rune's name patterns, checked with flask and food
+		VantusIDs []int    `toml:"vantus_ids"` // Vantus Rune auras the log never names, by ID
 	} `toml:"consumables"`
 	Suggestions SuggestionRules           `toml:"suggestions"`
 	Phases      map[string][]PhaseTrigger `toml:"phases"`

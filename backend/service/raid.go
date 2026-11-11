@@ -240,7 +240,7 @@ func (k *LogTracker) raidLine(line models.LogLine) bool {
 			r.auraOn(id, at, victim, window)
 		}
 	case "SPELL_CAST_SUCCESS":
-		if who := k.player(f[0], f[2]); who != "" && len(f) > 9 && k.raid.cooldowns[f[9]] &&
+		if who := k.player(f[0], f[2]); who != "" && len(f) > 9 && k.raidCooldown(f[0], f[9]) &&
 			!slices.ContainsFunc(r.cooldowns, func(c models.KeyCast) bool {
 				return c.Player == who && c.Ability == f[9] && run.clock(at)-c.ClockMS < cooldownRepeatMS
 			}) {
@@ -258,6 +258,12 @@ func (k *LogTracker) raidLine(line models.LogLine) bool {
 		}
 	}
 	return false
+}
+
+// raidCooldown says whether a raider's (by GUID) spell is a raid cooldown: one of healer_only's only from a healer.
+func (k *LogTracker) raidCooldown(guid, spell string) bool {
+	return k.raid.cooldowns[spell] &&
+		(!slices.Contains(k.raid.rules.Cooldowns.HealerOnly, spell) || specs[k.specs[guid]].Healer)
 }
 
 // auraOn notes an aura landing on a raider: a pickup, the effect of the last tether broken, or a spawn cause.

@@ -25,10 +25,10 @@ type readyWatch struct {
 	instance string
 	dungeon  string
 	raid     bool
-	members  map[string]bool            // party GUIDs seen
-	up       map[string]map[string]bool // GUID -> buff names up
-	faded    map[string]map[string]bool // GUID -> buff names seen fade
-	seeded   map[string]bool            // GUIDs whose buffs a raid pull's start listed: what they lack is missing
+	members  map[string]bool           // party GUIDs seen
+	up       map[string]map[int]string // GUID -> buffs up (aura ID -> name, "" for one the log never named)
+	faded    map[string]map[int]string // GUID -> buffs seen fade
+	seeded   map[string]bool           // GUIDs whose buffs a raid pull's start listed: what they lack is missing
 }
 
 // watchReady starts the ready check on entering a Mythic dungeon (ZONE_CHANGE,2813,"Murder Row",23) or, with raids
@@ -41,22 +41,22 @@ func (k *LogTracker) watchReady(at int64, f []string) {
 		k.ready = nil
 	case k.ready == nil || k.ready.instance != f[0]:
 		k.ready = &readyWatch{since: at, instance: f[0], dungeon: f[1], raid: raid, members: map[string]bool{},
-			seeded: map[string]bool{}, up: map[string]map[string]bool{}, faded: map[string]map[string]bool{}}
+			seeded: map[string]bool{}, up: map[string]map[int]string{}, faded: map[string]map[int]string{}}
 	}
 }
 
-// seedReady sets the raid's ready check to what a raid pull's start listed: each raider's auras, by name, but the
-// party buffs of those who died in the pull, which a death takes off (flask, food and Vantus Rune stay).
+// seedReady sets the raid's ready check to what a raid pull's start listed: each raider's auras, but the party buffs
+// of those who died in the pull, which a death takes off (flask, food and Vantus Rune stay).
 func (k *LogTracker) seedReady(auras map[string][]int, died map[string]bool) {
 	r := k.ready
 	if r == nil || !r.raid {
 		return
 	}
 	for guid, ids := range auras {
-		r.members[guid], r.seeded[guid], r.up[guid], r.faded[guid] = true, true, map[string]bool{}, map[string]bool{}
+		r.members[guid], r.seeded[guid], r.up[guid], r.faded[guid] = true, true, map[int]string{}, map[int]string{}
 		for _, id := range ids {
 			if name := k.spells[id]; !died[guid] || k.rules.Buffs[name] == "" {
-				r.up[guid][name] = true
+				r.up[guid][id] = name
 			}
 		}
 	}
@@ -80,19 +80,19 @@ func (k *LogTracker) readyLine(event string, f []string) bool {
 	if len(f) < 12 || f[11] != "BUFF" || !r.members[f[4]] {
 		return false
 	}
-	guid, buff := f[4], f[9]
-	for _, m := range []map[string]map[string]bool{r.up, r.faded} {
+	guid, id, buff := f[4], atoi(f[8]), f[9]
+	for _, m := range []map[string]map[int]string{r.up, r.faded} {
 		if m[guid] == nil {
-			m[guid] = map[string]bool{}
+			m[guid] = map[int]string{}
 		}
 	}
 	switch event {
 	case "SPELL_AURA_APPLIED", "SPELL_AURA_REFRESH":
-		r.up[guid][buff] = true
-		delete(r.faded[guid], buff)
+		r.up[guid][id] = buff
+		delete(r.faded[guid], id)
 	case "SPELL_AURA_REMOVED":
-		delete(r.up[guid], buff)
-		r.faded[guid][buff] = true
+		delete(r.up[guid], id)
+		r.faded[guid][id] = buff
 	default:
 		return false
 	}
@@ -121,20 +121,18 @@ func (k *LogTracker) readyCheck() (models.ReadyCheck, bool) {
 	classes, anyone := map[string]bool{}, map[string]bool{}
 	for guid := range r.members {
 		classes[specs[k.specs[guid]].Class] = true // known from an earlier key's COMBATANT_INFO, else ""
-		for buff := range r.up[guid] {
+		for _, buff := range r.up[guid] {
 			anyone[buff] = true
 		}
 	}
 	check := models.ReadyCheck{SinceMS: r.since, Dungeon: r.dungeon, Players: []models.ReadyPlayer{}}
 	for guid := range r.members {
 		p := models.ReadyPlayer{Player: k.names[guid], Missing: []string{}, NotSeen: []string{}}
-		for kind, patterns := range k.consumables(r.raid) {
-			had := func(buffs map[string]bool) bool {
-				return slices.ContainsFunc(slices.Collect(maps.Keys(buffs)), func(b string) bool { return named(b, patterns) })
-			}
+		up, faded := slices.Collect(maps.Values(r.up[guid])), slices.Collect(maps.Values(r.faded[guid]))
+		for kind, c := range k.consumables(r.raid) {
 			switch {
-			case had(r.up[guid]):
-			case r.seeded[guid] || had(r.faded[guid]):
+			case c.had(r.up[guid]):
+			case r.seeded[guid] || c.had(r.faded[guid]):
 				p.Missing = append(p.Missing, kind)
 			default:
 				p.NotSeen = append(p.NotSeen, kind)
@@ -142,8 +140,8 @@ func (k *LogTracker) readyCheck() (models.ReadyCheck, bool) {
 		}
 		for buff, class := range k.rules.Buffs {
 			switch {
-			case r.up[guid][buff]:
-			case anyone[buff] || r.faded[guid][buff]:
+			case slices.Contains(up, buff):
+			case anyone[buff] || slices.Contains(faded, buff):
 				p.Missing = append(p.Missing, buff)
 			case classes[class]:
 				p.NotSeen = append(p.NotSeen, buff)
@@ -157,18 +155,34 @@ func (k *LogTracker) readyCheck() (models.ReadyCheck, bool) {
 	return check, true
 }
 
-// consumables are the buffs everyone should have by kind ("flask", "food", and in a raid "Vantus Rune"), each as the
-// name patterns that count.
-func (k *LogTracker) consumables(raid bool) map[string][]string {
+// consumable is what counts as one kind of consumable buff: an aura whose name contains one of the patterns ("Flask
+// of", "Well Fed"), or one of the IDs, for an aura the log never names (only COMBATANT_INFO's list shows it).
+type consumable struct {
+	patterns []string
+	ids      []int
+}
+
+// consumables are the buffs everyone should have by kind ("flask", "food", and in a raid "Vantus Rune").
+func (k *LogTracker) consumables(raid bool) map[string]consumable {
 	c := k.rules.Consumables
-	kinds := map[string][]string{"flask": c.Flask, "food": c.Food}
-	if raid && len(k.raid.rules.Consumables.Vantus) > 0 {
-		kinds["Vantus Rune"] = k.raid.rules.Consumables.Vantus
+	kinds := map[string]consumable{"flask": {patterns: c.Flask}, "food": {patterns: c.Food}}
+	if !raid {
+		return kinds
+	}
+	if v := k.raid.rules.Consumables; len(v.Vantus)+len(v.VantusIDs) > 0 {
+		kinds["Vantus Rune"] = consumable{patterns: v.Vantus, ids: v.VantusIDs}
 	}
 	return kinds
 }
 
-// named says whether a buff's name contains one of the patterns ("Flask of", "Well Fed").
-func named(buff string, patterns []string) bool {
-	return slices.ContainsFunc(patterns, func(p string) bool { return strings.Contains(buff, p) })
+// had says whether one of the auras (ID -> name) is this consumable.
+func (c consumable) had(auras map[int]string) bool {
+	for id, name := range auras {
+		if slices.Contains(c.ids, id) || slices.ContainsFunc(c.patterns, func(p string) bool {
+			return strings.Contains(name, p)
+		}) {
+			return true
+		}
+	}
+	return false
 }
