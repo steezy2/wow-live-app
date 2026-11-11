@@ -43,8 +43,10 @@ type Key struct {
 	Taken     []KeyHit     `json:"taken,omitempty"`
 	// Logger is the party member whose game wrote the log ("" in keys saved before Nov 11).
 	Logger string `json:"logger,omitempty"`
-	// Lanes is the key's timeline for the replay (see keyLanes); empty in keys saved before Nov 11.
-	Lanes []RaidLane `json:"lanes,omitempty"`
+	// Lanes is the key's timeline for the replay (see keyLanes), and Suggestions what to fix next key, worked out when
+	// the key is read (see keySuggestions); both empty in keys saved before Nov 11.
+	Lanes       []RaidLane `json:"lanes,omitempty"`
+	Suggestions []string   `json:"suggestions,omitempty"`
 }
 
 // KeyAbility is one ability in a player's key: its damage to enemies and healing done as the meters count them (pets
@@ -426,6 +428,15 @@ type MPlusRules struct {
 	Defensives  Defensives        `toml:"defensives"`
 	Consumables Consumables       `toml:"consumables"`
 	Buffs       map[string]string `toml:"buffs"` // party buff -> the class that gives it
+	Suggestions KeySuggestionRules `toml:"suggestions"`
+}
+
+// KeySuggestionRules are mplus.toml's [suggestions]: how many "Fix next key" lines, how much longer than in the best
+// run a pull is slow, and how long a wait between pulls is long.
+type KeySuggestionRules struct {
+	Most        int     `toml:"most"`
+	SlowPullPct float64 `toml:"slow_pull_pct"`
+	GapSeconds  float64 `toml:"gap_seconds"`
 }
 
 // Defensives are the tracked survival buttons: class defensives, externals, healthstones and health potions, and
@@ -475,6 +486,10 @@ type KeyView struct {
 	Chests     int              `json:"chests"`
 	Projection *KeyProjection   `json:"projection,omitempty"`
 	BestBosses map[string]int64 `json:"bestBosses,omitempty"`
+	// BestFinalMS and BestPulls are the best other timed run's time and when each of its pulls started, for the pace
+	// line (BestPulls is empty for a best run saved before Nov 11).
+	BestFinalMS int64   `json:"bestFinalMS,omitempty"`
+	BestPulls   []int64 `json:"bestPulls,omitempty"`
 	// SilentMS is how long ago the last line of a running key was logged (0 once it's over). The game writes its log
 	// in batches as fights start and end, so a long silence is a long fight, or a party that left.
 	SilentMS int64 `json:"silentMS"`

@@ -253,6 +253,7 @@ func (k *LogTracker) details(run *keyRun, at int64) models.Key {
 		key.Forces = &forces
 	}
 	key.Lanes = keyLanes(key, run.track.Pulls)
+	key.Suggestions = keySuggestions(key, bestRun(key, k.history), k.rules.Suggestions)
 	return key
 }
 
@@ -400,6 +401,7 @@ func view(key models.Key, clockMS int64, history []models.Key) models.KeyView {
 		v.Plus3MS = int64(float64(key.TimerMS) * plus3Share)
 	}
 	if best := bestRun(key, history); best != nil {
+		v.BestFinalMS, v.BestPulls = best.FinalMS, pullStarts(*best)
 		v.BestBosses = map[string]int64{}
 		for _, b := range best.Bosses {
 			if b.Kill {

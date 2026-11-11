@@ -95,6 +95,12 @@ export function KeyDetails({
           <span aria-hidden="true">{resultIcon[key.status]}</span> {resultText(key.status, key.chests, clockMS, timer)}
         </section>
       )}
+      {key.status !== 'running' && key.bestFinalMS !== undefined && key.bestFinalMS > 0 && (
+        <p className="muted">
+          Your best timed +{key.level} here: {clock(key.bestFinalMS)} ·{' '}
+          {clock(Math.abs(clockMS - key.bestFinalMS))} {clockMS <= key.bestFinalMS ? 'faster' : 'slower'}
+        </p>
+      )}
       {timer > 0 && <TimerBar clockMS={clockMS} timerMS={timer} keyView={key} best={projection?.best ?? []} />}
       {key.forces && <ForcesBar forces={key.forces} level={key.level} />}
       {timer > 0 && key.status === 'running' && (
@@ -134,6 +140,16 @@ export function KeyDetails({
         </p>
       )}
 
+      {key.status !== 'running' && key.suggestions && key.suggestions.length > 0 && (
+        <section className="panel attention">
+          <h2>Fix next key</h2>
+          <ol className="fix-next">
+            {key.suggestions.map((s) => (
+              <li key={s}>{s}</li>
+            ))}
+          </ol>
+        </section>
+      )}
       {key.status !== 'running' && (
         <KeyReview
           keyView={key}
