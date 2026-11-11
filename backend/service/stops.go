@@ -209,8 +209,9 @@ func (k *LogTracker) spike(run *keyRun, second, damage, span int64, casts []mode
 	sp := models.KeySpike{ClockMS: k.clockAt(at), Damage: damage, PartyCDs: []string{}, Members: []models.KeySpikeMember{}}
 	window := int64(k.rules.Defensives.WindowSeconds * 1000)
 	covers := func(c models.KeyCast) bool {
-		return slices.Contains(k.rules.Defensives.Externals, c.Ability) || slices.Contains(k.rules.Defensives.RaidCooldowns, c.Ability) && c.ClockMS >= sp.ClockMS-window &&
-			c.ClockMS <= sp.ClockMS+span
+		return (slices.Contains(k.rules.Defensives.Externals, c.Ability) ||
+			slices.Contains(k.rules.Defensives.RaidCooldowns, c.Ability)) &&
+			c.ClockMS >= sp.ClockMS-window && c.ClockMS <= sp.ClockMS+span
 	}
 	if run.raid != nil { // a raid's cover is its raid cooldowns (coversSpike)
 		casts = run.raid.cooldowns

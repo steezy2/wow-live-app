@@ -1,6 +1,6 @@
 # WoW Live
 
-A Windows app for World of Warcraft Mythic+ keys. It reads the game's combat log on your PC as the game writes it and shows the key live, in its own window and as an overlay over the game, then reviews each player after the key.
+A Windows app for World of Warcraft Mythic+ keys and raid pulls. It reads the game's combat log on your PC as the game writes it and shows the key live, in its own window and as an overlay over the game, then reviews each player after the key; in a raid, it shows each pull as it ends.
 
 It's not an addon and doesn't touch the game: it only reads the combat log file the game writes when Advanced Combat Logging is on. Nothing is uploaded, and nothing listens on the network.
 
@@ -42,7 +42,7 @@ Settings, saved keys and raid pulls, and the log are in the Store package's own 
 
 ## Working on it
 
-- **Layout:** `backend/` is one Go module: `clients/` for the outside systems (the combat log, Warcraft Logs, Raider.IO, Keystone.guru), `models/` for the shared types, `service/` for the rules, `controller/` for the Gin API, `app/` wiring them, and `cmd/` for the entry points. `frontend/` is the page, React + Vite + TypeScript. `mplus.toml` holds the spell and buff names it checks and `raid-rules.toml` the raid's thresholds, cooldowns and phase triggers; `reference/mplus-dungeons.json` the season's dungeon facts and `reference/raid-bosses.json` the raid's boss mechanics.
+- **Layout:** `backend/` is one Go module: `clients/` for the outside systems (the combat log, Warcraft Logs, Raider.IO, Keystone.guru, Mythic Dungeon Tools, Wowhead, wago.tools) and the saved keys and raid pulls (`keystore`), `models/` for the shared types, `service/` for the rules, `controller/` for the Gin API, `app/` wiring them, and `cmd/` for the entry points. `frontend/` is the page, React + Vite + TypeScript. `mplus.toml` holds the spell and buff names it checks and `raid-rules.toml` the raid's thresholds, cooldowns and phase triggers; `reference/mplus-dungeons.json` the season's dungeon facts and `reference/raid-bosses.json` the raid's boss mechanics.
 - **Commands:** the `Makefile` has the everyday ones (Git Bash on Windows, with Go, Node and make); `make` lists them.
 - **Build the app:** `make app` (`bash backend/cmd/app/build.sh`) writes `bin/WoW Live.exe`.
 - **Checks:** `make check` runs `gofmt -l .`, `go vet ./...` and `go test ./...` in `backend/`, then `npm run lint`, `npm test` and `npm run build` in `frontend/`. CI runs them on every PR.

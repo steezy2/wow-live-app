@@ -68,12 +68,13 @@ names = [
 ]
 # Damage reduction other players put on you; active at death counts as covered.
 externals = [
-  "Blessing of Protection", "Blessing of Sacrifice", "Darkness", "Guardian Spirit",
-  "Ironbark", "Life Cocoon", "Pain Suppression", "Rallying Cry", "Spirit Link Totem",
-  "Time Dilation", "Zephyr",
+  "Blessing of Protection", "Blessing of Sacrifice", "Guardian Spirit", "Ironbark", "Life Cocoon", "Pain Suppression",
+  "Time Dilation",
 ]
 # Raid-wide externals: they cover a death like the externals do, and the raid's cooldown lane shows them.
-raid_cooldowns = ["Anti-Magic Zone", "Aura Mastery", "Darkness", "Power Word: Barrier", "Rallying Cry", "Spirit Link Totem"]
+raid_cooldowns = [
+  "Anti-Magic Zone", "Aura Mastery", "Darkness", "Power Word: Barrier", "Rallying Cry", "Spirit Link Totem", "Zephyr",
+]
 
 [buffs]
 # Party buffs and the class that gives each: the live M+ page checks at the key's start that everyone has the buff

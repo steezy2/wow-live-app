@@ -41,7 +41,6 @@ names = [
   "Apotheosis", "Ascendance", "Avenging Crusader", "Celestial Conduit",
   "Convoke the Spirits", "Divine Hymn", "Dream Flight", "Evangelism", "Healing Tide Totem",
   "Restoral", "Revival", "Rewind", "Tranquility",
-  "Zephyr",
 ]
 # These count only when a healer casts them: Elemental and Enhancement have an Ascendance, Windwalker a Celestial
 # Conduit.

@@ -55,7 +55,7 @@ func TestLoadRaidMechanicsRefusesUnknownKeys(t *testing.T) {
 }
 
 func TestTheRepoRulesFilesHaveNoUnknownKeys(t *testing.T) {
-	root, err := Root(func() string { wd, _ := os.Getwd(); return wd }())
+	root, err := RootFromWorkingDir()
 	if err != nil {
 		t.Fatal(err)
 	}

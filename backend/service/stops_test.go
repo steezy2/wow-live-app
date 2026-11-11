@@ -78,12 +78,18 @@ func TestKickLedgerAndDispelSpeed(t *testing.T) {
 
 func TestSpikesFindTheWorstBurst(t *testing.T) {
 	keys := newTracker(t, nil)
+	keys.rules.Defensives.Externals = []string{"Pain Suppression"}
+	keys.kinds["Pain Suppression"] = "defensive"
 	lines := partyOfTwo(at(0, `CHALLENGE_MODE_START,"Voidscar Arena",2923,585,10,[9]`))
 	// A hit of 1,000 every second for 70 s, and 50,000 a second from 40 to 42 s.
 	for s := 1; s <= 70; s++ {
 		amount := 1000
 		if s >= 40 && s <= 42 {
 			amount = 50_000
+		}
+		if s == 5 { // far before the burst: no cover
+			lines = append(lines, at(5, "SPELL_CAST_SUCCESS,"+shamanUnit+","+testPlayer+
+				`,33206,"Pain Suppression",0x2,`+advancedOf("Player-76-0000BBBB", "0000000000000000")))
 		}
 		lines = append(lines, fmt.Sprintf("11/4/2026 20:%02d:%02d.000-7  SPELL_DAMAGE,%s,%s,1238063,\"Light Bolt\",0x2,%s,%d,%d,-1,2,0,0,0,nil,nil,nil,ST",
 			s/60, s%60, mobUnit(1), testPlayer, advancedOf("Player-76-0000AAAA", "0000000000000000"), amount, amount))
@@ -93,5 +99,8 @@ func TestSpikesFindTheWorstBurst(t *testing.T) {
 	if len(got.Spikes) != 1 || got.Spikes[0].Damage != 150_000 || got.Spikes[0].Members[0].Player != "Testmage" ||
 		got.Spikes[0].Members[0].Taken != 150_000 {
 		t.Fatalf("spikes = %+v; want one, the 150,000 from 40 to 42 s, all on the mage", got.Spikes)
+	}
+	if cds := got.Spikes[0].PartyCDs; len(cds) != 0 {
+		t.Fatalf("party cooldowns = %v; want none, the Pain Suppression came 35 s before", cds)
 	}
 }

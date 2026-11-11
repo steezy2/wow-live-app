@@ -62,7 +62,7 @@ func (k *LogTracker) lanes(run *keyRun, p models.RaidPull, end int64) []models.R
 	if len(p.Spikes) > 0 {
 		s, span := p.Spikes[0], k.spikeWindow(run)
 		add("spike", "Damage spike", models.RaidMark{ClockMS: s.ClockMS, EndMS: s.ClockMS + span,
-			Text: short(float64(s.Damage*1000/span)) + "/s", Bad: len(s.PartyCDs) == 0})
+			Text: spikeRate(s, k.raid.rules.Suggestions) + "/s", Bad: len(s.PartyCDs) == 0})
 	}
 	for id, t := range r.soaks {
 		want := r.boss.Soakers[id] // else as many as the best cast
@@ -100,6 +100,11 @@ func (k *LogTracker) lanes(run *keyRun, p models.RaidPull, end int64) []models.R
 // its start or, when none was seen leaving, cast no more than window before it.
 func coversSpike(c models.KeyCast, start, end, window int64) bool {
 	return c.ClockMS <= end && (c.EndMS >= start || c.EndMS == 0 && c.ClockMS >= start-window)
+}
+
+// spikeRate is a spike's damage taken per second over the raid's spike window, shortened.
+func spikeRate(s models.KeySpike, rules models.SuggestionRules) string {
+	return short(float64(s.Damage) / rules.SpikeSeconds)
 }
 
 // suggestions is what to fix on the next pull, most important first, at most rules.Most: deaths to what can be dodged
@@ -158,7 +163,7 @@ func suggestions(p models.RaidPull, best *models.RaidPull, rules models.Suggesti
 	}
 	if len(p.Spikes) > 0 && len(p.Spikes[0].PartyCDs) == 0 {
 		s := p.Spikes[0]
-		say("No raid cooldown for the worst damage (%s/s at %s)", short(float64(s.Damage*1000/int64(rules.SpikeSeconds*1000))), clockText(s.ClockMS))
+		say("No raid cooldown for the worst damage (%s/s at %s)", spikeRate(s, rules), clockText(s.ClockMS))
 	}
 	for _, s := range p.Stacks {
 		var over []string

@@ -150,6 +150,9 @@ func (k *LogTracker) EnableRaid(rules models.RaidRules, bosses map[string]models
 	if err != nil {
 		return err
 	}
+	if rules.Suggestions.SpikeSeconds < 1 {
+		return fmt.Errorf("raid-rules.toml: spike_seconds must be at least 1")
+	}
 	cooldowns := map[string]bool{}
 	for _, name := range slices.Concat(rules.Cooldowns.Names, k.rules.Defensives.RaidCooldowns) {
 		cooldowns[name] = true
