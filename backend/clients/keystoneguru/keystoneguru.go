@@ -1,6 +1,7 @@
-// Package keystoneguru reads Keystone.guru's dungeon maps: each floor's in-game bounds from its repository's dungeon
-// data (github.com/Wotuu/keystone.guru, numbers only), and its map tiles from its asset server, each downloaded once
-// and kept in CacheDir (logs/cache/, never committed). The page credits Keystone.guru on the map.
+// Package keystoneguru reads Keystone.guru's dungeon maps: each floor's in-game bounds and each dungeon's forces total
+// from its repository's dungeon data (github.com/Wotuu/keystone.guru, numbers only), and its map tiles from its asset
+// server, each downloaded once and kept in CacheDir (logs/cache/, never committed). The page credits Keystone.guru on
+// the map.
 package keystoneguru
 
 import (
@@ -41,20 +42,17 @@ type Client struct {
 	Assets   string
 }
 
-// Floors is each dungeon's floors with in-game bounds, by challenge mode ID (the combat log's map ID). Overview
-// floors without bounds are left out.
-func (c Client) Floors(ctx context.Context) (map[int][]models.DungeonFloor, error) {
-	url := cmp.Or(c.Raw, "https://raw.githubusercontent.com") + "/" + Repo +
-		"/master/database/seeders/dungeondata/dungeons.json"
-	path := filepath.Join(c.CacheDir, "dungeons.json")
-	if err := cachefile.Fresh(ctx, c.HTTP, url, path, dataMaxAge); err != nil {
-		return nil, fmt.Errorf("Keystone.guru dungeons: %w", err)
-	}
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("reading %s: %w", path, err)
-	}
+// Dungeon is what Keystone.guru has for a dungeon: its floors with in-game bounds (overview floors without bounds left
+// out) and the enemy forces a key needs, from its newest mapping.
+type Dungeon struct {
+	Floors      []models.DungeonFloor
+	ForcesTotal int
+}
+
+// Dungeons is each dungeon Keystone.guru maps, by challenge mode ID (the combat log's map ID).
+func (c Client) Dungeons(ctx context.Context) (map[int]Dungeon, error) {
 	var dungeons []struct {
+		ID              int    `json:"id"`
 		ChallengeModeID *int   `json:"challenge_mode_id"`
 		Key             string `json:"key"`
 		Name            string `json:"name"` // "dungeons.midnight.altar_of_fangs.name": the expansion's tile folder
@@ -67,25 +65,58 @@ func (c Client) Floors(ctx context.Context) (map[int][]models.DungeonFloor, erro
 			MaxY    float64 `json:"ingame_max_y"`
 		} `json:"floors"`
 	}
-	if err := json.Unmarshal(data, &dungeons); err != nil {
-		return nil, fmt.Errorf("reading Keystone.guru's dungeons: %w", err)
+	var mappings []struct {
+		DungeonID int `json:"dungeon_id"`
+		Version   int `json:"version"`
+		Forces    int `json:"enemy_forces_required"`
 	}
-	floors := map[int][]models.DungeonFloor{}
+	if err := c.getJSON(ctx, "dungeons.json", &dungeons); err != nil {
+		return nil, err
+	}
+	if err := c.getJSON(ctx, "mapping_versions.json", &mappings); err != nil {
+		return nil, err
+	}
+	newest := map[int][2]int{} // dungeon ID -> version, forces
+	for _, m := range mappings {
+		if m.Version > newest[m.DungeonID][0] {
+			newest[m.DungeonID] = [2]int{m.Version, m.Forces}
+		}
+	}
+	out := map[int]Dungeon{}
 	for _, d := range dungeons {
 		parts := strings.Split(d.Name, ".")
 		if d.ChallengeModeID == nil || len(parts) < 2 {
 			continue
 		}
+		dungeon := Dungeon{ForcesTotal: newest[d.ID][1]}
 		for _, f := range d.Floors {
 			tiles := fmt.Sprintf("%s/%s/%d", parts[1], d.Key, f.Index)
 			if f.UIMapID == 0 || f.MinX == f.MaxX || f.MinY == f.MaxY || !tileFolder.MatchString(tiles) {
 				continue
 			}
-			floors[*d.ChallengeModeID] = append(floors[*d.ChallengeModeID], models.DungeonFloor{UIMapID: f.UIMapID,
-				MinX: f.MinX, MaxX: f.MaxX, MinY: f.MinY, MaxY: f.MaxY, Tiles: tiles})
+			dungeon.Floors = append(dungeon.Floors, models.DungeonFloor{UIMapID: f.UIMapID, MinX: f.MinX, MaxX: f.MaxX,
+				MinY: f.MinY, MaxY: f.MaxY, Tiles: tiles})
 		}
+		out[*d.ChallengeModeID] = dungeon
 	}
-	return floors, nil
+	return out, nil
+}
+
+// getJSON decodes one of the repository's dungeon data files, downloaded at most every dataMaxAge.
+func (c Client) getJSON(ctx context.Context, file string, out any) error {
+	url := cmp.Or(c.Raw, "https://raw.githubusercontent.com") + "/" + Repo + "/master/database/seeders/dungeondata/" + file
+	path := filepath.Join(c.CacheDir, file)
+	if err := cachefile.Fresh(ctx, c.HTTP, url, path, dataMaxAge); err != nil {
+		return fmt.Errorf("Keystone.guru %s: %w", file, err)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("reading %s: %w", path, err)
+	}
+	if err := json.Unmarshal(data, out); err != nil {
+		return fmt.Errorf("reading Keystone.guru's %s: %w", file, err)
+	}
+	return nil
 }
 
 // Tile is one map tile of a floor (its Tiles path) at Zoom, as WebP: downloaded the first time, then from the cache.

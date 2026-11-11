@@ -12,6 +12,7 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 - *Party left? End the key* on the live page once the game's log has been silent for a minute (`POST /api/mplus/live/abandon`), with how long ago the game last wrote its log. The game logs no end for a key the party left and writes its log in batches as fights start and end (measured Nov 10: 2:45 of a boss fight in one write), so the line that says they left can come minutes later.
 
 ### Changed
+- `make ref` checks each dungeon's forces total against Keystone.guru's dungeon data instead of Raider.IO's top runs, which took 5 to 45 s a dungeon and failed now and then with a 500. Keystone.guru's totals match all eight of the season's; its forces per mob lag (Temple of Sethraliss), so they still come from Mythic Dungeon Tools.
 - Crowd control counts knocks up and back too: Supernova, Gravity Lapse, Blast Wave, Bursting Shot, High Explosive Trap, Implosive Trap, Shining Force and Sundering, and Earthgrab Totem's root (`[cc]` in `mplus.toml`).
 - The Settings page's fields and buttons look like fields and buttons (boxed, *Save* filled, *Remove* red), and its sections sit side by side where there's room.
 - A running key the log goes silent on is closed as abandoned after 10 minutes, saved and reviewed, instead of the page going back to "Waiting for the next key" after 3 (which a long boss fight also did, hiding the overlay); if the log then goes on in the key, it runs again. The key view's `quiet` field is gone; `silentMS` says how long the log has been silent.
