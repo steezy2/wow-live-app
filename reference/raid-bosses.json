@@ -4,7 +4,7 @@
     "maps": "wago.tools' UiMapAssignment: each map's edges",
     "mechanics": "reference/raid-mechanics.toml (kept by hand, checked against logs), else Wowhead's boss cheat sheets (each boss's guide): spell IDs sorted by the words of their line",
     "npcs": "Warcraft Logs: the boss actors and maps of each encounter's top-ranked kill",
-    "written": "2026-11-10"
+    "written": "2026-11-11"
   },
   "bosses": {
     "Entombed Sentinels": {
@@ -378,12 +378,14 @@
         {
           "add": "Blightscale Viper",
           "cause": 1307635,
-          "withinMS": 2000
+          "lost": 1307612,
+          "withinMS": 3000
         },
         {
           "add": "Blightscale Viper",
           "cause": 1292403,
-          "withinMS": 2000
+          "lost": 1307612,
+          "withinMS": 3000
         },
         {
           "add": "Blightscale Clutch",

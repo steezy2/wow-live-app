@@ -125,10 +125,12 @@ type RaidBreakRule struct {
 }
 
 // RaidSpawnRule is what makes an add of a name appear: Cause, a spell cast by an enemy or landing on raiders, at most
-// WithinMS before the add is first seen.
+// WithinMS before the add is first seen. With Lost, the add is the raider's whose Lost aura came off as Cause landed
+// on them (an egg breaking), one add each.
 type RaidSpawnRule struct {
 	Add      string `json:"add" toml:"add"`
 	Cause    int    `json:"cause" toml:"cause"`
+	Lost     int    `json:"lost,omitempty" toml:"lost"`
 	WithinMS int64  `json:"withinMS" toml:"within_ms"`
 }
 

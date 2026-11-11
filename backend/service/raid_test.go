@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"math"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -760,5 +761,59 @@ func TestRaidSpikeCountsRaidCooldowns(t *testing.T) {
 	}
 	if s := store.pulls[0].Spikes; len(s) != 1 || fmt.Sprint(s[0].PartyCDs) != "[Tranquility (Testshaman)]" {
 		t.Fatalf("spikes = %+v; want one at 40 s covered by the Tranquility up then, not by Pain Suppression", s)
+	}
+}
+
+// TestViperSpawnerIsEggCarrier replays pull 28 on Nov 10: two carriers' eggs breaking to Caustic Waves 2.6 s apart and
+// a third 7 s later while the waves tick on two other raiders, then two carriers' Noxious Splash.
+func TestViperSpawnerIsEggCarrier(t *testing.T) {
+	keys, store := newRaidTracker(t)
+	boss := keys.raid.bosses["Testboss"]
+	boss.Spawns = []models.RaidSpawnRule{{Add: "Viper", Cause: 1307635, Lost: 1307612, WithinMS: 3000},
+		{Add: "Viper", Cause: 1292403, Lost: 1307612, WithinMS: 3000}}
+	keys.raid.bosses["Testboss"] = boss
+	egg := func(n int) string {
+		return fmt.Sprintf(`Player-76-0000E00%d,"Egg%d-Sargeras-US",0x512,0x80000000`, n, n)
+	}
+	aura := func(s float64, event, unit string, spell int, name string) string {
+		return raidAt(3, s, fmt.Sprintf(`%s,%s,%s,%d,"%s",0x8,DEBUFF`, event, bossUnit, unit, spell, name))
+	}
+	broke := func(s float64, n int) string { return aura(s, "SPELL_AURA_REMOVED", egg(n), 1307612, "Noxious Shell") }
+	waves := func(s float64, event, unit string) string { return hitOn(3, s, event, unit, 1292403, "Caustic Waves") }
+	splash := func(s float64, n int) string { return aura(s, "SPELL_AURA_APPLIED", egg(n), 1307635, "Noxious Splash") }
+	viper := func(s float64, n int) string {
+		return raidAt(3, s, "SPELL_DAMAGE,"+testPlayer+fmt.Sprintf(`,Creature-0-1-2939-1-261915-0%d,"Viper",0xa48,`, n)+
+			`0x80000000,44425,"Arcane Barrage",0x40`)
+	}
+	var lines []string
+	for n := 1; n <= 5; n++ {
+		lines = append(lines, raidAt(3, 0.6, fmt.Sprintf("COMBATANT_INFO,Player-76-0000E00%d,1,0,0,0,0,0,0,0,0,0,0,0,0,"+
+			"0,0,0,0,0,0,0,0,0,0,258,[],[],[],[],[]", n)), aura(1, "SPELL_AURA_APPLIED", egg(n), 1307612, "Noxious Shell"))
+	}
+	lines = append(lines, waves(10, "SPELL_DAMAGE", testPlayer), waves(10, "SPELL_DAMAGE", shamanUnit))
+	for s := 11.0; s <= 30; s++ { // the waves ticking on the two of them
+		lines = append(lines, waves(s, "SPELL_PERIODIC_DAMAGE", testPlayer), waves(s+0.5, "SPELL_PERIODIC_DAMAGE", shamanUnit))
+	}
+	lines = append(lines,
+		broke(17.786, 1), waves(17.786, "SPELL_DAMAGE", egg(1)), viper(18.854, 1),
+		waves(20.386, "SPELL_DAMAGE", egg(2)), broke(20.39, 2), viper(20.909, 2), // the hit logged first
+		broke(27.627, 3), waves(27.627, "SPELL_DAMAGE", egg(3)), viper(29.897, 3),
+		broke(31.294, 4), splash(31.294, 4), broke(31.36, 5), splash(31.36, 5), viper(31.394, 4), viper(31.4, 5),
+	)
+	slices.SortStableFunc(lines, func(a, b string) int { return strings.Compare(a[:23], b[:23]) })
+	feed(t, keys, pullLines(3, 0, 60, 40, false, lines...)...)
+	if _, err := keys.SaveFinished(); err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	for _, a := range store.pulls[0].Adds {
+		for _, s := range a.Spawns {
+			got = append(got, fmt.Sprintf("%.1f %s %v", float64(s.ClockMS)/1000, s.Cause, s.Players))
+		}
+	}
+	want := []string{"18.9 Caustic Waves [Egg1]", "20.9 Caustic Waves [Egg2]", "29.9 Caustic Waves [Egg3]",
+		"31.4 Noxious Splash [Egg4]", "31.4 Noxious Splash [Egg5]"}
+	if fmt.Sprint(got) != fmt.Sprint(want) {
+		t.Fatalf("vipers =\n%q\nwant\n%q", got, want)
 	}
 }
