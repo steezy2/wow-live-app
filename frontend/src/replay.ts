@@ -35,7 +35,12 @@ export function useReplay(end: number, start: number, firstSpeed = 8) {
       // the first frame's time can come before performance.now()
       clock.current = Math.min(clock.current + Math.max(0, time - before) * speed, end)
       before = time
-      if (time - shown >= PAGE_EVERY_MS || clock.current >= end) {
+      if (clock.current >= end) {
+        setShown(end)
+        setPlaying(false)
+        return
+      }
+      if (time - shown >= PAGE_EVERY_MS) {
         shown = time
         setShown(clock.current)
       }
@@ -45,7 +50,8 @@ export function useReplay(end: number, start: number, firstSpeed = 8) {
     return () => cancelAnimationFrame(frame)
   }, [playing, speed, end])
   const toggle = () => {
-    if (!playing && clock.current >= end) setAt(0)
+    if (playing) setShown(clock.current) // the page catches up with the map
+    else if (clock.current >= end) setAt(0)
     setPlaying(!playing)
   }
   return { at, setAt, now, playing, toggle, speed, setSpeed }
@@ -135,7 +141,8 @@ export function positionAt(points: TrackPoint[], now: number): TrackPoint | unde
 
 /** A raider's pull up to a clock reading, from a raid pull's track: their abilities' damage and healing and what they
  * took damage from (a stretch the moment is in counts for the share of it that has passed, so the numbers grow
- * smoothly), and their casts counted as they finished; hits only over the whole pull, so 0. Schools come from the
+ * smoothly), and their casts counted as they finished (not stopped ones); hits only over the whole pull, so 0
+ * (hidden). Schools come from the
  * pull's. Undefined for a track without them. */
 export function abilitiesUpTo(
   track: KeyTrack,
@@ -153,7 +160,7 @@ export function abilitiesUpTo(
   }
   const casts = new Map<string, number>()
   for (const c of track.casts?.[player] ?? []) {
-    if ((c.e ?? c.t) <= now) casts.set(c.s, (casts.get(c.s) ?? 0) + 1)
+    if (!c.x && (c.e ?? c.t) <= now) casts.set(c.s, (casts.get(c.s) ?? 0) + 1)
   }
   const school = (ability: string) =>
     (pull.abilities ?? []).find((a) => a.player === player && a.ability === ability)?.school ??

@@ -73,7 +73,7 @@ export function RaidPage() {
             Pulling <b>{live.boss}</b> now · the overview of this pull shows when it ends.
           </p>
         ) : (
-          live?.ready && <ReadyPanel ready={live.ready} />
+          live?.ready && <ReadyPanel ready={live.ready} raid />
         )}
         {selected !== null ? (
           <SavedPull start={selected} />

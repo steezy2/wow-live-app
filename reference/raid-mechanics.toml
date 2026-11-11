@@ -13,6 +13,8 @@
 # avoidable, dispel, must_stop, stacks (aura ID = the stacks that are too many, 0 when no number), priority (add
 # names to burst), [[soaks]] (spell, soakers wanted per cast, 0 = everyone), [[pickups]], [[breaks]] and [[spawns]].
 
+raid = "venomous-abyss"
+
 [bosses."Entombed Sentinels"]
 checked = "wcl Ljvh4yqWwTfQJ3Xz#13"
 sources = ["https://www.mythictrap.com/en/venomous-abyss/entombed-sentinels/mythic"]

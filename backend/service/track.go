@@ -135,11 +135,12 @@ func (k *LogTracker) trackCast(at int64, event string, f []string) {
 	open, casting := r.casting[f[0]]
 	switch {
 	case event == "SPELL_CAST_START":
-		casts[player] = append(casts[player], models.TrackCast{ClockMS: clockMS, Spell: f[9]})
+		casts[player] = append(casts[player], models.TrackCast{ClockMS: clockMS, Spell: f[9], Cut: true})
 		r.casting[f[0]] = len(casts[player]) - 1
 	case casting && casts[player][open].Spell == f[9] &&
 		(event == "SPELL_CAST_SUCCESS" || len(f) > 11 && f[11] == "Interrupted"):
-		casts[player][open].EndMS = max(clockMS, casts[player][open].ClockMS+1)
+		c := &casts[player][open]
+		c.EndMS, c.Cut = max(clockMS, c.ClockMS+1), event != "SPELL_CAST_SUCCESS"
 		delete(r.casting, f[0])
 	case event == "SPELL_CAST_SUCCESS":
 		casts[player] = append(casts[player], models.TrackCast{ClockMS: clockMS, Spell: f[9]})

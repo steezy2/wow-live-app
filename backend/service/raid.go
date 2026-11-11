@@ -105,13 +105,7 @@ type raidUnit struct {
 	name       string
 	hp, maxHP  int64
 	seen, died int64
-	spawn      *spawnSeen
-}
-
-// spawnSeen is what made an add appear: the cause's spell ID (0 when none came just before) and who it landed on.
-type spawnSeen struct {
-	cause   int
-	players []string
+	spawn      *models.RaidSpawn
 }
 
 // soakTally is one soak spell's casts: when the last hit came, and when each cast first hit and who it hit.
@@ -299,20 +293,20 @@ func (r *raidRun) cause(id int, at int64, player string, window int64) {
 	}
 }
 
-// spawnOf is what made an add of a name appear at at: the latest landing of a cause the reference gives for it within
-// its rule's time; nil for an add the reference says nothing about.
-func (r *raidRun) spawnOf(name string, at int64) *spawnSeen {
-	var seen *spawnSeen
+// spawnOf is an add of a name appearing at at (clockMS on the pull's clock): the latest landing of a cause the
+// reference gives for it within its rule's time, named by spells; nil for an add the reference says nothing about.
+func (r *raidRun) spawnOf(name string, at, clockMS int64, spells map[int]string) *models.RaidSpawn {
+	var seen *models.RaidSpawn
 	var when int64
 	for _, rule := range r.boss.Spawns {
 		if rule.Add != name {
 			continue
 		}
 		if seen == nil {
-			seen = &spawnSeen{}
+			seen = &models.RaidSpawn{ClockMS: clockMS, Players: []string{}}
 		}
 		if c := r.causes[rule.Cause]; c != nil && at-c.at <= rule.WithinMS && c.at >= when {
-			seen.cause, seen.players, when = rule.Cause, slices.Clone(c.players), c.at
+			seen.Cause, seen.Players, when = spells[rule.Cause], slices.Clone(c.players), c.at
 		}
 	}
 	return seen
@@ -352,7 +346,8 @@ func (k *LogTracker) raidUnits(at int64, event string, f []string) {
 		guid := f[i]
 		if (strings.HasPrefix(guid, "Creature-") || strings.HasPrefix(guid, "Vehicle-")) && hasFlag(f[i+2], hostileFlag) &&
 			r.units[guid] == nil {
-			r.units[guid] = &raidUnit{name: f[i+1], seen: at, spawn: r.spawnOf(f[i+1], at)}
+			r.units[guid] = &raidUnit{name: f[i+1], seen: at,
+				spawn: r.spawnOf(f[i+1], at, k.current.clock(at), k.spells)}
 		}
 	}
 	if i := advancedAt(event); i > 0 && len(f) > i+3 {
@@ -506,7 +501,7 @@ func (k *LogTracker) raidPull(run *keyRun, key models.Key, at int64, kill bool) 
 			p.WentOff = append(p.WentOff, s)
 		}
 	}
-	p.Adds = r.adds(at, run.clock, k.spells)
+	p.Adds = r.adds(at)
 	p.Pickups, p.Breaks = r.pickupWaves(run.clock, rules.Soaks.WindowMS), []models.RaidBreak{}
 	for _, b := range r.breaks {
 		if slices.ContainsFunc(key.Deaths, func(d models.KeyDeath) bool {
@@ -539,10 +534,7 @@ func (k *LogTracker) raidPull(run *keyRun, key models.Key, at int64, kill bool) 
 	p.Targets = targets(run)
 	p.Interrupts, p.Stops, p.WastedKicks, p.Debuffs, p.Spikes = key.Interrupts, key.Stops, key.WastedKicks,
 		key.Debuffs, key.Spikes
-	p.Missing, p.Activity = key.Buffs, key.Activity
-	p.Casts = slices.DeleteFunc(slices.Clone(key.Casts), func(c models.KeyCast) bool { // key.Casts is the run's
-		return c.Kind == "raid cooldown"
-	})
+	p.Missing, p.Activity, p.Casts = key.Buffs, key.Activity, key.Casts
 	return p
 }
 
@@ -629,9 +621,9 @@ func (r *raidRun) bossUnits() map[string]*raidUnit {
 
 // adds is each kind of hostile unit the raid hit that isn't one of the boss's NPCs (nor a soak circle or a lure):
 // how many showed up, died and were up at the end, the longest one lived, and each one's spawn where the reference
-// says how they spawn (on the pull's clock, causes named by spells); those still up first, at most shownAdds plus
+// says how they spawn; those still up first, at most shownAdds plus
 // those with spawns.
-func (r *raidRun) adds(end int64, clock func(int64) int64, spells map[int]string) []models.RaidAdd {
+func (r *raidRun) adds(end int64) []models.RaidAdd {
 	boss := r.bossUnits()
 	byName := map[string]*models.RaidAdd{}
 	for guid, u := range r.units {
@@ -652,11 +644,7 @@ func (r *raidRun) adds(end int64, clock func(int64) int64, spells map[int]string
 		}
 		a.LongestMS = max(a.LongestMS, died-u.seen)
 		if u.spawn != nil {
-			spawn := models.RaidSpawn{ClockMS: clock(u.seen), Players: list(u.spawn.players)}
-			if u.spawn.cause != 0 {
-				spawn.Cause = spells[u.spawn.cause]
-			}
-			a.Spawns = append(a.Spawns, spawn)
+			a.Spawns = append(a.Spawns, *u.spawn)
 		}
 	}
 	adds := []models.RaidAdd{}

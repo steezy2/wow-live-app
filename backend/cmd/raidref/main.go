@@ -65,6 +65,10 @@ func generate(ctx context.Context, cache, raid, mechanicsPath, path string) erro
 	if err != nil {
 		return err
 	}
+	if curated.Raid != raid {
+		log.Printf("%s is %s's, not %s's: every boss from Wowhead", filepath.Base(mechanicsPath), curated.Raid, raid)
+		curated.Bosses = nil
+	}
 	guides, err := wowhead.Client{CacheDir: filepath.Join(cache, "raidref")}.RaidGuides(ctx, raid)
 	if err != nil {
 		return err
@@ -112,6 +116,10 @@ func generate(ctx context.Context, cache, raid, mechanicsPath, path string) erro
 			}
 		}
 		b.NPCs, b.Maps = append([]int{}, fights[b.Name].NPCs...), []models.RaidMap{}
+		if i := slices.IndexFunc(b.Health, func(id int) bool { return !slices.Contains(b.NPCs, id) }); i >= 0 {
+			return fmt.Errorf("%s: health NPC %d isn't one of its NPCs %v, so the replay never samples it", b.Name,
+				b.Health[i], b.NPCs)
+		}
 		for _, m := range fights[b.Name].Maps {
 			if edges, ok := bounds[m.UIMapID]; ok {
 				b.Maps = append(b.Maps, edges)

@@ -542,7 +542,8 @@ func TestRaidPullPickupsBreaksAndSpawns(t *testing.T) {
 	if got := fmt.Sprint(p.Pickups); got != "[{10000 an egg [Testmage Testshaman]} {30000 an egg [Testpriest]}]" {
 		t.Errorf("pickups = %s; want two waves", got)
 	}
-	if got := fmt.Sprint(p.Breaks); got != "[{40000 Testmage Grasping Fangs Blight Vein 2} {50000 Testshaman Grasping Fangs  0}]" {
+	if got := fmt.Sprint(p.Breaks); got != "[{40000 Testmage Grasping Fangs Blight Vein 2} "+
+		"{50000 Testshaman Grasping Fangs  0}]" {
 		t.Errorf("breaks = %s; want the first setting off Blight Vein on 2, the second nothing", got)
 	}
 	spawns := map[string]string{}
@@ -608,6 +609,11 @@ func TestRaidTrackKeepsBossHealthCastsAndAbilities(t *testing.T) {
 		cast(2, "SPELL_CAST_START", 116, "Frostbolt"),
 		cast(4, "SPELL_CAST_SUCCESS", 116, "Frostbolt"),
 		cast(5, "SPELL_CAST_SUCCESS", 44425, "Arcane Barrage"), // an instant
+		cast(6, "SPELL_CAST_START", 116, "Frostbolt"),
+		// a key pressed again mid-cast
+		raidAt(3, 6.5, "SPELL_CAST_FAILED,"+testPlayer+","+noUnit+`,116,"Frostbolt",0x10,"Not yet recovered"`),
+		raidAt(3, 7, "SPELL_CAST_FAILED,"+testPlayer+","+noUnit+`,116,"Frostbolt",0x10,"Interrupted"`),
+		cast(8, "SPELL_CAST_START", 116, "Frostbolt"), // still casting when the pull ended
 	)...)
 	if _, err := keys.SaveFinished(); err != nil {
 		t.Fatal(err)
@@ -622,8 +628,10 @@ func TestRaidTrackKeepsBossHealthCastsAndAbilities(t *testing.T) {
 	if fmt.Sprint(hp) != "[40]" || fmt.Sprint(track.Health) != "["+bossGUID+"]" {
 		t.Errorf("boss health in the track = %v, shown %v; want the boss at 40%% in the box", hp, track.Health)
 	}
-	if got := fmt.Sprint(track.Casts["Testmage"]); got != "[{2000 Frostbolt 4000} {5000 Arcane Barrage 0}]" {
-		t.Errorf("casts = %s; want the Frostbolt from 2 to 4 s and the instant at 5 s", got)
+	if got := fmt.Sprint(track.Casts["Testmage"]); got != "[{2000 Frostbolt 4000 false} {5000 Arcane Barrage 0 false} "+
+		"{6000 Frostbolt 7000 true} {8000 Frostbolt 0 true}]" {
+		t.Errorf("casts = %s; want the Frostbolt from 2 to 4 s, the instant at 5 s, one interrupted at 7 s (not at the "+
+			"key pressed again) and one the pull cut", got)
 	}
 	if got := fmt.Sprint(track.Abilities["Testmage"]); got != "[{Arcane Barrage [[1000 5000 0 0]]}]" ||
 		fmt.Sprint(track.AbilityTimes) != "[1000 30000]" {

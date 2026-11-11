@@ -61,7 +61,7 @@ export function RaidFocus(props: {
   const sofar = meterBetween(track, 0, now).rows.find((r) => r.player === player)
   const whole = pull.meter.rows.find((r) => r.player === player)
   const events = eventsOf(pull, player)
-  const upTo = abilitiesUpTo(track, pull, player, now)
+  const upTo = now > 0 ? abilitiesUpTo(track, pull, player, now) : undefined // at 0:00, before playing: the whole pull
   const views = abilityViews(player, upTo?.abilities ?? pull.abilities ?? [], upTo?.taken ?? pull.taken ?? [])
   return (
     <div

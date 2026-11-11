@@ -465,7 +465,7 @@
         },
         "/api/raid/live": {
             "get": {
-                "description": "Whether a raid pull is on (its boss and start), and the last pull that ended with its deaths,\nmechanics, meters and cooldowns, compared with tonight's best and the best ever on the boss. The\npage reads it again on each notice from /api/mplus/events.",
+                "description": "Whether a raid pull is on (its boss and start), the last pull that ended with its deaths,\nmechanics, meters and cooldowns, compared with tonight's best and the best ever on the boss, and in\na raid between pulls the ready check (ready). The page reads it again on each notice from\n/api/mplus/events.",
                 "produces": [
                     "application/json"
                 ],
@@ -591,7 +591,7 @@
         },
         "/api/raid/pulls/{start}/track": {
             "get": {
-                "description": "Each raider's position about once a second, the boss's units', killed adds' last places, and each\nraider's damage, healing and damage taken so far about every 2 s, on the pull's clock.",
+                "description": "Each raider's position about once a second, the boss's units' and the adds to burst with their\nhealth (hp) and which the health box shows (health), killed adds' last places, each raider's\ndamage, healing and damage taken so far about every 2 s, their casts, and what each ability did in\neach 10 s stretch (abilities, abilityTimes), on the pull's clock.",
                 "produces": [
                     "application/json"
                 ],
@@ -2691,6 +2691,9 @@
                 },
                 "t": {
                     "type": "integer"
+                },
+                "x": {
+                    "type": "boolean"
                 }
             }
         },

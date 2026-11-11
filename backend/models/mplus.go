@@ -210,12 +210,13 @@ type KeyTrack struct {
 	AbilityTimes []int64 `json:"abilityTimes,omitempty"`
 }
 
-// TrackCast is a cast on the pull's clock: when it started, the spell, and for one with a cast time when it ended
-// (finished, or stopped); End is 0 for an instant.
+// TrackCast is a cast on the pull's clock: when it started, the spell, for one with a cast time when it ended
+// (finished, or stopped; 0 for an instant), and whether it never finished (stopped, or the pull ended mid-cast).
 type TrackCast struct {
 	ClockMS int64  `json:"t"`
 	Spell   string `json:"s"`
 	EndMS   int64  `json:"e,omitempty"`
+	Cut     bool   `json:"x,omitempty"`
 }
 
 // AbilitySeries is what one of a raider's abilities did, or what they took damage from, in each stretch it did

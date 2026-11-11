@@ -23,9 +23,10 @@ type Raid struct {
 // Live godoc
 //
 //	@Summary		The raid now: a pull on, and the last pull
-//	@Description	Whether a raid pull is on (its boss and start), and the last pull that ended with its deaths,
-//	@Description	mechanics, meters and cooldowns, compared with tonight's best and the best ever on the boss. The
-//	@Description	page reads it again on each notice from /api/mplus/events.
+//	@Description	Whether a raid pull is on (its boss and start), the last pull that ended with its deaths,
+//	@Description	mechanics, meters and cooldowns, compared with tonight's best and the best ever on the boss, and in
+//	@Description	a raid between pulls the ready check (ready). The page reads it again on each notice from
+//	@Description	/api/mplus/events.
 //	@Tags			raid
 //	@Produce		json
 //	@Success		200	{object}	models.RaidLive
@@ -75,8 +76,10 @@ func (r Raid) Pull(c *gin.Context) {
 // Track godoc
 //
 //	@Summary		One raid pull's replay track
-//	@Description	Each raider's position about once a second, the boss's units', killed adds' last places, and each
-//	@Description	raider's damage, healing and damage taken so far about every 2 s, on the pull's clock.
+//	@Description	Each raider's position about once a second, the boss's units' and the adds to burst with their
+//	@Description	health (hp) and which the health box shows (health), killed adds' last places, each raider's
+//	@Description	damage, healing and damage taken so far about every 2 s, their casts, and what each ability did in
+//	@Description	each 10 s stretch (abilities, abilityTimes), on the pull's clock.
 //	@Tags			raid
 //	@Produce		json
 //	@Param			start	path		int	true	"the pull's start (ms since the epoch)"

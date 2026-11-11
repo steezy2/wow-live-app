@@ -186,7 +186,7 @@ export function KeyMap({ keyView: key, clockMS }: { keyView: KeyView; clockMS: n
           backdrop={backdrop}
           floor={current}
           now={now}
-          clock={!live && replay.playing ? replay.now : undefined}
+          clock={replay.playing ? replay.now : undefined}
           trailMS={live ? LIVE_TRAIL_MS : trail}
           deaths={key.deaths}
         />

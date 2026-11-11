@@ -80,6 +80,7 @@ type RaidBoss struct {
 // RaidMechanics is reference/raid-mechanics.toml: the hand-kept mechanics of each boss (by boss name as
 // ENCOUNTER_START gives it), which cmd/raidref merges into reference/raid-bosses.json.
 type RaidMechanics struct {
+	Raid   string                 `toml:"raid"` // Wowhead's slug of the raid it's for
 	Bosses map[string]CuratedBoss `toml:"bosses"`
 }
 

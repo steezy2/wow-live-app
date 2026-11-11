@@ -19,7 +19,7 @@ export interface FightTab {
  * Defensives and potions, CC. */
 export function fightTabs(data: FightData, deathsName: string): FightTab[] {
   const cc = data.casts.filter((c) => c.kind === 'cc')
-  const pressed = data.casts.filter((c) => c.kind !== 'cc' && c.kind !== 'kick')
+  const pressed = data.casts.filter((c) => c.kind !== 'cc')
   return [
     {
       name: deathsName,

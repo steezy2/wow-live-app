@@ -1268,6 +1268,8 @@ definitions:
         type: string
       t:
         type: integer
+      x:
+        type: boolean
     type: object
   models.TrackPoint:
     properties:
@@ -1617,9 +1619,10 @@ paths:
   /api/raid/live:
     get:
       description: |-
-        Whether a raid pull is on (its boss and start), and the last pull that ended with its deaths,
-        mechanics, meters and cooldowns, compared with tonight's best and the best ever on the boss. The
-        page reads it again on each notice from /api/mplus/events.
+        Whether a raid pull is on (its boss and start), the last pull that ended with its deaths,
+        mechanics, meters and cooldowns, compared with tonight's best and the best ever on the boss, and in
+        a raid between pulls the ready check (ready). The page reads it again on each notice from
+        /api/mplus/events.
       produces:
       - application/json
       responses:
@@ -1704,8 +1707,10 @@ paths:
   /api/raid/pulls/{start}/track:
     get:
       description: |-
-        Each raider's position about once a second, the boss's units', killed adds' last places, and each
-        raider's damage, healing and damage taken so far about every 2 s, on the pull's clock.
+        Each raider's position about once a second, the boss's units' and the adds to burst with their
+        health (hp) and which the health box shows (health), killed adds' last places, each raider's
+        damage, healing and damage taken so far about every 2 s, their casts, and what each ability did in
+        each 10 s stretch (abilities, abilityTimes), on the pull's clock.
       parameters:
       - description: the pull's start (ms since the epoch)
         in: path
