@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import { abilityViews, type AbilityRow } from './abilities'
 import type { KeyView } from './api'
 import { classColors } from './classColors'
@@ -7,11 +7,13 @@ import { BarRow } from './MeterCards'
 import { schoolBar, schoolName } from './schoolColors'
 import { Tabs } from './Tabs'
 
-/** One player's key up close, picked from the party (first the one whose game wrote the log): their damage and
- * healing by ability with casts and hits, what they took damage from, and what they cast, each as bars against the
- * biggest in the ability's spell school colour (the player's class colour in keys saved without schools). */
-export function PlayerFocus({ keyView: key }: { keyView: KeyView }) {
-  const [player, setPlayer] = useState(key.logger ?? key.players[0] ?? '')
+/** One player's key up close, the page's focused player or else the one whose game wrote the log (a pick here
+ * focuses them everywhere via onFocus): their damage and healing by ability with casts and hits, what they took
+ * damage from, and what they cast, each as bars against the biggest in the ability's spell school colour (the
+ * player's class colour in keys saved without schools). */
+export function PlayerFocus(props: { keyView: KeyView; focus: string; onFocus: (player: string) => void }) {
+  const { keyView: key, focus, onFocus: setPlayer } = props
+  const player = focus || (key.logger ?? key.players[0] ?? '')
   const row = key.overall.rows.find((r) => r.player === player)
   const color = classColors[row?.class ?? ''] ?? 'var(--accent)'
   const views = abilityViews(player, key.abilities ?? [], key.taken ?? [])

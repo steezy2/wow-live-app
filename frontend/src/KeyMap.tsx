@@ -117,12 +117,13 @@ export function KeyMap(props: {
   clockMS: number
   track: KeyTrack | null
   replay: ReturnType<typeof useReplay>
+  focus: string
+  onFocus: (player: string) => void
 }) {
-  const { keyView: key, clockMS, track, replay } = props
+  const { keyView: key, clockMS, track, replay, focus: follow, onFocus: setFollow } = props
   const live = key.status === 'running'
   const [dungeon, setDungeon] = useState<DungeonMap>({ floors: [], walked: [] })
   const [trail, setTrail] = useState(30_000)
-  const [follow, setFollow] = useState('')
   const [floor, setFloor] = useState<number | null>(null)
 
   useEffect(() => {

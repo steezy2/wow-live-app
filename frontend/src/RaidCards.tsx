@@ -6,35 +6,10 @@ import { amount, clock, coverText, seconds } from './format'
 import { defense, raidOffense, type Column } from './meterColumns'
 import { MeterCard } from './MeterCards'
 import { AbilityBars } from './PlayerFocus'
+import { At, Name, type Classes } from './Seek'
 
 /** How many raiders a mechanic's line names before it counts the rest. */
 const NAMES_SHOWN = 6
-
-/** Each raider's class, by name. */
-type Classes = Record<string, string>
-
-/** A raider's name in their class colour; with onPick, a button that focuses them. */
-export function Name({ player, classes, onPick }: { player: string; classes: Classes; onPick?: (p: string) => void }) {
-  const style = { color: classColors[classes[player]] }
-  return onPick ? (
-    <button className="name pick" style={style} onClick={() => onPick(player)} title={`Focus ${player}`}>
-      {player}
-    </button>
-  ) : (
-    <b className="name" style={style}>
-      {player}
-    </b>
-  )
-}
-
-/** A time on the pull's clock; a click moves the replay there. */
-export function At({ ms, onSeek }: { ms: number; onSeek: (clockMS: number) => void }) {
-  return (
-    <button className="at muted" onClick={() => onSeek(ms)} title="Show this moment in the replay">
-      {clock(ms)}
-    </button>
-  )
-}
 
 /** Raiders' names in class colours with a number each where they have one, the ones past NAMES_SHOWN counted. */
 function Names(props: { players: (PlayerCount | string)[]; classes: Classes; onFocus: (p: string) => void }) {

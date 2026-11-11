@@ -10,8 +10,14 @@ const WAIT_MS = 90_000
 /** A finished key's review: each player's numbers against their spec's top runs, their usual here and the party,
  * what to work on, and one thing done well, beside one player's key up close. Made by the site when the key ends, or
  * here on request; onReview hears of it once shown. */
-export function KeyReview(props: { keyView: KeyView; justEnded: boolean; onReview: (review: Review) => void }) {
-  const { keyView: key, justEnded, onReview } = props
+export function KeyReview(props: {
+  keyView: KeyView
+  justEnded: boolean
+  onReview: (review: Review) => void
+  focus: string
+  onFocus: (player: string) => void
+}) {
+  const { keyView: key, justEnded, onReview, focus, onFocus } = props
   const [review, setReview] = useState<Review | null>(null)
   useEffect(() => {
     if (review) onReview(review)
@@ -62,7 +68,7 @@ export function KeyReview(props: { keyView: KeyView; justEnded: boolean; onRevie
           </button>
         )}
         {error && <p className="warning">{error}</p>}
-        <PlayerFocus keyView={key} />
+        <PlayerFocus keyView={key} focus={focus} onFocus={onFocus} />
       </section>
     )
   }
@@ -126,7 +132,7 @@ export function KeyReview(props: { keyView: KeyView; justEnded: boolean; onRevie
             </div>
           ))}
         </div>
-        <PlayerFocus keyView={key} />
+        <PlayerFocus keyView={key} focus={focus} onFocus={onFocus} />
       </div>
     </section>
   )
