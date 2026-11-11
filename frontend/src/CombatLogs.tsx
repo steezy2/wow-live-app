@@ -4,6 +4,9 @@ import { counted, sizeText } from './format'
 import { type Note, track } from './note'
 import { NoteLine } from './NoteLine'
 
+/** A row's key: an archived log can share its name with one in the folder. */
+const rowKey = (f: LogFile) => `${f.archived ? 'zip' : 'log'}:${f.name}`
+
 /** The game's combat logs and the archived ones, to pick and archive (zipped into the log folder's WoW Live archive
  * folder, which live reading and Read old logs skip) or, once archived, delete for good. Old, read logs come ticked;
  * the log the game is writing can't be picked. */
@@ -13,7 +16,7 @@ export function CombatLogs() {
   const [note, setNote] = useState<Note>(null)
   const show = (list: LogFile[]) => {
     setFiles(list)
-    setPicked(new Set(list.filter((f) => f.suggested).map((f) => f.name)))
+    setPicked(new Set(list.filter((f) => f.suggested).map(rowKey)))
   }
   useEffect(() => {
     const controller = new AbortController()
@@ -23,7 +26,7 @@ export function CombatLogs() {
     return () => controller.abort()
   }, [])
   if (!files) return <NoteLine note={note} />
-  const chosen = (archived: boolean) => files.filter((f) => f.archived === archived && picked.has(f.name))
+  const chosen = (archived: boolean) => files.filter((f) => f.archived === archived && picked.has(rowKey(f)))
   const bytes = (list: LogFile[]) => list.reduce((n, f) => n + f.bytes, 0)
   const [toArchive, toDelete] = [chosen(false), chosen(true)]
   const run = (call: Promise<LogFile[]>, busy: string) =>
@@ -39,23 +42,23 @@ export function CombatLogs() {
     )
     if (ok) run(deleteArchivedLogs(toDelete.map((f) => f.name)), 'Deleting…')
   }
-  const toggle = (name: string) =>
+  const toggle = (key: string) =>
     setPicked((p) => {
       const next = new Set(p)
-      if (!next.delete(name)) next.add(name)
+      if (!next.delete(key)) next.add(key)
       return next
     })
   return (
     <>
       <ul className="list log-files">
         {files.map((f) => (
-          <li key={`${f.archived}${f.name}`} title={f.error}>
+          <li key={rowKey(f)} title={f.error}>
             <label className="inline">
               <input
                 type="checkbox"
                 disabled={f.active || !!note?.busy}
-                checked={picked.has(f.name) && !f.active}
-                onChange={() => toggle(f.name)}
+                checked={picked.has(rowKey(f)) && !f.active}
+                onChange={() => toggle(rowKey(f))}
               />{' '}
               {new Date(f.writtenMS).toLocaleDateString()} · {sizeText(f.bytes)}{' '}
               <span className="muted">
@@ -72,7 +75,7 @@ export function CombatLogs() {
       </ul>
       <div className="actions">
         <button type="button" disabled={!toArchive.length || !!note?.busy} onClick={archive}>
-          Archive selected{toArchive.length > 0 && ` (frees ~${sizeText(bytes(toArchive) * 0.9)})`}
+          Archive selected{toArchive.length > 0 && ` (${sizeText(bytes(toArchive))})`}
         </button>
         <button type="button" disabled={!toDelete.length || !!note?.busy} onClick={remove}>
           Delete selected archives

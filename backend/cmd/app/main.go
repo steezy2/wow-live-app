@@ -180,7 +180,7 @@ func run() error {
 			Width: overlayW, Height: overlayH})
 	}
 	wails.Event.On("overlay-reset", func(*application.CustomEvent) { defaultPlace() })
-	following := opts.LogsDir()
+	following := filepath.Clean(opts.LogsDir()) // Settings saves the folder cleaned: compare like with like
 	stopFollowing := follow(ctx, site, following)
 	settings.OnSave = func(next models.Settings) {
 		wails.Event.Emit("settings", next)

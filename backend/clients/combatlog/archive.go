@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"path/filepath"
 	"slices"
@@ -27,7 +28,8 @@ type Zipped struct {
 	Written time.Time
 }
 
-// Archived is every log zipped into dir's ArchiveDir, oldest first; a missing folder is none.
+// Archived is every log zipped into dir's ArchiveDir, oldest first; a missing folder is none. A zip that isn't one
+// readable log is left out (and logged), so one bad file doesn't hide the rest.
 func Archived(dir string) ([]Zipped, error) {
 	paths, err := filepath.Glob(filepath.Join(dir, ArchiveDir, "WoWCombatLog*.txt.zip"))
 	if err != nil {
@@ -37,7 +39,8 @@ func Archived(dir string) ([]Zipped, error) {
 	for _, path := range paths {
 		z, err := zipped(path)
 		if err != nil {
-			return nil, err
+			log.Printf("leaving out an archived log: %v", err)
+			continue
 		}
 		found = append(found, z)
 	}

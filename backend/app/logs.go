@@ -60,25 +60,17 @@ func (s *Site) LogFiles() ([]models.LogFile, error) {
 // so no key or pull is lost) on a pool of goroutines, and lists the logs again; a log that couldn't be archived
 // carries its error. service.ErrBadLog for a name the list doesn't offer, service.ErrBusy while another log job runs.
 func (s *Site) ArchiveLogs(names []string) ([]models.LogFile, error) {
-	return s.logJobOn(names, false, combatlog.Archive, func(picked []models.LogFile) error {
-		for _, f := range picked {
-			if !f.Read {
-				_, _, err := s.learn(false)
-				return err
-			}
-		}
-		return nil
-	})
+	return s.logJobOn(names, false, combatlog.Archive)
 }
 
 // DeleteArchivedLogs removes the named archived logs for good and lists the logs again; errors as ArchiveLogs.
 func (s *Site) DeleteArchivedLogs(names []string) ([]models.LogFile, error) {
-	return s.logJobOn(names, true, os.Remove, func([]models.LogFile) error { return nil })
+	return s.logJobOn(names, true, os.Remove)
 }
 
-// logJobOn does do to each named log (archived ones when archived) once first is done, holding the log job's lock.
-func (s *Site) logJobOn(names []string, archived bool, do func(path string) error,
-	first func([]models.LogFile) error) ([]models.LogFile, error) {
+// logJobOn does do to each named log (archived ones when archived), holding the log job's lock; a log in the folder
+// not read yet is read first.
+func (s *Site) logJobOn(names []string, archived bool, do func(path string) error) ([]models.LogFile, error) {
 	if !s.logJob.TryLock() {
 		return nil, service.ErrBusy
 	}
@@ -91,8 +83,10 @@ func (s *Site) logJobOn(names []string, archived bool, do func(path string) erro
 	if err != nil {
 		return nil, err
 	}
-	if err := first(picked); err != nil {
-		return nil, err
+	if slices.ContainsFunc(picked, func(f models.LogFile) bool { return !f.Read }) {
+		if _, _, err := s.learn(false); err != nil {
+			return nil, err
+		}
 	}
 	failed := make([]error, len(picked))
 	var wg sync.WaitGroup
