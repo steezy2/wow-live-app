@@ -141,10 +141,10 @@ function classesOf(pull: RaidPull): Record<string, string> {
 }
 
 /** One pull's overview: how far it got against the best pulls, what to fix next, the early deaths and what went
- * wrong, the buffs missing at the start and through the pull, the replay with its mechanic lanes and graphs, and the meters. The replay's clock and the focused raider
- * are the page's: a time in a card moves the replay there and brings it into view, and a raider picked anywhere
- * (the map, a meter, the graph, a name) is focused everywhere. Shown with the pull's start as its key, so both start
- * over with each pull. */
+ * wrong, the buffs missing at the start and through the pull, the replay with its mechanic lanes and graphs, and the
+ * meters. The replay's clock and the focused raider are the page's: a time in a card moves the replay there and
+ * brings it into view, and a raider picked anywhere (the map, a meter, the graph, a name) is focused everywhere. Shown
+ * with the pull's start as its key, so both start over with each pull. */
 export function RaidPullView({ pull }: { pull: RaidPull }) {
   const replay = useReplay(pull.durationMS, 0, 4)
   const [focus, setFocus] = useState('')
@@ -239,7 +239,11 @@ export function RaidOverlayCard({ pull }: { pull: RaidPull }) {
           </ol>
         )}
         <div className="overlay-meters">
-          <MeterCard title="Damage" meter={topMeter(pull.meter, 'dps', OVERLAY_DPS_ROWS)} columns={raidOffense.slice(0, 1)} />
+          <MeterCard
+            title="Damage"
+            meter={topMeter(pull.meter, 'dps', OVERLAY_DPS_ROWS)}
+            columns={raidOffense.slice(0, 1)}
+          />
           <MeterCard
             title="Healing"
             meter={topMeter(pull.meter, 'hps', OVERLAY_HPS_ROWS)}

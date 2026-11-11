@@ -302,10 +302,13 @@ func castCount(kind string) func(models.Key, models.KeyMeterRow) float64 {
 
 // lustsWithoutPotion is how many Bloodlusts passed with no combat potion of the player's within lustPotionMS.
 func lustsWithoutPotion(key models.Key, player string) int {
-	return countFunc(key.Lusts, func(lust int64) bool {
-		return !slices.ContainsFunc(key.Casts, func(c models.KeyCast) bool {
-			return c.Player == player && c.Kind == "combat potion" && abs(c.ClockMS-lust) <= lustPotionMS
-		})
+	return countFunc(key.Lusts, func(lust int64) bool { return !potionWithLust(key, player, lust) })
+}
+
+// potionWithLust is whether the player (anyone when empty) drank a combat potion within lustPotionMS of a Bloodlust.
+func potionWithLust(key models.Key, player string, lust int64) bool {
+	return slices.ContainsFunc(key.Casts, func(c models.KeyCast) bool {
+		return (player == "" || c.Player == player) && c.Kind == "combat potion" && abs(c.ClockMS-lust) <= lustPotionMS
 	})
 }
 

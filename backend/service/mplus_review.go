@@ -36,13 +36,8 @@ func keyLanes(key models.Key, pulls []models.PullSpan) []models.RaidLane {
 		add("deaths", "Deaths", models.RaidMark{ClockMS: d.ClockMS, Text: d.Player + " · " + cmp.Or(d.Ability, "?"),
 			Bad: true})
 	}
-	potionNear := func(lust int64) bool {
-		return slices.ContainsFunc(key.Casts, func(c models.KeyCast) bool {
-			return c.Kind == "combat potion" && abs(c.ClockMS-lust) <= lustPotionMS
-		})
-	}
 	for _, t := range key.Lusts {
-		add("lust", "Bloodlust", models.RaidMark{ClockMS: t, EndMS: t + lustBuffMS, Text: "Bloodlust", Bad: !potionNear(t)})
+		add("lust", "Bloodlust", models.RaidMark{ClockMS: t, EndMS: t + lustBuffMS, Text: "Bloodlust", Bad: !potionWithLust(key, "", t)})
 	}
 	for _, c := range key.Casts {
 		text := c.Player + " · " + c.Ability
@@ -103,7 +98,11 @@ func keySuggestions(key models.Key, best *models.Key, rules models.KeySuggestion
 	if covered >= 2 {
 		out = append(out, "Took big hits with a defensive ready in "+counted(covered, "damage spike"))
 	}
-	if mine, theirs := pullsLane(key), pullsLane(bestOrEmpty(best)); len(mine) > 0 && len(mine) == len(theirs) {
+	var theirs []models.RaidMark
+	if best != nil {
+		theirs = pullsLane(*best)
+	}
+	if mine := pullsLane(key); len(mine) > 0 && len(mine) == len(theirs) {
 		worst, over := -1, int64(0)
 		for i := range mine {
 			m, t := mine[i].EndMS-mine[i].ClockMS, theirs[i].EndMS-theirs[i].ClockMS
@@ -131,9 +130,7 @@ func keySuggestions(key models.Key, best *models.Key, rules models.KeySuggestion
 				continue
 			}
 			dps++
-			if slices.ContainsFunc(key.Casts, func(c models.KeyCast) bool {
-				return c.Player == p && c.Kind == "combat potion" && abs(c.ClockMS-lust) <= lustPotionMS
-			}) {
+			if potionWithLust(key, p, lust) {
 				potions++
 			}
 		}
@@ -157,12 +154,4 @@ func keySuggestions(key models.Key, best *models.Key, rules models.KeySuggestion
 		out = append(out, fmt.Sprintf("A miniboss died after most of its pack in %s", counted(late, "pull")))
 	}
 	return out[:min(len(out), rules.Most)]
-}
-
-// bestOrEmpty is the best run, or an empty key without one.
-func bestOrEmpty(best *models.Key) models.Key {
-	if best == nil {
-		return models.Key{}
-	}
-	return *best
 }

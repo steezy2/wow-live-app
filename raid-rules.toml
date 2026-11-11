@@ -73,7 +73,6 @@ spell = 1306862  # Hatching Doom, cast by the eggs about 1 s before every phase 
 
 [[phases."Ula'tek"]]
 id = 3
-intermission = true
 
 [[phases."Ula'tek"]]
 id = 4

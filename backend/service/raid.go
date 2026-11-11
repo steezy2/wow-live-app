@@ -35,6 +35,8 @@ const (
 	shownAdds, shownDispels = 5, 5
 	// breakDeathMS: a tether aura coming off a raider this close to their death went with them, it wasn't broken.
 	breakDeathMS = 1_000
+	// breakSetMS: a break this close after the one before it, with no effect of its own, is part of the same set.
+	breakSetMS = 1_500
 	// spawnSameMS: a spawn rule's aura coming off a raider this close to its cause landing on them (either order) is
 	// the cause breaking it.
 	spawnSameMS = 100
@@ -199,6 +201,7 @@ func (k *LogTracker) startPull(line models.LogLine) {
 		run.raid.phase = "P1"
 	}
 	k.current = run
+	k.version++
 }
 
 // raidLine reads a line inside a raid pull before the run's own handling; true when it ended the pull.
@@ -589,6 +592,7 @@ func (k *LogTracker) finishPull(kill bool) {
 	k.sampleAbilities(at)
 	pull := k.raidPull(run, k.details(run, at), at, kill)
 	k.current = nil
+	k.version++
 	if !fought(pull) {
 		return
 	}
@@ -635,8 +639,14 @@ func (k *LogTracker) raidPull(run *keyRun, key models.Key, at int64, kill bool) 
 	}
 	p.Avoidable, p.Stacks = byAbility(hits), []models.RaidStacks{}
 	for id, players := range r.stacks {
-		p.Stacks = append(p.Stacks, models.RaidStacks{Ability: k.spells[id], Limit: r.boss.Stacks[id],
-			Players: playerCounts(players)})
+		s := models.RaidStacks{Ability: k.spells[id], Limit: r.boss.Stacks[id], Players: playerCounts(players),
+			Over: []string{}}
+		for _, c := range s.Players {
+			if s.Limit > 0 && c.Count > s.Limit {
+				s.Over = append(s.Over, c.Player)
+			}
+		}
+		p.Stacks = append(p.Stacks, s)
 	}
 	slices.SortFunc(p.Stacks, func(a, b models.RaidStacks) int { return cmp.Compare(a.Ability, b.Ability) })
 	p.Soaks = []models.RaidSoak{}
@@ -665,6 +675,7 @@ func (k *LogTracker) raidPull(run *keyRun, key models.Key, at int64, kill bool) 
 	}
 	p.Adds = r.adds(at)
 	p.Pickups, p.Breaks = r.pickups, []models.RaidBreak{}
+	var setEnd int64
 	for _, b := range r.breaks {
 		if slices.ContainsFunc(key.Deaths, func(d models.KeyDeath) bool {
 			return d.Player == b.player && max(d.ClockMS-run.clock(b.at), run.clock(b.at)-d.ClockMS) <= breakDeathMS
@@ -675,7 +686,12 @@ func (k *LogTracker) raidPull(run *keyRun, key models.Key, at int64, kill bool) 
 		if b.hit > 0 {
 			rb.Effect = k.spells[b.rule.Effect]
 		}
-		p.Breaks = append(p.Breaks, rb)
+		if last := len(p.Breaks) - 1; last >= 0 && rb.Effect == "" && rb.ClockMS-setEnd <= breakSetMS {
+			p.Breaks[last].Then = append(p.Breaks[last].Then, rb.Player)
+		} else {
+			p.Breaks = append(p.Breaks, rb)
+		}
+		setEnd = rb.ClockMS
 	}
 	p.Priority = []models.RaidPriority{}
 	for _, target := range r.boss.Priority {

@@ -79,7 +79,7 @@ func (r Raid) Pull(c *gin.Context) {
 //	@Description	Each raider's position about once a second, the boss's units' and the adds to burst with their
 //	@Description	health (hp) and which the health box shows (health), killed adds' last places, each raider's
 //	@Description	damage, healing and damage taken so far about every 2 s, their casts, and what each ability did in
-//	@Description	each 10 s stretch (abilities, abilityTimes), on the pull's clock.
+//	@Description	each 2 s stretch (abilities, abilityTimes), on the pull's clock.
 //	@Tags			raid
 //	@Produce		json
 //	@Param			start	path		int	true	"the pull's start (ms since the epoch)"

@@ -598,7 +598,7 @@ const docTemplate = `{
         },
         "/api/raid/pulls/{start}/track": {
             "get": {
-                "description": "Each raider's position about once a second, the boss's units' and the adds to burst with their\nhealth (hp) and which the health box shows (health), killed adds' last places, each raider's\ndamage, healing and damage taken so far about every 2 s, their casts, and what each ability did in\neach 10 s stretch (abilities, abilityTimes), on the pull's clock.",
+                "description": "Each raider's position about once a second, the boss's units' and the adds to burst with their\nhealth (hp) and which the health box shows (health), killed adds' last places, each raider's\ndamage, healing and damage taken so far about every 2 s, their casts, and what each ability did in\neach 2 s stretch (abilities, abilityTimes), on the pull's clock.",
                 "produces": [
                     "application/json"
                 ],
@@ -1566,7 +1566,7 @@ const docTemplate = `{
                     }
                 },
                 "bosses": {
-                    "description": "Bosses is a raid boss's units and the adds to burst (by GUID, each point named, with its health) about once a\nsecond; none in a key.",
+                    "description": "Bosses is a raid boss's units and the adds to burst (by GUID, each point named, with its health) about once a\nsecond; a raid pull's or a key's, once it has ended.",
                     "type": "object",
                     "additionalProperties": {
                         "type": "array",
@@ -1576,7 +1576,7 @@ const docTemplate = `{
                     }
                 },
                 "casts": {
-                    "description": "Casts is each raider's casts in order, and Abilities what each one's abilities did in each abilityEveryMS\nstretch, so the replay shows what a raider was casting and their bars up to its moment; none in a key, or in\npulls saved before Nov 11.",
+                    "description": "Casts is each raider's casts in order, and Abilities what each one's abilities did in each abilityEveryMS\nstretch, so the replay shows what a raider was casting and their bars up to its moment; none in pulls saved\nbefore Nov 11.",
                     "type": "object",
                     "additionalProperties": {
                         "type": "array",
@@ -2021,6 +2021,12 @@ const docTemplate = `{
                 },
                 "player": {
                     "type": "string"
+                },
+                "then": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },
@@ -2602,6 +2608,12 @@ const docTemplate = `{
                 },
                 "limit": {
                     "type": "integer"
+                },
+                "over": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "players": {
                     "type": "array",

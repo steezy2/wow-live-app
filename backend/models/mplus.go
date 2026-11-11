@@ -204,14 +204,14 @@ type KeyTrack struct {
 	Meters  map[string][]MeterPoint `json:"meters"` // each player's damage and healing so far, about every 2 s
 	Pulls   []PullSpan              `json:"pulls"`  // each pull, in order; missing in keys saved before Nov 8
 	// Bosses is a raid boss's units and the adds to burst (by GUID, each point named, with its health) about once a
-	// second; none in a key.
+	// second; a raid pull's or a key's, once it has ended.
 	Bosses map[string][]TrackPoint `json:"bosses,omitempty"`
 	// Health is the Bosses GUIDs the replay's health box shows: the units whose health is the boss's, then the adds
 	// to burst.
 	Health []string `json:"health,omitempty"`
 	// Casts is each raider's casts in order, and Abilities what each one's abilities did in each abilityEveryMS
-	// stretch, so the replay shows what a raider was casting and their bars up to its moment; none in a key, or in
-	// pulls saved before Nov 11.
+	// stretch, so the replay shows what a raider was casting and their bars up to its moment; none in pulls saved
+	// before Nov 11.
 	Casts     map[string][]TrackCast     `json:"casts,omitempty"`
 	Abilities map[string][]AbilitySeries `json:"abilities,omitempty"`
 	// AbilityTimes is when Abilities' stretches ended, in order: a stretch starts where the one before it ended.

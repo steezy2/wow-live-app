@@ -80,9 +80,6 @@ interface MechanicLine {
   bad?: boolean
 }
 
-/** Breaks this close after a break that set off its effect are the same set (one raider first, the rest together). */
-const BREAK_SET_MS = 1500
-
 /** What went wrong by kind of mechanic, a heading per kind: each line leads with when it happened (a click shows it
  * in the replay; an ability's first hit, soak or stack past the limit, from the pull's lanes), then what, then who in
  * class colours and how much. A kind with nothing to show is left out. */
@@ -151,7 +148,7 @@ export const Mechanics = memo(function Mechanics({ pull, classes, onSeek, onFocu
     [
       'Stacks',
       pull.stacks.map((s) => {
-        const over = s.players.filter((p) => !s.limit || p.count > s.limit)
+        const over = s.limit ? s.over : s.players
         return {
           at: first('stacks', s.ability),
           what: s.limit ? `${s.ability} past ${s.limit} stacks` : s.ability,
@@ -256,25 +253,16 @@ export const BuffGaps = memo(function BuffGaps({ pull, classes, onSeek, onFocus 
   )
 })
 
-/** The tethers broken as lines: a break that set off its effect, with the breaks right after it (BREAK_SET_MS) as
- * "then"; a break that set off nothing on its own. */
+/** The tethers broken as lines: a break, then the raiders whose breaks came right after it. */
 function breakLines(pull: RaidPull, names: (players: string[]) => ReactNode): MechanicLine[] {
-  const sets: { first: NonNullable<RaidPull['breaks']>[number]; then: string[]; last: number }[] = []
-  for (const b of pull.breaks ?? []) {
-    const set = sets[sets.length - 1]
-    if (set && !b.effect && b.clockMS - set.last <= BREAK_SET_MS) {
-      set.then.push(b.player)
-      set.last = b.clockMS
-    } else sets.push({ first: b, then: [], last: b.clockMS })
-  }
-  return sets.map(({ first: b, then }) => ({
+  return (pull.breaks ?? []).map((b) => ({
     at: b.clockMS,
     what: `${b.aura} broken`,
     detail: (
       <>
         {names([b.player])}
         {b.effect && ` → ${b.effect} on ${b.hit}`}
-        {then.length > 0 && <>; then {names(then)}</>}
+        {b.then && <>; then {names(b.then)}</>}
       </>
     ),
   }))

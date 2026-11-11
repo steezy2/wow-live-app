@@ -52,7 +52,7 @@ func newTracker(t *testing.T, timers map[int]int64) *LogTracker {
 	// Voidscar Arena's avoidable list has Light Bolt, so TestKeyStep2's hit counts as avoidable.
 	// The Radiant Spellsower (NPC 245336) is a quarter of the forces. Den of Nalorakk's (586) mob 3 is a boss.
 	facts := map[int]models.DungeonFacts{586: {Minibosses: []int{245331, 245332}, Bosses: []int{245333}}, 585: {Avoidable: []int{1238063}, MustStop: []int{1238063}, Dispel: []int{1234846},
-		Floors: []models.DungeonFloor{{UIMapID: 2610, Tiles: "midnight/voidscar_arena/1"}},
+		Floors: []models.DungeonFloor{{RaidMap: models.RaidMap{UIMapID: 2610}, Tiles: "midnight/voidscar_arena/1"}},
 		Forces: models.Forces{Total: 40, NPCs: map[int]int{245336: 10}}}}
 	keys, err := NewLogTracker(timers, map[int]string{9: "Tyrannical"}, rules, facts, &memStore{})
 	if err != nil {

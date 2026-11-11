@@ -43,11 +43,14 @@ export function RaidFocus(props: {
       </h2>
       <p className="muted small">
         {sofar && `At ${clock(now)}: ${amount(sofar.dps)} DPS · ${amount(sofar.hps)} HPS`}
-        {whole && ` · whole pull: ${amount(whole.dps)} DPS · ${amount(whole.hps)} HPS · ${amount(whole.damageTaken)} taken`}
+        {whole &&
+          ` · whole pull: ${amount(whole.dps)} DPS · ${amount(whole.hps)} HPS · ${amount(whole.damageTaken)} taken`}
       </p>
       <EventList events={events} onSeek={onSeek} />
       {pull.abilities && !upTo?.targets && (
-        <p className="muted small">{upTo ? `Up to ${clock(now)}; targets over the whole pull` : 'Over the whole pull'}</p>
+        <p className="muted small">
+          {upTo ? `Up to ${clock(now)}; targets over the whole pull` : 'Over the whole pull'}
+        </p>
       )}
       {pull.abilities ? (
         <AbilityTabs
@@ -56,7 +59,9 @@ export function RaidFocus(props: {
           more={[
             {
               name: 'Targets',
-              body: <AbilityBars rows={raidTargets(upTo?.targets ?? pull.targets, player)} color={color} label="Enemy" />,
+              body: (
+                <AbilityBars rows={raidTargets(upTo?.targets ?? pull.targets, player)} color={color} label="Enemy" />
+              ),
             },
           ]}
         />

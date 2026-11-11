@@ -18,7 +18,7 @@ func (f *fakeTiles) Tile(_ context.Context, tiles string, x, y int) ([]byte, err
 func TestMapTilesOnlyServeTheGrid(t *testing.T) {
 	source := &fakeTiles{}
 	m := MapTiles{Source: source, Facts: map[int]models.DungeonFacts{
-		585: {Floors: []models.DungeonFloor{{UIMapID: 2574, Tiles: "midnight/voidscar_arena/1"}}}}}
+		585: {Floors: []models.DungeonFloor{{RaidMap: models.RaidMap{UIMapID: 2574}, Tiles: "midnight/voidscar_arena/1"}}}}}
 	if tile, err := m.Tile(context.Background(), 585, 2574, 3, 3); err != nil || string(tile) != "webp" ||
 		(*source)[0] != "midnight/voidscar_arena/1" {
 		t.Fatalf("tile = %q, %v from %v; want the floor's tile", tile, err, *source)

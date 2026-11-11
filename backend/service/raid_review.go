@@ -187,14 +187,8 @@ func suggestions(p models.RaidPull, best *models.RaidPull, rules models.Suggesti
 		say("No raid cooldown for the worst damage (%s/s at %s)", spikeRate(s, rules), clockText(s.ClockMS))
 	}
 	for _, s := range p.Stacks {
-		var over []string
-		for _, c := range s.Players {
-			if s.Limit > 0 && c.Count > s.Limit {
-				over = append(over, c.Player)
-			}
-		}
-		if len(over) > 0 {
-			say("%s went past %d stacks of %s: %s", raiders(len(over)), s.Limit, s.Ability, nameList(over))
+		if len(s.Over) > 0 {
+			say("%s went past %d stacks of %s: %s", raiders(len(s.Over)), s.Limit, s.Ability, nameList(s.Over))
 		}
 	}
 	wentOff := map[string]int{}

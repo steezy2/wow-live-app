@@ -264,19 +264,25 @@ export interface KeyTrack {
   meters: Record<string, MeterPoint[]>
   /** Each pull's start and end on the key's clock (end 0 while fought); missing in keys saved before Nov 8. */
   pulls?: { startMS: number; endMS: number }[]
-  /** A raid boss's units and the adds to burst by GUID, about once a second, each point named with its health; none
-   * in a key. */
+  /** A raid boss's units and the adds to burst by GUID, about once a second, each point named with its health; a
+   * pull's or a key's, once it has ended. */
   bosses?: Record<string, TrackPoint[]>
   /** The bosses GUIDs the health box shows: the boss's own units, then the adds to burst. */
   health?: string[]
   /** Each raider's casts (e: when one with a cast time ended; x: it never finished), what each ability did and what
    * they took damage from in each stretch ([end, damage, healing, damage taken]), and when the stretches ended (each
-   * starts where the one before it ended); none in a key or in pulls saved before Nov 11. */
+   * starts where the one before it ended); none in pulls saved before Nov 11. */
   casts?: Record<string, { t: number; s: string; e?: number; x?: boolean }[]>
-  abilities?: Record<string, { a: string; p: [number, number, number, number][] }[]>
+  abilities?: Record<string, AbilitySeries[]>
   abilityTimes?: number[]
   /** Each raider's damage into each enemy (the enemy's name as `a`) in the same stretches as abilities. */
-  targetSeries?: Record<string, { a: string; p: [number, number, number, number][] }[]>
+  targetSeries?: Record<string, AbilitySeries[]>
+}
+
+/** One ability's (or enemy's) numbers in each stretch: [end, damage, healing, damage taken]. */
+interface AbilitySeries {
+  a: string
+  p: [number, number, number, number][]
 }
 
 /** One number of a player's run: the median of their spec's top runs (0 without), their usual here (-1 without), and
@@ -320,13 +326,7 @@ export interface KeyReview {
 
 /** A dungeon floor with Keystone.guru tiles: the combat log's map ID and its in-game bounds (Keystone.guru's x is the
  * log's -y, its y the log's x). */
-export interface DungeonFloor {
-  uiMapID: number
-  minX: number
-  maxX: number
-  minY: number
-  maxY: number
-}
+export type DungeonFloor = RaidMap
 
 /** What the replay draws a dungeon on. */
 export interface DungeonMap {
@@ -650,8 +650,8 @@ export interface RaidPull extends RaidPullSummary {
   /** What raiders picked up (eggs), a wave per line, with the living raiders who missed something everyone should
    * pick up (missed); tethers they broke and the effect each set off. */
   pickups?: { clockMS: number; name: string; players: string[]; missed?: string[] }[]
-  breaks?: { clockMS: number; player: string; aura: string; effect?: string; hit: number }[]
-  stacks: { ability: string; limit: number; players: PlayerCount[] }[]
+  breaks?: { clockMS: number; player: string; aura: string; effect?: string; hit: number; then?: string[] }[]
+  stacks: { ability: string; limit: number; players: PlayerCount[]; over: string[] }[]
   dispels: KeyDispel[]
   wentOff: KeyStop[]
   /** spawns: each one's appearance and what spawned it, for adds the reference says how they spawn. */
@@ -671,7 +671,6 @@ export interface RaidPull extends RaidPullSummary {
   /** The boss's rooms for the replay. */
   maps: RaidMap[]
   lanes: RaidLane[]
-  spike?: { clockMS: number; perSecond: number; covered: string[] }
   /** What to fix on the next pull, most important first. */
   suggestions: string[]
   /** Each raider's abilities, their damage taken by ability and their damage into each enemy, most first: missing in

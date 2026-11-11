@@ -96,8 +96,8 @@ func (c Client) Dungeons(ctx context.Context) (map[int]Dungeon, error) {
 			if f.UIMapID == 0 || f.MinX == f.MaxX || f.MinY == f.MaxY || !tileFolder.MatchString(tiles) {
 				continue
 			}
-			dungeon.Floors = append(dungeon.Floors, models.DungeonFloor{UIMapID: f.UIMapID, MinX: f.MinX, MaxX: f.MaxX,
-				MinY: f.MinY, MaxY: f.MaxY, Tiles: tiles})
+			dungeon.Floors = append(dungeon.Floors, models.DungeonFloor{
+				RaidMap: models.RaidMap{UIMapID: f.UIMapID, MinX: f.MinX, MaxX: f.MaxX, MinY: f.MinY, MaxY: f.MaxY}, Tiles: tiles})
 		}
 		floors, err := c.withTiles(ctx, dungeon.Floors)
 		if err != nil {

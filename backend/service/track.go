@@ -104,7 +104,8 @@ const abilityEveryMS = 2_000
 // mplusAbilityEveryMS is a stretch in a key: it lasts five times as long, so a half-hour key's track stays small.
 const mplusAbilityEveryMS = 10_000
 
-// sampleAbilities closes a stretch in a raid pull when a line crosses an abilityEveryMS boundary of the pull's clock
+// sampleAbilities closes a stretch when a line crosses a boundary (abilityEveryMS in a raid pull, mplusAbilityEveryMS in
+// a key) of the run's clock
 // (so a quiet log makes one long stretch, not many empty ones): each raider's damage, healing and damage taken by
 // ability, and damage into each enemy, since the last stretch (only what changed), with when it closed, so the
 // replay can sum them up to any moment and share out the stretch it's in. Casts come from the track's casts; hits

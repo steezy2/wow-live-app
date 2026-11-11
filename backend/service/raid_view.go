@@ -170,14 +170,10 @@ func (k *LogTracker) savePulls() error {
 	})
 }
 
-// RaidTrack is a raid pull's replay track by its start time: the pull on now's, one waiting to be saved, or a saved
+// RaidTrack is a raid pull's replay track by its start time: one waiting to be saved or a saved
 // one's; ErrNoSuchPull when there's none.
 func (k *LogTracker) RaidTrack(start int64) (models.KeyTrack, error) {
 	k.mu.RLock()
-	if run := k.current; run != nil && run.raid != nil && run.key.Start == start {
-		defer k.mu.RUnlock()
-		return k.trackOf(run), nil
-	}
 	if i := slices.IndexFunc(k.unsavedPulls, func(p savedPull) bool { return p.pull.Start == start }); i >= 0 {
 		defer k.mu.RUnlock()
 		return k.unsavedPulls[i].track, nil

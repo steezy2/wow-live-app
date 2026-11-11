@@ -22,8 +22,8 @@ const REPLAY_METER_ROWS = 10
 
 /** A raid pull's replay: the mechanics' lanes and the DPS and HPS graph, the play bar, then the raid and the boss on
  * the room's map with the meters at that moment, all on the page's one clock: a click on the lanes or the graph moves
- * the map there. A click on a raider (their dot, a meter row, their line) focuses them: a ring and their name on the map,
- * their focus card in place of the meters, and their line alone on the graph; a right click goes back. */
+ * the map there. A click on a raider (their dot, a meter row, their line) focuses them: a ring and their name on the
+ * map, their focus card in place of the meters, and their line alone on the graph; a right click goes back. */
 export function RaidReplay(props: {
   pull: RaidPull
   replay: ReturnType<typeof useReplay>
@@ -46,14 +46,19 @@ export function RaidReplay(props: {
   const floors = useMemo(() => floorsOf(track ?? null), [track])
   const current = floor ?? floors[0]
   const room = pull.maps.find((m) => m.uiMapID === current)
-  const backdrop = useMemo<Backdrop>(() => (room ? { kind: 'image', map: room } : { kind: 'walked', walked: [] }), [room])
+  const backdrop = useMemo<Backdrop>(
+    () => (room ? { kind: 'image', map: room } : { kind: 'walked', walked: [] }),
+    [room],
+  )
   const marks: SliderMark[] = pull.deaths.map((d) => ({
     clockMS: d.clockMS,
     className: 'death',
     title: `${d.player} died at ${clock(d.clockMS)}`,
   }))
   if (error) return <p className="panel warning">Couldn't read the replay: {error}</p>
-  if (track === null) return <p className="panel muted">No replay for this pull: it was saved before replays were kept.</p>
+  if (track === null) {
+    return <p className="panel muted">No replay for this pull: it was saved before replays were kept.</p>
+  }
   if (!track) return <p className="panel muted">Loading the replay…</p>
   const now = replay.at
   const sofar = meterBetween(track, 0, now)

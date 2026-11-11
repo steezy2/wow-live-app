@@ -199,7 +199,7 @@ func (k *LogTracker) Add(line models.LogLine) {
 func (k *LogTracker) add(line models.LogLine) {
 	defer func() { k.lastAt = line.Time }()
 	f := line.Fields
-	if k.current != nil || line.Event == "CHALLENGE_MODE_START" {
+	if k.current != nil && k.current.raid == nil || line.Event == "CHALLENGE_MODE_START" { // a raid pull bumps at its start and end
 		k.version++
 	}
 	if run := k.current; run != nil && run.raid != nil && line.Time-k.lastAt > quietMS {

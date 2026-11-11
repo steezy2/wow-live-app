@@ -469,7 +469,7 @@ definitions:
           type: array
         description: |-
           Bosses is a raid boss's units and the adds to burst (by GUID, each point named, with its health) about once a
-          second; none in a key.
+          second; a raid pull's or a key's, once it has ended.
         type: object
       casts:
         additionalProperties:
@@ -478,8 +478,8 @@ definitions:
           type: array
         description: |-
           Casts is each raider's casts in order, and Abilities what each one's abilities did in each abilityEveryMS
-          stretch, so the replay shows what a raider was casting and their bars up to its moment; none in a key, or in
-          pulls saved before Nov 11.
+          stretch, so the replay shows what a raider was casting and their bars up to its moment; none in pulls saved
+          before Nov 11.
         type: object
       classes:
         additionalProperties:
@@ -799,6 +799,10 @@ definitions:
         type: integer
       player:
         type: string
+      then:
+        items:
+          type: string
+        type: array
     type: object
   models.RaidComparisons:
     properties:
@@ -1204,6 +1208,10 @@ definitions:
         type: string
       limit:
         type: integer
+      over:
+        items:
+          type: string
+        type: array
       players:
         items:
           $ref: '#/definitions/models.PlayerCount'
@@ -1767,7 +1775,7 @@ paths:
         Each raider's position about once a second, the boss's units' and the adds to burst with their
         health (hp) and which the health box shows (health), killed adds' last places, each raider's
         damage, healing and damage taken so far about every 2 s, their casts, and what each ability did in
-        each 10 s stretch (abilities, abilityTimes), on the pull's clock.
+        each 2 s stretch (abilities, abilityTimes), on the pull's clock.
       parameters:
       - description: the pull's start (ms since the epoch)
         in: path

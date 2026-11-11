@@ -219,10 +219,11 @@ func TestSuggestionsPutWhatToFixFirst(t *testing.T) {
 		Soaks:     []models.RaidSoak{{Ability: "Spectral Coils", Died: []string{"E"}}},
 		MassKills: []models.MassKill{{Ability: "Caustic Waves", Killed: 2, ClockMS: 61_000}},
 		Spikes:    []models.KeySpike{{ClockMS: 90_000, Damage: 7_200_000, PartyCDs: []string{}}},
-		Stacks:    []models.RaidStacks{{Ability: "Eternal Venom", Limit: 5, Players: []models.PlayerCount{{Player: "F", Count: 6}, {Player: "G", Count: 5}}}},
-		WentOff:   []models.KeyStop{{Spell: "Anguished Cry"}, {Spell: "Anguished Cry"}},
-		Adds:      []models.RaidAdd{{Name: "Blightscale Clutch", LongestMS: 30_000}},
-		Priority:  []models.RaidPriority{{Target: "Ula'tek's Heart", Damage: 1_000_000}},
+		Stacks: []models.RaidStacks{{Ability: "Eternal Venom", Limit: 5, Players: []models.PlayerCount{{Player: "F", Count: 6}, {Player: "G", Count: 5}},
+			Over: []string{"F"}}},
+		WentOff:  []models.KeyStop{{Spell: "Anguished Cry"}, {Spell: "Anguished Cry"}},
+		Adds:     []models.RaidAdd{{Name: "Blightscale Clutch", LongestMS: 30_000}},
+		Priority: []models.RaidPriority{{Target: "Ula'tek's Heart", Damage: 1_000_000}},
 	}
 	best := &models.RaidPull{Number: 4, Adds: []models.RaidAdd{{Name: "Blightscale Clutch", LongestMS: 12_000}},
 		Priority: []models.RaidPriority{{Target: "Ula'tek's Heart", Damage: 3_000_000}}}
@@ -380,29 +381,6 @@ func TestRaidPullKeepsAbilitiesTargetsAndHowLongBuffsLasted(t *testing.T) {
 	}
 }
 
-func TestARaidPullCountsACombatPotionDrunkBeforeIt(t *testing.T) {
-	keys, store := newRaidTracker(t)
-	keys.kinds["Light's Potential"] = "combat potion"
-	removed := func(s float64, unit string) string {
-		return raidAt(3, s, "SPELL_AURA_REMOVED,"+unit+","+unit+`,1236616,"Light's Potential",0x1,BUFF`)
-	}
-	feed(t, keys, pullLines(3, 0, 120, 40, false, removed(25, testPlayer),
-		raidAt(3, 10, "SPELL_CAST_SUCCESS,"+shamanUnit+","+noUnit+`,1236616,"Light's Potential",0x1,`+
-			advancedOf("Player-76-0000BBBB", "0000000000000000")),
-		removed(40, shamanUnit),
-	)...)
-	if _, err := keys.SaveFinished(); err != nil {
-		t.Fatal(err)
-	}
-	var got []string
-	for _, c := range store.pulls[0].Cooldowns {
-		got = append(got, fmt.Sprintf("%s %d %v", c.Player, c.ClockMS/1000, c.Prepot))
-	}
-	if fmt.Sprint(got) != "[Testmage 0 true Testshaman 10 false]" {
-		t.Fatalf("combat potions = %v; want the mage's pre-pot at 0 and the shaman's at 10 s", got)
-	}
-}
-
 func TestARaidDeathKnowsTheDefensivesUsedInEarlierPullsThatNight(t *testing.T) {
 	keys, _ := newRaidTracker(t)
 	keys.kinds["Light's Potential"] = "combat potion"
@@ -509,6 +487,7 @@ func TestRaidPullPickupsBreaksAndSpawns(t *testing.T) {
 		aura(40.01, "SPELL_AURA_APPLIED", testPlayer, 2003, "Blight Vein"),
 		aura(40.02, "SPELL_AURA_APPLIED", shamanUnit, 2003, "Blight Vein"),
 		aura(50, "SPELL_AURA_REMOVED", shamanUnit, 2002, "Grasping Fangs"), // nothing followed
+		aura(51, "SPELL_AURA_REMOVED", testPlayer, 2002, "Grasping Fangs"), // right after it: the same set
 		aura(70, "SPELL_AURA_REMOVED", priestUnit, 2002, "Grasping Fangs"), // went with the priest's death
 		raidAt(3, 70.2, "UNIT_DIED,"+noUnit+","+priestUnit+",0"),
 		aura(59, "SPELL_AURA_APPLIED", priestUnit, 2004, "Noxious Splash"),
@@ -527,9 +506,9 @@ func TestRaidPullPickupsBreaksAndSpawns(t *testing.T) {
 	if got := fmt.Sprint(p.Pickups); got != "[{10000 an egg [Testmage Testshaman] []} {30000 an egg [Testpriest] []}]" {
 		t.Errorf("pickups = %s; want two waves", got)
 	}
-	if got := fmt.Sprint(p.Breaks); got != "[{40000 Testmage Grasping Fangs Blight Vein 2} "+
-		"{50000 Testshaman Grasping Fangs  0}]" {
-		t.Errorf("breaks = %s; want the first setting off Blight Vein on 2, the second nothing", got)
+	if got := fmt.Sprint(p.Breaks); got != "[{40000 Testmage Grasping Fangs Blight Vein 2 []} "+
+		"{50000 Testshaman Grasping Fangs  0 [Testmage]}]" {
+		t.Errorf("breaks = %s; want the first setting off Blight Vein on 2, the second nothing with the mage's right after it", got)
 	}
 	spawns := map[string]string{}
 	for _, a := range p.Adds {
@@ -730,27 +709,35 @@ func TestBuffCheckCountsAuraIDs(t *testing.T) {
 	}
 }
 
-func TestPrepotFromPullStartAura(t *testing.T) {
+func TestACombatPotionDrunkBeforeThePullCountsAtZero(t *testing.T) {
 	const priest = "Player-76-0000CCCC"
 	drink := func(s float64) string {
 		return raidAt(3, s, "SPELL_CAST_SUCCESS,"+priestUnit+","+noUnit+`,1295132,"Liquid Luster",0x1,`+
 			advancedOf(priest, "0000000000000000"))
 	}
+	removed := func(s float64, unit string) string {
+		return raidAt(3, s, "SPELL_AURA_REMOVED,"+unit+","+unit+`,1236616,"Light's Potential",0x1,BUFF`)
+	}
+	startAura := raidAt(3, 0.6, "COMBATANT_INFO,"+priest+",1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,257,[],[],[],[],["+
+		priest+",1295132,1]")
 	for _, c := range []struct {
-		name  string
-		extra []string
-		want  string
+		name          string
+		before, extra []string
+		want          string
 	}{
-		{"buff at the start, no drink in the pull", nil, "[Testpriest 0 true]"},
-		{"a drink in the pull too: the drink only", []string{drink(20)}, "[Testpriest 20 false]"},
+		{"the buff leaves in the pull", nil, []string{removed(25, testPlayer),
+			raidAt(3, 10, "SPELL_CAST_SUCCESS,"+shamanUnit+","+noUnit+`,1236616,"Light's Potential",0x1,`+
+				advancedOf("Player-76-0000BBBB", "0000000000000000")),
+			removed(40, shamanUnit)}, "[Testmage 0 true Testshaman 10 false]"},
+		{"the buff at the start, no drink in the pull", []string{drink(-14)}, []string{startAura,
+			hitOn(3, 5, "SPELL_DAMAGE", priestUnit, 1004, "Bite")}, "[Testpriest 0 true]"},
+		{"a drink in the pull too: the drink only", []string{drink(-14)}, []string{startAura,
+			hitOn(3, 5, "SPELL_DAMAGE", priestUnit, 1004, "Bite"), drink(20)}, "[Testpriest 20 false]"},
 	} {
 		keys, store := newRaidTracker(t)
-		keys.kinds["Liquid Luster"] = "combat potion"
-		feed(t, keys, drink(-14)) // before the pull: the log names the potion
-		feed(t, keys, pullLines(3, 0, 120, 40, false, append([]string{
-			raidAt(3, 0.6, "COMBATANT_INFO,"+priest+",1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,257,[],[],[],[],["+
-				priest+",1295132,1]"),
-			hitOn(3, 5, "SPELL_DAMAGE", priestUnit, 1004, "Bite")}, c.extra...)...)...)
+		keys.kinds["Light's Potential"], keys.kinds["Liquid Luster"] = "combat potion", "combat potion"
+		feed(t, keys, c.before...)
+		feed(t, keys, pullLines(3, 0, 120, 40, false, c.extra...)...)
 		if _, err := keys.SaveFinished(); err != nil {
 			t.Fatal(err)
 		}
@@ -761,6 +748,26 @@ func TestPrepotFromPullStartAura(t *testing.T) {
 		if fmt.Sprint(got) != c.want {
 			t.Errorf("%s: combat potions = %v; want %s", c.name, got, c.want)
 		}
+	}
+}
+
+func TestARaidPullBumpsTheVersionOnlyAtItsStartAndEnd(t *testing.T) {
+	keys, _ := newRaidTracker(t)
+	lines := pullLines(3, 0, 120, 40, false, hitOn(3, 5, "SPELL_DAMAGE", priestUnit, 1004, "Bite"),
+		hitOn(3, 6, "SPELL_DAMAGE", priestUnit, 1004, "Bite"))
+	var seen []int64
+	for _, l := range lines {
+		feed(t, keys, l)
+		seen = append(seen, keys.Version())
+	}
+	changes := 0
+	for i := 1; i < len(seen); i++ {
+		if seen[i] != seen[i-1] {
+			changes++
+		}
+	}
+	if changes > 2 {
+		t.Fatalf("the version changed %d times over a pull's lines (%v); want at its start and end", changes, seen)
 	}
 }
 
