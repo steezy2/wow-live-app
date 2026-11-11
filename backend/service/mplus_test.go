@@ -476,3 +476,25 @@ func TestAViewHasTheBestOtherRunsBossLengths(t *testing.T) {
 		t.Fatalf("BestBosses = %v, want the fastest timed other run's Nalorakk, 1:30", got)
 	}
 }
+
+// TestKeepPullMarksEveryAliveMemberEachSecond: a member who joins or is renamed within a second already marked gets
+// that second, one who died gets none until a new pull, even one starting in that second (a boss pulled at once).
+func TestKeepPullMarksEveryAliveMemberEachSecond(t *testing.T) {
+	keys := newTracker(t, nil)
+	run := newRun(models.Key{Start: 1}, "")
+	keys.current, run.party, keys.names["Player-A"] = run, []string{"Player-A"}, "a"
+	keys.keepPull(1_000)
+	keys.learn(1_500, "SPELL_CAST_SUCCESS", []string{"Player-A", "a2-Realm", "0x0", "0x0", "x", "nil", "0x0", "0x0"})
+	keys.keepPull(1_500)
+	keys.keepPull(2_000)
+	run.party, keys.names["Player-B"] = append(run.party, "Player-B"), "b"
+	keys.keepPull(2_500)
+	run.down["b"] = true
+	keys.keepPull(3_500)
+	keys.newPull(3_600)
+	keys.keepPull(3_700)
+	want := map[string]map[int64]bool{"a": {1: true}, "a2": {1: true, 2: true, 3: true}, "b": {2: true, 3: true}}
+	if !reflect.DeepEqual(run.fighting, want) {
+		t.Errorf("fighting = %v, want %v", run.fighting, want)
+	}
+}
