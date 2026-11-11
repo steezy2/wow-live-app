@@ -361,12 +361,12 @@ export async function abandonLiveKey(): Promise<void> {
   await call('/api/mplus/live/abandon', { method: 'POST' })
 }
 
-/** The ready check before the next key (models.ReadyCheck): each member's missing flask, food and party buffs, and
- * those not seen since the party zoned in. */
+/** The ready check before the next key or raid pull (models.ReadyCheck): each member's class (once known), missing
+ * flask, food, Vantus Rune and party buffs, and those not seen since the party zoned in. */
 export interface ReadyCheck {
   sinceMS: number
   dungeon: string
-  players: { player: string; missing: string[]; notSeen: string[] }[]
+  players: { player: string; class?: string; missing: string[]; notSeen: string[] }[]
 }
 
 /** The ready check, or null outside a Mythic dungeon between keys. */
@@ -636,10 +636,12 @@ export interface RaidPull extends RaidPullSummary {
   spikes?: KeySpike[]
   casts?: KeyCast[]
   activity?: Record<string, number>
-  /** Who lacked a flask, food, Vantus Rune or raid buff at the pull's start (missing before Nov 11). */
-  missing?: { player: string; missing: string[] }[]
-  /** What raiders picked up (eggs), a wave per line; tethers they broke and the effect each set off. */
-  pickups?: { clockMS: number; name: string; players: string[] }[]
+  /** Each raider's flask, food, Vantus Rune, tier bonus or raid buff missing at the pull's start (from 0) and each
+   * flask, food or raid buff that came off them for a while, in order (missing before Nov 12). */
+  buffGaps?: RaidMissing[]
+  /** What raiders picked up (eggs), a wave per line, with the living raiders who missed something everyone should
+   * pick up (missed); tethers they broke and the effect each set off. */
+  pickups?: { clockMS: number; name: string; players: string[]; missed?: string[] }[]
   breaks?: { clockMS: number; player: string; aura: string; effect?: string; hit: number }[]
   stacks: { ability: string; limit: number; players: PlayerCount[] }[]
   dispels: KeyDispel[]
@@ -671,6 +673,15 @@ export interface RaidPull extends RaidPullSummary {
   targets?: { player: string; target: string; damage: number }[]
 }
 
+/** A raider without a buff ("flask", "Arcane Intellect", "2-set") from fromMS to toMS on the pull's clock (toMS is
+ * the pull's end when it never came back). */
+export interface RaidMissing {
+  player: string
+  buff: string
+  fromMS: number
+  toMS: number
+}
+
 /** A raid room's map (the combat log's uiMapID) and its edges in the log's yards: x runs north (maxX at the top), y
  * west (maxY at the left). */
 export interface RaidMap {
@@ -685,7 +696,18 @@ export interface RaidMap {
  * came up; a mark with endMS is a stretch (a phase, an add's life, how long a buff lasted). */
 export interface RaidLane {
   name: string
-  kind: 'phases' | 'deaths' | 'lust' | 'cooldowns' | 'potions' | 'spike' | 'avoidable' | 'soak' | 'stacks' | 'adds'
+  kind:
+    | 'phases'
+    | 'deaths'
+    | 'lust'
+    | 'cooldowns'
+    | 'potions'
+    | 'spike'
+    | 'avoidable'
+    | 'soak'
+    | 'pickups'
+    | 'stacks'
+    | 'adds'
   marks: { clockMS: number; endMS?: number; text: string; bad?: boolean }[]
 }
 

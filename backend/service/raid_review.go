@@ -14,8 +14,8 @@ import (
 type lane struct{ kind, name string }
 
 // laneKinds is the order the timeline shows its lanes in, by kind (then by name).
-var laneKinds = []string{"phases", "deaths", "lust", "cooldowns", "potions", "spike", "avoidable", "soak", "stacks",
-	"adds"}
+var laneKinds = []string{"phases", "deaths", "lust", "cooldowns", "potions", "spike", "avoidable", "soak", "pickups",
+	"stacks", "adds"}
 
 // namesShown: a suggestion names at most this many raiders, then says how many more.
 const namesShown = 4
@@ -25,8 +25,8 @@ func (r *raidRun) mark(kind, name string, m models.RaidMark) {
 	r.marks[lane{kind, name}] = append(r.marks[lane{kind, name}], m)
 }
 
-// lanes is a finished pull's timeline: the marks seen as they happened (avoidable hits, stacks past the limit, phase
-// changes, made stretches here) and the deaths, Bloodlust and cooldowns (stretches while their buff lasted), potions,
+// lanes is a finished pull's timeline: the marks seen as they happened (avoidable hits, stacks past the limit,
+// expected pickups, phase changes, made stretches here) and the deaths, Bloodlust and cooldowns (stretches while their buff lasted), potions,
 // damage spike, soaks and adds from the pull's facts, each lane's marks in order.
 func (k *LogTracker) lanes(run *keyRun, p models.RaidPull, end int64) []models.RaidLane {
 	r := run.raid
@@ -108,7 +108,7 @@ func spikeRate(s models.KeySpike, rules models.SuggestionRules) string {
 }
 
 // suggestions is what to fix on the next pull, most important first, at most rules.Most: deaths to what can be dodged
-// or soaked, early deaths with a defensive ready, mass kills, several early deaths to one other ability, an uncovered
+// or soaked, raiders who didn't pick up what everyone should, early deaths with a defensive ready, mass kills, several early deaths to one other ability, an uncovered
 // damage spike, stacks past the limit, casts that went off, slow dispels, adds that lived longer than in the best
 // pull, the most avoidable hits, less damage into the target to burst than the best pull, and in a pull long enough
 // for them, no Bloodlust and raiders without a combat potion; last, raid cooldowns stacked. best is nil for the best
@@ -149,6 +149,21 @@ func suggestions(p models.RaidPull, best *models.RaidPull, rules models.Suggesti
 		if len(s.Died) > 0 {
 			say("%s soaking %s: %s", deaths(len(s.Died)), s.Ability, nameList(s.Died))
 		}
+	}
+	var things []string
+	missed := map[string][]string{} // what everyone should pick up -> the raiders who missed one, each once
+	for _, w := range p.Pickups {
+		for _, name := range w.Missed {
+			if missed[w.Name] == nil {
+				things = append(things, w.Name)
+			}
+			if !slices.Contains(missed[w.Name], name) {
+				missed[w.Name] = append(missed[w.Name], name)
+			}
+		}
+	}
+	for _, t := range things {
+		say("Didn't pick up %s: %s", t, nameList(missed[t]))
 	}
 	if len(ready) > 0 {
 		say("%s with a defensive ready: %s", counted(len(ready), "early death"), nameList(ready))

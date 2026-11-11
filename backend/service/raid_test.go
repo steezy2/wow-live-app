@@ -524,7 +524,7 @@ func TestRaidPullPickupsBreaksAndSpawns(t *testing.T) {
 		t.Fatal(err)
 	}
 	p := store.pulls[0]
-	if got := fmt.Sprint(p.Pickups); got != "[{10000 an egg [Testmage Testshaman]} {30000 an egg [Testpriest]}]" {
+	if got := fmt.Sprint(p.Pickups); got != "[{10000 an egg [Testmage Testshaman] []} {30000 an egg [Testpriest] []}]" {
 		t.Errorf("pickups = %s; want two waves", got)
 	}
 	if got := fmt.Sprint(p.Breaks); got != "[{40000 Testmage Grasping Fangs Blight Vein 2} "+
@@ -546,6 +546,7 @@ func TestRaidPullPickupsBreaksAndSpawns(t *testing.T) {
 func TestRaidReadyCheckAtThePullAndBetweenPulls(t *testing.T) {
 	keys, store := newRaidTracker(t)
 	keys.raid.rules.Consumables.Vantus = []string{"Vantus Rune"}
+	keys.raid.rules.Consumables.VantusDifficulties = []string{"Mythic"}
 	named := func(id int, name string) string { // a line that tells the log's name of an aura
 		return raidAt(3, 0, fmt.Sprintf(`SPELL_AURA_APPLIED,%s,%s,%d,"%s",0x8,BUFF`, testPlayer, testPlayer, id, name))
 	}
@@ -571,16 +572,94 @@ func TestRaidReadyCheckAtThePullAndBetweenPulls(t *testing.T) {
 	if _, err := keys.SaveFinished(); err != nil {
 		t.Fatal(err)
 	}
-	if got := fmt.Sprint(store.pulls[0].Missing); got != "[{Testshaman [Skyfury Vantus Rune food]}]" {
-		t.Errorf("missing at the pull = %s; want the shaman's food, Vantus Rune and Skyfury", got)
+	if got := fmt.Sprint(store.pulls[0].BuffGaps); got != "[{Testshaman Skyfury 0 50000} "+
+		"{Testshaman Vantus Rune 0 50000} {Testshaman food 0 50000}]" {
+		t.Errorf("missing at the pull = %s; want the shaman's food, Vantus Rune and Skyfury the whole pull", got)
 	}
 	ready := keys.RaidLive(0).Ready
-	if ready == nil || fmt.Sprint(ready.Players) != "[{Testmage [Arcane Intellect] [Skyfury]} "+
-		"{Testshaman [Vantus Rune food] [Skyfury]}]" {
+	if ready == nil || fmt.Sprint(ready.Players) != "[{Testmage Mage [Arcane Intellect] [Skyfury]} "+
+		"{Testshaman Shaman [Vantus Rune food] [Skyfury]}]" {
 		t.Errorf("ready between pulls = %+v; want the dead mage's raid buffs gone, the rest from the pull's start", ready)
 	}
 	if _, ok := keys.Ready(); ok {
 		t.Error("a raid's ready check on the M+ endpoint; want it in RaidLive only")
+	}
+}
+
+func TestMissingWindows(t *testing.T) {
+	keys, store := newRaidTracker(t)
+	aura := func(s float64, event, unit string, id int, name string) string {
+		return raidAt(3, s, fmt.Sprintf(`%s,%s,%s,%d,"%s",0x40,BUFF`, event, testPlayer, unit, id, name))
+	}
+	died := func(s float64, unit string) string { return raidAt(3, s, "UNIT_DIED,"+noUnit+","+unit+",0") }
+	feed(t, keys, pullLines(3, 0, 120, 40, false,
+		raidAt(3, 0.6, "COMBATANT_INFO,Player-76-0000CCCC,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,257,[],[],[],[],[]"),
+		aura(20, "SPELL_AURA_REMOVED", shamanUnit, 1459, "Arcane Intellect"), // ran out: 20 s without
+		aura(40, "SPELL_AURA_APPLIED", shamanUnit, 1459, "Arcane Intellect"),
+		died(50, testPlayer), aura(50, "SPELL_AURA_REMOVED", testPlayer, 1459, "Arcane Intellect"),
+		raidAt(3, 70, "SPELL_RESURRECT,"+priestUnit+","+testPlayer+`,20484,"Rebirth",0x8`), // battle-res'd
+		aura(75, "SPELL_AURA_APPLIED", testPlayer, 1459, "Arcane Intellect"),
+		died(80, priestUnit), aura(80, "SPELL_AURA_REMOVED", priestUnit, 1459, "Arcane Intellect"), // dead to the end
+		aura(90, "SPELL_AURA_REMOVED", shamanUnit, 3001, "Flask of Tests"), // back 2 s later: too short
+		aura(92, "SPELL_AURA_APPLIED", shamanUnit, 3001, "Flask of Tests"),
+		aura(100, "SPELL_AURA_REMOVED", shamanUnit, 3002, "Well Fed"), // never back
+	)...)
+	if _, err := keys.SaveFinished(); err != nil {
+		t.Fatal(err)
+	}
+	var got []models.RaidMissing
+	for _, g := range store.pulls[0].BuffGaps {
+		if g.FromMS > 0 { // the start check's gaps are TestRaidReadyCheckAtThePullAndBetweenPulls'
+			got = append(got, g)
+		}
+	}
+	if fmt.Sprint(got) != "[{Testshaman Arcane Intellect 20000 40000} {Testmage Arcane Intellect 50000 75000} "+
+		"{Testshaman food 100000 120000}]" {
+		t.Errorf("buff gaps = %v; want the shaman's 20 s, the mage's death to the buff after the battle res, and the "+
+			"food to the end, not the priest's (dead throughout) or the 2 s flask", got)
+	}
+}
+
+func TestPickupExpect(t *testing.T) {
+	// Kith'ix: every living raider takes a light mote before Extinguish. The druid misses the first wave (the priest
+	// died before it), and nobody picks one up for the second.
+	const druid = `Player-76-0000DDDD,"Testdruid-Sargeras-US",0x512,0x80000000`
+	keys, store := newRaidTracker(t)
+	boss := keys.raid.bosses["Testboss"]
+	boss.Pickups = []models.RaidPickupRule{{Aura: 2001, Name: "a light mote", Expect: 2010}}
+	keys.raid.bosses["Testboss"] = boss
+	mote := func(s float64, event, unit string) string {
+		return raidAt(3, s, fmt.Sprintf(`%s,%s,%s,2001,"Light's Embrace",0x2,DEBUFF`, event, bossUnit, unit))
+	}
+	extinguish := func(s float64) string {
+		return raidAt(3, s, "SPELL_CAST_SUCCESS,"+bossUnit+","+noUnit+`,2010,"Extinguish",0x20`)
+	}
+	feed(t, keys, pullLines(3, 0, 120, 40, false,
+		raidAt(3, 0.6, "COMBATANT_INFO,Player-76-0000CCCC,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,257,[],[],[],[],[]"),
+		raidAt(3, 0.7, "COMBATANT_INFO,Player-76-0000DDDD,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,105,[],[],[],[],[]"),
+		hitOn(3, 5, "SPELL_DAMAGE", druid, 1004, "Bite"),
+		hitOn(3, 6, "SPELL_DAMAGE", priestUnit, 1004, "Bite"),
+		raidAt(3, 20, "UNIT_DIED,"+noUnit+","+priestUnit+",0"),
+		mote(30, "SPELL_AURA_APPLIED", testPlayer),
+		mote(33, "SPELL_AURA_APPLIED", shamanUnit), // a wave takes seconds: still the first
+		extinguish(36),
+		mote(36.2, "SPELL_AURA_REMOVED", testPlayer), mote(36.2, "SPELL_AURA_REMOVED", shamanUnit),
+		extinguish(80),
+	)...)
+	if _, err := keys.SaveFinished(); err != nil {
+		t.Fatal(err)
+	}
+	p, _ := keys.RaidPull(store.pulls[0].Start)
+	if got := fmt.Sprint(p.Pickups); got != "[{30000 a light mote [Testmage Testshaman] [Testdruid]} "+
+		"{80000 a light mote [] [Testdruid Testmage Testshaman]}]" {
+		t.Errorf("pickups = %s; want the druid missing the first wave and the three living raiders the second", got)
+	}
+	lane := slices.IndexFunc(p.Lanes, func(l models.RaidLane) bool { return l.Kind == "pickups" })
+	if lane < 0 || len(p.Lanes[lane].Marks) != 2 || !p.Lanes[lane].Marks[0].Bad || !p.Lanes[lane].Marks[1].Bad {
+		t.Errorf("lanes = %+v; want a pickups lane with both waves marked bad", p.Lanes)
+	}
+	if !slices.Contains(p.Suggestions, "Didn't pick up a light mote: Testdruid, Testmage, Testshaman") {
+		t.Errorf("suggestions = %q; want the raiders who missed a light mote", p.Suggestions)
 	}
 }
 
@@ -641,9 +720,10 @@ func TestBuffCheckCountsAuraIDs(t *testing.T) {
 		keys, _ := newRaidTracker(t)
 		keys.raid.rules.Consumables.Vantus = []string{"Vantus Rune"}
 		keys.raid.rules.Consumables.VantusIDs = []int{1303187}
+		keys.raid.rules.Consumables.VantusDifficulties = []string{"Heroic"}
 		keys.spells[3003], keys.names[mage] = "Vantus Rune: Radiant", "Testmage"
 		checks := keys.buffCheck(&keyRun{party: []string{mage}, auras: map[string][]int{mage: c.auras},
-			raid: &raidRun{}})
+			raid: &raidRun{difficulty: "Heroic"}})
 		if got := len(checks) > 0 && slices.Contains(checks[0].Missing, "Vantus Rune"); got != c.missing {
 			t.Errorf("%s: missing Vantus Rune = %v (%+v); want %v", c.name, got, checks, c.missing)
 		}
@@ -782,11 +862,9 @@ func TestBuffCheckTierPieces(t *testing.T) {
 			t.Fatal(err)
 		}
 		var got []string
-		for _, b := range store.pulls[0].Missing {
-			for _, m := range b.Missing {
-				if strings.HasSuffix(m, "-set") {
-					got = append(got, m)
-				}
+		for _, g := range store.pulls[0].BuffGaps {
+			if strings.HasSuffix(g.Buff, "-set") {
+				got = append(got, g.Buff)
 			}
 		}
 		if fmt.Sprint(list(got)) != c.want {
