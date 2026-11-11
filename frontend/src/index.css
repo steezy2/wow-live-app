@@ -309,6 +309,7 @@ button {
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: var(--s3) var(--s4);
+  min-width: 0; /* a grid cell can be narrower than its table, which scrolls */
   /* Room for five players, so the cards don't jump as rows arrive. */
   min-height: 210px;
 }
@@ -358,9 +359,51 @@ button {
   padding: 0 var(--s1);
 }
 
+/* A card's table scrolls sideways when its columns (fixed widths, set in MeterCards.tsx) don't fit. */
+.card-scroll {
+  overflow-x: auto;
+}
+
+.card-table .card-row + .card-row {
+  border-top: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+}
+
+.card-table.zebra .card-row:nth-child(even):not(.card-head) {
+  background: color-mix(in srgb, var(--text) 3%, transparent);
+}
+
+/* Numbers are muted except the column the card is sorted by (the first), the name is its class's colour. */
+.card-row > .num {
+  color: var(--muted);
+}
+
+.card-row > .name + .num {
+  color: var(--text);
+}
+
+.card-row > .group {
+  border-left: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+}
+
+.card-row > .num.warn {
+  color: var(--warn);
+}
+
+/* Only a phone-wide card is narrower than its table, and the name stays in view as it scrolls. */
+@media (max-width: 540px) {
+  .card-scroll .card-row > .name,
+  .card-scroll .card-head > span:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background: var(--panel);
+  }
+}
+
 .meter-bar {
   position: absolute;
   inset: 0 auto 0 0;
+  box-sizing: border-box;
   border-radius: 4px;
   border-left: 3px solid var(--bar);
   background: var(--bar-fill, color-mix(in srgb, var(--bar) 22%, transparent));
@@ -500,6 +543,42 @@ button {
 .review-table th:first-child,
 .review-table td:first-child {
   text-align: left;
+  min-width: 120px;
+}
+
+.review-table th:not(:first-child),
+.review-table td:not(:first-child) {
+  min-width: 84px;
+}
+
+.review-table tbody tr {
+  border-top: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+}
+
+/* Tones for a cell (KeyReview.tsx sets the class): deaths red, avoidable over the median amber, potions green. */
+.review-table td.bad {
+  color: var(--bad);
+}
+
+.review-table td.warn {
+  color: var(--warn);
+}
+
+.review-table td.good {
+  color: var(--good);
+}
+
+/* The name stays in view when the table scrolls sideways. */
+.review-table th:first-child,
+.review-table td:first-child {
+  position: sticky;
+  left: 0;
+  background: var(--panel);
+}
+
+/* A faint rule before a group of columns (offense, defense, consumables, deaths): KeyReview.tsx sets the class. */
+.review-table .group {
+  border-left: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
 }
 
 /* The players' advice beside the player focus card; one under the other when narrow. */

@@ -37,45 +37,40 @@ type reviewMetric struct {
 	value  func(key models.Key, r models.KeyMeterRow) float64
 	higher bool
 	amount bool // shown shortened ("2.1M"), else as a count
+	plain  bool // a count shown for reference: unranked, and never advice or a callout
 }
 
 var (
-	dpsMetric = reviewMetric{"DPS", func(_ models.Key, r models.KeyMeterRow) float64 { return r.DPS }, true, true}
-	hpsMetric = reviewMetric{"HPS", func(_ models.Key, r models.KeyMeterRow) float64 { return r.HPS }, true, true}
+	dpsMetric = reviewMetric{"DPS", func(_ models.Key, r models.KeyMeterRow) float64 { return r.DPS }, true, true, false}
+	hpsMetric = reviewMetric{"HPS", func(_ models.Key, r models.KeyMeterRow) float64 { return r.HPS }, true, true, false}
 	// otherMetrics are reviewed for everyone, after DPS or HPS.
 	otherMetrics = []reviewMetric{
-		{"kicks", func(_ models.Key, r models.KeyMeterRow) float64 { return float64(r.Interrupts) }, true, false},
+		{"kicks", func(_ models.Key, r models.KeyMeterRow) float64 { return float64(r.Interrupts) }, true, false, false},
 		{"dispels", func(_ models.Key, r models.KeyMeterRow) float64 { return float64(r.Dispels + r.Purges) }, true,
-			false},
+			false, false},
 		{"damage taken", func(_ models.Key, r models.KeyMeterRow) float64 { return float64(r.DamageTaken) }, false,
-			true},
+			true, false},
 		{"avoidable damage", func(_ models.Key, r models.KeyMeterRow) float64 { return float64(r.Avoidable) }, false,
-			true},
+			true, false},
 		{"deaths", func(k models.Key, r models.KeyMeterRow) float64 {
 			return float64(countFunc(k.Deaths, func(d models.KeyDeath) bool { return d.Player == r.Player }))
-		}, false, false},
+		}, false, false, false},
 		{"wasted kicks", func(k models.Key, r models.KeyMeterRow) float64 {
 			return float64(countFunc(k.WastedKicks, func(c models.KeyCast) bool { return c.Player == r.Player }))
-		}, false, false},
+		}, false, false, false},
 		{"priority %", since(func(_ models.Key, r models.KeyMeterRow) float64 {
 			return share(r.PriorityDamage, r.Damage)
-		}), true, false},
+		}), true, false, false},
 		{"active %", since(func(k models.Key, r models.KeyMeterRow) float64 { return k.Activity[r.Player] }), true,
-			false},
+			false, false},
 		{"big hits, defensive ready", func(k models.Key, r models.KeyMeterRow) float64 {
 			n, _ := unusedDefensives(k, r.Player)
 			return float64(n)
-		}, false, false},
-		{"crowd control", since(func(k models.Key, r models.KeyMeterRow) float64 {
-			return float64(countFunc(k.Casts, func(c models.KeyCast) bool { return c.Player == r.Player && c.Kind == "cc" }))
-		}), true, false},
-		{"potions at lust", since(func(k models.Key, r models.KeyMeterRow) float64 {
-			return float64(countFunc(k.Lusts, func(lust int64) bool {
-				return slices.ContainsFunc(k.Casts, func(c models.KeyCast) bool {
-					return c.Player == r.Player && c.Kind == "combat potion" && abs(c.ClockMS-lust) <= lustPotionMS
-				})
-			}))
-		}), true, false},
+		}, false, false, false},
+		{"crowd control", since(castCount("cc")), true, false, false},
+		{"combat potions", since(castCount("combat potion")), true, false, false},
+		{"health potions", since(castCount("health potion")), true, false, true},
+		{"healthstones", since(castCount("healthstone")), true, false, true},
 	}
 )
 
@@ -111,8 +106,11 @@ func buildReview(key models.Key, history []models.Key, baselines map[string]map[
 			if math.IsNaN(value) { // a key saved before the metric existed
 				continue
 			}
-			metric := models.ReviewMetric{Name: m.name, Value: value, Usual: -1, PartyRank: partyRank(key, rows, m, value),
-				Amount: m.amount, Help: metricHelp[m.name]}
+			metric := models.ReviewMetric{Name: m.name, Value: value, Usual: -1, Amount: m.amount,
+				Help: metricHelp[m.name]}
+			if !m.plain {
+				metric.PartyRank = partyRank(key, rows, m, value)
+			}
 			switch m.name {
 			case "DPS":
 				metric.Total, metric.TotalName = float64(row.Damage), "damage"
@@ -216,8 +214,9 @@ func advice(key models.Key, player string, spec specInfo, metrics []models.Revie
 	if readyIn, ready := unusedDefensives(key, player); readyIn >= 2 {
 		out = append(out, fmt.Sprintf("Took big hits with %s ready in %d damage spikes", ready, readyIn))
 	}
-	if p, ok := byName["potions at lust"]; ok && !spec.Healer && int(p.Value) < len(key.Lusts) {
-		out = append(out, fmt.Sprintf("Used a combat potion in %.0f of %s", p.Value, counted(len(key.Lusts), "Bloodlust")))
+	if p, ok := byName["combat potions"]; ok && !spec.Healer && lustsWithoutPotion(key, player) > 0 {
+		out = append(out, fmt.Sprintf("Used %s in a key with %s", counted(int(p.Value), "combat potion"),
+			counted(len(key.Lusts), "Bloodlust")))
 	}
 	for _, b := range key.Buffs {
 		if b.Player != player {
@@ -274,7 +273,9 @@ var metricHelp = map[string]string{
 	"priority %":                "share of damage into trash pulls' minibosses and into bosses",
 	"active %":                  "share of time alive in pulls with a cast or hit of theirs going",
 	"big hits, defensive ready": "damage spikes they took the most of with a defensive ready and none used",
-	"potions at lust":           "Bloodlusts with a combat potion of theirs within 10 s",
+	"combat potions":            "combat potions drunk over the key, a pre-pot included",
+	"health potions":            "health potions drunk over the key",
+	"healthstones":              "healthstones used over the key",
 	"crowd control":             "stuns, incapacitates, fears, roots, knocks (up or back) and grips cast ([cc] in mplus.toml; an area stun counts once)",
 }
 
@@ -287,6 +288,22 @@ func since(value func(models.Key, models.KeyMeterRow) float64) func(models.Key, 
 		}
 		return value(k, r)
 	}
+}
+
+// castCount reads how many tracked buttons of one kind (KeyCast.Kind) a player pressed over the key.
+func castCount(kind string) func(models.Key, models.KeyMeterRow) float64 {
+	return func(k models.Key, r models.KeyMeterRow) float64 {
+		return float64(countFunc(k.Casts, func(c models.KeyCast) bool { return c.Player == r.Player && c.Kind == kind }))
+	}
+}
+
+// lustsWithoutPotion is how many Bloodlusts passed with no combat potion of the player's within lustPotionMS.
+func lustsWithoutPotion(key models.Key, player string) int {
+	return countFunc(key.Lusts, func(lust int64) bool {
+		return !slices.ContainsFunc(key.Casts, func(c models.KeyCast) bool {
+			return c.Player == player && c.Kind == "combat potion" && abs(c.ClockMS-lust) <= lustPotionMS
+		})
+	})
 }
 
 // unusedDefensives is how many damage spikes a player took the most of with a defensive ready and none used, and one
@@ -346,6 +363,7 @@ func partyNotes(key models.Key) []string {
 // positive is exactly one thing a player did well, always from the data: DPS or HPS close to their spec's top runs,
 // else their biggest gain on their usual here, else their best rank in the party.
 func positive(key models.Key, spec specInfo, metrics []models.ReviewMetric) string {
+	metrics = slices.DeleteFunc(slices.Clone(metrics), func(m models.ReviewMetric) bool { return m.PartyRank == 0 })
 	main := metrics[slices.IndexFunc(metrics, func(m models.ReviewMetric) bool { return m.Name == mainMetric(spec) })]
 	if main.Top > 0 && main.Value >= highShare*main.Top {
 		return fmt.Sprintf("%s %s, %.0f%% of top %ss at +%d", main.Name, short(main.Value),
