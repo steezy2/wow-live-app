@@ -139,17 +139,20 @@ export function positionAt(points: TrackPoint[], now: number): TrackPoint | unde
   return { ...last, x: last.x + (next.x - last.x) * share, y: last.y + (next.y - last.y) * share }
 }
 
-/** A raider's pull up to a clock reading, from a raid pull's track: their abilities' damage and healing and what they
- * took damage from (a stretch the moment is in counts for the share of it that has passed, so the numbers grow
- * smoothly), and their casts counted as they finished (not stopped ones); hits only over the whole pull, so 0
- * (hidden). Schools come from the
- * pull's. Undefined for a track without them. */
-export function abilitiesUpTo(
-  track: KeyTrack,
-  pull: RaidPull,
-  player: string,
-  now: number,
-): { abilities: KeyAbility[]; taken: NonNullable<RaidPull['taken']> } | undefined {
+/** A raider's pull up to a clock reading: their abilities, what they took damage from and (from tracks that have
+ * the series) their damage into each enemy. */
+export interface AbilitiesUpTo {
+  abilities: KeyAbility[]
+  taken: NonNullable<RaidPull['taken']>
+  targets?: NonNullable<RaidPull['targets']>
+}
+
+/** A raider's pull up to a clock reading, from a raid pull's track: their abilities' damage and healing, what they
+ * took damage from and what they hit (a stretch the moment is in counts for the share of it that has passed, so the
+ * numbers grow smoothly), and their casts counted as they finished (not stopped ones); hits only over the whole pull,
+ * so 0 (hidden). Nothing at 0. Schools come from the pull's. Undefined for a track without the series; targets
+ * undefined for one saved before they were kept. */
+export function abilitiesUpTo(track: KeyTrack, pull: RaidPull, player: string, now: number): AbilitiesUpTo | undefined {
   const series = track.abilities?.[player]
   const ends = track.abilityTimes
   if (!series || !ends) return undefined
@@ -157,6 +160,15 @@ export function abilitiesUpTo(
     if (end <= now) return 1
     const from = ends[ends.indexOf(end) - 1] ?? 0 // a stretch starts where the one before it ended
     return Math.max(0, (now - from) / Math.max(1, end - from))
+  }
+  const sumUp = (points: [number, number, number, number][]): [number, number, number] => {
+    const sum: [number, number, number] = [0, 0, 0]
+    for (const [end, d, h, t] of points) {
+      const share = passed(end)
+      if (share === 0) break
+      ;[sum[0], sum[1], sum[2]] = [sum[0] + d * share, sum[1] + h * share, sum[2] + t * share]
+    }
+    return sum
   }
   const casts = new Map<string, number>()
   for (const c of track.casts?.[player] ?? []) {
@@ -167,16 +179,12 @@ export function abilitiesUpTo(
     (pull.taken ?? []).find((h) => h.player === player && h.ability === ability)?.school
   const sums = new Map<string, [number, number, number]>([...casts.keys()].map((a) => [a, [0, 0, 0]]))
   for (const s of series) {
-    const sum = sums.get(s.a) ?? [0, 0, 0]
-    for (const [end, d, h, t] of s.p) {
-      const share = passed(end)
-      if (share === 0) break
-      ;[sum[0], sum[1], sum[2]] = [sum[0] + d * share, sum[1] + h * share, sum[2] + t * share]
-    }
-    sums.set(s.a, sum)
+    const [d, h, t] = sumUp(s.p)
+    const [d0, h0, t0] = sums.get(s.a) ?? [0, 0, 0]
+    sums.set(s.a, [d0 + d, h0 + h, t0 + t])
   }
   const abilities: KeyAbility[] = []
-  const taken: NonNullable<RaidPull['taken']> = []
+  const taken: AbilitiesUpTo['taken'] = []
   for (const [ability, [damage, healing, tk]] of sums) {
     if (damage || healing || casts.has(ability)) {
       const done = casts.get(ability) ?? 0
@@ -184,5 +192,8 @@ export function abilitiesUpTo(
     }
     if (tk) taken.push({ player, ability, damage: tk, school: school(ability) })
   }
-  return { abilities, taken }
+  const targets = track.targetSeries?.[player]
+    ?.map((s) => ({ player, target: s.a, damage: sumUp(s.p)[0] }))
+    .filter((t) => t.damage > 0)
+  return { abilities, taken, targets }
 }

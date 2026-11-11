@@ -84,42 +84,64 @@ func (k *LogTracker) sampleMeters(at int64) {
 	}
 }
 
-// abilityEveryMS: how often a raid pull's ability totals are kept for the replay's focus bars.
-const abilityEveryMS = 10_000
+// abilityEveryMS: how long a raid pull's ability totals are kept for the replay's focus bars, as stretches on the
+// pull's clock.
+const abilityEveryMS = 2_000
 
-// sampleAbilities keeps, about every abilityEveryMS in a raid pull, the damage, healing and damage taken of each
-// raider's abilities since the last time (only what changed) and when it was kept, so the replay can sum them up to
-// any moment and share out the stretch it's in. Casts come from the track's casts; hits stay whole-pull.
+// sampleAbilities closes a stretch in a raid pull when a line crosses an abilityEveryMS boundary of the pull's clock
+// (so a quiet log makes one long stretch, not many empty ones): each raider's damage, healing and damage taken by
+// ability, and damage into each enemy, since the last stretch (only what changed), with when it closed, so the
+// replay can sum them up to any moment and share out the stretch it's in. Casts come from the track's casts; hits
+// stay whole-pull.
 func (k *LogTracker) sampleAbilities(at int64) {
 	run := k.current
 	r := run.raid
-	if r == nil || at-r.abilitiesAt < abilityEveryMS {
+	clockMS := k.clockAt(at)
+	if r == nil || clockMS/abilityEveryMS <= r.abilitiesAt/abilityEveryMS {
 		return
 	}
-	r.abilitiesAt = at
-	clockMS := k.clockAt(at)
+	r.abilitiesAt = clockMS
 	run.track.AbilityTimes = append(run.track.AbilityTimes, clockMS)
-	add := func(id [2]string, p [4]int64) {
-		series := run.track.Abilities[id[0]]
+	add := func(into map[string][]models.AbilitySeries, id [2]string, p [4]int64) {
+		series := into[id[0]]
 		i := slices.IndexFunc(series, func(s models.AbilitySeries) bool { return s.Ability == id[1] })
 		if i < 0 {
 			series, i = append(series, models.AbilitySeries{Ability: id[1]}), len(series)
 		}
 		series[i].Points = append(series[i].Points, p)
-		run.track.Abilities[id[0]] = series
+		into[id[0]] = series
 	}
 	for id, a := range run.abilities {
 		if was := r.abilitiesWere[id]; a.Damage != was.Damage || a.Healing != was.Healing {
-			add(id, [4]int64{clockMS, a.Damage - was.Damage, a.Healing - was.Healing, 0})
+			add(run.track.Abilities, id, [4]int64{clockMS, a.Damage - was.Damage, a.Healing - was.Healing, 0})
 			r.abilitiesWere[id] = *a
 		}
 	}
 	for id, taken := range run.takenBy {
 		if was := r.takenWere[id]; taken != was {
-			add(id, [4]int64{clockMS, 0, 0, taken - was})
+			add(run.track.Abilities, id, [4]int64{clockMS, 0, 0, taken - was})
 			r.takenWere[id] = taken
 		}
 	}
+	for id, damage := range targetDamage(run) {
+		if was := r.targetsWere[id]; damage != was {
+			add(run.track.TargetSeries, id, [4]int64{clockMS, damage - was, 0, 0})
+			r.targetsWere[id] = damage
+		}
+	}
+}
+
+// targetDamage is each raider's damage into the enemies of each name over the run, by [raider, enemy].
+func targetDamage(run *keyRun) map[[2]string]int64 {
+	damage := map[[2]string]int64{}
+	for _, pull := range run.pulls {
+		for _, mob := range pull.mobs {
+			for player, amount := range mob.byPlayer {
+				damage[[2]string{player, mob.name}] += amount
+			}
+		}
+	}
+	return damage
 }
 
 // trackCast keeps a raider's cast for the replay: a cast's start, then its end (SPELL_CAST_SUCCESS of the same spell,
@@ -184,19 +206,25 @@ func (k *LogTracker) trackOf(run *keyRun) models.KeyTrack {
 		slices.Sort(adds)
 		t.Health = append(t.Health, adds...)
 		t.AbilityTimes = list(run.track.AbilityTimes)
-		t.Casts, t.Abilities = map[string][]models.TrackCast{}, map[string][]models.AbilitySeries{}
+		t.Casts = map[string][]models.TrackCast{}
 		for name, casts := range run.track.Casts {
 			t.Casts[name] = list(casts)
 		}
-		for name, series := range run.track.Abilities {
-			for _, s := range series {
-				t.Abilities[name] = append(t.Abilities[name], models.AbilitySeries{Ability: s.Ability,
-					Points: slices.Clone(s.Points)})
-			}
-			slices.SortFunc(t.Abilities[name], func(a, b models.AbilitySeries) int { return cmp.Compare(a.Ability, b.Ability) })
-		}
+		t.Abilities, t.TargetSeries = copySeries(run.track.Abilities), copySeries(run.track.TargetSeries)
 	}
 	return t
+}
+
+// copySeries is a copy of ability series by raider, each raider's sorted by ability.
+func copySeries(from map[string][]models.AbilitySeries) map[string][]models.AbilitySeries {
+	out := map[string][]models.AbilitySeries{}
+	for name, series := range from {
+		for _, s := range series {
+			out[name] = append(out[name], models.AbilitySeries{Ability: s.Ability, Points: slices.Clone(s.Points)})
+		}
+		slices.SortFunc(out[name], func(a, b models.AbilitySeries) int { return cmp.Compare(a.Ability, b.Ability) })
+	}
+	return out
 }
 
 // Track is a key's track by its start time: the running key's, the last one's, or a saved one's.

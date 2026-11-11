@@ -74,6 +74,7 @@ type raidRun struct {
 	abilitiesAt   int64
 	abilitiesWere map[[2]string]models.KeyAbility
 	takenWere     map[[2]string]int64
+	targetsWere   map[[2]string]int64
 	casting       map[string]int
 }
 
@@ -163,9 +164,10 @@ func (k *LogTracker) startPull(line models.LogLine) {
 		units: map[string]*raidUnit{}, soaks: map[int]*soakTally{}, stacks: map[int]map[string]int{},
 		priority: map[string]int64{}, lustEnds: map[int64]int64{}, marks: map[lane][]models.RaidMark{},
 		causes: map[int]*causeAt{}, abilitiesWere: map[[2]string]models.KeyAbility{},
-		takenWere: map[[2]string]int64{},
-		casting:   map[string]int{}}
+		takenWere: map[[2]string]int64{}, targetsWere: map[[2]string]int64{},
+		casting: map[string]int{}}
 	run.track.Casts, run.track.Abilities = map[string][]models.TrackCast{}, map[string][]models.AbilitySeries{}
+	run.track.TargetSeries = map[string][]models.AbilitySeries{}
 	if len(run.raid.phases) > 0 {
 		run.raid.phase = "P1"
 	}
@@ -423,7 +425,7 @@ func (k *LogTracker) finishPull(kill bool) {
 		run.key.Status = "kill"
 	}
 	endPull(run)
-	run.raid.abilitiesAt = 0 // the last stretch, however short
+	run.raid.abilitiesAt = 0 // closes the last stretch, however short
 	k.sampleAbilities(at)
 	pull := k.raidPull(run, k.details(run, at), at, kill)
 	k.current = nil
@@ -554,14 +556,7 @@ func (r *raidRun) pickupWaves(clock func(int64) int64, window int64) []models.Ra
 
 // targets is each raider's damage into the enemies of each name over the run, most first.
 func targets(run *keyRun) []models.RaidTarget {
-	damage := map[[2]string]int64{}
-	for _, pull := range run.pulls {
-		for _, mob := range pull.mobs {
-			for player, amount := range mob.byPlayer {
-				damage[[2]string{player, mob.name}] += amount
-			}
-		}
-	}
+	damage := targetDamage(run)
 	out := make([]models.RaidTarget, 0, len(damage))
 	for id, amount := range damage {
 		out = append(out, models.RaidTarget{Player: id[0], Target: id[1], Damage: amount})

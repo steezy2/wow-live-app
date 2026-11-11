@@ -633,8 +633,11 @@ func TestRaidTrackKeepsBossHealthCastsAndAbilities(t *testing.T) {
 		t.Errorf("casts = %s; want the Frostbolt from 2 to 4 s, the instant at 5 s, one interrupted at 7 s (not at the "+
 			"key pressed again) and one the pull cut", got)
 	}
-	if got := fmt.Sprint(track.Abilities["Testmage"]); got != "[{Arcane Barrage [[1000 5000 0 0]]}]" ||
-		fmt.Sprint(track.AbilityTimes) != "[1000 30000]" {
-		t.Errorf("abilities = %s; want the hit when it came, then the casts at the pull's end", got)
+	if got := fmt.Sprint(track.Abilities["Testmage"]); got != "[{Arcane Barrage [[2000 5000 0 0]]}]" ||
+		fmt.Sprint(track.TargetSeries["Testmage"]) != "[{Testboss [[2000 5000 0 0]]}]" ||
+		fmt.Sprint(track.AbilityTimes) != "[2000 4000 6000 8000 30000]" {
+		t.Errorf("abilities = %v, targets = %v, closed at %v; want the hit in the stretch the first line past 2 s closed, "+
+			"one stretch per 2 s boundary a line crossed (not per line), then the pull's end",
+			track.Abilities["Testmage"], track.TargetSeries["Testmage"], track.AbilityTimes)
 	}
 }
