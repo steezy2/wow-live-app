@@ -693,6 +693,143 @@
                 }
             }
         },
+        "/api/settings/logs": {
+            "get": {
+                "description": "The log folder's combat logs, then the ones archived (zipped into its WoW Live archive folder), newest\nfirst: size, last write, saved keys and pulls from each, whether it's read, whether the game may still\nwrite it (it can't be archived) and whether to tick it at first (older than 14 days and read).",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "List the combat logs and the archived ones",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.LogFile"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/settings/logs/archive": {
+            "post": {
+                "description": "Zips each named log into the log folder's WoW Live archive folder and removes it (reading the folder\nfirst when one isn't read yet), so live reading and Read old logs skip it; Read everything again\nstill reads it. Answers the new list; a log that couldn't be archived carries its error.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "Archive combat logs",
+                "parameters": [
+                    {
+                        "description": "names from the list, not archived and not being written",
+                        "name": "logs",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controller.LogNames"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.LogFile"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "already reading, archiving or deleting logs",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Removes the named archived logs' zips. Saved keys and pulls stay. Answers the new list; a log that\ncouldn't be deleted carries its error.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "Delete archived combat logs for good",
+                "parameters": [
+                    {
+                        "description": "names of archived logs from the list",
+                        "name": "logs",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controller.LogNames"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.LogFile"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "already reading, archiving or deleting logs",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/settings/read-keys": {
             "post": {
                 "description": "Reads the combat logs in the folder that are new or changed since the last read (all=true: every\none) and saves each finished key and raid pull, so the estimate and the best pulls have earlier runs\nto go on. Reading 3 GB of logs takes about 10 s.",
@@ -720,6 +857,12 @@
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "already reading, archiving or deleting logs",
                         "schema": {
                             "$ref": "#/definitions/controller.ErrorResponse"
                         }
@@ -883,6 +1026,21 @@
             "properties": {
                 "error": {
                     "type": "string"
+                }
+            }
+        },
+        "controller.LogNames": {
+            "type": "object",
+            "required": [
+                "names"
+            ],
+            "properties": {
+                "names": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },
@@ -1867,6 +2025,49 @@
                     "items": {
                         "$ref": "#/definitions/models.KeyCast"
                     }
+                }
+            }
+        },
+        "models.LogFile": {
+            "type": "object",
+            "properties": {
+                "active": {
+                    "description": "the game may still write it: it can't be archived",
+                    "type": "boolean"
+                },
+                "archived": {
+                    "type": "boolean"
+                },
+                "bytes": {
+                    "type": "integer"
+                },
+                "error": {
+                    "description": "why the last archive or delete of it failed",
+                    "type": "string"
+                },
+                "keys": {
+                    "description": "saved keys that started in it",
+                    "type": "integer"
+                },
+                "name": {
+                    "description": "the log's file name (an archived one without .zip)",
+                    "type": "string"
+                },
+                "pulls": {
+                    "description": "saved raid pulls that started in it",
+                    "type": "integer"
+                },
+                "read": {
+                    "description": "read by the current reader (Read old logs), so archiving loses nothing",
+                    "type": "boolean"
+                },
+                "suggested": {
+                    "description": "ticked at first: old, read and not active",
+                    "type": "boolean"
+                },
+                "writtenMS": {
+                    "description": "last written (Unix ms)",
+                    "type": "integer"
                 }
             }
         },

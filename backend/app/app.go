@@ -4,6 +4,7 @@
 package app
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -14,6 +15,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"sync"
 	"time"
 
 	"wow-live/backend/clients/cachefile"
@@ -34,7 +36,7 @@ const pushEvery = 250 * time.Millisecond
 type Options struct {
 	Cache     string                      // the cache: logs/cache/ in the repo
 	DelayLog  string                      // logs/live-delay.log
-	LogsDir   string                      // the game's combat log folder
+	LogsDir   func() string               // the game's combat log folder now (the owner can change it)
 	Region    string                      // for this week's affix names
 	Rules     models.MPlusRules           // from mplus.toml
 	Dungeons  map[int]models.DungeonFacts // from reference/mplus-dungeons.json
@@ -57,6 +59,7 @@ type Site struct {
 	reviews controller.Reviews
 	topRuns func(ctx context.Context, key models.Key) ([]int64, error) // nil without Warcraft Logs
 	newKeys func() (*service.LogTracker, error)                        // another tracker on the same saved keys, for Learn
+	logJob  sync.Mutex                                                 // one read, archive or delete of logs at a time
 }
 
 // Start builds the site from opts. Follow, Learn or a replay then feed it the game's log.
@@ -79,6 +82,9 @@ func Start(ctx context.Context, opts Options) (*Site, error) {
 		return nil, err
 	}
 	s := &Site{Keys: keys, Changes: &service.Changes{Every: pushEvery}, opts: opts, newKeys: newKeys}
+	if opts.Settings != nil {
+		opts.Settings.Logs = s
+	}
 	if opts.Baselines != nil {
 		reviewer := service.Reviewer{Keys: keys, Baselines: opts.Baselines, Store: store}
 		s.reviews, s.topRuns = reviewer, reviewer.TopRuns
@@ -110,10 +116,8 @@ func dungeonData(ctx context.Context, cache, region string) (map[int]int64, map[
 
 // add feeds parsed lines to keys, skipping a line that doesn't parse.
 func add(keys *service.LogTracker, lines []string) {
-	for _, text := range lines {
-		if line, err := combatlog.ParseLine(text); err == nil {
-			keys.Add(line)
-		}
+	for _, line := range combatlog.Parse(lines) {
+		keys.Add(line)
 	}
 }
 
@@ -137,10 +141,21 @@ type learnedLog struct {
 
 // Learn reads the logs in the game's folder, oldest first, into a tracker of its own (so it's safe while Follow
 // runs), saves the keys and raid pulls that ended in them, and has the site's keys read the saved ones again, for the
-// list and the estimate. A log already read by this readerVersion, unchanged since, is skipped unless all is set. It
-// returns how many logs it read and how many keys are saved.
+// list and the estimate. A log already read by this readerVersion, unchanged since, is skipped unless all is set; so
+// are archived logs, which are read only then. It returns how many logs it read and how many keys are saved, or
+// service.ErrBusy while another read, archive or delete runs.
 func (s *Site) Learn(all bool) (read, saved int, err error) {
-	logs, err := combatlog.WrittenSince(s.opts.LogsDir, time.Time{})
+	if !s.logJob.TryLock() {
+		return 0, 0, service.ErrBusy
+	}
+	defer s.logJob.Unlock()
+	return s.learn(all)
+}
+
+// learn is Learn, with the log job's lock held.
+func (s *Site) learn(all bool) (read, saved int, err error) {
+	dir := s.opts.LogsDir()
+	logs, err := combatlog.WrittenSince(dir, time.Time{})
 	if err != nil {
 		return 0, 0, err
 	}
@@ -153,35 +168,81 @@ func (s *Site) Learn(all bool) (read, saved int, err error) {
 	if !all {
 		before = readLearned(path)
 	}
-	now := learned{ReaderVersion: readerVersion}
+	type source struct { // a log in the folder (entry set) or an archived one, read in the order they were written
+		path    string
+		modTime int64
+		each    func(string, func(models.LogLine)) error
+		entry   *learnedLog
+	}
+	var sources []source
 	for _, logPath := range logs {
-		info, err := os.Stat(logPath)
+		entry, err := logEntry(logPath)
 		if err != nil {
-			return read, 0, fmt.Errorf("reading %s: %w", logPath, err)
+			return 0, 0, err
 		}
-		file := learnedLog{File: filepath.Base(logPath), Size: info.Size(), ModTime: info.ModTime().UnixMilli()}
-		if before.ReaderVersion != readerVersion || !slices.Contains(before.Logs, file) {
-			if err := combatlog.EachLine(logPath, keys.Add); err != nil {
-				return read, 0, err
-			}
-			if _, err := keys.SaveFinished(); err != nil {
+		sources = append(sources, source{logPath, entry.ModTime, combatlog.EachLineIn, &entry})
+	}
+	if before.ReaderVersion != readerVersion { // a new reader (or all): the archived logs too
+		zips, err := combatlog.Archived(dir)
+		if err != nil {
+			return 0, 0, err
+		}
+		for _, z := range zips {
+			sources = append(sources, source{z.Path, z.Written.UnixMilli(), combatlog.EachZippedLine, nil})
+		}
+		slices.SortStableFunc(sources, func(a, b source) int { return cmp.Compare(a.modTime, b.modTime) })
+	}
+	now := learned{ReaderVersion: readerVersion}
+	for _, src := range sources {
+		if src.entry == nil || !before.has(*src.entry) {
+			if err := s.readInto(keys, src.path, src.each); err != nil {
 				return read, 0, err
 			}
 			read++
-			log.Printf("read %s", file.File)
 		}
-		now.Logs = append(now.Logs, file)
-		if err := cachefile.WriteJSON(path, now); err != nil {
-			return read, 0, err
+		if src.entry != nil {
+			now.Logs = append(now.Logs, *src.entry)
+			if err := cachefile.WriteJSON(path, now); err != nil { // after each, so a stopped read goes on from there
+				return read, 0, err
+			}
 		}
+	}
+	if err := cachefile.WriteJSON(path, now); err != nil {
+		return read, 0, err
 	}
 	if err := s.Keys.Reload(); err != nil {
 		return read, 0, err
 	}
 	s.Changes.Publish(s.Keys.Version())
 	saved = len(s.Keys.Saved())
-	log.Printf("%d of %d logs read, %d keys saved", read, len(logs), saved)
+	log.Printf("%d logs read, %d keys saved", read, saved)
 	return read, saved, nil
+}
+
+// readInto reads one log (each reads it, a log or a zip) into keys and saves what ended in it.
+func (s *Site) readInto(keys *service.LogTracker, path string, each func(string, func(models.LogLine)) error) error {
+	if err := each(path, keys.Add); err != nil {
+		return err
+	}
+	if _, err := keys.SaveFinished(); err != nil {
+		return err
+	}
+	log.Printf("read %s", filepath.Base(path))
+	return nil
+}
+
+// has is whether l's reader is this one and it read f, unchanged since.
+func (l learned) has(f learnedLog) bool {
+	return l.ReaderVersion == readerVersion && slices.Contains(l.Logs, f)
+}
+
+// logEntry is the log at path as learned.json keeps it.
+func logEntry(path string) (learnedLog, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return learnedLog{}, fmt.Errorf("reading %s: %w", path, err)
+	}
+	return learnedLog{File: info.Name(), Size: info.Size(), ModTime: info.ModTime().UnixMilli()}, nil
 }
 
 // readLearned is the learned.json at path; a missing, unreadable or odd one is nothing learned, so every log is read.

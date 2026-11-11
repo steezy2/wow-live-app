@@ -58,6 +58,7 @@ type LogTracker struct {
 	affixes      map[int]string
 	rules        models.MPlusRules
 	kinds        map[string]string
+	everyday     map[string]consumable // flask and food, the consumables every key and pull asks for (read-only)
 	store        models.KeyStore
 	facts        map[int]models.DungeonFacts // by map ID, from reference/mplus-dungeons.json
 	spells       map[int]string              // spell ID -> name, from every line seen
@@ -82,6 +83,7 @@ type LogTracker struct {
 	raid         *raidSetup         // nil until EnableRaid: raid pulls aren't read
 	pulls        []models.RaidPull  // finished raid pulls, newest first
 	unsavedPulls []savedPull
+	renames      int // goes up whenever a player GUID's name changes, so keepPull marks the new name
 }
 
 // keyRun is the running key and what it takes to show it.
@@ -120,6 +122,7 @@ type keyRun struct {
 	pullFrom  int64
 	pullAt    int64 // the pull's start on the key's clock
 	pullLast  int64
+	marked    markedSpan           // the seconds keepPull already marked in fighting
 	facts     *models.DungeonFacts // nil when the reference file doesn't have the dungeon
 	total     map[string]*models.KeyMeterRow
 	inPull    map[string]*models.KeyMeterRow
@@ -147,9 +150,10 @@ func NewLogTracker(timers map[int]int64, affixes map[int]string, rules models.MP
 			kinds[name] = kind
 		}
 	}
+	c := rules.Consumables
 	return &LogTracker{timers: timers, affixes: affixes, rules: rules, kinds: kinds, facts: facts, store: store,
-		history: history,
-		spells:  map[int]string{}, schools: map[string]int{"Melee": physicalSchool}, specs: map[string]int{},
+		history: history, everyday: map[string]consumable{"flask": {patterns: c.Flask}, "food": {patterns: c.Food}},
+		spells: map[int]string{}, schools: map[string]int{"Melee": physicalSchool}, specs: map[string]int{},
 		owners: map[string]string{}, names: map[string]string{},
 		up: map[[2]string]int64{}, top: map[[2]int][]int64{}, asked: map[[2]int]bool{}}, nil
 }
@@ -343,7 +347,10 @@ func (k *LogTracker) learn(at int64, event string, f []string) {
 	}
 	for _, i := range []int{0, 4} {
 		if strings.HasPrefix(f[i], "Player-") && f[i+1] != "nil" {
-			k.names[f[i]], _ = splitName(f[i+1])
+			if name, _ := splitName(f[i+1]); k.names[f[i]] != name {
+				k.names[f[i]] = name
+				k.renames++
+			}
 			if hasFlag(f[i+2], mineFlag) {
 				k.logger = f[i]
 			}
@@ -733,15 +740,30 @@ func (k *LogTracker) player(guid, flags string) string {
 	return ""
 }
 
-// keepPull starts a new pull when fighting resumes after pullGapMS, else extends the current one.
+// markedSpan is the seconds from..to that keepPull marked for every party member alive, while the party had this
+// many members and the names this many renames: with the same party and names, and no one back up (a new pull), they
+// need no marking again.
+type markedSpan struct {
+	from, to       int64
+	party, renames int
+}
+
+// keepPull starts a new pull when fighting resumes after pullGapMS, else extends the current one: every party
+// member alive fought each second from the last fighting to at.
 func (k *LogTracker) keepPull(at int64) {
 	run := k.current
 	if run.pullLast == 0 || at-run.pullLast > pullGapMS {
 		k.newPull(at)
 	}
-	for _, guid := range run.party {
-		if name := k.names[guid]; !run.down[name] {
-			for s := run.pullLast / 1000; s <= at/1000; s++ {
+	from, to, m := run.pullLast/1000, at/1000, &run.marked
+	if m.party == len(run.party) && m.renames == k.renames && m.from <= from && from <= m.to+1 {
+		from, m.to = m.to+1, max(m.to, to)
+	} else if from <= to {
+		*m = markedSpan{from: from, to: to, party: len(run.party), renames: k.renames}
+	}
+	for s := from; s <= to; s++ {
+		for _, guid := range run.party {
+			if name := k.names[guid]; !run.down[name] {
 				mark(run.fighting, name, s)
 			}
 		}
@@ -759,6 +781,7 @@ func (k *LogTracker) newPull(at int64) {
 	run.pull++
 	run.pullFrom, run.pullLast, run.pullAt, run.inPull = at, at, k.clockAt(at), map[string]*models.KeyMeterRow{}
 	run.down = map[string]bool{} // a member who died is back by the next pull (a release, or a battle rez)
+	run.marked = markedSpan{party: -1}
 	run.track.Pulls = append(run.track.Pulls, models.PullSpan{StartMS: run.pullAt})
 }
 

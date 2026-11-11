@@ -116,7 +116,7 @@ func (c *Client) fetchToken(ctx context.Context) (string, error) {
 	var body struct {
 		AccessToken string `json:"access_token"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, cachefile.MaxDownload)).Decode(&body); err != nil {
 		return "", fmt.Errorf("reading the Warcraft Logs token: %w", err)
 	}
 	if body.AccessToken == "" {
@@ -191,9 +191,9 @@ func (c *Client) post(ctx context.Context, body []byte) ([]byte, bool, error) {
 		return nil, false, fmt.Errorf("querying Warcraft Logs: %w", err)
 	}
 	defer resp.Body.Close()
-	data, err := io.ReadAll(resp.Body)
+	data, err := cachefile.ReadBody(resp.Body)
 	if err != nil {
-		return nil, true, fmt.Errorf("reading the Warcraft Logs response: %w", err)
+		return nil, !errors.Is(err, cachefile.ErrTooBig), fmt.Errorf("reading the Warcraft Logs response: %w", err)
 	}
 	switch {
 	case resp.StatusCode == http.StatusTooManyRequests:

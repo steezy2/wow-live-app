@@ -180,15 +180,15 @@ type consumable struct {
 }
 
 // consumables are the buffs everyone should have by kind ("flask", "food", and in a raid of a difficulty its rune
-// works in, "Vantus Rune"); difficulty is empty in a dungeon.
+// works in, "Vantus Rune"); difficulty is empty in a dungeon. Callers only read it: it can be the tracker's own map.
 func (k *LogTracker) consumables(difficulty string) map[string]consumable {
-	c := k.rules.Consumables
-	kinds := map[string]consumable{"flask": {patterns: c.Flask}, "food": {patterns: c.Food}}
+	kinds := k.everyday
 	if difficulty == "" {
 		return kinds
 	}
 	if v := k.raid.rules.Consumables; len(v.Vantus)+len(v.VantusIDs) > 0 &&
 		slices.Contains(v.VantusDifficulties, difficulty) {
+		kinds = maps.Clone(kinds)
 		kinds["Vantus Rune"] = consumable{patterns: v.Vantus, ids: v.VantusIDs}
 	}
 	return kinds

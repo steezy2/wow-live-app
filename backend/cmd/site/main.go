@@ -80,7 +80,7 @@ func run(port int, replay string, key int, speed float64, learn bool, region str
 	if _, err := os.Stat(filepath.Join(pages, "index.html")); err != nil {
 		log.Printf("no built page in %s: run npm run build in frontend/ (the API still works)", pages)
 	}
-	opts := app.Options{Cache: config.CachePath(root), DelayLog: config.DelayLogPath(root), LogsDir: config.LogsDir(),
+	opts := app.Options{Cache: config.CachePath(root), DelayLog: config.DelayLogPath(root), LogsDir: config.LogsDir,
 		Region: region, Rules: rules, Dungeons: ref.Dungeons, RaidRules: raidRules, Bosses: raid.Bosses,
 		Tier: raid.Tier, Pages: os.DirFS(pages),
 		Hosts: controller.LocalHosts(port), Now: clock.Now}
@@ -98,7 +98,7 @@ func run(port int, replay string, key int, speed float64, learn bool, region str
 		return err
 	}
 	if replay == "" {
-		go site.Follow(ctx, opts.LogsDir)
+		go site.Follow(ctx, opts.LogsDir())
 	} else {
 		go func() {
 			if err := replayKey(ctx, site, clock, replay, key); err != nil {

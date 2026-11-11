@@ -11,6 +11,7 @@ import {
 import { type Note, track } from './note'
 import { NoteLine } from './NoteLine'
 import { useOverlayMoving } from './useLiveKey'
+import { CombatLogs } from './CombatLogs'
 import { WCLKeys } from './WCLKeys'
 
 /** What each of the app's overlay choices is called. */
@@ -24,8 +25,8 @@ const SHOW_LABELS: Record<OverlaySettings['show'], string> = {
 const OVERLAY_SAVE_MS = 300
 
 /** The desktop app's settings in four sections: the game (combat log folder, with when the game last wrote a log
- * there, and region), the overlay (saved as it changes), the Warcraft Logs keys, and reading old logs. Shown first
- * when the log folder isn't found. */
+ * there, and region), the overlay (saved as it changes), the Warcraft Logs keys, and reading and archiving old
+ * logs. Shown first when the log folder isn't found. */
 export function SettingsPage({ view, onSaved }: { view: SettingsView; onSaved: (view: SettingsView) => void }) {
   const [logsDir, setLogsDir] = useState(view.logsDir)
   const [region, setRegion] = useState(view.region)
@@ -33,6 +34,7 @@ export function SettingsPage({ view, onSaved }: { view: SettingsView; onSaved: (
   const [game, setGame] = useState<Note>(null)
   const [overlayNote, setOverlayNote] = useState<Note>(null)
   const [oldKeys, setOldKeys] = useState<Note>(null)
+  const [logsRead, setLogsRead] = useState(0) // remounts the log list after a read, which marks logs read
   const moving = useOverlayMoving()
   useEffect(() => {
     if (
@@ -58,7 +60,7 @@ export function SettingsPage({ view, onSaved }: { view: SettingsView; onSaved: (
       setOldKeys,
       'Reading the log folder…',
       ({ read, saved }) => `${read} logs read · ${saved} keys saved`,
-    ).catch(() => undefined)
+    ).then(() => setLogsRead((n) => n + 1), () => undefined)
   const minutes = view.lastLogMS ? Math.round((Date.now() - view.lastLogMS) / 60_000) : null
   return (
     <div className="settings-page">
@@ -157,6 +159,12 @@ export function SettingsPage({ view, onSaved }: { view: SettingsView; onSaved: (
           </button>
         </div>
         <NoteLine note={oldKeys} />
+        <h3>Combat logs</h3>
+        <p className="muted">
+          Archiving zips a log into the log folder's WoW Live archive folder: it stops loading, takes about a tenth of
+          the space, and Read everything again still reads it. Delete removes archived logs for good.
+        </p>
+        <CombatLogs key={`${view.logsDir}|${logsRead}`} />
       </section>
     </div>
   )

@@ -88,13 +88,11 @@ func run() error {
 	}
 	opts.Cache, opts.DelayLog, opts.Baselines, opts.Now = logs.CacheDir, filepath.Join(data, "live-delay.log"), logs,
 		time.Now
-	var site *app.Site
-	opts.Settings = &controller.SettingsAPI{Settings: settings, Keys: keys,
-		ReadOldKeys: func(all bool) (int, int, error) { return site.Learn(all) }}
-	opts.LogsDir, opts.Region, opts.Hosts = settings.Current().LogsDir, settings.Current().Region,
-		[]string{"wails.localhost"}
+	opts.Settings = &controller.SettingsAPI{Settings: settings, Keys: keys}
+	opts.LogsDir = func() string { return settings.Current().LogsDir }
+	opts.Region, opts.Hosts = settings.Current().Region, []string{"wails.localhost"}
 	ctx := context.Background()
-	site, err = app.Start(ctx, opts)
+	site, err := app.Start(ctx, opts)
 	if err != nil {
 		return err
 	}
@@ -182,7 +180,8 @@ func run() error {
 			Width: overlayW, Height: overlayH})
 	}
 	wails.Event.On("overlay-reset", func(*application.CustomEvent) { defaultPlace() })
-	following, stopFollowing := opts.LogsDir, follow(ctx, site, opts.LogsDir)
+	following := filepath.Clean(opts.LogsDir()) // Settings saves the folder cleaned: compare like with like
+	stopFollowing := follow(ctx, site, following)
 	settings.OnSave = func(next models.Settings) {
 		wails.Event.Emit("settings", next)
 		showOrHide(next.Overlay.Show)

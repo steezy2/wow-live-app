@@ -26,6 +26,8 @@ func Router(mplus MPlus, raid *Raid, settings *SettingsAPI, pages fs.FS, hosts .
 	r := gin.New()
 	r.Use(gin.Recovery())
 	r.Use(func(c *gin.Context) {
+		c.Header("X-Content-Type-Options", "nosniff")
+		c.Header("Referrer-Policy", "no-referrer")
 		if !slices.Contains(hosts, c.Request.Host) {
 			c.AbortWithStatusJSON(http.StatusMisdirectedRequest, ErrorResponse{Error: "use http://localhost"})
 			return
@@ -63,6 +65,9 @@ func Router(mplus MPlus, raid *Raid, settings *SettingsAPI, pages fs.FS, hosts .
 		api.POST("/settings/warcraftlogs/test", settings.TestKeys)
 		api.DELETE("/settings/warcraftlogs", settings.RemoveKeys)
 		api.POST("/settings/read-keys", settings.ReadKeys)
+		api.GET("/settings/logs", settings.LogFiles)
+		api.POST("/settings/logs/archive", settings.ArchiveLogs)
+		api.DELETE("/settings/logs/archive", settings.DeleteArchivedLogs)
 	}
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	r.NoRoute(func(c *gin.Context) {
@@ -74,10 +79,17 @@ func Router(mplus MPlus, raid *Raid, settings *SettingsAPI, pages fs.FS, hosts .
 		if info, err := fs.Stat(pages, name); err != nil || info.IsDir() {
 			name = "index.html"
 		}
+		c.Header("Content-Security-Policy", pagePolicy)
 		http.ServeFileFS(c.Writer, c.Request, pages, name)
 	})
 	return r
 }
+
+// pagePolicy is the built page's Content-Security-Policy: its own scripts, styles (React sets inline style
+// attributes), images (map tiles; canvas exports as data: and blob:) and API only, and no framing. Swagger UI, which
+// runs inline scripts, doesn't get it.
+const pagePolicy = "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; " +
+	"connect-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'"
 
 // LocalHosts are the names a page on this PC reaches port by.
 func LocalHosts(port int) []string {

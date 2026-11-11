@@ -371,6 +371,12 @@ async function call(path: string, init?: RequestInit): Promise<Response> {
   return response
 }
 
+/** Sends body as JSON with method and reads the JSON answer. */
+async function sendJSON<T>(path: string, method: string, body: unknown): Promise<T> {
+  const init = { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
+  return (await (await call(path, init)).json()) as T
+}
+
 /** The site's own error message for a failed answer, or its status. */
 async function failure(response: Response): Promise<Error> {
   const body = (await response.json().catch(() => null)) as { error?: string } | null
@@ -560,12 +566,7 @@ export async function fetchSettings(signal?: AbortSignal): Promise<SettingsView 
 
 /** Saves the settings; the app reads the new log folder and changes the overlay right away. */
 export async function saveSettings(settings: Settings): Promise<SettingsView> {
-  const init = {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(settings),
-  }
-  return (await (await call('/api/settings', init)).json()) as SettingsView
+  return sendJSON('/api/settings', 'PUT', settings)
 }
 
 /** What the app shows about the saved Warcraft Logs keys (never the secret) and their last test. */
@@ -585,12 +586,7 @@ export async function fetchKeyStatus(signal?: AbortSignal): Promise<KeyStatus> {
 
 /** Tests and saves a Warcraft Logs client ID and secret; with force, saves them even when the test fails. */
 export async function saveKeys(id: string, secret: string, force: boolean): Promise<KeyStatus> {
-  const init = {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id, secret }),
-  }
-  return (await (await call(`/api/settings/warcraftlogs${force ? '?force=true' : ''}`, init)).json()) as KeyStatus
+  return sendJSON(`/api/settings/warcraftlogs${force ? '?force=true' : ''}`, 'PUT', { id, secret })
 }
 
 export async function testKeys(): Promise<KeyStatus> {
@@ -611,6 +607,38 @@ export interface OldKeys {
 export async function readOldKeys(all = false): Promise<OldKeys> {
   return (await (await call(`/api/settings/read-keys${all ? '?all=true' : ''}`, { method: 'POST' })).json()) as OldKeys
 }
+/** A combat log in the game's log folder, or one archived as a zip in its WoW Live archive folder (models.LogFile). */
+export interface LogFile {
+  name: string
+  bytes: number
+  writtenMS: number
+  keys: number
+  pulls: number
+  /** Read by the current reader, so archiving it loses nothing. */
+  read: boolean
+  archived: boolean
+  /** The game may still write it: it can't be archived. */
+  active: boolean
+  /** Ticked at first: old, read and not active. */
+  suggested: boolean
+  /** Why the last archive or delete of it failed. */
+  error?: string
+}
+
+export async function fetchLogFiles(signal?: AbortSignal): Promise<LogFile[]> {
+  return (await (await call('/api/settings/logs', { signal })).json()) as LogFile[]
+}
+
+/** Zips the named logs into the archive folder (reading any not read yet first); answers the new list. */
+export async function archiveLogs(names: string[]): Promise<LogFile[]> {
+  return sendJSON('/api/settings/logs/archive', 'POST', { names })
+}
+
+/** Deletes the named archived logs for good; answers the new list. */
+export async function deleteArchivedLogs(names: string[]): Promise<LogFile[]> {
+  return sendJSON('/api/settings/logs/archive', 'DELETE', { names })
+}
+
 
 /** A raid pull in a list (models.RaidPullSummary): when, which boss, its number tonight, and how far it got (bossPct
  * -1 without advanced logging; phase "" for a boss without phase triggers). */

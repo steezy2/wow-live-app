@@ -188,22 +188,28 @@ export function topMeter(meter: KeyMeter, by: 'dps' | 'hps', n: number): KeyMete
 /** A boss unit not seen for this long (gone, or submerged) isn't drawn. */
 export const BOSS_GONE_MS = 5_000
 
+/** The index of the first point after a clock reading (points.length if none); points are in time order. */
+export function indexAfter(points: TrackPoint[], now: number): number {
+  let [lo, hi] = [0, points.length]
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1
+    if (points[mid].t > now) hi = mid
+    else lo = mid + 1
+  }
+  return lo
+}
+
 /** A player's last position at or before a clock reading. */
 export function lastAt(points: TrackPoint[], now: number): TrackPoint | undefined {
-  let last: TrackPoint | undefined
-  for (const p of points) {
-    if (p.t > now) break
-    last = p
-  }
-  return last
+  return points[indexAfter(points, now) - 1]
 }
 
 /** Where a unit was at a clock reading: between its points around it, as if it walked straight, unless they're on
  * different maps, far apart in time (TRACK_GAP_MS) or a jump; else its last point. */
 export function positionAt(points: TrackPoint[], now: number): TrackPoint | undefined {
-  const i = points.findIndex((p) => p.t > now)
-  const last = i < 0 ? points[points.length - 1] : points[i - 1]
-  const next = i < 0 ? undefined : points[i]
+  const i = indexAfter(points, now)
+  const last = points[i - 1]
+  const next = points[i]
   if (!last || !next || next.map !== last.map || next.t - last.t > TRACK_GAP_MS) return last
   const seconds = Math.max(1, next.t - last.t) / 1000
   if (Math.hypot(next.x - last.x, next.y - last.y) / seconds > JUMP_YARDS_PER_S) return last
@@ -217,6 +223,28 @@ export interface AbilitiesUpTo {
   abilities: KeyAbility[]
   taken: NonNullable<RaidPull['taken']>
   targets?: NonNullable<RaidPull['targets']>
+}
+
+type Schools = Map<string, number | undefined>
+const schoolCache = new WeakMap<object, { dealt: Schools; taken: Schools }>()
+
+/** A pull's schools by `player|ability`, from its abilities and from what its players took (the first of each wins);
+ * built once per pull. */
+function schoolsOf(pull: Pick<RaidPull, 'abilities' | 'taken'>) {
+  let schools = schoolCache.get(pull)
+  if (!schools) {
+    const index = (rows: { player: string; ability: string; school?: number }[] | undefined) => {
+      const map: Schools = new Map()
+      for (const r of rows ?? []) {
+        const key = `${r.player}|${r.ability}`
+        if (!map.has(key)) map.set(key, r.school)
+      }
+      return map
+    }
+    schools = { dealt: index(pull.abilities), taken: index(pull.taken) }
+    schoolCache.set(pull, schools)
+  }
+  return schools
 }
 
 /** A raider's pull up to a clock reading, from a raid pull's track: their abilities' damage and healing, what they
@@ -251,9 +279,9 @@ export function abilitiesUpTo(
   for (const c of track.casts?.[player] ?? []) {
     if (!c.x && (c.e ?? c.t) <= now) casts.set(c.s, (casts.get(c.s) ?? 0) + 1)
   }
+  const schools = schoolsOf(pull)
   const school = (ability: string) =>
-    (pull.abilities ?? []).find((a) => a.player === player && a.ability === ability)?.school ??
-    (pull.taken ?? []).find((h) => h.player === player && h.ability === ability)?.school
+    schools.dealt.get(`${player}|${ability}`) ?? schools.taken.get(`${player}|${ability}`)
   const sums = new Map<string, [number, number, number]>([...casts.keys()].map((a) => [a, [0, 0, 0]]))
   for (const s of series) {
     const [d, h, t] = sumUp(s.p)
