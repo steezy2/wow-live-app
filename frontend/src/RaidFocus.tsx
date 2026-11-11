@@ -4,7 +4,7 @@ import { classColors } from './classColors'
 import { amount, clock, coverText, seconds } from './format'
 import { AbilityBars, AbilityTabs } from './PlayerFocus'
 import { At, NoAbilities } from './RaidCards'
-import { meterBetween } from './replay'
+import { abilitiesUpTo, meterBetween } from './replay'
 
 /** Something that happened to a raider, or that they did, at a time in the pull. */
 interface FocusEvent {
@@ -41,7 +41,7 @@ function eventsOf(pull: RaidPull, player: string): FocusEvent[] {
       })),
     ...pull.cooldowns
       .filter((c) => c.player === player)
-      .map((c) => ({ clockMS: c.clockMS, text: `Used ${c.ability}`, bad: false })),
+      .map((c) => ({ clockMS: c.clockMS, text: `${c.prepot ? 'Pre-pot' : 'Used'} ${c.ability}`, bad: false })),
   ].sort((a, b) => a.clockMS - b.clockMS)
 }
 
@@ -61,7 +61,8 @@ export function RaidFocus(props: {
   const sofar = meterBetween(track, 0, now).rows.find((r) => r.player === player)
   const whole = pull.meter.rows.find((r) => r.player === player)
   const events = eventsOf(pull, player)
-  const views = abilityViews(player, pull.abilities ?? [], pull.taken ?? [])
+  const upTo = now > 0 ? abilitiesUpTo(track, pull, player, now) : undefined // at 0:00, before playing: the whole pull
+  const views = abilityViews(player, upTo?.abilities ?? pull.abilities ?? [], upTo?.taken ?? pull.taken ?? [])
   return (
     <div
       className="card focus raid-focus"
@@ -90,6 +91,11 @@ export function RaidFocus(props: {
             </li>
           ))}
         </ul>
+      )}
+      {pull.abilities && (
+        <p className="muted small">
+          {upTo ? `Up to ${clock(now)}; targets over the whole pull` : 'Over the whole pull'}
+        </p>
       )}
       {pull.abilities ? (
         <AbilityTabs

@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
 	"strconv"
 	"strings"
@@ -32,6 +33,8 @@ const (
 	bossShare = 0.5
 	// shownAdds and shownDispels: at most this many kinds of add and slowest dispels are shown.
 	shownAdds, shownDispels = 5, 5
+	// breakDeathMS: a tether aura coming off a raider this close to their death went with them, it wasn't broken.
+	breakDeathMS = 1_000
 )
 
 // raidSetup is what raid pulls are read with: the raid rules, each boss's mechanics, the store of finished pulls,
@@ -48,7 +51,8 @@ type raidSetup struct {
 }
 
 // raidRun is what a raid pull adds to its run: the difficulty, the boss's mechanics and phases, the hostile units
-// seen, each death's last hits, and the mechanics' tallies.
+// seen, each death's last hits, and the mechanics' tallies: soaks, stacks, pickups, tethers broken and the last
+// landing of each spell that spawns adds.
 type raidRun struct {
 	difficulty string
 	boss       models.RaidBoss
@@ -62,15 +66,46 @@ type raidRun struct {
 	cooldowns  []models.KeyCast           // raid cooldowns used
 	lustEnds   map[int64]int64            // when a Bloodlust landed -> when it last left a raider, on the pull's clock
 	marks      map[lane][]models.RaidMark // the timeline marks only seen as they happen (lanes adds the rest)
+	pickups    []pickupAt
+	breaks     []breakAt
+	causes     map[int]*causeAt // spawn cause spell ID -> its last landing
+	// For the replay: when the ability totals were last kept and what they were then, and each raider's cast going
+	// (GUID -> its index in their track casts).
+	abilitiesAt   int64
+	abilitiesWere map[[2]string]models.KeyAbility
+	takenWere     map[[2]string]int64
+	casting       map[string]int
+}
+
+// pickupAt is a raider picking something up (taking on a pickup rule's aura).
+type pickupAt struct {
+	at           int64
+	name, player string
+}
+
+// breakAt is a raider breaking a tether, and how many raiders the effect it set off hit.
+type breakAt struct {
+	at     int64
+	rule   models.RaidBreakRule
+	player string
+	hit    int
+}
+
+// causeAt is the last landing of a spell that spawns adds: when it first and last landed, and the raiders it landed
+// on (none for an enemy's cast).
+type causeAt struct {
+	first, at int64
+	players   []string
 }
 
 // raidUnit is a hostile creature in a pull: its name, health (from advanced logging), when it was first seen and
-// died (0 while up), and whether a raider hit it.
+// died (0 while up), whether a raider hit it, and for an add the reference says how it spawns, what spawned it.
 type raidUnit struct {
 	hit        bool
 	name       string
 	hp, maxHP  int64
 	seen, died int64
+	spawn      *models.RaidSpawn
 }
 
 // soakTally is one soak spell's casts: when the last hit came, and when each cast first hit and who it hit.
@@ -126,7 +161,11 @@ func (k *LogTracker) startPull(line models.LogLine) {
 		MustStop: boss.MustStop}
 	run.raid = &raidRun{difficulty: raidDifficulties[f[2]], boss: boss, phases: k.raid.rules.Phases[f[1]],
 		units: map[string]*raidUnit{}, soaks: map[int]*soakTally{}, stacks: map[int]map[string]int{},
-		priority: map[string]int64{}, lustEnds: map[int64]int64{}, marks: map[lane][]models.RaidMark{}}
+		priority: map[string]int64{}, lustEnds: map[int64]int64{}, marks: map[lane][]models.RaidMark{},
+		causes: map[int]*causeAt{}, abilitiesWere: map[[2]string]models.KeyAbility{},
+		takenWere: map[[2]string]int64{},
+		casting:   map[string]int{}}
+	run.track.Casts, run.track.Abilities = map[string][]models.TrackCast{}, map[string][]models.AbilitySeries{}
 	if len(run.raid.phases) > 0 {
 		run.raid.phase = "P1"
 	}
@@ -171,6 +210,13 @@ func (k *LogTracker) raidLine(line models.LogLine) bool {
 	if slices.Contains(run.party, f[4]) {
 		victim = k.names[f[4]]
 	}
+	window := k.raid.rules.Soaks.WindowMS
+	if line.Event == "SPELL_CAST_START" || line.Event == "SPELL_CAST_SUCCESS" || line.Event == "SPELL_CAST_FAILED" {
+		if len(f) > 8 && hasFlag(f[2], hostileFlag) {
+			r.cause(atoi(f[8]), at, "", window)
+		}
+		k.trackCast(at, line.Event, f)
+	}
 	switch line.Event {
 	case "SPELL_DAMAGE", "SPELL_PERIODIC_DAMAGE", "RANGE_DAMAGE", "SWING_DAMAGE", "SPELL_MISSED":
 		k.raidHit(at, line.Event, f, victim)
@@ -190,6 +236,9 @@ func (k *LogTracker) raidLine(line models.LogLine) bool {
 			}
 			r.stacks[id][victim] = max(r.stacks[id][victim], n)
 		}
+		if line.Event == "SPELL_AURA_APPLIED" && victim != "" {
+			r.auraOn(id, at, victim, window)
+		}
 	case "SPELL_CAST_SUCCESS":
 		if who := k.player(f[0], f[2]); who != "" && len(f) > 9 && k.raid.cooldowns[f[9]] &&
 			!slices.ContainsFunc(r.cooldowns, func(c models.KeyCast) bool {
@@ -201,9 +250,66 @@ func (k *LogTracker) raidLine(line models.LogLine) bool {
 	case "SPELL_AURA_REMOVED":
 		if victim != "" && len(f) > 9 {
 			k.buffLeft(run.clock(at), k.player(f[0], f[2]), f[9])
+			for _, b := range r.boss.Breaks {
+				if b.Aura == atoi(f[8]) {
+					r.breaks = append(r.breaks, breakAt{at: at, rule: b, player: victim})
+				}
+			}
 		}
 	}
 	return false
+}
+
+// auraOn notes an aura landing on a raider: a pickup, the effect of the last tether broken, or a spawn cause.
+func (r *raidRun) auraOn(id int, at int64, victim string, window int64) {
+	for _, p := range r.boss.Pickups {
+		if p.Aura == id && (len(p.Difficulties) == 0 || slices.Contains(p.Difficulties, r.difficulty)) {
+			r.pickups = append(r.pickups, pickupAt{at: at, name: p.Name, player: victim})
+		}
+	}
+	for i := len(r.breaks) - 1; i >= 0; i-- {
+		if b := &r.breaks[i]; b.rule.Effect == id && at-b.at <= b.rule.WithinMS {
+			b.hit++
+			break
+		}
+	}
+	r.cause(id, at, victim, window)
+}
+
+// cause notes a spell that spawns adds landing at at, on player ("" for an enemy's cast): within window ms of its
+// first landing it's the same one (a wave hitting raiders for seconds doesn't gather the whole raid).
+func (r *raidRun) cause(id int, at int64, player string, window int64) {
+	if !slices.ContainsFunc(r.boss.Spawns, func(s models.RaidSpawnRule) bool { return s.Cause == id }) {
+		return
+	}
+	c := r.causes[id]
+	if c == nil || at-c.first > window {
+		c = &causeAt{first: at}
+		r.causes[id] = c
+	}
+	c.at = at
+	if player != "" && !slices.Contains(c.players, player) {
+		c.players = append(c.players, player)
+	}
+}
+
+// spawnOf is an add of a name appearing at at (clockMS on the pull's clock): the latest landing of a cause the
+// reference gives for it within its rule's time, named by spells; nil for an add the reference says nothing about.
+func (r *raidRun) spawnOf(name string, at, clockMS int64, spells map[int]string) *models.RaidSpawn {
+	var seen *models.RaidSpawn
+	var when int64
+	for _, rule := range r.boss.Spawns {
+		if rule.Add != name {
+			continue
+		}
+		if seen == nil {
+			seen = &models.RaidSpawn{ClockMS: clockMS, Players: []string{}}
+		}
+		if c := r.causes[rule.Cause]; c != nil && at-c.at <= rule.WithinMS && c.at >= when {
+			seen.Cause, seen.Players, when = spells[rule.Cause], slices.Clone(c.players), c.at
+		}
+	}
+	return seen
 }
 
 // buffLeft notes a buff leaving a raider at a time on the pull's clock: the last Bloodlust lasted until then, and so
@@ -226,7 +332,8 @@ func (k *LogTracker) buffLeft(clockMS int64, caster, buff string) {
 		}
 	case k.kinds[buff] == "combat potion" && caster != "" &&
 		!slices.ContainsFunc(run.key.Casts, func(c models.KeyCast) bool { return c.Player == caster && c.Ability == buff }):
-		run.key.Casts = append(run.key.Casts, models.KeyCast{Player: caster, Ability: buff, Kind: "combat potion"})
+		run.key.Casts = append(run.key.Casts, models.KeyCast{Player: caster, Ability: buff, Kind: "combat potion",
+			Prepot: true})
 	}
 }
 
@@ -239,7 +346,8 @@ func (k *LogTracker) raidUnits(at int64, event string, f []string) {
 		guid := f[i]
 		if (strings.HasPrefix(guid, "Creature-") || strings.HasPrefix(guid, "Vehicle-")) && hasFlag(f[i+2], hostileFlag) &&
 			r.units[guid] == nil {
-			r.units[guid] = &raidUnit{name: f[i+1], seen: at}
+			r.units[guid] = &raidUnit{name: f[i+1], seen: at,
+				spawn: r.spawnOf(f[i+1], at, k.current.clock(at), k.spells)}
 		}
 	}
 	if i := advancedAt(event); i > 0 && len(f) > i+3 {
@@ -263,6 +371,9 @@ func (k *LogTracker) raidHit(at int64, event string, f []string, victim string) 
 		case slices.Contains(r.boss.Avoidable, id):
 			r.mark("avoidable", f[9], models.RaidMark{ClockMS: k.current.clock(at), Text: victim, Bad: true})
 		}
+	}
+	if victim != "" {
+		r.cause(atoi(f[8]), at, victim, k.raid.rules.Soaks.WindowMS)
 	}
 	if k.player(f[0], f[2]) == "" {
 		return
@@ -312,12 +423,19 @@ func (k *LogTracker) finishPull(kill bool) {
 		run.key.Status = "kill"
 	}
 	endPull(run)
+	run.raid.abilitiesAt = 0 // the last stretch, however short
+	k.sampleAbilities(at)
 	pull := k.raidPull(run, k.details(run, at), at, kill)
 	k.current = nil
 	if !fought(pull) {
 		return
 	}
 	addKit(k.raid.kit, LearnKit(run.casts))
+	died := map[string]bool{}
+	for _, guid := range run.party {
+		died[guid] = slices.ContainsFunc(run.key.Deaths, func(d models.KeyDeath) bool { return d.Player == k.names[guid] })
+	}
+	k.seedReady(run.auras, died)
 	if i := slices.IndexFunc(k.pulls, func(p models.RaidPull) bool { return p.Start == pull.Start }); i >= 0 {
 		k.pulls[i] = pull
 	} else {
@@ -361,9 +479,12 @@ func (k *LogTracker) raidPull(run *keyRun, key models.Key, at int64, kill bool) 
 	slices.SortFunc(p.Stacks, func(a, b models.RaidStacks) int { return cmp.Compare(a.Ability, b.Ability) })
 	p.Soaks = []models.RaidSoak{}
 	for id, t := range r.soaks {
-		soak := models.RaidSoak{Ability: k.spells[id], Casts: len(t.casts), Fewest: len(t.casts[0]), Died: []string{}}
-		for _, c := range t.casts {
+		soak := models.RaidSoak{Ability: k.spells[id], Casts: len(t.casts), Fewest: len(t.casts[0]),
+			Needed: r.boss.Soakers[id], Died: []string{}}
+		for i, c := range t.casts {
 			soak.Fewest, soak.Most = min(soak.Fewest, len(c)), max(soak.Most, len(c))
+			soak.Hits = append(soak.Hits, models.RaidSoakCast{ClockMS: run.clock(t.at[i]),
+				Players: slices.Sorted(maps.Keys(c))})
 		}
 		for _, d := range key.Deaths {
 			if d.Ability == soak.Ability {
@@ -381,6 +502,19 @@ func (k *LogTracker) raidPull(run *keyRun, key models.Key, at int64, kill bool) 
 		}
 	}
 	p.Adds = r.adds(at)
+	p.Pickups, p.Breaks = r.pickupWaves(run.clock, rules.Soaks.WindowMS), []models.RaidBreak{}
+	for _, b := range r.breaks {
+		if slices.ContainsFunc(key.Deaths, func(d models.KeyDeath) bool {
+			return d.Player == b.player && max(d.ClockMS-run.clock(b.at), run.clock(b.at)-d.ClockMS) <= breakDeathMS
+		}) {
+			continue // the aura went with the raider, not a break
+		}
+		rb := models.RaidBreak{ClockMS: run.clock(b.at), Player: b.player, Aura: k.spells[b.rule.Aura], Hit: b.hit}
+		if b.hit > 0 {
+			rb.Effect = k.spells[b.rule.Effect]
+		}
+		p.Breaks = append(p.Breaks, rb)
+	}
 	p.Priority = []models.RaidPriority{}
 	for _, target := range r.boss.Priority {
 		if damage, ok := r.priority[target]; ok {
@@ -398,7 +532,24 @@ func (k *LogTracker) raidPull(run *keyRun, key models.Key, at int64, kill bool) 
 	p.Lanes = k.lanes(run, p, at)
 	p.Abilities, p.Taken = abilities(run, k.schools)
 	p.Targets = targets(run)
+	p.Interrupts, p.Stops, p.WastedKicks, p.Debuffs, p.Spikes = key.Interrupts, key.Stops, key.WastedKicks,
+		key.Debuffs, key.Spikes
+	p.Missing, p.Activity, p.Casts = key.Buffs, key.Activity, key.Casts
 	return p
+}
+
+// pickupWaves is the pull's pickups, those of one thing within window ms of a wave's first as one wave.
+func (r *raidRun) pickupWaves(clock func(int64) int64, window int64) []models.RaidPickup {
+	waves, first := []models.RaidPickup{}, int64(0)
+	for _, p := range r.pickups {
+		if n := len(waves); n > 0 && waves[n-1].Name == p.name && p.at-first <= window {
+			waves[n-1].Players = append(waves[n-1].Players, p.player)
+			continue
+		}
+		waves = append(waves, models.RaidPickup{ClockMS: clock(p.at), Name: p.name, Players: []string{p.player}})
+		first = p.at
+	}
+	return waves
 }
 
 // targets is each raider's damage into the enemies of each name over the run, most first.
@@ -436,19 +587,29 @@ func (r *raidRun) bossPct(kill bool) float64 {
 	return 100 * float64(hp) / float64(maxHP)
 }
 
-// bossUnits are the pull's boss: the units of the reference's boss NPCs when it names them, else those with at least
-// bossShare of the biggest unit's max health (a boss with a tail, or two or three bosses).
+// bossUnits are the pull's boss, the first of these that has units: the reference's health NPCs; its boss NPCs named
+// as the encounter (Ula'tek, not its tail or heart, which Warcraft Logs' boss % leaves out); all its boss NPCs (a
+// council); else the units with at least bossShare of the biggest unit's max health.
 func (r *raidRun) bossUnits() map[string]*raidUnit {
-	boss := map[string]*raidUnit{}
-	var biggest int64
-	for guid, u := range r.units {
-		biggest = max(biggest, u.maxHP)
-		if slices.Contains(r.boss.NPCs, npcOf(guid)) {
-			boss[guid] = u
+	for _, pick := range []func(npc int, name string) bool{
+		func(npc int, _ string) bool { return slices.Contains(r.boss.Health, npc) },
+		func(npc int, name string) bool { return slices.Contains(r.boss.NPCs, npc) && name == r.boss.Name },
+		func(npc int, _ string) bool { return slices.Contains(r.boss.NPCs, npc) },
+	} {
+		boss := map[string]*raidUnit{}
+		for guid, u := range r.units {
+			if pick(npcOf(guid), u.name) {
+				boss[guid] = u
+			}
+		}
+		if len(boss) > 0 {
+			return boss
 		}
 	}
-	if len(boss) > 0 {
-		return boss
+	boss := map[string]*raidUnit{}
+	var biggest int64
+	for _, u := range r.units {
+		biggest = max(biggest, u.maxHP)
 	}
 	for guid, u := range r.units {
 		if biggest > 0 && float64(u.maxHP) >= bossShare*float64(biggest) {
@@ -458,13 +619,15 @@ func (r *raidRun) bossUnits() map[string]*raidUnit {
 	return boss
 }
 
-// adds is each kind of hostile unit the raid hit that isn't the boss (not a soak circle or a lure): how many showed
-// up, died and were up at the end, and the longest one lived; those still up first, at most shownAdds.
+// adds is each kind of hostile unit the raid hit that isn't one of the boss's NPCs (nor a soak circle or a lure):
+// how many showed up, died and were up at the end, the longest one lived, and each one's spawn where the reference
+// says how they spawn; those still up first, at most shownAdds plus
+// those with spawns.
 func (r *raidRun) adds(end int64) []models.RaidAdd {
 	boss := r.bossUnits()
 	byName := map[string]*models.RaidAdd{}
 	for guid, u := range r.units {
-		if !u.hit || boss[guid] != nil {
+		if !u.hit || boss[guid] != nil || slices.Contains(r.boss.NPCs, npcOf(guid)) {
 			continue
 		}
 		a := byName[u.name]
@@ -480,16 +643,26 @@ func (r *raidRun) adds(end int64) []models.RaidAdd {
 			a.AliveEnd++
 		}
 		a.LongestMS = max(a.LongestMS, died-u.seen)
+		if u.spawn != nil {
+			a.Spawns = append(a.Spawns, *u.spawn)
+		}
 	}
 	adds := []models.RaidAdd{}
 	for _, a := range byName {
+		slices.SortFunc(a.Spawns, func(x, y models.RaidSpawn) int { return cmp.Compare(x.ClockMS, y.ClockMS) })
 		adds = append(adds, *a)
 	}
 	slices.SortFunc(adds, func(a, b models.RaidAdd) int {
 		return cmp.Or(cmp.Compare(b.AliveEnd, a.AliveEnd), cmp.Compare(b.LongestMS, a.LongestMS),
 			cmp.Compare(a.Name, b.Name))
 	})
-	return adds[:min(len(adds), shownAdds)]
+	shown := slices.Clip(adds[:min(len(adds), shownAdds)])
+	for _, a := range adds[len(shown):] {
+		if len(a.Spawns) > 0 { // the reference says how they spawn: always worth their lines
+			shown = append(shown, a)
+		}
+	}
+	return shown
 }
 
 // byAbility is per-raider counts by ability (ability -> raider -> count), the ability with the most first.

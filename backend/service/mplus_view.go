@@ -161,8 +161,8 @@ func (k *LogTracker) DeleteSaved(start int64) error {
 }
 
 // details is a run as the page shows it at a log time: deaths with what covered them or was ready, avoidable hits,
-// casts, must-stops, dispels, Bloodlust and the whole run's meter; and for a key, its spikes, pulls, last pull's
-// meter, activity, forces and who lacked a buff at the start (a raid pull shows none of those).
+// casts, must-stops, dispels, Bloodlust, the whole run's meter, spikes, activity and who lacked a buff at the start;
+// and for a key, its pulls, last pull's meter and forces (a raid pull shows none of those).
 func (k *LogTracker) details(run *keyRun, at int64) models.Key {
 	key := run.key
 	buffs := slices.Clone(run.buffs)
@@ -198,10 +198,20 @@ func (k *LogTracker) details(run *keyRun, at int64) models.Key {
 	slices.SortStableFunc(key.Stops, func(a, b models.KeyStop) int { return cmp.Compare(a.ClockMS, b.ClockMS) })
 	key.Overall = meter(run.total, k.classes(run), 0, run.clock(at), run.elapsed(at))
 	key.Lusts = list(key.Lusts)
+	key.Spikes, key.Activity = k.spikes(run, key.Casts, buffs, kit), map[string]float64{}
+	for player, seconds := range run.fighting {
+		active := 0
+		for s := range seconds {
+			if run.acting[player][s] {
+				active++
+			}
+		}
+		key.Activity[player] = 100 * float64(active) / float64(len(seconds))
+	}
+	key.Buffs = k.buffCheck(run)
 	if run.raid != nil {
 		return key
 	}
-	key.Spikes = k.spikes(run, key.Casts, buffs, kit)
 	key.Pulls = priorityPulls(run)
 	key.LastPull = run.lastPull
 	if len(run.inPull) > 0 {
@@ -219,20 +229,10 @@ func (k *LogTracker) details(run *keyRun, at int64) models.Key {
 	}
 	withPriority(key.Overall.Rows, run, all...)
 	withPriority(key.LastPull.Rows, run, lastPull)
-	key.BetweenPulls, key.Activity = []int64{}, map[string]float64{}
+	key.BetweenPulls = []int64{}
 	for i := 1; i < len(run.track.Pulls); i++ {
 		key.BetweenPulls = append(key.BetweenPulls, run.track.Pulls[i].StartMS-run.track.Pulls[i-1].EndMS)
 	}
-	for player, seconds := range run.fighting {
-		active := 0
-		for s := range seconds {
-			if run.acting[player][s] {
-				active++
-			}
-		}
-		key.Activity[player] = 100 * float64(active) / float64(len(seconds))
-	}
-	key.Buffs = k.buffCheck(run)
 	if run.key.Forces != nil {
 		forces := *run.key.Forces
 		forces.At = list(forces.At)
@@ -293,16 +293,15 @@ func (k *LogTracker) classes(run *keyRun) map[string]string {
 	return classes
 }
 
-// buffCheck is who lacked a flask, food or a party buff a class in the group gives (augment runes are rare in M+),
-// from their auras at the key's start. A buff the log never named counts as missing, so a flask drunk before logging
-// started shows.
+// buffCheck is who lacked a flask, food (in a raid, a Vantus Rune too) or a party buff a class in the group gives
+// (augment runes are rare in M+), from their auras at the key's or pull's start. A buff the log never named counts as
+// missing, so a flask drunk before logging started shows.
 func (k *LogTracker) buffCheck(run *keyRun) []models.KeyBuffCheck {
 	classes := map[string]bool{}
 	for _, guid := range run.party {
 		classes[specs[k.specs[guid]].Class] = true
 	}
 	checks := []models.KeyBuffCheck{}
-	c := k.rules.Consumables
 	for _, guid := range run.party {
 		ids, player := run.auras[guid], k.names[guid]
 		var have []string
@@ -310,7 +309,7 @@ func (k *LogTracker) buffCheck(run *keyRun) []models.KeyBuffCheck {
 			have = append(have, k.spells[id])
 		}
 		var missing []string
-		for kind, patterns := range map[string][]string{"flask": c.Flask, "food": c.Food} {
+		for kind, patterns := range k.consumables(run.raid != nil) {
 			if !slices.ContainsFunc(have, func(name string) bool { return named(name, patterns) }) {
 				missing = append(missing, kind)
 			}

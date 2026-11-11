@@ -15,6 +15,19 @@ definitions:
       saved:
         type: integer
     type: object
+  models.AbilitySeries:
+    properties:
+      a:
+        type: string
+      p:
+        description: '[end clockMS, damage, healing, damage taken]'
+        items:
+          items:
+            format: int64
+            type: integer
+          type: array
+        type: array
+    type: object
   models.Affix:
     properties:
       id:
@@ -121,6 +134,9 @@ definitions:
         type: string
       player:
         type: string
+      prepot:
+        description: a combat potion drunk before the raid pull started
+        type: boolean
     type: object
   models.KeyDeath:
     properties:
@@ -417,13 +433,36 @@ definitions:
     type: object
   models.KeyTrack:
     properties:
+      abilities:
+        additionalProperties:
+          items:
+            $ref: '#/definitions/models.AbilitySeries'
+          type: array
+        type: object
+      abilityTimes:
+        description: 'AbilityTimes is when Abilities'' stretches ended, in order:
+          a stretch starts where the one before it ended.'
+        items:
+          type: integer
+        type: array
       bosses:
         additionalProperties:
           items:
             $ref: '#/definitions/models.TrackPoint'
           type: array
-        description: Bosses is a raid boss's units (by GUID, each point named) about
-          once a second; none in a key.
+        description: |-
+          Bosses is a raid boss's units and the adds to burst (by GUID, each point named, with its health) about once a
+          second; none in a key.
+        type: object
+      casts:
+        additionalProperties:
+          items:
+            $ref: '#/definitions/models.TrackCast'
+          type: array
+        description: |-
+          Casts is each raider's casts in order, and Abilities what each one's abilities did in each abilityEveryMS
+          stretch, so the replay shows what a raider was casting and their bars up to its moment; none in a key, or in
+          pulls saved before Nov 11.
         type: object
       classes:
         additionalProperties:
@@ -432,6 +471,13 @@ definitions:
       deaths:
         items:
           $ref: '#/definitions/models.TrackPoint'
+        type: array
+      health:
+        description: |-
+          Health is the Bosses GUIDs the replay's health box shows: the units whose health is the boss's, then the adds
+          to burst.
+        items:
+          type: string
         type: array
       meters:
         additionalProperties:
@@ -688,6 +734,26 @@ definitions:
         type: string
       spawned:
         type: integer
+      spawns:
+        description: |-
+          Spawns is each one's appearance and its cause, for adds the reference says how they spawn; missing in pulls
+          saved before Nov 11.
+        items:
+          $ref: '#/definitions/models.RaidSpawn'
+        type: array
+    type: object
+  models.RaidBreak:
+    properties:
+      aura:
+        type: string
+      clockMS:
+        type: integer
+      effect:
+        type: string
+      hit:
+        type: integer
+      player:
+        type: string
     type: object
   models.RaidComparisons:
     properties:
@@ -772,6 +838,11 @@ definitions:
         $ref: '#/definitions/models.RaidPull'
       pulling:
         type: boolean
+      ready:
+        allOf:
+        - $ref: '#/definitions/models.ReadyCheck'
+        description: Ready is who's missing a flask, food, Vantus Rune or raid buff,
+          in a raid between pulls.
       since:
         type: integer
     type: object
@@ -808,6 +879,17 @@ definitions:
           $ref: '#/definitions/models.RaidPullSummary'
         type: array
     type: object
+  models.RaidPickup:
+    properties:
+      clockMS:
+        type: integer
+      name:
+        type: string
+      players:
+        items:
+          type: string
+        type: array
+    type: object
   models.RaidPriority:
     properties:
       damage:
@@ -824,6 +906,11 @@ definitions:
         items:
           $ref: '#/definitions/models.KeyAbility'
         type: array
+      activity:
+        additionalProperties:
+          format: float64
+          type: number
+        type: object
       adds:
         items:
           $ref: '#/definitions/models.RaidAdd'
@@ -837,6 +924,15 @@ definitions:
       bossPct:
         description: the boss's health left, 0-100; -1 without advanced logging
         type: number
+      breaks:
+        description: tethers raiders broke, in order
+        items:
+          $ref: '#/definitions/models.RaidBreak'
+        type: array
+      casts:
+        items:
+          $ref: '#/definitions/models.KeyCast'
+        type: array
       comparisons:
         $ref: '#/definitions/models.RaidComparisons'
       cooldowns:
@@ -847,6 +943,10 @@ definitions:
       deaths:
         items:
           $ref: '#/definitions/models.RaidDeath'
+        type: array
+      debuffs:
+        items:
+          $ref: '#/definitions/models.KeyDispel'
         type: array
       difficulty:
         enum:
@@ -864,6 +964,14 @@ definitions:
         type: integer
       end:
         type: integer
+      interrupts:
+        description: |-
+          The fight's lists as a key has them, for the tabs both pages show: every interrupt, must-stop cast, kick that
+          stopped nothing, dispellable debuff, damage spike and survival, potion or crowd-control button pressed, and each
+          raider's active time (%); missing in pulls saved before Nov 11.
+        items:
+          $ref: '#/definitions/models.KeyInterrupt'
+        type: array
       kill:
         type: boolean
       lanes:
@@ -886,6 +994,12 @@ definitions:
         type: array
       meter:
         $ref: '#/definitions/models.KeyMeter'
+      missing:
+        description: Missing is who lacked a flask, food, Vantus Rune or raid buff
+          at the pull's start; missing before Nov 11.
+        items:
+          $ref: '#/definitions/models.KeyBuffCheck'
+        type: array
       night:
         description: 'the raid night: the start''s date, before 6 am counting as the
           day before'
@@ -899,6 +1013,11 @@ definitions:
         description: the last phase reached ("P2"); empty for a boss without phase
           triggers
         type: string
+      pickups:
+        description: what raiders picked up (eggs), each wave in order
+        items:
+          $ref: '#/definitions/models.RaidPickup'
+        type: array
       players:
         items:
           type: string
@@ -915,12 +1034,20 @@ definitions:
         allOf:
         - $ref: '#/definitions/models.RaidSpike'
         description: nil when no damage was taken
+      spikes:
+        items:
+          $ref: '#/definitions/models.KeySpike'
+        type: array
       stacks:
         items:
           $ref: '#/definitions/models.RaidStacks'
         type: array
       start:
         type: integer
+      stops:
+        items:
+          $ref: '#/definitions/models.KeyStop'
+        type: array
       suggestions:
         description: |-
           Suggestions is what to fix on the next pull, most important first, worked out when the pull is read so it's
@@ -935,6 +1062,10 @@ definitions:
       targets:
         items:
           $ref: '#/definitions/models.RaidTarget'
+        type: array
+      wastedKicks:
+        items:
+          $ref: '#/definitions/models.KeyCast'
         type: array
       wentOff:
         description: must-stop casts that finished
@@ -975,8 +1106,35 @@ definitions:
         type: array
       fewest:
         type: integer
+      hits:
+        description: missing in pulls saved before Nov 11
+        items:
+          $ref: '#/definitions/models.RaidSoakCast'
+        type: array
       most:
         type: integer
+      needed:
+        type: integer
+    type: object
+  models.RaidSoakCast:
+    properties:
+      clockMS:
+        type: integer
+      players:
+        items:
+          type: string
+        type: array
+    type: object
+  models.RaidSpawn:
+    properties:
+      cause:
+        type: string
+      clockMS:
+        type: integer
+      players:
+        items:
+          type: string
+        type: array
     type: object
   models.RaidSpike:
     properties:
@@ -1102,8 +1260,22 @@ definitions:
           type: string
         type: array
     type: object
+  models.TrackCast:
+    properties:
+      e:
+        type: integer
+      s:
+        type: string
+      t:
+        type: integer
+      x:
+        type: boolean
+    type: object
   models.TrackPoint:
     properties:
+      hp:
+        description: a raid boss's or add's health left (%), 0 when unknown
+        type: number
       map:
         type: integer
       name:
@@ -1430,7 +1602,8 @@ paths:
       description: |-
         While the party is in a Mythic dungeon with no key running: each member's missing flask, food and
         party buffs, and those not seen since the party zoned in (from the combat log, so a buff from before
-        logging started there is never seen). Read again on each notice from /api/mplus/events.
+        logging started there is never seen). Read again on each notice from /api/mplus/events. A raid's is
+        in /api/raid/live.
       produces:
       - application/json
       responses:
@@ -1446,9 +1619,10 @@ paths:
   /api/raid/live:
     get:
       description: |-
-        Whether a raid pull is on (its boss and start), and the last pull that ended with its deaths,
-        mechanics, meters and cooldowns, compared with tonight's best and the best ever on the boss. The
-        page reads it again on each notice from /api/mplus/events.
+        Whether a raid pull is on (its boss and start), the last pull that ended with its deaths,
+        mechanics, meters and cooldowns, compared with tonight's best and the best ever on the boss, and in
+        a raid between pulls the ready check (ready). The page reads it again on each notice from
+        /api/mplus/events.
       produces:
       - application/json
       responses:
@@ -1533,8 +1707,10 @@ paths:
   /api/raid/pulls/{start}/track:
     get:
       description: |-
-        Each raider's position about once a second, the boss's units', killed adds' last places, and each
-        raider's damage, healing and damage taken so far about every 2 s, on the pull's clock.
+        Each raider's position about once a second, the boss's units' and the adds to burst with their
+        health (hp) and which the health box shows (health), killed adds' last places, each raider's
+        damage, healing and damage taken so far about every 2 s, their casts, and what each ability did in
+        each 10 s stretch (abilities, abilityTimes), on the pull's clock.
       parameters:
       - description: the pull's start (ms since the epoch)
         in: path

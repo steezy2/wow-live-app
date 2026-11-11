@@ -97,12 +97,16 @@ export const EarlyDeaths = memo(function EarlyDeaths({ pull, classes, onSeek, on
   )
 })
 
-/** One line of the mechanics card: when it (first) happened, what, and who and how much. */
+/** One line of the mechanics card: when it (first) happened, what, who and how much, and whether it went wrong. */
 interface MechanicLine {
   at?: number
   what: ReactNode
   detail: ReactNode
+  bad?: boolean
 }
+
+/** Breaks this close after a break that set off its effect are the same set (one raider first, the rest together). */
+const BREAK_SET_MS = 1500
 
 /** What went wrong by kind of mechanic, a heading per kind: each line leads with when it happened (a click shows it
  * in the replay; an ability's first hit, soak or stack past the limit, from the pull's lanes), then what, then who in
@@ -127,17 +131,35 @@ export const Mechanics = memo(function Mechanics({ pull, classes, onSeek, onFocu
     ],
     [
       'Soaks',
-      pull.soaks.map((s) => ({
-        at: first('soak', s.ability),
-        what: s.ability,
-        detail: (
-          <>
-            {s.casts} soaks, {s.fewest}–{s.most} raiders each
-            {s.died.length > 0 && <> · died: {names(s.died)}</>}
-          </>
-        ),
-      })),
+      pull.soaks.flatMap((s): MechanicLine[] => {
+        const died = s.died.length > 0 ? [{ what: `Died to ${s.ability}`, detail: names(s.died), bad: true }] : []
+        if (!s.hits) {
+          const summary = `${s.casts} casts, ${s.fewest}–${s.most} raiders soaked each`
+          return [{ at: first('soak', s.ability), what: s.ability, detail: summary }, ...died]
+        }
+        return [
+          ...s.hits.map((h) => ({
+            at: h.clockMS,
+            what: s.ability,
+            detail:
+              h.players.length >= pull.players.length ? (
+                `everyone (${h.players.length})`
+              ) : (
+                <>
+                  {names(h.players)} ({s.needed ? `${h.players.length} of ${s.needed}` : h.players.length})
+                </>
+              ),
+            bad: h.players.length < s.needed,
+          })),
+          ...died,
+        ]
+      }),
     ],
+    [
+      'Picked up',
+      (pull.pickups ?? []).map((p) => ({ at: p.clockMS, what: `Picked up ${p.name}`, detail: names(p.players) })),
+    ],
+    ['Tethers broken', breakLines(pull, names)],
     [
       'Stacks',
       pull.stacks.map((s) => {
@@ -171,13 +193,27 @@ export const Mechanics = memo(function Mechanics({ pull, classes, onSeek, onFocu
     ],
     [
       'Adds',
-      pull.adds.map((a) => ({
-        at: first('adds', a.name),
-        what: a.name,
-        detail:
-          `${a.killed} of ${a.spawned} killed${a.aliveEnd ? `, ${a.aliveEnd} still up at the end` : ''} · longest ` +
-          clock(a.longestMS),
-      })),
+      pull.adds.flatMap((a) => [
+        {
+          at: first('adds', a.name),
+          what: a.name,
+          detail:
+            `${a.killed} of ${a.spawned} killed${a.aliveEnd ? `, ${a.aliveEnd} still up at the end` : ''} · longest ` +
+            clock(a.longestMS),
+        },
+        ...(a.spawns ?? []).map((s) => ({
+          at: s.clockMS,
+          what: `${a.name} spawned`,
+          detail: s.cause ? (
+            <>
+              from {s.cause}
+              {s.players.length > 0 && <> ({names(s.players)})</>}
+            </>
+          ) : (
+            'cause not seen'
+          ),
+        })),
+      ]),
     ],
     [
       'Damage into priority targets',
@@ -186,7 +222,7 @@ export const Mechanics = memo(function Mechanics({ pull, classes, onSeek, onFocu
   ]
   const shown = groups.filter(([, lines]) => lines.length > 0)
   return (
-    <section className="panel">
+    <section className="panel mechanics">
       <h2>Mechanics</h2>
       {shown.map(([title, lines]) => (
         <div key={title} className="mechanic-group">
@@ -195,7 +231,8 @@ export const Mechanics = memo(function Mechanics({ pull, classes, onSeek, onFocu
             {lines.map((l, i) => (
               <li key={i} className="stack">
                 <span>
-                  {l.at !== undefined && <At ms={l.at} onSeek={onSeek} />} <b>{l.what}</b>
+                  {l.at !== undefined && <At ms={l.at} onSeek={onSeek} />}{' '}
+                  <b className={l.bad ? 'bad' : undefined}>{l.what}</b>
                 </span>
                 <span className="muted small">{l.detail}</span>
               </li>
@@ -207,6 +244,30 @@ export const Mechanics = memo(function Mechanics({ pull, classes, onSeek, onFocu
     </section>
   )
 })
+
+/** The tethers broken as lines: a break that set off its effect, with the breaks right after it (BREAK_SET_MS) as
+ * "then"; a break that set off nothing on its own. */
+function breakLines(pull: RaidPull, names: (players: string[]) => ReactNode): MechanicLine[] {
+  const sets: { first: NonNullable<RaidPull['breaks']>[number]; then: string[]; last: number }[] = []
+  for (const b of pull.breaks ?? []) {
+    const set = sets[sets.length - 1]
+    if (set && !b.effect && b.clockMS - set.last <= BREAK_SET_MS) {
+      set.then.push(b.player)
+      set.last = b.clockMS
+    } else sets.push({ first: b, then: [], last: b.clockMS })
+  }
+  return sets.map(({ first: b, then }) => ({
+    at: b.clockMS,
+    what: `${b.aura} broken`,
+    detail: (
+      <>
+        {names([b.player])}
+        {b.effect && ` → ${b.effect} on ${b.hit}`}
+        {then.length > 0 && <>; then {names(then)}</>}
+      </>
+    ),
+  }))
+}
 
 /** A card's columns without those every raider has 0 in, the first (the one it sorts by) always kept. */
 function nonZero(columns: Column[], meter: KeyMeter): Column[] {

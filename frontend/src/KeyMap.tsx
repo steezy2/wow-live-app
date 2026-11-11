@@ -18,7 +18,7 @@ import { classColors } from './classColors'
 import { defense, offense } from './meterColumns'
 import { MeterCard } from './MeterCards'
 import { clock } from './format'
-import { floorsOf, lastAt, meterBetween, useReplay, type SliderMark } from './replay'
+import { floorsOf, JUMP_YARDS_PER_S, lastAt, meterBetween, positionAt, useReplay, type SliderMark } from './replay'
 
 /** The trail the live map draws. */
 const LIVE_TRAIL_MS = 30_000
@@ -55,15 +55,13 @@ function onCanvas(e: { clientX: number; clientY: number }, canvas: HTMLCanvasEle
     scale,
   ]
 }
-/** Above this many yards a second between two samples is a teleport, so the line breaks. */
-const JUMP_YARDS_PER_S = 15
 /** A raid replay shows at least this share of the room's image, padded by this share of the fight on each side. */
 const FIGHT_MIN_SHARE = 0.2
 const FIGHT_PAD = 0.15
 /** A player seen this long after their death is alive again. */
 const REVIVED_AFTER_MS = 2_000
 /** A boss unit not seen for this long (gone, or submerged) isn't drawn. */
-const BOSS_GONE_MS = 5_000
+export const BOSS_GONE_MS = 5_000
 
 /** The replay's controls: play, the slider with its marks, the time, the speed and the trail. */
 export function ReplayControls(props: {
@@ -188,6 +186,7 @@ export function KeyMap({ keyView: key, clockMS }: { keyView: KeyView; clockMS: n
           backdrop={backdrop}
           floor={current}
           now={now}
+          clock={replay.playing ? replay.now : undefined}
           trailMS={live ? LIVE_TRAIL_MS : trail}
           deaths={key.deaths}
         />
@@ -259,12 +258,14 @@ export function MapCanvas(props: {
   backdrop: Backdrop
   floor: number
   now: number
+  /** While a replay plays: its moment right now, so the map draws every frame between the page's updates. */
+  clock?: () => number
   trailMS: number
   deaths: { player: string; clockMS: number }[]
   focus?: string
   onPick?: (player: string) => void
 }) {
-  const { track, backdrop, floor, now, trailMS, deaths, focus, onPick } = props
+  const { track, backdrop, floor, now, clock, trailMS, deaths, focus, onPick } = props
   const ref = useRef<HTMLCanvasElement>(null)
   const [loaded, setLoaded] = useState(0)
   const [view, setView] = useState(WHOLE)
@@ -334,119 +335,135 @@ export function MapCanvas(props: {
       return img.complete && img.naturalWidth > 0 ? img : undefined
     }
     const style = getComputedStyle(canvas)
-    ctx.setTransform(1, 0, 0, 1, 0, 0)
-    ctx.clearRect(0, 0, canvas.width, canvas.height)
-    ctx.setTransform(view.k, 0, 0, view.k, -view.x * view.k, -view.y * view.k)
-    shown.current = view
-    dots.current = []
-    if (backdrop.kind === 'tiles') {
-      const [w, h] = [canvas.width / TILES_PER_SIDE, canvas.height / TILES_PER_SIDE]
-      for (let x = 0; x < TILES_PER_SIDE; x++) {
-        for (let y = 0; y < TILES_PER_SIDE; y++) {
-          const img = image(tileURL(backdrop.mapID, floor, x, y))
-          if (img) ctx.drawImage(img, x * w, y * h, w, h)
+    const draw = (now: number) => {
+      ctx.setTransform(1, 0, 0, 1, 0, 0)
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
+      ctx.setTransform(view.k, 0, 0, view.k, -view.x * view.k, -view.y * view.k)
+      shown.current = view
+      dots.current = []
+      if (backdrop.kind === 'tiles') {
+        const [w, h] = [canvas.width / TILES_PER_SIDE, canvas.height / TILES_PER_SIDE]
+        for (let x = 0; x < TILES_PER_SIDE; x++) {
+          for (let y = 0; y < TILES_PER_SIDE; y++) {
+            const img = image(tileURL(backdrop.mapID, floor, x, y))
+            if (img) ctx.drawImage(img, x * w, y * h, w, h)
+          }
         }
+      } else if (backdrop.kind === 'image') {
+        const img = image(raidMapURL(backdrop.map.uiMapID))
+        const [left, top, share] = area
+        const [w, h] = [img?.naturalWidth ?? 0, img?.naturalHeight ?? 0]
+        if (img) ctx.drawImage(img, left * w, top * h, share * w, share * h, 0, 0, canvas.width, canvas.height)
+      } else {
+        ctx.fillStyle = style.getPropertyValue('--muted')
+        ctx.globalAlpha = 0.18
+        backdrop.walked
+          .filter((p) => p.map === floor)
+          .forEach((p) => {
+            const [x, y] = at(p)
+            ctx.fillRect(x - 2, y - 2, 4, 4)
+          })
+        ctx.globalAlpha = 1
       }
-    } else if (backdrop.kind === 'image') {
-      const img = image(raidMapURL(backdrop.map.uiMapID))
-      const [left, top, share] = area
-      const [w, h] = [img?.naturalWidth ?? 0, img?.naturalHeight ?? 0]
-      if (img) ctx.drawImage(img, left * w, top * h, share * w, share * h, 0, 0, canvas.width, canvas.height)
-    } else {
-      ctx.fillStyle = style.getPropertyValue('--muted')
-      ctx.globalAlpha = 0.18
-      backdrop.walked
-        .filter((p) => p.map === floor)
-        .forEach((p) => {
-          const [x, y] = at(p)
-          ctx.fillRect(x - 2, y - 2, 4, 4)
+      const dot = canvas.width / 160 / view.k // the same size on screen at any zoom
+      const label = (text: string, x: number, y: number) => {
+        ctx.fillStyle = style.getPropertyValue('--text')
+        ctx.font = `${Math.round(dot * 2.6 * 10) / 10}px system-ui, sans-serif`
+        ctx.textAlign = 'center'
+        ctx.fillText(text, x, y - dot * 3.4)
+      }
+      ctx.fillStyle = style.getPropertyValue('--bad')
+      track.deaths
+        .filter((d) => d.map === floor && d.t <= now)
+        .forEach((d) => {
+          const [x, y] = at(d)
+          ctx.fillRect(x - dot / 2, y - dot / 2, dot, dot)
         })
-      ctx.globalAlpha = 1
-    }
-    const dot = canvas.width / 160 / view.k // the same size on screen at any zoom
-    const label = (text: string, x: number, y: number) => {
-      ctx.fillStyle = style.getPropertyValue('--text')
-      ctx.font = `${Math.round(dot * 2.6 * 10) / 10}px system-ui, sans-serif`
-      ctx.textAlign = 'center'
-      ctx.fillText(text, x, y - dot * 3.4)
-    }
-    ctx.fillStyle = style.getPropertyValue('--bad')
-    track.deaths
-      .filter((d) => d.map === floor && d.t <= now)
-      .forEach((d) => {
-        const [x, y] = at(d)
-        ctx.fillRect(x - dot / 2, y - dot / 2, dot, dot)
-      })
-    Object.values(track.bosses ?? {}).forEach((points) => {
-      const last = lastAt(points, now)
-      if (!last || last.map !== floor || now - last.t > BOSS_GONE_MS) return
-      const [x, y] = at(last)
-      ctx.fillStyle = '#000'
-      ctx.strokeStyle = style.getPropertyValue('--warn')
-      ctx.lineWidth = dot / 2
-      ctx.beginPath()
-      ctx.arc(x, y, dot * 2.4, 0, 2 * Math.PI)
-      ctx.fill()
-      ctx.stroke()
-      label(last.name ?? '', x, y)
-    })
-    const died = new Map<string, number>() // each player's last death so far
-    deaths
-      .filter((d) => d.clockMS <= now)
-      .forEach((d) => died.set(d.player, Math.max(died.get(d.player) ?? 0, d.clockMS)))
-    const players = Object.entries(track.players).sort(([a], [b]) => Number(a === focus) - Number(b === focus))
-    players.forEach(([player, points]) => {
-      const colour = classColors[track.classes[player]] ?? style.getPropertyValue('--accent')
-      const seen = points.filter((p) => p.t <= now && p.t >= now - trailMS && p.map === floor)
-      ctx.strokeStyle = colour
-      ctx.lineWidth = dot / 2
-      ctx.globalAlpha = focus && player !== focus ? 0.3 : 1
-      ctx.beginPath()
-      seen.forEach((p, i) => {
-        const [x, y] = at(p)
-        const prev = seen[i - 1]
-        const jump =
-          prev && Math.hypot(p.x - prev.x, p.y - prev.y) / Math.max(1, (p.t - prev.t) / 1000) > JUMP_YARDS_PER_S
-        if (i === 0 || jump) ctx.moveTo(x, y)
-        else ctx.lineTo(x, y)
-      })
-      ctx.stroke()
-      ctx.globalAlpha = 1
-      // Where they are: their last place even past the trail, and before their first sample where they were first seen.
-      // Dead until they're seen again after their last death (a release and run back, or a battle res).
-      const last = lastAt(points, now) ?? points[0]
-      const dead = died.has(player) && (!last || last.t <= (died.get(player) ?? 0) + REVIVED_AFTER_MS)
-      if (!last || last.map !== floor) return
-      const [x, y] = at(last)
-      dots.current.push({ player, x, y })
-      if (player === focus) {
-        ctx.strokeStyle = style.getPropertyValue('--text')
-        ctx.lineWidth = dot / 3
-        ctx.beginPath()
-        ctx.arc(x, y, dot * 2.2, 0, 2 * Math.PI)
-        ctx.stroke()
-        label(player, x, y)
-      }
-      if (dead) {
-        ctx.strokeStyle = style.getPropertyValue('--bad')
+      Object.values(track.bosses ?? {}).forEach((points) => {
+        const last = positionAt(points, now)
+        if (!last || last.map !== floor || now - last.t > BOSS_GONE_MS) return
+        const [x, y] = at(last)
+        ctx.fillStyle = '#000'
+        ctx.strokeStyle = style.getPropertyValue('--warn')
         ctx.lineWidth = dot / 2
         ctx.beginPath()
-        ctx.moveTo(x - dot, y - dot)
-        ctx.lineTo(x + dot, y + dot)
-        ctx.moveTo(x + dot, y - dot)
-        ctx.lineTo(x - dot, y + dot)
+        ctx.arc(x, y, dot * 2.4, 0, 2 * Math.PI)
+        ctx.fill()
         ctx.stroke()
-        return
-      }
-      ctx.fillStyle = colour
-      ctx.strokeStyle = '#000'
-      ctx.lineWidth = dot / 4
-      ctx.beginPath()
-      ctx.arc(x, y, dot * 1.2, 0, 2 * Math.PI)
-      ctx.fill()
-      ctx.stroke()
-    })
-  }, [track, backdrop, area, floor, now, trailMS, deaths, loaded, view, focus])
+        label(last.name ?? '', x, y)
+      })
+      const died = new Map<string, number>() // each player's last death so far
+      deaths
+        .filter((d) => d.clockMS <= now)
+        .forEach((d) => died.set(d.player, Math.max(died.get(d.player) ?? 0, d.clockMS)))
+      const players = Object.entries(track.players).sort(([a], [b]) => Number(a === focus) - Number(b === focus))
+      players.forEach(([player, points]) => {
+        const colour = classColors[track.classes[player]] ?? style.getPropertyValue('--accent')
+        const here = positionAt(points, now)
+        const seen = points.filter((p) => p.t <= now && p.t >= now - trailMS && p.map === floor)
+        if (here && here.map === floor && seen.length > 0) seen.push(here)
+        ctx.strokeStyle = colour
+        ctx.lineWidth = dot / 2
+        ctx.globalAlpha = focus && player !== focus ? 0.3 : 1
+        ctx.beginPath()
+        seen.forEach((p, i) => {
+          const [x, y] = at(p)
+          const prev = seen[i - 1]
+          const jump =
+            prev && Math.hypot(p.x - prev.x, p.y - prev.y) / Math.max(1, (p.t - prev.t) / 1000) > JUMP_YARDS_PER_S
+          if (i === 0 || jump) ctx.moveTo(x, y)
+          else ctx.lineTo(x, y)
+        })
+        ctx.stroke()
+        ctx.globalAlpha = 1
+        // Where they are: their last place even past the trail, and before their first sample where they were first
+        // seen.
+        // Dead until they're seen again after their last death (a release and run back, or a battle res).
+        const last = positionAt(points, now) ?? points[0]
+        const dead = died.has(player) && (!last || last.t <= (died.get(player) ?? 0) + REVIVED_AFTER_MS)
+        if (!last || last.map !== floor) return
+        const [x, y] = at(last)
+        dots.current.push({ player, x, y })
+        if (player === focus) {
+          ctx.strokeStyle = style.getPropertyValue('--text')
+          ctx.lineWidth = dot / 3
+          ctx.beginPath()
+          ctx.arc(x, y, dot * 2.2, 0, 2 * Math.PI)
+          ctx.stroke()
+          label(player, x, y)
+        }
+        if (dead) {
+          ctx.strokeStyle = style.getPropertyValue('--bad')
+          ctx.lineWidth = dot / 2
+          ctx.beginPath()
+          ctx.moveTo(x - dot, y - dot)
+          ctx.lineTo(x + dot, y + dot)
+          ctx.moveTo(x + dot, y - dot)
+          ctx.lineTo(x - dot, y + dot)
+          ctx.stroke()
+          return
+        }
+        ctx.fillStyle = colour
+        ctx.strokeStyle = '#000'
+        ctx.lineWidth = dot / 4
+        ctx.beginPath()
+        ctx.arc(x, y, dot * 1.2, 0, 2 * Math.PI)
+        ctx.fill()
+        ctx.stroke()
+      })
+    }
+    if (!clock) {
+      draw(now)
+      return
+    }
+    let frame = 0
+    const tick = () => {
+      draw(clock())
+      frame = requestAnimationFrame(tick)
+    }
+    tick()
+    return () => cancelAnimationFrame(frame)
+  }, [track, backdrop, area, floor, now, clock, trailMS, deaths, loaded, view, focus])
   return (
     <canvas
       ref={ref}

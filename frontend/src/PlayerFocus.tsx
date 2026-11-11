@@ -81,7 +81,9 @@ export function AbilityBars({
   const sorted = [...rows].sort((a, b) => b.value - a.value)
   const total = sorted.reduce((sum, r) => sum + r.value, 0)
   const withCasts = sorted.some((r) => r.casts !== undefined)
-  const grid = { gridTemplateColumns: `minmax(120px, 2fr) repeat(${withCasts ? 4 : 2}, minmax(48px, 1fr))` }
+  const withHits = sorted.some((r) => r.hits) // none up to a replay's moment, which keeps no hits
+  const columns = 2 + Number(withCasts) + Number(withHits)
+  const grid = { gridTemplateColumns: `minmax(120px, 2fr) repeat(${columns}, minmax(48px, 1fr))` }
   if (sorted.length === 0) return <p className="muted">None</p>
   return (
     <div className="scroll">
@@ -90,7 +92,7 @@ export function AbilityBars({
         <span>{count ? 'Casts' : 'Amount'}</span>
         <span>%</span>
         {withCasts && <span>Casts</span>}
-        {withCasts && <span>Hits</span>}
+        {withHits && <span>Hits</span>}
       </div>
       {sorted.map((r) => (
         <BarRow key={r.name} share={r.value / sorted[0].value} {...schoolBar(r.school, color)} grid={grid}>
@@ -100,7 +102,7 @@ export function AbilityBars({
           <span>{count ? r.value : amount(r.value)}</span>
           <span>{((100 * r.value) / total).toFixed(1)}</span>
           {withCasts && <span>{r.casts || '–'}</span>}
-          {withCasts && <span>{r.hits}</span>}
+          {withHits && <span>{r.hits || '–'}</span>}
         </BarRow>
       ))}
     </div>

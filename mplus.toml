@@ -48,7 +48,7 @@ names = [
   # Hunter
   "Aspect of the Turtle", "Exhilaration", "Fortitude of the Bear", "Survival of the Fittest",
   # Mage (each spec's barrier: Prismatic for Arcane, Blazing for Fire, Ice for Frost)
-  "Alter Time", "Blazing Barrier", "Greater Invisibility", "Ice Barrier", "Ice Block", "Ice Cold", "Mirror Image",
+  "Alter Time", "Blazing Barrier", "Ice Barrier", "Ice Block", "Ice Cold", "Mirror Image",
   "Prismatic Barrier",
   # Monk
   "Dampen Harm", "Diffuse Magic", "Fortifying Brew", "Touch of Karma",

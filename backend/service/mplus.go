@@ -557,6 +557,7 @@ func (k *LogTracker) event(at int64, event string, f []string) {
 	}
 	k.stopEvent(at, event, f, src, dst)
 	k.sampleMeters(at)
+	k.sampleAbilities(at)
 }
 
 // damage counts a hit: to the raid's meters when a player (or their pet) hit an enemy, as damage taken (and avoidable

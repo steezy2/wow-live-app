@@ -43,6 +43,8 @@ export interface KeyCast {
   clockMS: number
   /** A raid cooldown: when its buff last left a raider. */
   endMS?: number
+  /** A combat potion drunk before the raid pull started. */
+  prepot?: boolean
 }
 
 /** A must-stop cast and what happened to it: interrupted (by a player, intoMS into the cast), stopped (by a debuff,
@@ -185,6 +187,8 @@ export interface KeyView {
   forces?: KeyForces
   lastPull: KeyMeter
   overall: KeyMeter
+  /** Each player's share of their time alive in pulls with a cast going or a hit landing (%). */
+  activity?: Record<string, number>
   buffs: KeyBuffCheck[]
   clockMS: number
   /** Time the deaths added to the clock. */
@@ -226,6 +230,8 @@ export interface TrackPoint {
   y: number
   map: number
   name?: string
+  /** A raid boss's or add's health left (%). */
+  hp?: number
 }
 
 /** A player's damage, healing and damage taken so far at a time on the key's clock (tk is missing in keys saved
@@ -247,8 +253,18 @@ export interface KeyTrack {
   meters: Record<string, MeterPoint[]>
   /** Each pull's start and end on the key's clock (end 0 while fought); missing in keys saved before Nov 8. */
   pulls?: { startMS: number; endMS: number }[]
-  /** A raid boss's units by GUID, about once a second, each point named; none in a key. */
+  /** A raid boss's units and the adds to burst by GUID, about once a second, each point named with its health; none
+   * in a key. */
   bosses?: Record<string, TrackPoint[]>
+  /** The bosses GUIDs the health box shows: the boss's own units, then the adds to burst. */
+  health?: string[]
+  /** Each raider's casts (e: when one with a cast time ended; x: it never finished), what each ability did and what
+   * they took damage from in
+   * each stretch ([end, damage, healing, damage taken]), and when the stretches ended (each starts where the one before
+   * it ended); none in a key or in pulls saved before Nov 11. */
+  casts?: Record<string, { t: number; s: string; e?: number; x?: boolean }[]>
+  abilities?: Record<string, { a: string; p: [number, number, number, number][] }[]>
+  abilityTimes?: number[]
 }
 
 /** One number of a player's run: the median of their spec's top runs (0 without), their usual here (-1 without), and
@@ -587,11 +603,42 @@ export interface RaidPull extends RaidPullSummary {
   deaths: RaidDeath[]
   massKills: { ability: string; killed: number; clockMS: number }[]
   avoidable: { ability: string; players: PlayerCount[] }[]
-  soaks: { ability: string; casts: number; fewest: number; most: number; died: string[] }[]
+  /** needed: raiders each cast wants (0: everyone or unknown); hits: who soaked each cast (missing before Nov 11). */
+  soaks: {
+    ability: string
+    casts: number
+    fewest: number
+    most: number
+    needed: number
+    hits?: { clockMS: number; players: string[] }[]
+    died: string[]
+  }[]
+  /** The fight's lists as a key has them, for the tabs both pages show, and each raider's active time (%); missing
+   * in pulls saved before Nov 11. */
+  interrupts?: KeyInterrupt[]
+  stops?: KeyStop[]
+  wastedKicks?: KeyCast[]
+  debuffs?: KeyDispel[]
+  spikes?: KeySpike[]
+  casts?: KeyCast[]
+  activity?: Record<string, number>
+  /** Who lacked a flask, food, Vantus Rune or raid buff at the pull's start (missing before Nov 11). */
+  missing?: { player: string; missing: string[] }[]
+  /** What raiders picked up (eggs), a wave per line; tethers they broke and the effect each set off. */
+  pickups?: { clockMS: number; name: string; players: string[] }[]
+  breaks?: { clockMS: number; player: string; aura: string; effect?: string; hit: number }[]
   stacks: { ability: string; limit: number; players: PlayerCount[] }[]
   dispels: KeyDispel[]
   wentOff: KeyStop[]
-  adds: { name: string; spawned: number; killed: number; aliveEnd: number; longestMS: number }[]
+  /** spawns: each one's appearance and what spawned it, for adds the reference says how they spawn. */
+  adds: {
+    name: string
+    spawned: number
+    killed: number
+    aliveEnd: number
+    longestMS: number
+    spawns?: { clockMS: number; cause?: string; players: string[] }[]
+  }[]
   priority: { target: string; damage: number }[]
   meter: KeyMeter
   lusts: number[]
@@ -606,7 +653,7 @@ export interface RaidPull extends RaidPullSummary {
   /** Each raider's abilities, their damage taken by ability and their damage into each enemy, most first: missing in
    * pulls saved before Nov 11. */
   abilities?: KeyAbility[]
-  taken?: { player: string; ability: string; damage: number }[]
+  taken?: { player: string; ability: string; damage: number; school?: number }[]
   targets?: { player: string; target: string; damage: number }[]
 }
 
@@ -635,6 +682,8 @@ export interface RaidLive {
   boss?: string
   since?: number
   last?: RaidPull
+  /** Who's missing a flask, food, Vantus Rune or raid buff, in a raid between pulls. */
+  ready?: ReadyCheck
 }
 
 /** One raid night's pulls, newest first. */

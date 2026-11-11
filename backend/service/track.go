@@ -1,8 +1,10 @@
 package service
 
 import (
+	"cmp"
 	"errors"
 	"io/fs"
+	"maps"
 	"math"
 	"slices"
 	"strconv"
@@ -52,8 +54,13 @@ func (k *LogTracker) position(at int64, event string, f []string) {
 			p.Name = f[5]
 		}
 		run.mobAt[guid] = p
-		if run.raid != nil && slices.Contains(run.raid.boss.NPCs, npcOf(guid)) && at-run.sampled[guid] >= trackEveryMS {
+		r := run.raid
+		if r != nil && (slices.Contains(r.boss.NPCs, npcOf(guid)) || slices.Contains(r.boss.Priority, p.Name)) &&
+			at-run.sampled[guid] >= trackEveryMS {
 			run.sampled[guid] = at
+			if hp, maxHP := atoi(f[i+2]), atoi(f[i+3]); maxHP > 0 {
+				p.HP = math.Round(1000*float64(hp)/float64(maxHP)) / 10
+			}
 			run.track.Bosses[guid] = append(run.track.Bosses[guid], p)
 		}
 	}
@@ -74,6 +81,69 @@ func (k *LogTracker) sampleMeters(at int64) {
 	for player, r := range run.total {
 		run.track.Meters[player] = append(run.track.Meters[player], models.MeterPoint{ClockMS: clockMS,
 			Damage: r.Damage, Healing: r.Healing, Taken: r.DamageTaken})
+	}
+}
+
+// abilityEveryMS: how often a raid pull's ability totals are kept for the replay's focus bars.
+const abilityEveryMS = 10_000
+
+// sampleAbilities keeps, about every abilityEveryMS in a raid pull, the damage, healing and damage taken of each
+// raider's abilities since the last time (only what changed) and when it was kept, so the replay can sum them up to
+// any moment and share out the stretch it's in. Casts come from the track's casts; hits stay whole-pull.
+func (k *LogTracker) sampleAbilities(at int64) {
+	run := k.current
+	r := run.raid
+	if r == nil || at-r.abilitiesAt < abilityEveryMS {
+		return
+	}
+	r.abilitiesAt = at
+	clockMS := k.clockAt(at)
+	run.track.AbilityTimes = append(run.track.AbilityTimes, clockMS)
+	add := func(id [2]string, p [4]int64) {
+		series := run.track.Abilities[id[0]]
+		i := slices.IndexFunc(series, func(s models.AbilitySeries) bool { return s.Ability == id[1] })
+		if i < 0 {
+			series, i = append(series, models.AbilitySeries{Ability: id[1]}), len(series)
+		}
+		series[i].Points = append(series[i].Points, p)
+		run.track.Abilities[id[0]] = series
+	}
+	for id, a := range run.abilities {
+		if was := r.abilitiesWere[id]; a.Damage != was.Damage || a.Healing != was.Healing {
+			add(id, [4]int64{clockMS, a.Damage - was.Damage, a.Healing - was.Healing, 0})
+			r.abilitiesWere[id] = *a
+		}
+	}
+	for id, taken := range run.takenBy {
+		if was := r.takenWere[id]; taken != was {
+			add(id, [4]int64{clockMS, 0, 0, taken - was})
+			r.takenWere[id] = taken
+		}
+	}
+}
+
+// trackCast keeps a raider's cast for the replay: a cast's start, then its end (SPELL_CAST_SUCCESS of the same spell,
+// or SPELL_CAST_FAILED with "Interrupted", not a key pressed again mid-cast), or an instant.
+func (k *LogTracker) trackCast(at int64, event string, f []string) {
+	run := k.current
+	r := run.raid
+	if len(f) < 10 || !slices.Contains(run.party, f[0]) {
+		return
+	}
+	player, casts := k.names[f[0]], run.track.Casts
+	clockMS := k.clockAt(at)
+	open, casting := r.casting[f[0]]
+	switch {
+	case event == "SPELL_CAST_START":
+		casts[player] = append(casts[player], models.TrackCast{ClockMS: clockMS, Spell: f[9], Cut: true})
+		r.casting[f[0]] = len(casts[player]) - 1
+	case casting && casts[player][open].Spell == f[9] &&
+		(event == "SPELL_CAST_SUCCESS" || len(f) > 11 && f[11] == "Interrupted"):
+		c := &casts[player][open]
+		c.EndMS, c.Cut = max(clockMS, c.ClockMS+1), event != "SPELL_CAST_SUCCESS"
+		delete(r.casting, f[0])
+	case event == "SPELL_CAST_SUCCESS":
+		casts[player] = append(casts[player], models.TrackCast{ClockMS: clockMS, Spell: f[9]})
 	}
 }
 
@@ -101,6 +171,29 @@ func (k *LogTracker) trackOf(run *keyRun) models.KeyTrack {
 		t.Bosses = map[string][]models.TrackPoint{}
 		for guid, points := range run.track.Bosses {
 			t.Bosses[guid] = list(points)
+		}
+	}
+	if r := run.raid; r != nil {
+		t.Health = slices.Sorted(maps.Keys(r.bossUnits()))
+		var adds []string
+		for guid, u := range r.units {
+			if slices.Contains(r.boss.Priority, u.name) && !slices.Contains(t.Health, guid) {
+				adds = append(adds, guid)
+			}
+		}
+		slices.Sort(adds)
+		t.Health = append(t.Health, adds...)
+		t.AbilityTimes = list(run.track.AbilityTimes)
+		t.Casts, t.Abilities = map[string][]models.TrackCast{}, map[string][]models.AbilitySeries{}
+		for name, casts := range run.track.Casts {
+			t.Casts[name] = list(casts)
+		}
+		for name, series := range run.track.Abilities {
+			for _, s := range series {
+				t.Abilities[name] = append(t.Abilities[name], models.AbilitySeries{Ability: s.Ability,
+					Points: slices.Clone(s.Points)})
+			}
+			slices.SortFunc(t.Abilities[name], func(a, b models.AbilitySeries) int { return cmp.Compare(a.Ability, b.Ability) })
 		}
 	}
 	return t
