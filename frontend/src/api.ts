@@ -75,6 +75,18 @@ export interface KeySpike {
   partyCDs: string[]
   overlap: boolean
   members: { player: string; taken: number; defensive: string; ready: string[] }[]
+  /** The defensive the member hit hardest had ready and didn't use; missing when they used one or had none ready, and
+   * in keys saved before Nov 11. */
+  unused?: string
+}
+
+/** Damage a player took from one ability (models.KeyHit): with its direct hits for an avoidable one. */
+export interface KeyHit {
+  player: string
+  ability: string
+  damage: number
+  hits: number
+  school?: number
 }
 
 /** One player's numbers over a stretch of the key: damage and healing done, interrupts, dispels (off the party) and
@@ -212,6 +224,8 @@ export interface KeyView {
    * over, and missing in keys saved before Nov 10. */
   abilities?: KeyAbility[]
   taken?: { player: string; ability: string; damage: number; school?: number }[]
+  /** Each player's avoidable damage by ability, most first. */
+  avoidableHits?: KeyHit[]
   /** The party member whose game wrote the log; missing in keys saved before Nov 11. */
   logger?: string
   /** The key's timeline for the replay's lanes; missing in keys saved before Nov 11. */
@@ -252,6 +266,12 @@ export interface MeterPoint {
   d: number
   h: number
   tk?: number
+  /** Avoidable damage taken, damage into priority targets, kicks, and dispels and purges so far; missing in tracks
+   * saved before Nov 11. */
+  av?: number
+  pd?: number
+  k?: number
+  ds?: number
 }
 
 /** Where a key's party (or a raid pull's raid) went, each member about once a second with their class, where its mobs
@@ -625,6 +645,8 @@ export interface RaidPull extends RaidPullSummary {
   deaths: RaidDeath[]
   massKills: { ability: string; killed: number; clockMS: number }[]
   avoidable: { ability: string; players: PlayerCount[] }[]
+  /** Each raider's avoidable damage by ability, most first; missing in pulls saved before Nov 11. */
+  avoidableHits?: KeyHit[]
   /** needed: raiders each cast wants (0: everyone or unknown); hits: who soaked each cast (missing before Nov 11). */
   soaks: {
     ability: string

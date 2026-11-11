@@ -83,7 +83,8 @@ func (k *LogTracker) sampleMeters(at int64) {
 	clockMS := k.clockAt(at)
 	for player, r := range run.total {
 		run.track.Meters[player] = append(run.track.Meters[player], models.MeterPoint{ClockMS: clockMS,
-			Damage: r.Damage, Healing: r.Healing, Taken: r.DamageTaken})
+			Damage: r.Damage, Healing: r.Healing, Taken: r.DamageTaken, Avoidable: r.Avoidable,
+			Priority: r.PriorityDamage, Kicks: r.Interrupts, Dispels: r.Dispels + r.Purges})
 	}
 }
 

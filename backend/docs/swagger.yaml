@@ -380,6 +380,11 @@ definitions:
         items:
           type: string
         type: array
+      unused:
+        description: |-
+          Unused is the defensive the member hit hardest had ready and didn't use ("" when they used one or had none
+          ready); missing in keys saved before Nov 11.
+        type: string
     type: object
   models.KeySpikeMember:
     properties:
@@ -707,9 +712,17 @@ definitions:
     type: object
   models.MeterPoint:
     properties:
+      av:
+        type: integer
       d:
         type: integer
+      ds:
+        type: integer
       h:
+        type: integer
+      k:
+        type: integer
+      pd:
         type: integer
       t:
         type: integer
@@ -987,6 +1000,12 @@ definitions:
       avoidable:
         items:
           $ref: '#/definitions/models.RaidHits'
+        type: array
+      avoidableHits:
+        description: AvoidableHits is each raider's avoidable damage by ability, most
+          first; missing in pulls saved before Nov 11.
+        items:
+          $ref: '#/definitions/models.KeyHit'
         type: array
       boss:
         type: string

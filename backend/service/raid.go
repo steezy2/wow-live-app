@@ -637,7 +637,7 @@ func (k *LogTracker) raidPull(run *keyRun, key models.Key, at int64, kill bool) 
 		}
 		hits[h.Ability][h.Player] = h.Hits
 	}
-	p.Avoidable, p.Stacks = byAbility(hits), []models.RaidStacks{}
+	p.Avoidable, p.AvoidableHits, p.Stacks = byAbility(hits), list(key.AvoidableHits), []models.RaidStacks{}
 	for id, players := range r.stacks {
 		s := models.RaidStacks{Ability: k.spells[id], Limit: r.boss.Stacks[id], Players: playerCounts(players),
 			Over: []string{}}

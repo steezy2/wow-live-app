@@ -132,8 +132,10 @@ func TestRaidPullDeathsMechanicsAndProgress(t *testing.T) {
 	if len(p.MassKills) != 1 || p.MassKills[0] != (models.MassKill{Ability: "Caustic Waves", Killed: 2, ClockMS: 10_000}) {
 		t.Fatalf("mass kills = %+v; want Caustic Waves killing 2 at 10 s", p.MassKills)
 	}
-	if len(p.Avoidable) != 1 || len(p.Avoidable[0].Players) != 3 || p.Avoidable[0].Players[0].Count != 1 {
-		t.Fatalf("avoidable = %+v; want one direct hit each, the tick left out", p.Avoidable)
+	if len(p.Avoidable) != 1 || len(p.Avoidable[0].Players) != 3 || p.Avoidable[0].Players[0].Count != 1 ||
+		len(p.AvoidableHits) != 3 || p.AvoidableHits[0].Damage == 0 {
+		t.Fatalf("avoidable = %+v, hits %+v; want one direct hit each with its damage, the tick left out", p.Avoidable,
+			p.AvoidableHits)
 	}
 	if len(p.Soaks) != 1 || fmt.Sprint(p.Soaks[0]) != "{Spectral Coils 1 1 1 0 [{30000 [Testpriest]}] [Testpriest]}" || len(p.Stacks) != 1 || p.Stacks[0].Limit != 5 || p.Stacks[0].Players[0].Count != 6 {
 		t.Fatalf("soaks = %+v, stacks = %+v; want one soak by one raider who then died to it, and 6 stacks of 5", p.Soaks, p.Stacks)

@@ -222,6 +222,14 @@ func TestKeyStep2(t *testing.T) {
 		len(track.Meters["Testmage"]) == 0 {
 		t.Fatalf("track = %+v, %v; want the mage's position and the mob's death", track, err)
 	}
+	for _, r := range got.Overall.Rows { // the replay's cards at the end match the meters
+		points := track.Meters[r.Player]
+		if p := points[len(points)-1]; p.Avoidable != r.Avoidable || p.Kicks != r.Interrupts ||
+			p.Dispels != r.Dispels+r.Purges || p.Priority != r.PriorityDamage {
+			t.Errorf("%s's last meter point = %+v; want the row's avoidable, kicks, dispels and priority %+v",
+				r.Player, p, r)
+		}
+	}
 	damage := int64(0)
 	for _, s := range track.Abilities["Testmage"] {
 		for _, p := range s.Points {

@@ -243,12 +243,18 @@ type PullSpan struct {
 	EndMS   int64 `json:"endMS"`
 }
 
-// MeterPoint is a player's damage, healing and damage taken so far at a time on the key's clock.
+// MeterPoint is a player's damage, healing and damage taken so far at a time on the key's clock, and (missing in
+// tracks saved before Nov 11) their avoidable damage taken, damage into priority targets, kicks, and dispels and
+// purges so far.
 type MeterPoint struct {
-	ClockMS int64 `json:"t"`
-	Damage  int64 `json:"d"`
-	Healing int64 `json:"h"`
-	Taken   int64 `json:"tk"` // damage taken so far; 0 in keys saved before Nov 8
+	ClockMS   int64 `json:"t"`
+	Damage    int64 `json:"d"`
+	Healing   int64 `json:"h"`
+	Taken     int64 `json:"tk"` // damage taken so far; 0 in keys saved before Nov 8
+	Avoidable int64 `json:"av,omitempty"`
+	Priority  int64 `json:"pd,omitempty"`
+	Kicks     int   `json:"k,omitempty"`
+	Dispels   int   `json:"ds,omitempty"`
 }
 
 // TrackPoint is a place at a time on the key's clock: x and y in yards as the combat log gives them (x north, y
@@ -294,6 +300,9 @@ type KeySpike struct {
 	PartyCDs []string         `json:"partyCDs"`
 	Overlap  bool             `json:"overlap"`
 	Members  []KeySpikeMember `json:"members"`
+	// Unused is the defensive the member hit hardest had ready and didn't use ("" when they used one or had none
+	// ready); missing in keys saved before Nov 11.
+	Unused string `json:"unused,omitempty"`
 }
 
 // KeySpikeMember is a party member hit in a spike: what they took and, by the death rules, the defensive they used or
