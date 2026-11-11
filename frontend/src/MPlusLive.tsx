@@ -24,7 +24,7 @@ export function MPlusLive({ onEnded }: { onEnded: () => void }) {
           The game last wrote its log {clock(silentMS)} ago (it writes as fights start and end).
           {/* A key that ended meanwhile answers 409, and the next reading shows it. */}
           <button className="action" onClick={() => void abandonLiveKey().catch(() => undefined)}>
-            Abandoned key
+            End as abandoned
           </button>
         </p>
       )}
