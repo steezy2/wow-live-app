@@ -29,7 +29,6 @@ type RaidRules struct {
 
 // ItemSet is a Wowhead item set: its items and the specs that can wear them.
 type ItemSet struct {
-	ID    int
 	Items []int
 	Specs []int
 }

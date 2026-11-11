@@ -38,6 +38,7 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 - The release workflow's `store` job submits to the Microsoft Store without waiting for approval: the `microsoft-store` environment's required reviewer went away with the repo going private.
 
 ### Fixed
+- Review fixes to raid night two: one rule for a spike a raid cooldown covers (cast by its end, buff up within the death window before it), a Viper whose egg carrier isn't found no longer names whoever the cause landed on, `?all=` on *Read old logs* must be a boolean (400 otherwise), and `raidref` fails rather than writing a file without the tier sets when Wowhead can't be read.
 - A raid boss's health is its own: Ula'tek's counted its two Gore Rattle tails and the Venomous Heart, so a wipe at 48% showed 66%. The units named as the encounter count (or the mechanics file's `health` NPCs; all of a council). Pulls already saved keep their number until *Read old logs*. The tails and heart no longer show as adds.
 - A combat potion isn't a defensive (M+ and raid): one drunk just before a death no longer counts as its cover, nor shows in a death's "still ready" list.
 - Raid adds that die with no `UNIT_DIED` (Nymrissa's Bubblefin Shorerunners) count as killed when their health reaches 0, instead of "still up at the end"; an encounter nobody fought (a reset on the way in) isn't a pull.

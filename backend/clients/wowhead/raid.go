@@ -101,7 +101,6 @@ func (c Client) ItemSet(ctx context.Context, id int) (models.ItemSet, error) {
 	if err != nil {
 		return set, fmt.Errorf("item set %d: %w", id, err)
 	}
-	set.ID = id
 	return set, nil
 }
 

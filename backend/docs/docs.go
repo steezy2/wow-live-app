@@ -725,6 +725,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/controller.OldKeys"
                         }
                     },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {

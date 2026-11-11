@@ -57,7 +57,7 @@ func newRaidTracker(t *testing.T) (*LogTracker, *memPulls) {
 	bosses := map[string]models.RaidBoss{"Testboss": {NPCs: []int{240001}, Avoidable: []int{1001}, Soak: []int{1002},
 		Stacks: map[int]int{1003: 5}, Priority: []string{"Testboss"}}}
 	store := &memPulls{tracks: map[int64]models.KeyTrack{}}
-	if err := keys.EnableRaid(rules, bosses, store); err != nil {
+	if err := keys.EnableRaid(rules, bosses, nil, store); err != nil {
 		t.Fatal(err)
 	}
 	return keys, store
@@ -214,11 +214,11 @@ func TestSpikeIsTheWorstDamageTakenAndWhoCoveredIt(t *testing.T) {
 	}}
 	cooldowns := []models.KeyCast{{Player: "C", Ability: "Tranquility", Kind: "raid cooldown", ClockMS: 3000},
 		{Player: "D", Kind: "combat potion", ClockMS: 5000}}
-	s := spike(track, cooldowns, 2000)
+	s := spike(track, cooldowns, 2000, 2000)
 	if s == nil || s.ClockMS != 6000 || s.PerSecond != 1900 || fmt.Sprint(s.Covered) != "[C · Tranquility]" {
 		t.Fatalf("spike = %+v; want 3800 taken from 4 to 6 s, covered by the Tranquility, not the potion", s)
 	}
-	if spike(models.KeyTrack{}, nil, 2000) != nil {
+	if spike(models.KeyTrack{}, nil, 2000, 2000) != nil {
 		t.Fatal("a pull with no damage taken has no spike")
 	}
 }
@@ -781,7 +781,7 @@ func TestBuffCheckTierPieces(t *testing.T) {
 		{"a class without a list", map[string][]int{"Warlock": {271544}}, 0, "[]"},
 	} {
 		keys, store := newRaidTracker(t)
-		keys.SetTier(c.tier)
+		keys.raid.tier = c.tier
 		gear := []string{"(268265,341,(),(6652,13668),(240983,295,240908,295))"} // a ring with gems: not tier
 		for _, id := range priestTier["Priest"][:c.pieces] {
 			gear = append(gear, fmt.Sprintf("(%d,334,(7961,0,0),(13334,6652),())", id))
@@ -838,6 +838,7 @@ func TestViperSpawnerIsEggCarrier(t *testing.T) {
 		lines = append(lines, waves(s, "SPELL_PERIODIC_DAMAGE", testPlayer), waves(s+0.5, "SPELL_PERIODIC_DAMAGE", shamanUnit))
 	}
 	lines = append(lines,
+		viper(11.5, 6), // no egg broke, and the waves just hit two other raiders: nobody to name
 		broke(17.786, 1), waves(17.786, "SPELL_DAMAGE", egg(1)), viper(18.854, 1),
 		waves(20.386, "SPELL_DAMAGE", egg(2)), broke(20.39, 2), viper(20.909, 2), // the hit logged first
 		broke(27.627, 3), waves(27.627, "SPELL_DAMAGE", egg(3)), viper(29.897, 3),
@@ -854,7 +855,7 @@ func TestViperSpawnerIsEggCarrier(t *testing.T) {
 			got = append(got, fmt.Sprintf("%.1f %s %v", float64(s.ClockMS)/1000, s.Cause, s.Players))
 		}
 	}
-	want := []string{"18.9 Caustic Waves [Egg1]", "20.9 Caustic Waves [Egg2]", "29.9 Caustic Waves [Egg3]",
+	want := []string{"11.5  []", "18.9 Caustic Waves [Egg1]", "20.9 Caustic Waves [Egg2]", "29.9 Caustic Waves [Egg3]",
 		"31.4 Noxious Splash [Egg4]", "31.4 Noxious Splash [Egg5]"}
 	if fmt.Sprint(got) != fmt.Sprint(want) {
 		t.Fatalf("vipers =\n%q\nwant\n%q", got, want)

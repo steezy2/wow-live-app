@@ -293,3 +293,22 @@ func TestSettingsAreSavedOnlyWithChoicesTheAPIOffers(t *testing.T) {
 		}
 	}
 }
+
+func TestReadKeysTakesAllAsABoolean(t *testing.T) {
+	for query, want := range map[string]struct {
+		code int
+		all  bool
+	}{"": {http.StatusOK, false}, "?all=true": {http.StatusOK, true}, "?all=1": {http.StatusOK, true},
+		"?all=yes": {http.StatusBadRequest, false}} {
+		var all bool
+		api := &SettingsAPI{ReadOldKeys: func(a bool) (int, int, error) { all = a; return 0, 0, nil }}
+		router := Router(MPlus{Keys: &fakeKeys{}, Now: time.Now}, nil, api, os.DirFS(t.TempDir()), LocalHosts(port)...)
+		r := httptest.NewRequest(http.MethodPost, "/api/settings/read-keys"+query, nil)
+		r.Host = "localhost:8080"
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, r)
+		if w.Code != want.code || all != want.all {
+			t.Errorf("%q: %d, all=%v; want %+v", query, w.Code, all, want)
+		}
+	}
+}

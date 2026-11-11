@@ -36,9 +36,9 @@ const (
 	quietMS = 10 * 60_000
 	// lustMS: Bloodlust landing this long after the last counts as a new one (it lands on everyone at once).
 	lustMS = 60_000
-	// healthPotion is how a health potion is kept and shown, whichever one it was (their names are long).
+	// healthPotion names any health potion (their names are long).
 	healthPotion = "Health potion"
-	// combatPotion names a pre-pot whose buff the log never named.
+	// combatPotion names a pre-pot the log never named.
 	combatPotion = "Combat potion"
 )
 

@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -63,10 +64,16 @@ type OldKeys struct {
 //	@Produce		json
 //	@Param			all	query		bool	false	"read every log again, even ones already read"
 //	@Success		200	{object}	OldKeys
+//	@Failure		400	{object}	ErrorResponse
 //	@Failure		500	{object}	ErrorResponse
 //	@Router			/api/settings/read-keys [post]
 func (s SettingsAPI) ReadKeys(c *gin.Context) {
-	read, saved, err := s.ReadOldKeys(c.Query("all") == "true")
+	all, err := strconv.ParseBool(c.DefaultQuery("all", "false"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "all must be true or false"})
+		return
+	}
+	read, saved, err := s.ReadOldKeys(all)
 	if err != nil {
 		log.Printf("reading old logs: %v", err)
 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "couldn't read the log folder"})

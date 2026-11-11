@@ -205,7 +205,7 @@ func (k *LogTracker) spike(run *keyRun, second, damage int64, casts []models.Key
 	if run.raid != nil { // a raid's cover is its raid cooldowns, each for as long as its buff was up (or cast in the window before)
 		casts = run.raid.cooldowns
 		covers = func(c models.KeyCast) bool {
-			return c.ClockMS <= sp.ClockMS+spikeMS && max(c.EndMS, c.ClockMS) >= sp.ClockMS-window
+			return coversSpike(c, sp.ClockMS, sp.ClockMS+spikeMS, window)
 		}
 	}
 	var cdAt []int64

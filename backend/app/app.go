@@ -69,10 +69,9 @@ func Start(ctx context.Context, opts Options) (*Site, error) {
 		if err != nil {
 			return nil, err
 		}
-		if err := keys.EnableRaid(opts.RaidRules, opts.Bosses, pulls); err != nil {
+		if err := keys.EnableRaid(opts.RaidRules, opts.Bosses, opts.Tier, pulls); err != nil {
 			return nil, err
 		}
-		keys.SetTier(opts.Tier)
 		return keys, nil
 	}
 	keys, err := newKeys()
