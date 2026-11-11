@@ -336,8 +336,8 @@ type ReadyPlayer struct {
 }
 
 // KeyForces is a key's enemy forces: the count killed of the dungeon's total, and its share (it can pass 100; 100 once
-// a key is finished, since the game needs it), each counted kill's share (saved with the key), the pace against your
-// best run at the level (running keys only, when there is one), whether a finished key's kills fell short enough that the dungeon file
+// a key is finished, since the game needs it), each counted kill's share (saved with the key), the pace against
+// your best run at the level (running keys only, when there is one), whether a finished key's kills fell short enough that the dungeon file
 // needs checking, and the enemies that died without being in the dungeon file at all.
 type KeyForces struct {
 	Count      int            `json:"count"`

@@ -26,7 +26,7 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 - The release workflow's `store` job submits to the Microsoft Store without waiting for approval: the `microsoft-store` environment's required reviewer went away with the repo going private.
 
 ### Fixed
-- Den of Nalorakk's second floor (uiMap 2513) had no map: Keystone.guru has no tiles under its index and draws it as index 3 under another map ID. A floor without tiles now takes those of a floor with the same bounds (which then goes), and one left without any is drawn from where parties walked (`make ref`).
+- Den of Nalorakk's second floor (uiMap 2513) had no map: Keystone.guru has no tiles under its index and draws it as index 3 under another map ID. A floor without tiles now takes those of a floor with the same bounds (which then goes), and one left without any is drawn from where parties walked (`make ref`, which prints each floor it changes). So 2513 now draws on index 3's tiles, and the small entrance floor (2564), which index 3's copied bounds put off the map, shows where parties walked.
 - Kings' Rest counted 587 of 608 forces in a finished +17 and said the dungeon file needed checking: its Half-Finished Mummies come under two NPC IDs and Mythic Dungeon Tools lists one. The other (273050) now counts the same (`npcTwins` in `service/mplusref.go`). *Read old keys* corrects a key saved before this.
 - An abandoned key ends at its last line in the log, not at the line that showed it was over: one whose log just stopped read "Abandoned at 18:42:06" with 3k DPS once the next day's log started.
 - The ready check keeps the buffs it has seen when the party zones into the same dungeon again, instead of going back to "not seen" for everyone.

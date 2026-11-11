@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -128,6 +129,8 @@ func (c Client) withTiles(ctx context.Context, floors []models.DungeonFloor) ([]
 		drop[i] = true
 		for j, g := range floors {
 			if tiled[j] && !drop[j] && f.MinX == g.MinX && f.MaxX == g.MaxX && f.MinY == g.MinY && f.MaxY == g.MaxY {
+				log.Printf("Keystone.guru: floor %d has no tiles, so it takes %s and floor %d goes", f.UIMapID, g.Tiles,
+					g.UIMapID)
 				floors[i].Tiles, drop[i], drop[j] = g.Tiles, false, true
 				break
 			}
@@ -137,6 +140,9 @@ func (c Client) withTiles(ctx context.Context, floors []models.DungeonFloor) ([]
 	for i, f := range floors {
 		if !drop[i] {
 			kept = append(kept, f)
+		} else if !tiled[i] {
+			log.Printf("Keystone.guru: floor %d (%s) has no tiles; the page draws where parties walked", f.UIMapID,
+				f.Tiles)
 		}
 	}
 	return kept, nil

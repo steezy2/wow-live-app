@@ -405,3 +405,17 @@ func TestASilentKeyStaysClosedWhenThePartyLeftOrStartedAnother(t *testing.T) {
 		}
 	}
 }
+
+func TestAViewHasTheBestOtherRunsBossLengths(t *testing.T) {
+	key := models.Key{Start: 1, MapID: 586, Level: 15, Status: "timed", FinalMS: 1_500_000}
+	boss := func(ms int64) []models.KeyBoss {
+		return []models.KeyBoss{{Name: "Nalorakk", StartMS: 100_000, EndMS: 100_000 + ms, Kill: true}}
+	}
+	history := []models.Key{key,
+		{Start: 2, MapID: 586, Level: 15, Status: "timed", FinalMS: 1_400_000, Bosses: boss(90_000)},
+		{Start: 3, MapID: 586, Level: 15, Status: "timed", FinalMS: 1_600_000, Bosses: boss(80_000)},
+		{Start: 4, MapID: 586, Level: 15, Status: "depleted", FinalMS: 1_300_000, Bosses: boss(70_000)}}
+	if got := finished(key, history).BestBosses; !reflect.DeepEqual(got, map[string]int64{"Nalorakk": 90_000}) {
+		t.Fatalf("BestBosses = %v, want the fastest timed other run's Nalorakk, 1:30", got)
+	}
+}

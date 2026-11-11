@@ -23,9 +23,9 @@ const TRAILS = [10_000, 30_000, 120_000, Infinity]
 /** Above this many yards a second between two samples is a teleport, so the line breaks. */
 const JUMP_YARDS_PER_S = 15
 
-/** The party on the dungeon's map (from the key's track): live, the last 30 s of trails; for a finished key, a replay
- * with controls on the page's replay clock. Floors Keystone.guru maps are drawn on its tiles; any other floor's shape is
- * where parties have walked in its saved runs. */
+/** The party on the dungeon's map (from the key's track): live, the last 30 s of trails; for a finished key, a
+ * replay with controls on the page's replay clock. Floors Keystone.guru maps are drawn on its tiles; any other floor's
+ * shape is where parties have walked in its saved runs. */
 export function KeyMap(props: {
   keyView: KeyView
   clockMS: number

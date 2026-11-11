@@ -273,7 +273,8 @@ func forcesPace(best *models.Key, pct float64, clockMS int64) *models.ForcesPace
 	if bestMS <= 0 {
 		return nil
 	}
-	return &models.ForcesPace{BestPct: forcesAt(*best, clockMS), FasterPct: 100 * float64(bestMS-clockMS) / float64(bestMS)}
+	return &models.ForcesPace{BestPct: forcesAt(*best, clockMS),
+		FasterPct: 100 * float64(bestMS-clockMS) / float64(bestMS)}
 }
 
 // median is the middle value, or the mean of the two middle ones for an even count (sorting a copy).

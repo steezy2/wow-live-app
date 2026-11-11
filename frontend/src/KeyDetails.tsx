@@ -285,7 +285,7 @@ export function ForcesBar({ forces, level }: { forces: KeyForces; level: number 
     <div className="forces">
       <div className="bar" role="img" aria-label={`forces ${forces.pct.toFixed(1)}%`}>
         <div
-          className={`fill ${pace && pace.fasterPct < 0 ? 'behind' : 'ahead'}`}
+          className={`fill ${pace && pace.fasterPct <= -PACE_EVEN_PCT ? 'behind' : 'ahead'}`}
           style={{ width: `${Math.min(100, forces.pct)}%` }}
         />
         {pace && <div className="mark" style={{ left: `${Math.min(100, pace.bestPct)}%` }} title={best} />}

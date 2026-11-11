@@ -79,8 +79,8 @@ var (
 	}
 )
 
-// buildReview reviews a finished key: each player's DPS and HPS against the top runs of their spec (baselines, by
-// player then metric name), their own earlier runs of the dungeon (history) and the party, with advice and one positive callout; and
+// buildReview reviews a finished key: each player's DPS and HPS against the top runs of their spec (baselines,
+// by player then metric name), their own earlier runs of the dungeon (history) and the party, with advice and one positive callout; and
 // the party's damage taken per second against similar top runs (taken).
 func buildReview(key models.Key, history []models.Key, baselines map[string]map[string][]models.MPlusRanking,
 	taken []float64) models.KeyReview {

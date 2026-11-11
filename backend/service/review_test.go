@@ -120,7 +120,8 @@ func TestAdviceNamesWhatElseToWorkOn(t *testing.T) {
 func TestAnAbandonedKeyIsReviewedOverItsOwnTime(t *testing.T) {
 	key := reviewedKey // left 8:20 in, before anyone died
 	key.Status, key.FinalMS, key.End, key.Deaths = "abandoned", 0, key.Start+keyCountdownMS+500_000, nil
-	got := buildReview(key, nil, map[string]map[string][]models.MPlusRanking{"Mage": {"DPS": {{Amount: 200_000}}}}, []float64{25_000})
+	baselines := map[string]map[string][]models.MPlusRanking{"Mage": {"DPS": {{Amount: 200_000}}}}
+	got := buildReview(key, nil, baselines, []float64{25_000})
 	// 50M taken in 500 s is 100,000 a second, against the top run's 25,000.
 	wantParty := "The party took 4.0× the damage per second of 1 top +12 runs"
 	wantBaseline := "Top runs of each spec at +12 from Warcraft Logs: whole keys, against the 8:20 of this one"

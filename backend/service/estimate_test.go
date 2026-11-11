@@ -48,7 +48,8 @@ func TestTopRunsAreAskedForWhileNoFinishedRunOfTheDungeonIsSaved(t *testing.T) {
 }
 
 func TestForcesPaceAgainstTheBestRun(t *testing.T) {
-	best := &models.Key{Forces: &models.KeyForces{At: []models.ForcesPoint{{ClockMS: 200_000, Pct: 20}, {ClockMS: 500_000, Pct: 50}}}}
+	best := &models.Key{Forces: &models.KeyForces{At: []models.ForcesPoint{{ClockMS: 200_000, Pct: 20},
+		{ClockMS: 500_000, Pct: 50}}}}
 	for _, tc := range []struct {
 		name    string
 		best    *models.Key
@@ -56,27 +57,15 @@ func TestForcesPaceAgainstTheBestRun(t *testing.T) {
 		clockMS int64
 		want    *models.ForcesPace
 	}{
-		{"faster: 50% at 7:30, the best run at 8:20", best, 50, 450_000, &models.ForcesPace{BestPct: 20, FasterPct: 10}},
-		{"slower: 20% at 4:00, the best run at 3:20", best, 20, 240_000, &models.ForcesPace{BestPct: 20, FasterPct: -20}},
+		{"faster: 50% at 7:30, the best run at 8:20", best, 50, 450_000,
+			&models.ForcesPace{BestPct: 20, FasterPct: 10}},
+		{"slower: 20% at 4:00, the best run at 3:20", best, 20, 240_000,
+			&models.ForcesPace{BestPct: 20, FasterPct: -20}},
 		{"no best run", nil, 50, 450_000, nil},
 		{"under minPacePct", best, 3, 30_000, nil},
 	} {
 		if got := forcesPace(tc.best, tc.pct, tc.clockMS); !reflect.DeepEqual(got, tc.want) {
 			t.Errorf("%s: forcesPace = %+v, want %+v", tc.name, got, tc.want)
 		}
-	}
-}
-
-func TestAViewHasTheBestOtherRunsBossLengths(t *testing.T) {
-	key := models.Key{Start: 1, MapID: 586, Level: 15, Status: "timed", FinalMS: 1_500_000}
-	boss := func(ms int64) []models.KeyBoss {
-		return []models.KeyBoss{{Name: "Nalorakk", StartMS: 100_000, EndMS: 100_000 + ms, Kill: true}}
-	}
-	history := []models.Key{key,
-		{Start: 2, MapID: 586, Level: 15, Status: "timed", FinalMS: 1_400_000, Bosses: boss(90_000)},
-		{Start: 3, MapID: 586, Level: 15, Status: "timed", FinalMS: 1_600_000, Bosses: boss(80_000)},
-		{Start: 4, MapID: 586, Level: 15, Status: "depleted", FinalMS: 1_300_000, Bosses: boss(70_000)}}
-	if got := finished(key, history).BestBosses; !reflect.DeepEqual(got, map[string]int64{"Nalorakk": 90_000}) {
-		t.Fatalf("BestBosses = %v, want the fastest timed other run's Nalorakk, 1:30", got)
 	}
 }
