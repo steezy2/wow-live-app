@@ -58,6 +58,7 @@ type LogTracker struct {
 	affixes      map[int]string
 	rules        models.MPlusRules
 	kinds        map[string]string
+	everyday     map[string]consumable // flask and food, the consumables every key and pull asks for (read-only)
 	store        models.KeyStore
 	facts        map[int]models.DungeonFacts // by map ID, from reference/mplus-dungeons.json
 	spells       map[int]string              // spell ID -> name, from every line seen
@@ -147,9 +148,10 @@ func NewLogTracker(timers map[int]int64, affixes map[int]string, rules models.MP
 			kinds[name] = kind
 		}
 	}
+	c := rules.Consumables
 	return &LogTracker{timers: timers, affixes: affixes, rules: rules, kinds: kinds, facts: facts, store: store,
-		history: history,
-		spells:  map[int]string{}, schools: map[string]int{"Melee": physicalSchool}, specs: map[string]int{},
+		history: history, everyday: map[string]consumable{"flask": {patterns: c.Flask}, "food": {patterns: c.Food}},
+		spells: map[int]string{}, schools: map[string]int{"Melee": physicalSchool}, specs: map[string]int{},
 		owners: map[string]string{}, names: map[string]string{},
 		up: map[[2]string]int64{}, top: map[[2]int][]int64{}, asked: map[[2]int]bool{}}, nil
 }
