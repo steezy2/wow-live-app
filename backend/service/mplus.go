@@ -273,20 +273,19 @@ func (k *KeyTracker) CloseQuiet(now int64) {
 	}
 }
 
-// hold keeps the lines read after Abandon closed a key, and takes the key up again with them once the log has gone on
-// in it for resumeMS, or at its CHALLENGE_MODE_END (which says how it ended); a new key or a zone outside its dungeon
-// drops it. False when the line isn't held.
+// hold keeps the lines read after Abandon closed a key while the log goes on in its dungeon. After resumeMS of them,
+// or at a CHALLENGE_MODE_END, a zone outside the dungeon or a new key, the key takes them in; the line that ended the
+// hold then closes it again if it says the party left (the held lines are the key's own, only written late). False
+// when the line isn't held.
 func (k *KeyTracker) hold(line models.LogLine) bool {
 	run := k.left
 	if run == nil {
 		return false
 	}
 	f := line.Fields
-	switch {
-	case line.Event == "CHALLENGE_MODE_START" || line.Event == "ZONE_CHANGE" && len(f) > 0 && f[0] != run.instance:
-		k.left, k.held = nil, nil
-		return false
-	case line.Event != "CHALLENGE_MODE_END" && line.Time-run.key.End < resumeMS:
+	out := line.Event == "CHALLENGE_MODE_START" || line.Event == "CHALLENGE_MODE_END" ||
+		line.Event == "ZONE_CHANGE" && len(f) > 0 && f[0] != run.instance
+	if !out && line.Time-run.key.End < resumeMS {
 		k.held = append(k.held, line)
 		return true
 	}

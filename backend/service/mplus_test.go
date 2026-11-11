@@ -398,14 +398,17 @@ func TestASilentKeyClosesAsAbandonedAndGoesOnIfTheLogDoes(t *testing.T) {
 func TestASilentKeyStaysClosedWhenThePartyLeftOrStartedAnother(t *testing.T) {
 	for _, next := range []string{`ZONE_CHANGE,0,"Silvermoon City",0`,
 		`CHALLENGE_MODE_START,"Voidscar Arena",2923,585,17,[9]`} {
-		keys, last := silentKey(t)
+		keys, _ := silentKey(t)
 		keys.Abandon()
-		// The next day's log: its header says nothing about the key; the line after it does.
-		feed(t, keys, "11/4/2026 08:00:00.000-7  COMBAT_LOG_VERSION,22,ADVANCED_LOG_ENABLED,1",
+		// The game wrote the boss kill late, then the next day's log: its header says nothing about the key; the line
+		// after it does.
+		killed := feed(t, keys, "11/3/2026 23:13:00.000-7  ENCOUNTER_END,3286,\"Second\",8,5,1,60000",
+			"11/4/2026 08:00:00.000-7  COMBAT_LOG_VERSION,22,ADVANCED_LOG_ENABLED,1",
 			"11/4/2026 08:00:01.000-7  "+next,
-			"11/4/2026 08:00:02.000-7  ENCOUNTER_START,3286,\"Second\",8,5,2923")
-		if saved := keys.Saved(); len(saved) != 1 || saved[0].Status != "abandoned" || keys.history[0].End != last {
-			t.Errorf("after %s: saved %+v; want the silent key still abandoned at its last line", next, saved)
+			"11/4/2026 08:00:02.000-7  ENCOUNTER_START,3286,\"Second\",8,5,2923")[0].Time
+		if saved := keys.Saved(); len(saved) != 1 || saved[0].Status != "abandoned" || keys.history[0].End != killed ||
+			!keys.history[0].Bosses[1].Kill {
+			t.Errorf("after %s: saved %+v; want the key abandoned at its late boss kill, with the kill", next, saved)
 		}
 	}
 }
