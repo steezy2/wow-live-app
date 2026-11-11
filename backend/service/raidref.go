@@ -70,3 +70,16 @@ func appendNew[T comparable](s []T, values ...T) []T {
 	}
 	return s
 }
+
+// TierItems is each class's tier items (class as the specs name it: "DeathKnight"), from the raid's tier sets; a set
+// whose specs aren't known is left out.
+func TierItems(sets []models.ItemSet) map[string][]int {
+	tier := map[string][]int{}
+	for _, s := range sets {
+		if i := slices.IndexFunc(s.Specs, func(id int) bool { return specs[id].Class != "" }); i >= 0 {
+			class := specs[s.Specs[i]].Class
+			tier[class] = append(tier[class], s.Items...)
+		}
+	}
+	return tier
+}

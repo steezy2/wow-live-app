@@ -3,6 +3,8 @@ package wowhead
 import (
 	"cmp"
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"html"
 	"os"
@@ -84,6 +86,50 @@ func ParseRaidGuide(page string) models.RaidGuide {
 		g.Lines = append(g.Lines, line)
 	}
 	return g
+}
+
+// itemAdd starts an item's data on an item-set page: g_items.add(271519, {...}).
+var itemAdd = regexp.MustCompile(`g_items\.add\((\d+), `)
+
+// ItemSet is a Wowhead item set (a class's tier set): its items and the specs that wear them.
+func (c Client) ItemSet(ctx context.Context, id int) (models.ItemSet, error) {
+	page, err := c.page(ctx, fmt.Sprintf("/item-set=%d", id), fmt.Sprintf("item-set-%d.html", id))
+	if err != nil {
+		return models.ItemSet{}, err
+	}
+	set, err := ParseItemSet(page)
+	if err != nil {
+		return set, fmt.Errorf("item set %d: %w", id, err)
+	}
+	set.ID = id
+	return set, nil
+}
+
+// ParseItemSet reads an item-set page's items (each g_items.add call) and their specs.
+func ParseItemSet(page string) (models.ItemSet, error) {
+	var set models.ItemSet
+	for _, m := range itemAdd.FindAllStringSubmatchIndex(page, -1) {
+		var item struct {
+			Equip struct {
+				Specs []int `json:"specs"`
+			} `json:"jsonequip"`
+		}
+		if err := json.NewDecoder(strings.NewReader(page[m[1]:])).Decode(&item); err != nil {
+			return set, fmt.Errorf("reading item %s: %w", page[m[2]:m[3]], err)
+		}
+		id, _ := strconv.Atoi(page[m[2]:m[3]])
+		set.Items = append(set.Items, id)
+		for _, s := range item.Equip.Specs {
+			if !slices.Contains(set.Specs, s) {
+				set.Specs = append(set.Specs, s)
+			}
+		}
+	}
+	if len(set.Items) == 0 {
+		return set, errors.New("no items on the page")
+	}
+	slices.Sort(set.Items)
+	return set, nil
 }
 
 // page downloads a Wowhead page into the cache (reused for a day) and returns it.

@@ -157,14 +157,18 @@ aura = 1311611   # Grasping Fangs
 effect = 1311609 # Blight Vein on the raid 1-15 ms later (Nov 10)
 within_ms = 250
 # Spawns, measured Nov 10 on 28 Mythic pulls (time from the cause to the add's first line, median):
+# A Viper is the raider's whose Noxious Shell (the egg, lost) came off as the cause landed on them; up to 2.3 s
+# before it shows (pull 28).
 [[bosses."Ula'tek".spawns]]
 add = "Blightscale Viper"
 cause = 1307635 # Noxious Splash: two egg carriers too close (21 of 91 Vipers, 0.5 s)
-within_ms = 2000
+lost = 1307612
+within_ms = 3000
 [[bosses."Ula'tek".spawns]]
 add = "Blightscale Viper"
 cause = 1292403 # Caustic Waves on an egg carrier (46 of 91, 0.9 s)
-within_ms = 2000
+lost = 1307612
+within_ms = 3000
 [[bosses."Ula'tek".spawns]]
 add = "Blightscale Clutch"
 cause = 1302950 # Writhing Gestation with the Doomscale Warden alive (77 of 94, 0.4 s)

@@ -35,6 +35,9 @@ const (
 	shownAdds, shownDispels = 5, 5
 	// breakDeathMS: a tether aura coming off a raider this close to their death went with them, it wasn't broken.
 	breakDeathMS = 1_000
+	// spawnSameMS: a spawn rule's aura coming off a raider this close to its cause landing on them (either order) is
+	// the cause breaking it.
+	spawnSameMS = 100
 )
 
 // raidSetup is what raid pulls are read with: the raid rules, each boss's mechanics, the store of finished pulls,
@@ -46,6 +49,7 @@ type raidSetup struct {
 	bosses    map[string]models.RaidBoss
 	store     models.PullStore
 	cooldowns map[string]bool
+	tier      map[string][]int // class -> its tier items (SetTier)
 	kit       models.Kit
 	kitNight  string
 }
@@ -69,6 +73,10 @@ type raidRun struct {
 	pickups    []pickupAt
 	breaks     []breakAt
 	causes     map[int]*causeAt // spawn cause spell ID -> its last landing
+	// For spawn rules with a lost aura: when each such aura last came off a raider and each cause last landed on one,
+	// and the raiders who lost one as its cause landed, in order (spawners).
+	lostAt, landedAt map[spellOn]int64
+	spawners         []spawner
 	// For the replay: when the ability totals were last kept and what they were then, and each raider's cast going
 	// (GUID -> its index in their track casts).
 	abilitiesAt   int64
@@ -90,6 +98,21 @@ type breakAt struct {
 	rule   models.RaidBreakRule
 	player string
 	hit    int
+}
+
+// spellOn is a spell on a raider.
+type spellOn struct {
+	id     int
+	player string
+}
+
+// spawner is a raider who lost a spawn rule's aura as its cause landed on them: the next add of the rule's name is
+// theirs (used once it is).
+type spawner struct {
+	at     int64
+	rule   models.RaidSpawnRule
+	player string
+	used   bool
 }
 
 // causeAt is the last landing of a spell that spawns adds: when it first and last landed, and the raiders it landed
@@ -134,6 +157,14 @@ func (k *LogTracker) EnableRaid(rules models.RaidRules, bosses map[string]models
 	return nil
 }
 
+// SetTier gives the raid's tier items by class (raid-bosses.json's tier) to the pull-start check, which then says
+// who lacks their 2-set or 4-set. Call it after EnableRaid.
+func (k *LogTracker) SetTier(tier map[string][]int) {
+	k.mu.Lock()
+	defer k.mu.Unlock()
+	k.raid.tier = tier
+}
+
 // savedPulls is the store's pulls that were fought.
 func savedPulls(store models.PullStore) ([]models.RaidPull, error) {
 	pulls, err := store.ListPulls()
@@ -163,8 +194,9 @@ func (k *LogTracker) startPull(line models.LogLine) {
 	run.raid = &raidRun{difficulty: raidDifficulties[f[2]], boss: boss, phases: k.raid.rules.Phases[f[1]],
 		units: map[string]*raidUnit{}, soaks: map[int]*soakTally{}, stacks: map[int]map[string]int{},
 		priority: map[string]int64{}, lustEnds: map[int64]int64{}, marks: map[lane][]models.RaidMark{},
-		causes: map[int]*causeAt{}, abilitiesWere: map[[2]string]models.KeyAbility{},
-		takenWere: map[[2]string]int64{}, targetsWere: map[[2]string]int64{},
+		causes: map[int]*causeAt{}, lostAt: map[spellOn]int64{}, landedAt: map[spellOn]int64{},
+		abilitiesWere: map[[2]string]models.KeyAbility{},
+		takenWere:     map[[2]string]int64{}, targetsWere: map[[2]string]int64{},
 		casting: map[string]int{}}
 	run.track.Casts, run.track.Abilities = map[string][]models.TrackCast{}, map[string][]models.AbilitySeries{}
 	run.track.TargetSeries = map[string][]models.AbilitySeries{}
@@ -242,7 +274,7 @@ func (k *LogTracker) raidLine(line models.LogLine) bool {
 			r.auraOn(id, at, victim, window)
 		}
 	case "SPELL_CAST_SUCCESS":
-		if who := k.player(f[0], f[2]); who != "" && len(f) > 9 && k.raid.cooldowns[f[9]] &&
+		if who := k.player(f[0], f[2]); who != "" && len(f) > 9 && k.raidCooldown(f[0], f[9]) &&
 			!slices.ContainsFunc(r.cooldowns, func(c models.KeyCast) bool {
 				return c.Player == who && c.Ability == f[9] && run.clock(at)-c.ClockMS < cooldownRepeatMS
 			}) {
@@ -252,6 +284,7 @@ func (k *LogTracker) raidLine(line models.LogLine) bool {
 	case "SPELL_AURA_REMOVED":
 		if victim != "" && len(f) > 9 {
 			k.buffLeft(run.clock(at), k.player(f[0], f[2]), f[9])
+			r.lose(atoi(f[8]), at, victim)
 			for _, b := range r.boss.Breaks {
 				if b.Aura == atoi(f[8]) {
 					r.breaks = append(r.breaks, breakAt{at: at, rule: b, player: victim})
@@ -260,6 +293,12 @@ func (k *LogTracker) raidLine(line models.LogLine) bool {
 		}
 	}
 	return false
+}
+
+// raidCooldown says whether a raider's (by GUID) spell is a raid cooldown: one of healer_only's only from a healer.
+func (k *LogTracker) raidCooldown(guid, spell string) bool {
+	return k.raid.cooldowns[spell] &&
+		(!slices.Contains(k.raid.rules.Cooldowns.HealerOnly, spell) || specs[k.specs[guid]].Healer)
 }
 
 // auraOn notes an aura landing on a raider: a pickup, the effect of the last tether broken, or a spawn cause.
@@ -278,8 +317,9 @@ func (r *raidRun) auraOn(id int, at int64, victim string, window int64) {
 	r.cause(id, at, victim, window)
 }
 
-// cause notes a spell that spawns adds landing at at, on player ("" for an enemy's cast): within window ms of its
-// first landing it's the same one (a wave hitting raiders for seconds doesn't gather the whole raid).
+// cause notes a spell that spawns adds landing at at (a cast, a direct hit or an aura applied, never a tick), on
+// player ("" for an enemy's cast): within window ms of its first landing it's the same one (a wave hitting raiders
+// for seconds doesn't gather the whole raid).
 func (r *raidRun) cause(id int, at int64, player string, window int64) {
 	if !slices.ContainsFunc(r.boss.Spawns, func(s models.RaidSpawnRule) bool { return s.Cause == id }) {
 		return
@@ -290,14 +330,52 @@ func (r *raidRun) cause(id int, at int64, player string, window int64) {
 		r.causes[id] = c
 	}
 	c.at = at
-	if player != "" && !slices.Contains(c.players, player) {
+	if player == "" {
+		return
+	}
+	r.land(id, at, player)
+	if !slices.Contains(c.players, player) {
 		c.players = append(c.players, player)
 	}
 }
 
-// spawnOf is an add of a name appearing at at (clockMS on the pull's clock): the latest landing of a cause the
-// reference gives for it within its rule's time, named by spells; nil for an add the reference says nothing about.
+// land notes a spawn cause landing on a raider: one who lost the rule's aura spawnSameMS before is a spawner.
+func (r *raidRun) land(id int, at int64, player string) {
+	r.landedAt[spellOn{id, player}] = at
+	for _, rule := range r.boss.Spawns {
+		lost := spellOn{rule.Lost, player}
+		if t, ok := r.lostAt[lost]; ok && rule.Cause == id && at-t <= spawnSameMS {
+			r.spawners = append(r.spawners, spawner{at: t, rule: rule, player: player})
+			delete(r.lostAt, lost)
+			return
+		}
+	}
+}
+
+// lose notes an aura coming off a raider: a spawn rule's lost aura whose cause landed on them spawnSameMS before
+// makes them a spawner, else it waits for the cause.
+func (r *raidRun) lose(id int, at int64, player string) {
+	for _, rule := range r.boss.Spawns {
+		if t, ok := r.landedAt[spellOn{rule.Cause, player}]; ok && rule.Lost == id && at-t <= spawnSameMS {
+			r.spawners = append(r.spawners, spawner{at: at, rule: rule, player: player})
+			return
+		}
+	}
+	if slices.ContainsFunc(r.boss.Spawns, func(s models.RaidSpawnRule) bool { return s.Lost == id }) {
+		r.lostAt[spellOn{id, player}] = at
+	}
+}
+
+// spawnOf is an add of a name appearing at at (clockMS on the pull's clock), named by spells: the oldest unused
+// spawner of its name within its rule's time; else the latest landing of a cause the reference gives for it within
+// its rule's time; nil for an add the reference says nothing about.
 func (r *raidRun) spawnOf(name string, at, clockMS int64, spells map[int]string) *models.RaidSpawn {
+	for i := range r.spawners { // in order, so the first that fits is the oldest
+		if s := &r.spawners[i]; !s.used && s.rule.Add == name && at >= s.at && at-s.at <= s.rule.WithinMS {
+			s.used = true
+			return &models.RaidSpawn{ClockMS: clockMS, Cause: spells[s.rule.Cause], Players: []string{s.player}}
+		}
+	}
 	var seen *models.RaidSpawn
 	var when int64
 	for _, rule := range r.boss.Spawns {
@@ -363,7 +441,8 @@ func (k *LogTracker) raidUnits(at int64, event string, f []string) {
 	}
 }
 
-// raidHit counts a hit: soaks raiders took (direct hits, not ticks), and the raid's damage into a unit to burst.
+// raidHit counts a hit: soaks, avoidable hits and spawn causes raiders took (direct hits, not ticks), and the raid's
+// damage into a unit to burst.
 func (k *LogTracker) raidHit(at int64, event string, f []string, victim string) {
 	r := k.current.raid
 	if id := atoi(f[8]); victim != "" && (event == "SPELL_DAMAGE" || event == "SPELL_MISSED") {
@@ -373,9 +452,7 @@ func (k *LogTracker) raidHit(at int64, event string, f []string, victim string) 
 		case slices.Contains(r.boss.Avoidable, id):
 			r.mark("avoidable", f[9], models.RaidMark{ClockMS: k.current.clock(at), Text: victim, Bad: true})
 		}
-	}
-	if victim != "" {
-		r.cause(atoi(f[8]), at, victim, k.raid.rules.Soaks.WindowMS)
+		r.cause(id, at, victim, k.raid.rules.Soaks.WindowMS)
 	}
 	if k.player(f[0], f[2]) == "" {
 		return

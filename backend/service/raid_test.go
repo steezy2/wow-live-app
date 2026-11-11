@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"math"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -639,5 +640,223 @@ func TestRaidTrackKeepsBossHealthCastsAndAbilities(t *testing.T) {
 		t.Errorf("abilities = %v, targets = %v, closed at %v; want the hit in the stretch the first line past 2 s closed, "+
 			"one stretch per 2 s boundary a line crossed (not per line), then the pull's end",
 			track.Abilities["Testmage"], track.TargetSeries["Testmage"], track.AbilityTimes)
+	}
+}
+
+func TestBuffCheckCountsAuraIDs(t *testing.T) {
+	const mage = "Player-76-0000AAAA"
+	for _, c := range []struct {
+		name    string
+		auras   []int
+		missing bool
+	}{
+		{"by ID only, never named in a line", []int{1303187}, false},
+		{"by name only", []int{3003}, false},
+		{"missing", []int{}, true},
+	} {
+		keys, _ := newRaidTracker(t)
+		keys.raid.rules.Consumables.Vantus = []string{"Vantus Rune"}
+		keys.raid.rules.Consumables.VantusIDs = []int{1303187}
+		keys.spells[3003], keys.names[mage] = "Vantus Rune: Radiant", "Testmage"
+		checks := keys.buffCheck(&keyRun{party: []string{mage}, auras: map[string][]int{mage: c.auras},
+			raid: &raidRun{}})
+		if got := len(checks) > 0 && slices.Contains(checks[0].Missing, "Vantus Rune"); got != c.missing {
+			t.Errorf("%s: missing Vantus Rune = %v (%+v); want %v", c.name, got, checks, c.missing)
+		}
+	}
+}
+
+func TestPrepotFromPullStartAura(t *testing.T) {
+	const priest = "Player-76-0000CCCC"
+	drink := func(s float64) string {
+		return raidAt(3, s, "SPELL_CAST_SUCCESS,"+priestUnit+","+noUnit+`,1295132,"Liquid Luster",0x1,`+
+			advancedOf(priest, "0000000000000000"))
+	}
+	for _, c := range []struct {
+		name  string
+		extra []string
+		want  string
+	}{
+		{"buff at the start, no drink in the pull", nil, "[Testpriest 0 true]"},
+		{"a drink in the pull too: the drink only", []string{drink(20)}, "[Testpriest 20 false]"},
+	} {
+		keys, store := newRaidTracker(t)
+		keys.kinds["Liquid Luster"] = "combat potion"
+		feed(t, keys, drink(-14)) // before the pull: the log names the potion
+		feed(t, keys, pullLines(3, 0, 120, 40, false, append([]string{
+			raidAt(3, 0.6, "COMBATANT_INFO,"+priest+",1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,257,[],[],[],[],["+
+				priest+",1295132,1]"),
+			hitOn(3, 5, "SPELL_DAMAGE", priestUnit, 1004, "Bite")}, c.extra...)...)...)
+		if _, err := keys.SaveFinished(); err != nil {
+			t.Fatal(err)
+		}
+		var got []string
+		for _, p := range store.pulls[0].Cooldowns {
+			got = append(got, fmt.Sprintf("%s %d %v", p.Player, p.ClockMS/1000, p.Prepot))
+		}
+		if fmt.Sprint(got) != c.want {
+			t.Errorf("%s: combat potions = %v; want %s", c.name, got, c.want)
+		}
+	}
+}
+
+func TestHealthPotionLabel(t *testing.T) {
+	keys, store := newRaidTracker(t)
+	keys.kinds["Concentrated Silvermoon Health Potion"] = "health potion"
+	feed(t, keys, pullLines(3, 0, 60, 40, false,
+		raidAt(3, 5, "SPELL_CAST_SUCCESS,"+testPlayer+","+noUnit+`,1234768,"Concentrated Silvermoon Health Potion",0x1,`+
+			advancedOf("Player-76-0000AAAA", "0000000000000000")))...)
+	if _, err := keys.SaveFinished(); err != nil {
+		t.Fatal(err)
+	}
+	if got := store.pulls[0].Casts; len(got) != 1 || got[0].Ability != "Health potion" || got[0].Kind != "health potion" {
+		t.Fatalf("casts = %+v; want the health potion saved as Health potion", got)
+	}
+}
+
+func TestHealerOnlyCooldown(t *testing.T) {
+	const shaman = "Player-76-0000BBBB"
+	for _, c := range []struct {
+		spec int
+		want bool
+	}{{264, true}, {262, false}} { // Restoration, Elemental
+		keys, _ := newRaidTracker(t)
+		keys.raid.cooldowns["Ascendance"] = true
+		keys.raid.rules.Cooldowns.HealerOnly = []string{"Ascendance"}
+		keys.specs[shaman] = c.spec
+		if got := keys.raidCooldown(shaman, "Ascendance"); got != c.want {
+			t.Errorf("spec %d: Ascendance a raid cooldown = %v; want %v", c.spec, got, c.want)
+		}
+	}
+}
+
+func TestRaidSpikeCountsRaidCooldowns(t *testing.T) {
+	keys, store := newRaidTracker(t)
+	keys.rules.Defensives.Externals = []string{"Pain Suppression"}
+	keys.kinds["Pain Suppression"] = "defensive"
+	lines := []string{
+		raidAt(3, 0.6, "COMBATANT_INFO,Player-76-0000CCCC,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,257,[],[],[],[],[]")}
+	// A hit of 1,000 every second for 70 s and 50,000 a second from 40 to 42 s; Tranquility up from 39 to 45 s,
+	// Pain Suppression at 40 s.
+	for s := 1; s <= 70; s++ {
+		amount := 1000
+		if s >= 40 && s <= 42 {
+			amount = 50_000
+		}
+		lines = append(lines, raidAt(3, float64(s), fmt.Sprintf(`SPELL_DAMAGE,%s,%s,1238063,"Light Bolt",0x2,%s,%d,%d,`+
+			`-1,2,0,0,0,nil,nil,nil,ST`, mobUnit(1), testPlayer, advancedOf("Player-76-0000AAAA", "0000000000000000"),
+			amount, amount)))
+		switch s {
+		case 39:
+			lines = append(lines, raidAt(3, 39, "SPELL_CAST_SUCCESS,"+shamanUnit+","+noUnit+`,740,"Tranquility",0x8,`+
+				advancedOf("Player-76-0000BBBB", "0000000000000000")))
+		case 40:
+			lines = append(lines, raidAt(3, 40, "SPELL_CAST_SUCCESS,"+priestUnit+","+testPlayer+
+				`,33206,"Pain Suppression",0x2,`+advancedOf("Player-76-0000CCCC", "0000000000000000")))
+		case 45:
+			lines = append(lines, raidAt(3, 45, "SPELL_AURA_REMOVED,"+shamanUnit+","+testPlayer+
+				`,740,"Tranquility",0x8,BUFF`))
+		}
+	}
+	feed(t, keys, pullLines(3, 0, 75, 40, false, lines...)...)
+	if _, err := keys.SaveFinished(); err != nil {
+		t.Fatal(err)
+	}
+	if s := store.pulls[0].Spikes; len(s) != 1 || fmt.Sprint(s[0].PartyCDs) != "[Tranquility (Testshaman)]" {
+		t.Fatalf("spikes = %+v; want one at 40 s covered by the Tranquility up then, not by Pain Suppression", s)
+	}
+}
+
+func TestBuffCheckTierPieces(t *testing.T) {
+	priestTier := map[string][]int{"Priest": {271553, 271554, 271555, 271556, 271558}}
+	for _, c := range []struct {
+		name   string
+		tier   map[string][]int
+		pieces int
+		want   string
+	}{
+		{"1 piece", priestTier, 1, "[2-set]"},
+		{"3 pieces", priestTier, 3, "[4-set]"},
+		{"4 pieces", priestTier, 4, "[]"},
+		{"a class without a list", map[string][]int{"Warlock": {271544}}, 0, "[]"},
+	} {
+		keys, store := newRaidTracker(t)
+		keys.SetTier(c.tier)
+		gear := []string{"(268265,341,(),(6652,13668),(240983,295,240908,295))"} // a ring with gems: not tier
+		for _, id := range priestTier["Priest"][:c.pieces] {
+			gear = append(gear, fmt.Sprintf("(%d,334,(7961,0,0),(13334,6652),())", id))
+		}
+		feed(t, keys, pullLines(3, 0, 60, 40, false,
+			raidAt(3, 0.6, "COMBATANT_INFO,Player-76-0000CCCC,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,257,"+
+				"[(1,2,1)],(0,1,2,3),["+strings.Join(gear, ",")+"],[]"),
+			hitOn(3, 5, "SPELL_DAMAGE", priestUnit, 1004, "Bite"))...)
+		if _, err := keys.SaveFinished(); err != nil {
+			t.Fatal(err)
+		}
+		var got []string
+		for _, b := range store.pulls[0].Missing {
+			for _, m := range b.Missing {
+				if strings.HasSuffix(m, "-set") {
+					got = append(got, m)
+				}
+			}
+		}
+		if fmt.Sprint(list(got)) != c.want {
+			t.Errorf("%s: sets missing = %v; want %s", c.name, got, c.want)
+		}
+	}
+}
+
+// TestViperSpawnerIsEggCarrier replays pull 28 on Nov 10: two carriers' eggs breaking to Caustic Waves 2.6 s apart and
+// a third 7 s later while the waves tick on two other raiders, then two carriers' Noxious Splash.
+func TestViperSpawnerIsEggCarrier(t *testing.T) {
+	keys, store := newRaidTracker(t)
+	boss := keys.raid.bosses["Testboss"]
+	boss.Spawns = []models.RaidSpawnRule{{Add: "Viper", Cause: 1307635, Lost: 1307612, WithinMS: 3000},
+		{Add: "Viper", Cause: 1292403, Lost: 1307612, WithinMS: 3000}}
+	keys.raid.bosses["Testboss"] = boss
+	egg := func(n int) string {
+		return fmt.Sprintf(`Player-76-0000E00%d,"Egg%d-Sargeras-US",0x512,0x80000000`, n, n)
+	}
+	aura := func(s float64, event, unit string, spell int, name string) string {
+		return raidAt(3, s, fmt.Sprintf(`%s,%s,%s,%d,"%s",0x8,DEBUFF`, event, bossUnit, unit, spell, name))
+	}
+	broke := func(s float64, n int) string { return aura(s, "SPELL_AURA_REMOVED", egg(n), 1307612, "Noxious Shell") }
+	waves := func(s float64, event, unit string) string { return hitOn(3, s, event, unit, 1292403, "Caustic Waves") }
+	splash := func(s float64, n int) string { return aura(s, "SPELL_AURA_APPLIED", egg(n), 1307635, "Noxious Splash") }
+	viper := func(s float64, n int) string {
+		return raidAt(3, s, "SPELL_DAMAGE,"+testPlayer+fmt.Sprintf(`,Creature-0-1-2939-1-261915-0%d,"Viper",0xa48,`, n)+
+			`0x80000000,44425,"Arcane Barrage",0x40`)
+	}
+	var lines []string
+	for n := 1; n <= 5; n++ {
+		lines = append(lines, raidAt(3, 0.6, fmt.Sprintf("COMBATANT_INFO,Player-76-0000E00%d,1,0,0,0,0,0,0,0,0,0,0,0,0,"+
+			"0,0,0,0,0,0,0,0,0,0,258,[],[],[],[],[]", n)), aura(1, "SPELL_AURA_APPLIED", egg(n), 1307612, "Noxious Shell"))
+	}
+	lines = append(lines, waves(10, "SPELL_DAMAGE", testPlayer), waves(10, "SPELL_DAMAGE", shamanUnit))
+	for s := 11.0; s <= 30; s++ { // the waves ticking on the two of them
+		lines = append(lines, waves(s, "SPELL_PERIODIC_DAMAGE", testPlayer), waves(s+0.5, "SPELL_PERIODIC_DAMAGE", shamanUnit))
+	}
+	lines = append(lines,
+		broke(17.786, 1), waves(17.786, "SPELL_DAMAGE", egg(1)), viper(18.854, 1),
+		waves(20.386, "SPELL_DAMAGE", egg(2)), broke(20.39, 2), viper(20.909, 2), // the hit logged first
+		broke(27.627, 3), waves(27.627, "SPELL_DAMAGE", egg(3)), viper(29.897, 3),
+		broke(31.294, 4), splash(31.294, 4), broke(31.36, 5), splash(31.36, 5), viper(31.394, 4), viper(31.4, 5),
+	)
+	slices.SortStableFunc(lines, func(a, b string) int { return strings.Compare(a[:23], b[:23]) })
+	feed(t, keys, pullLines(3, 0, 60, 40, false, lines...)...)
+	if _, err := keys.SaveFinished(); err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	for _, a := range store.pulls[0].Adds {
+		for _, s := range a.Spawns {
+			got = append(got, fmt.Sprintf("%.1f %s %v", float64(s.ClockMS)/1000, s.Cause, s.Players))
+		}
+	}
+	want := []string{"18.9 Caustic Waves [Egg1]", "20.9 Caustic Waves [Egg2]", "29.9 Caustic Waves [Egg3]",
+		"31.4 Noxious Splash [Egg4]", "31.4 Noxious Splash [Egg5]"}
+	if fmt.Sprint(got) != fmt.Sprint(want) {
+		t.Fatalf("vipers =\n%q\nwant\n%q", got, want)
 	}
 }

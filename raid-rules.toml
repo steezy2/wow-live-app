@@ -37,14 +37,27 @@ cooldown_overlap_seconds = 3
 # Raid healing and damage-reduction cooldowns, shown on the pull's cooldown lane (each for as long as its buff was on
 # a raider) with Bloodlust and combat potions.
 names = [
-  "Anti-Magic Zone", "Apotheosis", "Aura Mastery", "Avenging Crusader", "Convoke the Spirits", "Darkness",
-  "Divine Hymn", "Dream Flight", "Evangelism", "Healing Tide Totem", "Power Word: Barrier", "Rallying Cry",
-  "Restoral", "Revival", "Rewind", "Spirit Link Totem", "Tranquility",
+  "Anti-Magic Zone", "Apotheosis", "Ascendance", "Aura Mastery", "Avenging Crusader", "Celestial Conduit",
+  "Convoke the Spirits", "Darkness", "Divine Hymn", "Dream Flight", "Evangelism", "Healing Tide Totem",
+  "Power Word: Barrier", "Rallying Cry", "Restoral", "Revival", "Rewind", "Spirit Link Totem", "Tranquility",
+  "Zephyr",
 ]
+# These count only when a healer casts them: Elemental and Enhancement have an Ascendance, Windwalker a Celestial
+# Conduit.
+healer_only = ["Ascendance", "Celestial Conduit"]
 
 [consumables]
-# Checked with mplus.toml's flask and food at each pull's start and between pulls: a buff whose name contains one.
+# Checked with mplus.toml's flask and food at each pull's start and between pulls: a buff whose name contains one, or
+# an aura by ID. The runes' auras (Wowhead: 1303171 "Vantus Rune: Tides", 1303187 "Vantus Rune: Ula'tek") show only
+# in the pull-start aura lists, never named in a line.
 vantus = ["Vantus Rune"]
+vantus_ids = [1303171, 1303187]
+
+[tier]
+# The raid's class tier sets (Wowhead item-set IDs, one per class): cmd/raidref writes their items into
+# reference/raid-bosses.json, and a raider wearing fewer than 2 (or 4) of their class's pieces at a pull's start is
+# missing the 2-set (or 4-set).
+sets = [2055, 2056, 2057, 2058, 2059, 2060, 2061, 2062, 2063, 2064, 2065, 2066, 2067]
 
 # Per boss (as ENCOUNTER_START names it): its phases after phase 1, numbered as Warcraft Logs numbers them, and what
 # starts each in the combat log (event and spell ID). A phase without a trigger is listed but not marked; find its
