@@ -48,6 +48,9 @@ func (k *LogTracker) position(at int64, event string, f []string) {
 			run.track.Players[name] = append(run.track.Players[name], p)
 		}
 	case strings.HasPrefix(guid, "Creature-") || strings.HasPrefix(guid, "Vehicle-"):
+		if _, seen := run.mobHP[guid]; !seen {
+			run.hpSum, run.hpCount = run.hpSum+int64(atoi(f[i+3])), run.hpCount+1
+		}
 		run.mobHP[guid] = int64(atoi(f[i+3]))
 		p.Name = f[1]
 		if guid == f[4] {
@@ -55,8 +58,11 @@ func (k *LogTracker) position(at int64, event string, f []string) {
 		}
 		run.mobAt[guid] = p
 		r := run.raid
-		if r != nil && (slices.Contains(r.boss.NPCs, npcOf(guid)) || slices.Contains(r.boss.Priority, p.Name)) &&
-			at-run.sampled[guid] >= trackEveryMS {
+		watched := r != nil && (slices.Contains(r.boss.NPCs, npcOf(guid)) || slices.Contains(r.boss.Priority, p.Name))
+		if r == nil {
+			watched = run.bigUnit(p.Name, int64(atoi(f[i+3])))
+		}
+		if watched && at-run.sampled[guid] >= trackEveryMS {
 			run.sampled[guid] = at
 			if hp, maxHP := atoi(f[i+2]), atoi(f[i+3]); maxHP > 0 {
 				p.HP = math.Round(1000*float64(hp)/float64(maxHP)) / 10
@@ -84,9 +90,22 @@ func (k *LogTracker) sampleMeters(at int64) {
 	}
 }
 
+// abilitySampler is what the replay's focus bars keep of a run: when the ability totals were last kept and what they
+// were then, each player's cast going (GUID -> its index in their track casts), and how long a stretch lasts.
+type abilitySampler struct {
+	every, at     int64
+	abilitiesWere map[[2]string]models.KeyAbility
+	takenWere     map[[2]string]int64
+	targetsWere   map[[2]string]int64
+	casting       map[string]int
+}
+
 // abilityEveryMS: how long a raid pull's ability totals are kept for the replay's focus bars, as stretches on the
 // pull's clock.
 const abilityEveryMS = 2_000
+
+// mplusAbilityEveryMS is a stretch in a key: it lasts five times as long, so a half-hour key's track stays small.
+const mplusAbilityEveryMS = 10_000
 
 // sampleAbilities closes a stretch in a raid pull when a line crosses an abilityEveryMS boundary of the pull's clock
 // (so a quiet log makes one long stretch, not many empty ones): each raider's damage, healing and damage taken by
@@ -95,12 +114,12 @@ const abilityEveryMS = 2_000
 // stay whole-pull.
 func (k *LogTracker) sampleAbilities(at int64) {
 	run := k.current
-	r := run.raid
+	s := &run.sample
 	clockMS := k.clockAt(at)
-	if r == nil || clockMS/abilityEveryMS <= r.abilitiesAt/abilityEveryMS {
+	if clockMS/s.every <= s.at/s.every {
 		return
 	}
-	r.abilitiesAt = clockMS
+	s.at = clockMS
 	run.track.AbilityTimes = append(run.track.AbilityTimes, clockMS)
 	add := func(into map[string][]models.AbilitySeries, id [2]string, p [4]int64) {
 		series := into[id[0]]
@@ -112,21 +131,21 @@ func (k *LogTracker) sampleAbilities(at int64) {
 		into[id[0]] = series
 	}
 	for id, a := range run.abilities {
-		if was := r.abilitiesWere[id]; a.Damage != was.Damage || a.Healing != was.Healing {
+		if was := s.abilitiesWere[id]; a.Damage != was.Damage || a.Healing != was.Healing {
 			add(run.track.Abilities, id, [4]int64{clockMS, a.Damage - was.Damage, a.Healing - was.Healing, 0})
-			r.abilitiesWere[id] = *a
+			s.abilitiesWere[id] = *a
 		}
 	}
 	for id, taken := range run.takenBy {
-		if was := r.takenWere[id]; taken != was {
+		if was := s.takenWere[id]; taken != was {
 			add(run.track.Abilities, id, [4]int64{clockMS, 0, 0, taken - was})
-			r.takenWere[id] = taken
+			s.takenWere[id] = taken
 		}
 	}
 	for id, damage := range targetDamage(run) {
-		if was := r.targetsWere[id]; damage != was {
+		if was := s.targetsWere[id]; damage != was {
 			add(run.track.TargetSeries, id, [4]int64{clockMS, damage - was, 0, 0})
-			r.targetsWere[id] = damage
+			s.targetsWere[id] = damage
 		}
 	}
 }
@@ -148,22 +167,21 @@ func targetDamage(run *keyRun) map[[2]string]int64 {
 // or SPELL_CAST_FAILED with "Interrupted", not a key pressed again mid-cast), or an instant.
 func (k *LogTracker) trackCast(at int64, event string, f []string) {
 	run := k.current
-	r := run.raid
 	if len(f) < 10 || !slices.Contains(run.party, f[0]) {
 		return
 	}
 	player, casts := k.names[f[0]], run.track.Casts
 	clockMS := k.clockAt(at)
-	open, casting := r.casting[f[0]]
+	open, casting := run.sample.casting[f[0]]
 	switch {
 	case event == "SPELL_CAST_START":
 		casts[player] = append(casts[player], models.TrackCast{ClockMS: clockMS, Spell: f[9], Cut: true})
-		r.casting[f[0]] = len(casts[player]) - 1
+		run.sample.casting[f[0]] = len(casts[player]) - 1
 	case casting && casts[player][open].Spell == f[9] &&
 		(event == "SPELL_CAST_SUCCESS" || len(f) > 11 && f[11] == "Interrupted"):
 		c := &casts[player][open]
 		c.EndMS, c.Cut = max(clockMS, c.ClockMS+1), event != "SPELL_CAST_SUCCESS"
-		delete(r.casting, f[0])
+		delete(run.sample.casting, f[0])
 	case event == "SPELL_CAST_SUCCESS":
 		casts[player] = append(casts[player], models.TrackCast{ClockMS: clockMS, Spell: f[9]})
 	}
@@ -195,7 +213,17 @@ func (k *LogTracker) trackOf(run *keyRun) models.KeyTrack {
 			t.Bosses[guid] = list(points)
 		}
 	}
-	if r := run.raid; r != nil {
+	t.AbilityTimes = list(run.track.AbilityTimes)
+	t.Casts = map[string][]models.TrackCast{}
+	for name, casts := range run.track.Casts {
+		t.Casts[name] = list(casts)
+	}
+	t.Abilities, t.TargetSeries = copySeries(run.track.Abilities), copySeries(run.track.TargetSeries)
+	if r := run.raid; r == nil {
+		t.Health = slices.SortedFunc(maps.Keys(t.Bosses), func(a, b string) int {
+			return cmp.Compare(t.Bosses[a][0].ClockMS, t.Bosses[b][0].ClockMS)
+		})
+	} else {
 		t.Health = slices.Sorted(maps.Keys(r.bossUnits()))
 		var adds []string
 		for guid, u := range r.units {
@@ -205,12 +233,6 @@ func (k *LogTracker) trackOf(run *keyRun) models.KeyTrack {
 		}
 		slices.Sort(adds)
 		t.Health = append(t.Health, adds...)
-		t.AbilityTimes = list(run.track.AbilityTimes)
-		t.Casts = map[string][]models.TrackCast{}
-		for name, casts := range run.track.Casts {
-			t.Casts[name] = list(casts)
-		}
-		t.Abilities, t.TargetSeries = copySeries(run.track.Abilities), copySeries(run.track.TargetSeries)
 	}
 	return t
 }
@@ -282,4 +304,16 @@ func (k *LogTracker) walked(mapID int) ([]models.TrackPoint, error) {
 		}
 	}
 	return walked, nil
+}
+
+// minSeenMobs is how many mobs a key must have shown before one can count as a miniboss by its health.
+const minSeenMobs = 10
+
+// bigUnit is whether a key's mob is worth following on the map's health box: the boss being fought (a unit of its
+// name), or a mob with minibossRatio times the health of the mobs seen so far on average (a miniboss).
+func (r *keyRun) bigUnit(name string, maxHP int64) bool {
+	if n := len(r.key.Bosses); n > 0 && r.key.Bosses[n-1].EndMS == 0 && strings.EqualFold(r.key.Bosses[n-1].Name, name) {
+		return true
+	}
+	return r.hpCount >= minSeenMobs && float64(maxHP) >= minibossRatio*float64(r.hpSum)/float64(r.hpCount)
 }

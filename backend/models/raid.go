@@ -17,8 +17,9 @@ type RaidRules struct {
 		HealerOnly []string `toml:"healer_only"` // cooldowns that count only from a healer (other specs share the name)
 	} `toml:"cooldowns"`
 	Consumables struct {
-		Vantus    []string `toml:"vantus"`     // a Vantus Rune's name patterns, checked with flask and food
-		VantusIDs []int    `toml:"vantus_ids"` // Vantus Rune auras the log never names, by ID
+		Vantus             []string `toml:"vantus"`              // a Vantus Rune's name patterns, checked with flask and food
+		VantusIDs          []int    `toml:"vantus_ids"`          // Vantus Rune auras the log never names, by ID
+		VantusDifficulties []string `toml:"vantus_difficulties"` // the difficulties the raid's rune works in ("Heroic")
 	} `toml:"consumables"`
 	Tier struct {
 		Sets []int `toml:"sets"` // the raid's class tier sets, by Wowhead item-set ID (cmd/raidref reads them)
@@ -118,12 +119,14 @@ type CuratedSoak struct {
 	Soakers int `toml:"soakers"`
 }
 
-// RaidPickupRule is an aura a raider takes on by picking something up (an egg), what it is, and the difficulties it
-// happens on (none: all).
+// RaidPickupRule is an aura a raider takes on by picking something up (an egg), what it is, the difficulties it
+// happens on (none: all), and for something every living raider should pick up, Expect: the enemy spell it's needed
+// for (Extinguish), whose cast ends each wave; who lacks the aura then didn't pick one up.
 type RaidPickupRule struct {
 	Aura         int      `json:"aura" toml:"aura"`
 	Name         string   `json:"name" toml:"name"`
 	Difficulties []string `json:"difficulties,omitempty" toml:"difficulties"`
+	Expect       int      `json:"expect,omitempty" toml:"expect"`
 }
 
 // RaidBreakRule is a debuff whose removal (a raider breaking a tether) sets off Effect, an aura on the raid, within
@@ -217,8 +220,18 @@ type RaidPull struct {
 	Spikes      []KeySpike         `json:"spikes,omitempty"`
 	Casts       []KeyCast          `json:"casts,omitempty"`
 	Activity    map[string]float64 `json:"activity,omitempty"`
-	// Missing is who lacked a flask, food, Vantus Rune or raid buff at the pull's start; missing before Nov 11.
-	Missing []KeyBuffCheck `json:"missing,omitempty"`
+	// BuffGaps is each raider's flask, food, Vantus Rune, tier bonus or raid buff missing at the pull's start (from 0)
+	// and each flask, food or raid buff that came off them in the pull for a while, in order; missing before Nov 12.
+	BuffGaps []RaidMissing `json:"buffGaps,omitempty"`
+}
+
+// RaidMissing is a raider without a buff ("flask", "Arcane Intellect", "2-set") from FromMS to ToMS on the pull's
+// clock (ToMS is the pull's end when it never came back).
+type RaidMissing struct {
+	Player string `json:"player"`
+	Buff   string `json:"buff"`
+	FromMS int64  `json:"fromMS"`
+	ToMS   int64  `json:"toMS"`
 }
 
 // RaidTarget is a raider's damage into the enemies of one name over a pull.
@@ -281,11 +294,13 @@ type RaidSoakCast struct {
 	Players []string `json:"players"`
 }
 
-// RaidPickup is a wave of raiders picking something up (an egg) at about the same time: when, what, and who.
+// RaidPickup is a wave of raiders picking something up (an egg) at about the same time: when, what, who, and for
+// something everyone should pick up, the living raiders who hadn't when it was needed.
 type RaidPickup struct {
 	ClockMS int64    `json:"clockMS"`
 	Name    string   `json:"name"`
 	Players []string `json:"players"`
+	Missed  []string `json:"missed,omitempty"`
 }
 
 // RaidBreak is a raider breaking a tether (a debuff coming off them): when, the debuff, and the raid-wide effect it
@@ -370,11 +385,11 @@ type RaidNight struct {
 	Pulls []RaidPullSummary `json:"pulls"`
 }
 
-// RaidLane is one row of a pull's timeline: a mechanic (or the phases, deaths, Bloodlust, cooldowns, potions, an add
-// kind) and each time it came up, in order.
+// RaidLane is one row of a raid pull's or a key's timeline: a mechanic (or the pulls, phases, deaths, Bloodlust,
+// cooldowns, potions, an add kind) and each time it came up, in order.
 type RaidLane struct {
 	Name  string     `json:"name"`
-	Kind  string     `json:"kind" enums:"phases,deaths,lust,cooldowns,potions,spike,avoidable,soak,stacks,adds"`
+	Kind  string     `json:"kind" enums:"pulls,bosses,phases,deaths,lust,cooldowns,potions,spike,stops,cc,avoidable,soak,pickups,stacks,adds"`
 	Marks []RaidMark `json:"marks"`
 }
 

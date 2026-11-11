@@ -27,7 +27,7 @@ Play in Windowed or Windowed (Fullscreen) so the overlay shows over the game.
 
 ## What it shows
 
-- **Before the key:** in a Mythic dungeon, a ready check of who's missing a flask, food or a party buff, from the buffs the log has shown since the party zoned in. The game often writes those lines only as the key starts, so the check that counts is the one at the start: who's missing what, on the page for the whole key and on the overlay for its first 30 seconds.
+- **Before the key:** in a Mythic dungeon, a ready check of who's missing a flask, food or a party buff, from the buffs the log has shown since the party zoned in (a party buff only when its class is in the group). The game often writes those lines only as the key starts, so the check that counts is the one at the start: who's missing what, on the page for the whole key and on the overlay for its first 30 seconds.
 - **During the key** (the game writes its log in batches as fights start and end, so a pull's numbers arrive when it's over):
   - the clock against the timer, death penalty included, with the +2 and +3 marks, and enemy forces as the dungeon's count, with how much faster or slower you are than your best timed run at that level;
   - the result it's heading for, with a range and the odds of each, from your earlier runs' forces and boss times (a dungeon's first run uses its top Warcraft Logs runs at that level);

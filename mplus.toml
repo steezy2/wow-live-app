@@ -94,3 +94,10 @@ food = ["Well Fed"]
 # Luster) for a pull-start aura list holding one the log hasn't named yet: a raider who starts with one pre-potted.
 combat_potions = ["Light's Potential", "Potion of Recklessness", "Liquid Luster"]
 combat_potion_ids = [1236616, 1236994, 1295132]
+
+[suggestions]
+# "Fix next key" on a finished key: at most this many lines, a pull is slow when it took this share longer than the same
+# pull in your best timed run of the dungeon at the level (and 20 s more), and a wait between pulls is long past this.
+most = 5
+slow_pull_pct = 30
+gap_seconds = 60

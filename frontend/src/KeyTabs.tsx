@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react'
 import type { KeyCast, KeyView } from './api'
-import { clock, coverText } from './format'
+import { coverText } from './format'
 import { KickLedger, SpikeLedger } from './KeyLedgers'
+import { When, Who, type Seeker } from './Seek'
 
 /** What a fight's tabs read: a key's view, or a raid pull's lists. */
 export type FightData = Pick<
@@ -16,8 +17,9 @@ export interface FightTab {
 }
 
 /** The tabs a key and a raid pull share, in order: Deaths (named deathsName), Interrupts, Must-stops, Spikes,
- * Defensives and potions, CC; group names the cooldowns that cover a spike. */
-export function fightTabs(data: FightData, deathsName: string, group: 'party' | 'raid'): FightTab[] {
+ * Defensives and potions, CC; group names the cooldowns that cover a spike. With seek, a row's time moves the replay
+ * and a name focuses the player. */
+export function fightTabs(data: FightData, deathsName: string, group: 'party' | 'raid', seek?: Seeker): FightTab[] {
   const cc = data.casts.filter((c) => c.kind === 'cc')
   const pressed = data.casts.filter((c) => c.kind !== 'cc')
   return [
@@ -28,10 +30,11 @@ export function fightTabs(data: FightData, deathsName: string, group: 'party' | 
           {data.deaths.map((d, i) => (
             <li key={`${d.player}-${d.clockMS}-${i}`} className="stack">
               <span>
-                <b>{d.player}</b> {d.ability || 'unknown'} <span className="muted">from {d.killer || 'unknown'}</span>
+                <Who player={d.player} seek={seek} /> {d.ability || 'unknown'}{' '}
+                <span className="muted">from {d.killer || 'unknown'}</span>
               </span>
               <span className="muted">
-                {clock(d.clockMS)} · {coverText(d.defensive, d.ready)}
+                <When ms={d.clockMS} seek={seek} /> · {coverText(d.defensive, d.ready)}
               </span>
             </li>
           ))}
@@ -51,10 +54,12 @@ export function fightTabs(data: FightData, deathsName: string, group: 'party' | 
             {[...data.interrupts].reverse().map((i, n) => (
               <li key={n}>
                 <span>
-                  <b>{i.player}</b> {i.kick && `${i.kick} → `}
+                  <Who player={i.player} seek={seek} /> {i.kick && `${i.kick} → `}
                   {i.spell} <span className="muted">on {i.target}</span>
                 </span>
-                <span className="muted">{clock(i.clockMS)}</span>
+                <span className="muted">
+                  <When ms={i.clockMS} seek={seek} />
+                </span>
               </li>
             ))}
           </ul>
@@ -63,9 +68,9 @@ export function fightTabs(data: FightData, deathsName: string, group: 'party' | 
     },
     {
       name: `Must-stops ${data.stops.filter((s) => s.outcome !== 'went off').length}/${data.stops.length}`,
-      body: <KickLedger data={data} />,
+      body: <KickLedger data={data} seek={seek} />,
     },
-    { name: `Spikes ${data.spikes.length}`, body: <SpikeLedger data={data} group={group} /> },
+    { name: `Spikes ${data.spikes.length}`, body: <SpikeLedger data={data} group={group} seek={seek} /> },
     {
       name: 'Defensives and potions',
       body: (

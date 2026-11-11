@@ -6,35 +6,10 @@ import { amount, clock, coverText, seconds } from './format'
 import { defense, raidOffense, type Column } from './meterColumns'
 import { MeterCard } from './MeterCards'
 import { AbilityBars } from './PlayerFocus'
+import { At, Name, type Classes } from './Seek'
 
 /** How many raiders a mechanic's line names before it counts the rest. */
 const NAMES_SHOWN = 6
-
-/** Each raider's class, by name. */
-type Classes = Record<string, string>
-
-/** A raider's name in their class colour; with onPick, a button that focuses them. */
-export function Name({ player, classes, onPick }: { player: string; classes: Classes; onPick?: (p: string) => void }) {
-  const style = { color: classColors[classes[player]] }
-  return onPick ? (
-    <button className="name pick" style={style} onClick={() => onPick(player)} title={`Focus ${player}`}>
-      {player}
-    </button>
-  ) : (
-    <b className="name" style={style}>
-      {player}
-    </b>
-  )
-}
-
-/** A time on the pull's clock; a click moves the replay there. */
-export function At({ ms, onSeek }: { ms: number; onSeek: (clockMS: number) => void }) {
-  return (
-    <button className="at muted" onClick={() => onSeek(ms)} title="Show this moment in the replay">
-      {clock(ms)}
-    </button>
-  )
-}
 
 /** Raiders' names in class colours with a number each where they have one, the ones past NAMES_SHOWN counted. */
 function Names(props: { players: (PlayerCount | string)[]; classes: Classes; onFocus: (p: string) => void }) {
@@ -157,7 +132,20 @@ export const Mechanics = memo(function Mechanics({ pull, classes, onSeek, onFocu
     ],
     [
       'Picked up',
-      (pull.pickups ?? []).map((p) => ({ at: p.clockMS, what: `Picked up ${p.name}`, detail: names(p.players) })),
+      (pull.pickups ?? []).map((p) =>
+        p.missed?.length
+          ? {
+              at: p.clockMS,
+              what: (
+                <>
+                  Didn't pick up {p.name}: {names(p.missed)}
+                </>
+              ),
+              detail: p.players.length > 0 ? <>picked up by {names(p.players)}</> : 'nobody picked one up',
+              bad: true,
+            }
+          : { at: p.clockMS, what: `Picked up ${p.name}`, detail: names(p.players) },
+      ),
     ],
     ['Tethers broken', breakLines(pull, names)],
     [
@@ -245,6 +233,29 @@ export const Mechanics = memo(function Mechanics({ pull, classes, onSeek, onFocu
   )
 })
 
+/** The pull's buffs in one card: what each raider lacked at the start (at 0:00) until it came, and each flask, food
+ * or raid buff that came off them for a while; a time shows that moment in the replay. Hidden when there are none, or
+ * for a pull saved before they were kept. */
+export const BuffGaps = memo(function BuffGaps({ pull, classes, onSeek, onFocus }: CardProps) {
+  const gaps = pull.buffGaps ?? []
+  if (gaps.length === 0) return null
+  const until = (fromMS: number, toMS: number) =>
+    toMS < pull.durationMS ? `until ${clock(toMS)}` : fromMS > 0 ? 'to the end' : 'all pull'
+  return (
+    <section className="panel">
+      <h2>Missing buffs</h2>
+      <ul className="list">
+        {gaps.map((g) => (
+          <li key={`${g.player}-${g.buff}-${g.fromMS}`}>
+            <At ms={g.fromMS} onSeek={onSeek} /> <Name player={g.player} classes={classes} onPick={onFocus} /> no{' '}
+            {g.buff} <span className="muted small">{until(g.fromMS, g.toMS)}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+})
+
 /** The tethers broken as lines: a break that set off its effect, with the breaks right after it (BREAK_SET_MS) as
  * "then"; a break that set off nothing on its own. */
 function breakLines(pull: RaidPull, names: (players: string[]) => ReactNode): MechanicLine[] {
@@ -298,7 +309,7 @@ export const PullMeters = memo(function PullMeters(props: {
     )
   }
   const views = abilityViews(focus, pull.abilities ?? [], pull.taken ?? [])
-  const targets = raidTargets(pull, focus)
+  const targets = raidTargets(pull.targets, focus)
   const color = classColors[classes[focus]] ?? 'var(--accent)'
   const back = (e: MouseEvent) => {
     e.preventDefault()

@@ -1,20 +1,33 @@
-import { useState, type ReactNode } from 'react'
-import { abilityViews, type AbilityRow } from './abilities'
-import type { KeyView } from './api'
+import type { ReactNode } from 'react'
+import { abilityViews, raidTargets, type AbilityRow } from './abilities'
+import type { KeyTrack, KeyView } from './api'
 import { classColors } from './classColors'
-import { amount } from './format'
+import { eventsOf } from './events'
+import { amount, clock } from './format'
 import { BarRow } from './MeterCards'
 import { schoolBar, schoolName } from './schoolColors'
+import { abilitiesUpTo } from './replay'
+import { EventList } from './Seek'
 import { Tabs } from './Tabs'
 
-/** One player's key up close, picked from the party (first the one whose game wrote the log): their damage and
- * healing by ability with casts and hits, what they took damage from, and what they cast, each as bars against the
- * biggest in the ability's spell school colour (the player's class colour in keys saved without schools). */
-export function PlayerFocus({ keyView: key }: { keyView: KeyView }) {
-  const [player, setPlayer] = useState(key.logger ?? key.players[0] ?? '')
+/** One player's key up close, the page's focused player or else the one whose game wrote the log (a pick here
+ * focuses them everywhere via onFocus): their damage and healing by ability with casts and hits, what they took
+ * damage from, and what they cast, each as bars against the biggest in the ability's spell school colour (the
+ * player's class colour in keys saved without schools). */
+export function PlayerFocus(props: {
+  keyView: KeyView
+  focus: string
+  onFocus: (player: string) => void
+  onSeek: (clockMS: number) => void
+  track: KeyTrack | null
+  now: number
+}) {
+  const { keyView: key, focus, onFocus: setPlayer, onSeek, track, now } = props
+  const player = focus || (key.logger ?? key.players[0] ?? '')
   const row = key.overall.rows.find((r) => r.player === player)
   const color = classColors[row?.class ?? ''] ?? 'var(--accent)'
-  const views = abilityViews(player, key.abilities ?? [], key.taken ?? [])
+  const upTo = track ? abilitiesUpTo(track, key, player, now) : undefined
+  const views = abilityViews(player, upTo?.abilities ?? key.abilities ?? [], upTo?.taken ?? key.taken ?? [])
   return (
     <div className="card focus">
       <h2>
@@ -35,7 +48,28 @@ export function PlayerFocus({ keyView: key }: { keyView: KeyView }) {
               {key.deaths.filter((d) => d.player === player).length} deaths · {row.interrupts} kicks
             </p>
           )}
-          <AbilityTabs views={views} color={color} />
+          <EventList
+            events={eventsOf(
+              { deaths: key.deaths, lanes: key.lanes ?? [], dispels: key.debuffs, cooldowns: key.casts },
+              player,
+            )}
+            onSeek={onSeek}
+          />
+          {upTo && <p className="muted small">Up to {clock(now)} on the replay</p>}
+          <AbilityTabs
+            views={views}
+            color={color}
+            more={
+              upTo?.targets
+                ? [
+                    {
+                      name: 'Targets',
+                      body: <AbilityBars rows={raidTargets(upTo.targets, player)} color={color} label="Enemy" />,
+                    },
+                  ]
+                : []
+            }
+          />
         </>
       ) : (
         <p className="muted">This key was saved before abilities were kept: keys played from now on have them.</p>

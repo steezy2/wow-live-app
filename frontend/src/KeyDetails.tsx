@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import type { KeyForces, KeyGhost, KeyReview as Review, KeyView } from './api'
 import { chestLabel, clock, oddsText, resultText, share } from './format'
 import { DamageGraph } from './DamageGraph'
@@ -9,7 +9,9 @@ import { KeyMap } from './KeyMap'
 import { KeyReview } from './KeyReview'
 import { MeterCards } from './MeterCards'
 import { useReplay, useTrack } from './replay'
+import { RaidLanes } from './RaidReplay'
 import { Tabs } from './Tabs'
+import type { Seeker } from './Seek'
 
 /** The result's icon, so it doesn't rest on colour alone. */
 const resultIcon: Record<KeyView['status'], string> = {
@@ -33,9 +35,24 @@ export function KeyDetails({
 }) {
   const timer = key.timerMS ?? 0
   const projection = key.status === 'running' ? key.projection : undefined
-  const fight = fightTabs(key, `Deaths ${key.deaths.length} (+${clock(key.penaltyMS)})`, 'party')
   const track = useTrack(key.start, key.status === 'running')
   const replay = useReplay(clockMS, clockMS)
+  const [focus, setFocus] = useState('')
+  const replayBox = useRef<HTMLElement>(null)
+  const setAt = replay.setAt
+  const show = useCallback(
+    (ms: number) => {
+      setAt(ms)
+      replayBox.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    },
+    [setAt],
+  )
+  const seek = useMemo<Seeker | undefined>(
+    () =>
+      key.status === 'running' ? undefined : { onSeek: show, classes: track?.classes ?? {}, onFocus: setFocus },
+    [key.status, show, track],
+  )
+  const fight = fightTabs(key, `Deaths ${key.deaths.length} (+${clock(key.penaltyMS)})`, 'party', seek)
   const [review, setReview] = useState<Review | null>(null)
   return (
     <>
@@ -78,6 +95,12 @@ export function KeyDetails({
           <span aria-hidden="true">{resultIcon[key.status]}</span> {resultText(key.status, key.chests, clockMS, timer)}
         </section>
       )}
+      {(key.status === 'timed' || key.status === 'depleted') && key.bestFinalMS !== undefined && key.bestFinalMS > 0 && (
+        <p className="muted">
+          Your best timed +{key.level} here: {clock(key.bestFinalMS)} ·{' '}
+          {clock(Math.abs(clockMS - key.bestFinalMS))} {clockMS <= key.bestFinalMS ? 'faster' : 'slower'}
+        </p>
+      )}
       {timer > 0 && <TimerBar clockMS={clockMS} timerMS={timer} keyView={key} best={projection?.best ?? []} />}
       {key.forces && <ForcesBar forces={key.forces} level={key.level} />}
       {timer > 0 && key.status === 'running' && (
@@ -117,9 +140,37 @@ export function KeyDetails({
         </p>
       )}
 
-      {key.status !== 'running' && <KeyReview keyView={key} justEnded={justEnded} onReview={setReview} />}
+      {key.status !== 'running' && key.suggestions && key.suggestions.length > 0 && (
+        <section className="panel attention">
+          <h2>Fix next key</h2>
+          <ol className="fix-next">
+            {key.suggestions.map((s) => (
+              <li key={s}>{s}</li>
+            ))}
+          </ol>
+        </section>
+      )}
+      {key.status !== 'running' && (
+        <KeyReview
+          keyView={key}
+          justEnded={justEnded}
+          onReview={setReview}
+          focus={focus}
+          onFocus={setFocus}
+          onSeek={show}
+          track={track}
+          now={replay.at}
+        />
+      )}
       {key.status !== 'running' && track && (
-        <DamageGraph keyView={key} track={track} now={replay.at} onSeek={replay.setAt} />
+        <DamageGraph
+          keyView={key}
+          track={track}
+          now={replay.at}
+          onSeek={replay.setAt}
+          focus={focus}
+          onFocus={setFocus}
+        />
       )}
 
       {key.buffs.length > 0 && (
@@ -133,11 +184,18 @@ export function KeyDetails({
         </section>
       )}
 
+      {key.status !== 'running' && key.lanes && key.lanes.length > 0 && (
+        <section className="panel">
+          <h2>Timeline</h2>
+          <RaidLanes lanes={key.lanes} end={clockMS} now={replay.at} onSeek={replay.setAt} />
+        </section>
+      )}
+
       <MeterCards keyView={key} clockMS={clockMS} />
 
-      <section className="panel map-panel">
+      <section ref={replayBox} className="panel map-panel">
         <h2>Replay</h2>
-        <KeyMap keyView={key} clockMS={clockMS} track={track} replay={replay} />
+        <KeyMap keyView={key} clockMS={clockMS} track={track} replay={replay} focus={focus} onFocus={setFocus} />
       </section>
 
       <Tabs
@@ -148,7 +206,7 @@ export function KeyDetails({
           },
           {
             name: 'Bosses',
-            body: <BossList keyView={key} track={track} topBosses={review?.topBosses} onSeek={replay.setAt} />,
+            body: <BossList keyView={key} track={track} topBosses={review?.topBosses} onSeek={show} />,
           },
           ...fight,
           {
@@ -161,6 +219,7 @@ export function KeyDetails({
                 activity={key.activity}
                 deaths={key.deaths}
                 avoidableListed={key.reference}
+                onPick={key.status === 'running' ? undefined : setFocus}
               />
             ),
           },

@@ -47,11 +47,15 @@ names = [
 healer_only = ["Ascendance", "Celestial Conduit"]
 
 [consumables]
-# Checked with mplus.toml's flask and food at each pull's start and between pulls: a buff whose name contains one, or
+# Checked with mplus.toml's flask and food at each pull's start and between pulls (flask, food and mplus.toml's
+# [buffs] also through each pull: who lost one for 5 s or more): a buff whose name contains one, or
 # an aura by ID. The runes' auras (Wowhead: 1303171 "Vantus Rune: Tides", 1303187 "Vantus Rune: Ula'tek") show only
 # in the pull-start aura lists, never named in a line.
 vantus = ["Vantus Rune"]
 vantus_ids = [1303171, 1303187]
+# The difficulties the rune works in: it isn't asked for in the others. Raid Finder left out as in earlier tiers
+# (Wowhead's rune pages don't say; not yet checked against a Normal or Raid Finder log).
+vantus_difficulties = ["Normal", "Heroic", "Mythic"]
 
 [tier]
 # The raid's class tier sets (Wowhead item-set IDs, one per class): cmd/raidref writes their items into

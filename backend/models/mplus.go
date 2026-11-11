@@ -43,6 +43,10 @@ type Key struct {
 	Taken     []KeyHit     `json:"taken,omitempty"`
 	// Logger is the party member whose game wrote the log ("" in keys saved before Nov 11).
 	Logger string `json:"logger,omitempty"`
+	// Lanes is the key's timeline for the replay (see keyLanes), and Suggestions what to fix next key, worked out when
+	// the key is read (see keySuggestions); both empty in keys saved before Nov 11.
+	Lanes       []RaidLane `json:"lanes,omitempty"`
+	Suggestions []string   `json:"suggestions,omitempty"`
 }
 
 // KeyAbility is one ability in a player's key: its damage to enemies and healing done as the meters count them (pets
@@ -366,10 +370,11 @@ type ReadyCheck struct {
 	Players []ReadyPlayer `json:"players"`
 }
 
-// ReadyPlayer is one member's ready check: flask, food and party buffs ("flask", "Arcane Intellect") missing, and those
-// not seen.
+// ReadyPlayer is one member's ready check: their class (empty until a COMBATANT_INFO names their spec), and the flask,
+// food, Vantus Rune and party buffs ("flask", "Arcane Intellect") missing, and those not seen.
 type ReadyPlayer struct {
 	Player  string   `json:"player"`
+	Class   string   `json:"class,omitempty"`
 	Missing []string `json:"missing"`
 	NotSeen []string `json:"notSeen"`
 }
@@ -421,9 +426,18 @@ type MPlusRules struct {
 	CC struct {
 		Names []string `toml:"names"`
 	} `toml:"cc"`
-	Defensives  Defensives        `toml:"defensives"`
-	Consumables Consumables       `toml:"consumables"`
-	Buffs       map[string]string `toml:"buffs"` // party buff -> the class that gives it
+	Defensives  Defensives         `toml:"defensives"`
+	Consumables Consumables        `toml:"consumables"`
+	Buffs       map[string]string  `toml:"buffs"` // party buff -> the class that gives it
+	Suggestions KeySuggestionRules `toml:"suggestions"`
+}
+
+// KeySuggestionRules are mplus.toml's [suggestions]: how many "Fix next key" lines, how much longer than in the best
+// run a pull is slow, and how long a wait between pulls is long.
+type KeySuggestionRules struct {
+	Most        int     `toml:"most"`
+	SlowPullPct float64 `toml:"slow_pull_pct"`
+	GapSeconds  float64 `toml:"gap_seconds"`
 }
 
 // Defensives are the tracked survival buttons: class defensives, externals, healthstones and health potions, and
@@ -473,6 +487,8 @@ type KeyView struct {
 	Chests     int              `json:"chests"`
 	Projection *KeyProjection   `json:"projection,omitempty"`
 	BestBosses map[string]int64 `json:"bestBosses,omitempty"`
+	// BestFinalMS is the best other timed run's time, for the pace line under the result.
+	BestFinalMS int64 `json:"bestFinalMS,omitempty"`
 	// SilentMS is how long ago the last line of a running key was logged (0 once it's over). The game writes its log
 	// in batches as fights start and end, so a long silence is a long fight, or a party that left.
 	SilentMS int64 `json:"silentMS"`

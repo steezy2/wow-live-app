@@ -222,6 +222,19 @@ func TestKeyStep2(t *testing.T) {
 		len(track.Meters["Testmage"]) == 0 {
 		t.Fatalf("track = %+v, %v; want the mage's position and the mob's death", track, err)
 	}
+	damage := int64(0)
+	for _, s := range track.Abilities["Testmage"] {
+		for _, p := range s.Points {
+			if s.Ability == "Arcane Barrage" {
+				damage += p[1]
+			}
+		}
+	}
+	if !slices.ContainsFunc(track.Casts["Testshaman"], func(c models.TrackCast) bool { return c.Spell == "Capacitor Totem" }) ||
+		damage != 5000 || len(track.AbilityTimes) == 0 || len(track.TargetSeries["Testmage"]) == 0 {
+		t.Fatalf("track casts %+v, abilities %+v, times %v; want the totem cast and the barrage's 5000 in stretches",
+			track.Casts["Testshaman"], track.Abilities["Testmage"], track.AbilityTimes)
+	}
 	if m, err := keys.DungeonMap(585); err != nil || len(m.Walked) == 0 || len(m.Floors) != 1 {
 		t.Fatalf("dungeon map = %+v, %v; want the saved track's squares and the dungeon file's floor", m, err)
 	}

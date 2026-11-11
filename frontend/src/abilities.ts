@@ -32,7 +32,7 @@ export function abilityViews(
   }
 }
 
-/** A raider's damage into each enemy: over the pull, or from targets the caller has (up to a moment). */
-export function raidTargets(pull: RaidPull, player: string, targets = pull.targets): AbilityRow[] {
+/** A player's damage into each enemy, from the targets a pull or a replay's moment has. */
+export function raidTargets(targets: RaidPull['targets'], player: string): AbilityRow[] {
   return (targets ?? []).filter((t) => t.player === player).map((t) => ({ name: t.target, value: t.damage }))
 }

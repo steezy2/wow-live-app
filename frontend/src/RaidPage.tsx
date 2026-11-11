@@ -1,11 +1,12 @@
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { fetchRaidNights, fetchRaidPull, type RaidNight, type RaidPull, type RaidPullSummary } from './api'
 import { clock, counted, progressText } from './format'
 import { defense, raidOffense } from './meterColumns'
 import { MeterCard } from './MeterCards'
 import { fightTabs, type FightData } from './KeyTabs'
 import { PlayerTable } from './PlayerTable'
-import { EarlyDeaths, Mechanics, Name, NoAbilities, PullMeters } from './RaidCards'
+import { BuffGaps, EarlyDeaths, Mechanics, NoAbilities, PullMeters } from './RaidCards'
+import { Name, type Seeker } from './Seek'
 import { RaidReplay } from './RaidReplay'
 import { topMeter, useReplay } from './replay'
 import { Tabs } from './Tabs'
@@ -140,7 +141,7 @@ function classesOf(pull: RaidPull): Record<string, string> {
 }
 
 /** One pull's overview: how far it got against the best pulls, what to fix next, the early deaths and what went
- * wrong, the replay with its mechanic lanes and graphs, and the meters. The replay's clock and the focused raider
+ * wrong, the buffs missing at the start and through the pull, the replay with its mechanic lanes and graphs, and the meters. The replay's clock and the focused raider
  * are the page's: a time in a card moves the replay there and brings it into view, and a raider picked anywhere
  * (the map, a meter, the graph, a name) is focused everywhere. Shown with the pull's start as its key, so both start
  * over with each pull. */
@@ -168,17 +169,6 @@ export function RaidPullView({ pull }: { pull: RaidPull }) {
           {pull.lusts.length > 0 ? ` · Bloodlust at ${pull.lusts.map(clock).join(', ')}` : ' · no Bloodlust'}
         </p>
         <Comparisons pull={pull} />
-        {pull.missing && pull.missing.length > 0 && (
-          <p className="warning small">
-            Missing at the pull:{' '}
-            {pull.missing.map((m, i) => (
-              <Fragment key={m.player}>
-                {i > 0 && ' · '}
-                <Name player={m.player} classes={classes} /> {m.missing.join(', ')}
-              </Fragment>
-            ))}
-          </p>
-        )}
       </section>
 
       {pull.suggestions.length > 0 && (
@@ -196,13 +186,14 @@ export function RaidPullView({ pull }: { pull: RaidPull }) {
         <EarlyDeaths pull={pull} classes={classes} onSeek={show} onFocus={setFocus} />
         <Mechanics pull={pull} classes={classes} onSeek={show} onFocus={setFocus} />
       </div>
+      <BuffGaps pull={pull} classes={classes} onSeek={show} onFocus={setFocus} />
 
       <div ref={replayBox} className="replay-box">
         <RaidReplay pull={pull} replay={replay} focus={focus} onFocus={setFocus} />
       </div>
 
       <PullMeters pull={pull} classes={classes} focus={focus} onFocus={setFocus} />
-      <PullTabs pull={pull} onFocus={setFocus} />
+      <PullTabs pull={pull} seek={{ onSeek: show, classes, onFocus: setFocus }} />
     </>
   )
 }
@@ -262,7 +253,7 @@ export function RaidOverlayCard({ pull }: { pull: RaidPull }) {
 
 /** Under the meters: every raider's pull in one table, and the tabs a key has (deaths, interrupts, must-stops, spikes,
  * defensives and potions, CC); a pull saved before they were kept says how to fill them in. */
-function PullTabs({ pull, onFocus }: { pull: RaidPull; onFocus: (player: string) => void }) {
+function PullTabs({ pull, seek }: { pull: RaidPull; seek: Seeker }) {
   if (!pull.casts) return <NoAbilities />
   const data: FightData = {
     deaths: pull.deaths,
@@ -283,9 +274,9 @@ function PullTabs({ pull, onFocus }: { pull: RaidPull; onFocus: (player: string)
         activity={pull.activity}
         deaths={pull.deaths}
         avoidableListed
-        onPick={onFocus}
+        onPick={seek.onFocus}
       />
-      <Tabs tabs={fightTabs(data, `Deaths ${pull.deaths.length}`, 'raid')} />
+      <Tabs tabs={fightTabs(data, `Deaths ${pull.deaths.length}`, 'raid', seek)} />
     </>
   )
 }

@@ -554,6 +554,10 @@ definitions:
           format: int64
           type: integer
         type: object
+      bestFinalMS:
+        description: BestFinalMS is the best other timed run's time, for the pace
+          line under the result.
+        type: integer
       betweenPulls:
         description: BetweenPulls is the time between each pull and the one before
           it (from the second pull), on the key's clock.
@@ -599,6 +603,13 @@ definitions:
       interrupts:
         items:
           $ref: '#/definitions/models.KeyInterrupt'
+        type: array
+      lanes:
+        description: |-
+          Lanes is the key's timeline for the replay (see keyLanes), and Suggestions what to fix next key, worked out when
+          the key is read (see keySuggestions); both empty in keys saved before Nov 11.
+        items:
+          $ref: '#/definitions/models.RaidLane'
         type: array
       lastPull:
         $ref: '#/definitions/models.KeyMeter'
@@ -667,6 +678,10 @@ definitions:
         description: must-stop casts and what happened to each
         items:
           $ref: '#/definitions/models.KeyStop'
+        type: array
+      suggestions:
+        items:
+          type: string
         type: array
       taken:
         items:
@@ -840,14 +855,19 @@ definitions:
     properties:
       kind:
         enum:
+        - pulls
+        - bosses
         - phases
         - deaths
         - lust
         - cooldowns
         - potions
         - spike
+        - stops
+        - cc
         - avoidable
         - soak
+        - pickups
         - stacks
         - adds
         type: string
@@ -900,6 +920,17 @@ definitions:
       text:
         type: string
     type: object
+  models.RaidMissing:
+    properties:
+      buff:
+        type: string
+      fromMS:
+        type: integer
+      player:
+        type: string
+      toMS:
+        type: integer
+    type: object
   models.RaidNight:
     properties:
       night:
@@ -913,6 +944,10 @@ definitions:
     properties:
       clockMS:
         type: integer
+      missed:
+        items:
+          type: string
+        type: array
       name:
         type: string
       players:
@@ -958,6 +993,13 @@ definitions:
         description: tethers raiders broke, in order
         items:
           $ref: '#/definitions/models.RaidBreak'
+        type: array
+      buffGaps:
+        description: |-
+          BuffGaps is each raider's flask, food, Vantus Rune, tier bonus or raid buff missing at the pull's start (from 0)
+          and each flask, food or raid buff that came off them in the pull for a while, in order; missing before Nov 12.
+        items:
+          $ref: '#/definitions/models.RaidMissing'
         type: array
       casts:
         items:
@@ -1024,12 +1066,6 @@ definitions:
         type: array
       meter:
         $ref: '#/definitions/models.KeyMeter'
-      missing:
-        description: Missing is who lacked a flask, food, Vantus Rune or raid buff
-          at the pull's start; missing before Nov 11.
-        items:
-          $ref: '#/definitions/models.KeyBuffCheck'
-        type: array
       night:
         description: 'the raid night: the start''s date, before 6 am counting as the
           day before'
@@ -1195,6 +1231,8 @@ definitions:
     type: object
   models.ReadyPlayer:
     properties:
+      class:
+        type: string
       missing:
         items:
           type: string

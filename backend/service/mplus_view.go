@@ -252,6 +252,10 @@ func (k *LogTracker) details(run *keyRun, at int64) models.Key {
 		})
 		key.Forces = &forces
 	}
+	if key.Status != "running" {
+		key.Lanes = keyLanes(key, run.track.Pulls)
+		key.Suggestions = keySuggestions(key, bestRun(key, k.history), k.rules.Suggestions)
+	}
 	return key
 }
 
@@ -294,15 +298,19 @@ func (k *LogTracker) classes(run *keyRun) map[string]string {
 	return classes
 }
 
-// buffCheck is who lacked a flask, food (in a raid, a Vantus Rune and their tier set's bonuses too) or a party buff a
-// class in the group gives (augment runes are rare in M+), from their auras and gear at the key's or pull's start. A
-// buff the log never named counts as missing unless a consumable lists its ID, so a flask drunk before logging
-// started shows.
+// buffCheck is who lacked a flask, food (in a raid, their tier set's bonuses too, and a Vantus Rune where the raid's
+// rune works) or a party buff a class in the group gives (augment runes are rare in M+), from their auras and gear at
+// the key's or pull's start. A buff the log never named counts as missing unless a consumable lists its ID, so a
+// flask drunk before logging started shows.
 func (k *LogTracker) buffCheck(run *keyRun) []models.KeyBuffCheck {
-	classes := map[string]bool{}
+	classes, difficulty := map[string]bool{}, ""
 	for _, guid := range run.party {
 		classes[specs[k.specs[guid]].Class] = true
 	}
+	if run.raid != nil {
+		difficulty = run.raid.difficulty
+	}
+	buffs := k.applicableBuffs(classes)
 	checks := []models.KeyBuffCheck{}
 	for _, guid := range run.party {
 		have := map[int]string{}
@@ -310,14 +318,14 @@ func (k *LogTracker) buffCheck(run *keyRun) []models.KeyBuffCheck {
 			have[id] = k.spells[id]
 		}
 		var missing []string
-		for kind, c := range k.consumables(run.raid != nil) {
+		for kind, c := range k.consumables(difficulty) {
 			if !c.had(have) {
 				missing = append(missing, kind)
 			}
 		}
 		names := slices.Collect(maps.Values(have))
-		for buff, class := range k.rules.Buffs {
-			if classes[class] && !slices.Contains(names, buff) {
+		for _, buff := range buffs {
+			if !slices.Contains(names, buff) {
 				missing = append(missing, buff)
 			}
 		}
@@ -399,6 +407,7 @@ func view(key models.Key, clockMS int64, history []models.Key) models.KeyView {
 		v.Plus3MS = int64(float64(key.TimerMS) * plus3Share)
 	}
 	if best := bestRun(key, history); best != nil {
+		v.BestFinalMS = best.FinalMS
 		v.BestBosses = map[string]int64{}
 		for _, b := range best.Bosses {
 			if b.Kill {

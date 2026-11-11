@@ -203,6 +203,8 @@ export interface KeyView {
   /** How long each boss took in your fastest timed other run of the dungeon at this level, by name (when there is
    * one). */
   bestBosses?: Record<string, number>
+  /** The fastest timed other run's time. */
+  bestFinalMS?: number
   /** How long ago a running key's last line was logged (0 once it's over): the game writes its log in batches as
    * fights start and end, so a long silence is a long fight, or a party that left. */
   silentMS: number
@@ -212,6 +214,10 @@ export interface KeyView {
   taken?: { player: string; ability: string; damage: number; school?: number }[]
   /** The party member whose game wrote the log; missing in keys saved before Nov 11. */
   logger?: string
+  /** The key's timeline for the replay's lanes; missing in keys saved before Nov 11. */
+  lanes?: RaidLane[]
+  /** What to fix next key, most important first; missing in keys saved before Nov 11. */
+  suggestions?: string[]
 }
 
 /** One ability in a player's key (models.KeyAbility): its damage and healing as the meters count them (pets under
@@ -361,12 +367,12 @@ export async function abandonLiveKey(): Promise<void> {
   await call('/api/mplus/live/abandon', { method: 'POST' })
 }
 
-/** The ready check before the next key (models.ReadyCheck): each member's missing flask, food and party buffs, and
- * those not seen since the party zoned in. */
+/** The ready check before the next key or raid pull (models.ReadyCheck): each member's class (once known), missing
+ * flask, food, Vantus Rune and party buffs, and those not seen since the party zoned in. */
 export interface ReadyCheck {
   sinceMS: number
   dungeon: string
-  players: { player: string; missing: string[]; notSeen: string[] }[]
+  players: { player: string; class?: string; missing: string[]; notSeen: string[] }[]
 }
 
 /** The ready check, or null outside a Mythic dungeon between keys. */
@@ -636,10 +642,12 @@ export interface RaidPull extends RaidPullSummary {
   spikes?: KeySpike[]
   casts?: KeyCast[]
   activity?: Record<string, number>
-  /** Who lacked a flask, food, Vantus Rune or raid buff at the pull's start (missing before Nov 11). */
-  missing?: { player: string; missing: string[] }[]
-  /** What raiders picked up (eggs), a wave per line; tethers they broke and the effect each set off. */
-  pickups?: { clockMS: number; name: string; players: string[] }[]
+  /** Each raider's flask, food, Vantus Rune, tier bonus or raid buff missing at the pull's start (from 0) and each
+   * flask, food or raid buff that came off them for a while, in order (missing before Nov 12). */
+  buffGaps?: RaidMissing[]
+  /** What raiders picked up (eggs), a wave per line, with the living raiders who missed something everyone should
+   * pick up (missed); tethers they broke and the effect each set off. */
+  pickups?: { clockMS: number; name: string; players: string[]; missed?: string[] }[]
   breaks?: { clockMS: number; player: string; aura: string; effect?: string; hit: number }[]
   stacks: { ability: string; limit: number; players: PlayerCount[] }[]
   dispels: KeyDispel[]
@@ -671,6 +679,15 @@ export interface RaidPull extends RaidPullSummary {
   targets?: { player: string; target: string; damage: number }[]
 }
 
+/** A raider without a buff ("flask", "Arcane Intellect", "2-set") from fromMS to toMS on the pull's clock (toMS is
+ * the pull's end when it never came back). */
+export interface RaidMissing {
+  player: string
+  buff: string
+  fromMS: number
+  toMS: number
+}
+
 /** A raid room's map (the combat log's uiMapID) and its edges in the log's yards: x runs north (maxX at the top), y
  * west (maxY at the left). */
 export interface RaidMap {
@@ -685,7 +702,22 @@ export interface RaidMap {
  * came up; a mark with endMS is a stretch (a phase, an add's life, how long a buff lasted). */
 export interface RaidLane {
   name: string
-  kind: 'phases' | 'deaths' | 'lust' | 'cooldowns' | 'potions' | 'spike' | 'avoidable' | 'soak' | 'stacks' | 'adds'
+  kind:
+    | 'pulls'
+    | 'bosses'
+    | 'phases'
+    | 'deaths'
+    | 'lust'
+    | 'cooldowns'
+    | 'potions'
+    | 'spike'
+    | 'stops'
+    | 'cc'
+    | 'avoidable'
+    | 'soak'
+    | 'pickups'
+    | 'stacks'
+    | 'adds'
   marks: { clockMS: number; endMS?: number; text: string; bad?: boolean }[]
 }
 

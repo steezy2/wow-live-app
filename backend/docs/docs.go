@@ -1680,6 +1680,10 @@ const docTemplate = `{
                         "format": "int64"
                     }
                 },
+                "bestFinalMS": {
+                    "description": "BestFinalMS is the best other timed run's time, for the pace line under the result.",
+                    "type": "integer"
+                },
                 "betweenPulls": {
                     "description": "BetweenPulls is the time between each pull and the one before it (from the second pull), on the key's clock.",
                     "type": "array",
@@ -1746,6 +1750,13 @@ const docTemplate = `{
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/models.KeyInterrupt"
+                    }
+                },
+                "lanes": {
+                    "description": "Lanes is the key's timeline for the replay (see keyLanes), and Suggestions what to fix next key, worked out when\nthe key is read (see keySuggestions); both empty in keys saved before Nov 11.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.RaidLane"
                     }
                 },
                 "lastPull": {
@@ -1835,6 +1846,12 @@ const docTemplate = `{
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/models.KeyStop"
+                    }
+                },
+                "suggestions": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
                     }
                 },
                 "taken": {
@@ -2091,14 +2108,19 @@ const docTemplate = `{
                 "kind": {
                     "type": "string",
                     "enum": [
+                        "pulls",
+                        "bosses",
                         "phases",
                         "deaths",
                         "lust",
                         "cooldowns",
                         "potions",
                         "spike",
+                        "stops",
+                        "cc",
                         "avoidable",
                         "soak",
+                        "pickups",
                         "stacks",
                         "adds"
                     ]
@@ -2179,6 +2201,23 @@ const docTemplate = `{
                 }
             }
         },
+        "models.RaidMissing": {
+            "type": "object",
+            "properties": {
+                "buff": {
+                    "type": "string"
+                },
+                "fromMS": {
+                    "type": "integer"
+                },
+                "player": {
+                    "type": "string"
+                },
+                "toMS": {
+                    "type": "integer"
+                }
+            }
+        },
         "models.RaidNight": {
             "type": "object",
             "properties": {
@@ -2198,6 +2237,12 @@ const docTemplate = `{
             "properties": {
                 "clockMS": {
                     "type": "integer"
+                },
+                "missed": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "name": {
                     "type": "string"
@@ -2262,6 +2307,13 @@ const docTemplate = `{
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/models.RaidBreak"
+                    }
+                },
+                "buffGaps": {
+                    "description": "BuffGaps is each raider's flask, food, Vantus Rune, tier bonus or raid buff missing at the pull's start (from 0)\nand each flask, food or raid buff that came off them in the pull for a while, in order; missing before Nov 12.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.RaidMissing"
                     }
                 },
                 "casts": {
@@ -2352,13 +2404,6 @@ const docTemplate = `{
                 },
                 "meter": {
                     "$ref": "#/definitions/models.KeyMeter"
-                },
-                "missing": {
-                    "description": "Missing is who lacked a flask, food, Vantus Rune or raid buff at the pull's start; missing before Nov 11.",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/models.KeyBuffCheck"
-                    }
                 },
                 "night": {
                     "description": "the raid night: the start's date, before 6 am counting as the day before",
@@ -2600,6 +2645,9 @@ const docTemplate = `{
         "models.ReadyPlayer": {
             "type": "object",
             "properties": {
+                "class": {
+                    "type": "string"
+                },
                 "missing": {
                     "type": "array",
                     "items": {

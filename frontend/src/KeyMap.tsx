@@ -16,7 +16,18 @@ import { classColors } from './classColors'
 import { defense, offense } from './meterColumns'
 import { MeterCard } from './MeterCards'
 import { clock } from './format'
-import { floorsOf, JUMP_YARDS_PER_S, lastAt, meterBetween, positionAt, type SliderMark, type useReplay } from './replay'
+import {
+  abilitiesUpTo,
+  BOSS_GONE_MS,
+  floorsOf,
+  JUMP_YARDS_PER_S,
+  lastAt,
+  meterBetween,
+  positionAt,
+  type SliderMark,
+  type useReplay,
+} from './replay'
+import { BossBox, CastBox, TakenBox } from './ReplayBoxes'
 
 /** The trail the live map draws. */
 const LIVE_TRAIL_MS = 30_000
@@ -58,8 +69,6 @@ const FIGHT_MIN_SHARE = 0.2
 const FIGHT_PAD = 0.15
 /** A player seen this long after their death is alive again. */
 const REVIVED_AFTER_MS = 2_000
-/** A boss unit not seen for this long (gone, or submerged) isn't drawn. */
-export const BOSS_GONE_MS = 5_000
 
 /** The replay's controls: play, the slider with its marks, the time, the speed and the trail. */
 export function ReplayControls(props: {
@@ -117,12 +126,13 @@ export function KeyMap(props: {
   clockMS: number
   track: KeyTrack | null
   replay: ReturnType<typeof useReplay>
+  focus: string
+  onFocus: (player: string) => void
 }) {
-  const { keyView: key, clockMS, track, replay } = props
+  const { keyView: key, clockMS, track, replay, focus: follow, onFocus: setFollow } = props
   const live = key.status === 'running'
   const [dungeon, setDungeon] = useState<DungeonMap>({ floors: [], walked: [] })
   const [trail, setTrail] = useState(30_000)
-  const [follow, setFollow] = useState('')
   const [floor, setFloor] = useState<number | null>(null)
 
   useEffect(() => {
@@ -134,6 +144,7 @@ export function KeyMap(props: {
   const now = live ? clockMS : replay.at
   const floors = useMemo(() => floorsOf(track), [track])
   const followed = follow ? track?.players[follow] : undefined
+  const upTo = follow && track ? abilitiesUpTo(track, key, follow, now) : undefined
   const current = (followed ? lastAt(followed, now)?.map : floor) ?? floors[0]
   const tiled = dungeon.floors.find((f) => f.uiMapID === current)
   const backdrop = useMemo<Backdrop>(
@@ -170,18 +181,23 @@ export function KeyMap(props: {
           ))}
       </div>
       <div className="map-body">
-        <MapCanvas
-          key={current}
-          track={track}
-          backdrop={backdrop}
-          floor={current}
-          now={now}
-          clock={replay.playing ? replay.now : undefined}
-          trailMS={live ? LIVE_TRAIL_MS : trail}
-          deaths={key.deaths}
-          focus={follow}
-          onPick={setFollow}
-        />
+        <div className="map-stage">
+          <MapCanvas
+            key={current}
+            track={track}
+            backdrop={backdrop}
+            floor={current}
+            now={now}
+            clock={replay.playing ? replay.now : undefined}
+            trailMS={live ? LIVE_TRAIL_MS : trail}
+            deaths={key.deaths}
+            focus={follow}
+            onPick={setFollow}
+          />
+          <BossBox track={track} now={now} />
+          {follow && <CastBox track={track} player={follow} now={now} />}
+          {upTo && <TakenBox taken={upTo.taken} />}
+        </div>
         <ReplayMeters track={track} now={now} onPick={setFollow} />
       </div>
       <p className="muted small">

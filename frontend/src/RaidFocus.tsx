@@ -1,49 +1,12 @@
 import { abilityViews, raidTargets } from './abilities'
 import type { KeyTrack, RaidPull } from './api'
 import { classColors } from './classColors'
-import { amount, clock, coverText, seconds } from './format'
+import { eventsOf } from './events'
+import { amount, clock } from './format'
 import { AbilityBars, AbilityTabs } from './PlayerFocus'
-import { At, NoAbilities } from './RaidCards'
+import { NoAbilities } from './RaidCards'
+import { EventList } from './Seek'
 import { meterBetween, type AbilitiesUpTo } from './replay'
-
-/** Something that happened to a raider, or that they did, at a time in the pull. */
-interface FocusEvent {
-  clockMS: number
-  text: string
-  bad: boolean
-}
-
-/** A raider's pull in order: their deaths, the avoidable hits and stacks past the limit the lanes marked for them,
- * debuffs on them and how they came off, and the raid cooldowns and potions they used. */
-function eventsOf(pull: RaidPull, player: string): FocusEvent[] {
-  const marked = (kind: string, mine: (text: string) => boolean, say: (lane: string, text: string) => string) =>
-    pull.lanes
-      .filter((l) => l.kind === kind)
-      .flatMap((l) =>
-        l.marks.filter((m) => mine(m.text)).map((m) => ({ clockMS: m.clockMS, text: say(l.name, m.text), bad: true })),
-      )
-  return [
-    ...pull.deaths
-      .filter((d) => d.player === player)
-      .map((d) => ({
-        clockMS: d.clockMS,
-        text: `Died to ${d.ability || 'unknown'} · ${coverText(d.defensive, d.ready ?? [])}`,
-        bad: true,
-      })),
-    ...marked('avoidable', (text) => text === player, (lane) => `Hit by ${lane}`),
-    ...marked('stacks', (text) => text.startsWith(`${player} `), (lane, text) => `${lane} · ${text}`),
-    ...pull.dispels
-      .filter((d) => d.player === player)
-      .map((d) => ({
-        clockMS: d.clockMS,
-        text: `${d.spell} · ${d.by ? `dispelled by ${d.by}` : 'ran out'} after ${seconds(d.afterMS)}`,
-        bad: false,
-      })),
-    ...pull.cooldowns
-      .filter((c) => c.player === player)
-      .map((c) => ({ clockMS: c.clockMS, text: `${c.prepot ? 'Pre-pot' : 'Used'} ${c.ability}`, bad: false })),
-  ].sort((a, b) => a.clockMS - b.clockMS)
-}
 
 /** One raider's pull up close, beside the replay: their numbers up to the replay's moment and over the whole pull,
  * what happened to them and what they pressed in order (a click shows it in the replay), and their damage, healing,
@@ -82,17 +45,7 @@ export function RaidFocus(props: {
         {sofar && `At ${clock(now)}: ${amount(sofar.dps)} DPS · ${amount(sofar.hps)} HPS`}
         {whole && ` · whole pull: ${amount(whole.dps)} DPS · ${amount(whole.hps)} HPS · ${amount(whole.damageTaken)} taken`}
       </p>
-      {events.length > 0 && (
-        <ul className="list events">
-          {events.map((e, i) => (
-            <li key={i}>
-              <span>
-                <At ms={e.clockMS} onSeek={onSeek} /> <span className={e.bad ? 'bad' : ''}>{e.text}</span>
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
+      <EventList events={events} onSeek={onSeek} />
       {pull.abilities && !upTo?.targets && (
         <p className="muted small">{upTo ? `Up to ${clock(now)}; targets over the whole pull` : 'Over the whole pull'}</p>
       )}
@@ -103,7 +56,7 @@ export function RaidFocus(props: {
           more={[
             {
               name: 'Targets',
-              body: <AbilityBars rows={raidTargets(pull, player, upTo?.targets)} color={color} label="Enemy" />,
+              body: <AbilityBars rows={raidTargets(upTo?.targets ?? pull.targets, player)} color={color} label="Enemy" />,
             },
           ]}
         />
