@@ -16,6 +16,8 @@ const (
 	// forcesCheckPct: a finished key whose kills add up to less than this says the dungeon file needs checking (the
 	// game needs 100%, and Mythic Dungeon Tools' counts can be a point or two off).
 	forcesCheckPct = 98.0
+	// minPacePct: under this share of forces, the pace against the best run is noise and isn't shown.
+	minPacePct = 5.0
 )
 
 // projection is the expected final time from earlier runs of the dungeon: each run
@@ -28,9 +30,8 @@ const (
 // scaling the last boss kill by the share of the run's time it came at.
 func projection(key models.Key, clockMS int64, history []models.Key) *models.KeyProjection {
 	var guesses []guess
-	var best *models.Key
 	withForces := 0
-	for i, r := range history {
+	for _, r := range history {
 		if !usable(r, key.MapID) {
 			continue
 		}
@@ -45,9 +46,6 @@ func projection(key models.Key, clockMS int64, history []models.Key) *models.Key
 			continue
 		}
 		guesses = append(guesses, guess{max(ms, clockMS), weight})
-		if r.Status == "timed" && r.Level == key.Level && (best == nil || r.FinalMS < best.FinalMS) {
-			best = &history[i]
-		}
 	}
 	if len(guesses) == 0 {
 		return nil
@@ -57,7 +55,7 @@ func projection(key models.Key, clockMS int64, history []models.Key) *models.Key
 	if withForces > 0 {
 		p.Source = fmt.Sprintf("%d of your runs, forces and bosses", len(guesses))
 	}
-	if best != nil && key.TimerMS > 0 {
+	if best := bestRun(key, history); best != nil && key.TimerMS > 0 {
 		for _, b := range best.Bosses {
 			if b.Kill {
 				p.Best = append(p.Best, models.KeyGhost{Name: b.Name, KillMS: b.EndMS,
@@ -253,26 +251,28 @@ func forcesAt(k models.Key, clockMS int64) float64 {
 	return pct
 }
 
-// referenceForces is where earlier runs of the dungeon stood on forces at a clock reading: the median of those with
-// a forces timeline (runs within levelSpread when there are any), 0 without any.
-func referenceForces(key models.Key, clockMS int64, history []models.Key) float64 {
-	var near, all []float64
-	for _, r := range history {
-		if r.MapID != key.MapID || r.Status == "abandoned" || r.Forces == nil || len(r.Forces.At) == 0 {
-			continue
-		}
-		all = append(all, forcesAt(r, clockMS))
-		if max(r.Level-key.Level, key.Level-r.Level) <= levelSpread {
-			near = append(near, forcesAt(r, clockMS))
+// bestRun is the fastest timed earlier run of a key's dungeon at its level, nil without one.
+func bestRun(key models.Key, history []models.Key) *models.Key {
+	var best *models.Key
+	for i, r := range history {
+		if usable(r, key.MapID) && r.Status == "timed" && r.Level == key.Level && (best == nil || r.FinalMS < best.FinalMS) {
+			best = &history[i]
 		}
 	}
-	if len(near) > 0 {
-		all = near
+	return best
+}
+
+// forcesPace compares a key's forces (pct at a clock reading) with its best run's: nil without a best run with a
+// forces timeline, or under minPacePct.
+func forcesPace(best *models.Key, pct float64, clockMS int64) *models.ForcesPace {
+	if best == nil || best.Forces == nil || len(best.Forces.At) == 0 || pct < minPacePct {
+		return nil
 	}
-	if len(all) == 0 {
-		return 0
+	bestMS := forcesClock(*best, pct)
+	if bestMS <= 0 {
+		return nil
 	}
-	return median(all)
+	return &models.ForcesPace{BestPct: forcesAt(*best, clockMS), FasterPct: 100 * float64(bestMS-clockMS) / float64(bestMS)}
 }
 
 // median is the middle value, or the mean of the two middle ones for an even count (sorting a copy).

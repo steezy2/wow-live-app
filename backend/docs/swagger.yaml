@@ -55,6 +55,13 @@ definitions:
           $ref: '#/definitions/models.TrackPoint'
         type: array
     type: object
+  models.ForcesPace:
+    properties:
+      bestPct:
+        type: number
+      fasterPct:
+        type: number
+    type: object
   models.ForcesPoint:
     properties:
       clockMS:
@@ -157,9 +164,9 @@ definitions:
         type: integer
       needsCheck:
         type: boolean
+      pace:
+        $ref: '#/definitions/models.ForcesPace'
       pct:
-        type: number
-      referencePct:
         type: number
       total:
         type: integer

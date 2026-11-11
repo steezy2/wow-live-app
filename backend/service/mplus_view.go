@@ -27,7 +27,7 @@ func (k *KeyTracker) Latest(now int64) (models.KeyView, bool) {
 			v.Projection = fromTopRuns(v.Key, v.ClockMS, k.top[[2]int{v.MapID, v.Level}])
 		}
 		if v.Forces != nil {
-			v.Forces.ReferencePct = referenceForces(v.Key, v.ClockMS, k.history)
+			v.Forces.Pace = forcesPace(bestRun(v.Key, k.history), v.Forces.Pct, v.ClockMS)
 		}
 		return v, true
 	case k.last != nil:

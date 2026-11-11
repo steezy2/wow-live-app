@@ -782,6 +782,17 @@ const docTemplate = `{
                 }
             }
         },
+        "models.ForcesPace": {
+            "type": "object",
+            "properties": {
+                "bestPct": {
+                    "type": "number"
+                },
+                "fasterPct": {
+                    "type": "number"
+                }
+            }
+        },
         "models.ForcesPoint": {
             "type": "object",
             "properties": {
@@ -936,10 +947,10 @@ const docTemplate = `{
                 "needsCheck": {
                     "type": "boolean"
                 },
-                "pct": {
-                    "type": "number"
+                "pace": {
+                    "$ref": "#/definitions/models.ForcesPace"
                 },
-                "referencePct": {
+                "pct": {
                     "type": "number"
                 },
                 "total": {

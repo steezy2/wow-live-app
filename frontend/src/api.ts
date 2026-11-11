@@ -141,15 +141,17 @@ export interface KeyProjection {
   best: KeyGhost[]
 }
 
-/** The key's enemy forces: the share killed (it can pass 100), each kill's share, where earlier runs stood at this
- * clock (0 without any), and whether a finished key fell short enough that the dungeon file needs checking. */
+/** The key's enemy forces: the share killed (it can pass 100), each kill's share, the pace against the best run at
+ * the level, and whether a finished key fell short enough that the dungeon file needs checking. */
 export interface KeyForces {
   /** The count killed of the dungeon's total (0 in keys saved before Nov 8). */
   count: number
   total: number
   pct: number
   at: { clockMS: number; pct: number }[]
-  referencePct: number
+  /** A running key's pace against the fastest timed run of the dungeon at its level, when there is one: that run's
+   * forces at this clock, and how much sooner (+) or later (-) the key got to its forces, in % of that run's time. */
+  pace?: { bestPct: number; fasterPct: number }
   needsCheck: boolean
   /** Enemies that died without being in the dungeon file (missing in keys saved before Nov 8). */
   uncounted?: { npc: number; name: string; deaths: number }[]

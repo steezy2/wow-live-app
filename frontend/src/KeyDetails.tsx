@@ -71,7 +71,7 @@ export function KeyDetails({
         </section>
       )}
       {timer > 0 && <TimerBar clockMS={clockMS} timerMS={timer} keyView={key} best={projection?.best ?? []} />}
-      {key.forces && <ForcesBar forces={key.forces} />}
+      {key.forces && <ForcesBar forces={key.forces} level={key.level} />}
       {timer > 0 && key.status === 'running' && (
         <p className="muted">
           {clock(timer - clockMS)} left · +3 by {clock(key.plus3MS)} · +2 by {clock(key.plus2MS)}
@@ -278,26 +278,33 @@ export function TimerBar({
   )
 }
 
-/** Enemy forces as a bar: the share killed, a mark at 100%, and a tick where earlier runs stood at this time. */
-export function ForcesBar({ forces }: { forces: KeyForces }) {
-  const ref = forces.referencePct
-  const ahead = forces.pct >= ref
+/** Within this many % of the best run's pace, the key is on pace with it. */
+const PACE_EVEN_PCT = 1
+
+/** Enemy forces as a bar: the share killed, and against the best run at the level (a tick where it stood at this
+ * time, and how much faster or slower the key is). */
+export function ForcesBar({ forces, level }: { forces: KeyForces; level: number }) {
+  const pace = forces.pace
+  const best = `your best +${level}`
   return (
     <div className="forces">
       <div className="bar" role="img" aria-label={`forces ${forces.pct.toFixed(1)}%`}>
         <div
-          className={`fill ${ref > 0 && !ahead ? 'behind' : 'ahead'}`}
+          className={`fill ${pace && pace.fasterPct < 0 ? 'behind' : 'ahead'}`}
           style={{ width: `${Math.min(100, forces.pct)}%` }}
         />
-        {ref > 0 && <div className="mark" style={{ left: `${Math.min(100, ref)}%` }} title="your earlier runs" />}
+        {pace && <div className="mark" style={{ left: `${Math.min(100, pace.bestPct)}%` }} title={best} />}
       </div>
       <span className="small">
         Forces {forces.pct >= 100 ? `100% (${forces.pct.toFixed(0)}%)` : `${forces.pct.toFixed(1)}%`}
         {forces.count > 0 && <span className="muted"> · {forces.count}/{forces.total}</span>}
-        {ref > 0 && (
+        {pace && (
           <span className="muted">
             {' '}
-            · {ahead ? 'ahead' : 'behind'} of your runs ({ref.toFixed(0)}%)
+            ·{' '}
+            {Math.abs(pace.fasterPct) < PACE_EVEN_PCT
+              ? `on pace with ${best}`
+              : `${Math.round(Math.abs(pace.fasterPct))}% ${pace.fasterPct > 0 ? 'faster' : 'slower'} than ${best}`}
           </span>
         )}
       </span>

@@ -333,17 +333,17 @@ type ReadyPlayer struct {
 }
 
 // KeyForces is a key's enemy forces: the count killed of the dungeon's total, and its share (it can pass 100; 100 once
-// a key is finished, since the game needs it), each counted kill's share (saved with the key), where your earlier runs
-// stood at the same clock (0 without any), whether a finished key's kills fell short enough that the dungeon file
+// a key is finished, since the game needs it), each counted kill's share (saved with the key), the pace against your
+// best run at the level (running keys only, when there is one), whether a finished key's kills fell short enough that the dungeon file
 // needs checking, and the enemies that died without being in the dungeon file at all.
 type KeyForces struct {
-	Count        int            `json:"count"`
-	Total        int            `json:"total"`
-	Pct          float64        `json:"pct"`
-	At           []ForcesPoint  `json:"at"`
-	ReferencePct float64        `json:"referencePct"`
-	NeedsCheck   bool           `json:"needsCheck"`
-	Uncounted    []UncountedNPC `json:"uncounted"`
+	Count      int            `json:"count"`
+	Total      int            `json:"total"`
+	Pct        float64        `json:"pct"`
+	At         []ForcesPoint  `json:"at"`
+	Pace       *ForcesPace    `json:"pace,omitempty"`
+	NeedsCheck bool           `json:"needsCheck"`
+	Uncounted  []UncountedNPC `json:"uncounted"`
 }
 
 // UncountedNPC is an enemy that died in a key without a forces count in the dungeon file: its NPC ID, name and how
@@ -352,6 +352,14 @@ type UncountedNPC struct {
 	NPC    int    `json:"npc"`
 	Name   string `json:"name"`
 	Deaths int    `json:"deaths"`
+}
+
+// ForcesPace is how a running key's forces compare with the best run of its dungeon at its level (the fastest timed
+// one): the best run's forces at the same clock, and how much sooner (+) or later (-) the key reached its forces than
+// the best run did, as a share of the best run's time to get there.
+type ForcesPace struct {
+	BestPct   float64 `json:"bestPct"`
+	FasterPct float64 `json:"fasterPct"`
 }
 
 // ForcesPoint is the forces share after a kill, at a time on the key's clock.
