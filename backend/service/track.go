@@ -48,9 +48,6 @@ func (k *LogTracker) position(at int64, event string, f []string) {
 			run.track.Players[name] = append(run.track.Players[name], p)
 		}
 	case strings.HasPrefix(guid, "Creature-") || strings.HasPrefix(guid, "Vehicle-"):
-		if _, seen := run.mobHP[guid]; !seen {
-			run.hpSum, run.hpCount = run.hpSum+int64(atoi(f[i+3])), run.hpCount+1
-		}
 		run.mobHP[guid] = int64(atoi(f[i+3]))
 		p.Name = f[1]
 		if guid == f[4] {
@@ -60,7 +57,7 @@ func (k *LogTracker) position(at int64, event string, f []string) {
 		r := run.raid
 		watched := r != nil && (slices.Contains(r.boss.NPCs, npcOf(guid)) || slices.Contains(r.boss.Priority, p.Name))
 		if r == nil {
-			watched = run.bigUnit(p.Name, int64(atoi(f[i+3])))
+			watched = run.bigUnit(guid, p.Name)
 		}
 		if watched && at-run.sampled[guid] >= trackEveryMS {
 			run.sampled[guid] = at
@@ -213,12 +210,14 @@ func (k *LogTracker) trackOf(run *keyRun) models.KeyTrack {
 			t.Bosses[guid] = list(points)
 		}
 	}
-	t.AbilityTimes = list(run.track.AbilityTimes)
-	t.Casts = map[string][]models.TrackCast{}
-	for name, casts := range run.track.Casts {
-		t.Casts[name] = list(casts)
+	if run.key.Status != "running" { // the focus bars and casts are for the replay of a finished run
+		t.AbilityTimes = list(run.track.AbilityTimes)
+		t.Casts = map[string][]models.TrackCast{}
+		for name, casts := range run.track.Casts {
+			t.Casts[name] = list(casts)
+		}
+		t.Abilities, t.TargetSeries = copySeries(run.track.Abilities), copySeries(run.track.TargetSeries)
 	}
-	t.Abilities, t.TargetSeries = copySeries(run.track.Abilities), copySeries(run.track.TargetSeries)
 	if r := run.raid; r == nil {
 		t.Health = slices.SortedFunc(maps.Keys(t.Bosses), func(a, b string) int {
 			return cmp.Compare(t.Bosses[a][0].ClockMS, t.Bosses[b][0].ClockMS)
@@ -306,14 +305,11 @@ func (k *LogTracker) walked(mapID int) ([]models.TrackPoint, error) {
 	return walked, nil
 }
 
-// minSeenMobs is how many mobs a key must have shown before one can count as a miniboss by its health.
-const minSeenMobs = 10
-
 // bigUnit is whether a key's mob is worth following on the map's health box: the boss being fought (a unit of its
-// name), or a mob with minibossRatio times the health of the mobs seen so far on average (a miniboss).
-func (r *keyRun) bigUnit(name string, maxHP int64) bool {
+// name) or one of the dungeon file's minibosses.
+func (r *keyRun) bigUnit(guid, name string) bool {
 	if n := len(r.key.Bosses); n > 0 && r.key.Bosses[n-1].EndMS == 0 && strings.EqualFold(r.key.Bosses[n-1].Name, name) {
 		return true
 	}
-	return r.hpCount >= minSeenMobs && float64(maxHP) >= minibossRatio*float64(r.hpSum)/float64(r.hpCount)
+	return r.facts != nil && slices.Contains(r.facts.Minibosses, npcOf(guid))
 }

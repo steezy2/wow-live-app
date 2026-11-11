@@ -3,6 +3,7 @@ package service
 import (
 	"cmp"
 	"fmt"
+	"maps"
 	"slices"
 
 	"wow-live/backend/models"
@@ -68,62 +69,60 @@ func keyLanes(key models.Key, pulls []models.PullSpan) []models.RaidLane {
 	return packLanes(marks)
 }
 
-// pullStarts is when each of a key's pulls started, from its lanes (none in a key saved before Nov 11).
-func pullStarts(key models.Key) []int64 {
-	var starts []int64
+// pullsLane is the marks of a key's pulls lane (none in a key saved before Nov 11).
+func pullsLane(key models.Key) []models.RaidMark {
 	for _, l := range key.Lanes {
 		if l.Kind == "pulls" {
-			for _, m := range l.Marks {
-				starts = append(starts, m.ClockMS)
-			}
+			return l.Marks
 		}
 	}
-	return starts
+	return nil
 }
 
-// pullLength is how long the pull started at the lane mark i of a key's lanes lasted, 0 without one.
-func pullLength(key models.Key, i int) int64 {
-	for _, l := range key.Lanes {
-		if l.Kind == "pulls" && i < len(l.Marks) {
-			return l.Marks[i].EndMS - l.Marks[i].ClockMS
-		}
-	}
-	return 0
-}
-
-// slowPullMS: a pull is only worth a line when it took this much longer than in the best run.
-const slowPullMS = 20_000
-
-// keySuggestions is what to fix next key, worst first and at most rules.Most: a death with a defensive ready, the
-// slowest pull against the same pull in the best timed run of the dungeon at the level (best, nil without one), must-stop
-// casts that went off, a Bloodlust few took a combat potion with, damage spikes with no party cooldown, the longest
-// wait between pulls, and minibosses that died after most of their pack. Each line names a time on the key's clock.
+// keySuggestions is what to fix next key, in this order and at most rules.Most: deaths to one ability, damage spikes a
+// defensive could have covered, the slowest pull against the same pull in the best timed run of the dungeon at the level
+// (best, nil without one; only when both runs have the same number of pulls), must-stop casts that went off, a
+// Bloodlust few took a combat potion with, damage spikes with no party cooldown, the longest wait between pulls, and
+// minibosses that died after most of their pack. Each line names a time on the key's clock where it has one.
 func keySuggestions(key models.Key, best *models.Key, rules models.KeySuggestionRules) []string {
 	out := []string{}
+	byAbility := map[string]int{}
 	for _, d := range key.Deaths {
-		if d.Defensive == "" && len(d.Ready) > 0 {
-			out = append(out, fmt.Sprintf("%s died to %s at %s with %s ready", d.Player, cmp.Or(d.Ability, "?"),
-				clockText(d.ClockMS), d.Ready[0]))
+		byAbility[cmp.Or(d.Ability, "?")]++
+	}
+	for _, ability := range slices.Sorted(maps.Keys(byAbility)) {
+		if n := byAbility[ability]; n >= 2 {
+			out = append(out, fmt.Sprintf("%s to %s", counted(n, "death"), ability))
 		}
 	}
-	if best != nil {
+	covered := 0
+	for _, p := range key.Players {
+		n, _ := unusedDefensives(key, p)
+		covered += n
+	}
+	if covered >= 2 {
+		out = append(out, "Took big hits with a defensive ready in "+counted(covered, "damage spike"))
+	}
+	if mine, theirs := pullsLane(key), pullsLane(bestOrEmpty(best)); len(mine) > 0 && len(mine) == len(theirs) {
 		worst, over := -1, int64(0)
-		for i := range pullStarts(key) {
-			mine, theirs := pullLength(key, i), pullLength(*best, i)
-			if theirs > 0 && float64(mine) > float64(theirs)*(1+rules.SlowPullPct/100) && mine-theirs > slowPullMS &&
-				mine-theirs > over {
-				worst, over = i, mine-theirs
+		for i := range mine {
+			m, t := mine[i].EndMS-mine[i].ClockMS, theirs[i].EndMS-theirs[i].ClockMS
+			if t > 0 && float64(m) > float64(t)*(1+rules.SlowPullPct/100) && m-t > int64(rules.SlowPullSeconds*1000) &&
+				m-t > over {
+				worst, over = i, m-t
 			}
 		}
 		if worst >= 0 {
 			out = append(out, fmt.Sprintf("Pull %d took %s against %s in your best +%d", worst+1,
-				clockText(pullLength(key, worst)), clockText(pullLength(*best, worst)), best.Level))
+				clockText(mine[worst].EndMS-mine[worst].ClockMS), clockText(theirs[worst].EndMS-theirs[worst].ClockMS),
+				best.Level))
 		}
 	}
-	if went := countFunc(key.Stops, func(s models.KeyStop) bool { return s.Outcome == "went off" }); went > 0 {
-		first := key.Stops[slices.IndexFunc(key.Stops, func(s models.KeyStop) bool { return s.Outcome == "went off" })]
-		out = append(out, fmt.Sprintf("%s went off, the first %s from %s at %s", counted(went, "must-stop cast"), first.Spell,
-			first.Mob, clockText(first.ClockMS)))
+	wentOff := func(s models.KeyStop) bool { return s.Outcome == "went off" }
+	if i := slices.IndexFunc(key.Stops, wentOff); i >= 0 {
+		first := key.Stops[i]
+		out = append(out, fmt.Sprintf("%s went off, the first %s from %s at %s",
+			counted(countFunc(key.Stops, wentOff), "must-stop cast"), first.Spell, first.Mob, clockText(first.ClockMS)))
 	}
 	for _, lust := range key.Lusts {
 		var dps, potions int
@@ -142,9 +141,10 @@ func keySuggestions(key models.Key, best *models.Key, rules models.KeySuggestion
 			out = append(out, fmt.Sprintf("Bloodlust at %s: %d of %d had a combat potion", clockText(lust), potions, dps))
 		}
 	}
-	if bare := countFunc(key.Spikes, func(s models.KeySpike) bool { return len(s.PartyCDs) == 0 }); bare > 0 {
-		out = append(out, fmt.Sprintf("%s with no party cooldown, the worst at %s", counted(bare, "damage spike"),
-			clockText(key.Spikes[slices.IndexFunc(key.Spikes, func(s models.KeySpike) bool { return len(s.PartyCDs) == 0 })].ClockMS)))
+	uncovered := func(s models.KeySpike) bool { return len(s.PartyCDs) == 0 }
+	if i := slices.IndexFunc(key.Spikes, uncovered); i >= 0 {
+		out = append(out, fmt.Sprintf("%s with no party cooldown, the worst at %s",
+			counted(countFunc(key.Spikes, uncovered), "damage spike"), clockText(key.Spikes[i].ClockMS)))
 	}
 	if len(key.BetweenPulls) > 0 {
 		gap := slices.Max(key.BetweenPulls)
@@ -157,4 +157,12 @@ func keySuggestions(key models.Key, best *models.Key, rules models.KeySuggestion
 		out = append(out, fmt.Sprintf("A miniboss died after most of its pack in %s", counted(late, "pull")))
 	}
 	return out[:min(len(out), rules.Most)]
+}
+
+// bestOrEmpty is the best run, or an empty key without one.
+func bestOrEmpty(best *models.Key) models.Key {
+	if best == nil {
+		return models.Key{}
+	}
+	return *best
 }

@@ -51,8 +51,8 @@ func TestKeyLanes(t *testing.T) {
 }
 
 func TestKeySuggestions(t *testing.T) {
-	rules := models.KeySuggestionRules{Most: 5, SlowPullPct: 30, GapSeconds: 60}
-	pullsLane := func(lengths ...int64) []models.RaidLane {
+	rules := models.KeySuggestionRules{Most: 5, SlowPullPct: 30, SlowPullSeconds: 20, GapSeconds: 60}
+	pullsOf := func(lengths ...int64) []models.RaidLane {
 		var marks []models.RaidMark
 		var at int64
 		for _, l := range lengths {
@@ -61,7 +61,7 @@ func TestKeySuggestions(t *testing.T) {
 		}
 		return []models.RaidLane{{Kind: "pulls", Marks: marks}}
 	}
-	best := &models.Key{Level: 14, Lanes: pullsLane(60_000, 60_000)}
+	best := &models.Key{Level: 14, Lanes: pullsOf(60_000, 60_000)}
 	tests := []struct {
 		name string
 		key  models.Key
@@ -69,14 +69,16 @@ func TestKeySuggestions(t *testing.T) {
 		max  int
 		want []string
 	}{
-		{"a death with a defensive ready", models.Key{Deaths: []models.KeyDeath{{Player: "Tank", Ability: "Smash",
-			ClockMS: 75_000, Ready: []string{"Shield Wall"}}}}, nil, 5, []string{"Tank died to Smash at 1:15 with Shield Wall ready"}},
-		{"a covered death is not a line", models.Key{Deaths: []models.KeyDeath{{Player: "Tank", Defensive: "Shield Wall",
-			Ready: []string{"Last Stand"}}}}, nil, 5, []string{}},
-		{"the slowest pull against the best run", models.Key{Lanes: pullsLane(65_000, 120_000)}, best, 5,
+		{"deaths to one ability", models.Key{Deaths: []models.KeyDeath{{Ability: "Smash"}, {Ability: "Smash"},
+			{Ability: "Bolt"}}}, nil, 5, []string{"2 deaths to Smash"}},
+		{"a single death is not a line", models.Key{Deaths: []models.KeyDeath{{Ability: "Smash"}}}, nil, 5,
+			[]string{}},
+		{"the slowest pull against the best run", models.Key{Lanes: pullsOf(65_000, 120_000)}, best, 5,
 			[]string{"Pull 2 took 2:00 against 1:00 in your best +14"}},
-		{"a slightly slower pull is not", models.Key{Lanes: pullsLane(70_000, 70_000)}, best, 5, []string{}},
-		{"no best run, no pull line", models.Key{Lanes: pullsLane(300_000)}, nil, 5, []string{}},
+		{"a slightly slower pull is not", models.Key{Lanes: pullsOf(70_000, 70_000)}, best, 5, []string{}},
+		{"another number of pulls is not compared", models.Key{Lanes: pullsOf(65_000, 120_000, 60_000)}, best, 5,
+			[]string{}},
+		{"no best run, no pull line", models.Key{Lanes: pullsOf(300_000)}, nil, 5, []string{}},
 		{"must-stops that went off", models.Key{Stops: []models.KeyStop{{ClockMS: 5_000, Mob: "Mob", Spell: "Bolt",
 			Outcome: "went off"}}}, nil, 5, []string{"1 must-stop cast went off, the first Bolt from Mob at 0:05"}},
 		{"a long wait", models.Key{BetweenPulls: []int64{20_000, 90_000}}, nil, 5, []string{"1:30 waiting before pull 3"}},

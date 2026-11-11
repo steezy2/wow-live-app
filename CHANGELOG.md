@@ -30,6 +30,8 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 - *End as abandoned* at the top right of the live page while a key runs (`POST /api/mplus/live/abandon`), with how long ago the game last wrote its log; a key ended by it, or by the silence, runs again if the log goes on in it for 2 more minutes, and a timed end in that time still counts (Nov 10: the Den of Nalorakk +17's zone change out reached the log 5 minutes late). The game logs no end for a key the party left and writes its log in batches as fights start and end (measured Nov 10: 2:45 of a boss fight in one write), so the line that says they left can come minutes later.
 
 ### Changed
+- *Fix next key* is the key's own list: deaths to one ability, big hits with a defensive ready, the slowest pull against your best run (only when both had as many pulls; `slow_pull_seconds` joins `[suggestions]`), must-stops that went off, Bloodlusts few took a potion with, damage spikes with no party cooldown, the longest wait and late minibosses. The best-run line shows for timed and depleted keys only.
+- A key's health box follows the boss being fought and the dungeon file's minibosses, and a running key's track leaves out casts and ability stretches until it ends. The review table's column groups come from the API (`group` on a metric).
 - Player tables: fixed column widths, row separators, a faint rule between groups, class-coloured names, amber avoidable damage over the party's median, striping from 8 rows, and sideways scrolling with the name pinned on small screens (cards and the review table; deaths red, combat potions green).
 - The replay's map moves smoothly: it draws every frame and units walk between their once-a-second points, while the rest of the page follows the clock 10 times a second (the M+ map too). On the raid pull's page the lanes and graph come first, then the map.
 - Greater Invisibility isn't a defensive any more (`mplus.toml`), on both pages.
@@ -52,7 +54,7 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 - The release workflow's `store` job submits to the Microsoft Store without waiting for approval: the `microsoft-store` environment's required reviewer went away with the repo going private.
 
 ### Fixed
-- A Kith'ix mote wave picked up over 4 to 5 s is one wave, not several. Saved keys and pulls keep their old data until *Read old logs* is run with "all".
+- A Kith'ix mote wave picked up over 4 to 5 s is one wave, not several.
 - Review fixes to raid night two: one rule for a spike a raid cooldown covers (cast by its end, buff still up at its start, or cast within the death window before it when no end was seen), a Viper whose egg carrier isn't found now says *Not picked up* with no player instead of naming whoever the cause landed on, `?all=` and `?force=` must be booleans (400 otherwise), and `raidref` fails rather than writing a file without the tier sets when Wowhead can't be read. Saved pulls keep their old Viper causes and spike cover until *Read old logs* is run with "all".
 - A raid boss's health is its own: Ula'tek's counted its two Gore Rattle tails and the Venomous Heart, so a wipe at 48% showed 66%. The units named as the encounter count (or the mechanics file's `health` NPCs; all of a council). Pulls already saved keep their number until *Read old logs*. The tails and heart no longer show as adds.
 - A combat potion isn't a defensive (M+ and raid): one drunk just before a death no longer counts as its cover, nor shows in a death's "still ready" list.

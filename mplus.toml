@@ -96,8 +96,10 @@ combat_potions = ["Light's Potential", "Potion of Recklessness", "Liquid Luster"
 combat_potion_ids = [1236616, 1236994, 1295132]
 
 [suggestions]
-# "Fix next key" on a finished key: at most this many lines, a pull is slow when it took this share longer than the same
-# pull in your best timed run of the dungeon at the level (and 20 s more), and a wait between pulls is long past this.
+# "Fix next key" on a finished key: at most this many lines, a pull is slow when it took this share longer (and this many
+# seconds more) than the same pull in your best timed run of the dungeon at the level, and a wait between pulls is long
+# past gap_seconds.
 most = 5
 slow_pull_pct = 30
+slow_pull_seconds = 20
 gap_seconds = 60

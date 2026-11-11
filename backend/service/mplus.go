@@ -128,8 +128,6 @@ type keyRun struct {
 	abilities map[[2]string]*models.KeyAbility // (player, ability) -> what it did
 	takenBy   map[[2]string]int64              // (player, ability) -> damage taken from it
 	sample    abilitySampler                   // what the replay's focus bars keep
-	hpSum     int64                            // the max health of the mobs seen so far, and how many
-	hpCount   int64
 }
 
 // NewLogTracker tracks keys with each dungeon's time limit (map ID -> ms), affix names (ID -> name), the page's

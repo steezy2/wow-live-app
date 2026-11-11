@@ -107,7 +107,7 @@ func buildReview(key models.Key, history []models.Key, baselines map[string]map[
 				continue
 			}
 			metric := models.ReviewMetric{Name: m.name, Value: value, Usual: -1, Amount: m.amount,
-				Help: metricHelp[m.name]}
+				Help: metricHelp[m.name], Group: groupStarts[m.name]}
 			if !m.plain {
 				metric.PartyRank = partyRank(key, rows, m, value)
 			}
@@ -259,6 +259,9 @@ func mainMetric(spec specInfo) string {
 	}
 	return dpsMetric.name
 }
+
+// groupStarts are the metrics that start a new group of columns in the review table.
+var groupStarts = map[string]bool{"kicks": true, "damage taken": true, "combat potions": true, "deaths": true}
 
 // metricHelp says what each reviewed metric counts.
 var metricHelp = map[string]string{

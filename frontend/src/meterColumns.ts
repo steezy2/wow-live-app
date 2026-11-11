@@ -1,5 +1,5 @@
 import type { KeyMeterRow } from './api'
-import { amount } from './format'
+import { amount, median } from './format'
 
 /** A card column: its heading, the value it sorts and draws by, and how it shows. */
 export interface Column {
@@ -15,9 +15,7 @@ export interface Column {
 
 /** Amber for avoidable damage over the party's median. */
 const aboveMedian = (r: KeyMeterRow, rows: KeyMeterRow[]) => {
-  const sorted = rows.map((x) => x.avoidable).sort((a, b) => a - b)
-  const median = (sorted[Math.floor((sorted.length - 1) / 2)] + sorted[Math.floor(sorted.length / 2)]) / 2
-  return r.avoidable > median ? 'warn' : undefined
+  return r.avoidable > median(rows.map((x) => x.avoidable)) ? 'warn' : undefined
 }
 
 /** The raid's offense columns: damage, kicks and dispels. */

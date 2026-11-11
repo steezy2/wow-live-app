@@ -1249,6 +1249,10 @@ definitions:
       amount:
         description: shown shortened ("2.1M"), else as a whole number
         type: boolean
+      group:
+        description: it starts a new group of columns (offense, defense, consumables,
+          deaths)
+        type: boolean
       help:
         description: what the metric counts, for the page to show on hover
         type: string

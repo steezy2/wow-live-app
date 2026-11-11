@@ -26,7 +26,8 @@ func (r *raidRun) mark(kind, name string, m models.RaidMark) {
 }
 
 // lanes is a finished pull's timeline: the marks seen as they happened (avoidable hits, stacks past the limit,
-// expected pickups, phase changes, made stretches here) and the deaths, Bloodlust and cooldowns (stretches while their buff lasted), potions,
+// expected pickups, phase changes, made stretches here) and the deaths, Bloodlust and cooldowns (stretches while their
+// buff lasted), potions,
 // damage spike, soaks and adds from the pull's facts, each lane's marks in order.
 func (k *LogTracker) lanes(run *keyRun, p models.RaidPull, end int64) []models.RaidLane {
 	r := run.raid
@@ -113,9 +114,9 @@ func spikeRate(s models.KeySpike, rules models.SuggestionRules) string {
 }
 
 // suggestions is what to fix on the next pull, most important first, at most rules.Most: deaths to what can be dodged
-// or soaked, raiders who didn't pick up what everyone should, early deaths with a defensive ready, mass kills, several early deaths to one other ability, an uncovered
-// damage spike, stacks past the limit, casts that went off, slow dispels, adds that lived longer than in the best
-// pull, the most avoidable hits, less damage into the target to burst than the best pull, and in a pull long enough
+// or soaked, raiders who didn't pick up what everyone should, early deaths with a defensive ready, mass kills,
+// several early deaths to one other ability, an uncovered damage spike, stacks past the limit, casts that went off, slow dispels, adds that lived longer than
+// in the best pull, the most avoidable hits, less damage into the target to burst than the best pull, and in a pull long enough
 // for them, no Bloodlust and raiders without a combat potion; last, raid cooldowns stacked. best is nil for the best
 // pull itself.
 func suggestions(p models.RaidPull, best *models.RaidPull, rules models.SuggestionRules) []string {
