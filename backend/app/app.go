@@ -40,6 +40,7 @@ type Options struct {
 	Dungeons  map[int]models.DungeonFacts // from reference/mplus-dungeons.json
 	RaidRules models.RaidRules            // from raid-rules.toml
 	Bosses    map[string]models.RaidBoss  // from reference/raid-bosses.json
+	Tier      map[string][]int            // each class's tier items, from reference/raid-bosses.json
 	Baselines models.MPlusBaselines       // Warcraft Logs; nil means no key reviews
 	Pages     fs.FS                       // the built page
 	Hosts     []string                    // the names the page reaches the site by, for the router's host check
@@ -68,7 +69,11 @@ func Start(ctx context.Context, opts Options) (*Site, error) {
 		if err != nil {
 			return nil, err
 		}
-		return keys, keys.EnableRaid(opts.RaidRules, opts.Bosses, pulls)
+		if err := keys.EnableRaid(opts.RaidRules, opts.Bosses, pulls); err != nil {
+			return nil, err
+		}
+		keys.SetTier(opts.Tier)
+		return keys, nil
 	}
 	keys, err := newKeys()
 	if err != nil {
@@ -114,7 +119,7 @@ func add(keys *service.LogTracker, lines []string) {
 
 // readerVersion is the version of what Learn saves from a log. Bump it with any change that saves new key or raid pull
 // fields, so the next Learn reads every log again.
-const readerVersion = 1
+const readerVersion = 2
 
 // learned is learned.json: the logs Learn has read and the reader that read them, so it reads only new or changed
 // logs next time.

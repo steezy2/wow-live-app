@@ -263,7 +263,7 @@ func carried() (app.Options, error) {
 	if err := json.Unmarshal(bosses, &raid); err != nil {
 		return opts, fmt.Errorf("reading the built-in raid bosses: %w", err)
 	}
-	opts.Bosses = raid.Bosses
+	opts.Bosses, opts.Tier = raid.Bosses, raid.Tier
 	return opts, nil
 }
 
