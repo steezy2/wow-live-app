@@ -57,8 +57,8 @@ type raidSetup struct {
 }
 
 // raidRun is what a raid pull adds to its run: the difficulty, the boss's mechanics and phases, the hostile units
-// seen, each death's last hits, and the mechanics' tallies: soaks, stacks, pickups, tethers broken and the last
-// landing of each spell that spawns adds.
+// seen, each death's last hits, the mechanics' tallies: soaks, stacks, pickups, tethers broken and the last landing of
+// each spell that spawns adds, and the raiders' buff gaps.
 type raidRun struct {
 	difficulty string
 	boss       models.RaidBoss
@@ -72,19 +72,24 @@ type raidRun struct {
 	cooldowns  []models.KeyCast           // raid cooldowns used
 	lustEnds   map[int64]int64            // when a Bloodlust landed -> when it last left a raider, on the pull's clock
 	marks      map[lane][]models.RaidMark // the timeline marks only seen as they happen (lanes adds the rest)
-	pickups    []pickupAt
-	breaks     []breakAt
-	causes     map[int]*causeAt // spawn cause spell ID -> its last landing
+	// Pickup waves so far, the wave of each expected pickup (by name) its spell will close, and the pickup auras
+	// raiders hold now.
+	pickups   []models.RaidPickup
+	openWaves map[string]int
+	holds     map[spellOn]bool
+	// Raiders dead now and when each was brought back (on the pull's clock), each raider's buff gap open (raider and
+	// kind -> since), when each kind first came up on them, and the gaps closed.
+	dead    map[string]bool
+	rezzed  map[string][]int64
+	gapFrom map[[2]string]int64
+	firstUp map[[2]string]int64
+	gaps    []models.RaidMissing
+	breaks  []breakAt
+	causes  map[int]*causeAt // spawn cause spell ID -> its last landing
 	// For spawn rules with a lost aura: when each such aura last came off a raider and each cause last landed on one,
 	// and the raiders who lost one as its cause landed, in order (spawners).
 	lostAt, landedAt map[spellOn]int64
 	spawners         []spawner
-}
-
-// pickupAt is a raider picking something up (taking on a pickup rule's aura).
-type pickupAt struct {
-	at           int64
-	name, player string
 }
 
 // breakAt is a raider breaking a tether, and how many raiders the effect it set off hit.
@@ -186,7 +191,9 @@ func (k *LogTracker) startPull(line models.LogLine) {
 		units: map[string]*raidUnit{}, soaks: map[int]*soakTally{}, stacks: map[int]map[string]int{},
 		priority: map[string]int64{}, lustEnds: map[int64]int64{}, marks: map[lane][]models.RaidMark{},
 		causes: map[int]*causeAt{}, lostAt: map[spellOn]int64{}, landedAt: map[spellOn]int64{},
-	}
+		pickups: []models.RaidPickup{}, openWaves: map[string]int{}, holds: map[spellOn]bool{},
+		dead: map[string]bool{}, rezzed: map[string][]int64{}, gapFrom: map[[2]string]int64{},
+		firstUp: map[[2]string]int64{}}
 	run.sample.every = abilityEveryMS
 	if len(run.raid.phases) > 0 {
 		run.raid.phase = "P1"
@@ -216,6 +223,9 @@ func (k *LogTracker) raidLine(line models.LogLine) bool {
 		if u := r.units[f[4]]; u != nil && u.died == 0 {
 			u.died, u.hp = at, 0
 		}
+		if line.Event == "UNIT_DIED" && slices.Contains(run.party, f[4]) && f[len(f)-1] != "1" { // not feigned
+			r.dead[k.names[f[4]]] = true
+		}
 		return false
 	}
 	if len(f) < 8 {
@@ -236,6 +246,9 @@ func (k *LogTracker) raidLine(line models.LogLine) bool {
 	if line.Event == "SPELL_CAST_START" || line.Event == "SPELL_CAST_SUCCESS" || line.Event == "SPELL_CAST_FAILED" {
 		if len(f) > 8 && hasFlag(f[2], hostileFlag) {
 			r.cause(atoi(f[8]), at, "", window)
+			if line.Event == "SPELL_CAST_SUCCESS" {
+				r.closeWaves(atoi(f[8]), run.clock(at), k.raiders(run))
+			}
 		}
 		k.trackCast(at, line.Event, f)
 	}
@@ -259,7 +272,19 @@ func (k *LogTracker) raidLine(line models.LogLine) bool {
 			r.stacks[id][victim] = max(r.stacks[id][victim], n)
 		}
 		if line.Event == "SPELL_AURA_APPLIED" && victim != "" {
-			r.auraOn(id, at, victim, window)
+			r.auraOn(id, at, run.clock(at), victim, window)
+		}
+		if victim != "" && len(f) > 11 && f[11] == "BUFF" {
+			k.buffChanged(run, run.clock(at), victim, id, f[9], true)
+		}
+	case "SPELL_AURA_REFRESH":
+		if victim != "" && len(f) > 11 && f[11] == "BUFF" {
+			k.buffChanged(run, run.clock(at), victim, atoi(f[8]), f[9], true)
+		}
+	case "SPELL_RESURRECT":
+		if victim != "" {
+			delete(r.dead, victim)
+			r.rezzed[victim] = append(r.rezzed[victim], run.clock(at))
 		}
 	case "SPELL_CAST_SUCCESS":
 		if who := k.player(f[0], f[2]); who != "" && len(f) > 9 && k.raidCooldown(f[0], f[9]) &&
@@ -273,6 +298,10 @@ func (k *LogTracker) raidLine(line models.LogLine) bool {
 		if victim != "" && len(f) > 9 {
 			k.buffLeft(run.clock(at), k.player(f[0], f[2]), f[9])
 			r.lose(atoi(f[8]), at, victim)
+			delete(r.holds, spellOn{atoi(f[8]), victim})
+			if len(f) > 11 && f[11] == "BUFF" {
+				k.buffChanged(run, run.clock(at), victim, atoi(f[8]), f[9], false)
+			}
 			for _, b := range r.boss.Breaks {
 				if b.Aura == atoi(f[8]) {
 					r.breaks = append(r.breaks, breakAt{at: at, rule: b, player: victim})
@@ -289,11 +318,12 @@ func (k *LogTracker) raidCooldown(guid, spell string) bool {
 		(!slices.Contains(k.raid.rules.Cooldowns.HealerOnly, spell) || specs[k.specs[guid]].Healer)
 }
 
-// auraOn notes an aura landing on a raider: a pickup, the effect of the last tether broken, or a spawn cause.
-func (r *raidRun) auraOn(id int, at int64, victim string, window int64) {
+// auraOn notes an aura landing on a raider at at (clockMS on the pull's clock): a pickup, the effect of the last
+// tether broken, or a spawn cause.
+func (r *raidRun) auraOn(id int, at, clockMS int64, victim string, window int64) {
 	for _, p := range r.boss.Pickups {
-		if p.Aura == id && (len(p.Difficulties) == 0 || slices.Contains(p.Difficulties, r.difficulty)) {
-			r.pickups = append(r.pickups, pickupAt{at: at, name: p.Name, player: victim})
+		if p.Aura == id && r.happens(p) {
+			r.pickUp(p, clockMS, victim, window)
 		}
 	}
 	for i := len(r.breaks) - 1; i >= 0; i-- {
@@ -303,6 +333,66 @@ func (r *raidRun) auraOn(id int, at int64, victim string, window int64) {
 		}
 	}
 	r.cause(id, at, victim, window)
+}
+
+// happens is whether a pickup rule applies at the pull's difficulty.
+func (r *raidRun) happens(p models.RaidPickupRule) bool {
+	return len(p.Difficulties) == 0 || slices.Contains(p.Difficulties, r.difficulty)
+}
+
+// pickUp adds a raider picking up a rule's thing to its wave: an expected pickup's open wave (its spell closes it),
+// else the last wave when it's of this name and began within window ms.
+func (r *raidRun) pickUp(p models.RaidPickupRule, clockMS int64, player string, window int64) {
+	r.holds[spellOn{p.Aura, player}] = true
+	i, ok := r.openWaves[p.Name]
+	if n := len(r.pickups); p.Expect == 0 && n > 0 {
+		i, ok = n-1, r.pickups[n-1].Name == p.Name && clockMS-r.pickups[n-1].ClockMS <= window
+	}
+	if !ok {
+		r.pickups, i = append(r.pickups, models.RaidPickup{ClockMS: clockMS, Name: p.Name}), len(r.pickups)
+		if p.Expect != 0 {
+			r.openWaves[p.Name] = i
+		}
+	}
+	r.pickups[i].Players = append(r.pickups[i].Players, player)
+}
+
+// closeWaves ends each expected pickup's wave as the enemy spell it's needed for goes off at clockMS: the living
+// raiders without its aura then missed it (a wave nobody picked up from is all of them), marked on its lane.
+func (r *raidRun) closeWaves(spell int, clockMS int64, raiders []string) {
+	for _, p := range r.boss.Pickups {
+		if p.Expect != spell || !r.happens(p) {
+			continue
+		}
+		i, ok := r.openWaves[p.Name]
+		if !ok {
+			r.pickups, i = append(r.pickups, models.RaidPickup{ClockMS: clockMS, Name: p.Name, Players: []string{}}),
+				len(r.pickups)
+		}
+		delete(r.openWaves, p.Name)
+		w := &r.pickups[i]
+		w.Missed = []string{}
+		for _, name := range raiders {
+			if !r.dead[name] && !r.holds[spellOn{p.Aura, name}] {
+				w.Missed = append(w.Missed, name)
+			}
+		}
+		slices.Sort(w.Missed)
+		m := models.RaidMark{ClockMS: clockMS, Text: fmt.Sprintf("%d picked up", len(w.Players))}
+		if len(w.Missed) > 0 {
+			m.Text, m.Bad = "Missed: "+strings.Join(w.Missed, ", "), true
+		}
+		r.mark("pickups", "Picked up "+p.Name, m)
+	}
+}
+
+// raiders are the pull's raiders' names, in the order COMBATANT_INFO listed them.
+func (k *LogTracker) raiders(run *keyRun) []string {
+	names := make([]string, 0, len(run.party))
+	for _, guid := range run.party {
+		names = append(names, k.names[guid])
+	}
+	return names
 }
 
 // cause notes a spell that spawns adds landing at at (a cast, a direct hit or an aura applied, never a tick), on
@@ -574,7 +664,7 @@ func (k *LogTracker) raidPull(run *keyRun, key models.Key, at int64, kill bool) 
 		}
 	}
 	p.Adds = r.adds(at)
-	p.Pickups, p.Breaks = r.pickupWaves(run.clock, rules.Soaks.WindowMS), []models.RaidBreak{}
+	p.Pickups, p.Breaks = r.pickups, []models.RaidBreak{}
 	for _, b := range r.breaks {
 		if slices.ContainsFunc(key.Deaths, func(d models.KeyDeath) bool {
 			return d.Player == b.player && max(d.ClockMS-run.clock(b.at), run.clock(b.at)-d.ClockMS) <= breakDeathMS
@@ -605,22 +695,9 @@ func (k *LogTracker) raidPull(run *keyRun, key models.Key, at int64, kill bool) 
 	p.Abilities, p.Taken = abilities(run, k.schools)
 	p.Targets = targets(run)
 	p.Interrupts, p.Stops, p.WastedKicks, p.Debuffs = key.Interrupts, key.Stops, key.WastedKicks, key.Debuffs
-	p.Missing, p.Activity, p.Casts = key.Buffs, key.Activity, key.Casts
+	p.Activity, p.Casts = key.Activity, key.Casts
+	p.BuffGaps = k.buffGaps(run, key.Buffs, key.Deaths, p.DurationMS)
 	return p
-}
-
-// pickupWaves is the pull's pickups, those of one thing within window ms of a wave's first as one wave.
-func (r *raidRun) pickupWaves(clock func(int64) int64, window int64) []models.RaidPickup {
-	waves, first := []models.RaidPickup{}, int64(0)
-	for _, p := range r.pickups {
-		if n := len(waves); n > 0 && waves[n-1].Name == p.name && p.at-first <= window {
-			waves[n-1].Players = append(waves[n-1].Players, p.player)
-			continue
-		}
-		waves = append(waves, models.RaidPickup{ClockMS: clock(p.at), Name: p.name, Players: []string{p.player}})
-		first = p.at
-	}
-	return waves
 }
 
 // targets is each raider's damage into the enemies of each name over the run, most first.

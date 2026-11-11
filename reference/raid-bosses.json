@@ -72,12 +72,14 @@
       "pickups": [
         {
           "aura": 1304526,
-          "name": "a light mote"
+          "name": "a light mote",
+          "expect": 1304424
         }
       ],
       "checked": "wcl yABcgtXjV48kFrW2#17",
       "sources": [
-        "https://www.mythictrap.com/en/venomous-abyss/kithix/mythic"
+        "https://www.mythictrap.com/en/venomous-abyss/kithix/mythic",
+        "https://www.mythictrap.com/en/venomous-abyss/kithix/heroic"
       ],
       "maps": [
         {

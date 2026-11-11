@@ -370,10 +370,11 @@ type ReadyCheck struct {
 	Players []ReadyPlayer `json:"players"`
 }
 
-// ReadyPlayer is one member's ready check: flask, food and party buffs ("flask", "Arcane Intellect") missing, and those
-// not seen.
+// ReadyPlayer is one member's ready check: their class (empty until a COMBATANT_INFO names their spec), and the flask,
+// food, Vantus Rune and party buffs ("flask", "Arcane Intellect") missing, and those not seen.
 type ReadyPlayer struct {
 	Player  string   `json:"player"`
+	Class   string   `json:"class,omitempty"`
 	Missing []string `json:"missing"`
 	NotSeen []string `json:"notSeen"`
 }
@@ -425,9 +426,9 @@ type MPlusRules struct {
 	CC struct {
 		Names []string `toml:"names"`
 	} `toml:"cc"`
-	Defensives  Defensives        `toml:"defensives"`
-	Consumables Consumables       `toml:"consumables"`
-	Buffs       map[string]string `toml:"buffs"` // party buff -> the class that gives it
+	Defensives  Defensives         `toml:"defensives"`
+	Consumables Consumables        `toml:"consumables"`
+	Buffs       map[string]string  `toml:"buffs"` // party buff -> the class that gives it
 	Suggestions KeySuggestionRules `toml:"suggestions"`
 }
 

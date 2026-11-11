@@ -11,7 +11,8 @@
 #
 # Per boss: health (NPC IDs whose health is the boss's; leave out for "the NPC named as the encounter, else all"),
 # avoidable, dispel, must_stop, stacks (aura ID = the stacks that are too many, 0 when no number), priority (add
-# names to burst), [[soaks]] (spell, soakers wanted per cast, 0 = everyone), [[pickups]], [[breaks]] and [[spawns]].
+# names to burst), [[soaks]] (spell, soakers wanted per cast, 0 = everyone), [[pickups]] (with expect, the enemy cast
+# every living raider should have picked one up by), [[breaks]] and [[spawns]].
 
 raid = "venomous-abyss"
 
@@ -32,7 +33,8 @@ soakers = 0
 
 [bosses."Kith'ix"]
 checked = "wcl yABcgtXjV48kFrW2#17"
-sources = ["https://www.mythictrap.com/en/venomous-abyss/kithix/mythic"]
+sources = ["https://www.mythictrap.com/en/venomous-abyss/kithix/mythic",
+           "https://www.mythictrap.com/en/venomous-abyss/kithix/heroic"]
 avoidable = [1302914, 1302917, 1308881] # Venom Roar (the Hulk's frontal), Nullshards
 dispel = [1304046]                      # Overwhelming Fear
 must_stop = []
@@ -40,9 +42,15 @@ priority = []
 [bosses."Kith'ix".stacks]
 1302319 = 0 # Digestive Juices
 1318467 = 0 # Negation (tanks, Mythic)
+# Every raider grabs a light mote before each Extinguish (Mythic Trap, Heroic and Mythic alike; nobody exempt). Nov 11
+# on the kill above: Light's Embrace is a DEBUFF, on 21 of 21 raiders in three of four waves and 19 (a tank and a DPS
+# without) in one, picked up over 4-5 s and removed 0.2 s after the hit; even the tank under Devastated took one.
+# Extinguish's cast and hit share 1304424: 2.38M unmitigated, about 0.35M with a mote, ~1M on a raider without one
+# behind big defensives.
 [[bosses."Kith'ix".pickups]]
-aura = 1304526 # Light's Embrace: a light mote before Extinguish
+aura = 1304526  # Light's Embrace: a light mote
 name = "a light mote"
+expect = 1304424 # Extinguish's cast ends the wave
 
 [bosses."Nek'zali the Soulcoiler"]
 checked = "wcl WQ9PkqZdnGKNRyXL#1"
