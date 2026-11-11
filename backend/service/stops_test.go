@@ -104,3 +104,33 @@ func TestSpikesFindTheWorstBurst(t *testing.T) {
 		t.Fatalf("party cooldowns = %v; want none, the Pain Suppression came 35 s before", cds)
 	}
 }
+
+func TestStopsAndDebuffsEndingTogetherKeepOneOrder(t *testing.T) {
+	read := func() string {
+		keys := newTracker(t, nil)
+		lines := partyOfTwo(at(0, `CHALLENGE_MODE_START,"Voidscar Arena",2923,585,10,[9]`))
+		for mob := range 4 { // four casts no one stops, all timed out by the same line
+			lines = append(lines, at(1, "SPELL_CAST_START,"+mobUnit(mob)+
+				`,0000000000000000,nil,0x80000000,0x80000000,1238063,"Light Bolt",0x2`))
+		}
+		for _, unit := range []string{testPlayer, shamanUnit} { // Gorge on both, running out together
+			aura := `,1234846,"Gorge",0x1,DEBUFF`
+			lines = append(lines, at(2, "SPELL_AURA_APPLIED,"+mobUnit(1)+","+unit+aura),
+				at(3, "SPELL_AURA_REMOVED,"+mobUnit(1)+","+unit+aura))
+		}
+		lines = append(lines, at(20, "SPELL_CAST_SUCCESS,"+shamanUnit+","+mobUnit(1)+`,57994,"Wind Shear",0x8,`+
+			advancedOf("Player-76-0000BBBB", "0000000000000000")))
+		feed(t, keys, lines...)
+		got, _ := keys.Latest(0)
+		if len(got.Stops) != 4 || len(got.Debuffs) != 2 {
+			t.Fatalf("stops %+v, debuffs %+v; want four stops and two debuffs", got.Stops, got.Debuffs)
+		}
+		return fmt.Sprint(got.Stops, got.Debuffs)
+	}
+	first := read()
+	for range 20 { // map order changes from run to run: 20 reads catch a sweep that follows it
+		if again := read(); again != first {
+			t.Fatalf("the same lines gave another order:\n%s\n%s", first, again)
+		}
+	}
+}

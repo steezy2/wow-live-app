@@ -782,7 +782,8 @@ func (r *raidRun) bossUnits() map[string]*raidUnit {
 func (r *raidRun) adds(end int64) []models.RaidAdd {
 	boss := r.bossUnits()
 	byName := map[string]*models.RaidAdd{}
-	for guid, u := range r.units {
+	for _, guid := range slices.Sorted(maps.Keys(r.units)) { // GUID order: spawns at one moment keep one order
+		u := r.units[guid]
 		if !u.hit || boss[guid] != nil || slices.Contains(r.boss.NPCs, npcOf(guid)) {
 			continue
 		}

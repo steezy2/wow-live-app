@@ -222,7 +222,7 @@ func (k *LogTracker) trackOf(run *keyRun) models.KeyTrack {
 	}
 	if r := run.raid; r == nil {
 		t.Health = slices.SortedFunc(maps.Keys(t.Bosses), func(a, b string) int {
-			return cmp.Compare(t.Bosses[a][0].ClockMS, t.Bosses[b][0].ClockMS)
+			return cmp.Or(cmp.Compare(t.Bosses[a][0].ClockMS, t.Bosses[b][0].ClockMS), cmp.Compare(a, b))
 		})
 	} else {
 		t.Health = slices.Sorted(maps.Keys(r.bossUnits()))

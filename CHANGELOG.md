@@ -64,6 +64,7 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 - The release workflow's `store` job submits to the Microsoft Store without waiting for approval: the `microsoft-store` environment's required reviewer went away with the repo going private.
 
 ### Fixed
+- Reading the same logs again saves the same keys and pulls byte for byte: minibosses, must-stops, dispels, a key's boss health list, a pull's add spawns and lane marks no longer change order between reads (they followed Go's map order).
 - *Read old logs* read the folder the app started with, not the one set in Settings since; two reads (the first-run read and the button) could run at once. One read, archive or delete runs at a time (409 for another).
 - Security: downloads are capped at 64 MB; the page gets a Content-Security-Policy (own scripts, styles and API only, no framing), `nosniff` and `no-referrer`; the log folder must be a full path; Go 1.27.4 and `golang.org/x/net` 0.62 for the standard library and `x/net` advisories `govulncheck` reported (`npm audit`: none).
 - During a raid pull the page and overlay re-read the raid only when the pull starts or ends, not on every log line. A raid pull's tether breaks right after each other and the stacks past the limit now come from the API (`then`, `over`). The swagger text for the raid track and `KeyTrack` matches the code, and *Read old logs* reads keys again (reader version 4) for the miniboss health and Fix next key rules.

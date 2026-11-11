@@ -52,15 +52,27 @@ func (k *LogTracker) stopEvent(at int64, event string, f []string, src, dst stri
 			Kind: "kick", ClockMS: k.clockAt(p.at)})
 		run.kick = nil
 	}
+	// What ends in one line is saved in key order, the same on every read (this runs on every line: only the few
+	// that end are sorted).
+	var ranOut [][2]string
 	for key, span := range run.removed {
 		if at-span[1] > dispelWindowMS {
-			k.recordDebuff(key, span, "")
+			ranOut = append(ranOut, key)
 		}
 	}
+	slices.SortFunc(ranOut, func(a, b [2]string) int { return cmp.Or(cmp.Compare(a[0], b[0]), cmp.Compare(a[1], b[1])) })
+	for _, key := range ranOut {
+		k.recordDebuff(key, run.removed[key], "")
+	}
+	var timedOut []string
 	for guid, c := range run.casting {
 		if at-c.at > castTimeoutMS {
-			k.endCast(guid, "stopped", c.cc, at)
+			timedOut = append(timedOut, guid)
 		}
+	}
+	slices.Sort(timedOut)
+	for _, guid := range timedOut {
+		k.endCast(guid, "stopped", run.casting[guid].cc, at)
 	}
 	if run.facts == nil || len(f) < 10 {
 		return
