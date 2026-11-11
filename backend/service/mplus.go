@@ -135,8 +135,8 @@ func NewLogTracker(timers map[int]int64, affixes map[int]string, rules models.MP
 		return nil, fmt.Errorf("reading saved keys: %w", err)
 	}
 	kinds := map[string]string{}
-	for kind, names := range map[string][]string{"defensive": append(rules.Defensives.Names,
-		rules.Defensives.Externals...), "healthstone": rules.Defensives.Healthstones,
+	for kind, names := range map[string][]string{"defensive": slices.Concat(rules.Defensives.Names,
+		rules.Defensives.Externals, rules.Defensives.RaidCooldowns), "healthstone": rules.Defensives.Healthstones,
 		"health potion": rules.Defensives.HealthPotions, "combat potion": rules.Consumables.CombatPotions,
 		"cc": rules.CC.Names} {
 		for _, name := range names {

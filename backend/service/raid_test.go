@@ -53,7 +53,7 @@ func newRaidTracker(t *testing.T) (*LogTracker, *memPulls) {
 	rules.Deaths.MassKillPlayers, rules.Deaths.MassKillWindowSeconds = 2, 10
 	rules.Soaks.WindowMS = 1500
 	rules.Cooldowns.Names = []string{"Tranquility"}
-	rules.Suggestions = models.SuggestionRules{Most: 5, SpikeSeconds: 6, AddsLonger: 1.25, PriorityBelow: 0.8}
+	rules.Suggestions = models.SuggestionRules{Most: 5, AddsLonger: 1.25, PriorityBelow: 0.8}
 	bosses := map[string]models.RaidBoss{"Testboss": {NPCs: []int{240001}, Avoidable: []int{1001}, Soak: []int{1002},
 		Stacks: map[int]int{1003: 5}, Priority: []string{"Testboss"}}}
 	store := &memPulls{tracks: map[int64]models.KeyTrack{}}
@@ -200,28 +200,10 @@ func TestRaidPullLanesPutEachMechanicOnTheTimeline(t *testing.T) {
 		got = append(got, fmt.Sprintf("%s/%s %d-%d %s %v", l.Kind, l.Name, m.ClockMS/1000, m.EndMS/1000, m.Text, m.Bad))
 	}
 	want := "[phases/Phases 60-120 P2 false deaths/Deaths 70-0 Testshaman · Spectral Coils true " +
-		"cooldowns/Raid cooldowns 5-0 Testshaman · Tranquility false spike/Damage spike 3-9 22k/s false avoidable/Caustic Waves 9-0 Testshaman true " +
+		"cooldowns/Raid cooldowns 5-0 Testshaman · Tranquility false avoidable/Caustic Waves 9-0 Testshaman true " +
 		"soak/Spectral Coils 30-0 1 soaked false stacks/Eternal Venom 40-0 Testshaman 6 true]"
 	if fmt.Sprint(got) != want {
 		t.Fatalf("lanes' last marks =\n%v\nwant\n%s", got, want)
-	}
-}
-
-func TestSpikeIsTheWorstDamageTakenAndWhoCoveredIt(t *testing.T) {
-	track := models.KeyTrack{Meters: map[string][]models.MeterPoint{
-		"A": {{ClockMS: 2000, Taken: 100}, {ClockMS: 4000, Taken: 200}, {ClockMS: 6000, Taken: 2200}},
-		"B": {{ClockMS: 2000}, {ClockMS: 4000}, {ClockMS: 6000, Taken: 1800}},
-	}}
-	cooldowns := []models.KeyCast{{Player: "C", Ability: "Tranquility", Kind: "raid cooldown", ClockMS: 3000},
-		{Player: "D", Kind: "combat potion", ClockMS: 5000},
-		{Player: "E", Ability: "Rallying Cry", Kind: "raid cooldown", ClockMS: 1000, EndMS: 5000}, // up when it began
-		{Player: "F", Ability: "Barrier", Kind: "raid cooldown", ClockMS: 3000, EndMS: 3500}}      // over before it
-	s := spike(track, cooldowns, 2000, 2000)
-	if s == nil || s.ClockMS != 6000 || s.PerSecond != 1900 || fmt.Sprint(s.Covered) != "[C · Tranquility E · Rallying Cry]" {
-		t.Fatalf("spike = %+v; want 3800 taken from 4 to 6 s, covered by Tranquility and the Rallying Cry still up, not the potion or the Barrier over before", s)
-	}
-	if spike(models.KeyTrack{}, nil, 2000, 2000) != nil {
-		t.Fatal("a pull with no damage taken has no spike")
 	}
 }
 
@@ -236,7 +218,7 @@ func TestSuggestionsPutWhatToFixFirst(t *testing.T) {
 			{Ability: "Toxic Spill", Players: []models.PlayerCount{{Player: "D", Count: 1}}}},
 		Soaks:     []models.RaidSoak{{Ability: "Spectral Coils", Died: []string{"E"}}},
 		MassKills: []models.MassKill{{Ability: "Caustic Waves", Killed: 2, ClockMS: 61_000}},
-		Spike:     &models.RaidSpike{ClockMS: 90_000, PerSecond: 1_200_000, Covered: []string{}},
+		Spikes:    []models.KeySpike{{ClockMS: 90_000, Damage: 3_600_000, PartyCDs: []string{}}},
 		Stacks:    []models.RaidStacks{{Ability: "Eternal Venom", Limit: 5, Players: []models.PlayerCount{{Player: "F", Count: 6}, {Player: "G", Count: 5}}}},
 		WentOff:   []models.KeyStop{{Spell: "Anguished Cry"}, {Spell: "Anguished Cry"}},
 		Adds:      []models.RaidAdd{{Name: "Blightscale Clutch", LongestMS: 30_000}},
@@ -766,6 +748,10 @@ func TestRaidSpikeCountsRaidCooldowns(t *testing.T) {
 	}
 	if s := store.pulls[0].Spikes; len(s) != 1 || fmt.Sprint(s[0].PartyCDs) != "[Tranquility (Testshaman)]" {
 		t.Fatalf("spikes = %+v; want one at 40 s covered by the Tranquility up then, not by Pain Suppression", s)
+	}
+	lane := slices.IndexFunc(store.pulls[0].Lanes, func(l models.RaidLane) bool { return l.Kind == "spike" })
+	if lane < 0 || store.pulls[0].Lanes[lane].Marks[0].Bad {
+		t.Fatalf("lanes = %+v; want a covered Damage spike lane", store.pulls[0].Lanes)
 	}
 }
 

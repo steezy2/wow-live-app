@@ -59,9 +59,10 @@ func (k *LogTracker) lanes(run *keyRun, p models.RaidPull, end int64) []models.R
 				Text: c.Player + " · " + c.Ability})
 		}
 	}
-	if s := p.Spike; s != nil {
-		add("spike", "Damage spike", models.RaidMark{ClockMS: max(0, s.ClockMS-k.spikeMS()), EndMS: s.ClockMS,
-			Text: short(float64(s.PerSecond)) + "/s", Bad: len(s.Covered) == 0})
+	if len(p.Spikes) > 0 {
+		s := p.Spikes[0]
+		add("spike", "Damage spike", models.RaidMark{ClockMS: s.ClockMS, EndMS: s.ClockMS + spikeMS,
+			Text: short(float64(s.Damage*1000/spikeMS)) + "/s", Bad: len(s.PartyCDs) == 0})
 	}
 	for id, t := range r.soaks {
 		want := r.boss.Soakers[id] // else as many as the best cast
@@ -95,50 +96,10 @@ func (k *LogTracker) lanes(run *keyRun, p models.RaidPull, end int64) []models.R
 	return lanes
 }
 
-// spikeMS is raid-rules.toml's damage spike window.
-func (k *LogTracker) spikeMS() int64 {
-	return int64(k.raid.rules.Suggestions.SpikeSeconds * 1000)
-}
-
 // coversSpike is whether a raid cooldown covers a spike from start to end: cast by its end, and its buff still up at
 // its start or, when none was seen leaving, cast no more than window before it.
 func coversSpike(c models.KeyCast, start, end, window int64) bool {
 	return c.ClockMS <= end && (c.EndMS >= start || c.EndMS == 0 && c.ClockMS >= start-window)
-}
-
-// spike is the raid's worst damage taken over window ms, from the track's meter samples (each raider's damage taken
-// so far), with the raid cooldowns that cover it (coversSpike, given cover ms before); nil when nobody took damage.
-func spike(track models.KeyTrack, cooldowns []models.KeyCast, window, cover int64) *models.RaidSpike {
-	taken := map[int64]int64{}
-	for _, points := range track.Meters {
-		for _, pt := range points {
-			taken[pt.ClockMS] += pt.Taken
-		}
-	}
-	at := slices.Sorted(maps.Keys(taken))
-	var worst *models.RaidSpike
-	for i, j := 0, 0; i < len(at); i++ {
-		for at[j] < at[i]-window {
-			j++
-		}
-		if j == i {
-			continue
-		}
-		perS := (taken[at[i]] - taken[at[j]]) * 1000 / (at[i] - at[j])
-		if perS > 0 && (worst == nil || perS > worst.PerSecond) {
-			worst = &models.RaidSpike{ClockMS: at[i], PerSecond: perS}
-		}
-	}
-	if worst == nil {
-		return nil
-	}
-	worst.Covered = []string{}
-	for _, c := range cooldowns {
-		if c.Kind == "raid cooldown" && coversSpike(c, worst.ClockMS-window, worst.ClockMS, cover) {
-			worst.Covered = append(worst.Covered, c.Player+" · "+c.Ability)
-		}
-	}
-	return worst
 }
 
 // suggestions is what to fix on the next pull, most important first, at most rules.Most: deaths to what can be dodged
@@ -195,8 +156,9 @@ func suggestions(p models.RaidPull, best *models.RaidPull, rules models.Suggesti
 			say("%s to %s: %s", deaths(len(byAbility[a])), a, nameList(byAbility[a]))
 		}
 	}
-	if s := p.Spike; s != nil && len(s.Covered) == 0 {
-		say("No raid cooldown for the worst damage (%s/s at %s)", short(float64(s.PerSecond)), clockText(s.ClockMS))
+	if len(p.Spikes) > 0 && len(p.Spikes[0].PartyCDs) == 0 {
+		s := p.Spikes[0]
+		say("No raid cooldown for the worst damage (%s/s at %s)", short(float64(s.Damage*1000/spikeMS)), clockText(s.ClockMS))
 	}
 	for _, s := range p.Stacks {
 		var over []string

@@ -151,7 +151,7 @@ func (k *LogTracker) EnableRaid(rules models.RaidRules, bosses map[string]models
 		return err
 	}
 	cooldowns := map[string]bool{}
-	for _, name := range rules.Cooldowns.Names {
+	for _, name := range slices.Concat(rules.Cooldowns.Names, k.rules.Defensives.RaidCooldowns) {
 		cooldowns[name] = true
 	}
 	k.mu.Lock()
@@ -607,12 +607,11 @@ func (k *LogTracker) raidPull(run *keyRun, key models.Key, at int64, kill bool) 
 		}
 	}
 	slices.SortStableFunc(p.Cooldowns, func(a, b models.KeyCast) int { return cmp.Compare(a.ClockMS, b.ClockMS) })
-	p.Spike = spike(run.track, p.Cooldowns, k.spikeMS(), int64(k.rules.Defensives.WindowSeconds*1000))
+	p.Spikes = key.Spikes
 	p.Lanes = k.lanes(run, p, at)
 	p.Abilities, p.Taken = abilities(run, k.schools)
 	p.Targets = targets(run)
-	p.Interrupts, p.Stops, p.WastedKicks, p.Debuffs, p.Spikes = key.Interrupts, key.Stops, key.WastedKicks,
-		key.Debuffs, key.Spikes
+	p.Interrupts, p.Stops, p.WastedKicks, p.Debuffs = key.Interrupts, key.Stops, key.WastedKicks, key.Debuffs
 	p.Missing, p.Activity, p.Casts = key.Buffs, key.Activity, key.Casts
 	return p
 }

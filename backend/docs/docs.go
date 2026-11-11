@@ -2372,14 +2372,6 @@ const docTemplate = `{
                         "$ref": "#/definitions/models.RaidSoak"
                     }
                 },
-                "spike": {
-                    "description": "nil when no damage was taken",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/models.RaidSpike"
-                        }
-                    ]
-                },
                 "spikes": {
                     "type": "array",
                     "items": {
@@ -2528,23 +2520,6 @@ const docTemplate = `{
                     "items": {
                         "type": "string"
                     }
-                }
-            }
-        },
-        "models.RaidSpike": {
-            "type": "object",
-            "properties": {
-                "clockMS": {
-                    "type": "integer"
-                },
-                "covered": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "perSecond": {
-                    "type": "integer"
                 }
             }
         },

@@ -1040,10 +1040,6 @@ definitions:
         items:
           $ref: '#/definitions/models.RaidSoak'
         type: array
-      spike:
-        allOf:
-        - $ref: '#/definitions/models.RaidSpike'
-        description: nil when no damage was taken
       spikes:
         items:
           $ref: '#/definitions/models.KeySpike'
@@ -1145,17 +1141,6 @@ definitions:
         items:
           type: string
         type: array
-    type: object
-  models.RaidSpike:
-    properties:
-      clockMS:
-        type: integer
-      covered:
-        items:
-          type: string
-        type: array
-      perSecond:
-        type: integer
     type: object
   models.RaidStacks:
     properties:

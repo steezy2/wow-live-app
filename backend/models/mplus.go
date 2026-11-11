@@ -420,6 +420,7 @@ type Defensives struct {
 	WindowSeconds float64  `toml:"window_seconds"`
 	Names         []string `toml:"names"`
 	Externals     []string `toml:"externals"`
+	RaidCooldowns []string `toml:"raid_cooldowns"` // externals the raid lanes also show
 	Healthstones  []string `toml:"healthstones"`
 	HealthPotions []string `toml:"health_potions"`
 }

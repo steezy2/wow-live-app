@@ -98,8 +98,12 @@ func LoadRaidRules(root string) (models.RaidRules, error) {
 
 func loadTOML[T any](path string) (T, error) {
 	var v T
-	if _, err := toml.DecodeFile(path, &v); err != nil {
+	md, err := toml.DecodeFile(path, &v)
+	if err != nil {
 		return v, fmt.Errorf("reading %s: %w", filepath.Base(path), err)
+	}
+	if unknown := md.Undecoded(); len(unknown) > 0 {
+		return v, fmt.Errorf("reading %s: unknown keys %v (a typo would drop a rule without a word)", filepath.Base(path), unknown)
 	}
 	return v, nil
 }
@@ -135,18 +139,9 @@ func RaidMechanicsPath(root string) string {
 	return filepath.Join(root, "reference", "raid-mechanics.toml")
 }
 
-// LoadRaidMechanics reads the hand-kept boss mechanics (RaidMechanicsPath), failing on a key it doesn't know (a typo
-// would drop a list without a word).
+// LoadRaidMechanics reads the hand-kept boss mechanics (RaidMechanicsPath).
 func LoadRaidMechanics(path string) (models.RaidMechanics, error) {
-	var m models.RaidMechanics
-	md, err := toml.DecodeFile(path, &m)
-	if err != nil {
-		return m, fmt.Errorf("reading %s: %w", filepath.Base(path), err)
-	}
-	if unknown := md.Undecoded(); len(unknown) > 0 {
-		return m, fmt.Errorf("reading %s: unknown keys %v", filepath.Base(path), unknown)
-	}
-	return m, nil
+	return loadTOML[models.RaidMechanics](path)
 }
 
 // LoadRaidReference reads the raid's boss mechanics (RaidReferencePath).

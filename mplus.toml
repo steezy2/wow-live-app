@@ -40,7 +40,7 @@ names = [
   # Death Knight (Blood: Vampiric Blood, Dancing Rune Weapon)
   "Anti-Magic Shell", "Dancing Rune Weapon", "Death Pact", "Icebound Fortitude", "Lichborne", "Vampiric Blood",
   # Demon Hunter (Vengeance: Fiery Brand)
-  "Blur", "Darkness", "Fiery Brand", "Netherwalk",
+  "Blur", "Fiery Brand", "Netherwalk",
   # Druid
   "Barkskin", "Frenzied Regeneration", "Survival Instincts",
   # Evoker
@@ -64,14 +64,16 @@ names = [
   # Warlock
   "Dark Pact", "Unending Resolve",
   # Warrior (Protection: Shield Wall, Last Stand)
-  "Die by the Sword", "Enraged Regeneration", "Last Stand", "Rallying Cry", "Shield Wall", "Spell Reflection",
+  "Die by the Sword", "Enraged Regeneration", "Last Stand", "Shield Wall", "Spell Reflection",
 ]
-# Damage reduction other players put on you (externals and raid cooldowns); active at death counts as covered.
+# Damage reduction other players put on you; active at death counts as covered.
 externals = [
-  "Anti-Magic Zone", "Aura Mastery", "Blessing of Protection", "Blessing of Sacrifice", "Darkness", "Guardian Spirit",
-  "Ironbark", "Life Cocoon", "Pain Suppression", "Power Word: Barrier", "Rallying Cry", "Spirit Link Totem",
+  "Blessing of Protection", "Blessing of Sacrifice", "Darkness", "Guardian Spirit",
+  "Ironbark", "Life Cocoon", "Pain Suppression", "Rallying Cry", "Spirit Link Totem",
   "Time Dilation", "Zephyr",
 ]
+# Raid-wide externals: they cover a death like the externals do, and the raid's cooldown lane shows them.
+raid_cooldowns = ["Anti-Magic Zone", "Aura Mastery", "Darkness", "Power Word: Barrier", "Rallying Cry", "Spirit Link Totem"]
 
 [buffs]
 # Party buffs and the class that gives each: the live M+ page checks at the key's start that everyone has the buff

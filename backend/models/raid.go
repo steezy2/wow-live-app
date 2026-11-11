@@ -39,7 +39,6 @@ type ItemSet struct {
 // close two raid cooldowns are to be stacked.
 type SuggestionRules struct {
 	Most                   int     `toml:"most"`
-	SpikeSeconds           float64 `toml:"spike_seconds"`
 	AddsLonger             float64 `toml:"adds_longer"`
 	PriorityBelow          float64 `toml:"priority_below"`
 	LustAfterSeconds       float64 `toml:"lust_after_seconds"`
@@ -198,7 +197,6 @@ type RaidPull struct {
 	Cooldowns  []KeyCast      `json:"cooldowns"` // raid cooldowns and combat potions, in order
 	Maps       []RaidMap      `json:"maps"`      // the boss's rooms for the replay, from the reference file
 	Lanes      []RaidLane     `json:"lanes"`
-	Spike      *RaidSpike     `json:"spike,omitempty"` // nil when no damage was taken
 	// Suggestions is what to fix on the next pull, most important first, worked out when the pull is read so it's
 	// compared with the best pull as of then.
 	Suggestions []string         `json:"suggestions"`
@@ -386,12 +384,4 @@ type RaidMark struct {
 	EndMS   int64  `json:"endMS,omitempty"`
 	Text    string `json:"text"`
 	Bad     bool   `json:"bad,omitempty"`
-}
-
-// RaidSpike is the raid's worst damage taken over raid-rules.toml's spike window: when it ended, the damage taken per
-// second, and the raid cooldowns used in it or just before (none: nobody covered it).
-type RaidSpike struct {
-	ClockMS   int64    `json:"clockMS"`
-	PerSecond int64    `json:"perSecond"`
-	Covered   []string `json:"covered"`
 }

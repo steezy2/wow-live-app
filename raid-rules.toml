@@ -19,9 +19,6 @@ window_ms = 1500
 [suggestions]
 # The "Fix next pull" list at the top of a pull: at most this many, most important first.
 most = 5
-# The pull's damage spike is the raid's damage taken over this many seconds at its worst; a raid cooldown used in it,
-# or up to as long before it, covered it.
-spike_seconds = 6
 # An add that lived this many times as long as in tonight's best pull is worth a line.
 adds_longer = 1.25
 # Damage into a unit to burst below this share of tonight's best pull is worth a line.
@@ -34,12 +31,12 @@ dispel_slow_seconds = 4
 cooldown_overlap_seconds = 3
 
 [cooldowns]
-# Raid healing and damage-reduction cooldowns, shown on the pull's cooldown lane (each for as long as its buff was on
+# Raid healing and damage-reduction cooldowns besides mplus.toml's raid_cooldowns, shown on the pull's cooldown lane (each for as long as its buff was on
 # a raider) with Bloodlust and combat potions.
 names = [
-  "Anti-Magic Zone", "Apotheosis", "Ascendance", "Aura Mastery", "Avenging Crusader", "Celestial Conduit",
-  "Convoke the Spirits", "Darkness", "Divine Hymn", "Dream Flight", "Evangelism", "Healing Tide Totem",
-  "Power Word: Barrier", "Rallying Cry", "Restoral", "Revival", "Rewind", "Spirit Link Totem", "Tranquility",
+  "Apotheosis", "Ascendance", "Avenging Crusader", "Celestial Conduit",
+  "Convoke the Spirits", "Divine Hymn", "Dream Flight", "Evangelism", "Healing Tide Totem",
+  "Restoral", "Revival", "Rewind", "Tranquility",
   "Zephyr",
 ]
 # These count only when a healer casts them: Elemental and Enhancement have an Ascendance, Windwalker a Celestial
