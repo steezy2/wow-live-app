@@ -566,3 +566,19 @@ type SettingsView struct {
 	OverlayShows []string `json:"overlayShows"`
 	MinOpacity   int      `json:"minOpacity"`
 }
+
+// LogFile is one combat log in the game's log folder, or one archived as a zip in its WoW Live archive folder, as
+// Settings lists them for archiving.
+type LogFile struct {
+	Name      string `json:"name"` // the log's file name (an archived one without .zip)
+	Bytes     int64  `json:"bytes"`
+	WrittenMS int64  `json:"writtenMS"` // last written (Unix ms)
+	FirstMS   int64  `json:"-"`         // its first line's time, 0 when none parses
+	Keys      int    `json:"keys"`      // saved keys that started in it
+	Pulls     int    `json:"pulls"`     // saved raid pulls that started in it
+	Read      bool   `json:"read"`      // read by the current reader (Read old logs), so archiving loses nothing
+	Archived  bool   `json:"archived"`
+	Active    bool   `json:"active"`          // the game may still write it: it can't be archived
+	Suggested bool   `json:"suggested"`       // ticked at first: old, read and not active
+	Error     string `json:"error,omitempty"` // why the last archive or delete of it failed
+}
