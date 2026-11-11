@@ -23,6 +23,7 @@ describe('positionAt', () => {
 describe('abilitiesUpTo', () => {
   const track = {
     abilities: { Kaz: [{ a: 'Fireball', p: [[10_000, 100, 0, 0], [20_000, 50, 0, 40]] }] },
+    targetSeries: { Kaz: [{ a: 'Boss', p: [[10_000, 60, 0, 0], [20_000, 40, 0, 0]] }] },
     abilityTimes: [10_000, 20_000],
     casts: { Kaz: [{ t: 1000, s: 'Fireball', e: 3000 }, { t: 14_000, s: 'Fireball', e: 16_000 }] },
   } as unknown as KeyTrack
@@ -32,7 +33,29 @@ describe('abilitiesUpTo', () => {
     expect(abilitiesUpTo(track, pull, 'Kaz', 15_000)).toEqual({
       abilities: [{ player: 'Kaz', ability: 'Fireball', damage: 125, healing: 0, casts: 1, hits: 0, school: 4 }],
       taken: [{ player: 'Kaz', ability: 'Fireball', damage: 20, school: 4 }],
+      targets: [{ player: 'Kaz', target: 'Boss', damage: 80 }],
     })
+  })
+
+  it('is empty at 0:00', () => {
+    expect(abilitiesUpTo(track, pull, 'Kaz', 0)).toEqual({ abilities: [], taken: [], targets: [] })
+  })
+
+  it.each([
+    [10_000, 100, 0, 60],
+    [20_000, 150, 40, 100],
+  ])('at the end of a stretch (%i) equals the sum so far', (now, damage, taken, target) => {
+    const got = abilitiesUpTo(track, pull, 'Kaz', now)
+    expect([got?.abilities[0].damage, got?.taken[0]?.damage ?? 0, got?.targets?.[0].damage]).toEqual([
+      damage,
+      taken,
+      target,
+    ])
+  })
+
+  it('has no targets for a track saved before they were kept', () => {
+    const old = { ...track, targetSeries: undefined } as KeyTrack
+    expect(abilitiesUpTo(old, pull, 'Kaz', 15_000)?.targets).toBeUndefined()
   })
 
   it('has nothing for a track without abilities', () => {

@@ -4,7 +4,7 @@ import { classColors } from './classColors'
 import { amount, clock, coverText, seconds } from './format'
 import { AbilityBars, AbilityTabs } from './PlayerFocus'
 import { At, NoAbilities } from './RaidCards'
-import { abilitiesUpTo, meterBetween } from './replay'
+import { meterBetween, type AbilitiesUpTo } from './replay'
 
 /** Something that happened to a raider, or that they did, at a time in the pull. */
 interface FocusEvent {
@@ -47,21 +47,22 @@ function eventsOf(pull: RaidPull, player: string): FocusEvent[] {
 
 /** One raider's pull up close, beside the replay: their numbers up to the replay's moment and over the whole pull,
  * what happened to them and what they pressed in order (a click shows it in the replay), and their damage, healing,
- * damage taken, casts and targets as bars. Whole raid, or a right click, goes back. */
+ * damage taken, casts and targets as bars up to the moment (upTo; the whole pull for a track without them). Whole
+ * raid, or a right click, goes back. */
 export function RaidFocus(props: {
   pull: RaidPull
   track: KeyTrack
   player: string
+  upTo?: AbilitiesUpTo
   now: number
   onSeek: (clockMS: number) => void
   onBack: () => void
 }) {
-  const { pull, track, player, now, onSeek, onBack } = props
+  const { pull, track, player, upTo, now, onSeek, onBack } = props
   const color = classColors[track.classes[player]] ?? 'var(--accent)'
   const sofar = meterBetween(track, 0, now).rows.find((r) => r.player === player)
   const whole = pull.meter.rows.find((r) => r.player === player)
   const events = eventsOf(pull, player)
-  const upTo = now > 0 ? abilitiesUpTo(track, pull, player, now) : undefined // at 0:00, before playing: the whole pull
   const views = abilityViews(player, upTo?.abilities ?? pull.abilities ?? [], upTo?.taken ?? pull.taken ?? [])
   return (
     <div
@@ -92,17 +93,18 @@ export function RaidFocus(props: {
           ))}
         </ul>
       )}
-      {pull.abilities && (
-        <p className="muted small">
-          {upTo ? `Up to ${clock(now)}; targets over the whole pull` : 'Over the whole pull'}
-        </p>
+      {pull.abilities && !upTo?.targets && (
+        <p className="muted small">{upTo ? `Up to ${clock(now)}; targets over the whole pull` : 'Over the whole pull'}</p>
       )}
       {pull.abilities ? (
         <AbilityTabs
           views={views}
           color={color}
           more={[
-            { name: 'Targets', body: <AbilityBars rows={raidTargets(pull, player)} color={color} label="Enemy" /> },
+            {
+              name: 'Targets',
+              body: <AbilityBars rows={raidTargets(pull, player, upTo?.targets)} color={color} label="Enemy" />,
+            },
           ]}
         />
       ) : (

@@ -208,6 +208,8 @@ type KeyTrack struct {
 	Abilities map[string][]AbilitySeries `json:"abilities,omitempty"`
 	// AbilityTimes is when Abilities' stretches ended, in order: a stretch starts where the one before it ended.
 	AbilityTimes []int64 `json:"abilityTimes,omitempty"`
+	// TargetSeries is each raider's damage into each enemy (by name, as Ability) in the same stretches.
+	TargetSeries map[string][]AbilitySeries `json:"targetSeries,omitempty"`
 }
 
 // TrackCast is a cast on the pull's clock: when it started, the spell, for one with a cast time when it ended

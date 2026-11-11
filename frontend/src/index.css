@@ -1005,7 +1005,8 @@ span.graph-taken {
   margin-bottom: 2px;
 }
 
-/* Boxes over the replay's map: the boss's health at the top right, the focused raider's casts at the bottom left. */
+/* Boxes over the replay's map: the boss's health at the top right, the focused raider's casts at the bottom left and
+ * the damage they took at the bottom right. */
 .map-stage {
   position: relative;
 }
@@ -1030,6 +1031,12 @@ span.graph-taken {
 .cast-box {
   bottom: var(--s2);
   left: var(--s2);
+  min-width: 150px;
+}
+
+.taken-box {
+  bottom: var(--s2);
+  right: var(--s2);
   min-width: 150px;
 }
 
