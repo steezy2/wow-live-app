@@ -9,6 +9,7 @@ import { KeyMap } from './KeyMap'
 import { KeyReview } from './KeyReview'
 import { MeterCards } from './MeterCards'
 import { useReplay, useTrack } from './replay'
+import { RaidLanes } from './RaidReplay'
 import { Tabs } from './Tabs'
 import type { Seeker } from './Seek'
 
@@ -133,9 +134,25 @@ export function KeyDetails({
         </p>
       )}
 
-      {key.status !== 'running' && <KeyReview keyView={key} justEnded={justEnded} onReview={setReview} focus={focus} onFocus={setFocus} />}
+      {key.status !== 'running' && (
+        <KeyReview
+          keyView={key}
+          justEnded={justEnded}
+          onReview={setReview}
+          focus={focus}
+          onFocus={setFocus}
+          onSeek={show}
+        />
+      )}
       {key.status !== 'running' && track && (
-        <DamageGraph keyView={key} track={track} now={replay.at} onSeek={replay.setAt} focus={focus} onFocus={setFocus} />
+        <DamageGraph
+          keyView={key}
+          track={track}
+          now={replay.at}
+          onSeek={replay.setAt}
+          focus={focus}
+          onFocus={setFocus}
+        />
       )}
 
       {key.buffs.length > 0 && (
@@ -146,6 +163,13 @@ export function KeyDetails({
               <b>{b.player}</b> <span className="muted">{b.missing.join(', ')}</span>
             </p>
           ))}
+        </section>
+      )}
+
+      {key.status !== 'running' && key.lanes && key.lanes.length > 0 && (
+        <section className="panel">
+          <h2>Timeline</h2>
+          <RaidLanes lanes={key.lanes} end={clockMS} now={replay.at} onSeek={replay.setAt} />
         </section>
       )}
 

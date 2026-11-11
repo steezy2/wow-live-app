@@ -212,6 +212,8 @@ export interface KeyView {
   taken?: { player: string; ability: string; damage: number; school?: number }[]
   /** The party member whose game wrote the log; missing in keys saved before Nov 11. */
   logger?: string
+  /** The key's timeline for the replay's lanes; missing in keys saved before Nov 11. */
+  lanes?: RaidLane[]
 }
 
 /** One ability in a player's key (models.KeyAbility): its damage and healing as the meters count them (pets under
@@ -685,7 +687,21 @@ export interface RaidMap {
  * came up; a mark with endMS is a stretch (a phase, an add's life, how long a buff lasted). */
 export interface RaidLane {
   name: string
-  kind: 'phases' | 'deaths' | 'lust' | 'cooldowns' | 'potions' | 'spike' | 'avoidable' | 'soak' | 'stacks' | 'adds'
+  kind:
+    | 'pulls'
+    | 'bosses'
+    | 'phases'
+    | 'deaths'
+    | 'lust'
+    | 'cooldowns'
+    | 'potions'
+    | 'spike'
+    | 'stops'
+    | 'cc'
+    | 'avoidable'
+    | 'soak'
+    | 'stacks'
+    | 'adds'
   marks: { clockMS: number; endMS?: number; text: string; bad?: boolean }[]
 }
 

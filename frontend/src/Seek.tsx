@@ -1,5 +1,6 @@
 import { classColors } from './classColors'
 import { clock } from './format'
+import type { PlayerEvent } from './events'
 
 /** Each player's class, by name. */
 export type Classes = Record<string, string>
@@ -42,4 +43,20 @@ export function When({ ms, seek }: { ms: number; seek?: Seeker }) {
 /** A player's name that focuses them when the page has a replay (seek), else bold. */
 export function Who({ player, seek }: { player: string; seek?: Seeker }) {
   return seek ? <Name player={player} classes={seek.classes} onPick={seek.onFocus} /> : <b>{player}</b>
+}
+
+/** A player's moments in order, each time linked to the replay. */
+export function EventList({ events, onSeek }: { events: PlayerEvent[]; onSeek: (clockMS: number) => void }) {
+  if (events.length === 0) return null
+  return (
+    <ul className="list events">
+      {events.map((e, i) => (
+        <li key={i}>
+          <span>
+            <At ms={e.clockMS} onSeek={onSeek} /> <span className={e.bad ? 'bad' : ''}>{e.text}</span>
+          </span>
+        </li>
+      ))}
+    </ul>
+  )
 }

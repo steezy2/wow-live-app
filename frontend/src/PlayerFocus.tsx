@@ -2,17 +2,24 @@ import type { ReactNode } from 'react'
 import { abilityViews, type AbilityRow } from './abilities'
 import type { KeyView } from './api'
 import { classColors } from './classColors'
+import { eventsOf } from './events'
 import { amount } from './format'
 import { BarRow } from './MeterCards'
 import { schoolBar, schoolName } from './schoolColors'
+import { EventList } from './Seek'
 import { Tabs } from './Tabs'
 
 /** One player's key up close, the page's focused player or else the one whose game wrote the log (a pick here
  * focuses them everywhere via onFocus): their damage and healing by ability with casts and hits, what they took
  * damage from, and what they cast, each as bars against the biggest in the ability's spell school colour (the
  * player's class colour in keys saved without schools). */
-export function PlayerFocus(props: { keyView: KeyView; focus: string; onFocus: (player: string) => void }) {
-  const { keyView: key, focus, onFocus: setPlayer } = props
+export function PlayerFocus(props: {
+  keyView: KeyView
+  focus: string
+  onFocus: (player: string) => void
+  onSeek: (clockMS: number) => void
+}) {
+  const { keyView: key, focus, onFocus: setPlayer, onSeek } = props
   const player = focus || (key.logger ?? key.players[0] ?? '')
   const row = key.overall.rows.find((r) => r.player === player)
   const color = classColors[row?.class ?? ''] ?? 'var(--accent)'
@@ -37,6 +44,13 @@ export function PlayerFocus(props: { keyView: KeyView; focus: string; onFocus: (
               {key.deaths.filter((d) => d.player === player).length} deaths · {row.interrupts} kicks
             </p>
           )}
+          <EventList
+            events={eventsOf(
+              { deaths: key.deaths, lanes: key.lanes ?? [], dispels: key.debuffs, cooldowns: key.casts },
+              player,
+            )}
+            onSeek={onSeek}
+          />
           <AbilityTabs views={views} color={color} />
         </>
       ) : (

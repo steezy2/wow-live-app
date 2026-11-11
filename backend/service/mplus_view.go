@@ -252,6 +252,7 @@ func (k *LogTracker) details(run *keyRun, at int64) models.Key {
 		})
 		key.Forces = &forces
 	}
+	key.Lanes = keyLanes(key, run.track.Pulls)
 	return key
 }
 

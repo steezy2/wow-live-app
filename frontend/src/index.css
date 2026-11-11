@@ -1185,7 +1185,9 @@ span.graph-taken {
   border-radius: 2px;
 }
 
-.lane-phases .lane-span {
+.lane-phases .lane-span,
+.lane-pulls .lane-span,
+.lane-bosses .lane-span {
   opacity: 1;
   background: var(--panel);
   border: 1px solid var(--border);

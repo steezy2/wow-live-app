@@ -370,11 +370,11 @@ type RaidNight struct {
 	Pulls []RaidPullSummary `json:"pulls"`
 }
 
-// RaidLane is one row of a pull's timeline: a mechanic (or the phases, deaths, Bloodlust, cooldowns, potions, an add
-// kind) and each time it came up, in order.
+// RaidLane is one row of a raid pull's or a key's timeline: a mechanic (or the pulls, phases, deaths, Bloodlust,
+// cooldowns, potions, an add kind) and each time it came up, in order.
 type RaidLane struct {
 	Name  string     `json:"name"`
-	Kind  string     `json:"kind" enums:"phases,deaths,lust,cooldowns,potions,spike,avoidable,soak,stacks,adds"`
+	Kind  string     `json:"kind" enums:"pulls,bosses,phases,deaths,lust,cooldowns,potions,spike,stops,cc,avoidable,soak,stacks,adds"`
 	Marks []RaidMark `json:"marks"`
 }
 

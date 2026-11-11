@@ -14,8 +14,8 @@ import (
 type lane struct{ kind, name string }
 
 // laneKinds is the order the timeline shows its lanes in, by kind (then by name).
-var laneKinds = []string{"phases", "deaths", "lust", "cooldowns", "potions", "spike", "avoidable", "soak", "stacks",
-	"adds"}
+var laneKinds = []string{"pulls", "bosses", "phases", "deaths", "lust", "cooldowns", "potions", "spike", "stops", "cc",
+	"avoidable", "soak", "stacks", "adds"}
 
 // namesShown: a suggestion names at most this many raiders, then says how many more.
 const namesShown = 4

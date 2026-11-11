@@ -43,6 +43,8 @@ type Key struct {
 	Taken     []KeyHit     `json:"taken,omitempty"`
 	// Logger is the party member whose game wrote the log ("" in keys saved before Nov 11).
 	Logger string `json:"logger,omitempty"`
+	// Lanes is the key's timeline for the replay (see keyLanes); empty in keys saved before Nov 11.
+	Lanes []RaidLane `json:"lanes,omitempty"`
 }
 
 // KeyAbility is one ability in a player's key: its damage to enemies and healing done as the meters count them (pets

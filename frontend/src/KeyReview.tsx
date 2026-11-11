@@ -16,8 +16,9 @@ export function KeyReview(props: {
   onReview: (review: Review) => void
   focus: string
   onFocus: (player: string) => void
+  onSeek: (clockMS: number) => void
 }) {
-  const { keyView: key, justEnded, onReview, focus, onFocus } = props
+  const { keyView: key, justEnded, onReview, focus, onFocus, onSeek } = props
   const [review, setReview] = useState<Review | null>(null)
   useEffect(() => {
     if (review) onReview(review)
@@ -68,7 +69,7 @@ export function KeyReview(props: {
           </button>
         )}
         {error && <p className="warning">{error}</p>}
-        <PlayerFocus keyView={key} focus={focus} onFocus={onFocus} />
+        <PlayerFocus keyView={key} focus={focus} onFocus={onFocus} onSeek={onSeek} />
       </section>
     )
   }
@@ -132,7 +133,7 @@ export function KeyReview(props: {
             </div>
           ))}
         </div>
-        <PlayerFocus keyView={key} focus={focus} onFocus={onFocus} />
+        <PlayerFocus keyView={key} focus={focus} onFocus={onFocus} onSeek={onSeek} />
       </div>
     </section>
   )
