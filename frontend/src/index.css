@@ -499,12 +499,15 @@ button {
   margin-top: var(--s3);
 }
 
-/* The log's age above the live key: one line tall with or without its button, so the page doesn't jump. */
+/* The log's age above the live key, with its button at the top right. */
 .log-age {
   display: flex;
   align-items: center;
   gap: var(--s3);
-  min-height: 32px;
+}
+
+.log-age .action {
+  margin-left: auto;
 }
 
 .focus {

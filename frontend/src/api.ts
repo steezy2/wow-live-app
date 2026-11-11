@@ -333,7 +333,7 @@ export async function fetchLiveKey(signal?: AbortSignal): Promise<KeyView | null
 }
 
 /** Ends the running key as abandoned, for a party that left before the game's log says so; it runs again if the log
- * goes on in it. */
+ * goes on in it for 2 more minutes. */
 export async function abandonLiveKey(): Promise<void> {
   await call('/api/mplus/live/abandon', { method: 'POST' })
 }

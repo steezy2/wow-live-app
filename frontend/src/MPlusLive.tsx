@@ -4,14 +4,10 @@ import { ReadyPanel } from './ReadyPanel'
 import { useLiveKey, useReady } from './useLiveKey'
 import { KeyDetails } from './KeyDetails'
 
-/** How long the game's log has to be silent before the page offers to end the key: longer than the walk between
- * pulls, so the offer isn't up all the time. */
-const END_OFFER_MS = 60_000
-
 /** The live key, read from the combat log as the game writes it: in batches as fights start and end, so a pull's
  * numbers arrive when it's over, and a line says how long ago the last batch came. The game logs no end for a key the
- * party left, so after a silence that line offers to end it. onEnded runs when a key ends. Between keys the ready
- * check shows on top, even while the last key's review stays up. */
+ * party left, and can write the line that shows it minutes late, so that line has a button to end it. onEnded runs
+ * when a key ends. Between keys the ready check shows on top, even while the last key's review stays up. */
 export function MPlusLive({ onEnded }: { onEnded: () => void }) {
   const { loaded, key, clockMS, silentMS, error, endedHere } = useLiveKey(onEnded)
   const ready = useReady()
@@ -26,12 +22,10 @@ export function MPlusLive({ onEnded }: { onEnded: () => void }) {
       {key.status === 'running' && (
         <p className="muted small log-age">
           The game last wrote its log {clock(silentMS)} ago (it writes as fights start and end).
-          {silentMS >= END_OFFER_MS && (
-            // A key that ended meanwhile answers 409, and the next reading shows it.
-            <button className="action" onClick={() => void abandonLiveKey().catch(() => undefined)}>
-              Party left? End the key
-            </button>
-          )}
+          {/* A key that ended meanwhile answers 409, and the next reading shows it. */}
+          <button className="action" onClick={() => void abandonLiveKey().catch(() => undefined)}>
+            Abandoned key
+          </button>
         </p>
       )}
       <KeyDetails key={key.start} keyView={key} clockMS={clockMS} justEnded={endedHere === key.start} />
