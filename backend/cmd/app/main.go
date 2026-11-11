@@ -91,7 +91,7 @@ func run() error {
 		time.Now
 	var site *app.Site
 	opts.Settings = &controller.SettingsAPI{Settings: settings, Keys: keys,
-		ReadOldKeys: func() (int, error) { return site.Learn() }}
+		ReadOldKeys: func(all bool) (int, int, error) { return site.Learn(all) }}
 	opts.LogsDir, opts.Region, opts.Hosts = settings.Current().LogsDir, settings.Current().Region,
 		[]string{"wails.localhost"}
 	ctx := context.Background()
@@ -101,7 +101,7 @@ func run() error {
 	}
 	if len(site.Keys.Saved()) == 0 { // a first run: the estimate needs earlier runs, and the log folder has them
 		go func() {
-			if _, err := site.Learn(); err != nil {
+			if _, _, err := site.Learn(false); err != nil {
 				log.Printf("reading old logs: %v", err)
 			}
 		}()

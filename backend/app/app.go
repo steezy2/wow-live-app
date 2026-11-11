@@ -5,12 +5,18 @@ package app
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
 	"io/fs"
 	"log"
 	"net/http"
+	"os"
 	"path/filepath"
+	"slices"
 	"time"
 
+	"wow-live/backend/clients/cachefile"
 	"wow-live/backend/clients/combatlog"
 	"wow-live/backend/clients/keystoneguru"
 	"wow-live/backend/clients/keystore"
@@ -106,34 +112,87 @@ func add(keys *service.LogTracker, lines []string) {
 	}
 }
 
-// Learn reads every log in the game's folder, oldest first, into a tracker of its own (so it's safe while Follow
-// runs), saves the keys and raid pulls that ended in them, and has the site's keys read the saved ones again, for the list and the
-// estimate. It returns how many keys are saved.
-func (s *Site) Learn() (int, error) {
+// readerVersion is the version of what Learn saves from a log. Bump it with any change that saves new key or raid pull
+// fields, so the next Learn reads every log again.
+const readerVersion = 1
+
+// learned is learned.json: the logs Learn has read and the reader that read them, so it reads only new or changed
+// logs next time.
+type learned struct {
+	ReaderVersion int          `json:"readerVersion"`
+	Logs          []learnedLog `json:"logs"`
+}
+
+// learnedLog is a log as Learn read it.
+type learnedLog struct {
+	File    string `json:"file"`
+	Size    int64  `json:"size"`
+	ModTime int64  `json:"modTime"` // Unix ms
+}
+
+// Learn reads the logs in the game's folder, oldest first, into a tracker of its own (so it's safe while Follow
+// runs), saves the keys and raid pulls that ended in them, and has the site's keys read the saved ones again, for the
+// list and the estimate. A log already read by this readerVersion, unchanged since, is skipped unless all is set. It
+// returns how many logs it read and how many keys are saved.
+func (s *Site) Learn(all bool) (read, saved int, err error) {
 	logs, err := combatlog.WrittenSince(s.opts.LogsDir, time.Time{})
 	if err != nil {
-		return 0, err
+		return 0, 0, err
 	}
 	keys, err := s.newKeys()
 	if err != nil {
-		return 0, err
+		return 0, 0, err
 	}
-	for _, path := range logs {
-		if err := combatlog.EachLine(path, keys.Add); err != nil {
-			return 0, err
+	path := filepath.Join(s.opts.Cache, "learned.json")
+	var before learned
+	if !all {
+		before = readLearned(path)
+	}
+	now := learned{ReaderVersion: readerVersion}
+	for _, logPath := range logs {
+		info, err := os.Stat(logPath)
+		if err != nil {
+			return read, 0, fmt.Errorf("reading %s: %w", logPath, err)
 		}
-		if _, err := keys.SaveFinished(); err != nil {
-			return 0, err
+		file := learnedLog{File: filepath.Base(logPath), Size: info.Size(), ModTime: info.ModTime().UnixMilli()}
+		if before.ReaderVersion != readerVersion || !slices.Contains(before.Logs, file) {
+			if err := combatlog.EachLine(logPath, keys.Add); err != nil {
+				return read, 0, err
+			}
+			if _, err := keys.SaveFinished(); err != nil {
+				return read, 0, err
+			}
+			read++
+			log.Printf("read %s", file.File)
 		}
-		log.Printf("read %s", filepath.Base(path))
+		now.Logs = append(now.Logs, file)
+		if err := cachefile.WriteJSON(path, now); err != nil {
+			return read, 0, err
+		}
 	}
 	if err := s.Keys.Reload(); err != nil {
-		return 0, err
+		return read, 0, err
 	}
 	s.Changes.Publish(s.Keys.Version())
-	saved := len(s.Keys.Saved())
-	log.Printf("%d keys saved", saved)
-	return saved, nil
+	saved = len(s.Keys.Saved())
+	log.Printf("%d of %d logs read, %d keys saved", read, len(logs), saved)
+	return read, saved, nil
+}
+
+// readLearned is the learned.json at path; a missing, unreadable or odd one is nothing learned, so every log is read.
+func readLearned(path string) learned {
+	var l learned
+	data, err := os.ReadFile(path)
+	if err == nil {
+		err = json.Unmarshal(data, &l)
+	}
+	if err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
+			log.Printf("reading every log again: %s: %v", path, err)
+		}
+		return learned{}
+	}
+	return l
 }
 
 // Follow reads the newest log in dir into the keys as the game writes it until ctx ends, closing a key the log went

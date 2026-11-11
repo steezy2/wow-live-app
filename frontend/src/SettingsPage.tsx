@@ -52,6 +52,13 @@ export function SettingsPage({ view, onSaved }: { view: SettingsView; onSaved: (
     const call = saveSettings({ logsDir: logsDir.trim(), region, overlay })
     track(call, setGame, 'Saving…', () => 'Saved').then(onSaved, () => undefined)
   }
+  const readLogs = (all: boolean) =>
+    void track(
+      readOldKeys(all),
+      setOldKeys,
+      'Reading the log folder…',
+      ({ read, saved }) => `${read} new logs read · ${saved} keys saved`,
+    ).catch(() => undefined)
   const minutes = view.lastLogMS ? Math.round((Date.now() - view.lastLogMS) / 60_000) : null
   return (
     <div className="settings-page">
@@ -139,19 +146,14 @@ export function SettingsPage({ view, onSaved }: { view: SettingsView; onSaved: (
         <h2>Your data</h2>
         <p className="muted">
           Saves every finished key and raid pull in the log folder, so the estimate and the best pulls have your
-          earlier runs to go on.
+          earlier runs to go on. Logs already read are skipped unless you read everything again.
         </p>
         <div className="actions">
-          <button
-            type="button"
-            disabled={!!oldKeys?.busy}
-            onClick={() =>
-              void track(readOldKeys(), setOldKeys, 'Reading the log folder…', (n) => `${n} keys saved.`).catch(
-                () => undefined,
-              )
-            }
-          >
+          <button type="button" disabled={!!oldKeys?.busy} onClick={() => readLogs(false)}>
             Read old logs
+          </button>
+          <button type="button" disabled={!!oldKeys?.busy} onClick={() => readLogs(true)}>
+            Read everything again
           </button>
         </div>
         <NoteLine note={oldKeys} />

@@ -94,7 +94,7 @@ func run(port int, replay string, key int, speed float64, learn bool, region str
 		return err
 	}
 	if learn {
-		_, err := site.Learn()
+		_, _, err := site.Learn(false)
 		return err
 	}
 	if replay == "" {

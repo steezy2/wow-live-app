@@ -2,12 +2,16 @@ package combatlog
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
+
+	"wow-live/backend/models"
 )
 
 func TestParseLineReadsTimeEventAndFields(t *testing.T) {
@@ -89,6 +93,28 @@ func appendTo(t *testing.T, path, text string) {
 	defer f.Close()
 	if _, err := f.WriteString(text); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestEachLineKeepsOrder(t *testing.T) {
+	const n = 10_000
+	var text strings.Builder
+	for i := range n {
+		fmt.Fprintf(&text, "11/3/2026 19:15:04.493-7  SPELL_CAST_SUCCESS,%d\n", i)
+	}
+	path := filepath.Join(t.TempDir(), "WoWCombatLog-110326_190027.txt")
+	write(t, path, strings.TrimSuffix(text.String(), "\n"))
+	var got []string
+	if err := EachLine(path, func(line models.LogLine) { got = append(got, line.Fields[0]) }); err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != n {
+		t.Fatalf("got %d lines, want %d", len(got), n)
+	}
+	for i, field := range got {
+		if field != strconv.Itoa(i) {
+			t.Fatalf("line %d = %s, want lines in file order", i, field)
+		}
 	}
 }
 
