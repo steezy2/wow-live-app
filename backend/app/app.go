@@ -13,7 +13,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"slices"
+	"sync"
 	"time"
 
 	"wow-live/backend/clients/cachefile"
@@ -34,7 +34,7 @@ const pushEvery = 250 * time.Millisecond
 type Options struct {
 	Cache     string                      // the cache: logs/cache/ in the repo
 	DelayLog  string                      // logs/live-delay.log
-	LogsDir   string                      // the game's combat log folder
+	LogsDir   func() string               // the game's combat log folder now (the owner can change it)
 	Region    string                      // for this week's affix names
 	Rules     models.MPlusRules           // from mplus.toml
 	Dungeons  map[int]models.DungeonFacts // from reference/mplus-dungeons.json
@@ -57,6 +57,7 @@ type Site struct {
 	reviews controller.Reviews
 	topRuns func(ctx context.Context, key models.Key) ([]int64, error) // nil without Warcraft Logs
 	newKeys func() (*service.LogTracker, error)                        // another tracker on the same saved keys, for Learn
+	logJob  sync.Mutex                                                 // one read, archive or delete of logs at a time
 }
 
 // Start builds the site from opts. Follow, Learn or a replay then feed it the game's log.
@@ -79,6 +80,9 @@ func Start(ctx context.Context, opts Options) (*Site, error) {
 		return nil, err
 	}
 	s := &Site{Keys: keys, Changes: &service.Changes{Every: pushEvery}, opts: opts, newKeys: newKeys}
+	if opts.Settings != nil {
+		opts.Settings.Logs = s
+	}
 	if opts.Baselines != nil {
 		reviewer := service.Reviewer{Keys: keys, Baselines: opts.Baselines, Store: store}
 		s.reviews, s.topRuns = reviewer, reviewer.TopRuns
@@ -135,10 +139,21 @@ type learnedLog struct {
 
 // Learn reads the logs in the game's folder, oldest first, into a tracker of its own (so it's safe while Follow
 // runs), saves the keys and raid pulls that ended in them, and has the site's keys read the saved ones again, for the
-// list and the estimate. A log already read by this readerVersion, unchanged since, is skipped unless all is set. It
-// returns how many logs it read and how many keys are saved.
+// list and the estimate. A log already read by this readerVersion, unchanged since, is skipped unless all is set; so
+// are archived logs, which are read only then. It returns how many logs it read and how many keys are saved, or
+// service.ErrBusy while another read, archive or delete runs.
 func (s *Site) Learn(all bool) (read, saved int, err error) {
-	logs, err := combatlog.WrittenSince(s.opts.LogsDir, time.Time{})
+	if !s.logJob.TryLock() {
+		return 0, 0, service.ErrBusy
+	}
+	defer s.logJob.Unlock()
+	return s.learn(all)
+}
+
+// learn is Learn, with the log job's lock held.
+func (s *Site) learn(all bool) (read, saved int, err error) {
+	dir := s.opts.LogsDir()
+	logs, err := combatlog.WrittenSince(dir, time.Time{})
 	if err != nil {
 		return 0, 0, err
 	}
@@ -151,6 +166,23 @@ func (s *Site) Learn(all bool) (read, saved int, err error) {
 	if !all {
 		before = readLearned(path)
 	}
+	fresh := before.ReaderVersion != readerVersion
+	if fresh {
+		zips, err := combatlog.Archived(dir)
+		if err != nil {
+			return 0, 0, err
+		}
+		for _, z := range zips {
+			if err := s.readInto(keys, z.Path, combatlog.EachZippedLine); err != nil {
+				return read, 0, err
+			}
+			read++
+		}
+	}
+	known := make(map[learnedLog]bool, len(before.Logs))
+	for _, l := range before.Logs {
+		known[l] = true
+	}
 	now := learned{ReaderVersion: readerVersion}
 	for _, logPath := range logs {
 		info, err := os.Stat(logPath)
@@ -158,17 +190,18 @@ func (s *Site) Learn(all bool) (read, saved int, err error) {
 			return read, 0, fmt.Errorf("reading %s: %w", logPath, err)
 		}
 		file := learnedLog{File: filepath.Base(logPath), Size: info.Size(), ModTime: info.ModTime().UnixMilli()}
-		if before.ReaderVersion != readerVersion || !slices.Contains(before.Logs, file) {
-			if err := combatlog.EachLineIn(logPath, keys.Add); err != nil {
-				return read, 0, err
-			}
-			if _, err := keys.SaveFinished(); err != nil {
+		if fresh || !known[file] {
+			if err := s.readInto(keys, logPath, combatlog.EachLineIn); err != nil {
 				return read, 0, err
 			}
 			read++
-			log.Printf("read %s", file.File)
 		}
 		now.Logs = append(now.Logs, file)
+		if err := cachefile.WriteJSON(path, now); err != nil {
+			return read, 0, err
+		}
+	}
+	if len(logs) == 0 { // only archives: still note the reader that read them
 		if err := cachefile.WriteJSON(path, now); err != nil {
 			return read, 0, err
 		}
@@ -178,8 +211,20 @@ func (s *Site) Learn(all bool) (read, saved int, err error) {
 	}
 	s.Changes.Publish(s.Keys.Version())
 	saved = len(s.Keys.Saved())
-	log.Printf("%d of %d logs read, %d keys saved", read, len(logs), saved)
+	log.Printf("%d logs read, %d keys saved", read, saved)
 	return read, saved, nil
+}
+
+// readInto reads one log (each reads it, a log or a zip) into keys and saves what ended in it.
+func (s *Site) readInto(keys *service.LogTracker, path string, each func(string, func(models.LogLine)) error) error {
+	if err := each(path, keys.Add); err != nil {
+		return err
+	}
+	if _, err := keys.SaveFinished(); err != nil {
+		return err
+	}
+	log.Printf("read %s", filepath.Base(path))
+	return nil
 }
 
 // readLearned is the learned.json at path; a missing, unreadable or odd one is nothing learned, so every log is read.

@@ -12,6 +12,9 @@ import (
 // archiveAfterMS: a log last written this long ago (and read, and not active) is ticked for archiving at first.
 const archiveAfterMS = 14 * 24 * 60 * 60_000
 
+// ErrBusy is a read, archive or delete of the log folder asked for while another one runs.
+var ErrBusy = errors.New("already working on the log folder")
+
 // ErrBadLog is a log name the listing doesn't offer for that action (archive or delete).
 var ErrBadLog = errors.New("no such log to do that to")
 

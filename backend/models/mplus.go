@@ -571,6 +571,7 @@ type SettingsView struct {
 // Settings lists them for archiving.
 type LogFile struct {
 	Name      string `json:"name"` // the log's file name (an archived one without .zip)
+	Path      string `json:"-"`    // where it is: the log, or its zip
 	Bytes     int64  `json:"bytes"`
 	WrittenMS int64  `json:"writtenMS"` // last written (Unix ms)
 	FirstMS   int64  `json:"-"`         // its first line's time, 0 when none parses

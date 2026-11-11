@@ -311,7 +311,7 @@ func TestAllAndForceAreBooleans(t *testing.T) {
 		{http.MethodPut, "/api/settings/warcraftlogs?force=maybe", http.StatusBadRequest, false},
 	} {
 		var all bool
-		api := &SettingsAPI{Keys: fakeWCLKeys{}, ReadOldKeys: func(a bool) (int, int, error) { all = a; return 0, 0, nil }}
+		api := &SettingsAPI{Keys: fakeWCLKeys{}, Logs: &fakeLogs{all: &all}}
 		router := Router(MPlus{Keys: &fakeKeys{}, Now: time.Now}, nil, api, os.DirFS(t.TempDir()), LocalHosts(port)...)
 		r := httptest.NewRequest(tc.method, tc.url, strings.NewReader(`{"id": "abcd-1234", "secret": "s3cret"}`))
 		r.Host = "localhost:8080"
@@ -319,6 +319,57 @@ func TestAllAndForceAreBooleans(t *testing.T) {
 		router.ServeHTTP(w, r)
 		if w.Code != tc.code || all != tc.all {
 			t.Errorf("%s %s: %d, all=%v; want %d, %v", tc.method, tc.url, w.Code, all, tc.code, tc.all)
+		}
+	}
+}
+
+// fakeLogs is a LogFolder that notes what it was asked and fails with err.
+type fakeLogs struct {
+	all   *bool
+	names []string
+	err   error
+}
+
+func (f *fakeLogs) Learn(all bool) (int, int, error) {
+	if f.all != nil {
+		*f.all = all
+	}
+	return 0, 0, f.err
+}
+func (f *fakeLogs) LogFiles() ([]models.LogFile, error) { return []models.LogFile{}, f.err }
+func (f *fakeLogs) ArchiveLogs(names []string) ([]models.LogFile, error) {
+	f.names = names
+	return []models.LogFile{}, f.err
+}
+func (f *fakeLogs) DeleteArchivedLogs(names []string) ([]models.LogFile, error) {
+	return f.ArchiveLogs(names)
+}
+
+func TestLogFolderAnswers(t *testing.T) {
+	for _, tc := range []struct {
+		method, url, body string
+		err               error
+		code              int
+	}{
+		{http.MethodGet, "/api/settings/logs", "", nil, http.StatusOK},
+		{http.MethodPost, "/api/settings/logs/archive", `{"names": ["a.txt"]}`, nil, http.StatusOK},
+		{http.MethodDelete, "/api/settings/logs/archive", `{"names": ["a.txt"]}`, nil, http.StatusOK},
+		{http.MethodPost, "/api/settings/logs/archive", `{"names": []}`, nil, http.StatusBadRequest},
+		{http.MethodPost, "/api/settings/logs/archive", `{}`, nil, http.StatusBadRequest},
+		{http.MethodPost, "/api/settings/logs/archive", `{"names": ["../x"]}`, service.ErrBadLog, http.StatusBadRequest},
+		{http.MethodPost, "/api/settings/logs/archive", `{"names": ["a.txt"]}`, service.ErrBusy, http.StatusConflict},
+		{http.MethodPost, "/api/settings/read-keys", "", service.ErrBusy, http.StatusConflict},
+		{http.MethodGet, "/api/settings/logs", "", errors.New("disk"), http.StatusInternalServerError},
+	} {
+		logs := &fakeLogs{err: tc.err}
+		api := &SettingsAPI{Keys: fakeWCLKeys{}, Logs: logs}
+		router := Router(MPlus{Keys: &fakeKeys{}, Now: time.Now}, nil, api, os.DirFS(t.TempDir()), LocalHosts(port)...)
+		r := httptest.NewRequest(tc.method, tc.url, strings.NewReader(tc.body))
+		r.Host = "localhost:8080"
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, r)
+		if w.Code != tc.code {
+			t.Errorf("%s %s %s (%v): %d %s; want %d", tc.method, tc.url, tc.body, tc.err, w.Code, w.Body, tc.code)
 		}
 	}
 }

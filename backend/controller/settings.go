@@ -40,12 +40,25 @@ type WCLKeys interface {
 	Remove() error
 }
 
-// SettingsAPI serves the desktop app's settings and Warcraft Logs keys, and reads the keys already in the log folder
-// (app.Site.Learn).
+// LogFolder reads, lists, archives and deletes the game's combat logs (app.Site); the errors wrap service.ErrBusy
+// while another of these runs, and service.ErrBadLog for a log the list doesn't offer.
+type LogFolder interface {
+	Learn(all bool) (read, saved int, err error)
+	LogFiles() ([]models.LogFile, error)
+	ArchiveLogs(names []string) ([]models.LogFile, error)
+	DeleteArchivedLogs(names []string) ([]models.LogFile, error)
+}
+
+// SettingsAPI serves the desktop app's settings and Warcraft Logs keys, and the log folder's old logs.
 type SettingsAPI struct {
-	Settings    Settings
-	Keys        WCLKeys
-	ReadOldKeys func(all bool) (read, saved int, err error)
+	Settings Settings
+	Keys     WCLKeys
+	Logs     LogFolder // set by app.Start
+}
+
+// LogNames names the logs to archive or delete, as LogFiles lists them.
+type LogNames struct {
+	Names []string `json:"names" binding:"required,min=1"`
 }
 
 // OldKeys is how many logs were read and how many keys are saved after reading the log folder.
@@ -65,6 +78,7 @@ type OldKeys struct {
 //	@Param			all	query		bool	false	"read every log again, even ones already read"
 //	@Success		200	{object}	OldKeys
 //	@Failure		400	{object}	ErrorResponse
+//	@Failure		409	{object}	ErrorResponse	"already reading, archiving or deleting logs"
 //	@Failure		500	{object}	ErrorResponse
 //	@Router			/api/settings/read-keys [post]
 func (s SettingsAPI) ReadKeys(c *gin.Context) {
@@ -72,13 +86,98 @@ func (s SettingsAPI) ReadKeys(c *gin.Context) {
 	if !ok {
 		return
 	}
-	read, saved, err := s.ReadOldKeys(all)
-	if err != nil {
-		log.Printf("reading old logs: %v", err)
-		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "couldn't read the log folder"})
+	read, saved, err := s.Logs.Learn(all)
+	if logFolderFailed(c, "reading old logs", err) {
 		return
 	}
 	c.JSON(http.StatusOK, OldKeys{Read: read, Saved: saved})
+}
+
+// LogFiles godoc
+//
+//	@Summary		List the combat logs and the archived ones
+//	@Description	The log folder's combat logs, then the ones archived (zipped into its WoW Live archive folder), newest
+//	@Description	first: size, last write, saved keys and pulls from each, whether it's read, whether the game may still
+//	@Description	write it (it can't be archived) and whether to tick it at first (older than 14 days and read).
+//	@Tags			settings
+//	@Produce		json
+//	@Success		200	{array}		models.LogFile
+//	@Failure		500	{object}	ErrorResponse
+//	@Router			/api/settings/logs [get]
+func (s SettingsAPI) LogFiles(c *gin.Context) {
+	files, err := s.Logs.LogFiles()
+	if logFolderFailed(c, "listing logs", err) {
+		return
+	}
+	c.JSON(http.StatusOK, files)
+}
+
+// ArchiveLogs godoc
+//
+//	@Summary		Archive combat logs
+//	@Description	Zips each named log into the log folder's WoW Live archive folder and removes it (reading the folder
+//	@Description	first when one isn't read yet), so live reading and Read old logs skip it; Read everything again
+//	@Description	still reads it. Answers the new list; a log that couldn't be archived carries its error.
+//	@Tags			settings
+//	@Accept			json
+//	@Produce		json
+//	@Param			logs	body		LogNames	true	"names from the list, not archived and not being written"
+//	@Success		200		{array}		models.LogFile
+//	@Failure		400		{object}	ErrorResponse
+//	@Failure		409		{object}	ErrorResponse	"already reading, archiving or deleting logs"
+//	@Failure		500		{object}	ErrorResponse
+//	@Router			/api/settings/logs/archive [post]
+func (s SettingsAPI) ArchiveLogs(c *gin.Context) {
+	s.onLogs(c, "archiving logs", s.Logs.ArchiveLogs)
+}
+
+// DeleteArchivedLogs godoc
+//
+//	@Summary		Delete archived combat logs for good
+//	@Description	Removes the named archived logs' zips. Saved keys and pulls stay. Answers the new list; a log that
+//	@Description	couldn't be deleted carries its error.
+//	@Tags			settings
+//	@Accept			json
+//	@Produce		json
+//	@Param			logs	body		LogNames	true	"names of archived logs from the list"
+//	@Success		200		{array}		models.LogFile
+//	@Failure		400		{object}	ErrorResponse
+//	@Failure		409		{object}	ErrorResponse	"already reading, archiving or deleting logs"
+//	@Failure		500		{object}	ErrorResponse
+//	@Router			/api/settings/logs/archive [delete]
+func (s SettingsAPI) DeleteArchivedLogs(c *gin.Context) {
+	s.onLogs(c, "deleting archived logs", s.Logs.DeleteArchivedLogs)
+}
+
+// onLogs reads the names in the body and answers what do did to them.
+func (s SettingsAPI) onLogs(c *gin.Context, doing string, do func([]string) ([]models.LogFile, error)) {
+	var body LogNames
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "send the names of the logs"})
+		return
+	}
+	files, err := do(body.Names)
+	if logFolderFailed(c, doing, err) {
+		return
+	}
+	c.JSON(http.StatusOK, files)
+}
+
+// logFolderFailed answers a log folder job's error, if any: 409 while another runs, 400 for a log the list doesn't
+// offer, else 500 (logged).
+func logFolderFailed(c *gin.Context, doing string, err error) bool {
+	switch {
+	case err == nil:
+		return false
+	case errors.Is(err, service.ErrBusy):
+		c.JSON(http.StatusConflict, ErrorResponse{Error: "already reading, archiving or deleting logs: try again soon"})
+	case errors.Is(err, service.ErrBadLog):
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+	default:
+		log.Printf("%s: %v", doing, err)
+		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "couldn't use the log folder"})
+	}
+	return true
 }
 
 // Get godoc
@@ -111,7 +210,7 @@ func (s SettingsAPI) Put(c *gin.Context) {
 	next.LogsDir = filepath.Clean(next.LogsDir)
 	if o := next.Overlay; err != nil || !filepath.IsAbs(next.LogsDir) || !slices.Contains(regions, next.Region) ||
 		!slices.Contains(overlayShows, o.Show) || o.Opacity < minOpacity || o.Opacity > 100 {
-		c.JSON(http.StatusBadRequest, ErrorResponse{Error: fmt.Sprintf("send a full log folder path, a region (%s), when the "+
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: fmt.Sprintf("send a full log folder path, a region (%s), when "+
 			"overlay shows (%s) and its opacity (%d to 100)", strings.Join(regions, ", "),
 			strings.Join(overlayShows, ", "), minOpacity)})
 		return
