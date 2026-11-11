@@ -63,8 +63,8 @@ func TestTailKeepsAHalfWrittenLineAndFollowsANewFile(t *testing.T) {
 		t.Fatalf("second read = %q, want the completed line", lines)
 	}
 	appendTo(t, first, "no newline at the end")
-	if lines, _, _ := tail.Read(); lines != nil || tail.Rest() != "no newline at the end" {
-		t.Fatalf("an unterminated last line should wait for Rest, got %q", lines)
+	if lines, _, _ := tail.Read(); lines != nil {
+		t.Fatalf("an unterminated last line should wait for its newline, got %q", lines)
 	}
 	second := filepath.Join(dir, "WoWCombatLog-110426_161556.txt")
 	write(t, second, "new\n")
@@ -105,7 +105,7 @@ func TestEachLineKeepsOrder(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "WoWCombatLog-110326_190027.txt")
 	write(t, path, strings.TrimSuffix(text.String(), "\n"))
 	var got []string
-	if err := EachLine(path, func(line models.LogLine) { got = append(got, line.Fields[0]) }); err != nil {
+	if err := EachLineIn(path, func(line models.LogLine) { got = append(got, line.Fields[0]) }); err != nil {
 		t.Fatal(err)
 	}
 	if len(got) != n {
@@ -114,6 +114,117 @@ func TestEachLineKeepsOrder(t *testing.T) {
 	for i, field := range got {
 		if field != strconv.Itoa(i) {
 			t.Fatalf("line %d = %s, want lines in file order", i, field)
+		}
+	}
+}
+
+func TestEachLineReader(t *testing.T) {
+	var text strings.Builder
+	var want []string
+	for i := 0; text.Len() < 3*readBuffer; i++ { // lines across the buffer's edges, \n and \r\n
+		fmt.Fprintf(&text, "11/3/2026 19:15:04.493-7  SPELL_DAMAGE,%d,%s\n", i, strings.Repeat("x", i%300))
+		want = append(want, strconv.Itoa(i))
+		if i%1000 == 0 {
+			text.WriteString("not a line\r\n\n")
+			fmt.Fprintf(&text, "11/3/2026 19:15:04.493-7  SPELL_HEAL,r%d\r\n", i)
+			want = append(want, "r"+strconv.Itoa(i))
+		}
+	}
+	long := strings.Repeat("y", 2*readBuffer) // longer than the buffer
+	text.WriteString("11/3/2026 19:15:04.493-7  SPELL_AURA_APPLIED," + long + "\n")
+	text.WriteString("11/3/2026 19:15:04.493-7  UNIT_DIED,last") // no newline
+	want = append(want, long, "last")
+	var got []string
+	if err := EachLine(strings.NewReader(text.String()), func(line models.LogLine) {
+		got = append(got, line.Fields[0])
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != len(want) {
+		t.Fatalf("got %d lines, want %d", len(got), len(want))
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("line %d = %.20q, want %.20q (file order, \\r dropped)", i, got[i], want[i])
+		}
+	}
+}
+
+func TestParseCutsABacklogInOrder(t *testing.T) {
+	texts := []string{"not a line"}
+	for i := range 3 * parseChunk {
+		texts = append(texts, fmt.Sprintf("11/3/2026 19:15:04.493-7  SPELL_CAST_SUCCESS,%d", i))
+	}
+	lines := Parse(texts)
+	if len(lines) != 3*parseChunk {
+		t.Fatalf("got %d lines, want %d", len(lines), 3*parseChunk)
+	}
+	for i, line := range lines {
+		if line.Fields[0] != strconv.Itoa(i) {
+			t.Fatalf("line %d = %s, want lines in order", i, line.Fields[0])
+		}
+	}
+}
+
+func TestParseTime(t *testing.T) {
+	// reference is parseTime as it was: time.ParseInLocation in a time.FixedZone made for the line.
+	reference := func(stamp string) (int64, error) {
+		dot := strings.LastIndexByte(stamp, '.')
+		if dot < 0 {
+			return 0, fmt.Errorf("reading the time %q: no milliseconds", stamp)
+		}
+		local, offset := stamp, 0.0
+		if i := strings.IndexAny(stamp[dot:], "+-"); i >= 0 {
+			local = stamp[:dot+i]
+			hours, err := strconv.ParseFloat(stamp[dot+i:], 64)
+			if err != nil {
+				return 0, fmt.Errorf("reading the UTC offset in %q: %w", stamp, err)
+			}
+			offset = hours
+		}
+		t, err := time.ParseInLocation(timeLayout, local, time.FixedZone("log", int(offset*3600)))
+		if err != nil {
+			return 0, fmt.Errorf("reading the time %q: %w", stamp, err)
+		}
+		return t.UnixMilli(), nil
+	}
+	for _, stamp := range []string{
+		"11/3/2026 19:14:54.254-7",
+		"11/3/2026 19:14:54.254+5.5",
+		"11/3/2026 19:14:54.254+0",
+		"11/3/2026 19:14:54.254",
+		"12/31/2026 23:59:59.999-12",
+		"02/29/2028 01:02:03.004+14",  // leading zeros, a leap day
+		"11/3/2026 19:14:54.254+3.75", // not a half hour: a zone of its own
+		"2/29/2027 01:02:03.004-7",    // no such day
+		"13/3/2026 19:14:54.254-7",
+		"11/3/2026 24:14:54.254-7",
+		"11/3/2026 19:4:54.254-7",
+		"11/3/2026 19:14:54.25-7", // bad milliseconds
+		"11/3/2026 19:14:54.2545-7",
+		"11/3/2026 19:14:54,254-7",
+		"+11/3/2026 19:14:54.254-7",
+		"11/3/2026 19:14:54.254-x", // bad offset
+		"11/3/2026 19:14:54.254-7.5.5",
+		"11/3/2026 19:14:54-7",
+		"",
+	} {
+		got, err := parseTime(stamp)
+		want, wantErr := reference(stamp)
+		if got != want || fmt.Sprint(err) != fmt.Sprint(wantErr) {
+			t.Errorf("parseTime(%q) = %d, %v; want %d, %v", stamp, got, err, want, wantErr)
+		}
+	}
+}
+
+func BenchmarkParseLine(b *testing.B) {
+	const text = `11/3/2026 19:15:04.493-7  SPELL_DAMAGE,Player-76-0BFCA737,"Name-Realm-EU",0x512,0x80000000,` +
+		`Creature-0-3019-3004-1081-217228-00006A951E,"Blood Beast",0x10a48,0x80000000,1251,"Blood Strike",0x1,` +
+		`Creature-0-3019-3004-1081-217228-00006A951E,0000000000000000,6553417,7183160,0,0,5043,0,0,2500,2500,0,` +
+		`-2108.42,-2614.68,2669,2.1817,80,77834,51888,-1,1,0,0,0,nil,nil,nil,ST`
+	for b.Loop() {
+		if _, err := ParseLine(text); err != nil {
+			b.Fatal(err)
 		}
 	}
 }

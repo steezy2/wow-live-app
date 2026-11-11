@@ -208,7 +208,7 @@ func checkLogs(path string) error {
 	}
 	hits := service.NewHitCounter()
 	for _, file := range logs {
-		if err := combatlog.EachLine(file, hits.Add); err != nil {
+		if err := combatlog.EachLineIn(file, hits.Add); err != nil {
 			return err
 		}
 	}
