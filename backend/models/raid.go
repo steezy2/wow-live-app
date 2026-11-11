@@ -19,13 +19,18 @@ type RaidRules struct {
 	Phases      map[string][]PhaseTrigger `toml:"phases"`
 }
 
-// SuggestionRules are raid-rules.toml's [suggestions]: how many "Fix next pull" lines, the damage spike's window, and
-// when an add's life or the damage into a unit to burst is worth a line against tonight's best pull.
+// SuggestionRules are raid-rules.toml's [suggestions]: how many "Fix next pull" lines, the damage spike's window,
+// when an add's life or the damage into a unit to burst is worth a line against tonight's best pull, how long a pull
+// is before Bloodlust and combat potions are expected, how long a debuff sits before its dispel was slow, and how
+// close two raid cooldowns are to be stacked.
 type SuggestionRules struct {
-	Most          int     `toml:"most"`
-	SpikeSeconds  float64 `toml:"spike_seconds"`
-	AddsLonger    float64 `toml:"adds_longer"`
-	PriorityBelow float64 `toml:"priority_below"`
+	Most                   int     `toml:"most"`
+	SpikeSeconds           float64 `toml:"spike_seconds"`
+	AddsLonger             float64 `toml:"adds_longer"`
+	PriorityBelow          float64 `toml:"priority_below"`
+	LustAfterSeconds       float64 `toml:"lust_after_seconds"`
+	DispelSlowSeconds      float64 `toml:"dispel_slow_seconds"`
+	CooldownOverlapSeconds float64 `toml:"cooldown_overlap_seconds"`
 }
 
 // PhaseTrigger is a boss phase after phase 1, numbered as Warcraft Logs numbers it, and the event and spell ID that
@@ -118,6 +123,18 @@ type RaidPull struct {
 	// compared with the best pull as of then.
 	Suggestions []string         `json:"suggestions"`
 	Comparisons *RaidComparisons `json:"comparisons,omitempty"`
+	// Abilities is each raider's damage, healing and casts by ability, Taken their damage taken by ability and Targets
+	// their damage into each enemy, most first: missing in pulls saved before Nov 11.
+	Abilities []KeyAbility `json:"abilities,omitempty"`
+	Taken     []KeyHit     `json:"taken,omitempty"`
+	Targets   []RaidTarget `json:"targets,omitempty"`
+}
+
+// RaidTarget is a raider's damage into the enemies of one name over a pull.
+type RaidTarget struct {
+	Player string `json:"player"`
+	Target string `json:"target"`
+	Damage int64  `json:"damage"`
 }
 
 // RaidDeath is a raider's death: what killed them and what was ready (the M+ death rules), whether it was early
@@ -217,7 +234,7 @@ type RaidLive struct {
 	Last         *RaidPull `json:"last,omitempty"`
 }
 
-// RaidNight is one raid night's pulls, in order.
+// RaidNight is one raid night's pulls, newest first.
 type RaidNight struct {
 	Night string            `json:"night"`
 	Pulls []RaidPullSummary `json:"pulls"`
@@ -231,8 +248,8 @@ type RaidLane struct {
 	Marks []RaidMark `json:"marks"`
 }
 
-// RaidMark is a moment on a lane, or a stretch when EndMS is after ClockMS (a phase, an add's life), on the pull's
-// clock: who or what, and whether it went wrong.
+// RaidMark is a moment on a lane, or a stretch when EndMS is after ClockMS (a phase, an add's life, Bloodlust or a
+// raid cooldown's buff), on the pull's clock: who or what, and whether it went wrong.
 type RaidMark struct {
 	ClockMS int64  `json:"clockMS"`
 	EndMS   int64  `json:"endMS,omitempty"`

@@ -25,9 +25,16 @@ spike_seconds = 6
 adds_longer = 1.25
 # Damage into a unit to burst below this share of tonight's best pull is worth a line.
 priority_below = 0.8
+# A pull longer than this with no Bloodlust, or with raiders who used no combat potion, is worth a line each.
+lust_after_seconds = 60
+# A dispellable debuff that sat longer than this before its dispel (or ran out) is worth a line.
+dispel_slow_seconds = 4
+# Two raid cooldowns used within this long of each other were stacked.
+cooldown_overlap_seconds = 3
 
 [cooldowns]
-# Raid healing and damage-reduction cooldowns, shown on the pull's cooldown line with Bloodlust and combat potions.
+# Raid healing and damage-reduction cooldowns, shown on the pull's cooldown lane (each for as long as its buff was on
+# a raider) with Bloodlust and combat potions.
 names = [
   "Anti-Magic Zone", "Apotheosis", "Aura Mastery", "Avenging Crusader", "Convoke the Spirits", "Darkness",
   "Divine Hymn", "Dream Flight", "Evangelism", "Healing Tide Totem", "Power Word: Barrier", "Rallying Cry",

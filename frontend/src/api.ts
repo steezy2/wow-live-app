@@ -41,6 +41,8 @@ export interface KeyCast {
   ability: string
   kind: 'defensive' | 'healthstone' | 'health potion' | 'combat potion' | 'kick' | 'cc' | 'raid cooldown'
   clockMS: number
+  /** A raid cooldown: when its buff last left a raider. */
+  endMS?: number
 }
 
 /** A must-stop cast and what happened to it: interrupted (by a player, intoMS into the cast), stopped (by a debuff,
@@ -597,6 +599,11 @@ export interface RaidPull extends RaidPullSummary {
   spike?: { clockMS: number; perSecond: number; covered: string[] }
   /** What to fix on the next pull, most important first. */
   suggestions: string[]
+  /** Each raider's abilities, their damage taken by ability and their damage into each enemy, most first: missing in
+   * pulls saved before Nov 11. */
+  abilities?: KeyAbility[]
+  taken?: { player: string; ability: string; damage: number }[]
+  targets?: { player: string; target: string; damage: number }[]
 }
 
 /** A raid room's map (the combat log's uiMapID) and its edges in the log's yards: x runs north (maxX at the top), y
@@ -610,7 +617,7 @@ export interface RaidMap {
 }
 
 /** One row of a pull's timeline: a mechanic (or phases, deaths, Bloodlust, cooldowns, an add kind) and each time it
- * came up; a mark with endMS is a stretch. */
+ * came up; a mark with endMS is a stretch (a phase, an add's life, how long a buff lasted). */
 export interface RaidLane {
   name: string
   kind: 'phases' | 'deaths' | 'lust' | 'cooldowns' | 'potions' | 'spike' | 'avoidable' | 'soak' | 'stacks' | 'adds'
@@ -626,7 +633,7 @@ export interface RaidLive {
   last?: RaidPull
 }
 
-/** One raid night's pulls, in order. */
+/** One raid night's pulls, newest first. */
 export interface RaidNight {
   night: string
   pulls: RaidPullSummary[]
@@ -637,7 +644,7 @@ export async function fetchRaidLive(signal?: AbortSignal): Promise<RaidLive> {
   return (await (await call('/api/raid/live', { signal })).json()) as RaidLive
 }
 
-/** Every raid night's pulls, newest night first. */
+/** Every raid night's pulls, newest first. */
 export async function fetchRaidNights(signal?: AbortSignal): Promise<RaidNight[]> {
   return (await (await call('/api/raid/nights', { signal })).json()) as RaidNight[]
 }

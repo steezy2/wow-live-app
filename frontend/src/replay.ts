@@ -27,6 +27,12 @@ export interface SliderMark {
   title: string
 }
 
+/** How far apart a timeline's time ticks are for a replay this long: 15 s up to 4 minutes, 30 s up to 10, else 60. */
+export function tickStep(end: number): number {
+  if (end <= 240_000) return 15_000
+  return end <= 600_000 ? 30_000 : 60_000
+}
+
 /** The floors a track's players stood on, most stood on first. */
 export function floorsOf(track: KeyTrack | null): number[] {
   const counts = new Map<number, number>()
@@ -68,9 +74,9 @@ export function meterBetween(track: KeyTrack, from: number, to: number): KeyMete
   }
 }
 
-/** A meter's rows by a column, highest first, at most n. */
-export function topRows(rows: KeyMeterRow[], by: 'dps' | 'hps', n: number): KeyMeterRow[] {
-  return [...rows].sort((a, b) => b[by] - a[by]).slice(0, n)
+/** A meter with only its top n rows by a column, highest first. */
+export function topMeter(meter: KeyMeter, by: 'dps' | 'hps', n: number): KeyMeter {
+  return { ...meter, rows: [...meter.rows].sort((a, b) => b[by] - a[by]).slice(0, n) }
 }
 
 /** A player's last position at or before a clock reading. */

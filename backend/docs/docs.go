@@ -545,7 +545,7 @@ const docTemplate = `{
                 "summary": "Every raid night's pulls",
                 "responses": {
                     "200": {
-                        "description": "newest night first, each night's pulls in order",
+                        "description": "newest night first, each night's pulls newest first",
                         "schema": {
                             "type": "array",
                             "items": {
@@ -1021,6 +1021,10 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "clockMS": {
+                    "type": "integer"
+                },
+                "endMS": {
+                    "description": "a raid cooldown: when its buff last left a raider (0 when none was seen to)",
                     "type": "integer"
                 },
                 "kind": {
@@ -2049,6 +2053,13 @@ const docTemplate = `{
         "models.RaidPull": {
             "type": "object",
             "properties": {
+                "abilities": {
+                    "description": "Abilities is each raider's damage, healing and casts by ability, Taken their damage taken by ability and Targets\ntheir damage into each enemy, most first: missing in pulls saved before Nov 11.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.KeyAbility"
+                    }
+                },
                 "adds": {
                     "type": "array",
                     "items": {
@@ -2193,6 +2204,18 @@ const docTemplate = `{
                         "type": "string"
                     }
                 },
+                "taken": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.KeyHit"
+                    }
+                },
+                "targets": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.RaidTarget"
+                    }
+                },
                 "wentOff": {
                     "description": "must-stop casts that finished",
                     "type": "array",
@@ -2288,6 +2311,20 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/models.PlayerCount"
                     }
+                }
+            }
+        },
+        "models.RaidTarget": {
+            "type": "object",
+            "properties": {
+                "damage": {
+                    "type": "integer"
+                },
+                "player": {
+                    "type": "string"
+                },
+                "target": {
+                    "type": "string"
                 }
             }
         },

@@ -46,7 +46,7 @@ type ReviewStore interface {
 	Review(start int64) (KeyReview, error)
 }
 
-// RaidSource gives the raid as of now (ms since the epoch), the raid nights' pulls (newest night first), and one pull
+// RaidSource gives the raid as of now (ms since the epoch), the raid nights' pulls (newest first), and one pull
 // and its replay track by its start time.
 type RaidSource interface {
 	RaidLive(now int64) RaidLive

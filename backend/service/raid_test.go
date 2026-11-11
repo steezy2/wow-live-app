@@ -3,6 +3,7 @@ package service
 import (
 	"fmt"
 	"io/fs"
+	"slices"
 	"testing"
 	"time"
 
@@ -152,10 +153,10 @@ func TestRaidPullsComparedListedAndOverlayTiming(t *testing.T) {
 	feed(t, keys, lines...)
 	nights := keys.RaidNights()
 	if len(nights) != 2 || nights[0].Night != "2026-11-04" || len(nights[1].Pulls) != 2 ||
-		nights[1].Pulls[1].Number != 2 || nights[0].Pulls[0].Number != 1 {
-		t.Fatalf("nights = %+v; want Nov 4's kill first, then Nov 3's two pulls numbered 1 and 2", nights)
+		nights[1].Pulls[0].Number != 2 || nights[0].Pulls[0].Number != 1 {
+		t.Fatalf("nights = %+v; want Nov 4's kill first, then Nov 3's pulls 2 and 1, the newest first", nights)
 	}
-	first, err := keys.RaidPull(nights[1].Pulls[0].Start)
+	first, err := keys.RaidPull(nights[1].Pulls[1].Start)
 	if err != nil || first.Comparisons == nil || first.Comparisons.Tonight.Number != 2 ||
 		!first.Comparisons.Ever.Kill {
 		t.Fatalf("first pull's comparisons = %+v (%v); want tonight's 30%% pull and the kill as the best ever",
@@ -357,5 +358,80 @@ func TestMassKillsLeaveOutDeathsWithNoHitSeen(t *testing.T) {
 		{Ability: "Malice", ClockMS: 4000}}
 	if got := massKills(deaths, 2, 10_000); len(got) != 1 || got[0].Ability != "Malice" {
 		t.Fatalf("mass kills = %+v; want only Malice's, not the two deaths with no known cause", got)
+	}
+}
+
+func TestRaidPullKeepsAbilitiesTargetsAndHowLongBuffsLasted(t *testing.T) {
+	keys, store := newRaidTracker(t)
+	keys.rules.Lust.Names = []string{"Bloodlust"}
+	aura := func(s float64, event, spell string) string {
+		return raidAt(3, s, event+","+shamanUnit+","+testPlayer+`,740,"`+spell+`",0x8,BUFF`)
+	}
+	feed(t, keys, pullLines(3, 0, 120, 40, false,
+		raidAt(3, 5, "SPELL_CAST_SUCCESS,"+shamanUnit+","+noUnit+`,740,"Tranquility",0x8,`+
+			advancedOf("Player-76-0000BBBB", "0000000000000000")),
+		aura(13, "SPELL_AURA_REMOVED", "Tranquility"),
+		aura(20, "SPELL_AURA_APPLIED", "Bloodlust"), aura(60, "SPELL_AURA_REMOVED", "Bloodlust"),
+	)...)
+	if _, err := keys.SaveFinished(); err != nil {
+		t.Fatal(err)
+	}
+	p := store.pulls[0]
+	if len(p.Abilities) != 2 || p.Abilities[0] != (models.KeyAbility{Player: "Testmage", Ability: "Arcane Barrage",
+		Damage: 5000, Hits: 1}) || fmt.Sprint(p.Targets) != "[{Testmage Testboss 5000}]" {
+		t.Fatalf("abilities = %+v, targets = %+v; want the mage's Arcane Barrage for 5000 into Testboss", p.Abilities,
+			p.Targets)
+	}
+	var got []string
+	for _, l := range p.Lanes {
+		if l.Kind == "lust" || l.Kind == "cooldowns" {
+			got = append(got, fmt.Sprintf("%s %d-%d", l.Kind, l.Marks[0].ClockMS/1000, l.Marks[0].EndMS/1000))
+		}
+	}
+	if fmt.Sprint(got) != "[lust 20-60 cooldowns 5-13]" || p.Cooldowns[0].EndMS != 13_000 {
+		t.Fatalf("stretches = %v, cooldowns = %+v; want Bloodlust from 20 to 60 s and Tranquility from 5 to 13",
+			got, p.Cooldowns)
+	}
+}
+
+func TestARaidDeathKnowsADefensiveUsedInAnEarlierPull(t *testing.T) {
+	keys, _ := newRaidTracker(t)
+	lines := pullLines(3, 0, 60, 60, false, raidAt(3, 5, "SPELL_CAST_SUCCESS,"+testPlayer+","+noUnit+
+		`,45438,"Ice Block",0x10,`+advancedOf("Player-76-0000AAAA", "0000000000000000")))
+	lines = append(lines, pullLines(3, 600, 60, 60, false, raidAt(3, 610, "UNIT_DIED,"+noUnit+","+testPlayer+",0"))...)
+	feed(t, keys, lines...)
+	if d := keys.RaidLive(0).Last.Deaths; len(d) != 1 || fmt.Sprint(d[0].Ready) != "[Ice Block]" {
+		t.Fatalf("deaths = %+v; want the mage dead with the Ice Block of the pull before still ready", d)
+	}
+}
+
+func TestSuggestionsForAPullWithoutReferenceMechanics(t *testing.T) {
+	death := func(player string) models.RaidDeath {
+		return models.RaidDeath{KeyDeath: models.KeyDeath{Player: player, Ability: "Venom Bolt"}, Early: true}
+	}
+	rows := []models.KeyMeterRow{{Player: "A"}, {Player: "B"}, {Player: "C"}}
+	p := models.RaidPull{DurationMS: 120_000, Deaths: []models.RaidDeath{death("A"), death("B")},
+		Meter: models.KeyMeter{Rows: rows},
+		Dispels: []models.KeyDispel{{Player: "D", Spell: "Exploding Infection", AfterMS: 8000},
+			{Player: "F", Spell: "Exploding Infection", By: "E", AfterMS: 6300},
+			{Player: "G", Spell: "Exploding Infection", By: "E", AfterMS: 2000}},
+		Cooldowns: []models.KeyCast{{Player: "A", Kind: "combat potion", ClockMS: 1000},
+			{Player: "B", Ability: "Tranquility", Kind: "raid cooldown", ClockMS: 130_000},
+			{Player: "C", Ability: "Revival", Kind: "raid cooldown", ClockMS: 132_000},
+			{Player: "C", Ability: "Rewind", Kind: "raid cooldown", ClockMS: 150_000}}}
+	want := []string{
+		"2 deaths to Venom Bolt: A, B",
+		"Exploding Infection sat too long on 2 raiders: D (ran out), F (6.3 s)",
+		"No Bloodlust this pull",
+		"2 raiders used no combat potion: B, C",
+		"Raid cooldowns stacked at 2:10: Tranquility, Revival",
+	}
+	rules := models.SuggestionRules{Most: 20, LustAfterSeconds: 60, DispelSlowSeconds: 4, CooldownOverlapSeconds: 3}
+	if got := suggestions(p, nil, rules); fmt.Sprint(got) != fmt.Sprint(want) {
+		t.Fatalf("suggestions =\n%q\nwant\n%q", got, want)
+	}
+	p.DurationMS, p.Lusts = 30_000, nil
+	if got := suggestions(p, nil, rules); slices.Contains(got, "No Bloodlust this pull") || len(got) != 3 {
+		t.Fatalf("suggestions = %q; a 30 s pull needs no Bloodlust or potions yet", got)
 	}
 }

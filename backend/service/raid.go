@@ -35,12 +35,15 @@ const (
 )
 
 // raidSetup is what raid pulls are read with: the raid rules, each boss's mechanics, the store of finished pulls,
-// and the raid cooldowns by name.
+// the raid cooldowns by name, and what the pulls read so far showed each raider carries (a raider rarely presses
+// every survival button in one pull, so a death's "still ready" list needs the earlier pulls; cooldowns start fresh
+// each pull, as the game resets them when an encounter ends).
 type raidSetup struct {
 	rules     models.RaidRules
 	bosses    map[string]models.RaidBoss
 	store     models.PullStore
 	cooldowns map[string]bool
+	kit       models.Kit
 }
 
 // raidRun is what a raid pull adds to its run: the difficulty, the boss's mechanics and phases, the hostile units
@@ -56,6 +59,7 @@ type raidRun struct {
 	stacks     map[int]map[string]int     // debuff spell ID -> raider -> most stacks
 	priority   map[string]int64           // unit to burst -> the raid's damage into it
 	cooldowns  []models.KeyCast           // raid cooldowns used
+	lustEnds   map[int64]int64            // when a Bloodlust landed -> when it last left a raider, on the pull's clock
 	marks      map[lane][]models.RaidMark // the timeline marks only seen as they happen (lanes adds the rest)
 }
 
@@ -89,7 +93,7 @@ func (k *LogTracker) EnableRaid(rules models.RaidRules, bosses map[string]models
 	}
 	k.mu.Lock()
 	defer k.mu.Unlock()
-	k.raid, k.pulls = &raidSetup{rules: rules, bosses: bosses, store: store, cooldowns: cooldowns}, pulls
+	k.raid, k.pulls = &raidSetup{rules: rules, bosses: bosses, store: store, cooldowns: cooldowns, kit: LearnKit(nil)}, pulls
 	return nil
 }
 
@@ -118,7 +122,7 @@ func (k *LogTracker) startPull(line models.LogLine) {
 		MustStop: boss.MustStop}
 	run.raid = &raidRun{difficulty: raidDifficulties[f[2]], boss: boss, phases: k.raid.rules.Phases[f[1]],
 		units: map[string]*raidUnit{}, soaks: map[int]*soakTally{}, stacks: map[int]map[string]int{},
-		priority: map[string]int64{}, marks: map[lane][]models.RaidMark{}}
+		priority: map[string]int64{}, lustEnds: map[int64]int64{}, marks: map[lane][]models.RaidMark{}}
 	if len(run.raid.phases) > 0 {
 		run.raid.phase = "P1"
 	}
@@ -190,8 +194,28 @@ func (k *LogTracker) raidLine(line models.LogLine) bool {
 			r.cooldowns = append(r.cooldowns, models.KeyCast{Player: who, Ability: f[9], Kind: "raid cooldown",
 				ClockMS: run.clock(at)})
 		}
+	case "SPELL_AURA_REMOVED":
+		if victim != "" && len(f) > 9 {
+			k.buffLeft(run.clock(at), k.player(f[0], f[2]), f[9])
+		}
 	}
 	return false
+}
+
+// buffLeft notes a buff leaving a raider at a time on the pull's clock: the last Bloodlust lasted until then, and so
+// did the caster's last raid cooldown of that name.
+func (k *LogTracker) buffLeft(clockMS int64, caster, buff string) {
+	run := k.current
+	r := run.raid
+	if n := len(run.key.Lusts); n > 0 && slices.Contains(k.rules.Lust.Names, buff) {
+		r.lustEnds[run.key.Lusts[n-1]] = clockMS
+	}
+	for i := len(r.cooldowns) - 1; i >= 0 && k.raid.cooldowns[buff]; i-- {
+		if c := &r.cooldowns[i]; c.Player == caster && c.Ability == buff {
+			c.EndMS = clockMS
+			break
+		}
+	}
 }
 
 // raidUnits notes the hostile creatures a line names, and their health from its advanced-logging block; a unit whose
@@ -281,6 +305,7 @@ func (k *LogTracker) finishPull(kill bool) {
 	if !fought(pull) {
 		return
 	}
+	addKit(k.raid.kit, LearnKit(run.casts))
 	if i := slices.IndexFunc(k.pulls, func(p models.RaidPull) bool { return p.Start == pull.Start }); i >= 0 {
 		k.pulls[i] = pull
 	} else {
@@ -359,7 +384,29 @@ func (k *LogTracker) raidPull(run *keyRun, key models.Key, at int64, kill bool) 
 	slices.SortStableFunc(p.Cooldowns, func(a, b models.KeyCast) int { return cmp.Compare(a.ClockMS, b.ClockMS) })
 	p.Spike = spike(run.track, p.Cooldowns, k.spikeMS())
 	p.Lanes = k.lanes(run, p, at)
+	p.Abilities, p.Taken = abilities(run)
+	p.Targets = targets(run)
 	return p
+}
+
+// targets is each raider's damage into the enemies of each name over the run, most first.
+func targets(run *keyRun) []models.RaidTarget {
+	damage := map[[2]string]int64{}
+	for _, pull := range run.pulls {
+		for _, mob := range pull.mobs {
+			for player, amount := range mob.byPlayer {
+				damage[[2]string{player, mob.name}] += amount
+			}
+		}
+	}
+	out := make([]models.RaidTarget, 0, len(damage))
+	for id, amount := range damage {
+		out = append(out, models.RaidTarget{Player: id[0], Target: id[1], Damage: amount})
+	}
+	slices.SortFunc(out, func(a, b models.RaidTarget) int {
+		return cmp.Or(cmp.Compare(b.Damage, a.Damage), cmp.Compare(a.Player, b.Player), cmp.Compare(a.Target, b.Target))
+	})
+	return out
 }
 
 // bossPct is the boss's health left, its units together (bossUnits); 0 on a kill, -1 without advanced logging.

@@ -39,7 +39,7 @@ func (r Raid) Live(c *gin.Context) {
 //	@Summary	Every raid night's pulls
 //	@Tags		raid
 //	@Produce	json
-//	@Success	200	{array}	models.RaidNight	"newest night first, each night's pulls in order"
+//	@Success	200	{array}	models.RaidNight	"newest night first, each night's pulls newest first"
 //	@Router		/api/raid/nights [get]
 func (r Raid) Nights(c *gin.Context) {
 	c.JSON(http.StatusOK, r.Pulls.RaidNights())

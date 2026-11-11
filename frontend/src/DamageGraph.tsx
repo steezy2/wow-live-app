@@ -14,6 +14,8 @@ const STEP_MS = 5_000
 const WINDOW_MS = 15_000
 /** The graph's line choice for the group's total, not one player. */
 const TOTAL = ' total'
+/** A line this close to the pointer (in the drawing's units) is the one under it. */
+const HOVER_REACH = 14
 
 /** A finished key's damage (or healing) graph, from its track. */
 export function DamageGraph({ keyView: key }: { keyView: KeyView }) {
@@ -38,9 +40,11 @@ export function DamageGraph({ keyView: key }: { keyView: KeyView }) {
 }
 
 /** Damage (or healing) per second over a key or a raid pull, a line per player in class colours, or the group's total,
- * or one player (click a name), with boss kills and deaths marked: where the damage went up and down. Healing adds the
- * group's healing and damage taken per second, to see where more healing was needed. With onSeek, a click on the
- * graph moves the replay there, and now is drawn as a line. */
+ * or one player, with boss kills and deaths marked: where the damage went up and down. Healing adds the group's
+ * healing and damage taken per second, to see where more healing was needed. The line under the pointer comes to the
+ * front with its player's name and number; a click on it (or on a name) shows just that player, and a right click
+ * everyone again. With onSeek, a click anywhere else moves the replay there, and now is drawn as a line. With
+ * onFocus, the page keeps the one player shown (focus, '' for everyone). */
 export function MeterGraph(props: {
   track: KeyTrack
   end: number
@@ -49,10 +53,17 @@ export function MeterGraph(props: {
   over: 'key' | 'pull'
   now?: number
   onSeek?: (clockMS: number) => void
+  focus?: string
+  onFocus?: (player: string) => void
 }) {
-  const { track, end, marks, group, over, now, onSeek } = props
+  const { track, end, marks, group, over, now, onSeek, focus, onFocus } = props
   const [kind, setKind] = useState<'d' | 'h'>('d')
-  const [only, setOnly] = useState('')
+  const [own, setOwn] = useState('')
+  const [total, setTotal] = useState(false)
+  const [hover, setHover] = useState<{ player: string; i: number } | null>(null)
+  const player = onFocus ? (focus ?? '') : own
+  const setPlayer = onFocus ?? setOwn
+  const only = player || (total ? TOTAL : '')
   const meters = Object.entries(track.meters ?? {})
   if (meters.length === 0) return null
   const times: number[] = []
@@ -66,8 +77,9 @@ export function MeterGraph(props: {
     const each = meters.map(([, points]) => rates(points, of))
     return times.map((_, i) => each.reduce((sum, r) => sum + r[i], 0))
   }
-  const lines = (only === TOTAL ? [] : meters.filter(([p]) => !only || p === only)).map(([player, points]) => ({
-    player,
+  const lines = (only === TOTAL ? [] : meters.filter(([p]) => !only || p === only)).map(([name, points]) => ({
+    player: name,
+    color: classColors[track.classes[name]] ?? 'var(--accent)',
     rates: rates(points, kind),
   }))
   const totals: { name: string; className: string; rates: number[] }[] = []
@@ -81,12 +93,31 @@ export function MeterGraph(props: {
   const top = Math.max(1, ...lines.flatMap((l) => l.rates), ...totals.flatMap((l) => l.rates))
   const x = (t: number) => LEFT + ((W - LEFT) * t) / Math.max(1, end)
   const y = (v: number) => H - BOTTOM - ((H - BOTTOM - 8) * v) / top
-  const seek = (e: MouseEvent<SVGSVGElement>) => {
+  /** Where the pointer is on the drawing: the time under it, and how far down. */
+  const point = (e: MouseEvent<SVGSVGElement>): [number, number] => {
     const box = e.currentTarget.getBoundingClientRect()
     const t = (((e.clientX - box.left) * W) / box.width - LEFT) / (W - LEFT)
-    onSeek?.(Math.round(Math.min(1, Math.max(0, t)) * end))
+    return [Math.min(1, Math.max(0, t)) * end, ((e.clientY - box.top) * H) / box.height]
   }
-  const pick = (name: string) => setOnly(only === name ? '' : name)
+  /** The line under the pointer, and which of its samples. */
+  const under = (e: MouseEvent<SVGSVGElement>) => {
+    const [t, down] = point(e)
+    const i = Math.min(times.length - 1, Math.max(0, Math.round(t / STEP_MS) - 1))
+    const far = (l: (typeof lines)[number]) => Math.abs(y(l.rates[i]) - down)
+    const [nearest] = lines.filter((l) => far(l) <= HOVER_REACH).sort((a, b) => far(a) - far(b))
+    return nearest ? { player: nearest.player, i } : null
+  }
+  const click = (e: MouseEvent<SVGSVGElement>) => {
+    const line = under(e)
+    if (line && lines.length > 1) setPlayer(line.player)
+    else onSeek?.(Math.round(point(e)[0]))
+  }
+  const everyone = () => {
+    setPlayer('')
+    setTotal(false)
+  }
+  const hovered = hover && lines.find((l) => l.player === hover.player)
+  const pointing = hovered && lines.length > 1
   return (
     <section className="panel">
       <h2>
@@ -100,17 +131,32 @@ export function MeterGraph(props: {
         <button aria-pressed={kind === 'h'} onClick={() => setKind('h')}>
           HPS
         </button>
-        <button aria-pressed={only === TOTAL} onClick={() => pick(TOTAL)}>
+        <button
+          aria-pressed={only === TOTAL}
+          onClick={() => {
+            setTotal(only !== TOTAL)
+            setPlayer('')
+          }}
+        >
           {group === 'raid' ? 'Raid' : 'Party'} total
         </button>
-        {only && only !== TOTAL && <button onClick={() => setOnly('')}>Everyone</button>}
+        {player && <button onClick={everyone}>Everyone</button>}
       </div>
       <svg
-        className={onSeek ? 'graph seekable' : 'graph'}
+        className={`graph${onSeek ? ' seekable' : ''}${pointing ? ' pointing' : ''}`}
         viewBox={`0 0 ${W} ${H}`}
         role="img"
         aria-label={`${kind === 'd' ? 'DPS' : 'HPS'} by player`}
-        onClick={onSeek && seek}
+        onClick={click}
+        onMouseMove={(e) => {
+          const line = under(e)
+          setHover((h) => (h?.player === line?.player && h?.i === line?.i ? h : line))
+        }}
+        onMouseLeave={() => setHover(null)}
+        onContextMenu={(e) => {
+          e.preventDefault()
+          everyone()
+        }}
       >
         {[0, 0.5, 1].map((f) => (
           <g key={f} className="graph-axis">
@@ -143,17 +189,18 @@ export function MeterGraph(props: {
             </line>
           ),
         )}
-        {lines.map((l) => (
-          <polyline
-            key={l.player}
-            fill="none"
-            stroke={classColors[track.classes[l.player]] ?? 'var(--accent)'}
-            strokeWidth={2}
-            points={l.rates.map((v, i) => `${x(times[i])},${y(v)}`).join(' ')}
-          >
-            <title>{l.player}</title>
-          </polyline>
-        ))}
+        {[...lines]
+          .sort((a, b) => Number(a === hovered) - Number(b === hovered))
+          .map((l) => (
+            <polyline
+              key={l.player}
+              fill="none"
+              stroke={l.color}
+              strokeWidth={l === hovered ? 3.5 : 2}
+              opacity={pointing && l !== hovered ? 0.3 : 1}
+              points={l.rates.map((v, i) => `${x(times[i])},${y(v)}`).join(' ')}
+            />
+          ))}
         {totals.map((l) => (
           <polyline
             key={l.name}
@@ -166,16 +213,25 @@ export function MeterGraph(props: {
           </polyline>
         ))}
         {now !== undefined && <line className="graph-now" x1={x(now)} x2={x(now)} y1={0} y2={H - BOTTOM} />}
+        {hover && hovered && (
+          <g className="graph-hover" fill={hovered.color}>
+            <circle cx={x(times[hover.i])} cy={y(hovered.rates[hover.i])} r={4} />
+            <text x={W - 4} y={14} textAnchor="end">
+              {hovered.player} · {amount(hovered.rates[hover.i])} {kind === 'd' ? 'DPS' : 'HPS'} at{' '}
+              {clock(times[hover.i])}
+            </text>
+          </g>
+        )}
       </svg>
       <p className="small graph-legend">
-        {meters.map(([player]) => (
+        {meters.map(([name]) => (
           <button
-            key={player}
-            aria-pressed={only === player}
-            style={{ color: classColors[track.classes[player]] ?? 'var(--accent)' }}
-            onClick={() => pick(player)}
+            key={name}
+            aria-pressed={player === name}
+            style={{ color: classColors[track.classes[name]] ?? 'var(--accent)' }}
+            onClick={() => setPlayer(player === name ? '' : name)}
           >
-            ■ {player}
+            ■ {name}
           </button>
         ))}
         {totals.map((l) => (
@@ -183,7 +239,10 @@ export function MeterGraph(props: {
             ■ {l.name}{' '}
           </span>
         ))}
-        <span className="muted">· click a name for just them · boss kills in green, deaths in red</span>
+        <span className="muted">
+          · point at a line for its name · click it, or a name, for just them · right click for everyone · boss kills
+          in green, deaths in red
+        </span>
       </p>
     </section>
   )

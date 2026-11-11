@@ -26,8 +26,8 @@ func (r *raidRun) mark(kind, name string, m models.RaidMark) {
 }
 
 // lanes is a finished pull's timeline: the marks seen as they happened (avoidable hits, stacks past the limit, phase
-// changes, made stretches here) and the deaths, Bloodlust, cooldowns, potions, damage spike, soaks and adds from
-// the pull's facts, each lane's marks in order.
+// changes, made stretches here) and the deaths, Bloodlust and cooldowns (stretches while their buff lasted), potions,
+// damage spike, soaks and adds from the pull's facts, each lane's marks in order.
 func (k *LogTracker) lanes(run *keyRun, p models.RaidPull, end int64) []models.RaidLane {
 	r := run.raid
 	marks := maps.Clone(r.marks)
@@ -49,13 +49,14 @@ func (k *LogTracker) lanes(run *keyRun, p models.RaidPull, end int64) []models.R
 			Bad: d.Early})
 	}
 	for _, t := range p.Lusts {
-		add("lust", "Bloodlust", models.RaidMark{ClockMS: t, Text: "Bloodlust"})
+		add("lust", "Bloodlust", models.RaidMark{ClockMS: t, EndMS: r.lustEnds[t], Text: "Bloodlust"})
 	}
 	for _, c := range p.Cooldowns {
 		if c.Kind == "combat potion" {
 			add("potions", "Potions", models.RaidMark{ClockMS: c.ClockMS, Text: c.Player})
 		} else {
-			add("cooldowns", "Raid cooldowns", models.RaidMark{ClockMS: c.ClockMS, Text: c.Player + " · " + c.Ability})
+			add("cooldowns", "Raid cooldowns", models.RaidMark{ClockMS: c.ClockMS, EndMS: c.EndMS,
+				Text: c.Player + " · " + c.Ability})
 		}
 	}
 	if s := p.Spike; s != nil {
@@ -133,9 +134,11 @@ func spike(track models.KeyTrack, cooldowns []models.KeyCast, window int64) *mod
 }
 
 // suggestions is what to fix on the next pull, most important first, at most rules.Most: deaths to what can be dodged
-// or soaked, early deaths with a defensive ready, mass kills, an uncovered damage spike, stacks past the limit, casts
-// that went off, adds that lived longer than in the best pull, the most avoidable hits, and less damage into the
-// target to burst than the best pull. best is nil for the best pull itself.
+// or soaked, early deaths with a defensive ready, mass kills, several early deaths to one other ability, an uncovered
+// damage spike, stacks past the limit, casts that went off, slow dispels, adds that lived longer than in the best
+// pull, the most avoidable hits, less damage into the target to burst than the best pull, and in a pull long enough
+// for them, no Bloodlust and raiders without a combat potion; last, raid cooldowns stacked. best is nil for the best
+// pull itself.
 func suggestions(p models.RaidPull, best *models.RaidPull, rules models.SuggestionRules) []string {
 	var out []string
 	say := func(format string, args ...any) { out = append(out, fmt.Sprintf(format, args...)) }
@@ -143,10 +146,17 @@ func suggestions(p models.RaidPull, best *models.RaidPull, rules models.Suggesti
 	for _, a := range p.Avoidable {
 		avoidable[a.Ability] = true
 	}
+	said := map[string]bool{} // abilities whose deaths have a line of their own
+	for _, s := range p.Soaks {
+		said[s.Ability] = true
+	}
+	for _, m := range p.MassKills {
+		said[m.Ability] = true
+	}
 	byAbility := map[string][]string{}
 	var abilities, ready []string
 	for _, d := range p.Deaths {
-		if avoidable[d.Ability] {
+		if avoidable[d.Ability] || (d.Early && d.Ability != "" && !said[d.Ability]) {
 			if byAbility[d.Ability] == nil {
 				abilities = append(abilities, d.Ability)
 			}
@@ -157,7 +167,9 @@ func suggestions(p models.RaidPull, best *models.RaidPull, rules models.Suggesti
 		}
 	}
 	for _, a := range abilities {
-		say("%s to %s, which can be dodged: %s", deaths(len(byAbility[a])), a, nameList(byAbility[a]))
+		if avoidable[a] {
+			say("%s to %s, which can be dodged: %s", deaths(len(byAbility[a])), a, nameList(byAbility[a]))
+		}
 	}
 	for _, s := range p.Soaks {
 		if len(s.Died) > 0 {
@@ -169,6 +181,11 @@ func suggestions(p models.RaidPull, best *models.RaidPull, rules models.Suggesti
 	}
 	for _, m := range p.MassKills {
 		say("%s killed %d raiders at %s", m.Ability, m.Killed, clockText(m.ClockMS))
+	}
+	for _, a := range abilities {
+		if !avoidable[a] && len(byAbility[a]) > 1 {
+			say("%s to %s: %s", deaths(len(byAbility[a])), a, nameList(byAbility[a]))
+		}
 	}
 	if s := p.Spike; s != nil && len(s.Covered) == 0 {
 		say("No raid cooldown for the worst damage (%s/s at %s)", short(float64(s.PerSecond)), clockText(s.ClockMS))
@@ -190,6 +207,18 @@ func suggestions(p models.RaidPull, best *models.RaidPull, rules models.Suggesti
 	}
 	for _, spell := range slices.Sorted(maps.Keys(wentOff)) {
 		say("%s went off %s", spell, times(wentOff[spell]))
+	}
+	slow := map[string][]string{}
+	for _, d := range p.Dispels {
+		switch {
+		case d.By == "":
+			slow[d.Spell] = append(slow[d.Spell], d.Player+" (ran out)")
+		case float64(d.AfterMS) > rules.DispelSlowSeconds*1000:
+			slow[d.Spell] = append(slow[d.Spell], fmt.Sprintf("%s (%.1f s)", d.Player, float64(d.AfterMS)/1000))
+		}
+	}
+	for _, spell := range slices.Sorted(maps.Keys(slow)) {
+		say("%s sat too long on %s: %s", spell, raiders(len(slow[spell])), nameList(slow[spell]))
 	}
 	if best != nil {
 		for _, a := range p.Adds {
@@ -217,6 +246,35 @@ func suggestions(p models.RaidPull, best *models.RaidPull, rules models.Suggesti
 					short(float64(best.Priority[i].Damage)), best.Number)
 			}
 		}
+	}
+	if float64(p.DurationMS) > rules.LustAfterSeconds*1000 {
+		if len(p.Lusts) == 0 {
+			say("No Bloodlust this pull")
+		}
+		var without []string
+		for _, r := range p.Meter.Rows {
+			if !slices.ContainsFunc(p.Cooldowns, func(c models.KeyCast) bool {
+				return c.Kind == "combat potion" && c.Player == r.Player
+			}) {
+				without = append(without, r.Player)
+			}
+		}
+		slices.Sort(without)
+		if len(without) > 0 {
+			say("%s used no combat potion: %s", raiders(len(without)), nameList(without))
+		}
+	}
+	var last *models.KeyCast // the raid cooldown before this one
+	for i := range p.Cooldowns {
+		c := &p.Cooldowns[i]
+		if c.Kind != "raid cooldown" {
+			continue
+		}
+		if last != nil && float64(c.ClockMS-last.ClockMS) <= rules.CooldownOverlapSeconds*1000 {
+			say("Raid cooldowns stacked at %s: %s, %s", clockText(last.ClockMS), last.Ability, c.Ability)
+			break
+		}
+		last = c
 	}
 	return out[:min(len(out), rules.Most)]
 }

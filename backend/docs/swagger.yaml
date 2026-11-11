@@ -103,6 +103,10 @@ definitions:
         type: string
       clockMS:
         type: integer
+      endMS:
+        description: 'a raid cooldown: when its buff last left a raider (0 when none
+          was seen to)'
+        type: integer
       kind:
         enum:
         - defensive
@@ -804,6 +808,13 @@ definitions:
     type: object
   models.RaidPull:
     properties:
+      abilities:
+        description: |-
+          Abilities is each raider's damage, healing and casts by ability, Taken their damage taken by ability and Targets
+          their damage into each enemy, most first: missing in pulls saved before Nov 11.
+        items:
+          $ref: '#/definitions/models.KeyAbility'
+        type: array
       adds:
         items:
           $ref: '#/definitions/models.RaidAdd'
@@ -908,6 +919,14 @@ definitions:
         items:
           type: string
         type: array
+      taken:
+        items:
+          $ref: '#/definitions/models.KeyHit'
+        type: array
+      targets:
+        items:
+          $ref: '#/definitions/models.RaidTarget'
+        type: array
       wentOff:
         description: must-stop casts that finished
         items:
@@ -971,6 +990,15 @@ definitions:
         items:
           $ref: '#/definitions/models.PlayerCount'
         type: array
+    type: object
+  models.RaidTarget:
+    properties:
+      damage:
+        type: integer
+      player:
+        type: string
+      target:
+        type: string
     type: object
   models.ReadyCheck:
     properties:
@@ -1459,7 +1487,7 @@ paths:
       - application/json
       responses:
         "200":
-          description: newest night first, each night's pulls in order
+          description: newest night first, each night's pulls newest first
           schema:
             items:
               $ref: '#/definitions/models.RaidNight'

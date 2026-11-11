@@ -91,12 +91,14 @@ type KeyInterrupt struct {
 	ClockMS int64  `json:"clockMS"`
 }
 
-// KeyCast is a player using a defensive, healthstone, health potion or combat potion, or crowd control.
+// KeyCast is a player using a defensive, healthstone, health potion or combat potion, crowd control, or a raid
+// cooldown.
 type KeyCast struct {
 	Player  string `json:"player"`
 	Ability string `json:"ability"`
 	Kind    string `json:"kind" enums:"defensive,healthstone,health potion,combat potion,kick,cc,raid cooldown"`
 	ClockMS int64  `json:"clockMS"`
+	EndMS   int64  `json:"endMS,omitempty"` // a raid cooldown: when its buff last left a raider (0 when none was seen to)
 }
 
 // KeyPull is a trash pull with minibosses (the dungeon file's miniboss NPCs): the share of the party's damage that went
