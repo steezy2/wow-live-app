@@ -35,15 +35,16 @@ const (
 )
 
 // raidSetup is what raid pulls are read with: the raid rules, each boss's mechanics, the store of finished pulls,
-// the raid cooldowns by name, and what the pulls read so far showed each raider carries (a raider rarely presses
+// the raid cooldowns by name, and what the night's pulls so far showed each raider carries (a raider rarely presses
 // every survival button in one pull, so a death's "still ready" list needs the earlier pulls; cooldowns start fresh
-// each pull, as the game resets them when an encounter ends).
+// each pull, as the game resets them when an encounter ends, and the kit each night, as talents change between).
 type raidSetup struct {
 	rules     models.RaidRules
 	bosses    map[string]models.RaidBoss
 	store     models.PullStore
 	cooldowns map[string]bool
 	kit       models.Kit
+	kitNight  string
 }
 
 // raidRun is what a raid pull adds to its run: the difficulty, the boss's mechanics and phases, the hostile units
@@ -93,7 +94,7 @@ func (k *LogTracker) EnableRaid(rules models.RaidRules, bosses map[string]models
 	}
 	k.mu.Lock()
 	defer k.mu.Unlock()
-	k.raid, k.pulls = &raidSetup{rules: rules, bosses: bosses, store: store, cooldowns: cooldowns, kit: LearnKit(nil)}, pulls
+	k.raid, k.pulls = &raidSetup{rules: rules, bosses: bosses, store: store, cooldowns: cooldowns}, pulls
 	return nil
 }
 
@@ -116,6 +117,9 @@ func fought(p models.RaidPull) bool {
 // instance).
 func (k *LogTracker) startPull(line models.LogLine) {
 	f := line.Fields
+	if n := night(line.Time); n != k.raid.kitNight {
+		k.raid.kit, k.raid.kitNight = LearnKit(nil), n
+	}
 	run := newRun(models.Key{Dungeon: f[1], Start: line.Time, Status: "running"}, f[4])
 	boss := k.raid.bosses[f[1]]
 	run.facts = &models.DungeonFacts{Name: f[1], Avoidable: boss.Avoidable, Soak: boss.Soak, Dispel: boss.Dispel,
@@ -203,18 +207,26 @@ func (k *LogTracker) raidLine(line models.LogLine) bool {
 }
 
 // buffLeft notes a buff leaving a raider at a time on the pull's clock: the last Bloodlust lasted until then, and so
-// did the caster's last raid cooldown of that name.
+// did the caster's last raid cooldown of that name; a combat potion's buff the raider didn't drink this pull was
+// drunk before it, so it counts at 0.
 func (k *LogTracker) buffLeft(clockMS int64, caster, buff string) {
 	run := k.current
 	r := run.raid
-	if n := len(run.key.Lusts); n > 0 && slices.Contains(k.rules.Lust.Names, buff) {
-		r.lustEnds[run.key.Lusts[n-1]] = clockMS
-	}
-	for i := len(r.cooldowns) - 1; i >= 0 && k.raid.cooldowns[buff]; i-- {
-		if c := &r.cooldowns[i]; c.Player == caster && c.Ability == buff {
-			c.EndMS = clockMS
-			break
+	switch {
+	case slices.Contains(k.rules.Lust.Names, buff):
+		if n := len(run.key.Lusts); n > 0 {
+			r.lustEnds[run.key.Lusts[n-1]] = clockMS
 		}
+	case k.raid.cooldowns[buff]:
+		for i := len(r.cooldowns) - 1; i >= 0; i-- {
+			if c := &r.cooldowns[i]; c.Player == caster && c.Ability == buff {
+				c.EndMS = clockMS
+				break
+			}
+		}
+	case k.kinds[buff] == "combat potion" && caster != "" &&
+		!slices.ContainsFunc(run.key.Casts, func(c models.KeyCast) bool { return c.Player == caster && c.Ability == buff }):
+		run.key.Casts = append(run.key.Casts, models.KeyCast{Player: caster, Ability: buff, Kind: "combat potion"})
 	}
 }
 

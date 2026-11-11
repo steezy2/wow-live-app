@@ -238,6 +238,7 @@ export const PullMeters = memo(function PullMeters(props: {
   }
   const views = abilityViews(focus, pull.abilities ?? [], pull.taken ?? [])
   const targets = raidTargets(pull, focus)
+  const color = classColors[classes[focus]] ?? 'var(--accent)'
   const back = (e: MouseEvent) => {
     e.preventDefault()
     onFocus('')
@@ -252,9 +253,9 @@ export const PullMeters = memo(function PullMeters(props: {
       </h2>
       {pull.abilities ? (
         <>
-          <AbilityBars rows={rows} color={classColors[classes[focus]] ?? 'var(--accent)'} />
+          <AbilityBars rows={rows} color={color} />
           <h3 className="muted small">{under}</h3>
-          <AbilityBars rows={underRows} color={classColors[classes[focus]] ?? 'var(--accent)'} label={underLabel} />
+          <AbilityBars rows={underRows} color={color} label={underLabel} />
         </>
       ) : (
         <NoAbilities />

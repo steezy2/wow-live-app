@@ -73,7 +73,7 @@ export function RaidReplay(props: {
               trailMS={trail}
               deaths={pull.deaths}
               focus={focus}
-              onPick={(player) => onFocus(player ?? '')}
+              onPick={onFocus}
             />
             <p className="muted small">
               Scroll to zoom, drag to move, double click for the whole room · click a raider to focus them, right click

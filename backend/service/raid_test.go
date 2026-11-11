@@ -394,14 +394,45 @@ func TestRaidPullKeepsAbilitiesTargetsAndHowLongBuffsLasted(t *testing.T) {
 	}
 }
 
-func TestARaidDeathKnowsADefensiveUsedInAnEarlierPull(t *testing.T) {
+func TestARaidPullCountsACombatPotionDrunkBeforeIt(t *testing.T) {
+	keys, store := newRaidTracker(t)
+	keys.kinds["Light's Potential"] = "combat potion"
+	removed := func(s float64, unit string) string {
+		return raidAt(3, s, "SPELL_AURA_REMOVED,"+unit+","+unit+`,1236616,"Light's Potential",0x1,BUFF`)
+	}
+	feed(t, keys, pullLines(3, 0, 120, 40, false, removed(25, testPlayer),
+		raidAt(3, 10, "SPELL_CAST_SUCCESS,"+shamanUnit+","+noUnit+`,1236616,"Light's Potential",0x1,`+
+			advancedOf("Player-76-0000BBBB", "0000000000000000")),
+		removed(40, shamanUnit),
+	)...)
+	if _, err := keys.SaveFinished(); err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	for _, c := range store.pulls[0].Cooldowns {
+		got = append(got, fmt.Sprintf("%s %d", c.Player, c.ClockMS/1000))
+	}
+	if fmt.Sprint(got) != "[Testmage 0 Testshaman 10]" {
+		t.Fatalf("combat potions = %v; want the mage's from before the pull at 0 and the shaman's at 10 s", got)
+	}
+}
+
+func TestARaidDeathKnowsTheDefensivesUsedInEarlierPullsThatNight(t *testing.T) {
 	keys, _ := newRaidTracker(t)
-	lines := pullLines(3, 0, 60, 60, false, raidAt(3, 5, "SPELL_CAST_SUCCESS,"+testPlayer+","+noUnit+
-		`,45438,"Ice Block",0x10,`+advancedOf("Player-76-0000AAAA", "0000000000000000")))
-	lines = append(lines, pullLines(3, 600, 60, 60, false, raidAt(3, 610, "UNIT_DIED,"+noUnit+","+testPlayer+",0"))...)
-	feed(t, keys, lines...)
+	keys.kinds["Light's Potential"] = "combat potion"
+	cast := func(s float64, spell string) string {
+		return raidAt(3, s, "SPELL_CAST_SUCCESS,"+testPlayer+","+noUnit+`,45438,"`+spell+`",0x10,`+
+			advancedOf("Player-76-0000AAAA", "0000000000000000"))
+	}
+	died := func(day int, s float64) string { return raidAt(day, s, "UNIT_DIED,"+noUnit+","+testPlayer+",0") }
+	lines := pullLines(3, 0, 60, 60, false, cast(5, "Ice Block"), cast(6, "Light's Potential"))
+	feed(t, keys, append(lines, pullLines(3, 600, 60, 60, false, died(3, 610))...)...)
 	if d := keys.RaidLive(0).Last.Deaths; len(d) != 1 || fmt.Sprint(d[0].Ready) != "[Ice Block]" {
 		t.Fatalf("deaths = %+v; want the mage dead with the Ice Block of the pull before still ready", d)
+	}
+	feed(t, keys, pullLines(4, 0, 60, 60, false, died(4, 10))...)
+	if d := keys.RaidLive(0).Last.Deaths; len(d) != 1 || len(d[0].Ready) > 0 {
+		t.Fatalf("deaths = %+v; want nothing known ready the next night", d)
 	}
 }
 

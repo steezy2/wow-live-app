@@ -252,7 +252,7 @@ function canvasSize(backdrop: Backdrop): [number, number] {
 
 /** The map itself: the backdrop, each player's trail and dot in their class colour (a cross where they died), a raid
  * boss's units, and mob deaths so far. The wheel zooms around the pointer, a drag pans and a double click shows all
- * of it again. With onPick, a click on a player's dot picks them and a right click picks nobody (null); the focused
+ * of it again. With onPick, a click on a player's dot picks them and a right click picks nobody (''); the focused
  * player gets a ring and their name, and the others' trails fade. */
 export function MapCanvas(props: {
   track: KeyTrack
@@ -262,7 +262,7 @@ export function MapCanvas(props: {
   trailMS: number
   deaths: { player: string; clockMS: number }[]
   focus?: string
-  onPick?: (player: string | null) => void
+  onPick?: (player: string) => void
 }) {
   const { track, backdrop, floor, now, trailMS, deaths, focus, onPick } = props
   const ref = useRef<HTMLCanvasElement>(null)
@@ -467,7 +467,7 @@ export function MapCanvas(props: {
         onPick &&
         ((e) => {
           e.preventDefault()
-          onPick(null)
+          onPick('')
         })
       }
     />
