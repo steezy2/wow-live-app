@@ -31,15 +31,16 @@ var reviewedKey = models.Key{Start: 2, MapID: 585, Level: 12, Status: "timed", F
 
 func TestBuildReview(t *testing.T) {
 	// The top Arcane runs' median is 105k; the shaman had no baseline but kicked 4 a run before.
-	baselines := map[string][]models.MPlusRanking{"Mage": {{Amount: 50_000}, {Amount: 105_000}, {Amount: 200_000}}}
+	baselines := map[string]map[string][]models.MPlusRanking{"Mage": {
+		"DPS": {{Amount: 50_000}, {Amount: 105_000}, {Amount: 200_000}}, "HPS": {{Amount: 4_000}, {Amount: 6_000}}}}
 	earlier := []models.Key{{Overall: models.KeyMeter{Rows: []models.KeyMeterRow{{Player: "Shaman", Interrupts: 4}}}}}
 	got := buildReview(reviewedKey, earlier, baselines, []float64{20_000, 25_000, 40_000})
 	mage, shaman := got.Players[0], got.Players[1]
-	// Everyone gets DPS then HPS with their totals; only the role's main one is against top runs.
+	// Everyone gets DPS then HPS with their totals, each against its own top runs.
 	if m, s := mage.Metrics, shaman.Metrics; m[0].Name != "DPS" || m[0].Top != 105_000 || m[0].Total != 150_000_000 ||
-		m[1].Name != "HPS" || m[1].Top != 0 || s[0].Name != "DPS" || s[1].Name != "HPS" || s[1].Total != 75_000_000 ||
+		m[1].Name != "HPS" || m[1].Top != 5_000 || s[1].Top != 0 || s[0].Name != "DPS" || s[1].Name != "HPS" || s[1].Total != 75_000_000 ||
 		s[1].TotalName != "healing" {
-		t.Fatalf("metrics = %+v, %+v; want DPS and HPS first with totals, the mage's DPS against 105k", m[:2], s[:2])
+		t.Fatalf("metrics = %+v, %+v; want DPS and HPS first with totals, the mage's against 105k and 5k", m[:2], s[:2])
 	}
 	wantAdvice := []string{"Died to Light Bolt at 12:03 with Ice Block ready",
 		"Took 4.0M avoidable damage, the most in the group, most of it from Burrow",
@@ -119,7 +120,7 @@ func TestAdviceNamesWhatElseToWorkOn(t *testing.T) {
 func TestAnAbandonedKeyIsReviewedOverItsOwnTime(t *testing.T) {
 	key := reviewedKey // left 8:20 in, before anyone died
 	key.Status, key.FinalMS, key.End, key.Deaths = "abandoned", 0, key.Start+keyCountdownMS+500_000, nil
-	got := buildReview(key, nil, map[string][]models.MPlusRanking{"Mage": {{Amount: 200_000}}}, []float64{25_000})
+	got := buildReview(key, nil, map[string]map[string][]models.MPlusRanking{"Mage": {"DPS": {{Amount: 200_000}}}}, []float64{25_000})
 	// 50M taken in 500 s is 100,000 a second, against the top run's 25,000.
 	wantParty := "The party took 4.0× the damage per second of 1 top +12 runs"
 	wantBaseline := "Top runs of each spec at +12 from Warcraft Logs: whole keys, against the 8:20 of this one"
@@ -169,10 +170,10 @@ func TestReviewerGuardsPointsAndKeepsReviews(t *testing.T) {
 		t.Fatalf("with 50 points left: %v, want ErrNoPoints", err)
 	}
 	source.left = 900
-	if _, err := r.Review(context.Background(), key.Start); err != nil || source.asks != 2 {
-		t.Fatalf("review: %v after %d rankings asks; want one per player", err, source.asks)
+	if _, err := r.Review(context.Background(), key.Start); err != nil || source.asks != 4 {
+		t.Fatalf("review: %v after %d rankings asks; want DPS and HPS per player", err, source.asks)
 	}
-	if _, err := r.Review(context.Background(), key.Start); err != nil || source.asks != 2 {
+	if _, err := r.Review(context.Background(), key.Start); err != nil || source.asks != 4 {
 		t.Fatalf("second review asked Warcraft Logs again (%d asks, %v); want the kept one", source.asks, err)
 	}
 	if _, err := r.Cached(99); !errors.Is(err, ErrNoSuchKey) {
@@ -182,7 +183,7 @@ func TestReviewerGuardsPointsAndKeepsReviews(t *testing.T) {
 	if _, err := r.Cached(key.Start); !errors.Is(err, ErrNoSuchKey) {
 		t.Fatalf("a review from before the key went on: %v, want ErrNoSuchKey", err)
 	}
-	if got, err := r.Review(context.Background(), key.Start); err != nil || source.asks != 4 || got.End != 1_630_000 {
+	if got, err := r.Review(context.Background(), key.Start); err != nil || source.asks != 8 || got.End != 1_630_000 {
 		t.Fatalf("review after the key went on: end %d, %d asks, %v; want it made again", got.End, source.asks, err)
 	}
 }

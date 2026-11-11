@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"maps"
 	"slices"
+	"strings"
 	"sync"
 
 	"wow-live/backend/models"
@@ -76,19 +77,23 @@ func (r Reviewer) Review(ctx context.Context, start int64) (models.KeyReview, er
 	}
 	encounter := encounters[key.Dungeon]
 	length := lengthMS(key)
-	baselines := map[string][]models.MPlusRanking{}
+	baselines := map[string]map[string][]models.MPlusRanking{}
 	var similar []models.MPlusRanking
 	for player, specID := range key.Specs {
 		spec, ok := specs[specID]
 		if !ok || encounter == 0 {
 			continue
 		}
-		runs, err := r.Baselines.MPlusRankings(ctx, encounter, key.Level, spec.Class, spec.Name, metricOf(spec))
-		if err != nil {
-			return models.KeyReview{}, err
+		baselines[player] = map[string][]models.MPlusRanking{}
+		for _, metric := range []string{dpsMetric.name, hpsMetric.name} {
+			runs, err := r.Baselines.MPlusRankings(ctx, encounter, key.Level, spec.Class, spec.Name,
+				strings.ToLower(metric))
+			if err != nil {
+				return models.KeyReview{}, err
+			}
+			baselines[player][metric] = nearTime(runs, length)
 		}
-		baselines[player] = nearTime(runs, length)
-		similar = append(similar, baselines[player]...)
+		similar = append(similar, baselines[player][mainMetric(spec)]...)
 	}
 	var taken []float64 // the similar runs' party damage taken per second
 	slices.SortFunc(similar, func(a, b models.MPlusRanking) int {
@@ -130,7 +135,8 @@ func (r Reviewer) TopRuns(ctx context.Context, key models.Key) ([]int64, error) 
 		if !ok {
 			continue
 		}
-		runs, err := r.Baselines.MPlusRankings(ctx, encounter, key.Level, spec.Class, spec.Name, metricOf(spec))
+		runs, err := r.Baselines.MPlusRankings(ctx, encounter, key.Level, spec.Class, spec.Name,
+			strings.ToLower(mainMetric(spec)))
 		if err != nil {
 			return nil, err
 		}
@@ -162,14 +168,6 @@ func (k *KeyTracker) finished(start int64) (models.Key, []models.Key, error) {
 		}
 	}
 	return key, earlier, nil
-}
-
-// metricOf is what a spec is ranked by: healing for healers, damage for everyone else (tanks too, in M+).
-func metricOf(spec specInfo) string {
-	if spec.Healer {
-		return "hps"
-	}
-	return "dps"
 }
 
 // nearTime is the runs within similarTime of a key's time, or all of them when none are.
