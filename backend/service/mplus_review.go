@@ -65,16 +65,7 @@ func keyLanes(key models.Key, pulls []models.PullSpan) []models.RaidLane {
 	for _, w := range key.WastedKicks {
 		add("stops", "Wasted kicks", models.RaidMark{ClockMS: w.ClockMS, Text: w.Player + " · " + w.Ability, Bad: true})
 	}
-	lanes := []models.RaidLane{}
-	for l, m := range marks {
-		slices.SortStableFunc(m, func(a, b models.RaidMark) int { return cmp.Compare(a.ClockMS, b.ClockMS) })
-		lanes = append(lanes, models.RaidLane{Name: l.name, Kind: l.kind, Marks: m})
-	}
-	slices.SortFunc(lanes, func(a, b models.RaidLane) int {
-		return cmp.Or(cmp.Compare(slices.Index(laneKinds, a.Kind), slices.Index(laneKinds, b.Kind)),
-			cmp.Compare(a.Name, b.Name))
-	})
-	return lanes
+	return packLanes(marks)
 }
 
 // pullStarts is when each of a key's pulls started, from its lanes (none in a key saved before Nov 11).

@@ -84,6 +84,11 @@ func (k *LogTracker) lanes(run *keyRun, p models.RaidPull, end int64) []models.R
 				Bad: u.died == 0})
 		}
 	}
+	return packLanes(marks)
+}
+
+// packLanes is the marks of each lane in time order, the lanes by kind (laneKinds) and name.
+func packLanes(marks map[lane][]models.RaidMark) []models.RaidLane {
 	lanes := []models.RaidLane{}
 	for l, m := range marks {
 		slices.SortStableFunc(m, func(a, b models.RaidMark) int { return cmp.Compare(a.ClockMS, b.ClockMS) })

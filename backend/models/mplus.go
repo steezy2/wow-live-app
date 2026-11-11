@@ -487,10 +487,8 @@ type KeyView struct {
 	Chests     int              `json:"chests"`
 	Projection *KeyProjection   `json:"projection,omitempty"`
 	BestBosses map[string]int64 `json:"bestBosses,omitempty"`
-	// BestFinalMS and BestPulls are the best other timed run's time and when each of its pulls started, for the pace
-	// line (BestPulls is empty for a best run saved before Nov 11).
-	BestFinalMS int64   `json:"bestFinalMS,omitempty"`
-	BestPulls   []int64 `json:"bestPulls,omitempty"`
+	// BestFinalMS is the best other timed run's time, for the pace line under the result.
+	BestFinalMS int64 `json:"bestFinalMS,omitempty"`
 	// SilentMS is how long ago the last line of a running key was logged (0 once it's over). The game writes its log
 	// in batches as fights start and end, so a long silence is a long fight, or a party that left.
 	SilentMS int64 `json:"silentMS"`

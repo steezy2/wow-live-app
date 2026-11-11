@@ -1681,14 +1681,8 @@ const docTemplate = `{
                     }
                 },
                 "bestFinalMS": {
-                    "description": "BestFinalMS and BestPulls are the best other timed run's time and when each of its pulls started, for the pace\nline (BestPulls is empty for a best run saved before Nov 11).",
+                    "description": "BestFinalMS is the best other timed run's time, for the pace line under the result.",
                     "type": "integer"
-                },
-                "bestPulls": {
-                    "type": "array",
-                    "items": {
-                        "type": "integer"
-                    }
                 },
                 "betweenPulls": {
                     "description": "BetweenPulls is the time between each pull and the one before it (from the second pull), on the key's clock.",

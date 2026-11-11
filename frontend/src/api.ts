@@ -203,9 +203,8 @@ export interface KeyView {
   /** How long each boss took in your fastest timed other run of the dungeon at this level, by name (when there is
    * one). */
   bestBosses?: Record<string, number>
-  /** The fastest timed other run's time and when its pulls started (missing for one saved before Nov 11). */
+  /** The fastest timed other run's time. */
   bestFinalMS?: number
-  bestPulls?: number[]
   /** How long ago a running key's last line was logged (0 once it's over): the game writes its log in batches as
    * fights start and end, so a long silence is a long fight, or a party that left. */
   silentMS: number
