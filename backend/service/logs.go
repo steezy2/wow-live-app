@@ -18,12 +18,11 @@ var ErrBusy = errors.New("already working on the log folder")
 // ErrBadLog is a log name the listing doesn't offer for that action (archive or delete).
 var ErrBadLog = errors.New("no such log to do that to")
 
-// LogFiles marks up the log folder's logs and the archived ones for Settings: which the game may still write (the
-// newest, and any written in the last quietMS), which are read (read says, for a log in the folder; an archived one
-// was read before it was zipped), how many saved keys and pulls started in each, and which to tick at first. The
-// folder's logs come first, then the archived ones, each newest first.
-func LogFiles(files []models.LogFile, read func(name string) bool, keyStarts, pullStarts []int64,
-	nowMS int64) []models.LogFile {
+// LogFiles marks up the log folder's logs (Read set for those read) and the archived ones for Settings: which the game
+// may still write (the newest, and any written in the last quietMS), that an archived one is read (it was, before it
+// was zipped), how many saved keys and pulls started in each, and which to tick at first. The folder's logs come
+// first, then the archived ones, each newest first.
+func LogFiles(files []models.LogFile, keyStarts, pullStarts []int64, nowMS int64) []models.LogFile {
 	files = slices.Clone(files)
 	slices.SortFunc(files, func(a, b models.LogFile) int {
 		switch {
@@ -41,18 +40,21 @@ func LogFiles(files []models.LogFile, read func(name string) bool, keyStarts, pu
 			f.Active = newest || nowMS-f.WrittenMS < quietMS
 			newest = false
 		}
-		f.Read = f.Archived || read(f.Name)
+		f.Read = f.Read || f.Archived
 		f.Keys, f.Pulls = startedIn(keyStarts, *f), startedIn(pullStarts, *f)
 		f.Suggested = !f.Archived && !f.Active && f.Read && nowMS-f.WrittenMS >= archiveAfterMS
 	}
 	return files
 }
 
-// startedIn counts the starts between the log's first line and its last write.
+// startedIn counts the starts between the log's first line and its last write (none when no line parses).
 func startedIn(starts []int64, f models.LogFile) int {
+	if f.FirstMS == 0 {
+		return 0
+	}
 	n := 0
 	for _, s := range starts {
-		if f.FirstMS > 0 && s >= f.FirstMS && s <= f.WrittenMS {
+		if s >= f.FirstMS && s <= f.WrittenMS {
 			n++
 		}
 	}

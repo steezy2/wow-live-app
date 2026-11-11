@@ -397,7 +397,7 @@ export function MapCanvas(props: {
         const here = positionAt(points, now)
         const seen = points
           .slice(indexAfter(points, now - trailMS - 1), indexAfter(points, now))
-          .filter((p) => p.t >= now - trailMS && p.map === floor)
+          .filter((p) => p.map === floor)
         if (here && here.map === floor && seen.length > 0) seen.push(here)
         ctx.strokeStyle = colour
         ctx.lineWidth = dot / 2

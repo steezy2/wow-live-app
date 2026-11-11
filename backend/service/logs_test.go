@@ -11,15 +11,13 @@ func TestLogFilesSuggested(t *testing.T) {
 	const day = 24 * 60 * 60_000
 	now := int64(100 * day)
 	files := []models.LogFile{
-		{Name: "old-read", WrittenMS: now - 20*day, FirstMS: now - 21*day},
+		{Name: "old-read", WrittenMS: now - 20*day, FirstMS: now - 21*day, Read: true},
 		{Name: "old-unread", WrittenMS: now - 30*day, FirstMS: now - 31*day},
-		{Name: "recent", WrittenMS: now - 3*day, FirstMS: now - 4*day},
-		{Name: "newest", WrittenMS: now - day/2, FirstMS: now - day}, // Follow's
+		{Name: "recent", WrittenMS: now - 3*day, FirstMS: now - 4*day, Read: true},
+		{Name: "newest", WrittenMS: now - day/2, FirstMS: now - day, Read: true}, // Follow's
 		{Name: "zipped", WrittenMS: now - 50*day, Archived: true},
 	}
-	files[3].WrittenMS = now - day/2
-	read := func(name string) bool { return name != "old-unread" }
-	got := LogFiles(files, read, []int64{now - 21*day + 5, now - 20*day + 1, now - 4*day}, []int64{now - 31*day + 1}, now)
+	got := LogFiles(files, []int64{now - 21*day + 5, now - 20*day + 1, now - 4*day}, []int64{now - 31*day + 1}, now)
 	want := []struct {
 		name                      string
 		active, suggested, isRead bool
