@@ -87,5 +87,7 @@ externals = [
 # Pull-start buffs count as a flask or food when their name contains one of these.
 flask = ["Flask of", "Phial of"]
 food = ["Well Fed"]
-# Throughput potions (exact names).
-combat_potions = ["Light's Potential", "Potion of Recklessness"]
+# Throughput potions (exact names), and their buffs' aura IDs (Light's Potential, Potion of Recklessness, Liquid
+# Luster) for a pull-start aura list holding one the log hasn't named yet: a raider who starts with one pre-potted.
+combat_potions = ["Light's Potential", "Potion of Recklessness", "Liquid Luster"]
+combat_potion_ids = [1236616, 1236994, 1295132]

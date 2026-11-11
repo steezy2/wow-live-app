@@ -44,32 +44,35 @@ type WCLKeys interface {
 type SettingsAPI struct {
 	Settings    Settings
 	Keys        WCLKeys
-	ReadOldKeys func() (int, error)
+	ReadOldKeys func(all bool) (read, saved int, err error)
 }
 
-// OldKeys is how many keys are saved after reading the log folder.
+// OldKeys is how many logs were read and how many keys are saved after reading the log folder.
 type OldKeys struct {
+	Read  int `json:"read"`
 	Saved int `json:"saved"`
 }
 
 // ReadKeys godoc
 //
 //	@Summary		Save the keys and raid pulls already in the log folder
-//	@Description	Reads every combat log in the folder and saves each finished key and raid pull, so the estimate
-//	@Description	and the best pulls have earlier runs to go on. Takes about a minute for a few hundred MB of logs.
+//	@Description	Reads the combat logs in the folder that are new or changed since the last read (all=true: every
+//	@Description	one) and saves each finished key and raid pull, so the estimate and the best pulls have earlier runs
+//	@Description	to go on. Reading 3 GB of logs takes about 10 s.
 //	@Tags			settings
 //	@Produce		json
+//	@Param			all	query		bool	false	"read every log again, even ones already read"
 //	@Success		200	{object}	OldKeys
 //	@Failure		500	{object}	ErrorResponse
 //	@Router			/api/settings/read-keys [post]
 func (s SettingsAPI) ReadKeys(c *gin.Context) {
-	saved, err := s.ReadOldKeys()
+	read, saved, err := s.ReadOldKeys(c.Query("all") == "true")
 	if err != nil {
 		log.Printf("reading old logs: %v", err)
 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "couldn't read the log folder"})
 		return
 	}
-	c.JSON(http.StatusOK, OldKeys{Saved: saved})
+	c.JSON(http.StatusOK, OldKeys{Read: read, Saved: saved})
 }
 
 // Get godoc

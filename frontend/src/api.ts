@@ -265,6 +265,8 @@ export interface KeyTrack {
   casts?: Record<string, { t: number; s: string; e?: number; x?: boolean }[]>
   abilities?: Record<string, { a: string; p: [number, number, number, number][] }[]>
   abilityTimes?: number[]
+  /** Each raider's damage into each enemy (the enemy's name as `a`) in the same stretches as abilities. */
+  targetSeries?: Record<string, { a: string; p: [number, number, number, number][] }[]>
 }
 
 /** One number of a player's run: the median of their spec's top runs (0 without), their usual here (-1 without), and
@@ -565,9 +567,15 @@ export async function removeKeys(): Promise<void> {
   await call('/api/settings/warcraftlogs', { method: 'DELETE' })
 }
 
-/** Reads every combat log in the log folder and saves each finished key; says how many keys are saved. */
-export async function readOldKeys(): Promise<number> {
-  return ((await (await call('/api/settings/read-keys', { method: 'POST' })).json()) as { saved: number }).saved
+/** How many logs a read of the log folder read, and how many keys are saved (controller.OldKeys). */
+export interface OldKeys {
+  read: number
+  saved: number
+}
+
+/** Reads the log folder's new or changed logs (all: every log again) and saves each finished key and raid pull. */
+export async function readOldKeys(all = false): Promise<OldKeys> {
+  return (await (await call(`/api/settings/read-keys${all ? '?all=true' : ''}`, { method: 'POST' })).json()) as OldKeys
 }
 
 /** A raid pull in a list (models.RaidPullSummary): when, which boss, its number tonight, and how far it got (bossPct

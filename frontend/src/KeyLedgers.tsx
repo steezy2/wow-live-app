@@ -80,7 +80,7 @@ export function PriorityLedger({ keyView: key }: { keyView: KeyView }) {
 }
 
 /** The worst bursts of party damage with each member's cover, and how fast dispellable debuffs came off. */
-export function SpikeLedger({ data: key }: { data: FightData }) {
+export function SpikeLedger({ data: key, group }: { data: FightData; group: 'party' | 'raid' }) {
   const dispelled = key.debuffs.filter((d) => d.by).map((d) => d.afterMS)
   dispelled.sort((a, b) => a - b)
   return (
@@ -99,7 +99,7 @@ export function SpikeLedger({ data: key }: { data: FightData }) {
             <span>
               <b>{clock(s.clockMS)}</b> {amount(s.damage)} in 3 s{' '}
               <span className={s.partyCDs.length ? 'muted' : 'bad'}>
-                {s.partyCDs.length ? s.partyCDs.join(', ') : 'no party cooldown'}
+                {s.partyCDs.length ? s.partyCDs.join(', ') : `no ${group} cooldown`}
                 {s.overlap && ' (overlapping)'}
               </span>
             </span>

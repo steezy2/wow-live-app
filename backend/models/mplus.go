@@ -208,6 +208,8 @@ type KeyTrack struct {
 	Abilities map[string][]AbilitySeries `json:"abilities,omitempty"`
 	// AbilityTimes is when Abilities' stretches ended, in order: a stretch starts where the one before it ended.
 	AbilityTimes []int64 `json:"abilityTimes,omitempty"`
+	// TargetSeries is each raider's damage into each enemy (by name, as Ability) in the same stretches.
+	TargetSeries map[string][]AbilitySeries `json:"targetSeries,omitempty"`
 }
 
 // TrackCast is a cast on the pull's clock: when it started, the spell, for one with a cast time when it ended
@@ -422,11 +424,13 @@ type Defensives struct {
 	HealthPotions []string `toml:"health_potions"`
 }
 
-// Consumables are name patterns for the buffs everyone should have and the combat potions.
+// Consumables are name patterns for the buffs everyone should have, and the combat potions by name and by their
+// buff's aura ID (for a log whose first sighting of one is a pull-start aura list, which gives no names).
 type Consumables struct {
-	Flask         []string `toml:"flask"`
-	Food          []string `toml:"food"`
-	CombatPotions []string `toml:"combat_potions"`
+	Flask           []string `toml:"flask"`
+	Food            []string `toml:"food"`
+	CombatPotions   []string `toml:"combat_potions"`
+	CombatPotionIDs []int    `toml:"combat_potion_ids"`
 }
 
 // KeyBoss is a boss fight in a key: when it started and ended on the key's clock, and whether it died.

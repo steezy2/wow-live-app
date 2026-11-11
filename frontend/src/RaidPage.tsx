@@ -285,7 +285,7 @@ function PullTabs({ pull, onFocus }: { pull: RaidPull; onFocus: (player: string)
         avoidableListed
         onPick={onFocus}
       />
-      <Tabs tabs={fightTabs(data, `Deaths ${pull.deaths.length}`)} />
+      <Tabs tabs={fightTabs(data, `Deaths ${pull.deaths.length}`, 'raid')} />
     </>
   )
 }

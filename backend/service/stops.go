@@ -191,16 +191,26 @@ func (k *LogTracker) spikes(run *keyRun, casts []models.KeyCast, buffs []models.
 }
 
 // spike is one burst starting at a second of the key (log time / 1000): who was hit and their cover, and the party
-// cooldowns used from the death window before it to its end.
+// cooldowns (externals) used from the death window before it to its end; in a raid, the raid cooldowns whose buff
+// was up during it.
 func (k *LogTracker) spike(run *keyRun, second, damage int64, casts []models.KeyCast, buffs []models.BuffUp,
 	kit models.Kit) models.KeySpike {
 	at := second * 1000
 	sp := models.KeySpike{ClockMS: k.clockAt(at), Damage: damage, PartyCDs: []string{}, Members: []models.KeySpikeMember{}}
 	window := int64(k.rules.Defensives.WindowSeconds * 1000)
+	covers := func(c models.KeyCast) bool {
+		return slices.Contains(k.rules.Defensives.Externals, c.Ability) && c.ClockMS >= sp.ClockMS-window &&
+			c.ClockMS <= sp.ClockMS+spikeMS
+	}
+	if run.raid != nil { // a raid's cover is its raid cooldowns, each for as long as its buff was up (or cast in the window before)
+		casts = run.raid.cooldowns
+		covers = func(c models.KeyCast) bool {
+			return c.ClockMS <= sp.ClockMS+spikeMS && max(c.EndMS, c.ClockMS) >= sp.ClockMS-window
+		}
+	}
 	var cdAt []int64
 	for _, c := range casts {
-		if slices.Contains(k.rules.Defensives.Externals, c.Ability) && c.ClockMS >= sp.ClockMS-window &&
-			c.ClockMS <= sp.ClockMS+spikeMS {
+		if covers(c) {
 			sp.PartyCDs = append(sp.PartyCDs, c.Ability+" ("+c.Player+")")
 			cdAt = append(cdAt, c.ClockMS)
 		}

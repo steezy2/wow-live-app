@@ -3,8 +3,8 @@
 // Wowhead's boss cheat sheets by their words (service.RaidBossFacts) unless reference/raid-mechanics.toml (kept by
 // hand, checked against logs) has the boss, and its NPC IDs and rooms from a top Warcraft
 // Logs kill (WCL_CLIENT_ID and WCL_CLIENT_SECRET in .env; without them the overview tells the boss by its health and
-// the replay has no map), each room's edges from wago.tools. Run it each
-// tier and review the diff.
+// the replay has no map), each room's edges from wago.tools, and each class's tier items from Wowhead's item sets
+// (raid-rules.toml's [tier] sets). Run it each tier and review the diff.
 //
 // Usage, from backend/:
 //
@@ -48,19 +48,24 @@ func main() {
 	if err := config.LoadEnv(filepath.Join(root, ".env")); err != nil {
 		log.Fatal(err)
 	}
+	rules, err := config.LoadRaidRules(root)
+	if err != nil {
+		log.Fatal(err)
+	}
 	if *check {
 		err = checkLogs(path)
 	} else {
-		err = generate(context.Background(), config.CachePath(root), *raid, config.RaidMechanicsPath(root), path)
+		err = generate(context.Background(), config.CachePath(root), *raid, config.RaidMechanicsPath(root), path,
+			rules.Tier.Sets)
 	}
 	if err != nil {
 		log.Fatal(err)
 	}
 }
 
-// generate reads the raid's boss cheat sheets, the hand-kept mechanics and its bosses' NPC IDs, and writes the
-// reference file.
-func generate(ctx context.Context, cache, raid, mechanicsPath, path string) error {
+// generate reads the raid's boss cheat sheets, the hand-kept mechanics, its bosses' NPC IDs and its tier sets (by
+// Wowhead item-set ID), and writes the reference file.
+func generate(ctx context.Context, cache, raid, mechanicsPath, path string, tierSets []int) error {
 	curated, err := config.LoadRaidMechanics(mechanicsPath)
 	if err != nil {
 		return err
@@ -69,7 +74,8 @@ func generate(ctx context.Context, cache, raid, mechanicsPath, path string) erro
 		log.Printf("%s is %s's, not %s's: every boss from Wowhead", filepath.Base(mechanicsPath), curated.Raid, raid)
 		curated.Bosses = nil
 	}
-	guides, err := wowhead.Client{CacheDir: filepath.Join(cache, "raidref")}.RaidGuides(ctx, raid)
+	wh := wowhead.Client{CacheDir: filepath.Join(cache, "raidref")}
+	guides, err := wh.RaidGuides(ctx, raid)
 	if err != nil {
 		return err
 	}
@@ -101,8 +107,9 @@ func generate(ctx context.Context, cache, raid, mechanicsPath, path string) erro
 			"cheat sheets (each boss's guide): spell IDs sorted by the words of their line",
 		"npcs":    "Warcraft Logs: the boss actors and maps of each encounter's top-ranked kill",
 		"maps":    "wago.tools' UiMapAssignment: each map's edges",
+		"tier":    "Wowhead's item sets (raid-rules.toml's [tier] sets): each class's tier items",
 		"written": time.Now().Format(time.DateOnly),
-	}}
+	}, Tier: tierItems(ctx, wh, tierSets)}
 	for name := range fights {
 		if !slices.ContainsFunc(guides, func(g models.RaidGuide) bool { return g.Name == name }) {
 			guides = append(guides, models.RaidGuide{Name: name}) // Warcraft Logs has it, Wowhead's overview doesn't
@@ -143,6 +150,23 @@ func generate(ctx context.Context, cache, raid, mechanicsPath, path string) erro
 	}
 	log.Printf("wrote %s", path)
 	return nil
+}
+
+// tierItems is each class's tier items from Wowhead's item sets; none when a set can't be read (logged), so the
+// pull-start check says nothing about sets rather than calling a class's set missing.
+func tierItems(ctx context.Context, wh wowhead.Client, ids []int) map[string][]int {
+	var sets []models.ItemSet
+	for _, id := range ids {
+		set, err := wh.ItemSet(ctx, id)
+		if err != nil {
+			log.Printf("no tier sets: %v", err)
+			return nil
+		}
+		sets = append(sets, set)
+	}
+	tier := service.TierItems(sets)
+	log.Printf("tier: %d sets, %d classes", len(sets), len(tier))
+	return tier
 }
 
 // curate is a boss with every mechanic list from its hand-kept mechanics instead of the cheat sheet's.

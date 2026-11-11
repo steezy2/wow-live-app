@@ -30,7 +30,7 @@ export function KeyDetails({
 }) {
   const timer = key.timerMS ?? 0
   const projection = key.status === 'running' ? key.projection : undefined
-  const fight = fightTabs(key, `Deaths ${key.deaths.length} (+${clock(key.penaltyMS)})`)
+  const fight = fightTabs(key, `Deaths ${key.deaths.length} (+${clock(key.penaltyMS)})`, 'party')
   return (
     <>
       <header className="title">

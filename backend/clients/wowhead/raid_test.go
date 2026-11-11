@@ -5,6 +5,19 @@ import (
 	"testing"
 )
 
+func TestParseItemSetReadsItemsAndSpecs(t *testing.T) {
+	page := `<script>g_items.add(271522, {"name_enus":"Chest","jsonequip":{"classes":512,"specs":[270,269]}});` +
+		`g_items.add(271519, {"name_enus":"Head","jsonequip":{"specs":[270,268],"statsInfo":{"73":{"qty":0}}}});` +
+		`</script>`
+	set, err := ParseItemSet(page)
+	if err != nil || fmt.Sprint(set.Items, set.Specs) != "[271519 271522] [270 269 268]" {
+		t.Fatalf("set = %+v (%v); want both items and every spec", set, err)
+	}
+	if _, err := ParseItemSet("<title>Item Sets</title>"); err == nil {
+		t.Error("a page without items read; want an error")
+	}
+}
+
 func TestParseRaidGuideReadsTheCheatSheetLines(t *testing.T) {
 	page := `<title>Ula&#039;tek Raid Boss Guide - Midnight</title>` +
 		`[tab name=\"Boss Cheat Sheet\"]\r\nPhase 1:\r\n[ul][li][b][spell=1292403][\/b] - Dodge the waves.[\/li]\r\n` +

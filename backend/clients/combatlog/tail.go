@@ -7,6 +7,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -78,29 +80,74 @@ func (t *Tail) Rest() string {
 	return rest
 }
 
+// parseChunk is how many lines one parse job holds, so handing chunks between goroutines costs little next to
+// parsing them.
+const parseChunk = 4096
+
 // EachLine passes every line of the finished log at path to add, parsed (lines that don't parse are skipped), the last
-// one even without its newline.
+// one even without its newline. Lines are parsed on a pool of goroutines but reach add in file order, one at a time,
+// on the caller's goroutine.
 func EachLine(path string, add func(models.LogLine)) error {
-	tail := &Tail{File: path}
-	parse := func(texts ...string) {
-		for _, text := range texts {
-			if line, err := ParseLine(text); err == nil {
-				add(line)
+	workers := max(runtime.NumCPU()-1, 1)
+	type job struct {
+		texts []string
+		done  chan []models.LogLine
+	}
+	jobs := make(chan job)
+	ordered := make(chan chan []models.LogLine, 4*workers)
+	for range workers {
+		go func() {
+			for j := range jobs {
+				j.done <- parseAll(j.texts)
 			}
+		}()
+	}
+	var readErr error
+	go func() {
+		defer close(ordered)
+		defer close(jobs)
+		readErr = eachChunk(path, func(texts []string) {
+			done := make(chan []models.LogLine, 1)
+			ordered <- done
+			jobs <- job{texts, done}
+		})
+	}()
+	for done := range ordered {
+		for _, line := range <-done {
+			add(line)
 		}
 	}
+	return readErr
+}
+
+// eachChunk reads the finished log at path and hands its lines to send, parseChunk at a time and in order.
+func eachChunk(path string, send func([]string)) error {
+	tail := &Tail{File: path}
 	for {
-		lines, _, err := tail.Read()
+		texts, _, err := tail.Read()
 		if err != nil {
 			return err
 		}
-		if len(lines) == 0 {
+		if len(texts) == 0 {
 			break
 		}
-		parse(lines...)
+		for chunk := range slices.Chunk(texts, parseChunk) {
+			send(chunk)
+		}
 	}
-	parse(tail.Rest())
+	send([]string{tail.Rest()})
 	return nil
+}
+
+// parseAll is the lines of texts that parse.
+func parseAll(texts []string) []models.LogLine {
+	lines := make([]models.LogLine, 0, len(texts))
+	for _, text := range texts {
+		if line, err := ParseLine(text); err == nil {
+			lines = append(lines, line)
+		}
+	}
+	return lines
 }
 
 // Newest is the most recently written WoWCombatLog*.txt in dir, or "" when there is none.

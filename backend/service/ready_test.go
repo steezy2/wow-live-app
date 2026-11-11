@@ -1,6 +1,7 @@
 package service
 
 import (
+	"fmt"
 	"slices"
 	"testing"
 
@@ -11,7 +12,7 @@ func TestReadyCheckBeforeAKeyFromBuffsSeenSinceZoningIn(t *testing.T) {
 	keys := newTracker(t, nil)
 	const shaman = `Player-76-0000BBBB,"Testshaman-Sargeras-US",0x512,0x80000000`
 	buff := func(s float64, event, dst, name string) string {
-		return at(s, event+","+testPlayer+","+dst+`,1459,"`+name+`",0x40,BUFF`)
+		return at(s, fmt.Sprintf(`%s,%s,%s,%d,"%s",0x40,BUFF`, event, testPlayer, dst, len(name), name))
 	}
 	feed(t, keys,
 		at(0, `ZONE_CHANGE,2813,"Murder Row",23`),

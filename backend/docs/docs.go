@@ -702,7 +702,7 @@ const docTemplate = `{
         },
         "/api/settings/read-keys": {
             "post": {
-                "description": "Reads every combat log in the folder and saves each finished key and raid pull, so the estimate\nand the best pulls have earlier runs to go on. Takes about a minute for a few hundred MB of logs.",
+                "description": "Reads the combat logs in the folder that are new or changed since the last read (all=true: every\none) and saves each finished key and raid pull, so the estimate and the best pulls have earlier runs\nto go on. Reading 3 GB of logs takes about 10 s.",
                 "produces": [
                     "application/json"
                 ],
@@ -710,6 +710,14 @@ const docTemplate = `{
                     "settings"
                 ],
                 "summary": "Save the keys and raid pulls already in the log folder",
+                "parameters": [
+                    {
+                        "type": "boolean",
+                        "description": "read every log again, even ones already read",
+                        "name": "all",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -882,6 +890,9 @@ const docTemplate = `{
         "controller.OldKeys": {
             "type": "object",
             "properties": {
+                "read": {
+                    "type": "integer"
+                },
                 "saved": {
                     "type": "integer"
                 }
@@ -1592,6 +1603,16 @@ const docTemplate = `{
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/models.PullSpan"
+                    }
+                },
+                "targetSeries": {
+                    "description": "TargetSeries is each raider's damage into each enemy (by name, as Ability) in the same stretches.",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/definitions/models.AbilitySeries"
+                        }
                     }
                 }
             }

@@ -13,13 +13,25 @@ type RaidRules struct {
 		WindowMS int64 `toml:"window_ms"`
 	} `toml:"soaks"`
 	Cooldowns struct {
-		Names []string `toml:"names"`
+		Names      []string `toml:"names"`
+		HealerOnly []string `toml:"healer_only"` // cooldowns that count only from a healer (other specs share the name)
 	} `toml:"cooldowns"`
 	Consumables struct {
-		Vantus []string `toml:"vantus"` // a Vantus Rune's name patterns, checked with flask and food
+		Vantus    []string `toml:"vantus"`     // a Vantus Rune's name patterns, checked with flask and food
+		VantusIDs []int    `toml:"vantus_ids"` // Vantus Rune auras the log never names, by ID
 	} `toml:"consumables"`
+	Tier struct {
+		Sets []int `toml:"sets"` // the raid's class tier sets, by Wowhead item-set ID (cmd/raidref reads them)
+	} `toml:"tier"`
 	Suggestions SuggestionRules           `toml:"suggestions"`
 	Phases      map[string][]PhaseTrigger `toml:"phases"`
+}
+
+// ItemSet is a Wowhead item set: its items and the specs that can wear them.
+type ItemSet struct {
+	ID    int
+	Items []int
+	Specs []int
 }
 
 // SuggestionRules are raid-rules.toml's [suggestions]: how many "Fix next pull" lines, the damage spike's window,
@@ -50,7 +62,8 @@ type PhaseTrigger struct {
 type RaidReference struct {
 	Raid    string              `json:"raid"`
 	Sources map[string]string   `json:"sources"`
-	Bosses  map[string]RaidBoss `json:"bosses"` // by boss name as ENCOUNTER_START gives it
+	Bosses  map[string]RaidBoss `json:"bosses"`         // by boss name as ENCOUNTER_START gives it
+	Tier    map[string][]int    `json:"tier,omitempty"` // class ("DeathKnight") -> its tier set's item IDs
 }
 
 // RaidBoss is one boss's NPC IDs and mechanics by kind: spell IDs to dodge (damage), soak (damage), dispel (debuffs)
@@ -123,10 +136,12 @@ type RaidBreakRule struct {
 }
 
 // RaidSpawnRule is what makes an add of a name appear: Cause, a spell cast by an enemy or landing on raiders, at most
-// WithinMS before the add is first seen.
+// WithinMS before the add is first seen. With Lost, the add is the raider's whose Lost aura came off as Cause landed
+// on them (an egg breaking), one add each.
 type RaidSpawnRule struct {
 	Add      string `json:"add" toml:"add"`
 	Cause    int    `json:"cause" toml:"cause"`
+	Lost     int    `json:"lost,omitempty" toml:"lost"`
 	WithinMS int64  `json:"withinMS" toml:"within_ms"`
 }
 

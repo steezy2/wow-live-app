@@ -16,8 +16,8 @@ export interface FightTab {
 }
 
 /** The tabs a key and a raid pull share, in order: Deaths (named deathsName), Interrupts, Must-stops, Spikes,
- * Defensives and potions, CC. */
-export function fightTabs(data: FightData, deathsName: string): FightTab[] {
+ * Defensives and potions, CC; group names the cooldowns that cover a spike. */
+export function fightTabs(data: FightData, deathsName: string, group: 'party' | 'raid'): FightTab[] {
   const cc = data.casts.filter((c) => c.kind === 'cc')
   const pressed = data.casts.filter((c) => c.kind !== 'cc')
   return [
@@ -65,7 +65,7 @@ export function fightTabs(data: FightData, deathsName: string): FightTab[] {
       name: `Must-stops ${data.stops.filter((s) => s.outcome !== 'went off').length}/${data.stops.length}`,
       body: <KickLedger data={data} />,
     },
-    { name: `Spikes ${data.spikes.length}`, body: <SpikeLedger data={data} /> },
+    { name: `Spikes ${data.spikes.length}`, body: <SpikeLedger data={data} group={group} /> },
     {
       name: 'Defensives and potions',
       body: (

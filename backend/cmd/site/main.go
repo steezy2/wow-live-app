@@ -82,7 +82,7 @@ func run(port int, replay string, key int, speed float64, learn bool, region str
 	}
 	opts := app.Options{Cache: config.CachePath(root), DelayLog: config.DelayLogPath(root), LogsDir: config.LogsDir(),
 		Region: region, Rules: rules, Dungeons: ref.Dungeons, RaidRules: raidRules, Bosses: raid.Bosses,
-		Pages: os.DirFS(pages),
+		Tier: raid.Tier, Pages: os.DirFS(pages),
 		Hosts: controller.LocalHosts(port), Now: clock.Now}
 	if logs, err := wcl.New(opts.Cache); err != nil {
 		log.Printf("no key reviews: %v", err)
@@ -94,7 +94,7 @@ func run(port int, replay string, key int, speed float64, learn bool, region str
 		return err
 	}
 	if learn {
-		_, err := site.Learn()
+		_, _, err := site.Learn(false)
 		return err
 	}
 	if replay == "" {

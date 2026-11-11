@@ -12,6 +12,8 @@ definitions:
     type: object
   controller.OldKeys:
     properties:
+      read:
+        type: integer
       saved:
         type: integer
     type: object
@@ -497,6 +499,14 @@ definitions:
         items:
           $ref: '#/definitions/models.PullSpan'
         type: array
+      targetSeries:
+        additionalProperties:
+          items:
+            $ref: '#/definitions/models.AbilitySeries'
+          type: array
+        description: TargetSeries is each raider's damage into each enemy (by name,
+          as Ability) in the same stretches.
+        type: object
     type: object
   models.KeyView:
     properties:
@@ -1781,8 +1791,14 @@ paths:
   /api/settings/read-keys:
     post:
       description: |-
-        Reads every combat log in the folder and saves each finished key and raid pull, so the estimate
-        and the best pulls have earlier runs to go on. Takes about a minute for a few hundred MB of logs.
+        Reads the combat logs in the folder that are new or changed since the last read (all=true: every
+        one) and saves each finished key and raid pull, so the estimate and the best pulls have earlier runs
+        to go on. Reading 3 GB of logs takes about 10 s.
+      parameters:
+      - description: read every log again, even ones already read
+        in: query
+        name: all
+        type: boolean
       produces:
       - application/json
       responses:
