@@ -502,7 +502,7 @@ func (k *LogTracker) finishPull(kill bool) {
 		run.key.Status = "kill"
 	}
 	endPull(run)
-	run.raid.abilitiesAt = 0 // closes the last stretch, however short
+	run.raid.abilitiesAt = -abilityEveryMS // closes the last stretch, however short
 	k.sampleAbilities(at)
 	pull := k.raidPull(run, k.details(run, at), at, kill)
 	k.current = nil
