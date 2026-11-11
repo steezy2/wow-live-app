@@ -23,6 +23,10 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 ### Changed
 - The replay's map moves smoothly: it draws every frame and units walk between their once-a-second points, while the rest of the page follows the clock 10 times a second (the M+ map too). On the raid pull's page the lanes and graph come first, then the map.
 - Greater Invisibility isn't a defensive any more (`mplus.toml`), on both pages.
+- *Read old logs* reads only logs that are new or changed since it last read them with the same reader (`learned.json` in the cache; `readerVersion` in `app/app.go`), and parses on every core: 75 ms with nothing new, 9 s for all ten logs (3.2 GB, was 17 s). *Read everything again* reads them all (`?all=true`); both say how many logs they read.
+- Health potions show as "Health potion", not their full name (M+ and raid).
+- "Missing at the pull" names who lacks their 2-set or 4-set, from the season's tier sets `raidref` reads off Wowhead (`[tier] sets` in `raid-rules.toml`, `tier` in `reference/raid-bosses.json`).
+- Raid replay: the play bar sits between the graph and the map; the focused raider's cast box drops "s ago" and a box beside it lists what they took damage from up to the moment; their bars and targets follow the replay from 0:00 (never the whole pull) in 2 s stretches (`targetSeries` in the track; about 1.6 MB for a 6-minute pull). *Read everything again* fills older pulls in.
 - The raid pull's page leads with what went wrong: Fix next pull, then Early deaths and Mechanics, then the replay and the meters (now titled *Damage done* and *Healing and damage taken*). Mechanics is grouped by kind, each line with when it happened and raiders in class colours; a time in either card moves the replay there. The side list shows a night's pulls newest first with when each started (`/api/raid/nights` lists them that way).
 - The overlay's raid card shows the result, the boss's health as a bar with tonight's best pull marked, the first three deaths, the top three things to fix and the top DPS and HPS as class-coloured rows.
 - A raid death's "still ready" list knows the defensives a raider pressed in the night's earlier pulls, not just this one, so "early deaths with a defensive ready" has something to say.
@@ -40,6 +44,11 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 - Kings' Rest counted 587 of 608 forces in a finished +17 and said the dungeon file needed checking: its Half-Finished Mummies come under two NPC IDs and Mythic Dungeon Tools lists one. The other (273050) now counts the same (`npcTwins` in `service/mplusref.go`). *Read old keys* corrects a key saved before this.
 - An abandoned key ends at its last line in the log, not at the line that showed it was over: one whose log just stopped read "Abandoned at 18:42:06" with 3k DPS once the next day's log started.
 - The ready check keeps the buffs it has seen when the party zones into the same dungeon again, instead of going back to "not seen" for everyone.
+- Vantus Runes count: their auras (Vantus Rune: Tides 1303171, Vantus Rune: Ula'tek 1303187) are never named in the log, so every raider showed it missing. Matched by ID (`[consumables] vantus_ids` in `raid-rules.toml`).
+- Pre-pots count when the potion's buff is on the raider at the pull's start, and Liquid Luster is a combat potion (`combat_potion_ids` in `mplus.toml`, which also names a potion whose name the log never showed). M+ too.
+- Each Ula'tek Viper names the raider whose egg (Noxious Shell) broke as Caustic Waves or Noxious Splash landed on them (`lost` in a spawn rule), one raider an add, instead of everyone the wave was still ticking on. Spawn causes count landings, not ticks.
+- Raid spikes count the raid cooldowns whose buff was up (not M+ externals) and say "no raid cooldown" when none was. Ascendance, Celestial Conduit (healers only, `healer_only`) and Zephyr are raid cooldowns.
+- Switching between saved M+ keys no longer flashes the last key's graphs.
 
 ## [0.1.5] - 2026-11-10
 
