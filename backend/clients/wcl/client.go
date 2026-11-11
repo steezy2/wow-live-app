@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net"
 	"net/http"
 	"os"
@@ -191,7 +190,7 @@ func (c *Client) post(ctx context.Context, body []byte) ([]byte, bool, error) {
 		return nil, false, fmt.Errorf("querying Warcraft Logs: %w", err)
 	}
 	defer resp.Body.Close()
-	data, err := io.ReadAll(resp.Body)
+	data, err := cachefile.ReadBody(resp.Body)
 	if err != nil {
 		return nil, true, fmt.Errorf("reading the Warcraft Logs response: %w", err)
 	}

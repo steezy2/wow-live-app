@@ -271,25 +271,28 @@ func (f fakeSettings) Get() models.SettingsView     { return models.SettingsView
 func (f fakeSettings) Save(s models.Settings) error { *f.saved = s; return nil }
 
 func TestSettingsAreSavedOnlyWithChoicesTheAPIOffers(t *testing.T) {
+	full, _ := json.Marshal(t.TempDir()) // a full path on any OS
 	for _, tc := range []struct {
-		overlay string
-		code    int
+		logsDir, overlay string
+		code             int
 	}{
-		{`{"show": "always", "opacity": 70}`, http.StatusOK},
-		{`{"show": "sometimes", "opacity": 70}`, http.StatusBadRequest},
-		{`{"show": "keys", "opacity": 120}`, http.StatusBadRequest},
-		{`{}`, http.StatusBadRequest},
+		{string(full), `{"show": "always", "opacity": 70}`, http.StatusOK},
+		{string(full), `{"show": "sometimes", "opacity": 70}`, http.StatusBadRequest},
+		{string(full), `{"show": "keys", "opacity": 120}`, http.StatusBadRequest},
+		{string(full), `{}`, http.StatusBadRequest},
+		{`"Logs"`, `{"show": "always", "opacity": 70}`, http.StatusBadRequest},
+		{`""`, `{"show": "always", "opacity": 70}`, http.StatusBadRequest},
 	} {
 		var saved models.Settings
 		router := Router(MPlus{Keys: &fakeKeys{}, Now: time.Now}, nil, &SettingsAPI{Settings: fakeSettings{&saved}},
 			os.DirFS(t.TempDir()), LocalHosts(port)...)
-		body := `{"logsDir": "D:/Logs", "region": "eu", "overlay": ` + tc.overlay + `}`
+		body := `{"logsDir": ` + tc.logsDir + `, "region": "eu", "overlay": ` + tc.overlay + `}`
 		r := httptest.NewRequest(http.MethodPut, "/api/settings", strings.NewReader(body))
 		r.Host = "localhost:8080"
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, r)
 		if w.Code != tc.code || (tc.code == http.StatusOK) != (saved.Region == "eu") {
-			t.Errorf("overlay %s: %d %s, saved %+v; want %d", tc.overlay, w.Code, w.Body, saved, tc.code)
+			t.Errorf("%s, overlay %s: %d %s, saved %+v; want %d", tc.logsDir, tc.overlay, w.Code, w.Body, saved, tc.code)
 		}
 	}
 }
@@ -316,6 +319,28 @@ func TestAllAndForceAreBooleans(t *testing.T) {
 		router.ServeHTTP(w, r)
 		if w.Code != tc.code || all != tc.all {
 			t.Errorf("%s %s: %d, all=%v; want %d, %v", tc.method, tc.url, w.Code, all, tc.code, tc.all)
+		}
+	}
+}
+
+func TestSecurityHeaders(t *testing.T) {
+	pages := t.TempDir()
+	if err := os.WriteFile(filepath.Join(pages, "index.html"), []byte("<p>page</p>"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	router := Router(MPlus{Keys: &fakeKeys{}, Now: time.Now}, nil, nil, os.DirFS(pages), LocalHosts(port)...)
+	for _, tc := range []struct {
+		url    string
+		policy bool
+	}{{"/", true}, {"/raid", true}, {"/api/mplus/keys", false}} {
+		r := httptest.NewRequest(http.MethodGet, tc.url, nil)
+		r.Host = "localhost:8080"
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, r)
+		h := w.Header()
+		if h.Get("X-Content-Type-Options") != "nosniff" || h.Get("Referrer-Policy") != "no-referrer" ||
+			(h.Get("Content-Security-Policy") != "") != tc.policy {
+			t.Errorf("%s: headers %v", tc.url, h)
 		}
 	}
 }

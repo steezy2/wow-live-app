@@ -18,6 +18,22 @@ import (
 // ErrNotFound is returned (wrapped) by Fresh when the server has no such file.
 var ErrNotFound = errors.New("not found")
 
+// MaxDownload bounds one response body read by ReadBody: the largest file the app fetches (a raid map, a Warcraft
+// Logs answer) is a few MB, so a bigger one is a broken or hostile server, not data to keep.
+const MaxDownload = 64 << 20
+
+// ErrTooBig is returned (wrapped) by ReadBody for a body over MaxDownload.
+var ErrTooBig = errors.New("response over 64 MB")
+
+// ReadBody reads a response body of at most MaxDownload bytes.
+func ReadBody(body io.Reader) ([]byte, error) {
+	data, err := io.ReadAll(io.LimitReader(body, MaxDownload+1))
+	if err == nil && len(data) > MaxDownload {
+		err = ErrTooBig
+	}
+	return data, err
+}
+
 // renameTries and renameWait: renameRetrying's tries when another process has the file open (Windows).
 const (
 	renameTries = 5
@@ -125,7 +141,7 @@ func Fresh(ctx context.Context, client *http.Client, url, path string, maxAge ti
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("downloading %s: %s", url, resp.Status)
 	}
-	data, err := io.ReadAll(resp.Body)
+	data, err := ReadBody(resp.Body)
 	if err != nil {
 		return fmt.Errorf("downloading %s: %w", url, err)
 	}

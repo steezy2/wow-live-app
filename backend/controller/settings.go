@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"path/filepath"
 	"slices"
 	"strings"
 
@@ -107,9 +108,10 @@ func (s SettingsAPI) Get(c *gin.Context) {
 func (s SettingsAPI) Put(c *gin.Context) {
 	var next models.Settings
 	err := c.ShouldBindJSON(&next)
-	if o := next.Overlay; err != nil || next.LogsDir == "" || !slices.Contains(regions, next.Region) ||
+	next.LogsDir = filepath.Clean(next.LogsDir)
+	if o := next.Overlay; err != nil || !filepath.IsAbs(next.LogsDir) || !slices.Contains(regions, next.Region) ||
 		!slices.Contains(overlayShows, o.Show) || o.Opacity < minOpacity || o.Opacity > 100 {
-		c.JSON(http.StatusBadRequest, ErrorResponse{Error: fmt.Sprintf("send a log folder, a region (%s), when the "+
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: fmt.Sprintf("send a full log folder path, a region (%s), when the "+
 			"overlay shows (%s) and its opacity (%d to 100)", strings.Join(regions, ", "),
 			strings.Join(overlayShows, ", "), minOpacity)})
 		return
