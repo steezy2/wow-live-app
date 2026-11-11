@@ -88,3 +88,9 @@ export function valueAt(points: MeterPoint[], t: number, kind: 'd' | 'h' | 'tk')
   }
   return value
 }
+
+/** The middle value, or the mean of the two middle ones for an even count (0 for none). */
+export function median(values: number[]): number {
+  const sorted = [...values].sort((a, b) => a - b)
+  return sorted.length === 0 ? 0 : (sorted[Math.floor((sorted.length - 1) / 2)] + sorted[Math.floor(sorted.length / 2)]) / 2
+}

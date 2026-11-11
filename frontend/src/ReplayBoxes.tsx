@@ -34,7 +34,7 @@ export function BossBox({ track, now }: { track: KeyTrack; now: number }) {
   )
 }
 
-/** The focused raider at the replay's moment, over the map's bottom left: what they're casting (with how far along)
+/** The focused player at the replay's moment, over the map's bottom left: what they're casting (with how far along)
  * and their last few casts, newest first. Nothing for a track without casts. */
 export function CastBox({ track, player, now }: { track: KeyTrack; player: string; now: number }) {
   const casts = track.casts?.[player]
@@ -66,7 +66,7 @@ export function CastBox({ track, player, now }: { track: KeyTrack; player: strin
   )
 }
 
-/** The focused raider's damage taken up to the replay's moment, over the map's bottom right: their TAKEN_BOX_ROWS
+/** The focused player's damage taken up to the replay's moment, over the map's bottom right: their TAKEN_BOX_ROWS
  * abilities that took the most. Nothing before they took any. */
 export function TakenBox({ taken }: { taken: AbilitiesUpTo['taken'] }) {
   const top = [...taken].sort((a, b) => b.damage - a.damage).slice(0, TAKEN_BOX_ROWS)

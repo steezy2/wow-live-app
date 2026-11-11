@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { clock, oddsText, progressText, resultText } from './format'
+import { clock, median, oddsText, progressText, resultText } from './format'
 
 describe('clock', () => {
   it('shows minutes and seconds, hours past an hour, and a sign when negative', () => {
@@ -37,5 +37,16 @@ describe('progressText', () => {
     [false, -1, '', 'Wipe'],
   ])('kill %s at %d%% %s', (kill, bossPct, phase, want) => {
     expect(progressText({ ...pull, kill, bossPct, phase })).toBe(want)
+  })
+})
+
+describe('median', () => {
+  it.each([
+    [[], 0],
+    [[5], 5],
+    [[3, 1, 2], 2],
+    [[4, 1, 3, 2], 2.5],
+  ])('median of %j is %d', (values, want) => {
+    expect(median(values)).toBe(want)
   })
 })

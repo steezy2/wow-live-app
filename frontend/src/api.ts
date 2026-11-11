@@ -291,6 +291,8 @@ export interface ReviewMetric {
   amount?: boolean
   /** What the metric counts (missing in reviews made before Nov 8). */
   help?: string
+  /** It starts a new group of columns (offense, defense, consumables, deaths). */
+  group?: boolean
   /** DPS and HPS: the key's damage or healing in all, and what it is ("damage", "healing"). */
   total?: number
   totalName?: string

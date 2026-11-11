@@ -7,27 +7,22 @@ import {
   type KeyView,
   type ReviewMetric,
 } from './api'
-import { amount } from './format'
+import { amount, median } from './format'
 import { PlayerFocus } from './PlayerFocus'
-
-/** Metrics that start a new group in the table (offense, defense, consumables, deaths): drawn with a faint rule. */
-const GROUP_STARTS = new Set(['kicks', 'damage taken', 'combat potions', 'deaths'])
 
 /** The cell's tone: deaths red, avoidable damage over the party's median amber, a combat potion green. */
 function tone(m: ReviewMetric, party: ReviewMetric[]): string {
   if (m.name === 'deaths' && m.value > 0) return 'bad'
   if (m.name === 'combat potions' && m.value >= 1) return 'good'
   if (m.name === 'avoidable damage') {
-    const sorted = party.map((p) => p.value).sort((a, b) => a - b)
-    const median = (sorted[Math.floor((sorted.length - 1) / 2)] + sorted[Math.floor(sorted.length / 2)]) / 2
-    if (m.value > median) return 'warn'
+    if (m.value > median(party.map((p) => p.value))) return 'warn'
   }
   return ''
 }
 
 /** A metric cell's classes: its group rule and tone. */
-function cellClass(m: ReviewMetric, party: ReviewMetric[]): string | undefined {
-  return [GROUP_STARTS.has(m.name) && 'group', tone(m, party)].filter(Boolean).join(' ') || undefined
+function metricClass(m: ReviewMetric, party: ReviewMetric[]): string | undefined {
+  return [m.group && 'group', tone(m, party)].filter(Boolean).join(' ') || undefined
 }
 
 /** How often, and how long, a key that just ended is asked for the review the site makes on its own. */
@@ -120,7 +115,7 @@ export function KeyReview(props: {
             <tr>
               <th>Player</th>
               {columns.map((n) => (
-                <th key={n.name} title={n.help} className={GROUP_STARTS.has(n.name) ? 'group' : undefined}>
+                <th key={n.name} title={n.help} className={n.group ? 'group' : undefined}>
                   {n.name}
                   {n.totalName && ` / ${n.totalName}`}
                 </th>
@@ -137,7 +132,7 @@ export function KeyReview(props: {
                 {p.metrics.map((m) => {
                   const show = (v: number) => (m.amount ? amount(v) : String(Math.round(v)))
                   return (
-                    <td key={m.name} className={cellClass(m, party(m.name))}>
+                    <td key={m.name} className={metricClass(m, party(m.name))}>
                       {show(m.value)}
                       {m.total ? ` / ${amount(m.total)}` : ''}
                       <div className="muted small">

@@ -182,6 +182,7 @@ type ReviewMetric struct {
 	PartyRank int     `json:"partyRank"`
 	Amount    bool    `json:"amount"`              // shown shortened ("2.1M"), else as a whole number
 	Help      string  `json:"help"`                // what the metric counts, for the page to show on hover
+	Group     bool    `json:"group,omitempty"`     // it starts a new group of columns (offense, defense, consumables, deaths)
 	Total     float64 `json:"total,omitempty"`     // DPS and HPS: the key's damage or healing in all
 	TotalName string  `json:"totalName,omitempty"` // what Total is: "damage" or "healing"
 }
@@ -432,12 +433,13 @@ type MPlusRules struct {
 	Suggestions KeySuggestionRules `toml:"suggestions"`
 }
 
-// KeySuggestionRules are mplus.toml's [suggestions]: how many "Fix next key" lines, how much longer than in the best
-// run a pull is slow, and how long a wait between pulls is long.
+// KeySuggestionRules are mplus.toml's [suggestions]: how many "Fix next key" lines, how much longer (in % and in
+// seconds) than in the best run a pull is slow, and how long a wait between pulls is long.
 type KeySuggestionRules struct {
-	Most        int     `toml:"most"`
-	SlowPullPct float64 `toml:"slow_pull_pct"`
-	GapSeconds  float64 `toml:"gap_seconds"`
+	Most            int     `toml:"most"`
+	SlowPullPct     float64 `toml:"slow_pull_pct"`
+	SlowPullSeconds float64 `toml:"slow_pull_seconds"`
+	GapSeconds      float64 `toml:"gap_seconds"`
 }
 
 // Defensives are the tracked survival buttons: class defensives, externals, healthstones and health potions, and
