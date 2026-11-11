@@ -102,6 +102,10 @@ func generate(ctx context.Context, cache, raid, mechanicsPath, path string, tier
 			return err
 		}
 	}
+	tier, err := tierItems(ctx, wh, tierSets)
+	if err != nil {
+		return err
+	}
 	ref := models.RaidReference{Raid: raid, Bosses: map[string]models.RaidBoss{}, Sources: map[string]string{
 		"mechanics": "reference/raid-mechanics.toml (kept by hand, checked against logs), else Wowhead's boss " +
 			"cheat sheets (each boss's guide): spell IDs sorted by the words of their line",
@@ -109,7 +113,7 @@ func generate(ctx context.Context, cache, raid, mechanicsPath, path string, tier
 		"maps":    "wago.tools' UiMapAssignment: each map's edges",
 		"tier":    "Wowhead's item sets (raid-rules.toml's [tier] sets): each class's tier items",
 		"written": time.Now().Format(time.DateOnly),
-	}, Tier: tierItems(ctx, wh, tierSets)}
+	}, Tier: tier}
 	for name := range fights {
 		if !slices.ContainsFunc(guides, func(g models.RaidGuide) bool { return g.Name == name }) {
 			guides = append(guides, models.RaidGuide{Name: name}) // Warcraft Logs has it, Wowhead's overview doesn't
@@ -152,21 +156,20 @@ func generate(ctx context.Context, cache, raid, mechanicsPath, path string, tier
 	return nil
 }
 
-// tierItems is each class's tier items from Wowhead's item sets; none when a set can't be read (logged), so the
-// pull-start check says nothing about sets rather than calling a class's set missing.
-func tierItems(ctx context.Context, wh wowhead.Client, ids []int) map[string][]int {
+// tierItems is each class's tier items from Wowhead's item sets; an unreadable set is an error, so the file keeps
+// its last tier rather than losing it.
+func tierItems(ctx context.Context, wh wowhead.Client, ids []int) (map[string][]int, error) {
 	var sets []models.ItemSet
 	for _, id := range ids {
 		set, err := wh.ItemSet(ctx, id)
 		if err != nil {
-			log.Printf("no tier sets: %v", err)
-			return nil
+			return nil, fmt.Errorf("reading tier sets: %w", err)
 		}
 		sets = append(sets, set)
 	}
 	tier := service.TierItems(sets)
 	log.Printf("tier: %d sets, %d classes", len(sets), len(tier))
-	return tier
+	return tier, nil
 }
 
 // curate is a boss with every mechanic list from its hand-kept mechanics instead of the cheat sheet's.

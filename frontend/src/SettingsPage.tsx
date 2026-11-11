@@ -57,7 +57,7 @@ export function SettingsPage({ view, onSaved }: { view: SettingsView; onSaved: (
       readOldKeys(all),
       setOldKeys,
       'Reading the log folder…',
-      ({ read, saved }) => `${read} new logs read · ${saved} keys saved`,
+      ({ read, saved }) => `${read} logs read · ${saved} keys saved`,
     ).catch(() => undefined)
   const minutes = view.lastLogMS ? Math.round((Date.now() - view.lastLogMS) / 60_000) : null
   return (

@@ -348,6 +348,11 @@ func (k *LogTracker) tierMissing(guid string, gear []int) []string {
 	return nil
 }
 
+// castBy is whether player has a cast of ability in casts.
+func castBy(casts []models.KeyCast, player, ability string) bool {
+	return slices.ContainsFunc(casts, func(c models.KeyCast) bool { return c.Player == player && c.Ability == ability })
+}
+
 // prepots are the combat potions drunk before the run started, at 0: a potion's buff in a member's pull-start auras,
 // unless the run already has that member's potion of that name (drunk in the run, or its buff seen leaving).
 func (k *LogTracker) prepots(run *keyRun) []models.KeyCast {
@@ -362,9 +367,7 @@ func (k *LogTracker) prepots(run *keyRun) []models.KeyCast {
 			if name == "" {
 				name = combatPotion
 			}
-			if !slices.ContainsFunc(run.key.Casts, func(c models.KeyCast) bool {
-				return c.Player == player && c.Ability == name
-			}) {
+			if !castBy(run.key.Casts, player, name) {
 				out = append(out, models.KeyCast{Player: player, Ability: name, Kind: "combat potion", Prepot: true})
 			}
 		}

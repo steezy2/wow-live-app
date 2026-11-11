@@ -725,6 +725,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/controller.OldKeys"
                         }
                     },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
                         "schema": {
@@ -1076,7 +1082,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "prepot": {
-                    "description": "a combat potion drunk before the raid pull started",
+                    "description": "a combat potion drunk before the run started",
                     "type": "boolean"
                 }
             }

@@ -63,10 +63,15 @@ type OldKeys struct {
 //	@Produce		json
 //	@Param			all	query		bool	false	"read every log again, even ones already read"
 //	@Success		200	{object}	OldKeys
+//	@Failure		400	{object}	ErrorResponse
 //	@Failure		500	{object}	ErrorResponse
 //	@Router			/api/settings/read-keys [post]
 func (s SettingsAPI) ReadKeys(c *gin.Context) {
-	read, saved, err := s.ReadOldKeys(c.Query("all") == "true")
+	all, ok := boolQuery(c, "all")
+	if !ok {
+		return
+	}
+	read, saved, err := s.ReadOldKeys(all)
 	if err != nil {
 		log.Printf("reading old logs: %v", err)
 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "couldn't read the log folder"})
@@ -158,7 +163,11 @@ func (s SettingsAPI) SaveKeys(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "send a client ID and a secret"})
 		return
 	}
-	keyAnswer(c)(s.Keys.Save(c.Request.Context(), creds, c.Query("force") == "true"))
+	force, ok := boolQuery(c, "force")
+	if !ok {
+		return
+	}
+	keyAnswer(c)(s.Keys.Save(c.Request.Context(), creds, force))
 }
 
 // TestKeys godoc

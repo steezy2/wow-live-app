@@ -38,6 +38,8 @@ const (
 	// spawnSameMS: a spawn rule's aura coming off a raider this close to its cause landing on them (either order) is
 	// the cause breaking it.
 	spawnSameMS = 100
+	// notPickedUp is the cause shown for an add whose carrier was never found.
+	notPickedUp = "Not picked up"
 )
 
 // raidSetup is what raid pulls are read with: the raid rules, each boss's mechanics, the store of finished pulls,
@@ -49,7 +51,7 @@ type raidSetup struct {
 	bosses    map[string]models.RaidBoss
 	store     models.PullStore
 	cooldowns map[string]bool
-	tier      map[string][]int // class -> its tier items (SetTier)
+	tier      map[string][]int // class -> its tier items (EnableRaid)
 	kit       models.Kit
 	kitNight  string
 }
@@ -139,9 +141,10 @@ type soakTally struct {
 	casts []map[string]bool
 }
 
-// EnableRaid has the tracker read raid pulls (every raid difficulty) with the raid rules and each boss's mechanics
-// (by boss name), keeping finished pulls in store; it reads the saved ones.
-func (k *LogTracker) EnableRaid(rules models.RaidRules, bosses map[string]models.RaidBoss,
+// EnableRaid has the tracker read raid pulls (every raid difficulty) with the raid rules, each boss's mechanics
+// (by boss name) and the raid's tier items by class (raid-bosses.json's tier), which the pull-start check uses to say
+// who lacks their 2-set or 4-set; it keeps finished pulls in store and reads the saved ones.
+func (k *LogTracker) EnableRaid(rules models.RaidRules, bosses map[string]models.RaidBoss, tier map[string][]int,
 	store models.PullStore) error {
 	pulls, err := savedPulls(store)
 	if err != nil {
@@ -153,16 +156,8 @@ func (k *LogTracker) EnableRaid(rules models.RaidRules, bosses map[string]models
 	}
 	k.mu.Lock()
 	defer k.mu.Unlock()
-	k.raid, k.pulls = &raidSetup{rules: rules, bosses: bosses, store: store, cooldowns: cooldowns}, pulls
+	k.raid, k.pulls = &raidSetup{rules: rules, bosses: bosses, tier: tier, store: store, cooldowns: cooldowns}, pulls
 	return nil
-}
-
-// SetTier gives the raid's tier items by class (raid-bosses.json's tier) to the pull-start check, which then says
-// who lacks their 2-set or 4-set. Call it after EnableRaid.
-func (k *LogTracker) SetTier(tier map[string][]int) {
-	k.mu.Lock()
-	defer k.mu.Unlock()
-	k.raid.tier = tier
 }
 
 // savedPulls is the store's pulls that were fought.
@@ -367,8 +362,9 @@ func (r *raidRun) lose(id int, at int64, player string) {
 }
 
 // spawnOf is an add of a name appearing at at (clockMS on the pull's clock), named by spells: the oldest unused
-// spawner of its name within its rule's time; else the latest landing of a cause the reference gives for it within
-// its rule's time; nil for an add the reference says nothing about.
+// spawner of its name within its rule's time; else, for a rule that needs a carrier (Lost), nobody picked it up
+// (notPickedUp, no players); else the latest landing of a cause the reference gives for it within its rule's time;
+// nil for an add the reference says nothing about.
 func (r *raidRun) spawnOf(name string, at, clockMS int64, spells map[int]string) *models.RaidSpawn {
 	for i := range r.spawners { // in order, so the first that fits is the oldest
 		if s := &r.spawners[i]; !s.used && s.rule.Add == name && at >= s.at && at-s.at <= s.rule.WithinMS {
@@ -384,6 +380,10 @@ func (r *raidRun) spawnOf(name string, at, clockMS int64, spells map[int]string)
 		}
 		if seen == nil {
 			seen = &models.RaidSpawn{ClockMS: clockMS, Players: []string{}}
+		}
+		if rule.Lost != 0 { // its carrier's lost buff names the spawner, not whoever the cause landed on
+			seen.Cause = cmp.Or(seen.Cause, notPickedUp)
+			continue
 		}
 		if c := r.causes[rule.Cause]; c != nil && at-c.at <= rule.WithinMS && c.at >= when {
 			seen.Cause, seen.Players, when = spells[rule.Cause], slices.Clone(c.players), c.at
@@ -411,7 +411,7 @@ func (k *LogTracker) buffLeft(clockMS int64, caster, buff string) {
 			}
 		}
 	case k.kinds[buff] == "combat potion" && caster != "" &&
-		!slices.ContainsFunc(run.key.Casts, func(c models.KeyCast) bool { return c.Player == caster && c.Ability == buff }):
+		!castBy(run.key.Casts, caster, buff):
 		run.key.Casts = append(run.key.Casts, models.KeyCast{Player: caster, Ability: buff, Kind: "combat potion",
 			Prepot: true})
 	}
@@ -607,7 +607,7 @@ func (k *LogTracker) raidPull(run *keyRun, key models.Key, at int64, kill bool) 
 		}
 	}
 	slices.SortStableFunc(p.Cooldowns, func(a, b models.KeyCast) int { return cmp.Compare(a.ClockMS, b.ClockMS) })
-	p.Spike = spike(run.track, p.Cooldowns, k.spikeMS())
+	p.Spike = spike(run.track, p.Cooldowns, k.spikeMS(), int64(k.rules.Defensives.WindowSeconds*1000))
 	p.Lanes = k.lanes(run, p, at)
 	p.Abilities, p.Taken = abilities(run, k.schools)
 	p.Targets = targets(run)

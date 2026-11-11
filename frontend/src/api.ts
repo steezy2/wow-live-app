@@ -43,7 +43,7 @@ export interface KeyCast {
   clockMS: number
   /** A raid cooldown: when its buff last left a raider. */
   endMS?: number
-  /** A combat potion drunk before the raid pull started. */
+  /** A combat potion drunk before the run started. */
   prepot?: boolean
 }
 

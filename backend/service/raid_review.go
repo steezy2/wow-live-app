@@ -100,9 +100,15 @@ func (k *LogTracker) spikeMS() int64 {
 	return int64(k.raid.rules.Suggestions.SpikeSeconds * 1000)
 }
 
+// coversSpike is whether a raid cooldown covers a spike from start to end: cast by its end, and its buff still up at
+// its start or, when none was seen leaving, cast no more than window before it.
+func coversSpike(c models.KeyCast, start, end, window int64) bool {
+	return c.ClockMS <= end && (c.EndMS >= start || c.EndMS == 0 && c.ClockMS >= start-window)
+}
+
 // spike is the raid's worst damage taken over window ms, from the track's meter samples (each raider's damage taken
-// so far), with the raid cooldowns used in it or up to window before; nil when nobody took damage.
-func spike(track models.KeyTrack, cooldowns []models.KeyCast, window int64) *models.RaidSpike {
+// so far), with the raid cooldowns that cover it (coversSpike, given cover ms before); nil when nobody took damage.
+func spike(track models.KeyTrack, cooldowns []models.KeyCast, window, cover int64) *models.RaidSpike {
 	taken := map[int64]int64{}
 	for _, points := range track.Meters {
 		for _, pt := range points {
@@ -128,7 +134,7 @@ func spike(track models.KeyTrack, cooldowns []models.KeyCast, window int64) *mod
 	}
 	worst.Covered = []string{}
 	for _, c := range cooldowns {
-		if c.Kind == "raid cooldown" && c.ClockMS >= worst.ClockMS-2*window && c.ClockMS <= worst.ClockMS {
+		if c.Kind == "raid cooldown" && coversSpike(c, worst.ClockMS-window, worst.ClockMS, cover) {
 			worst.Covered = append(worst.Covered, c.Player+" · "+c.Ability)
 		}
 	}
