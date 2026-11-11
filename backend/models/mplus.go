@@ -103,7 +103,8 @@ type KeyCast struct {
 	Ability string `json:"ability"`
 	Kind    string `json:"kind" enums:"defensive,healthstone,health potion,combat potion,kick,cc,raid cooldown"`
 	ClockMS int64  `json:"clockMS"`
-	EndMS   int64  `json:"endMS,omitempty"` // a raid cooldown: when its buff last left a raider (0 when none was seen to)
+	EndMS   int64  `json:"endMS,omitempty"`  // a raid cooldown: when its buff last left a raider (0 when none was seen to)
+	Prepot  bool   `json:"prepot,omitempty"` // a combat potion drunk before the raid pull started
 }
 
 // KeyPull is a trash pull with minibosses (the dungeon file's miniboss NPCs): the share of the party's damage that went
@@ -194,8 +195,32 @@ type KeyTrack struct {
 	Deaths  []TrackPoint            `json:"deaths"`
 	Meters  map[string][]MeterPoint `json:"meters"` // each player's damage and healing so far, about every 2 s
 	Pulls   []PullSpan              `json:"pulls"`  // each pull, in order; missing in keys saved before Nov 8
-	// Bosses is a raid boss's units (by GUID, each point named) about once a second; none in a key.
+	// Bosses is a raid boss's units and the adds to burst (by GUID, each point named, with its health) about once a
+	// second; none in a key.
 	Bosses map[string][]TrackPoint `json:"bosses,omitempty"`
+	// Health is the Bosses GUIDs the replay's health box shows: the units whose health is the boss's, then the adds
+	// to burst.
+	Health []string `json:"health,omitempty"`
+	// Casts is each raider's casts in order, and Abilities what each one's abilities did in each abilityEveryMS
+	// stretch, so the replay shows what a raider was casting and their bars up to its moment; none in a key, or in
+	// pulls saved before Nov 11.
+	Casts     map[string][]TrackCast     `json:"casts,omitempty"`
+	Abilities map[string][]AbilitySeries `json:"abilities,omitempty"`
+}
+
+// TrackCast is a cast on the pull's clock: when it started, the spell, and for one with a cast time when it ended
+// (finished, or stopped); End is 0 for an instant.
+type TrackCast struct {
+	ClockMS int64  `json:"t"`
+	Spell   string `json:"s"`
+	EndMS   int64  `json:"e,omitempty"`
+}
+
+// AbilitySeries is what one of a raider's abilities did in each stretch it did something in: each point is the
+// stretch's end on the pull's clock, then its damage, healing and casts (numbers only, as a long pull has thousands).
+type AbilitySeries struct {
+	Ability string     `json:"a"`
+	Points  [][4]int64 `json:"p"` // [end clockMS, damage, healing, casts]
 }
 
 // PullSpan is a pull's start and end on the key's clock; EndMS is 0 while it's being fought.
@@ -220,6 +245,7 @@ type TrackPoint struct {
 	Y       float64 `json:"y"`
 	Map     int     `json:"map"`
 	Name    string  `json:"name,omitempty"`
+	HP      float64 `json:"hp,omitempty"` // a raid boss's or add's health left (%), 0 when unknown
 }
 
 // KeyStop is a must-stop cast (the dungeon file's mustStop list) and its outcome: interrupted (By the player, IntoMS

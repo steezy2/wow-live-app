@@ -3,6 +3,7 @@ package service
 import (
 	"fmt"
 	"io/fs"
+	"math"
 	"slices"
 	"testing"
 	"time"
@@ -133,7 +134,7 @@ func TestRaidPullDeathsMechanicsAndProgress(t *testing.T) {
 	if len(p.Avoidable) != 1 || len(p.Avoidable[0].Players) != 3 || p.Avoidable[0].Players[0].Count != 1 {
 		t.Fatalf("avoidable = %+v; want one direct hit each, the tick left out", p.Avoidable)
 	}
-	if len(p.Soaks) != 1 || fmt.Sprint(p.Soaks[0]) != "{Spectral Coils 1 1 1 [Testpriest]}" || len(p.Stacks) != 1 || p.Stacks[0].Limit != 5 || p.Stacks[0].Players[0].Count != 6 {
+	if len(p.Soaks) != 1 || fmt.Sprint(p.Soaks[0]) != "{Spectral Coils 1 1 1 0 [{30000 [Testpriest]}] [Testpriest]}" || len(p.Stacks) != 1 || p.Stacks[0].Limit != 5 || p.Stacks[0].Players[0].Count != 6 {
 		t.Fatalf("soaks = %+v, stacks = %+v; want one soak by one raider who then died to it, and 6 stacks of 5", p.Soaks, p.Stacks)
 	}
 	if len(p.Cooldowns) != 1 || p.Cooldowns[0].Ability != "Tranquility" || p.Cooldowns[0].ClockMS != 5_000 ||
@@ -410,10 +411,10 @@ func TestARaidPullCountsACombatPotionDrunkBeforeIt(t *testing.T) {
 	}
 	var got []string
 	for _, c := range store.pulls[0].Cooldowns {
-		got = append(got, fmt.Sprintf("%s %d", c.Player, c.ClockMS/1000))
+		got = append(got, fmt.Sprintf("%s %d %v", c.Player, c.ClockMS/1000, c.Prepot))
 	}
-	if fmt.Sprint(got) != "[Testmage 0 Testshaman 10]" {
-		t.Fatalf("combat potions = %v; want the mage's from before the pull at 0 and the shaman's at 10 s", got)
+	if fmt.Sprint(got) != "[Testmage 0 true Testshaman 10 false]" {
+		t.Fatalf("combat potions = %v; want the mage's pre-pot at 0 and the shaman's at 10 s", got)
 	}
 }
 
@@ -464,5 +465,167 @@ func TestSuggestionsForAPullWithoutReferenceMechanics(t *testing.T) {
 	p.DurationMS, p.Lusts = 30_000, nil
 	if got := suggestions(p, nil, rules); slices.Contains(got, "No Bloodlust this pull") || len(got) != 3 {
 		t.Fatalf("suggestions = %q; a 30 s pull needs no Bloodlust or potions yet", got)
+	}
+}
+
+func TestRaidBossPctIsTheBossesOwnHealth(t *testing.T) {
+	const maxHP = 1_673_145_000
+	// Pull 23 on Nov 10: Ula'tek, its Venomous Heart and its two Gore Rattle tails at the wipe (Warcraft Logs: 48%).
+	ulatek := map[string]*raidUnit{
+		"Vehicle-0-1-1-1-257758-01":  {name: "Ula'tek", hp: 795_742_315, maxHP: maxHP},
+		"Creature-0-1-1-1-267460-01": {name: "Venomous Heart", hp: 807_840_368, maxHP: maxHP},
+		"Vehicle-0-1-1-1-259555-01":  {name: "Gore Rattle", hp: 1_460_667_250, maxHP: maxHP},
+		"Vehicle-0-1-1-1-259555-02":  {name: "Gore Rattle", hp: 1_366_868_049, maxHP: maxHP},
+	}
+	council := map[string]*raidUnit{
+		"Creature-0-1-1-1-11-01": {name: "Trader Gebbo", hp: 30, maxHP: 100},
+		"Creature-0-1-1-1-12-01": {name: "Mor'zahi", hp: 50, maxHP: 100},
+		"Creature-0-1-1-1-99-01": {name: "Add", hp: 0, maxHP: 100},
+	}
+	for _, c := range []struct {
+		name  string
+		boss  models.RaidBoss
+		units map[string]*raidUnit
+		want  float64
+	}{
+		{"the unit named as the encounter", models.RaidBoss{Name: "Ula'tek", NPCs: []int{257758, 259555, 267460}},
+			ulatek, 47.6},
+		{"the reference's health NPCs", models.RaidBoss{Name: "Ula'tek", NPCs: []int{259555}, Health: []int{267460}},
+			ulatek, 48.3},
+		{"a council: all its NPCs", models.RaidBoss{Name: "The Lost Explorers", NPCs: []int{11, 12}}, council, 40},
+	} {
+		got := (&raidRun{boss: c.boss, units: c.units}).bossPct(false)
+		if math.Abs(got-c.want) > 0.05 {
+			t.Errorf("%s: boss at %.2f%%; want %.1f%%", c.name, got, c.want)
+		}
+	}
+}
+
+func TestRaidPullPickupsBreaksAndSpawns(t *testing.T) {
+	keys, store := newRaidTracker(t)
+	boss := keys.raid.bosses["Testboss"]
+	boss.Pickups = []models.RaidPickupRule{{Aura: 2001, Name: "an egg"}}
+	boss.Breaks = []models.RaidBreakRule{{Aura: 2002, Effect: 2003, WithinMS: 250}}
+	boss.Spawns = []models.RaidSpawnRule{{Add: "Viper", Cause: 2004, WithinMS: 2000},
+		{Add: "Warden", Cause: 2005, WithinMS: 3000}}
+	keys.raid.bosses["Testboss"] = boss
+	aura := func(s float64, event, unit string, spell int, name string) string {
+		return raidAt(3, s, fmt.Sprintf(`%s,%s,%s,%d,"%s",0x8,DEBUFF`, event, bossUnit, unit, spell, name))
+	}
+	add := func(s float64, guid, name string) string { // a raider hitting an add: it's seen, and it was hit
+		return raidAt(3, s, "SPELL_DAMAGE,"+testPlayer+","+guid+`,"`+name+`",0xa48,0x80000000,44425,"Arcane Barrage",0x40`)
+	}
+	feed(t, keys, pullLines(3, 0, 120, 40, false,
+		raidAt(3, 0.6, "COMBATANT_INFO,Player-76-0000CCCC,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,257,[],[],[],[],[]"),
+		aura(10, "SPELL_AURA_APPLIED", testPlayer, 2001, "Noxious Shell"),
+		aura(10.5, "SPELL_AURA_APPLIED", shamanUnit, 2001, "Noxious Shell"),
+		aura(30, "SPELL_AURA_APPLIED", priestUnit, 2001, "Noxious Shell"), // the next wave
+		aura(40, "SPELL_AURA_REMOVED", testPlayer, 2002, "Grasping Fangs"),
+		aura(40.01, "SPELL_AURA_APPLIED", testPlayer, 2003, "Blight Vein"),
+		aura(40.02, "SPELL_AURA_APPLIED", shamanUnit, 2003, "Blight Vein"),
+		aura(50, "SPELL_AURA_REMOVED", shamanUnit, 2002, "Grasping Fangs"), // nothing followed
+		aura(70, "SPELL_AURA_REMOVED", priestUnit, 2002, "Grasping Fangs"), // went with the priest's death
+		raidAt(3, 70.2, "UNIT_DIED,"+noUnit+","+priestUnit+",0"),
+		aura(59, "SPELL_AURA_APPLIED", priestUnit, 2004, "Noxious Splash"),
+		aura(59.2, "SPELL_AURA_APPLIED", shamanUnit, 2004, "Noxious Splash"),
+		add(60, "Creature-0-1-2939-1-300-01", "Viper"),
+		add(90, "Creature-0-1-2939-1-300-02", "Viper"), // no splash just before
+		hitOn(3, 94, "SPELL_DAMAGE", testPlayer, 2004, "Noxious Splash"),
+		add(95, "Creature-0-1-2939-1-300-03", "Viper"), // a splash that landed as a hit
+		raidAt(3, 98, "SPELL_CAST_START,"+bossUnit+","+noUnit+`,2005,"Hatching Doom",0x8`),
+		add(100, "Creature-0-1-2939-1-301-01", "Warden"),
+	)...)
+	if _, err := keys.SaveFinished(); err != nil {
+		t.Fatal(err)
+	}
+	p := store.pulls[0]
+	if got := fmt.Sprint(p.Pickups); got != "[{10000 an egg [Testmage Testshaman]} {30000 an egg [Testpriest]}]" {
+		t.Errorf("pickups = %s; want two waves", got)
+	}
+	if got := fmt.Sprint(p.Breaks); got != "[{40000 Testmage Grasping Fangs Blight Vein 2} {50000 Testshaman Grasping Fangs  0}]" {
+		t.Errorf("breaks = %s; want the first setting off Blight Vein on 2, the second nothing", got)
+	}
+	spawns := map[string]string{}
+	for _, a := range p.Adds {
+		spawns[a.Name] = fmt.Sprint(a.Spawns)
+	}
+	if spawns["Viper"] != "[{60000 Noxious Splash [Testpriest Testshaman]} {90000  []} "+
+		"{95000 Noxious Splash [Testmage]}]" ||
+		spawns["Warden"] != "[{100000 Hatching Doom []}]" {
+		t.Errorf("spawns = %v; want the first Viper from the splash, the second from nothing, the Warden from the cast",
+			spawns)
+	}
+}
+
+func TestRaidReadyCheckAtThePullAndBetweenPulls(t *testing.T) {
+	keys, store := newRaidTracker(t)
+	keys.raid.rules.Consumables.Vantus = []string{"Vantus Rune"}
+	named := func(id int, name string) string { // a line that tells the log's name of an aura
+		return raidAt(3, 0, fmt.Sprintf(`SPELL_AURA_APPLIED,%s,%s,%d,"%s",0x8,BUFF`, testPlayer, testPlayer, id, name))
+	}
+	info := func(guid, spec, auras string) string {
+		return raidAt(3, 10.5, "COMBATANT_INFO,"+guid+",1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,"+spec+
+			",[],[],[],[],["+auras+"]")
+	}
+	const mage = "Player-76-0000AAAA"
+	feed(t, keys,
+		raidAt(3, 0, `ZONE_CHANGE,2939,"The Venomous Abyss",16`),
+		named(3001, "Flask of Tests"), named(3002, "Well Fed"), named(3003, "Vantus Rune: Radiant"),
+		named(1459, "Arcane Intellect"), named(3004, "Skyfury"),
+		raidAt(3, 1, `SPELL_AURA_APPLIED,`+shamanUnit+`,`+shamanUnit+`,3004,"Skyfury",0x8,BUFF`),
+		raidAt(3, 10, `ENCOUNTER_START,3180,"Testboss",16,20,2939`),
+		info(mage, "62", mage+",3001,1,"+mage+",3002,1,"+mage+",3003,1,"+mage+",1459,1,"+mage+",3004,1"),
+		info("Player-76-0000BBBB", "262", mage+",3001,1,"+mage+",1459,1"),
+		raidAt(3, 11, "SPELL_DAMAGE,"+testPlayer+","+bossUnit+`,44425,"Arcane Barrage",0x40,`+
+			bossGUID+",0000000000000000,40,100,0,0,1470,0,0,0,3,0,100,0,1599.81,-1.23,2610,3.1461,93"+
+			",5000,5000,-1,64,0,0,0,nil,nil,nil,ST"),
+		raidAt(3, 30, "UNIT_DIED,"+noUnit+","+testPlayer+",0"), // a death takes their raid buffs off
+		raidAt(3, 60, `ENCOUNTER_END,3180,"Testboss",16,20,0,50000`),
+	)
+	if _, err := keys.SaveFinished(); err != nil {
+		t.Fatal(err)
+	}
+	if got := fmt.Sprint(store.pulls[0].Missing); got != "[{Testshaman [Skyfury Vantus Rune food]}]" {
+		t.Errorf("missing at the pull = %s; want the shaman's food, Vantus Rune and Skyfury", got)
+	}
+	ready := keys.RaidLive(0).Ready
+	if ready == nil || fmt.Sprint(ready.Players) != "[{Testmage [Arcane Intellect] [Skyfury]} "+
+		"{Testshaman [Vantus Rune food] [Skyfury]}]" {
+		t.Errorf("ready between pulls = %+v; want the dead mage's raid buffs gone, the rest from the pull's start", ready)
+	}
+	if _, ok := keys.Ready(); ok {
+		t.Error("a raid's ready check on the M+ endpoint; want it in RaidLive only")
+	}
+}
+
+func TestRaidTrackKeepsBossHealthCastsAndAbilities(t *testing.T) {
+	keys, store := newRaidTracker(t)
+	cast := func(s float64, event string, spell int, name string) string {
+		return raidAt(3, s, fmt.Sprintf(`%s,%s,%s,%d,"%s",0x40,`, event, testPlayer, noUnit, spell, name)+
+			advancedOf("Player-76-0000AAAA", "0000000000000000"))
+	}
+	feed(t, keys, pullLines(3, 0, 30, 40, false,
+		cast(2, "SPELL_CAST_START", 116, "Frostbolt"),
+		cast(4, "SPELL_CAST_SUCCESS", 116, "Frostbolt"),
+		cast(5, "SPELL_CAST_SUCCESS", 44425, "Arcane Barrage"), // an instant
+	)...)
+	if _, err := keys.SaveFinished(); err != nil {
+		t.Fatal(err)
+	}
+	track := store.tracks[store.pulls[0].Start]
+	var hp []float64
+	for _, points := range track.Bosses {
+		for _, p := range points {
+			hp = append(hp, p.HP)
+		}
+	}
+	if fmt.Sprint(hp) != "[40]" || fmt.Sprint(track.Health) != "["+bossGUID+"]" {
+		t.Errorf("boss health in the track = %v, shown %v; want the boss at 40%% in the box", hp, track.Health)
+	}
+	if got := fmt.Sprint(track.Casts["Testmage"]); got != "[{2000 Frostbolt 4000} {5000 Arcane Barrage 0}]" {
+		t.Errorf("casts = %s; want the Frostbolt from 2 to 4 s and the instant at 5 s", got)
+	}
+	if got := fmt.Sprint(track.Abilities["Testmage"]); got != "[{Arcane Barrage [[1000 5000 0 0] [30000 0 0 1]]} {Frostbolt [[30000 0 0 1]]}]" {
+		t.Errorf("abilities = %s; want the hit when it came, then the casts at the pull's end", got)
 	}
 }

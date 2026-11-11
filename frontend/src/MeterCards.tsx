@@ -1,4 +1,4 @@
-import type { CSSProperties, KeyboardEvent, ReactNode } from 'react'
+import { useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react'
 import type { KeyMeter, KeyView } from './api'
 import { type Column, defense, offense } from './meterColumns'
 import { classColors } from './classColors'
@@ -18,20 +18,23 @@ export function MeterCards({ keyView: key, clockMS }: { keyView: KeyView; clockM
   )
 }
 
-/** One card: a row per player, sorted by the first column, with a class-coloured bar across the row against the
- * top value. With onPick, a click on a row picks its player. */
+/** One card: a row per player, sorted by the first column (with sortable, by the column whose heading was clicked),
+ * with a class-coloured bar across the row against the top value. With onPick, a click on a row picks its player. */
 export function MeterCard({
   title,
   meter,
   columns,
   onPick,
+  sortable = false,
 }: {
   title: string
   meter: KeyMeter
   columns: Column[]
   onPick?: (player: string) => void
+  sortable?: boolean
 }) {
-  const [first] = columns
+  const [by, setBy] = useState(columns[0].label)
+  const first = columns.find((c) => c.label === by) ?? columns[0]
   const rows = [...meter.rows].sort((a, b) => first.value(b) - first.value(a))
   const top = Math.max(1, ...rows.map(first.value))
   const grid = { gridTemplateColumns: `minmax(120px, 1.6fr) repeat(${columns.length}, minmax(56px, 1fr))` }
@@ -47,9 +50,15 @@ export function MeterCard({
       </h2>
       <div className="card-row card-head muted" style={grid}>
         <span>Player</span>
-        {columns.map((c) => (
-          <span key={c.label}>{c.label}</span>
-        ))}
+        {columns.map((c) =>
+          sortable ? (
+            <button key={c.label} className="sort" aria-pressed={c === first} onClick={() => setBy(c.label)}>
+              {c.label}
+            </button>
+          ) : (
+            <span key={c.label}>{c.label}</span>
+          ),
+        )}
       </div>
       {rows.map((r) => (
         <BarRow

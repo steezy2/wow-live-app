@@ -1,18 +1,25 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent } from 'react'
 import { fetchRaidTrack, type KeyTrack, type RaidLane, type RaidPull } from './api'
 import { clock } from './format'
-import { MapCanvas, ReplayControls, type Backdrop } from './KeyMap'
-import { floorsOf, meterBetween, tickStep, topMeter, type SliderMark, type useReplay } from './replay'
+import { BOSS_GONE_MS, MapCanvas, ReplayControls, type Backdrop } from './KeyMap'
+import { floorsOf, lastAt, meterBetween, tickStep, topMeter, type SliderMark, type useReplay } from './replay'
 import { MeterGraph } from './DamageGraph'
 import { MeterCard } from './MeterCards'
 import { defense, raidOffense } from './meterColumns'
 import { RaidFocus } from './RaidFocus'
+import { classColors } from './classColors'
 
 /** How many raiders the replay's meters list, top first. */
 const REPLAY_METER_ROWS = 10
 
-/** A raid pull's replay: the raid and the boss on the room's map with the meters at that moment, the mechanics'
- * lanes, and the DPS and HPS graph, all on the page's one clock: a click on the lanes or the graph moves the map
+/** At most this many units in the boss box: the boss's own, then the adds to burst. */
+const BOSS_BOX_UNITS = 4
+
+/** How many of the focused raider's last casts the cast box lists. */
+const CAST_BOX_CASTS = 5
+
+/** A raid pull's replay: the mechanics' lanes and the DPS and HPS graph, then the raid and the boss on the room's
+ * map with the meters at that moment, all on the page's one clock: a click on the lanes or the graph moves the map
  * there. A click on a raider (their dot, a meter row, their line) focuses them: a ring and their name on the map,
  * their focus card in place of the meters, and their line alone on the graph; a right click goes back. */
 export function RaidReplay(props: {
@@ -59,12 +66,25 @@ export function RaidReplay(props: {
             </button>
           ))}
       </div>
+      <RaidLanes lanes={pull.lanes} end={end} now={now} onSeek={replay.setAt} />
+      <MeterGraph
+        track={track}
+        end={end}
+        marks={marks}
+        group="raid"
+        over="pull"
+        now={now}
+        onSeek={replay.setAt}
+        focus={focus}
+        onFocus={onFocus}
+      />
       {floors.length === 0 ? (
         <p className="muted">No positions in this pull (needs Advanced Combat Logging).</p>
       ) : (
         <div className="map-body">
           <div>
-            <MapCanvas
+            <div className="map-stage">
+              <MapCanvas
               key={current}
               track={track}
               backdrop={backdrop}
@@ -74,7 +94,10 @@ export function RaidReplay(props: {
               deaths={pull.deaths}
               focus={focus}
               onPick={onFocus}
-            />
+              />
+              <BossBox track={track} now={now} />
+              {focus && <CastBox track={track} player={focus} now={now} />}
+            </div>
             <p className="muted small">
               Scroll to zoom, drag to move, double click for the whole room · click a raider to focus them, right click
               for the whole raid
@@ -116,18 +139,6 @@ export function RaidReplay(props: {
           )}
         </div>
       )}
-      <RaidLanes lanes={pull.lanes} end={end} now={now} onSeek={replay.setAt} />
-      <MeterGraph
-        track={track}
-        end={end}
-        marks={marks}
-        group="raid"
-        over="pull"
-        now={now}
-        onSeek={replay.setAt}
-        focus={focus}
-        onFocus={onFocus}
-      />
     </section>
   )
 }
@@ -195,6 +206,60 @@ export function RaidLanes(props: { lanes: RaidLane[]; end: number; now: number; 
       <div className="lanes-now" style={{ '--at': share(now) } as CSSProperties}>
         <span>{clock(now)}</span>
       </div>
+    </div>
+  )
+}
+
+/** The boss's health at the replay's moment, over the map's top right: the units the track says to show, in its
+ * order (the boss's own, then the adds to burst), seen in the last BOSS_GONE_MS, with their health as a bar. */
+function BossBox({ track, now }: { track: KeyTrack; now: number }) {
+  const units = (track.health ?? [])
+    .map((guid) => lastAt(track.bosses?.[guid] ?? [], now))
+    .filter((p) => p !== undefined && p.hp !== undefined && now - p.t <= BOSS_GONE_MS)
+    .slice(0, BOSS_BOX_UNITS)
+  if (units.length === 0) return null
+  return (
+    <div className="map-box boss-box" aria-label="boss health">
+      {units.map((p, i) => (
+        <div key={i} className="boss-hp">
+          <span>{p?.name}</span> <b>{p?.hp?.toFixed(1)}%</b>
+          <div className="bar">
+            <div className="fill" style={{ width: `${p?.hp ?? 0}%` }} />
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/** The focused raider at the replay's moment, over the map's bottom left: what they're casting (with how far along)
+ * and their last few casts with how long ago. Nothing for a track without casts. */
+function CastBox({ track, player, now }: { track: KeyTrack; player: string; now: number }) {
+  const casts = track.casts?.[player]
+  if (!casts) return null
+  const started = casts.filter((c) => c.t <= now)
+  const current = started.filter((c) => c.e !== undefined && c.e > now).pop()
+  const recent = started
+    .filter((c) => c !== current)
+    .slice(-CAST_BOX_CASTS)
+    .reverse()
+  const color = classColors[track.classes[player]] ?? 'var(--accent)'
+  return (
+    <div className="map-box cast-box" aria-label={`${player}'s casts`}>
+      <b style={{ color }}>{player}</b>
+      {current && current.e !== undefined && (
+        <div>
+          Casting {current.s}
+          <div className="bar">
+            <div className="fill" style={{ width: `${(100 * (now - current.t)) / (current.e - current.t)}%` }} />
+          </div>
+        </div>
+      )}
+      {recent.map((c, i) => (
+        <div key={i} className="muted">
+          {c.s} · {((now - c.t) / 1000).toFixed(1)} s ago
+        </div>
+      ))}
     </div>
   )
 }

@@ -5,7 +5,7 @@
 [deaths]
 # Early deaths: the first few of a pull, plus any later death this long before the pull ended (the pull kept going).
 # After that it's the wipe, not its cause.
-first = 3
+first = 5
 before_wipe_seconds = 45
 # A mass kill is one ability killing at least this many raiders within this many seconds.
 mass_kill_players = 3
@@ -40,6 +40,10 @@ names = [
   "Divine Hymn", "Dream Flight", "Evangelism", "Healing Tide Totem", "Power Word: Barrier", "Rallying Cry",
   "Restoral", "Revival", "Rewind", "Spirit Link Totem", "Tranquility",
 ]
+
+[consumables]
+# Checked with mplus.toml's flask and food at each pull's start and between pulls: a buff whose name contains one.
+vantus = ["Vantus Rune"]
 
 # Per boss (as ENCOUNTER_START names it): its phases after phase 1, numbered as Warcraft Logs numbers them, and what
 # starts each in the combat log (event and spell ID). A phase without a trigger is listed but not marked; find its

@@ -18,7 +18,7 @@ import { classColors } from './classColors'
 import { defense, offense } from './meterColumns'
 import { MeterCard } from './MeterCards'
 import { clock } from './format'
-import { floorsOf, lastAt, meterBetween, useReplay, type SliderMark } from './replay'
+import { floorsOf, JUMP_YARDS_PER_S, lastAt, meterBetween, positionAt, useReplay, type SliderMark } from './replay'
 
 /** The trail the live map draws. */
 const LIVE_TRAIL_MS = 30_000
@@ -55,15 +55,13 @@ function onCanvas(e: { clientX: number; clientY: number }, canvas: HTMLCanvasEle
     scale,
   ]
 }
-/** Above this many yards a second between two samples is a teleport, so the line breaks. */
-const JUMP_YARDS_PER_S = 15
 /** A raid replay shows at least this share of the room's image, padded by this share of the fight on each side. */
 const FIGHT_MIN_SHARE = 0.2
 const FIGHT_PAD = 0.15
 /** A player seen this long after their death is alive again. */
 const REVIVED_AFTER_MS = 2_000
 /** A boss unit not seen for this long (gone, or submerged) isn't drawn. */
-const BOSS_GONE_MS = 5_000
+export const BOSS_GONE_MS = 5_000
 
 /** The replay's controls: play, the slider with its marks, the time, the speed and the trail. */
 export function ReplayControls(props: {
@@ -378,7 +376,7 @@ export function MapCanvas(props: {
         ctx.fillRect(x - dot / 2, y - dot / 2, dot, dot)
       })
     Object.values(track.bosses ?? {}).forEach((points) => {
-      const last = lastAt(points, now)
+      const last = positionAt(points, now)
       if (!last || last.map !== floor || now - last.t > BOSS_GONE_MS) return
       const [x, y] = at(last)
       ctx.fillStyle = '#000'
@@ -397,7 +395,9 @@ export function MapCanvas(props: {
     const players = Object.entries(track.players).sort(([a], [b]) => Number(a === focus) - Number(b === focus))
     players.forEach(([player, points]) => {
       const colour = classColors[track.classes[player]] ?? style.getPropertyValue('--accent')
+      const here = positionAt(points, now)
       const seen = points.filter((p) => p.t <= now && p.t >= now - trailMS && p.map === floor)
+      if (here && here.map === floor && seen.length > 0) seen.push(here)
       ctx.strokeStyle = colour
       ctx.lineWidth = dot / 2
       ctx.globalAlpha = focus && player !== focus ? 0.3 : 1
@@ -414,7 +414,7 @@ export function MapCanvas(props: {
       ctx.globalAlpha = 1
       // Where they are: their last place even past the trail, and before their first sample where they were first seen.
       // Dead until they're seen again after their last death (a release and run back, or a battle res).
-      const last = lastAt(points, now) ?? points[0]
+      const last = positionAt(points, now) ?? points[0]
       const dead = died.has(player) && (!last || last.t <= (died.get(player) ?? 0) + REVIVED_AFTER_MS)
       if (!last || last.map !== floor) return
       const [x, y] = at(last)

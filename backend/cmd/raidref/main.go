@@ -1,6 +1,7 @@
 // Command raidref writes reference/raid-bosses.json, the raid's boss mechanics the raid overview reads: each boss's
 // spells to dodge, soak, dispel and interrupt, the debuffs whose stacks matter and the units to burst, sorted from
-// Wowhead's boss cheat sheets by their words (service.RaidBossFacts), and its NPC IDs and rooms from a top Warcraft
+// Wowhead's boss cheat sheets by their words (service.RaidBossFacts) unless reference/raid-mechanics.toml (kept by
+// hand, checked against logs) has the boss, and its NPC IDs and rooms from a top Warcraft
 // Logs kill (WCL_CLIENT_ID and WCL_CLIENT_SECRET in .env; without them the overview tells the boss by its health and
 // the replay has no map), each room's edges from wago.tools. Run it each
 // tier and review the diff.
@@ -22,6 +23,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -49,15 +51,20 @@ func main() {
 	if *check {
 		err = checkLogs(path)
 	} else {
-		err = generate(context.Background(), config.CachePath(root), *raid, path)
+		err = generate(context.Background(), config.CachePath(root), *raid, config.RaidMechanicsPath(root), path)
 	}
 	if err != nil {
 		log.Fatal(err)
 	}
 }
 
-// generate reads the raid's boss cheat sheets and its bosses' NPC IDs, and writes the reference file.
-func generate(ctx context.Context, cache, raid, path string) error {
+// generate reads the raid's boss cheat sheets, the hand-kept mechanics and its bosses' NPC IDs, and writes the
+// reference file.
+func generate(ctx context.Context, cache, raid, mechanicsPath, path string) error {
+	curated, err := config.LoadRaidMechanics(mechanicsPath)
+	if err != nil {
+		return err
+	}
 	guides, err := wowhead.Client{CacheDir: filepath.Join(cache, "raidref")}.RaidGuides(ctx, raid)
 	if err != nil {
 		return err
@@ -86,10 +93,11 @@ func generate(ctx context.Context, cache, raid, path string) error {
 		}
 	}
 	ref := models.RaidReference{Raid: raid, Bosses: map[string]models.RaidBoss{}, Sources: map[string]string{
-		"mechanics": "Wowhead's boss cheat sheets (each boss's guide): spell IDs sorted by the words of their line",
-		"npcs":      "Warcraft Logs: the boss actors and maps of each encounter's top-ranked kill",
-		"maps":      "wago.tools' UiMapAssignment: each map's edges",
-		"written":   time.Now().Format(time.DateOnly),
+		"mechanics": "reference/raid-mechanics.toml (kept by hand, checked against logs), else Wowhead's boss " +
+			"cheat sheets (each boss's guide): spell IDs sorted by the words of their line",
+		"npcs":    "Warcraft Logs: the boss actors and maps of each encounter's top-ranked kill",
+		"maps":    "wago.tools' UiMapAssignment: each map's edges",
+		"written": time.Now().Format(time.DateOnly),
 	}}
 	for name := range fights {
 		if !slices.ContainsFunc(guides, func(g models.RaidGuide) bool { return g.Name == name }) {
@@ -98,6 +106,11 @@ func generate(ctx context.Context, cache, raid, path string) error {
 	}
 	for _, g := range guides {
 		b := service.RaidBossFacts(g)
+		if c, ok := curated.Bosses[b.Name]; ok {
+			if b, err = curate(b, c); err != nil {
+				return fmt.Errorf("%s in %s: %w", b.Name, filepath.Base(mechanicsPath), err)
+			}
+		}
 		b.NPCs, b.Maps = append([]int{}, fights[b.Name].NPCs...), []models.RaidMap{}
 		for _, m := range fights[b.Name].Maps {
 			if edges, ok := bounds[m.UIMapID]; ok {
@@ -108,6 +121,11 @@ func generate(ctx context.Context, cache, raid, path string) error {
 		log.Printf("%s: NPCs %v, maps %d, %d avoidable, %d soak, %d dispel, %d must-stop, %d stacks, burst %v", b.Name,
 			b.NPCs, len(b.Maps), len(b.Avoidable), len(b.Soak), len(b.Dispel), len(b.MustStop), len(b.Stacks), b.Priority)
 	}
+	for name := range curated.Bosses {
+		if _, ok := ref.Bosses[name]; !ok {
+			return fmt.Errorf("%s has %q, which isn't a boss of the raid", filepath.Base(mechanicsPath), name)
+		}
+	}
 	data, err := json.MarshalIndent(ref, "", "  ")
 	if err != nil {
 		return fmt.Errorf("writing the raid reference: %w", err)
@@ -117,6 +135,29 @@ func generate(ctx context.Context, cache, raid, path string) error {
 	}
 	log.Printf("wrote %s", path)
 	return nil
+}
+
+// curate is a boss with every mechanic list from its hand-kept mechanics instead of the cheat sheet's.
+func curate(b models.RaidBoss, c models.CuratedBoss) (models.RaidBoss, error) {
+	b.Checked, b.Sources, b.Health, b.Priority = c.Checked, c.Sources, c.Health, append([]string{}, c.Priority...)
+	b.Avoidable, b.Dispel = append([]int{}, c.Avoidable...), append([]int{}, c.Dispel...)
+	b.MustStop = append([]int{}, c.MustStop...)
+	b.Pickups, b.Breaks, b.Spawns = c.Pickups, c.Breaks, c.Spawns
+	b.Stacks, b.Soak, b.Soakers = map[int]int{}, []int{}, map[int]int{}
+	for id, n := range c.Stacks {
+		spell, err := strconv.Atoi(id)
+		if err != nil {
+			return b, fmt.Errorf("stacks key %q isn't a spell ID", id)
+		}
+		b.Stacks[spell] = n
+	}
+	for _, s := range c.Soaks {
+		b.Soak = append(b.Soak, s.Spell)
+		if s.Soakers > 0 {
+			b.Soakers[s.Spell] = s.Soakers
+		}
+	}
+	return b, nil
 }
 
 // checkLogs reads every log in the game's folder and prints the uneven abilities of each raid boss that its

@@ -325,6 +325,22 @@ button {
   font-size: var(--t-small);
 }
 
+/* A sortable card's headings: buttons that look like the others, the one it's sorted by underlined. */
+.card-head > .sort {
+  background: none;
+  border: 0;
+  padding: 0 var(--s1);
+  color: inherit;
+  font: inherit;
+  text-align: right;
+  cursor: pointer;
+}
+
+.card-head > .sort[aria-pressed='true'] {
+  color: var(--text);
+  text-decoration: underline;
+}
+
 .card-row {
   position: relative;
 }
@@ -949,6 +965,12 @@ span.graph-taken {
   font-size: var(--t-small);
 }
 
+/* A boss with many mechanics scrolls inside its card, beside Early deaths. */
+.panel.mechanics {
+  max-height: 32rem;
+  overflow-y: auto;
+}
+
 .mechanic-group h3,
 .drill h3 {
   margin: var(--s2) 0 var(--s1);
@@ -981,6 +1003,39 @@ span.graph-taken {
 .raid-focus .events li {
   padding: 2px 6px;
   margin-bottom: 2px;
+}
+
+/* Boxes over the replay's map: the boss's health at the top right, the focused raider's casts at the bottom left. */
+.map-stage {
+  position: relative;
+}
+
+.map-box {
+  position: absolute;
+  max-width: 45%;
+  padding: var(--s1) var(--s2);
+  background: color-mix(in srgb, var(--bg) 82%, transparent);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: var(--t-small);
+  pointer-events: none; /* the map under it still zooms, drags and picks */
+}
+
+.boss-box {
+  top: var(--s2);
+  right: var(--s2);
+  min-width: 160px;
+}
+
+.cast-box {
+  bottom: var(--s2);
+  left: var(--s2);
+  min-width: 150px;
+}
+
+.map-box .bar {
+  height: 6px;
+  margin: 2px 0 var(--s1);
 }
 
 /* A time clicked in a card brings the replay to the top, under the nav. */

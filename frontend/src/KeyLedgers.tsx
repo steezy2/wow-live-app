@@ -1,9 +1,10 @@
 import type { KeyView } from './api'
+import type { FightData } from './KeyTabs'
 import { amount, clock, coverText } from './format'
 
 /** Must-stop casts (the dungeon's casts that have to be stopped) by pull, what happened to each, and each player's
  * must-stop interrupts and wasted kicks. Every interrupt, must-stop or not, is on the Interrupts tab. */
-export function KickLedger({ keyView: key }: { keyView: KeyView }) {
+export function KickLedger({ data: key }: { data: FightData }) {
   const outcomes = new Map<string, number>()
   key.stops.forEach((s) => outcomes.set(s.outcome, (outcomes.get(s.outcome) ?? 0) + 1))
   const players = new Map<string, { kicks: number; wasted: number }>()
@@ -16,7 +17,7 @@ export function KickLedger({ keyView: key }: { keyView: KeyView }) {
   key.wastedKicks.forEach((w) => add(w.player, 'wasted'))
   const pulls = [...new Set(key.stops.map((s) => s.pull))]
   if (!key.reference)
-    return <p className="muted">This dungeon has no must-stop list (reference/mplus-dungeons.json).</p>
+    return <p className="muted">No must-stop list for this fight (reference/mplus-dungeons.json).</p>
   return (
     <>
       <p>
@@ -79,7 +80,7 @@ export function PriorityLedger({ keyView: key }: { keyView: KeyView }) {
 }
 
 /** The worst bursts of party damage with each member's cover, and how fast dispellable debuffs came off. */
-export function SpikeLedger({ keyView: key }: { keyView: KeyView }) {
+export function SpikeLedger({ data: key }: { data: FightData }) {
   const dispelled = key.debuffs.filter((d) => d.by).map((d) => d.afterMS)
   dispelled.sort((a, b) => a - b)
   return (

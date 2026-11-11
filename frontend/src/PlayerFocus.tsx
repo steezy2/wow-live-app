@@ -100,7 +100,7 @@ export function AbilityBars({
           <span>{count ? r.value : amount(r.value)}</span>
           <span>{((100 * r.value) / total).toFixed(1)}</span>
           {withCasts && <span>{r.casts || '–'}</span>}
-          {withCasts && <span>{r.hits}</span>}
+          {withCasts && <span>{r.hits || '–'}</span>}
         </BarRow>
       ))}
     </div>

@@ -1,0 +1,186 @@
+# The Venomous Abyss's boss mechanics, kept by hand. cmd/raidref merges each boss here over what it sorts from
+# Wowhead's cheat sheets into reference/raid-bosses.json: a boss listed here takes every mechanic list from this file.
+#
+# Spell IDs are the ones the combat log shows for what the app matches: avoidable and soaks are damage on raiders
+# (SPELL_DAMAGE), dispel, stacks, pickups and breaks are auras on raiders, must_stop are enemy casts
+# (SPELL_CAST_START), spawn causes either. Guides often give a cast's ID where the hit has another one.
+#
+# Sources per boss: Mythic Trap (mythictrap.com/en/venomous-abyss/<boss>/mythic) and Method's guides for what each
+# mechanic is; each ID checked against the owner's logs (checked = "log ...") or against the damage taken, debuffs and
+# enemy casts of the boss's top Mythic kill on Warcraft Logs (checked = "wcl <report>#<fight>"), read Nov 10 2026.
+#
+# Per boss: health (NPC IDs whose health is the boss's; leave out for "the NPC named as the encounter, else all"),
+# avoidable, dispel, must_stop, stacks (aura ID = the stacks that are too many, 0 when no number), priority (add
+# names to burst), [[soaks]] (spell, soakers wanted per cast, 0 = everyone), [[pickups]], [[breaks]] and [[spawns]].
+
+[bosses."Entombed Sentinels"]
+checked = "wcl Ljvh4yqWwTfQJ3Xz#13"
+sources = ["https://www.mythictrap.com/en/venomous-abyss/entombed-sentinels/mythic"]
+avoidable = [1296882, 1284209] # Shifting Protovenom touching an unmarked raider (Mythic), Living Venom
+dispel = [1284471]             # Blighted Blood
+must_stop = []
+priority = ["Venom Coagulation"]
+[bosses."Entombed Sentinels".stacks]
+1284500 = 0 # Mark of Acid
+1284506 = 0 # Mark of Blood
+1284491 = 0 # Bloodvenom Injection (tanks)
+[[bosses."Entombed Sentinels".soaks]]
+spell = 1288282 # Unstable Miasma: everyone soaks, then spreads
+soakers = 0
+
+[bosses."Kith'ix"]
+checked = "wcl yABcgtXjV48kFrW2#17"
+sources = ["https://www.mythictrap.com/en/venomous-abyss/kithix/mythic"]
+avoidable = [1302914, 1302917, 1308881] # Venom Roar (the Hulk's frontal), Nullshards
+dispel = [1304046]                      # Overwhelming Fear
+must_stop = []
+priority = []
+[bosses."Kith'ix".stacks]
+1302319 = 0 # Digestive Juices
+1318467 = 0 # Negation (tanks, Mythic)
+[[bosses."Kith'ix".pickups]]
+aura = 1304526 # Light's Embrace: a light mote before Extinguish
+name = "a light mote"
+
+[bosses."Nek'zali the Soulcoiler"]
+checked = "wcl WQ9PkqZdnGKNRyXL#1"
+sources = ["https://www.mythictrap.com/en/venomous-abyss/nekzali-the-soulcoiler/mythic"]
+avoidable = [1295085] # Soul Transfer's line
+dispel = [1287434]    # Essence Rend
+must_stop = []
+priority = ["Echo of Jawae", "Restless Amani", "Drowned Echo"]
+[bosses."Nek'zali the Soulcoiler".stacks]
+1284109 = 0 # Hollowing Strikes (tanks)
+1288772 = 0 # Soulcoil Rite
+[[bosses."Nek'zali the Soulcoiler".soaks]]
+spell = 1289855 # Hungering Pyre: the tank and a few helpers
+soakers = 0
+
+[bosses."Nymrissa Wavecaller"]
+checked = "log 2026-11-09 Heroic; wcl ZFcfXnBRAMCyDvwg#1"
+sources = ["https://www.mythictrap.com/en/venomous-abyss/nymrissa-wavecaller/mythic"]
+avoidable = [1258677] # Swirling Whirlpools
+dispel = []
+must_stop = []
+priority = ["Bubblefin Frostscale"]
+[bosses."Nymrissa Wavecaller".stacks]
+1282947 = 0 # Iceblade Flurry (tanks)
+[[bosses."Nymrissa Wavecaller".soaks]]
+spell = 1313448 # Frost Orb: one debuffed raider per orb
+soakers = 1
+
+[bosses."Sszorak"]
+checked = "wcl RQh621nVzHXABD8W#30"
+sources = ["https://www.mythictrap.com/en/venomous-abyss/sszorak/mythic"]
+avoidable = [1287083, 1305998] # Tempest's tornadoes, Caustic Claws' puddles
+dispel = []
+must_stop = []
+priority = []
+[bosses."Sszorak".stacks]
+1282873 = 0 # Corroding Venom (tanks)
+[[bosses."Sszorak".soaks]]
+spell = 1285999 # Mutilate: the frontal, split in two groups taking turns
+soakers = 8
+
+[bosses."The Coiled Altar"]
+checked = "wcl ZcDwmXQqhJYCA6Gd#20"
+sources = ["https://www.mythictrap.com/en/venomous-abyss/the-coiled-altar/mythic"]
+avoidable = [1310883] # Gloombomb
+dispel = [1306906]    # Venomfang
+must_stop = [1286918, 1286441] # Eternal Nightfall (break its shield), Spiritcackle (Heroic)
+priority = ["Spiteful Soulcoiler"]
+[bosses."The Coiled Altar".stacks]
+1298795 = 0 # Corrupted Toxin (tanks)
+[[bosses."The Coiled Altar".soaks]]
+spell = 1283594 # Guillotine: at least 5
+soakers = 5
+
+[bosses."The Lost Explorers"]
+checked = "log 2026-11-10 Heroic; wcl ZpbaLr3gGDdc7jKf#25"
+sources = ["https://www.mythictrap.com/en/venomous-abyss/the-lost-explorers/mythic"]
+avoidable = [1291935, 1292764, 1291918] # Throw Junk landing on you, Evil Eyes, Shell Spin
+dispel = []
+must_stop = [1286922] # Icebound Flames
+priority = []
+[bosses."The Lost Explorers".stacks]
+1291929 = 0 # Steady Strikes (tanks)
+[[bosses."The Lost Explorers".soaks]]
+spell = 1300237 # Mighty Thud: three circles, one group each
+soakers = 0
+
+[bosses."The Twin Fangs"]
+checked = "wcl 1RmLgyrbBjcNTVpk#40"
+sources = ["https://www.mythictrap.com/en/venomous-abyss/the-twin-fangs/mythic"]
+avoidable = [1292806, 1294605, 1306876, 1293295] # Stir the Depths, Vile Flood, Sanguine Storm, Corrosive Spit
+dispel = []
+must_stop = []
+priority = []
+[bosses."The Twin Fangs".stacks]
+1290336 = 8 # Eternal Venom: 9 kills on Mythic (10 Heroic, 11 Normal)
+1310360 = 0 # Envenomed (tanks)
+[[bosses."The Twin Fangs".soaks]]
+spell = 1289201 # Caustic Globule: one raider per orb
+soakers = 1
+[[bosses."The Twin Fangs".soaks]]
+spell = 1290662 # Ravenous Feast: split among everyone
+soakers = 0
+[[bosses."The Twin Fangs".soaks]]
+spell = 1310371 # Stone Breaker: a tank
+soakers = 1
+
+[bosses."Ula'tek"]
+checked = "log 2026-11-10 Mythic; wcl JL3bgnz1xpBh4HjT#17"
+sources = ["https://www.mythictrap.com/en/venomous-abyss/ulatek/mythic",
+           "https://www.method.gg/guides/the-venomous-abyss/ulatek"]
+health = [257758]                               # Ula'tek, not the Gore Rattle tails or the Venomous Heart
+avoidable = [1292403, 1302982, 1301510]         # Caustic Waves, Virulent Spit, Circling Prey
+dispel = []
+must_stop = [1290779, 1305650, 1310764]         # Malice, Anguished Cry, Vicious Echoes
+priority = ["Venomous Heart", "Doomscale Warden"]
+[bosses."Ula'tek".stacks]
+[[bosses."Ula'tek".soaks]]
+spell = 1287265 # Spectral Coils: two circles, a group each
+soakers = 0
+[[bosses."Ula'tek".soaks]]
+spell = 1293146 # Serpent's Bite: everyone
+soakers = 0
+[[bosses."Ula'tek".pickups]]
+aura = 1307612 # Noxious Shell
+name = "an egg"
+[[bosses."Ula'tek".pickups]]
+aura = 1300312 # Doomscale Shell
+name = "a Doomscale Egg"
+[[bosses."Ula'tek".breaks]]
+aura = 1311611   # Grasping Fangs
+effect = 1311609 # Blight Vein on the raid 1-15 ms later (Nov 10)
+within_ms = 250
+# Spawns, measured Nov 10 on 28 Mythic pulls (time from the cause to the add's first line, median):
+[[bosses."Ula'tek".spawns]]
+add = "Blightscale Viper"
+cause = 1307635 # Noxious Splash: two egg carriers too close (21 of 91 Vipers, 0.5 s)
+within_ms = 2000
+[[bosses."Ula'tek".spawns]]
+add = "Blightscale Viper"
+cause = 1292403 # Caustic Waves on an egg carrier (46 of 91, 0.9 s)
+within_ms = 2000
+[[bosses."Ula'tek".spawns]]
+add = "Blightscale Clutch"
+cause = 1302950 # Writhing Gestation with the Doomscale Warden alive (77 of 94, 0.4 s)
+within_ms = 2000
+[[bosses."Ula'tek".spawns]]
+add = "Doomscale Warden"
+cause = 1306862 # Hatching Doom (30 of 32, 1.6 s)
+within_ms = 3000
+
+[bosses."Vashnik the Malignant"]
+checked = "log 2026-11-10 Heroic; wcl R7cP6rmx4A1tzyQv#31"
+sources = ["https://www.mythictrap.com/en/venomous-abyss/vashnik-the-malignant/mythic"]
+avoidable = [1281925, 1295798, 1302489] # Plague Froth's waves, Plague Wave, Stygian Burst
+dispel = [1295173]                      # Exploding Infection
+must_stop = []
+priority = ["Burning Venom", "Shrouded Venom"]
+[bosses."Vashnik the Malignant".stacks]
+1280934 = 0 # Dripping Fangs (tanks)
+[[bosses."Vashnik the Malignant".soaks]]
+spell = 1282525 # Malignant Catalyst
+soakers = 0

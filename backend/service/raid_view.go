@@ -11,8 +11,8 @@ import (
 	"wow-live/backend/models"
 )
 
-// RaidLive is the raid as of now (ms since the epoch): whether a pull is on, and the last pull that ended with the
-// pulls it's compared with.
+// RaidLive is the raid as of now (ms since the epoch): whether a pull is on, the last pull that ended with the pulls
+// it's compared with, and in a raid between pulls the ready check.
 func (k *LogTracker) RaidLive(now int64) models.RaidLive {
 	k.mu.RLock()
 	defer k.mu.RUnlock()
@@ -25,6 +25,9 @@ func (k *LogTracker) RaidLive(now int64) models.RaidLive {
 		live.Last = &last
 	}
 	live.BetweenPulls = k.betweenPulls(now)
+	if check, ok := k.readyCheck(); ok && k.ready.raid {
+		live.Ready = &check
+	}
 	return live
 }
 

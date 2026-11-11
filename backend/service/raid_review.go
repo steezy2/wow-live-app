@@ -64,13 +64,15 @@ func (k *LogTracker) lanes(run *keyRun, p models.RaidPull, end int64) []models.R
 			Text: short(float64(s.PerSecond)) + "/s", Bad: len(s.Covered) == 0})
 	}
 	for id, t := range r.soaks {
-		most := 0
-		for _, c := range t.casts {
-			most = max(most, len(c))
+		want := r.boss.Soakers[id] // else as many as the best cast
+		if want == 0 {
+			for _, c := range t.casts {
+				want = max(want, len(c))
+			}
 		}
 		for i, c := range t.casts {
 			add("soak", k.spells[id], models.RaidMark{ClockMS: run.clock(t.at[i]), Text: fmt.Sprintf("%d soaked", len(c)),
-				Bad: len(c) < most})
+				Bad: len(c) < want})
 		}
 	}
 	boss := r.bossUnits()

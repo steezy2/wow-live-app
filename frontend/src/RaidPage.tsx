@@ -1,11 +1,15 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { fetchRaidNights, fetchRaidPull, type RaidNight, type RaidPull, type RaidPullSummary } from './api'
 import { clock, counted, progressText } from './format'
 import { defense, raidOffense } from './meterColumns'
 import { MeterCard } from './MeterCards'
-import { EarlyDeaths, Mechanics, Name, PullMeters } from './RaidCards'
+import { fightTabs, type FightData } from './KeyTabs'
+import { PlayerTable } from './PlayerTable'
+import { EarlyDeaths, Mechanics, Name, NoAbilities, PullMeters } from './RaidCards'
 import { RaidReplay } from './RaidReplay'
 import { topMeter, useReplay } from './replay'
+import { Tabs } from './Tabs'
+import { ReadyPanel } from './ReadyPanel'
 import { useRaidLive } from './useLiveKey'
 
 /** How many deaths, things to fix, and top damage and healing rows the overlay's card shows. */
@@ -64,10 +68,12 @@ export function RaidPage() {
         {nights.length === 0 && <p className="muted small">No raid pulls yet: each one is saved here as it ends.</p>}
       </aside>
       <main className="page">
-        {live?.pulling && (
+        {live?.pulling ? (
           <p className="panel">
             Pulling <b>{live.boss}</b> now · the overview of this pull shows when it ends.
           </p>
+        ) : (
+          live?.ready && <ReadyPanel ready={live.ready} />
         )}
         {selected !== null ? (
           <SavedPull start={selected} />
@@ -162,6 +168,17 @@ export function RaidPullView({ pull }: { pull: RaidPull }) {
           {pull.lusts.length > 0 ? ` · Bloodlust at ${pull.lusts.map(clock).join(', ')}` : ' · no Bloodlust'}
         </p>
         <Comparisons pull={pull} />
+        {pull.missing && pull.missing.length > 0 && (
+          <p className="warning small">
+            Missing at the pull:{' '}
+            {pull.missing.map((m, i) => (
+              <Fragment key={m.player}>
+                {i > 0 && ' · '}
+                <Name player={m.player} classes={classes} /> {m.missing.join(', ')}
+              </Fragment>
+            ))}
+          </p>
+        )}
       </section>
 
       {pull.suggestions.length > 0 && (
@@ -185,6 +202,7 @@ export function RaidPullView({ pull }: { pull: RaidPull }) {
       </div>
 
       <PullMeters pull={pull} classes={classes} focus={focus} onFocus={setFocus} />
+      <PullTabs pull={pull} onFocus={setFocus} />
     </>
   )
 }
@@ -238,6 +256,36 @@ export function RaidOverlayCard({ pull }: { pull: RaidPull }) {
           />
         </div>
       </div>
+    </>
+  )
+}
+
+/** Under the meters: every raider's pull in one table, and the tabs a key has (deaths, interrupts, must-stops, spikes,
+ * defensives and potions, CC); a pull saved before they were kept says how to fill them in. */
+function PullTabs({ pull, onFocus }: { pull: RaidPull; onFocus: (player: string) => void }) {
+  if (!pull.casts) return <NoAbilities />
+  const data: FightData = {
+    deaths: pull.deaths,
+    interrupts: pull.interrupts ?? [],
+    casts: pull.casts,
+    stops: pull.stops ?? [],
+    wastedKicks: pull.wastedKicks ?? [],
+    spikes: pull.spikes ?? [],
+    debuffs: pull.debuffs ?? [],
+    reference: true,
+  }
+  return (
+    <>
+      <PlayerTable
+        title="Raiders"
+        meter={pull.meter}
+        casts={pull.casts}
+        activity={pull.activity}
+        deaths={pull.deaths}
+        avoidableListed
+        onPick={onFocus}
+      />
+      <Tabs tabs={fightTabs(data, `Deaths ${pull.deaths.length}`)} />
     </>
   )
 }
