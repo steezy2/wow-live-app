@@ -18,6 +18,7 @@ import {
   BOSS_GONE_MS,
   floorsOf,
   JUMP_YARDS_PER_S,
+  indexAfter,
   lastAt,
   positionAt,
   type SliderMark,
@@ -298,6 +299,10 @@ export function MapCanvas(props: {
     () => (backdrop.kind === 'image' ? fightArea(backdrop.map, track, floor) : [0, 0, 1]),
     [backdrop, track, floor],
   )
+  const walkedHere = useMemo(
+    () => (backdrop.kind === 'walked' ? backdrop.walked.filter((p) => p.map === floor) : []),
+    [backdrop, floor],
+  )
   useEffect(() => {
     const canvas = ref.current
     const ctx = canvas?.getContext('2d')
@@ -320,6 +325,13 @@ export function MapCanvas(props: {
       return img.complete && img.naturalWidth > 0 ? img : undefined
     }
     const style = getComputedStyle(canvas)
+    const css = {
+      muted: style.getPropertyValue('--muted'),
+      text: style.getPropertyValue('--text'),
+      bad: style.getPropertyValue('--bad'),
+      warn: style.getPropertyValue('--warn'),
+      accent: style.getPropertyValue('--accent'),
+    }
     const draw = (now: number) => {
       ctx.setTransform(1, 0, 0, 1, 0, 0)
       ctx.clearRect(0, 0, canvas.width, canvas.height)
@@ -340,24 +352,22 @@ export function MapCanvas(props: {
         const [w, h] = [img?.naturalWidth ?? 0, img?.naturalHeight ?? 0]
         if (img) ctx.drawImage(img, left * w, top * h, share * w, share * h, 0, 0, canvas.width, canvas.height)
       } else {
-        ctx.fillStyle = style.getPropertyValue('--muted')
+        ctx.fillStyle = css.muted
         ctx.globalAlpha = 0.18
-        backdrop.walked
-          .filter((p) => p.map === floor)
-          .forEach((p) => {
-            const [x, y] = at(p)
-            ctx.fillRect(x - 2, y - 2, 4, 4)
-          })
+        walkedHere.forEach((p) => {
+          const [x, y] = at(p)
+          ctx.fillRect(x - 2, y - 2, 4, 4)
+        })
         ctx.globalAlpha = 1
       }
       const dot = canvas.width / 160 / view.k // the same size on screen at any zoom
       const label = (text: string, x: number, y: number) => {
-        ctx.fillStyle = style.getPropertyValue('--text')
+        ctx.fillStyle = css.text
         ctx.font = `${Math.round(dot * 2.6 * 10) / 10}px system-ui, sans-serif`
         ctx.textAlign = 'center'
         ctx.fillText(text, x, y - dot * 3.4)
       }
-      ctx.fillStyle = style.getPropertyValue('--bad')
+      ctx.fillStyle = css.bad
       track.deaths
         .filter((d) => d.map === floor && d.t <= now)
         .forEach((d) => {
@@ -369,7 +379,7 @@ export function MapCanvas(props: {
         if (!last || last.map !== floor || now - last.t > BOSS_GONE_MS) return
         const [x, y] = at(last)
         ctx.fillStyle = '#000'
-        ctx.strokeStyle = style.getPropertyValue('--warn')
+        ctx.strokeStyle = css.warn
         ctx.lineWidth = dot / 2
         ctx.beginPath()
         ctx.arc(x, y, dot * 2.4, 0, 2 * Math.PI)
@@ -383,9 +393,11 @@ export function MapCanvas(props: {
         .forEach((d) => died.set(d.player, Math.max(died.get(d.player) ?? 0, d.clockMS)))
       const players = Object.entries(track.players).sort(([a], [b]) => Number(a === focus) - Number(b === focus))
       players.forEach(([player, points]) => {
-        const colour = classColors[track.classes[player]] ?? style.getPropertyValue('--accent')
+        const colour = classColors[track.classes[player]] ?? css.accent
         const here = positionAt(points, now)
-        const seen = points.filter((p) => p.t <= now && p.t >= now - trailMS && p.map === floor)
+        const seen = points
+          .slice(indexAfter(points, now - trailMS - 1), indexAfter(points, now))
+          .filter((p) => p.t >= now - trailMS && p.map === floor)
         if (here && here.map === floor && seen.length > 0) seen.push(here)
         ctx.strokeStyle = colour
         ctx.lineWidth = dot / 2
@@ -403,13 +415,13 @@ export function MapCanvas(props: {
         ctx.globalAlpha = 1
         // Where they are: their last place even past the trail, and before their first sample where they were first
         // seen. Dead until they're seen again after their last death (a release and run back, or a battle res).
-        const last = positionAt(points, now) ?? points[0]
+        const last = here ?? points[0]
         const dead = died.has(player) && (!last || last.t <= (died.get(player) ?? 0) + REVIVED_AFTER_MS)
         if (!last || last.map !== floor) return
         const [x, y] = at(last)
         dots.current.push({ player, x, y })
         if (player === focus) {
-          ctx.strokeStyle = style.getPropertyValue('--text')
+          ctx.strokeStyle = css.text
           ctx.lineWidth = dot / 3
           ctx.beginPath()
           ctx.arc(x, y, dot * 2.2, 0, 2 * Math.PI)
@@ -417,7 +429,7 @@ export function MapCanvas(props: {
           label(player, x, y)
         }
         if (dead) {
-          ctx.strokeStyle = style.getPropertyValue('--bad')
+          ctx.strokeStyle = css.bad
           ctx.lineWidth = dot / 2
           ctx.beginPath()
           ctx.moveTo(x - dot, y - dot)
@@ -447,7 +459,7 @@ export function MapCanvas(props: {
     }
     tick()
     return () => cancelAnimationFrame(frame)
-  }, [track, backdrop, area, floor, now, clock, trailMS, deaths, loaded, view, focus])
+  }, [track, backdrop, walkedHere, area, floor, now, clock, trailMS, deaths, loaded, view, focus])
   return (
     <canvas
       ref={ref}
