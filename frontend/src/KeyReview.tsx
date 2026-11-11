@@ -107,21 +107,22 @@ export function KeyReview(props: { keyView: KeyView; justEnded: boolean; onRevie
           <tbody>
             {review.players.map((p) => (
               <tr key={p.player}>
-                <td>
+                <td title={p.spec}>
                   <b>{p.player}</b>
-                  <div className="muted small">{p.spec}</div>
                 </td>
                 {p.metrics.map((m) => {
                   const show = (v: number) => (m.amount ? amount(v) : String(Math.round(v)))
                   return (
-                    <td key={m.name} className={metricClass(m, party(m.name))}>
+                    <td
+                      key={m.name}
+                      className={metricClass(m, party(m.name))}
+                      title={m.partyRank > 0 ? `#${m.partyRank} in the party` : undefined}
+                    >
                       {show(m.value)}
                       {m.total ? ` / ${amount(m.total)}` : ''}
-                      <div className="muted small">
-                        {m.top > 0 && `${Math.round((100 * m.value) / m.top)}% of top`}
-                        {m.top > 0 && m.partyRank > 0 && ' · '}
-                        {m.partyRank > 0 && `#${m.partyRank}`}
-                      </div>
+                      {m.top > 0 && (
+                        <div className="muted small">{Math.round((100 * m.value) / m.top)}% of top</div>
+                      )}
                     </td>
                   )
                 })}

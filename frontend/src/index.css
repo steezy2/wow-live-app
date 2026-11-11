@@ -536,19 +536,25 @@ button {
 .review-table th,
 .review-table td {
   text-align: right;
-  padding: var(--s1) var(--s2);
+  padding: 2px var(--s1);
   vertical-align: top;
+  white-space: nowrap;
+}
+
+.review-table th {
+  font-size: var(--t-small);
+  font-weight: normal;
+  color: var(--muted);
 }
 
 .review-table th:first-child,
 .review-table td:first-child {
   text-align: left;
-  min-width: 120px;
 }
 
 .review-table th:not(:first-child),
 .review-table td:not(:first-child) {
-  min-width: 84px;
+  min-width: 56px;
 }
 
 .review-table tbody tr {

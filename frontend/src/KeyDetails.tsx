@@ -3,8 +3,8 @@ import type { KeyForces, KeyGhost, KeyReview as Review, KeyTrack, KeyView } from
 import { chestLabel, clock, oddsText, pullTitle, resultText, share } from './format'
 import { DamageGraph } from './DamageGraph'
 import { BossList, PriorityLedger } from './KeyLedgers'
+import { eventsOf } from './events'
 import { fightTabs } from './KeyTabs'
-import { PlayerTable } from './PlayerTable'
 import { KeyMap } from './KeyMap'
 import { KeyReview } from './KeyReview'
 import { FightMeters, type MeterWindow } from './FightMeters'
@@ -53,7 +53,20 @@ export function KeyDetails({
       key.status === 'running' ? undefined : { onSeek: show, classes: track?.classes ?? {}, onFocus: setFocus },
     [key.status, show, track],
   )
-  const fight = fightTabs(key, `Deaths ${key.deaths.length} (+${clock(key.penaltyMS)})`, 'party', seek)
+  const player = focus || key.logger
+  const moments = {
+    player,
+    events: player
+      ? eventsOf({ deaths: key.deaths, lanes: key.lanes ?? [], dispels: key.debuffs, cooldowns: key.casts }, player)
+      : [],
+  }
+  const fight = fightTabs(
+    { ...key, lanes: key.lanes ?? [] },
+    `Deaths ${key.deaths.length} (+${clock(key.penaltyMS)})`,
+    'party',
+    seek,
+    moments,
+  )
   const [review, setReview] = useState<Review | null>(null)
   return (
     <>
@@ -211,20 +224,6 @@ export function KeyDetails({
             body: <BossList keyView={key} track={track} topBosses={review?.topBosses} onSeek={show} />,
           },
           ...fight,
-          {
-            name: 'Players',
-            body: (
-              <PlayerTable
-                title="Whole key"
-                meter={key.overall}
-                casts={key.casts}
-                activity={key.activity}
-                deaths={key.deaths}
-                avoidableListed={key.reference}
-                onPick={key.status === 'running' ? undefined : setFocus}
-              />
-            ),
-          },
         ]}
       />
       <p className="muted small">{key.players.join(' · ')}</p>

@@ -5,6 +5,15 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 ## [Unreleased]
 
 ### Added
+- One set of meter cards for a finished key and a raid pull (`FightMeters.tsx`, shared by both pages). The cards follow the replay: for a key, the pull the replay is in and the whole key so far; for a raid, the whole pull so far. Kicks, dispels, avoidable and priority damage follow too, kept in the track's meters (`av`, `pd`, `k`, `ds`). Click a player and the cards drill in place: damage by spell over damage into each enemy, then healing over damage taken from, with avoidable abilities marked ⚠. The replay opens at the end, so the cards start with the whole fight, and Play from there starts over. The replay's own DPS/HPS cards, the raid's focus card beside the map and the M+ Player focus card next to the review are gone. *Read old logs* fills in the new fields (`readerVersion` 5).
+- Bottom tabs on both pages:
+  - **Big hits**: damage spikes whose hardest-hit player had a defensive ready and used none (`unused` on a spike).
+  - **Avoidable**: each avoidable ability with its damage, hits and who it hit (`avoidableHits`, now on raid pulls too). This replaces the raid Mechanics card's "Avoidable hits".
+  - A tab with the focused player's moments, which replaces the M+ *Players* tab.
+
+### Changed
+- The key review table is more compact: one line per player, the spec and party rank in tooltips, "% of top" only where there is a top. The "big hits, defensive ready" column is gone (now the Big hits tab), and Healthstones shows only with a warlock in the group. Reviews saved earlier keep their columns.
+
 - The M+ key page works like the raid pull page. One focused player and one clock: a click on a map dot, a graph line, a name, a Players row or the review's focus card focuses that player everywhere, and a time in the Deaths, Interrupts, Must-stops, Spikes and Bosses tabs moves the replay there (the raid pull's tabs too). A **Timeline** of lanes (pulls, bosses, deaths, Bloodlust, potions, defensives, spikes, must-stops, wasted kicks, crowd control; red where it went wrong) sits above the meters, and the focus card lists what happened to the player in order.
 - The M+ replay keeps what the raid replay does: the boss's and minibosses' health over the map, the focused player's casts, damage taken, and ability and target bars up to the replay's moment (`casts`, `abilities`, `abilityTimes`, `targetSeries`, `health` in a key's track, in 10 s stretches). *Read old keys* fills them in for older keys.
 - **Fix next key** above the review (at most `[suggestions] most` lines in `mplus.toml`): deaths with a defensive ready, the slowest pull against your best timed run at the level, must-stop casts that went off, Bloodlusts few took a potion with, damage spikes with no party cooldown, the longest wait and late minibosses; and your best run's time under the result (`suggestions`, `lanes`, `bestFinalMS`).

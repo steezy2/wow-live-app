@@ -47,9 +47,9 @@ export function Who({ player, seek }: { player: string; seek?: Seeker }) {
 
 /** A player's moments in order, each time linked to the replay. */
 export function EventList({ events, onSeek }: { events: PlayerEvent[]; onSeek: (clockMS: number) => void }) {
-  if (events.length === 0) return null
+  if (events.length === 0) return <p className="muted">None</p>
   return (
-    <ul className="list events">
+    <ul className="list scroll">
       {events.map((e, i) => (
         <li key={i}>
           <span>

@@ -76,26 +76,13 @@ interface MechanicLine {
 }
 
 /** What went wrong by kind of mechanic, a heading per kind: each line leads with when it happened (a click shows it
- * in the replay; an ability's first hit, soak or stack past the limit, from the pull's lanes), then what, then who in
+ * in the replay; a first soak or stack past the limit, from the pull's lanes), then what, then who in
  * class colours and how much. A kind with nothing to show is left out. */
 export const Mechanics = memo(function Mechanics({ pull, classes, onSeek, onFocus }: CardProps) {
   const first = (kind: string, name: string) =>
     pull.lanes.find((l) => l.kind === kind && l.name === name)?.marks[0]?.clockMS
   const names = (players: (PlayerCount | string)[]) => <Names players={players} classes={classes} onFocus={onFocus} />
-  const sum = (players: PlayerCount[]) => players.reduce((n, p) => n + p.count, 0)
   const groups: [string, MechanicLine[]][] = [
-    [
-      'Avoidable hits',
-      pull.avoidable.map((a) => ({
-        at: first('avoidable', a.ability),
-        what: a.ability,
-        detail: (
-          <>
-            {sum(a.players)} hits: {names(a.players)}
-          </>
-        ),
-      })),
-    ],
     [
       'Soaks',
       pull.soaks.flatMap((s): MechanicLine[] => {

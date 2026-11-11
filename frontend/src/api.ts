@@ -644,7 +644,6 @@ export interface RaidPull extends RaidPullSummary {
   players: string[]
   deaths: RaidDeath[]
   massKills: { ability: string; killed: number; clockMS: number }[]
-  avoidable: { ability: string; players: PlayerCount[] }[]
   /** Each raider's avoidable damage by ability, most first; missing in pulls saved before Nov 11. */
   avoidableHits?: KeyHit[]
   /** needed: raiders each cast wants (0: everyone or unknown); hits: who soaked each cast (missing before Nov 11). */

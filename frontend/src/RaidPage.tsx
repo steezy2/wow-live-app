@@ -3,6 +3,7 @@ import { fetchRaidNights, fetchRaidPull, type RaidNight, type RaidPull, type Rai
 import { clock, counted, progressText } from './format'
 import { defense, raidOffense } from './meterColumns'
 import { MeterCard } from './MeterCards'
+import { eventsOf } from './events'
 import { fightTabs, type FightData } from './KeyTabs'
 import { PlayerTable } from './PlayerTable'
 import { BuffGaps, EarlyDeaths, Mechanics } from './RaidCards'
@@ -212,7 +213,7 @@ export function RaidPullView({ pull }: { pull: RaidPull }) {
         focus={focus}
         onFocus={setFocus}
       />
-      <PullTabs pull={pull} seek={{ onSeek: show, classes, onFocus: setFocus }} />
+      <PullTabs pull={pull} seek={{ onSeek: show, classes, onFocus: setFocus }} focus={focus} />
     </>
   )
 }
@@ -275,8 +276,9 @@ export function RaidOverlayCard({ pull }: { pull: RaidPull }) {
 }
 
 /** Under the meters: every raider's pull in one table, and the tabs a key has (deaths, interrupts, must-stops, spikes,
- * defensives and potions, CC); a pull saved before they were kept says how to fill them in. */
-function PullTabs({ pull, seek }: { pull: RaidPull; seek: Seeker }) {
+ * big hits, avoidable, defensives and potions, CC, the focused raider's moments); a pull saved before they were kept
+ * says how to fill them in. */
+function PullTabs({ pull, seek, focus }: { pull: RaidPull; seek: Seeker; focus: string }) {
   if (!pull.casts) return <NoAbilities />
   const data: FightData = {
     deaths: pull.deaths,
@@ -287,7 +289,10 @@ function PullTabs({ pull, seek }: { pull: RaidPull; seek: Seeker }) {
     spikes: pull.spikes ?? [],
     debuffs: pull.debuffs ?? [],
     reference: true,
+    avoidableHits: pull.avoidableHits,
+    lanes: pull.lanes,
   }
+  const moments = { player: focus || undefined, events: focus ? eventsOf(pull, focus) : [] }
   return (
     <>
       <PlayerTable
@@ -299,7 +304,7 @@ function PullTabs({ pull, seek }: { pull: RaidPull; seek: Seeker }) {
         avoidableListed
         onPick={seek.onFocus}
       />
-      <Tabs tabs={fightTabs(data, `Deaths ${pull.deaths.length}`, 'raid', seek)} />
+      <Tabs tabs={fightTabs(data, `Deaths ${pull.deaths.length}`, 'raid', seek, moments)} />
     </>
   )
 }
