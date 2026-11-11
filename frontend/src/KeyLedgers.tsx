@@ -247,7 +247,7 @@ export function Avoidable({ data, seek }: { data: FightData; seek?: Seeker }) {
   return (
     <>
       {players.length > 0 && (
-        <div className="cards">
+        <div className="cards compact">
           {players.map(([player, hits]) => (
             <div key={player} className="card small">
               <div className="card-row card-head">

@@ -10,6 +10,16 @@ definitions:
       error:
         type: string
     type: object
+  controller.LogNames:
+    properties:
+      names:
+        items:
+          type: string
+        minItems: 1
+        type: array
+    required:
+    - names
+    type: object
   controller.OldKeys:
     properties:
       read:
@@ -700,6 +710,38 @@ definitions:
         items:
           $ref: '#/definitions/models.KeyCast'
         type: array
+    type: object
+  models.LogFile:
+    properties:
+      active:
+        description: 'the game may still write it: it can''t be archived'
+        type: boolean
+      archived:
+        type: boolean
+      bytes:
+        type: integer
+      error:
+        description: why the last archive or delete of it failed
+        type: string
+      keys:
+        description: saved keys that started in it
+        type: integer
+      name:
+        description: the log's file name (an archived one without .zip)
+        type: string
+      pulls:
+        description: saved raid pulls that started in it
+        type: integer
+      read:
+        description: read by the current reader (Read old logs), so archiving loses
+          nothing
+        type: boolean
+      suggested:
+        description: 'ticked at first: old, read and not active'
+        type: boolean
+      writtenMS:
+        description: last written (Unix ms)
+        type: integer
     type: object
   models.MassKill:
     properties:
@@ -1862,6 +1904,104 @@ paths:
       summary: Save the desktop app's settings
       tags:
       - settings
+  /api/settings/logs:
+    get:
+      description: |-
+        The log folder's combat logs, then the ones archived (zipped into its WoW Live archive folder), newest
+        first: size, last write, saved keys and pulls from each, whether it's read, whether the game may still
+        write it (it can't be archived) and whether to tick it at first (older than 14 days and read).
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.LogFile'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+      summary: List the combat logs and the archived ones
+      tags:
+      - settings
+  /api/settings/logs/archive:
+    delete:
+      consumes:
+      - application/json
+      description: |-
+        Removes the named archived logs' zips. Saved keys and pulls stay. Answers the new list; a log that
+        couldn't be deleted carries its error.
+      parameters:
+      - description: names of archived logs from the list
+        in: body
+        name: logs
+        required: true
+        schema:
+          $ref: '#/definitions/controller.LogNames'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.LogFile'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+        "409":
+          description: already reading, archiving or deleting logs
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+      summary: Delete archived combat logs for good
+      tags:
+      - settings
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Zips each named log into the log folder's WoW Live archive folder and removes it (reading the folder
+        first when one isn't read yet), so live reading and Read old logs skip it; Read everything again
+        still reads it. Answers the new list; a log that couldn't be archived carries its error.
+      parameters:
+      - description: names from the list, not archived and not being written
+        in: body
+        name: logs
+        required: true
+        schema:
+          $ref: '#/definitions/controller.LogNames'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.LogFile'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+        "409":
+          description: already reading, archiving or deleting logs
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+      summary: Archive combat logs
+      tags:
+      - settings
   /api/settings/read-keys:
     post:
       description: |-
@@ -1882,6 +2022,10 @@ paths:
             $ref: '#/definitions/controller.OldKeys'
         "400":
           description: Bad Request
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+        "409":
+          description: already reading, archiving or deleting logs
           schema:
             $ref: '#/definitions/controller.ErrorResponse'
         "500":

@@ -314,6 +314,12 @@ button {
   min-height: 210px;
 }
 
+/* Small cards side by side, as many as fit (the avoidable damage each player took). */
+.cards.compact {
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  margin: 0 0 var(--s3);
+}
+
 /* A card with only a few rows (the avoidable damage a player took): no room kept for five players. */
 .card.small {
   min-height: 0;

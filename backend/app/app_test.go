@@ -16,7 +16,7 @@ import (
 func TestLearnSkipsReadLogs(t *testing.T) {
 	logs, cache := t.TempDir(), t.TempDir()
 	path := filepath.Join(logs, "WoWCombatLog-111026_190211.txt")
-	if err := os.WriteFile(path, []byte("11/10/2026 19:02:11.000-7  ZONE_CHANGE,2805,\"Ula'tek\",16\n"), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte(zoneLine), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	store := keystore.Store{Dir: filepath.Join(cache, "local-keys")}
