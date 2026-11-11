@@ -11,12 +11,12 @@ import (
 )
 
 // DungeonSources is what cmd/mplusref gathered for one dungeon: Mythic Dungeon Tools' data, Wowhead's overview and
-// Raider.IO's total forces (0 when no logged run had it).
+// Keystone.guru's total forces (0 when it has none).
 type DungeonSources struct {
-	Name          string
-	MDT           models.MDTDungeon
-	Guide         models.DungeonGuide
-	RaiderIOTotal int
+	Name              string
+	MDT               models.MDTDungeon
+	Guide             models.DungeonGuide
+	KeystoneGuruTotal int
 }
 
 // tipKinds sorts the guide's boss tips by the words in their tag; a tip can be in several lists.
@@ -32,15 +32,15 @@ var tipKinds = map[string][]string{
 var npcTwins = map[int]int{273050: 270502}
 
 // DungeonFacts combines a dungeon's sources into its reference entry, counting each of npcTwins as its twin. It fails
-// when Mythic Dungeon Tools has no data for the dungeon or its forces total disagrees with Raider.IO's.
+// when Mythic Dungeon Tools has no data for the dungeon or its forces total disagrees with Keystone.guru's.
 func DungeonFacts(src DungeonSources) (models.DungeonFacts, error) {
 	m, g := src.MDT, src.Guide
 	if m.MapID == 0 {
 		return models.DungeonFacts{}, fmt.Errorf("%s: Mythic Dungeon Tools has no data", src.Name)
 	}
-	if src.RaiderIOTotal > 0 && src.RaiderIOTotal != m.Total {
-		return models.DungeonFacts{}, fmt.Errorf("%s: forces total %d in Mythic Dungeon Tools, %d on Raider.IO", src.Name,
-			m.Total, src.RaiderIOTotal)
+	if src.KeystoneGuruTotal > 0 && src.KeystoneGuruTotal != m.Total {
+		return models.DungeonFacts{}, fmt.Errorf("%s: forces total %d in Mythic Dungeon Tools, %d on Keystone.guru",
+			src.Name, m.Total, src.KeystoneGuruTotal)
 	}
 	tips := map[string][]int{}
 	for id, tag := range g.Tips {

@@ -1,6 +1,6 @@
 // Command mplusref writes reference/mplus-dungeons.json, the season's dungeon facts the M+ page reads: forces from
-// Mythic Dungeon Tools checked against Raider.IO, and the must-stop, avoidable, soak, dispel, purge and priority lists
-// from Wowhead's overviews. Run it each season or patch and review the diff.
+// Mythic Dungeon Tools checked against Keystone.guru, and the must-stop, avoidable, soak, dispel, purge and priority
+// lists from Wowhead's overviews. Run it each season or patch and review the diff.
 //
 // Usage, from backend/:
 //
@@ -51,8 +51,7 @@ func main() {
 
 // generate gathers each season dungeon's sources and writes the reference file.
 func generate(ctx context.Context, cache, path string) error {
-	rio := raiderio.Client{CacheDir: filepath.Join(cache, "raiderio")}
-	season, dungeons, err := rio.Season(ctx)
+	season, dungeons, err := raiderio.Client{CacheDir: filepath.Join(cache, "raiderio")}.Season(ctx)
 	if err != nil {
 		return err
 	}
@@ -61,35 +60,34 @@ func generate(ctx context.Context, cache, path string) error {
 		return err
 	}
 	guides := wowhead.Client{CacheDir: filepath.Join(cache, "wowhead")}
-	floors, err := keystoneguru.Client{CacheDir: filepath.Join(cache, "keystone-guru")}.Floors(ctx)
+	kg, err := keystoneguru.Client{CacheDir: filepath.Join(cache, "keystone-guru")}.Dungeons(ctx)
 	if err != nil {
 		return err
 	}
 	ref := models.MPlusReference{Season: season, Dungeons: map[int]models.DungeonFacts{}, Sources: map[string]string{
-		"forces":  fmt.Sprintf("github.com/%s@%s (GPL-2.0), totals checked against Raider.IO", mdt.Repo, commit),
-		"spells":  "Wowhead dungeon overviews (each dungeon's guide), interrupts checked against Mythic Dungeon Tools",
-		"maps":    fmt.Sprintf("github.com/%s dungeon data: floor bounds only; the site fetches the tiles", keystoneguru.Repo),
+		"forces": fmt.Sprintf("github.com/%s@%s (GPL-2.0), totals checked against Keystone.guru's", mdt.Repo,
+			commit),
+		"spells": "Wowhead dungeon overviews (each dungeon's guide), interrupts checked against Mythic Dungeon Tools",
+		"maps": fmt.Sprintf("github.com/%s dungeon data: floor bounds and forces totals only; the site fetches the tiles",
+			keystoneguru.Repo),
 		"written": time.Now().Format("2006-01-02"),
 	}}
 	for _, d := range dungeons {
-		src := service.DungeonSources{Name: d.Name}
+		src := service.DungeonSources{Name: d.Name, KeystoneGuruTotal: kg[d.MapID].ForcesTotal}
 		if i := slices.IndexFunc(mdtDungeons, func(m models.MDTDungeon) bool { return m.MapID == d.MapID }); i >= 0 {
 			src.MDT = mdtDungeons[i]
 		}
 		if src.Guide, err = guides.Guide(ctx, d.Slug); err != nil {
 			return err
 		}
-		if src.RaiderIOTotal, err = rio.TotalForces(ctx, season, d.Slug); err != nil {
-			return err
-		}
 		facts, err := service.DungeonFacts(src)
 		if err != nil {
 			return err
 		}
-		facts.Floors = append([]models.DungeonFloor{}, floors[d.MapID]...)
+		facts.Floors = append([]models.DungeonFloor{}, kg[d.MapID].Floors...)
 		ref.Dungeons[d.MapID] = facts
-		log.Printf("%s: %d NPCs (forces total %d, Raider.IO %d), %d must-stop, %d avoidable, %d dispel, %d to review",
-			d.Name, len(facts.Forces.NPCs), facts.Forces.Total, src.RaiderIOTotal, len(facts.MustStop),
+		log.Printf("%s: %d NPCs (forces total %d, Keystone.guru %d), %d must-stop, %d avoidable, %d dispel, %d to review",
+			d.Name, len(facts.Forces.NPCs), facts.Forces.Total, src.KeystoneGuruTotal, len(facts.MustStop),
 			len(facts.Avoidable), len(facts.Dispel), len(facts.Review))
 	}
 	data, err := json.MarshalIndent(ref, "", "  ")
