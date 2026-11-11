@@ -65,7 +65,8 @@ func (k *LogTracker) lanes(run *keyRun, p models.RaidPull, end int64) []models.R
 		add("spike", "Damage spike", models.RaidMark{ClockMS: s.ClockMS, EndMS: s.ClockMS + span,
 			Text: spikeRate(s, k.raid.rules.Suggestions) + "/s", Bad: len(s.PartyCDs) == 0})
 	}
-	for id, t := range r.soaks {
+	for _, id := range slices.Sorted(maps.Keys(r.soaks)) { // key order: marks at one moment keep one order
+		t := r.soaks[id]
 		want := r.boss.Soakers[id] // else as many as the best cast
 		if want == 0 {
 			for _, c := range t.casts {
@@ -78,7 +79,8 @@ func (k *LogTracker) lanes(run *keyRun, p models.RaidPull, end int64) []models.R
 		}
 	}
 	boss := r.bossUnits()
-	for guid, u := range r.units {
+	for _, guid := range slices.Sorted(maps.Keys(r.units)) {
+		u := r.units[guid]
 		if u.hit && boss[guid] == nil && slices.ContainsFunc(p.Adds, func(a models.RaidAdd) bool { return a.Name == u.name }) {
 			died := cmp.Or(u.died, end)
 			add("adds", u.name, models.RaidMark{ClockMS: run.clock(u.seen), EndMS: run.clock(died), Text: u.name,

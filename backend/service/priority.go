@@ -160,8 +160,8 @@ func priorityPulls(run *keyRun) []models.KeyPull {
 		}
 		p := models.KeyPull{Pull: n, ClockMS: s.clockMS, PriorityPct: share(into, s.damage),
 			OpeningPct: share(opening, s.openDamage), HealthPct: share(health, packHealth), Minibosses: []models.KeyMiniboss{}}
-		for guid, mob := range s.mobs {
-			if minis[guid] {
+		for _, guid := range slices.Sorted(maps.Keys(s.mobs)) { // GUID order, so a tie in the sort below is always the same
+			if mob := s.mobs[guid]; minis[guid] {
 				m := packOrder(s, minis, mob)
 				p.Late = p.Late || m.Order-1 > (m.Of-1)/2 && m.Order > 0
 				p.Minibosses = append(p.Minibosses, m)

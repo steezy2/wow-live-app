@@ -1,6 +1,7 @@
 package service
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/fs"
 	"math"
@@ -934,5 +935,36 @@ func TestViperSpawnerIsEggCarrier(t *testing.T) {
 		"31.4 Noxious Splash [Egg4]", "31.4 Noxious Splash [Egg5]"}
 	if fmt.Sprint(got) != fmt.Sprint(want) {
 		t.Fatalf("vipers =\n%q\nwant\n%q", got, want)
+	}
+}
+
+func TestRaidPullSavesTheSameEveryRead(t *testing.T) {
+	read := func() string {
+		keys, store := newRaidTracker(t)
+		boss := keys.raid.bosses["Testboss"]
+		boss.Spawns = []models.RaidSpawnRule{{Add: "Viper", Cause: 2004, WithinMS: 2000}}
+		keys.raid.bosses["Testboss"] = boss
+		add := func(guid string) string { // three Vipers seen at once: one from the splash, one killed
+			return raidAt(3, 60, "SPELL_DAMAGE,"+testPlayer+","+guid+`,"Viper",0xa48,0x80000000,44425,"Arcane Barrage",0x40`)
+		}
+		feed(t, keys, pullLines(3, 0, 120, 40, false,
+			hitOn(3, 59.5, "SPELL_DAMAGE", testPlayer, 2004, "Noxious Splash"),
+			add("Creature-0-1-2939-1-300-01"), add("Creature-0-1-2939-1-300-02"), add("Creature-0-1-2939-1-300-03"),
+			raidAt(3, 70, "UNIT_DIED,"+noUnit+",Creature-0-1-2939-1-300-02,\"Viper\",0xa48,0x0,0"),
+		)...)
+		if _, err := keys.SaveFinished(); err != nil {
+			t.Fatal(err)
+		}
+		data, err := json.Marshal(store.pulls[0])
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(data)
+	}
+	first := read()
+	for range 20 { // map order changes from run to run: 20 reads catch a list that follows it
+		if again := read(); again != first {
+			t.Fatalf("a second read of the same lines saved a different pull:\n%s\n%s", first, again)
+		}
 	}
 }

@@ -2,6 +2,7 @@ package service
 
 import (
 	"cmp"
+	"maps"
 	"slices"
 
 	"wow-live/backend/models"
@@ -52,13 +53,16 @@ func (k *LogTracker) stopEvent(at int64, event string, f []string, src, dst stri
 			Kind: "kick", ClockMS: k.clockAt(p.at)})
 		run.kick = nil
 	}
-	for key, span := range run.removed {
-		if at-span[1] > dispelWindowMS {
+	// Swept in key order: what ends in one line is saved in the same order on every read.
+	for _, key := range slices.SortedFunc(maps.Keys(run.removed), func(a, b [2]string) int {
+		return cmp.Or(cmp.Compare(a[0], b[0]), cmp.Compare(a[1], b[1]))
+	}) {
+		if span := run.removed[key]; at-span[1] > dispelWindowMS {
 			k.recordDebuff(key, span, "")
 		}
 	}
-	for guid, c := range run.casting {
-		if at-c.at > castTimeoutMS {
+	for _, guid := range slices.Sorted(maps.Keys(run.casting)) {
+		if c := run.casting[guid]; at-c.at > castTimeoutMS {
 			k.endCast(guid, "stopped", c.cc, at)
 		}
 	}
