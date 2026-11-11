@@ -378,9 +378,9 @@ func TestRaidPullKeepsAbilitiesTargetsAndHowLongBuffsLasted(t *testing.T) {
 	}
 	p := store.pulls[0]
 	if len(p.Abilities) != 2 || p.Abilities[0] != (models.KeyAbility{Player: "Testmage", Ability: "Arcane Barrage",
-		Damage: 5000, Hits: 1}) || fmt.Sprint(p.Targets) != "[{Testmage Testboss 5000}]" {
-		t.Fatalf("abilities = %+v, targets = %+v; want the mage's Arcane Barrage for 5000 into Testboss", p.Abilities,
-			p.Targets)
+		Damage: 5000, Hits: 1, School: 0x40}) || fmt.Sprint(p.Targets) != "[{Testmage Testboss 5000}]" {
+		t.Fatalf("abilities = %+v, targets = %+v; want the mage's arcane Arcane Barrage for 5000 into Testboss",
+			p.Abilities, p.Targets)
 	}
 	var got []string
 	for _, l := range p.Lanes {

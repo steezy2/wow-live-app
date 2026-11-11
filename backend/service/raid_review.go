@@ -291,10 +291,3 @@ func nameList(names []string) string {
 func deaths(n int) string  { return counted(n, "death") }
 func raiders(n int) string { return counted(n, "raider") }
 func times(n int) string   { return counted(n, "time") }
-
-func counted(n int, word string) string {
-	if n == 1 {
-		return "1 " + word
-	}
-	return fmt.Sprintf("%d %ss", n, word)
-}

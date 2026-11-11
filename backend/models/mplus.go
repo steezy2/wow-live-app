@@ -41,10 +41,14 @@ type Key struct {
 	// first: there once the key is over, and missing in keys saved before Nov 10.
 	Abilities []KeyAbility `json:"abilities,omitempty"`
 	Taken     []KeyHit     `json:"taken,omitempty"`
+	// Logger is the party member whose game wrote the log ("" in keys saved before Nov 11).
+	Logger string `json:"logger,omitempty"`
 }
 
 // KeyAbility is one ability in a player's key: its damage to enemies and healing done as the meters count them (pets
-// under their owner, absorbs as healing), how often it was cast, and how often it hit or healed.
+// under their owner, absorbs as healing), how often it was cast, how often it hit or healed, and its spell school as
+// the combat log gives it (a bit per school: 1 physical, 2 holy, 4 fire, 8 nature, 16 frost, 32 shadow, 64 arcane; 0
+// in keys saved before Nov 11).
 type KeyAbility struct {
 	Player  string `json:"player"`
 	Ability string `json:"ability"`
@@ -52,6 +56,7 @@ type KeyAbility struct {
 	Healing int64  `json:"healing"`
 	Casts   int    `json:"casts"`
 	Hits    int    `json:"hits"`
+	School  int    `json:"school,omitempty"`
 }
 
 // KeySummary is a saved key in the list: when it started (its ID), the dungeon, level, how it ended, its time and
@@ -124,12 +129,14 @@ type KeyMiniboss struct {
 	Of     int    `json:"of"`
 }
 
-// KeyHit is the damage and direct hits a player took from one avoidable ability.
+// KeyHit is damage a player took from one ability: with its direct hits for an avoidable one, and its spell school
+// in damage taken where the key has it (as KeyAbility's).
 type KeyHit struct {
 	Player  string `json:"player"`
 	Ability string `json:"ability"`
 	Damage  int64  `json:"damage"`
 	Hits    int    `json:"hits"` // direct hits; 0 in keys saved before Nov 9
+	School  int    `json:"school,omitempty"`
 }
 
 // KeyReview is a finished key next to its baselines: a review per party member, a
@@ -140,12 +147,12 @@ type KeyReview struct {
 	End      int64          `json:"end"`
 	Players  []PlayerReview `json:"players"`
 	Party    string         `json:"party"`
-	Notes    []string       `json:"notes"` // the party's must-stop casts and time between pulls
+	Notes    []string       `json:"notes"` // the party as a whole: deaths' cost, must-stop casts, time between pulls
 	Baseline string         `json:"baseline"`
 	Points   float64        `json:"points"`
 }
 
-// PlayerReview is one party member's numbers against their baselines, up to three things to work on with the
+// PlayerReview is one party member's numbers against their baselines, up to four things to work on with the
 // evidence, and exactly one thing they did well.
 type PlayerReview struct {
 	Player   string         `json:"player"`

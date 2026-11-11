@@ -11,12 +11,12 @@ import (
 )
 
 // DungeonSources is what cmd/mplusref gathered for one dungeon: Mythic Dungeon Tools' data, Wowhead's overview and
-// Raider.IO's total forces (0 when no logged run had it).
+// Keystone.guru's total forces (0 when it has none).
 type DungeonSources struct {
-	Name          string
-	MDT           models.MDTDungeon
-	Guide         models.DungeonGuide
-	RaiderIOTotal int
+	Name              string
+	MDT               models.MDTDungeon
+	Guide             models.DungeonGuide
+	KeystoneGuruTotal int
 }
 
 // tipKinds sorts the guide's boss tips by the words in their tag; a tip can be in several lists.
@@ -27,16 +27,20 @@ var tipKinds = map[string][]string{
 	"interrupt": {"interrupt"},
 }
 
-// DungeonFacts combines a dungeon's sources into its reference entry. It fails
-// when Mythic Dungeon Tools has no data for the dungeon or its forces total disagrees with Raider.IO's.
+// npcTwins are NPCs Mythic Dungeon Tools doesn't list that the game counts as one it does: a second ID of the same mob.
+// Kings' Rest has four Half-Finished Mummies under each ID (a +17 on Nov 10 came to 587 of 608 without them).
+var npcTwins = map[int]int{273050: 270502}
+
+// DungeonFacts combines a dungeon's sources into its reference entry, counting each of npcTwins as its twin. It fails
+// when Mythic Dungeon Tools has no data for the dungeon or its forces total disagrees with Keystone.guru's.
 func DungeonFacts(src DungeonSources) (models.DungeonFacts, error) {
 	m, g := src.MDT, src.Guide
 	if m.MapID == 0 {
 		return models.DungeonFacts{}, fmt.Errorf("%s: Mythic Dungeon Tools has no data", src.Name)
 	}
-	if src.RaiderIOTotal > 0 && src.RaiderIOTotal != m.Total {
-		return models.DungeonFacts{}, fmt.Errorf("%s: forces total %d in Mythic Dungeon Tools, %d on Raider.IO", src.Name,
-			m.Total, src.RaiderIOTotal)
+	if src.KeystoneGuruTotal > 0 && src.KeystoneGuruTotal != m.Total {
+		return models.DungeonFacts{}, fmt.Errorf("%s: forces total %d in Mythic Dungeon Tools, %d on Keystone.guru",
+			src.Name, m.Total, src.KeystoneGuruTotal)
 	}
 	tips := map[string][]int{}
 	for id, tag := range g.Tips {
@@ -50,15 +54,21 @@ func DungeonFacts(src DungeonSources) (models.DungeonFacts, error) {
 		Avoidable: sorted(tips["avoidable"]), Soak: sorted(tips["soak"]),
 		Dispel: sorted(append(slices.Collect(maps.Keys(g.Dispels)), tips["dispel"]...)),
 		Purge:  sorted(slices.Collect(maps.Keys(g.Purges))), MustStop: []int{}, Review: []int{}}
+	mobs := maps.Clone(m.Mobs)
+	for twin, of := range npcTwins {
+		if mob, ok := mobs[of]; ok {
+			mobs[twin] = mob
+		}
+	}
 	var counts []int64
-	for id, mob := range m.Mobs {
+	for id, mob := range mobs {
 		f.Forces.NPCs[id] = mob.Count
 		if mob.Count > 0 {
 			counts = append(counts, int64(mob.Count))
 		}
 	}
 	f.Bosses, f.Minibosses = []int{}, []int{}
-	for id, mob := range m.Mobs {
+	for id, mob := range mobs {
 		switch {
 		case mob.Boss:
 			f.Bosses = append(f.Bosses, id)

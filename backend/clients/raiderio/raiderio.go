@@ -1,5 +1,5 @@
 // Package raiderio reads Raider.IO's public API (https://raider.io/api): the season's dungeons with their Mythic+
-// timers and total enemy forces, and the week's affixes. Answers are cached in CacheDir.
+// timers, and the week's affixes. Answers are cached in CacheDir.
 package raiderio
 
 import (
@@ -70,38 +70,6 @@ func (c Client) Timers(ctx context.Context) (map[int]int64, error) {
 		timers[d.MapID] = int64(d.TimerSeconds) * 1000
 	}
 	return timers, nil
-}
-
-// TotalForces is the enemy forces a key of the dungeon needs, from the details of its top logged runs (0 when none
-// of the first few was logged).
-func (c Client) TotalForces(ctx context.Context, season, slug string) (int, error) {
-	var top struct {
-		Rankings []struct {
-			Run struct {
-				ID int `json:"keystone_run_id"`
-			} `json:"run"`
-		} `json:"rankings"`
-	}
-	params := url.Values{"season": {season}, "region": {"world"}, "dungeon": {slug}, "page": {"0"}}
-	if err := c.get(ctx, "mythic-plus/runs", params, "runs-"+slug+".json", seasonMaxAge, &top); err != nil {
-		return 0, err
-	}
-	for _, r := range top.Rankings[:min(5, len(top.Rankings))] {
-		var run struct {
-			Logged struct {
-				Total int `json:"total_enemy_forces"`
-			} `json:"logged_details"`
-		}
-		params := url.Values{"season": {season}, "id": {fmt.Sprint(r.Run.ID)}}
-		if err := c.get(ctx, "mythic-plus/run-details", params, fmt.Sprintf("run-%d.json", r.Run.ID), seasonMaxAge,
-			&run); err != nil {
-			return 0, err
-		}
-		if run.Logged.Total > 0 {
-			return run.Logged.Total, nil
-		}
-	}
-	return 0, nil
 }
 
 // Affixes is this week's affix names by ID, for a region ("us").

@@ -124,7 +124,7 @@ func advancedOf(guid, owner string) string {
 // ends.
 func TestKeyStep2(t *testing.T) {
 	keys := newTracker(t, nil)
-	const shaman = `Player-76-0000BBBB,"Testshaman-Sargeras-US",0x511,0x80000000`
+	const shaman = `Player-76-0000BBBB,"Testshaman-Sargeras-US",0x512,0x80000000`
 	const petGUID = "Creature-0-3019-3004-1081-95072-00006A951E"
 	const mobGUID = "Creature-0-3882-2859-27547-245336-00006BE4EA"
 	const mob = mobGUID + `,"Radiant Spellsower",0x10a48,0x80000000`
@@ -197,14 +197,17 @@ func TestKeyStep2(t *testing.T) {
 			"table flagged, and the add the table lacks", f)
 	}
 	wantAbilities := []models.KeyAbility{
-		{Player: "Testmage", Ability: "Arcane Barrage", Damage: 5000, Hits: 1},
-		{Player: "Testshaman", Ability: "Healing Wave", Healing: 2000, Hits: 1},
-		{Player: "Testshaman", Ability: "Melee", Damage: 1000, Hits: 1}, // the pet's, under its owner
-		{Player: "Testmage", Ability: "Ice Block", Casts: 1},
-		{Player: "Testshaman", Ability: "Capacitor Totem", Casts: 1}}
-	wantTaken := []models.KeyHit{{Player: "Testmage", Ability: "Light Bolt", Damage: 9000}}
+		{Player: "Testmage", Ability: "Arcane Barrage", Damage: 5000, Hits: 1, School: 0x40},
+		{Player: "Testshaman", Ability: "Healing Wave", Healing: 2000, Hits: 1, School: 0x8},
+		{Player: "Testshaman", Ability: "Melee", Damage: 1000, Hits: 1, School: 0x1}, // the pet's, under its owner
+		{Player: "Testmage", Ability: "Ice Block", Casts: 1, School: 0x10},
+		{Player: "Testshaman", Ability: "Capacitor Totem", Casts: 1, School: 0x8}}
+	wantTaken := []models.KeyHit{{Player: "Testmage", Ability: "Light Bolt", Damage: 9000, School: 0x2}}
 	if !reflect.DeepEqual(got.Abilities, wantAbilities) || !reflect.DeepEqual(got.Taken, wantTaken) {
 		t.Fatalf("abilities = %+v\nwant %+v\ntaken = %+v, want %+v", got.Abilities, wantAbilities, got.Taken, wantTaken)
+	}
+	if got.Logger != "Testmage" {
+		t.Fatalf("logger = %q; want Testmage, whose unit flags say the log is theirs", got.Logger)
 	}
 	if a := got.Activity["Testmage"]; a <= 0 || a > 100 || got.Lusts == nil || got.BetweenPulls == nil {
 		t.Fatalf("activity = %v, lusts %v, between pulls %v; want the mage busy for part of the pull, and lists",

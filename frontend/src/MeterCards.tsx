@@ -72,16 +72,19 @@ export function MeterCard({
   )
 }
 
-/** A card's row with a coloured bar across it, share (0 to 1) of the row wide; with onPick, a button. */
+/** A card's row with a coloured bar across it, share (0 to 1) of the row wide: in color, or filled with fill (a CSS
+ * background) for a bar of several colours; with onPick, a button. */
 export function BarRow({
   share,
   color,
+  fill,
   grid,
   onPick,
   children,
 }: {
   share: number
   color: string
+  fill?: string
   grid: CSSProperties
   onPick?: () => void
   children: ReactNode
@@ -97,7 +100,7 @@ export function BarRow({
       <span
         className="meter-bar"
         aria-hidden="true"
-        style={{ width: `${share * 100}%`, '--bar': color } as CSSProperties}
+        style={{ width: `${share * 100}%`, '--bar': color, '--bar-fill': fill } as CSSProperties}
       />
       {children}
     </div>

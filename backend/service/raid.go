@@ -396,7 +396,7 @@ func (k *LogTracker) raidPull(run *keyRun, key models.Key, at int64, kill bool) 
 	slices.SortStableFunc(p.Cooldowns, func(a, b models.KeyCast) int { return cmp.Compare(a.ClockMS, b.ClockMS) })
 	p.Spike = spike(run.track, p.Cooldowns, k.spikeMS())
 	p.Lanes = k.lanes(run, p, at)
-	p.Abilities, p.Taken = abilities(run)
+	p.Abilities, p.Taken = abilities(run, k.schools)
 	p.Targets = targets(run)
 	return p
 }

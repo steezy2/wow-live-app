@@ -4,12 +4,14 @@ import type { KeyView } from './api'
 import { classColors } from './classColors'
 import { amount } from './format'
 import { BarRow } from './MeterCards'
+import { schoolBar, schoolName } from './schoolColors'
 import { Tabs } from './Tabs'
 
-/** One player's key up close, picked from the party: their damage and healing by ability with casts and hits, what
- * they took damage from, and what they cast, each as bars against the biggest. */
+/** One player's key up close, picked from the party (first the one whose game wrote the log): their damage and
+ * healing by ability with casts and hits, what they took damage from, and what they cast, each as bars against the
+ * biggest in the ability's spell school colour (the player's class colour in keys saved without schools). */
 export function PlayerFocus({ keyView: key }: { keyView: KeyView }) {
-  const [player, setPlayer] = useState(key.players[0] ?? '')
+  const [player, setPlayer] = useState(key.logger ?? key.players[0] ?? '')
   const row = key.overall.rows.find((r) => r.player === player)
   const color = classColors[row?.class ?? ''] ?? 'var(--accent)'
   const views = abilityViews(player, key.abilities ?? [], key.taken ?? [])
@@ -62,8 +64,9 @@ export function AbilityTabs(props: {
   )
 }
 
-/** Abilities (or whatever label names) as bars, biggest first: the number, its share of the total, and casts and hits
- * where the rows have them. Counts show whole; everything else shortened. */
+/** Abilities (or whatever label names) as bars, biggest first, each in its spell school's colour (color without one):
+ * the number, its share of the total, and casts and hits where the rows have them. Counts show whole; everything else
+ * shortened. */
 export function AbilityBars({
   rows,
   color,
@@ -90,8 +93,10 @@ export function AbilityBars({
         {withCasts && <span>Hits</span>}
       </div>
       {sorted.map((r) => (
-        <BarRow key={r.name} share={r.value / sorted[0].value} color={color} grid={grid}>
-          <span className="name">{r.name}</span>
+        <BarRow key={r.name} share={r.value / sorted[0].value} {...schoolBar(r.school, color)} grid={grid}>
+          <span className="name" title={schoolName(r.school)}>
+            {r.name}
+          </span>
           <span>{count ? r.value : amount(r.value)}</span>
           <span>{((100 * r.value) / total).toFixed(1)}</span>
           {withCasts && <span>{r.casts || '–'}</span>}

@@ -9,7 +9,7 @@ import (
 )
 
 func TestDungeonFactsCombinesTheSources(t *testing.T) {
-	src := DungeonSources{Name: "Den of Nalorakk", RaiderIOTotal: 729,
+	src := DungeonSources{Name: "Den of Nalorakk", KeystoneGuruTotal: 729,
 		MDT: models.MDTDungeon{MapID: 586, Total: 729,
 			Mobs: map[int]models.MDTMob{241816: {Name: "Keen-Eyed Striker", Count: 7}, 245752: {Name: "Keen-Eyed Striker", Count: 7},
 				245855: {Name: "Spirit of Hunger", Count: 25},
@@ -32,9 +32,21 @@ func TestDungeonFactsCombinesTheSources(t *testing.T) {
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("DungeonFacts = %+v\nwant %+v", got, want)
 	}
-	src.RaiderIOTotal = 730
+	src.KeystoneGuruTotal = 730
 	if _, err := DungeonFacts(src); err == nil || !strings.Contains(err.Error(), "729") {
 		t.Errorf("totals 729 and 730 gave %v; want an error naming both", err)
+	}
+}
+
+func TestDungeonFactsCountsAnNPCTwinAsTheMobItCopies(t *testing.T) {
+	got, err := DungeonFacts(DungeonSources{Name: "Kings' Rest", MDT: models.MDTDungeon{MapID: 249, Total: 608,
+		Mobs: map[int]models.MDTMob{270502: {Name: "Half-Finished Mummy", Count: 7}}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Forces.NPCs[273050] != 7 {
+		t.Errorf("NPC 273050 counts %d; want 7, as the Half-Finished Mummy Mythic Dungeon Tools lists (270502)",
+			got.Forces.NPCs[273050])
 	}
 }
 

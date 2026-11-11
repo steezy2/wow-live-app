@@ -76,6 +76,8 @@ definitions:
         type: integer
       player:
         type: string
+      school:
+        type: integer
     type: object
   models.KeyBoss:
     properties:
@@ -191,6 +193,8 @@ definitions:
         type: integer
       player:
         type: string
+      school:
+        type: integer
     type: object
   models.KeyInterrupt:
     properties:
@@ -311,7 +315,8 @@ definitions:
       end:
         type: integer
       notes:
-        description: the party's must-stop casts and time between pulls
+        description: 'the party as a whole: deaths'' cost, must-stop casts, time between
+          pulls'
         items:
           type: string
         type: array
@@ -523,6 +528,10 @@ definitions:
         $ref: '#/definitions/models.KeyMeter'
       level:
         type: integer
+      logger:
+        description: Logger is the party member whose game wrote the log ("" in keys
+          saved before Nov 11).
+        type: string
       lusts:
         description: Lusts is when the party got Bloodlust or a copy, on the key's
           clock.
