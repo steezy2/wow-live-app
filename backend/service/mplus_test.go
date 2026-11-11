@@ -375,8 +375,12 @@ func TestASilentKeyClosesAsAbandonedAndGoesOnIfTheLogDoes(t *testing.T) {
 		t.Fatalf("after the silence: %s, ended %d, %d ms, saved %v (%v); want it abandoned at the last line and saved, "+
 			"with no key left to abandon", got.Status, got.End, got.ClockMS, saved, err)
 	}
-	// The game only wrote its log late: the fight went on, and then the party left.
-	killed := feed(t, keys, "11/3/2026 23:13:00.000-7  ENCOUNTER_END,3286,\"Second\",8,5,1,60000")[0].Time
+	// The game only wrote its log late: the fight went on for over resumeMS, and then the party left.
+	feed(t, keys, "11/3/2026 23:13:00.000-7  ENCOUNTER_END,3286,\"Second\",8,5,1,60000")
+	if got, _ = keys.Latest(0); got.Status != "abandoned" {
+		t.Fatalf("a minute of log after the close: %s; want it still abandoned", got.Status)
+	}
+	later := feed(t, keys, `11/3/2026 23:14:30.000-7  ZONE_CHANGE,2923,"Voidscar Arena",8`)[0].Time
 	got, _ = keys.Latest(last + 5*60_000)
 	if track, _ := keys.Track(got.Start); got.Status != "running" || !got.Bosses[1].Kill || track.Pulls[1].EndMS != 0 {
 		t.Fatalf("after the log went on: %s, bosses %+v, pulls %+v; want it running with the second boss killed",
@@ -384,7 +388,7 @@ func TestASilentKeyClosesAsAbandonedAndGoesOnIfTheLogDoes(t *testing.T) {
 	}
 	feed(t, keys, `11/3/2026 23:20:00.000-7  ZONE_CHANGE,0,"Silvermoon City",0`)
 	got, _ = keys.Latest(0)
-	if saved, _ := keys.SaveFinished(); got.Status != "abandoned" || got.End != killed || len(saved) != 1 ||
+	if saved, _ := keys.SaveFinished(); got.Status != "abandoned" || got.End != later || len(saved) != 1 ||
 		len(keys.Saved()) != 1 {
 		t.Fatalf("after leaving: %s, ended %d, saved %v, %d keys; want it abandoned at its last line, saved over its "+
 			"copy", got.Status, got.End, saved, len(keys.Saved()))
@@ -403,6 +407,15 @@ func TestASilentKeyStaysClosedWhenThePartyLeftOrStartedAnother(t *testing.T) {
 		if saved := keys.Saved(); len(saved) != 1 || saved[0].Status != "abandoned" || keys.history[0].End != last {
 			t.Errorf("after %s: saved %+v; want the silent key still abandoned at its last line", next, saved)
 		}
+	}
+}
+
+func TestAKeyEndedByMistakeKeepsItsTimedEnd(t *testing.T) {
+	keys, _ := silentKey(t)
+	keys.Abandon()
+	feed(t, keys, "11/3/2026 23:13:00.000-7  CHALLENGE_MODE_END,2923,1,17,1300000,0.000000,0.000000")
+	if got, _ := keys.Latest(0); got.Status != "timed" || got.FinalMS != 1_300_000 {
+		t.Fatalf("timed a minute after Abandon: %s in %d ms; want it timed in 21:40", got.Status, got.FinalMS)
 	}
 }
 

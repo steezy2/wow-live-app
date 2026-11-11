@@ -422,7 +422,7 @@
         },
         "/api/mplus/live/abandon": {
             "post": {
-                "description": "For a party that left a key: the game logs no end for it, and writes the line that says they left\nwith its next batch, which can be minutes later. The key ends at its last line and is saved and\nreviewed like any other; if the log then goes on in it, it runs again.",
+                "description": "For a party that left a key: the game logs no end for it, and writes the line that says they left\nwith its next batch, which can be minutes later. The key ends at its last line and is saved and\nreviewed like any other; if the log goes on in it for 2 more minutes, it runs again.",
                 "tags": [
                     "mplus"
                 ],

@@ -33,6 +33,9 @@ const (
 	// fight), so the line that says they left can come minutes later, and a boss fight is as silent as an empty
 	// dungeon: this has to outlast the longest fight.
 	quietMS = 10 * 60_000
+	// resumeMS: a key closed as abandoned runs again once its log goes on this long past its last line, with no zone
+	// change out or new key: the game writes late, so the first lines after the close can be from before the party left.
+	resumeMS = 2 * 60_000
 	// lustMS: Bloodlust landing this long after the last counts as a new one (it lands on everyone at once).
 	lustMS = 60_000
 )
@@ -63,7 +66,8 @@ type KeyTracker struct {
 	unsaved   []savedRun
 	lastTrack *models.KeyTrack
 	current   *keyRun
-	left      *keyRun // a key Abandon closed, taken up again if the log goes on in it
+	left      *keyRun          // a key Abandon closed, taken up again if the log goes on in it for resumeMS
+	held      []models.LogLine // the lines read since left closed, which it takes in if it runs again
 	last      *models.Key
 	ready     *readyWatch        // the party's buffs before the next key, while in a Mythic dungeon
 	top       map[[2]int][]int64 // (map ID, level) -> top Warcraft Logs run times, for a first run's estimate
@@ -168,9 +172,15 @@ func (k *KeyTracker) Add(line models.LogLine) {
 	}
 	k.mu.Lock()
 	defer k.mu.Unlock()
+	if !k.hold(line) {
+		k.add(line)
+	}
+}
+
+// add reads one line, under the lock.
+func (k *KeyTracker) add(line models.LogLine) {
 	defer func() { k.lastAt = line.Time }()
 	f := line.Fields
-	k.resume(line.Event, f)
 	if k.current != nil || line.Event == "CHALLENGE_MODE_START" {
 		k.version++
 	}
@@ -238,7 +248,7 @@ func (k *KeyTracker) Add(line models.LogLine) {
 }
 
 // Abandon closes the running key as abandoned at its last line, for a party that left when the log hasn't said so
-// yet; false when no key is running. If the log then goes on in the key, it runs again.
+// yet; false when no key is running. If the log then goes on in the key for resumeMS, it runs again.
 func (k *KeyTracker) Abandon() bool {
 	k.mu.Lock()
 	defer k.mu.Unlock()
@@ -263,22 +273,34 @@ func (k *KeyTracker) CloseQuiet(now int64) {
 	}
 }
 
-// resume takes the key Abandon closed up again when the log goes on in it (it was only written late): on the next
-// line, unless that's a new key or a zone outside its dungeon.
-func (k *KeyTracker) resume(event string, f []string) {
+// hold keeps the lines read after Abandon closed a key, and takes the key up again with them once the log has gone on
+// in it for resumeMS, or at its CHALLENGE_MODE_END (which says how it ended); a new key or a zone outside its dungeon
+// drops it. False when the line isn't held.
+func (k *KeyTracker) hold(line models.LogLine) bool {
 	run := k.left
 	if run == nil {
-		return
+		return false
 	}
-	k.left = nil
-	if event == "CHALLENGE_MODE_START" || event == "ZONE_CHANGE" && len(f) > 0 && f[0] != run.instance {
-		return
+	f := line.Fields
+	switch {
+	case line.Event == "CHALLENGE_MODE_START" || line.Event == "ZONE_CHANGE" && len(f) > 0 && f[0] != run.instance:
+		k.left, k.held = nil, nil
+		return false
+	case line.Event != "CHALLENGE_MODE_END" && line.Time-run.key.End < resumeMS:
+		k.held = append(k.held, line)
+		return true
 	}
+	held := append(k.held, line)
+	k.left, k.held = nil, nil
 	run.key.Status, run.key.End = "running", 0
 	if n := len(run.track.Pulls); n > 0 {
 		run.track.Pulls[n-1].EndMS = 0
 	}
 	k.current = run
+	for _, l := range held {
+		k.add(l)
+	}
+	return true
 }
 
 // learn keeps what every line tells about names, specs, spell names, pets (from summons and advanced logging's owner
