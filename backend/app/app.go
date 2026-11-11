@@ -110,10 +110,8 @@ func dungeonData(ctx context.Context, cache, region string) (map[int]int64, map[
 
 // add feeds parsed lines to keys, skipping a line that doesn't parse.
 func add(keys *service.LogTracker, lines []string) {
-	for _, text := range lines {
-		if line, err := combatlog.ParseLine(text); err == nil {
-			keys.Add(line)
-		}
+	for _, line := range combatlog.Parse(lines) {
+		keys.Add(line)
 	}
 }
 
@@ -161,7 +159,7 @@ func (s *Site) Learn(all bool) (read, saved int, err error) {
 		}
 		file := learnedLog{File: filepath.Base(logPath), Size: info.Size(), ModTime: info.ModTime().UnixMilli()}
 		if before.ReaderVersion != readerVersion || !slices.Contains(before.Logs, file) {
-			if err := combatlog.EachLine(logPath, keys.Add); err != nil {
+			if err := combatlog.EachLineIn(logPath, keys.Add); err != nil {
 				return read, 0, err
 			}
 			if _, err := keys.SaveFinished(); err != nil {
