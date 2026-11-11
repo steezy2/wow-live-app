@@ -1192,6 +1192,14 @@ const docTemplate = `{
                 },
                 "start": {
                     "type": "integer"
+                },
+                "topBosses": {
+                    "description": "TopBosses is how long each boss took in the similar top runs (the median, by boss name; missing in reviews\nsaved before Nov 11).",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer",
+                        "format": "int64"
+                    }
                 }
             }
         },
@@ -1394,6 +1402,13 @@ const docTemplate = `{
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/models.KeyHit"
+                    }
+                },
+                "bestBosses": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer",
+                        "format": "int64"
                     }
                 },
                 "betweenPulls": {

@@ -251,11 +251,12 @@ func forcesAt(k models.Key, clockMS int64) float64 {
 	return pct
 }
 
-// bestRun is the fastest timed earlier run of a key's dungeon at its level, nil without one.
+// bestRun is the fastest timed other run of a key's dungeon at its level, nil without one.
 func bestRun(key models.Key, history []models.Key) *models.Key {
 	var best *models.Key
 	for i, r := range history {
-		if usable(r, key.MapID) && r.Status == "timed" && r.Level == key.Level && (best == nil || r.FinalMS < best.FinalMS) {
+		if usable(r, key.MapID) && r.Status == "timed" && r.Level == key.Level && r.Start != key.Start &&
+			(best == nil || r.FinalMS < best.FinalMS) {
 			best = &history[i]
 		}
 	}

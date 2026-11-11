@@ -7,10 +7,13 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"sync"
 	"testing"
 	"time"
+
+	"wow-live/backend/models"
 )
 
 // fakeWCL is a Warcraft Logs stand-in: a token endpoint and an API endpoint answering with the next scripted reply.
@@ -102,5 +105,19 @@ func TestATokenReplyWithoutATokenIsAnError(t *testing.T) {
 	if err := c.Query(context.Background(), "{ x }", nil, nil); err == nil ||
 		!strings.Contains(err.Error(), "without a token") {
 		t.Fatalf("want a missing-token error, got %v", err)
+	}
+}
+
+func TestRunSumsDamageTakenAndTimesKilledBosses(t *testing.T) {
+	f := newFake(t, data(`{"reportData": {"report": {
+		"table": {"data": {"damageTaken": [{"total": 300}, {"total": 200}]}},
+		"fights": [{"dungeonPulls": [
+			{"name": "Trash", "encounterID": 0, "startTime": 0, "endTime": 50000, "kill": true},
+			{"name": "Nalorakk", "encounterID": 3201, "startTime": 60000, "endTime": 150000, "kill": true},
+			{"name": "Wiped Boss", "encounterID": 3202, "startTime": 200000, "endTime": 230000, "kill": false}]}]}}}`))
+	run, err := f.client(t).Run(context.Background(), "abc", 3)
+	if want := (models.RunSummary{DamageTaken: 500, BossMS: map[string]int64{"Nalorakk": 90_000}}); err != nil ||
+		!reflect.DeepEqual(run, want) {
+		t.Fatalf("Run = %+v, %v; want %+v", run, err, want)
 	}
 }

@@ -145,8 +145,10 @@ func (f *fakeBaselines) MPlusRankings(context.Context, int, int, string, string,
 	f.asks++
 	return []models.MPlusRanking{{Amount: 1, DurationMS: 1_500_000, Code: "x", FightID: 1}}, nil
 }
-func (f *fakeBaselines) RunDamageTaken(context.Context, string, int) (int64, error) { return 1, nil }
-func (f *fakeBaselines) PointsLeft(context.Context) (float64, error)                { return f.left, nil }
+func (f *fakeBaselines) Run(context.Context, string, int) (models.RunSummary, error) {
+	return models.RunSummary{DamageTaken: 1, BossMS: map[string]int64{"Boss": 90_000}}, nil
+}
+func (f *fakeBaselines) PointsLeft(context.Context) (float64, error) { return f.left, nil }
 
 type memReviews map[int64]models.KeyReview
 
@@ -170,8 +172,10 @@ func TestReviewerGuardsPointsAndKeepsReviews(t *testing.T) {
 		t.Fatalf("with 50 points left: %v, want ErrNoPoints", err)
 	}
 	source.left = 900
-	if _, err := r.Review(context.Background(), key.Start); err != nil || source.asks != 4 {
-		t.Fatalf("review: %v after %d rankings asks; want DPS and HPS per player", err, source.asks)
+	if got, err := r.Review(context.Background(), key.Start); err != nil || source.asks != 4 ||
+		got.TopBosses["Boss"] != 90_000 {
+		t.Fatalf("review: %v after %d rankings asks, top bosses %v; want DPS and HPS per player, and Boss 1:30",
+			err, source.asks, got.TopBosses)
 	}
 	if _, err := r.Review(context.Background(), key.Start); err != nil || source.asks != 4 {
 		t.Fatalf("second review asked Warcraft Logs again (%d asks, %v); want the kept one", source.asks, err)

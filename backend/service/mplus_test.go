@@ -300,7 +300,7 @@ func TestProjectionWeighsRunsAndShowsTheBestRun(t *testing.T) {
 	// A +20 without a forces timeline counts half, from boss kills alone: its 50:00 before any kill.
 	far := models.Key{MapID: 585, Level: 20, Status: "depleted", FinalMS: 3_000_000,
 		Bosses: []models.KeyBoss{{Name: "A", EndMS: 900_000, Kill: true}}}
-	key := models.Key{MapID: 585, Level: 10, TimerMS: 1_800_000,
+	key := models.Key{Start: 1, MapID: 585, Level: 10, TimerMS: 1_800_000,
 		Forces: &models.KeyForces{Pct: 50, At: []models.ForcesPoint{{ClockMS: 200_000, Pct: 50}}}}
 	p := projection(key, 200_000, []models.Key{earlierRun, far})
 	want := &models.KeyProjection{FinalMS: 1_500_000, LowMS: 1_500_000, HighMS: 3_000_000, Chests: 1,

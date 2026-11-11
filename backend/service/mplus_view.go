@@ -20,7 +20,7 @@ func (k *KeyTracker) Latest(now int64) (models.KeyView, bool) {
 	switch {
 	case k.current != nil:
 		run := k.current
-		v := view(k.details(run, now), clock(run.key.Start, now, len(run.deaths)))
+		v := view(k.details(run, now), clock(run.key.Start, now, len(run.deaths)), k.history)
 		v.SilentMS = max(0, now-k.lastAt)
 		v.Projection = projection(v.Key, v.ClockMS, k.history)
 		if v.Projection == nil {
@@ -31,7 +31,7 @@ func (k *KeyTracker) Latest(now int64) (models.KeyView, bool) {
 		}
 		return v, true
 	case k.last != nil:
-		return finished(*k.last), true
+		return finished(*k.last, k.history), true
 	}
 	return models.KeyView{}, false
 }
@@ -115,7 +115,7 @@ func (k *KeyTracker) SavedKey(start int64) (models.KeyView, error) {
 	if i < 0 {
 		return models.KeyView{}, ErrNoSuchKey
 	}
-	return finished(k.history[i]), nil
+	return finished(k.history[i], k.history), nil
 }
 
 // DeleteSaved removes one saved key, or every one when start is 0.
@@ -315,9 +315,10 @@ func killTimes(bosses []models.KeyBoss) []int64 {
 	return at
 }
 
-// view is a key at a clock reading, with the +3 and +2 marks and the chests still in reach. Keys saved before a
-// list existed get it empty, so the page always gets lists.
-func view(key models.Key, clockMS int64) models.KeyView {
+// view is a key at a clock reading, with the +3 and +2 marks, the chests still in reach and each boss's length in the
+// best other run at the level (from history). Keys saved before a list existed get it empty, so the page always gets
+// lists.
+func view(key models.Key, clockMS int64, history []models.Key) models.KeyView {
 	key.Stops, key.WastedKicks, key.Debuffs = list(key.Stops), list(key.WastedKicks), list(key.Debuffs)
 	key.Spikes, key.AvoidableHits, key.Pulls = list(key.Spikes), list(key.AvoidableHits), list(key.Pulls)
 	v := models.KeyView{Key: key, ClockMS: clockMS, PenaltyMS: int64(len(key.Deaths)) * deathPenaltyMS,
@@ -326,12 +327,20 @@ func view(key models.Key, clockMS int64) models.KeyView {
 		v.Plus2MS = int64(float64(key.TimerMS) * plus2Share)
 		v.Plus3MS = int64(float64(key.TimerMS) * plus3Share)
 	}
+	if best := bestRun(key, history); best != nil {
+		v.BestBosses = map[string]int64{}
+		for _, b := range best.Bosses {
+			if b.Kill {
+				v.BestBosses[b.Name] = b.EndMS - b.StartMS
+			}
+		}
+	}
 	return v
 }
 
-// finished is an ended key at its time.
-func finished(key models.Key) models.KeyView {
-	return view(key, lengthMS(key))
+// finished is an ended key at its time, against the other saved runs (history).
+func finished(key models.Key, history []models.Key) models.KeyView {
+	return view(key, lengthMS(key), history)
 }
 
 // lengthMS is an ended key's time: the game's own, or for an abandoned key (which has none) its clock when it stopped.

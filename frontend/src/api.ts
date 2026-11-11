@@ -193,6 +193,8 @@ export interface KeyView {
   /** Most chests still in reach: 3, 2, 1, or 0 once over time; -1 without a timer. */
   chests: number
   projection?: KeyProjection
+  /** How long each boss took in your fastest timed other run of the dungeon at this level, by name (when there is one). */
+  bestBosses?: Record<string, number>
   /** How long ago a running key's last line was logged (0 once it's over): the game writes its log in batches as
    * fights start and end, so a long silence is a long fight, or a party that left. */
   silentMS: number
@@ -280,6 +282,8 @@ export interface KeyReview {
   notes?: string[]
   baseline: string
   points: number
+  /** How long each boss took in the similar top runs, by name (missing in reviews made before Nov 11). */
+  topBosses?: Record<string, number>
 }
 
 /** A dungeon floor with Keystone.guru tiles: the combat log's map ID and its in-game bounds (Keystone.guru's x is the

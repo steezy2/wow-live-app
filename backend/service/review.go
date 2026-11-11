@@ -96,6 +96,7 @@ func (r Reviewer) Review(ctx context.Context, start int64) (models.KeyReview, er
 		similar = append(similar, baselines[player][mainMetric(spec)]...)
 	}
 	var taken []float64 // the similar runs' party damage taken per second
+	bossMS := map[string][]int64{}
 	slices.SortFunc(similar, func(a, b models.MPlusRanking) int {
 		return cmp.Compare(abs(a.DurationMS-length), abs(b.DurationMS-length))
 	})
@@ -106,13 +107,20 @@ func (r Reviewer) Review(ctx context.Context, start int64) (models.KeyReview, er
 			continue
 		}
 		seen[id] = true
-		total, err := r.Baselines.RunDamageTaken(ctx, run.Code, run.FightID)
+		summary, err := r.Baselines.Run(ctx, run.Code, run.FightID)
 		if err != nil {
 			return models.KeyReview{}, err
 		}
-		taken = append(taken, float64(total)/float64(max(1, run.DurationMS))*1000)
+		taken = append(taken, float64(summary.DamageTaken)/float64(max(1, run.DurationMS))*1000)
+		for name, ms := range summary.BossMS {
+			bossMS[name] = append(bossMS[name], ms)
+		}
 	}
 	review := buildReview(key, history, baselines, taken)
+	review.TopBosses = map[string]int64{}
+	for name, all := range bossMS {
+		review.TopBosses[name] = median(all)
+	}
 	if after, err := r.Baselines.PointsLeft(ctx); err == nil {
 		review.Points = left - after - 1 // the second points check costs about 1
 	}

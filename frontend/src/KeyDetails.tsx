@@ -1,7 +1,8 @@
-import type { KeyCast, KeyForces, KeyGhost, KeyView } from './api'
+import { useState } from 'react'
+import type { KeyCast, KeyForces, KeyGhost, KeyReview as Review, KeyView } from './api'
 import { chestLabel, clock, coverText, oddsText, resultText, share } from './format'
 import { DamageGraph } from './DamageGraph'
-import { KickLedger, PriorityLedger, SpikeLedger } from './KeyLedgers'
+import { BossList, KickLedger, PriorityLedger, SpikeLedger } from './KeyLedgers'
 import { KeyMap } from './KeyMap'
 import { KeyReview } from './KeyReview'
 import { MeterCards } from './MeterCards'
@@ -33,6 +34,7 @@ export function KeyDetails({
   const cc = key.casts.filter((c) => c.kind === 'cc')
   const track = useTrack(key.start, key.status === 'running')
   const replay = useReplay(clockMS, clockMS)
+  const [review, setReview] = useState<Review | null>(null)
   return (
     <>
       <header className="title">
@@ -113,7 +115,7 @@ export function KeyDetails({
         </p>
       )}
 
-      {key.status !== 'running' && <KeyReview key={key.start} keyView={key} justEnded={justEnded} />}
+      {key.status !== 'running' && <KeyReview keyView={key} justEnded={justEnded} onReview={setReview} />}
       {key.status !== 'running' && track && (
         <DamageGraph keyView={key} track={track} now={replay.at} onSeek={replay.setAt} />
       )}
@@ -139,21 +141,12 @@ export function KeyDetails({
       <Tabs
         tabs={[
           {
+            name: `Minibosses ${key.pulls.filter((p) => p.late).length}/${key.pulls.length}`,
+            body: <PriorityLedger keyView={key} />,
+          },
+          {
             name: 'Bosses',
-            body: (
-              <ul className="list">
-                {key.bosses.map((b) => (
-                  <li key={`${b.name}-${b.startMS}`}>
-                    <span>{b.name}</span>
-                    <span className="muted">
-                      {clock(b.startMS)} →{' '}
-                      {b.endMS === undefined ? 'on now' : `${clock(b.endMS)}${b.kill ? '' : ' (wipe)'}`}
-                    </span>
-                  </li>
-                ))}
-                {key.bosses.length === 0 && <li className="muted">None yet</li>}
-              </ul>
-            ),
+            body: <BossList keyView={key} track={track} topBosses={review?.topBosses} onSeek={replay.setAt} />,
           },
           {
             name: `Deaths ${key.deaths.length} (+${clock(key.penaltyMS)})`,
@@ -203,10 +196,6 @@ export function KeyDetails({
           {
             name: `Spikes ${key.spikes.length}`,
             body: <SpikeLedger keyView={key} />,
-          },
-          {
-            name: `Minibosses ${key.pulls.filter((p) => p.late).length}/${key.pulls.length}`,
-            body: <PriorityLedger keyView={key} />,
           },
           {
             name: 'Defensives and potions',
