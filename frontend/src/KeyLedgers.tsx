@@ -230,7 +230,7 @@ export function Avoidable({ data, seek }: { data: FightData; seek?: Seeker }) {
     return <p className="muted">Saved before avoidable damage was kept: Read old logs in Settings fills it in</p>
   }
   const byAbility = new Map<string, KeyHit[]>()
-  data.avoidableHits.forEach((h) => byAbility.set(h.ability, [...(byAbility.get(h.ability) ?? []), h]))
+  data.avoidableHits.forEach((h) => byAbility.get(h.ability)?.push(h) ?? byAbility.set(h.ability, [h]))
   const total = (hits: KeyHit[], pick: 'damage' | 'hits') => hits.reduce((n, h) => n + h[pick], 0)
   const first = (ability: string) =>
     data.lanes.find((l) => l.kind === 'avoidable' && l.name === ability)?.marks[0]?.clockMS

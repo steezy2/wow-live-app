@@ -201,10 +201,11 @@ export function RaidPullView({ pull }: { pull: RaidPull }) {
             title: 'Whole pull',
             from: 0,
             to: replay.at,
-            saved: replay.at >= pull.durationMS || !track ? pull.meter : undefined,
+            saved: pull.meter,
           },
         ]}
         track={track ?? null}
+        atEnd={replay.at >= pull.durationMS}
         fight={pull}
         offense={raidOffense}
         listed

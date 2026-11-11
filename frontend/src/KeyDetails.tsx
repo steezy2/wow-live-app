@@ -53,7 +53,7 @@ export function KeyDetails({
       key.status === 'running' ? undefined : { onSeek: show, classes: track?.classes ?? {}, onFocus: setFocus },
     [key.status, show, track],
   )
-  const player = focus || key.logger
+  const player = focus || key.logger || key.players[0]
   const moments = {
     player,
     events: player
@@ -199,6 +199,7 @@ export function KeyDetails({
       <FightMeters
         windows={meterWindows(key, track, replay.at, clockMS)}
         track={track}
+        atEnd={key.status === 'running' || replay.at >= clockMS}
         fight={key}
         offense={offense}
         listed={key.reference}
@@ -232,23 +233,18 @@ export function KeyDetails({
 }
 
 /** The key's meter windows at the replay's moment (at; end: the key's end): the pull it's in, or the last one before
- * it, then the whole key so far, each its saved meter at the end. A running key, or one without a track, shows its
- * saved last pull and whole key. */
+ * it, then the whole key so far, each with its saved meter for the end. A running key, or one whose track has no
+ * pulls, shows its saved last pull and whole key. */
 function meterWindows(key: KeyView, track: KeyTrack | null, at: number, end: number): MeterWindow[] {
-  const atEnd = at >= end
-  if (key.status === 'running' || !track) {
-    const pull = key.lastPull
-    return [
-      { title: pullTitle(key, end), from: pull.startMS, to: pull.endMS, saved: pull },
-      { title: 'Whole key', from: 0, to: end, saved: key.overall },
-    ]
+  const whole: MeterWindow = { title: 'Whole key', from: 0, to: at, saved: key.overall }
+  const last = key.lastPull
+  if (key.status === 'running' || !track?.pulls?.length) {
+    return [{ title: pullTitle(key, end), from: last.startMS, to: last.endMS, saved: last }, { ...whole, to: end }]
   }
-  const whole: MeterWindow = { title: 'Whole key', from: 0, to: at, saved: atEnd ? key.overall : undefined }
-  const started = (track.pulls ?? []).filter((p) => p.startMS <= at)
-  const pull = started[started.length - 1]
-  if (!pull) return [whole]
+  const started = track.pulls.filter((p) => p.startMS <= at)
+  const pull = started[started.length - 1] ?? { startMS: 0, endMS: 0 } // before the first pull: "Pull 1" from 0
   const to = pull.endMS > 0 && pull.endMS < at ? pull.endMS : at
-  return [{ title: `Pull ${started.length}`, from: pull.startMS, to, saved: atEnd ? key.lastPull : undefined }, whole]
+  return [{ title: `Pull ${Math.max(1, started.length)}`, from: pull.startMS, to, saved: last }, whole]
 }
 
 /** The timer as a bar: the clock so far, the +3 and +2 marks, each boss kill, each death, and the best run's kills. */

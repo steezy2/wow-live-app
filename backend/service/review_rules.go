@@ -100,7 +100,7 @@ func buildReview(key models.Key, history []models.Key, baselines map[string]map[
 		pr := models.PlayerReview{Player: player, Spec: spec.label(), Advice: []string{}}
 		for _, m := range reviewed {
 			value := m.value(key, row)
-			if math.IsNaN(value) || m.name == "healthstones" && !warlock { // healthstones need a warlock to make them
+			if math.IsNaN(value) || (m.name == "healthstones" && !warlock) { // healthstones need a warlock to make them
 				continue
 			}
 			metric := models.ReviewMetric{Name: m.name, Value: value, Usual: -1, Amount: m.amount,

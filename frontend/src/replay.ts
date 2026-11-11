@@ -295,7 +295,8 @@ export function abilitiesBetween(
     abilities: end.abilities
       .map((a) => {
         const was = done.get(a.ability)
-        return { ...a, damage: a.damage - (was?.damage ?? 0), healing: a.healing - (was?.healing ?? 0), casts: a.casts - (was?.casts ?? 0) }
+        const damage = a.damage - (was?.damage ?? 0)
+        return { ...a, damage, healing: a.healing - (was?.healing ?? 0), casts: a.casts - (was?.casts ?? 0) }
       })
       .filter((a) => a.damage > 0 || a.healing > 0 || a.casts > 0),
     taken: end.taken

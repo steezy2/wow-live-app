@@ -115,8 +115,8 @@ export function ReplayControls(props: {
 
 /** The party on the dungeon's map (from the key's track): live, the last 30 s of trails; for a finished key, a
  * replay with controls on the page's replay clock. Floors Keystone.guru maps are drawn on its tiles; any other floor's
- * shape is where parties have walked in its saved runs. A click on a player (their dot, or a row in the meter cards) follows them,
- * a right click on the map the whole party again. */
+ * shape is where parties have walked in its saved runs. A click on a player (their dot, or a row in the meter cards)
+ * follows them, a right click on the map the whole party again. */
 export function KeyMap(props: {
   keyView: KeyView
   clockMS: number

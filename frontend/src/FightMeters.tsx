@@ -1,4 +1,4 @@
-import { memo, type MouseEvent } from 'react'
+import type { MouseEvent } from 'react'
 import { abilityViews, raidTargets, type AbilityRow } from './abilities'
 import type { KeyHit, KeyMeter, KeyTrack, RaidPull } from './api'
 import { classColors } from './classColors'
@@ -9,26 +9,28 @@ import { abilitiesBetween, hasCounts, meterBetween } from './replay'
 import { schoolBar, schoolName } from './schoolColors'
 import { Name, type Classes } from './Seek'
 
-/** A stretch the cards show: its title and when it runs on the fight's clock (to: the replay's moment), and its saved
- * meter when the cards should show that instead (the replay at the end, or a key still running). */
+/** A stretch the cards show: its title, when it runs on the fight's clock (to: the replay's moment), and its saved
+ * meter, shown at the fight's end or without a track. */
 export interface MeterWindow {
   title: string
   from: number
   to: number
-  saved?: KeyMeter
+  saved: KeyMeter
 }
 
 /** What a fight keeps of its players' abilities: a key's or a raid pull's. */
-export type FightAbilities = Pick<RaidPull, 'abilities' | 'taken' | 'targets'> & { avoidableHits?: KeyHit[] }
+type FightAbilities = Pick<RaidPull, 'abilities' | 'taken' | 'targets'> & { avoidableHits?: KeyHit[] }
 
 /** The middle meter cards of a key or a raid pull, following the replay: an offense and a defense card per window
  * (four for a key, the pull the replay is in and the whole key so far; two for a raid pull), a click on a player
  * focusing them. Focused, each window's cards drill in place: their damage by ability over their damage into each
  * enemy, and their healing by ability over what they took damage from (avoidable abilities marked); a right click or
- * the back button goes back. Without onFocus (a key still running) they don't drill. */
-export const FightMeters = memo(function FightMeters(props: {
+ * the back button goes back. Without onFocus (a key still running) they don't drill. At the end (atEnd) or without a
+ * track, the cards show the saved meters, so they match the review. */
+export function FightMeters(props: {
   windows: MeterWindow[]
   track: KeyTrack | null
+  atEnd: boolean
   fight: FightAbilities
   offense: Column[]
   /** The dungeon or boss has an avoidable list. */
@@ -38,22 +40,23 @@ export const FightMeters = memo(function FightMeters(props: {
   focus: string
   onFocus?: (player: string) => void
 }) {
-  const { windows, track, fight, offense, listed, group, classes, focus, onFocus } = props
-  const meters = windows.map((w) => w.saved ?? (track ? meterBetween(track, w.from, w.to) : undefined))
+  const { windows, track, atEnd, fight, offense, listed, group, classes, focus, onFocus } = props
+  const fromTrack = !atEnd && track !== null ? track : null
   if (!focus || !onFocus) {
-    const full = (i: number) => windows[i].saved !== undefined || (track !== null && hasCounts(track))
+    const full = !fromTrack || hasCounts(fromTrack)
     const cards = (columns: Column[]) =>
-      meters.map((m, i) =>
-        m ? (
+      windows.map((w) => {
+        const m = fromTrack ? meterBetween(fromTrack, w.from, w.to) : w.saved
+        return (
           <MeterCard
-            key={`${columns[0].label}-${windows[i].title}`}
-            title={windows[i].title}
+            key={`${columns[0].label}-${w.title}`}
+            title={w.title}
             meter={m}
-            columns={full(i) ? nonZero(columns, m) : columns.slice(0, 2)}
+            columns={full ? nonZero(columns, m) : columns.slice(0, 2)}
             onPick={onFocus}
           />
-        ) : null,
-      )
+        )
+      })
     return (
       <section className="cards">
         {cards(offense)}
@@ -68,7 +71,7 @@ export const FightMeters = memo(function FightMeters(props: {
     onFocus('')
   }
   const views = windows.map((w) => {
-    const whole = w.from <= 0 && w.saved !== undefined && fight.abilities !== undefined
+    const whole = w.from <= 0 && !fromTrack && fight.abilities !== undefined
     const between = track ? abilitiesBetween(track, fight, focus, w.from, w.to) : undefined
     const v = abilityViews(
       focus,
@@ -93,8 +96,14 @@ export const FightMeters = memo(function FightMeters(props: {
           <h3 className="muted small">{under}</h3>
           <AbilityBars rows={more} color={color} label={underLabel} />
         </>
-      ) : (
+      ) : !fight.abilities ? (
         <NoAbilities />
+      ) : (
+        <p className="muted">
+          {track
+            ? 'The replay keeps no ability timeline for this fight: Read old logs in Settings fills it in.'
+            : 'Loading the replay…'}
+        </p>
       )}
     </div>
   )
@@ -104,7 +113,7 @@ export const FightMeters = memo(function FightMeters(props: {
       {views.map((v, i) => card(i, 'Healing and damage taken', v.healing, 'Damage taken from', 'Ability', v.taken))}
     </section>
   )
-})
+}
 
 /** A card's columns without those every player has 0 in, the first (the one it sorts by) always kept. */
 function nonZero(columns: Column[], meter: KeyMeter): Column[] {
@@ -124,7 +133,7 @@ export function NoAbilities() {
 /** Abilities (or whatever label names) as bars, biggest first, each in its spell school's colour (color without one):
  * the number, its share of the total, and casts and hits where the rows have them; an avoidable one marked ⚠. Counts
  * show whole; everything else shortened. */
-export function AbilityBars({
+function AbilityBars({
   rows,
   color,
   label = 'Ability',

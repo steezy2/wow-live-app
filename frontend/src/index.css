@@ -689,13 +689,25 @@ button {
   margin-top: 0;
 }
 
-/* The map and its four meter cards fit one screen: the cards 2 × 2 beside the map, or in a row under it. */
+/* The map fits one screen. */
 .map-panel .map-canvas {
   display: block;
   max-height: calc(100vh - 140px);
   object-fit: contain;
 }
 
+/* A boss fight's meter cards in its details (KeyLedgers.tsx), small and two across. */
+.replay-meters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--s2);
+}
+
+.replay-meters .card {
+  min-height: 0;
+  padding: var(--s2) var(--s3);
+  font-size: var(--t-small);
+}
 
 .settings {
   display: grid;
