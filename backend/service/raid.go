@@ -49,6 +49,7 @@ type raidSetup struct {
 	bosses    map[string]models.RaidBoss
 	store     models.PullStore
 	cooldowns map[string]bool
+	tier      map[string][]int // class -> its tier items (SetTier)
 	kit       models.Kit
 	kitNight  string
 }
@@ -153,6 +154,14 @@ func (k *LogTracker) EnableRaid(rules models.RaidRules, bosses map[string]models
 	defer k.mu.Unlock()
 	k.raid, k.pulls = &raidSetup{rules: rules, bosses: bosses, store: store, cooldowns: cooldowns}, pulls
 	return nil
+}
+
+// SetTier gives the raid's tier items by class (raid-bosses.json's tier) to the pull-start check, which then says
+// who lacks their 2-set or 4-set. Call it after EnableRaid.
+func (k *LogTracker) SetTier(tier map[string][]int) {
+	k.mu.Lock()
+	defer k.mu.Unlock()
+	k.raid.tier = tier
 }
 
 // savedPulls is the store's pulls that were fought.

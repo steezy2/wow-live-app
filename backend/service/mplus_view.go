@@ -294,9 +294,10 @@ func (k *LogTracker) classes(run *keyRun) map[string]string {
 	return classes
 }
 
-// buffCheck is who lacked a flask, food (in a raid, a Vantus Rune too) or a party buff a class in the group gives
-// (augment runes are rare in M+), from their auras at the key's or pull's start. A buff the log never named counts as
-// missing, so a flask drunk before logging started shows.
+// buffCheck is who lacked a flask, food (in a raid, a Vantus Rune and their tier set's bonuses too) or a party buff a
+// class in the group gives (augment runes are rare in M+), from their auras and gear at the key's or pull's start. A
+// buff the log never named counts as missing unless a consumable lists its ID, so a flask drunk before logging
+// started shows.
 func (k *LogTracker) buffCheck(run *keyRun) []models.KeyBuffCheck {
 	classes := map[string]bool{}
 	for _, guid := range run.party {
@@ -320,12 +321,31 @@ func (k *LogTracker) buffCheck(run *keyRun) []models.KeyBuffCheck {
 				missing = append(missing, buff)
 			}
 		}
+		if run.raid != nil {
+			missing = append(missing, k.tierMissing(guid, run.gear[guid])...)
+		}
 		if len(missing) > 0 {
 			slices.Sort(missing)
 			checks = append(checks, models.KeyBuffCheck{Player: k.names[guid], Missing: missing})
 		}
 	}
 	return checks
+}
+
+// tierMissing is the tier bonus a raider (by GUID) lacks with their equipped items: "2-set" under 2 of their class's
+// tier pieces, "4-set" under 4; nothing for a class without a tier list.
+func (k *LogTracker) tierMissing(guid string, gear []int) []string {
+	tier := k.raid.tier[specs[k.specs[guid]].Class]
+	if len(tier) == 0 {
+		return nil
+	}
+	switch n := len(slices.DeleteFunc(slices.Clone(gear), func(id int) bool { return !slices.Contains(tier, id) })); {
+	case n < 2:
+		return []string{"2-set"}
+	case n < 4:
+		return []string{"4-set"}
+	}
+	return nil
 }
 
 // prepots are the combat potions drunk before the run started, at 0: a potion's buff in a member's pull-start auras,

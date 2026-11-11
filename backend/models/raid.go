@@ -20,8 +20,18 @@ type RaidRules struct {
 		Vantus    []string `toml:"vantus"`     // a Vantus Rune's name patterns, checked with flask and food
 		VantusIDs []int    `toml:"vantus_ids"` // Vantus Rune auras the log never names, by ID
 	} `toml:"consumables"`
+	Tier struct {
+		Sets []int `toml:"sets"` // the raid's class tier sets, by Wowhead item-set ID (cmd/raidref reads them)
+	} `toml:"tier"`
 	Suggestions SuggestionRules           `toml:"suggestions"`
 	Phases      map[string][]PhaseTrigger `toml:"phases"`
+}
+
+// ItemSet is a Wowhead item set: its items and the specs that can wear them.
+type ItemSet struct {
+	ID    int
+	Items []int
+	Specs []int
 }
 
 // SuggestionRules are raid-rules.toml's [suggestions]: how many "Fix next pull" lines, the damage spike's window,
@@ -52,7 +62,8 @@ type PhaseTrigger struct {
 type RaidReference struct {
 	Raid    string              `json:"raid"`
 	Sources map[string]string   `json:"sources"`
-	Bosses  map[string]RaidBoss `json:"bosses"` // by boss name as ENCOUNTER_START gives it
+	Bosses  map[string]RaidBoss `json:"bosses"`         // by boss name as ENCOUNTER_START gives it
+	Tier    map[string][]int    `json:"tier,omitempty"` // class ("DeathKnight") -> its tier set's item IDs
 }
 
 // RaidBoss is one boss's NPC IDs and mechanics by kind: spell IDs to dodge (damage), soak (damage), dispel (debuffs)

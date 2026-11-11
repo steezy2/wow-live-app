@@ -3,6 +3,7 @@ package service
 import (
 	"cmp"
 	"fmt"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -111,6 +112,7 @@ type keyRun struct {
 	meterAt   int64                        // when the meters were last sampled for the replay
 	party     []string                     // player GUIDs, from COMBATANT_INFO at the start
 	auras     map[string][]int             // player GUID -> aura IDs at the start
+	gear      map[string][]int             // player GUID -> equipped item IDs at the start
 	pull      int
 	pullFrom  int64
 	pullAt    int64 // the pull's start on the key's clock
@@ -230,7 +232,7 @@ func (k *LogTracker) Add(line models.LogLine) {
 		}
 	case "COMBATANT_INFO":
 		if len(f) > 0 && run.auras[f[0]] == nil {
-			run.auras[f[0]] = auraIDs(f)
+			run.auras[f[0]], run.gear[f[0]] = auraIDs(f), itemIDs(f)
 			run.party = append(run.party, f[0])
 		}
 	// A party's kill is logged as PARTY_KILL before the killing blow and UNIT_DIED after it, sometimes only one of the
@@ -387,7 +389,7 @@ func newRun(key models.Key, instance string) *keyRun {
 		taken: map[string]map[int64]int64{}, sampled: map[string]int64{}, mobAt: map[string]models.TrackPoint{},
 		track: models.KeyTrack{Players: map[string][]models.TrackPoint{}, Deaths: []models.TrackPoint{},
 			Meters: map[string][]models.MeterPoint{}, Bosses: map[string][]models.TrackPoint{}},
-		auras: map[string][]int{}, total: map[string]*models.KeyMeterRow{}, inPull: map[string]*models.KeyMeterRow{},
+		auras: map[string][]int{}, gear: map[string][]int{}, total: map[string]*models.KeyMeterRow{}, inPull: map[string]*models.KeyMeterRow{},
 		abilities: map[[2]string]*models.KeyAbility{}, takenBy: map[[2]string]int64{}}
 }
 
@@ -786,14 +788,36 @@ func clock(start, at int64, deaths int) int64 {
 // auraIDs reads COMBATANT_INFO's aura list, its last bracketed field: [source,auraID,stacks,source,auraID,...].
 func auraIDs(f []string) []int {
 	ids := []int{}
-	for i := len(f) - 1; i >= 0; i-- {
-		if strings.HasPrefix(f[i], "[") {
-			parts := strings.Split(strings.Trim(f[i], "[]"), ",")
-			for j := 1; j < len(parts); j += 3 {
-				ids = append(ids, atoi(parts[j]))
-			}
-			break
+	if list := listField(f, 0); list != "" {
+		parts := strings.Split(strings.Trim(list, "[]"), ",")
+		for j := 1; j < len(parts); j += 3 {
+			ids = append(ids, atoi(parts[j]))
 		}
 	}
 	return ids
+}
+
+// itemTuple starts an equipped item in COMBATANT_INFO's gear list: (itemID,itemLevel,(enchants),(bonuses),(gems)).
+var itemTuple = regexp.MustCompile(`\((\d+),\d+,\(`)
+
+// itemIDs reads COMBATANT_INFO's equipped items, its second-to-last bracketed field.
+func itemIDs(f []string) []int {
+	ids := []int{}
+	for _, m := range itemTuple.FindAllStringSubmatch(listField(f, 1), -1) {
+		ids = append(ids, atoi(m[1]))
+	}
+	return ids
+}
+
+// listField is COMBATANT_INFO's bracketed field n from the end (0: the last), or "" when it has fewer.
+func listField(f []string, n int) string {
+	for i := len(f) - 1; i >= 0; i-- {
+		if strings.HasPrefix(f[i], "[") {
+			if n == 0 {
+				return f[i]
+			}
+			n--
+		}
+	}
+	return ""
 }

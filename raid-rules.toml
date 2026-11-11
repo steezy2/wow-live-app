@@ -53,6 +53,12 @@ healer_only = ["Ascendance", "Celestial Conduit"]
 vantus = ["Vantus Rune"]
 vantus_ids = [1303171, 1303187]
 
+[tier]
+# The raid's class tier sets (Wowhead item-set IDs, one per class): cmd/raidref writes their items into
+# reference/raid-bosses.json, and a raider wearing fewer than 2 (or 4) of their class's pieces at a pull's start is
+# missing the 2-set (or 4-set).
+sets = [2055, 2056, 2057, 2058, 2059, 2060, 2061, 2062, 2063, 2064, 2065, 2066, 2067]
+
 # Per boss (as ENCOUNTER_START names it): its phases after phase 1, numbered as Warcraft Logs numbers them, and what
 # starts each in the combat log (event and spell ID). A phase without a trigger is listed but not marked; find its
 # trigger the first night the raid reaches it.

@@ -764,6 +764,46 @@ func TestRaidSpikeCountsRaidCooldowns(t *testing.T) {
 	}
 }
 
+func TestBuffCheckTierPieces(t *testing.T) {
+	priestTier := map[string][]int{"Priest": {271553, 271554, 271555, 271556, 271558}}
+	for _, c := range []struct {
+		name   string
+		tier   map[string][]int
+		pieces int
+		want   string
+	}{
+		{"1 piece", priestTier, 1, "[2-set]"},
+		{"3 pieces", priestTier, 3, "[4-set]"},
+		{"4 pieces", priestTier, 4, "[]"},
+		{"a class without a list", map[string][]int{"Warlock": {271544}}, 0, "[]"},
+	} {
+		keys, store := newRaidTracker(t)
+		keys.SetTier(c.tier)
+		gear := []string{"(268265,341,(),(6652,13668),(240983,295,240908,295))"} // a ring with gems: not tier
+		for _, id := range priestTier["Priest"][:c.pieces] {
+			gear = append(gear, fmt.Sprintf("(%d,334,(7961,0,0),(13334,6652),())", id))
+		}
+		feed(t, keys, pullLines(3, 0, 60, 40, false,
+			raidAt(3, 0.6, "COMBATANT_INFO,Player-76-0000CCCC,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,257,"+
+				"[(1,2,1)],(0,1,2,3),["+strings.Join(gear, ",")+"],[]"),
+			hitOn(3, 5, "SPELL_DAMAGE", priestUnit, 1004, "Bite"))...)
+		if _, err := keys.SaveFinished(); err != nil {
+			t.Fatal(err)
+		}
+		var got []string
+		for _, b := range store.pulls[0].Missing {
+			for _, m := range b.Missing {
+				if strings.HasSuffix(m, "-set") {
+					got = append(got, m)
+				}
+			}
+		}
+		if fmt.Sprint(list(got)) != c.want {
+			t.Errorf("%s: sets missing = %v; want %s", c.name, got, c.want)
+		}
+	}
+}
+
 // TestViperSpawnerIsEggCarrier replays pull 28 on Nov 10: two carriers' eggs breaking to Caustic Waves 2.6 s apart and
 // a third 7 s later while the waves tick on two other raiders, then two carriers' Noxious Splash.
 func TestViperSpawnerIsEggCarrier(t *testing.T) {

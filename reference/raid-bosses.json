@@ -4,6 +4,7 @@
     "maps": "wago.tools' UiMapAssignment: each map's edges",
     "mechanics": "reference/raid-mechanics.toml (kept by hand, checked against logs), else Wowhead's boss cheat sheets (each boss's guide): spell IDs sorted by the words of their line",
     "npcs": "Warcraft Logs: the boss actors and maps of each encounter's top-ranked kill",
+    "tier": "Wowhead's item sets (raid-rules.toml's [tier] sets): each class's tier items",
     "written": "2026-11-11"
   },
   "bosses": {
@@ -452,5 +453,98 @@
         }
       ]
     }
+  },
+  "tier": {
+    "DeathKnight": [
+      271472,
+      271473,
+      271474,
+      271475,
+      271477
+    ],
+    "DemonHunter": [
+      271535,
+      271536,
+      271537,
+      271538,
+      271540
+    ],
+    "Druid": [
+      271526,
+      271527,
+      271528,
+      271529,
+      271531
+    ],
+    "Evoker": [
+      271499,
+      271500,
+      271501,
+      271502,
+      271504
+    ],
+    "Hunter": [
+      271490,
+      271491,
+      271492,
+      271493,
+      271495
+    ],
+    "Mage": [
+      271562,
+      271563,
+      271564,
+      271565,
+      271567
+    ],
+    "Monk": [
+      271517,
+      271518,
+      271519,
+      271520,
+      271522
+    ],
+    "Paladin": [
+      271463,
+      271464,
+      271465,
+      271466,
+      271468
+    ],
+    "Priest": [
+      271553,
+      271554,
+      271555,
+      271556,
+      271558
+    ],
+    "Rogue": [
+      271508,
+      271509,
+      271510,
+      271511,
+      271513
+    ],
+    "Shaman": [
+      271481,
+      271482,
+      271483,
+      271484,
+      271486
+    ],
+    "Warlock": [
+      271544,
+      271545,
+      271546,
+      271547,
+      271549
+    ],
+    "Warrior": [
+      271454,
+      271455,
+      271456,
+      271457,
+      271459
+    ]
   }
 }
