@@ -38,6 +38,18 @@ func TestDungeonFactsCombinesTheSources(t *testing.T) {
 	}
 }
 
+func TestDungeonFactsCountsAnNPCTwinAsTheMobItCopies(t *testing.T) {
+	got, err := DungeonFacts(DungeonSources{Name: "Kings' Rest", MDT: models.MDTDungeon{MapID: 249, Total: 608,
+		Mobs: map[int]models.MDTMob{270502: {Name: "Half-Finished Mummy", Count: 7}}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Forces.NPCs[273050] != 7 {
+		t.Errorf("NPC 273050 counts %d; want 7, as the Half-Finished Mummy Mythic Dungeon Tools lists (270502)",
+			got.Forces.NPCs[273050])
+	}
+}
+
 func TestHitCounterFindsAbilitiesThatMissedSomeone(t *testing.T) {
 	h := NewHitCounter()
 	line := func(event string, f ...string) { h.Add(models.LogLine{Event: event, Fields: f}) }

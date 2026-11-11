@@ -2,6 +2,7 @@
 
 A Windows app for Mythic+ keys, read live from the game's combat log (README.md).
 
+- The `Makefile` wraps the commands below: `make check` (what CI runs), `make app`, `make swag`, `make ref`.
 - `backend/` is one Go module (`clients/` outside systems, `models/` types and interfaces, `service/` the rules, `controller/` the Gin API with swaggo annotations, `app/` the wiring, `cmd/` entry points). Run `gofmt`, `go vet ./...` and `go test ./...` there; after changing an endpoint or its types, run `swag init -g cmd/site/main.go -o docs --parseInternal`.
 - `frontend/` is React + Vite + TypeScript: `api.ts` is the only file that knows URLs, and values the backend owns come from the API. Run `npm run lint`, `npm test` and `npm run build`. No Prettier config: single quotes, no semicolons, 120 columns, never reformat whole files.
 - The app (`backend/cmd/app`, Wails v3, Windows only) is built with `bash backend/cmd/app/build.sh`. Before restarting a running copy, check the newest combat log for a key in progress. A copy started from Claude's shell writes its data into the Claude app's package folder, so let the owner start it.

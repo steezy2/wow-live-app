@@ -5,16 +5,21 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 ## [Unreleased]
 
 ### Added
-- A **player focus** card beside the review's advice: pick a party member to see their damage and healing by ability with casts and hits, what they took damage from, and what they cast, as bars. Keys saved before this have no abilities; *Read old keys* in Settings fills them in from the logs still in the game's folder.
+- A **player focus** card beside the review's advice: pick a party member to see their damage and healing by ability with casts and hits, what they took damage from, and what they cast, as bars in each ability's spell school colour (fire orange, frost blue, a blend for a spell of several). It opens on your own character: the key keeps whose game wrote the log (`logger`) and each ability's `school`. Keys saved before this have no abilities; *Read old keys* in Settings fills them in from the logs still in the game's folder.
+- More in the key review. Each player gets up to four things to work on (was three), now also: dying to the same ability more than once, DPS or HPS under 85% of their usual in the dungeon, a Bloodlust without a combat potion, starting without a flask or food, the group's lowest active time under 85%, and no crowd control while must-stop casts went off. The party's lines add what its deaths cost on the clock, Bloodlusts against how many the key had room for, minibosses that died after most of their pack, dispellable debuffs left to run out, and overlapped party cooldowns. Reviews already made keep their old advice.
+- A `Makefile` for the everyday commands: `make app`, `make check` (what CI runs), `make site`, `make swag`, `make ref`; `make` lists them.
 - An abandoned key is reviewed like any other, against whole top runs over the time it ran, and shows the player focus card.
 - *Party left? End the key* on the live page once the game's log has been silent for a minute (`POST /api/mplus/live/abandon`), with how long ago the game last wrote its log. The game logs no end for a key the party left and writes its log in batches as fights start and end (measured Nov 10: 2:45 of a boss fight in one write), so the line that says they left can come minutes later.
 
 ### Changed
+- Crowd control counts knocks up and back too: Supernova, Gravity Lapse, Blast Wave, Bursting Shot, High Explosive Trap, Implosive Trap, Shining Force and Sundering, and Earthgrab Totem's root (`[cc]` in `mplus.toml`).
+- The Settings page's fields and buttons look like fields and buttons (boxed, *Save* filled, *Remove* red), and its sections sit side by side where there's room.
 - A running key the log goes silent on is closed as abandoned after 10 minutes, saved and reviewed, instead of the page going back to "Waiting for the next key" after 3 (which a long boss fight also did, hiding the overlay); if the log then goes on in the key, it runs again. The key view's `quiet` field is gone; `silentMS` says how long the log has been silent.
 - The live page and the README say when the ready check can show: the game often writes the lines from zoning in only as the key starts.
 - The release workflow's `store` job submits to the Microsoft Store without waiting for approval: the `microsoft-store` environment's required reviewer went away with the repo going private.
 
 ### Fixed
+- Kings' Rest counted 587 of 608 forces in a finished +17 and said the dungeon file needed checking: its Half-Finished Mummies come under two NPC IDs and Mythic Dungeon Tools lists one. The other (273050) now counts the same (`npcTwins` in `service/mplusref.go`). *Read old keys* corrects a key saved before this.
 - An abandoned key ends at its last line in the log, not at the line that showed it was over: one whose log just stopped read "Abandoned at 18:42:06" with 3k DPS once the next day's log started.
 - The ready check keeps the buffs it has seen when the party zones into the same dungeon again, instead of going back to "not seen" for everyone.
 

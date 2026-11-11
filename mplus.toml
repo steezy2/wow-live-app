@@ -9,16 +9,18 @@ names = [
 ]
 
 [cc]
-# Crowd control: each class's stuns, incapacitates, fears, roots, knocks and grips, as the live M+ page counts them per player
-# (casts, so an area stun counts once). Interrupts are [kicks].
+# Crowd control: each class's stuns, incapacitates, fears, roots, knocks (up or back) and grips, as the live M+ page
+# counts them per player (casts, so an area stun counts once). Interrupts are [kicks].
 names = [
-  "Asphyxiate", "Binding Shot", "Blind", "Blinding Light", "Blinding Sleet", "Capacitor Totem", "Chaos Nova",
-  "Cheap Shot", "Death Grip", "Dragon's Breath", "Entangling Roots", "Fear", "Freezing Trap", "Frost Nova", "Gouge",
-  "Gorefiend's Grasp", "Hammer of Justice", "Hex", "Holy Word: Chastise", "Howl of Terror", "Imprison",
-  "Incapacitating Roar", "Intimidating Shout", "Intimidation", "Kidney Shot", "Leg Sweep", "Mass Entanglement",
-  "Mighty Bash", "Mortal Coil", "Paralysis", "Polymorph", "Psychic Scream", "Repentance", "Ring of Frost",
-  "Ring of Peace", "Sap", "Shadowfury", "Shockwave", "Sigil of Chains", "Sigil of Misery", "Sleep Walk", "Storm Bolt",
-  "Tail Swipe", "Thunderstorm", "Typhoon", "Ursol's Vortex", "Wing Buffet",
+  "Asphyxiate", "Binding Shot", "Blast Wave", "Blind", "Blinding Light", "Blinding Sleet", "Bursting Shot",
+  "Capacitor Totem", "Chaos Nova", "Cheap Shot", "Death Grip", "Dragon's Breath", "Earthgrab Totem",
+  "Entangling Roots", "Fear", "Freezing Trap", "Frost Nova", "Gouge", "Gorefiend's Grasp", "Gravity Lapse",
+  "Hammer of Justice", "Hex", "High Explosive Trap", "Holy Word: Chastise", "Howl of Terror", "Implosive Trap",
+  "Imprison", "Incapacitating Roar", "Intimidating Shout", "Intimidation", "Kidney Shot", "Leg Sweep",
+  "Mass Entanglement", "Mighty Bash", "Mortal Coil", "Paralysis", "Polymorph", "Psychic Scream", "Repentance",
+  "Ring of Frost", "Ring of Peace", "Sap", "Shadowfury", "Shining Force", "Shockwave", "Sigil of Chains",
+  "Sigil of Misery", "Sleep Walk", "Storm Bolt", "Sundering", "Supernova", "Tail Swipe", "Thunderstorm", "Typhoon",
+  "Ursol's Vortex", "Wing Buffet",
 ]
 
 [lust]

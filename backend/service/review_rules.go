@@ -3,6 +3,7 @@ package service
 import (
 	"cmp"
 	"fmt"
+	"maps"
 	"math"
 	"slices"
 	"strings"
@@ -12,12 +13,20 @@ import (
 
 const (
 	// maxAdvice is how many things to work on a player is given.
-	maxAdvice = 3
+	maxAdvice = 4
 	// lowShare and highShare: DPS or HPS under this share of the spec's top runs is something to work on, over it a
 	// thing done well.
 	lowShare, highShare = 0.7, 0.9
 	// lustPotionMS: a combat potion this close to Bloodlust counts as used with it.
 	lustPotionMS = 10_000
+	// belowUsual: DPS or HPS under this share of the player's usual in the dungeon is something to work on.
+	belowUsual = 0.85
+	// lowActive: active time under this (in %) that is also the group's lowest is something to work on.
+	lowActive = 85
+	// lustEveryMS is how long after a Bloodlust the party can have the next.
+	lustEveryMS = 600_000
+	// lateDebuffs: this many dispellable debuffs running their full time is worth a line.
+	lateDebuffs = 3
 )
 
 // reviewMetric is a reviewed number: how to read it for a player from the key, and whether more is better.
@@ -166,9 +175,20 @@ func advice(key models.Key, player string, spec specInfo, metrics []models.Revie
 	for _, m := range metrics {
 		byName[m.Name] = m
 	}
+	killers := map[string]int{}
 	for _, d := range key.Deaths {
-		if d.Player == player && len(d.Ready) > 0 {
+		if d.Player != player {
+			continue
+		}
+		if len(d.Ready) > 0 {
 			out = append(out, fmt.Sprintf("Died to %s at %s with %s ready", d.Ability, clockText(d.ClockMS), d.Ready[0]))
+		} else if d.Ability != "" {
+			killers[d.Ability]++
+		}
+	}
+	for _, ability := range slices.Sorted(maps.Keys(killers)) {
+		if n := killers[ability]; n > 1 {
+			out = append(out, fmt.Sprintf("Died to %s %s", ability, counted(n, "time")))
 		}
 	}
 	if a := byName["avoidable damage"]; a.Value > 0 && a.PartyRank == party && party > 1 {
@@ -182,13 +202,36 @@ func advice(key models.Key, player string, spec specInfo, metrics []models.Revie
 	if k := byName["kicks"]; wentOff > 0 && k.PartyRank > (party+1)/2 && !spec.Healer {
 		out = append(out, fmt.Sprintf("%d must-stop casts went off; you kicked %.0f", wentOff, k.Value))
 	}
-	if main := byName[mainMetric(spec)]; main.Top > 0 && main.Value < lowShare*main.Top {
+	switch main := byName[mainMetric(spec)]; {
+	case main.Top > 0 && main.Value < lowShare*main.Top:
 		out = append(out, fmt.Sprintf("%s %s, %.0f%% of top %ss at +%d%s (%s)", main.Name,
 			short(main.Value), 100*main.Value/main.Top, spec.label(), key.Level,
 			unlessAbandoned(key, " in similar time"), short(main.Top)))
+	case main.Usual > 0 && main.Value < belowUsual*main.Usual:
+		out = append(out, fmt.Sprintf("%s %s, %.0f%% of your usual here (%s)", main.Name, short(main.Value),
+			100*main.Value/main.Usual, short(main.Usual)))
 	}
 	if readyIn, ready := unusedDefensives(key, player); readyIn >= 2 {
 		out = append(out, fmt.Sprintf("Took big hits with %s ready in %d damage spikes", ready, readyIn))
+	}
+	if p, ok := byName["potions at lust"]; ok && !spec.Healer && int(p.Value) < len(key.Lusts) {
+		out = append(out, fmt.Sprintf("Used a combat potion in %.0f of %s", p.Value, counted(len(key.Lusts), "Bloodlust")))
+	}
+	for _, b := range key.Buffs {
+		if b.Player != player {
+			continue
+		}
+		lacks := slices.DeleteFunc(slices.Clone(b.Missing), func(m string) bool { return m != "flask" && m != "food" })
+		if len(lacks) > 0 { // a missing party buff is its class's to give
+			out = append(out, "Started the key without "+strings.Join(lacks, " or "))
+		}
+	}
+	if a, ok := byName["active %"]; ok && a.Value < lowActive && a.PartyRank == party && party > 1 {
+		out = append(out, fmt.Sprintf("Active %.0f%% of the time in pulls, the least in the group", a.Value))
+	}
+	if c, ok := byName["crowd control"]; ok && c.Value == 0 && wentOff > 0 {
+		out = append(out, fmt.Sprintf("Used no crowd control while %s went off: a stun or knock stops a cast too",
+			counted(wentOff, "must-stop cast")))
 	}
 	if w := byName["wasted kicks"]; w.Value >= 3 {
 		out = append(out, fmt.Sprintf("%.0f kicks interrupted nothing: call kicks so two don't go on one cast", w.Value))
@@ -230,7 +273,7 @@ var metricHelp = map[string]string{
 	"active %":                  "share of time alive in pulls with a cast or hit of theirs going",
 	"big hits, defensive ready": "damage spikes they took the most of with a defensive ready and none used",
 	"potions at lust":           "Bloodlusts with a combat potion of theirs within 10 s",
-	"crowd control":             "stuns, incapacitates, fears, roots, knocks and grips cast ([cc] in mplus.toml; an area stun counts once)",
+	"crowd control":             "stuns, incapacitates, fears, roots, knocks (up or back) and grips cast ([cc] in mplus.toml; an area stun counts once)",
 }
 
 // since reads a metric only from keys saved with it (Nov 8 on; older keys have no activity): NaN for older ones, so a
@@ -257,10 +300,15 @@ func unusedDefensives(key models.Key, player string) (int, string) {
 	return n, ready
 }
 
-// partyNotes is what the review says about the party as a whole: the share of must-stop casts stopped, and the time
-// between pulls with the longest wait.
+// partyNotes is what the review says about the party as a whole: what its deaths cost, the share of must-stop casts
+// stopped, the time between pulls with the longest wait, Bloodlusts against how many the key had room for, minibosses
+// that died late, dispellable debuffs left to run out, and party cooldowns used on top of each other.
 func partyNotes(key models.Key) []string {
 	notes := []string{}
+	if n := len(key.Deaths); n > 0 {
+		notes = append(notes, fmt.Sprintf("%s added %s to the clock", counted(n, "death"),
+			clockText(int64(n)*deathPenaltyMS)))
+	}
 	if n := len(key.Stops); n > 0 {
 		stopped := countFunc(key.Stops, func(s models.KeyStop) bool { return s.Outcome != "went off" })
 		notes = append(notes, fmt.Sprintf("Stopped %d of %d must-stop casts (%.0f%%)", stopped, n,
@@ -274,6 +322,21 @@ func partyNotes(key models.Key) []string {
 		}
 		notes = append(notes, fmt.Sprintf("%s between pulls in all; the longest %s, before pull %d", clockText(total),
 			clockText(key.BetweenPulls[longest]), longest+2))
+	}
+	// A party without a Bloodlust has no class for it. The last minute has no room for another.
+	if room := int(1 + (lengthMS(key)-lustMS)/lustEveryMS); len(key.Lusts) > 0 && len(key.Lusts) < room {
+		notes = append(notes, fmt.Sprintf("%s; %s had room for %d", counted(len(key.Lusts), "Bloodlust"),
+			clockText(lengthMS(key)), room))
+	}
+	if late := countFunc(key.Pulls, func(p models.KeyPull) bool { return p.Late }); late > 0 {
+		notes = append(notes, fmt.Sprintf("A miniboss died after most of its pack in %d of %d pulls with one", late,
+			len(key.Pulls)))
+	}
+	if ranOut := countFunc(key.Debuffs, func(d models.KeyDispel) bool { return d.By == "" }); ranOut >= lateDebuffs {
+		notes = append(notes, fmt.Sprintf("%d of %d dispellable debuffs ran their full time", ranOut, len(key.Debuffs)))
+	}
+	if overlaps := countFunc(key.Spikes, func(s models.KeySpike) bool { return s.Overlap }); overlaps > 0 {
+		notes = append(notes, "Party cooldowns overlapped in "+counted(overlaps, "damage spike"))
 	}
 	return notes
 }
@@ -341,6 +404,14 @@ func short(v float64) string {
 // clockText is a time on the key's clock: "12:03".
 func clockText(ms int64) string {
 	return fmt.Sprintf("%d:%02d", ms/60_000, ms/1000%60)
+}
+
+// counted is a number of things: "1 death", "3 deaths".
+func counted(n int, noun string) string {
+	if n == 1 {
+		return "1 " + noun
+	}
+	return fmt.Sprintf("%d %ss", n, noun)
 }
 
 // ordinal is "1st", "2nd", "23rd", "11th".

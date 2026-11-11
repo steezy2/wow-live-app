@@ -339,7 +339,7 @@ button {
   inset: 0 auto 0 0;
   border-radius: 4px;
   border-left: 3px solid var(--bar);
-  background: color-mix(in srgb, var(--bar) 22%, transparent);
+  background: var(--bar-fill, color-mix(in srgb, var(--bar) 22%, transparent));
 }
 
 .tabs {
@@ -629,35 +629,102 @@ button {
 
 .settings {
   display: grid;
-  gap: 12px;
+  gap: var(--s3);
+  align-content: start;
   max-width: 640px;
 }
 
-/* The Settings tab: one panel per section, stacked. */
+/* The Settings tab: one panel per section, side by side where there's room. */
 .settings-page {
   display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(420px, 100%), 1fr));
+  align-items: start;
   gap: var(--s4);
-  max-width: 680px;
+  max-width: 1100px;
 }
 
-.settings-page .settings p {
+.settings-page .panel {
+  margin: 0;
+  padding: var(--s4);
+}
+
+.settings-page .settings p,
+.settings ol {
   margin: 0;
 }
 
 .settings label {
   display: grid;
-  gap: 4px;
+  gap: var(--s1);
+  color: var(--muted);
 }
 
 .settings .actions {
   display: flex;
-  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s2);
 }
 
 .settings label.inline {
   display: flex;
   align-items: center;
   gap: 6px;
+  color: var(--text);
+}
+
+/* Settings' fields and buttons look like what they are: boxed, the main action filled, a destructive one red. */
+.settings input:not([type='checkbox'], [type='range']),
+.settings select,
+.settings button {
+  font: inherit;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: var(--s2) var(--s3);
+}
+
+.settings input[type='checkbox'],
+.settings input[type='range'] {
+  accent-color: var(--accent);
+}
+
+.settings button {
+  background: var(--panel-2);
+  font-weight: 600;
+}
+
+.settings button:hover:not(:disabled),
+.settings button[aria-pressed='true'] {
+  border-color: var(--accent);
+}
+
+.settings button[type='submit'] {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.settings button[type='submit']:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+
+.settings button.danger {
+  color: var(--bad);
+}
+
+.settings button.danger:hover:not(:disabled) {
+  border-color: var(--bad);
+}
+
+.settings button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.settings :is(input, select, button):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }
 
 /* The overlay window over the game: see-through, compact. */
