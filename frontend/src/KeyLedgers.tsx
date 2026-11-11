@@ -222,43 +222,77 @@ export function BigHits({ data, seek }: { data: FightData; seek?: Seeker }) {
   )
 }
 
-/** The avoidable damage by ability, the most first: when it first hit (where the lanes mark it), how much and how
- * many hits, and each player it hit with theirs. */
+function groupBy(hits: KeyHit[], key: (h: KeyHit) => string) {
+  const groups = new Map<string, KeyHit[]>()
+  hits.forEach((h) => groups.get(key(h))?.push(h) ?? groups.set(key(h), [h]))
+  return groups
+}
+
+const total = (hits: KeyHit[], pick: 'damage' | 'hits') => hits.reduce((n, h) => n + h[pick], 0)
+
+/** The avoidable damage: a small card per player hit (what they took, from which ability), the most first, then the
+ * list by ability, the most first: when it first hit (where the lanes mark it), how much and how many hits, and each
+ * player it hit with theirs. */
 export function Avoidable({ data, seek }: { data: FightData; seek?: Seeker }) {
   if (!data.reference) return <p className="muted">No avoidable list for this dungeon</p>
   if (!data.avoidableHits) {
     return <p className="muted">Saved before avoidable damage was kept: Read old logs in Settings fills it in</p>
   }
-  const byAbility = new Map<string, KeyHit[]>()
-  data.avoidableHits.forEach((h) => byAbility.get(h.ability)?.push(h) ?? byAbility.set(h.ability, [h]))
-  const total = (hits: KeyHit[], pick: 'damage' | 'hits') => hits.reduce((n, h) => n + h[pick], 0)
+  const byAbility = groupBy(data.avoidableHits, (h) => h.ability)
   const first = (ability: string) =>
     data.lanes.find((l) => l.kind === 'avoidable' && l.name === ability)?.marks[0]?.clockMS
-  const abilities = [...byAbility].sort((a, b) => total(b[1], 'damage') - total(a[1], 'damage'))
+  const mostFirst = (a: [string, KeyHit[]], b: [string, KeyHit[]]) => total(b[1], 'damage') - total(a[1], 'damage')
+  const abilities = [...byAbility].sort(mostFirst)
+  const players = [...groupBy(data.avoidableHits, (h) => h.player)].sort(mostFirst)
   return (
-    <ul className="list scroll">
-      {abilities.map(([ability, hits]) => {
-        const at = first(ability)
-        return (
-          <li key={ability} className="stack">
-            <span>
-              {at !== undefined && <When ms={at} seek={seek} />} <b>{ability}</b> {amount(total(hits, 'damage'))}{' '}
-              <span className="muted">· {total(hits, 'hits')} hits</span>
-            </span>
-            <span className="muted">
+    <>
+      {players.length > 0 && (
+        <div className="cards">
+          {players.map(([player, hits]) => (
+            <div key={player} className="card small">
+              <div className="card-row card-head">
+                <span>
+                  <Who player={player} seek={seek} />
+                </span>
+                <span>{amount(total(hits, 'damage'))}</span>
+              </div>
               {[...hits]
                 .sort((a, b) => b.damage - a.damage)
-                .map((h, i) => (
-                  <span key={h.player}>
-                    {i > 0 && ', '}
-                    <Who player={h.player} seek={seek} /> {amount(h.damage)} ({h.hits})
-                  </span>
+                .map((h) => (
+                  <div key={h.ability} className="card-row">
+                    <span className="name">{h.ability}</span>
+                    <span>{amount(h.damage)}</span>
+                    <span className="muted">{h.hits > 0 && `(${h.hits})`}</span>
+                  </div>
                 ))}
-            </span>
-          </li>
-        )
-      })}
-      {abilities.length === 0 && <li className="muted">None</li>}
-    </ul>
+            </div>
+          ))}
+        </div>
+      )}
+      <ul className="list scroll">
+        {abilities.map(([ability, hits]) => {
+          const at = first(ability)
+          return (
+            <li key={ability} className="stack">
+              <span>
+                {at !== undefined && <When ms={at} seek={seek} />} <b>{ability}</b> {amount(total(hits, 'damage'))}{' '}
+                <span className="muted">· {total(hits, 'hits')} hits</span>
+              </span>
+              <span className="muted">
+                {[...hits]
+                  .sort((a, b) => b.damage - a.damage)
+                  .map((h, i) => (
+                    <span key={h.player}>
+                      {i > 0 && ', '}
+                      <Who player={h.player} seek={seek} /> {amount(h.damage)} ({h.hits})
+                    </span>
+                  ))}
+              </span>
+            </li>
+          )
+        })}
+        {abilities.length === 0 && <li className="muted">None</li>}
+      </ul>
+    </>
   )
 }
