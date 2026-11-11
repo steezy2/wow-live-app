@@ -250,6 +250,15 @@ func (m MPlus) Tile(c *gin.Context) {
 	}
 }
 
+// boolQuery reads a boolean query parameter (false when absent), answering 400 when it isn't one.
+func boolQuery(c *gin.Context, name string) (bool, bool) {
+	v, err := strconv.ParseBool(c.DefaultQuery(name, "false"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: name + " must be true or false"})
+	}
+	return v, err == nil
+}
+
 // intParams reads whole-number path parameters, answering 400 when one isn't.
 func intParams(c *gin.Context, names ...string) ([]int, bool) {
 	ids := make([]int, len(names))

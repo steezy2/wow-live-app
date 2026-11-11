@@ -213,10 +213,12 @@ func TestSpikeIsTheWorstDamageTakenAndWhoCoveredIt(t *testing.T) {
 		"B": {{ClockMS: 2000}, {ClockMS: 4000}, {ClockMS: 6000, Taken: 1800}},
 	}}
 	cooldowns := []models.KeyCast{{Player: "C", Ability: "Tranquility", Kind: "raid cooldown", ClockMS: 3000},
-		{Player: "D", Kind: "combat potion", ClockMS: 5000}}
+		{Player: "D", Kind: "combat potion", ClockMS: 5000},
+		{Player: "E", Ability: "Rallying Cry", Kind: "raid cooldown", ClockMS: 1000, EndMS: 5000}, // up when it began
+		{Player: "F", Ability: "Barrier", Kind: "raid cooldown", ClockMS: 3000, EndMS: 3500}}      // over before it
 	s := spike(track, cooldowns, 2000, 2000)
-	if s == nil || s.ClockMS != 6000 || s.PerSecond != 1900 || fmt.Sprint(s.Covered) != "[C · Tranquility]" {
-		t.Fatalf("spike = %+v; want 3800 taken from 4 to 6 s, covered by the Tranquility, not the potion", s)
+	if s == nil || s.ClockMS != 6000 || s.PerSecond != 1900 || fmt.Sprint(s.Covered) != "[C · Tranquility E · Rallying Cry]" {
+		t.Fatalf("spike = %+v; want 3800 taken from 4 to 6 s, covered by Tranquility and the Rallying Cry still up, not the potion or the Barrier over before", s)
 	}
 	if spike(models.KeyTrack{}, nil, 2000, 2000) != nil {
 		t.Fatal("a pull with no damage taken has no spike")
@@ -855,7 +857,7 @@ func TestViperSpawnerIsEggCarrier(t *testing.T) {
 			got = append(got, fmt.Sprintf("%.1f %s %v", float64(s.ClockMS)/1000, s.Cause, s.Players))
 		}
 	}
-	want := []string{"11.5  []", "18.9 Caustic Waves [Egg1]", "20.9 Caustic Waves [Egg2]", "29.9 Caustic Waves [Egg3]",
+	want := []string{"11.5 Not picked up []", "18.9 Caustic Waves [Egg1]", "20.9 Caustic Waves [Egg2]", "29.9 Caustic Waves [Egg3]",
 		"31.4 Noxious Splash [Egg4]", "31.4 Noxious Splash [Egg5]"}
 	if fmt.Sprint(got) != fmt.Sprint(want) {
 		t.Fatalf("vipers =\n%q\nwant\n%q", got, want)

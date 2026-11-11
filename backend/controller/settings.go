@@ -7,7 +7,6 @@ import (
 	"log"
 	"net/http"
 	"slices"
-	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -68,9 +67,8 @@ type OldKeys struct {
 //	@Failure		500	{object}	ErrorResponse
 //	@Router			/api/settings/read-keys [post]
 func (s SettingsAPI) ReadKeys(c *gin.Context) {
-	all, err := strconv.ParseBool(c.DefaultQuery("all", "false"))
-	if err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "all must be true or false"})
+	all, ok := boolQuery(c, "all")
+	if !ok {
 		return
 	}
 	read, saved, err := s.ReadOldKeys(all)
@@ -165,7 +163,11 @@ func (s SettingsAPI) SaveKeys(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "send a client ID and a secret"})
 		return
 	}
-	keyAnswer(c)(s.Keys.Save(c.Request.Context(), creds, c.Query("force") == "true"))
+	force, ok := boolQuery(c, "force")
+	if !ok {
+		return
+	}
+	keyAnswer(c)(s.Keys.Save(c.Request.Context(), creds, force))
 }
 
 // TestKeys godoc

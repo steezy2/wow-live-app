@@ -1082,7 +1082,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "prepot": {
-                    "description": "a combat potion drunk before the raid pull started",
+                    "description": "a combat potion drunk before the run started",
                     "type": "boolean"
                 }
             }

@@ -202,7 +202,7 @@ func (k *LogTracker) spike(run *keyRun, second, damage int64, casts []models.Key
 		return slices.Contains(k.rules.Defensives.Externals, c.Ability) && c.ClockMS >= sp.ClockMS-window &&
 			c.ClockMS <= sp.ClockMS+spikeMS
 	}
-	if run.raid != nil { // a raid's cover is its raid cooldowns, each for as long as its buff was up (or cast in the window before)
+	if run.raid != nil { // a raid's cover is its raid cooldowns (coversSpike)
 		casts = run.raid.cooldowns
 		covers = func(c models.KeyCast) bool {
 			return coversSpike(c, sp.ClockMS, sp.ClockMS+spikeMS, window)

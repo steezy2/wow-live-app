@@ -38,6 +38,8 @@ const (
 	// spawnSameMS: a spawn rule's aura coming off a raider this close to its cause landing on them (either order) is
 	// the cause breaking it.
 	spawnSameMS = 100
+	// notPickedUp is the cause shown for an add whose carrier was never found.
+	notPickedUp = "Not picked up"
 )
 
 // raidSetup is what raid pulls are read with: the raid rules, each boss's mechanics, the store of finished pulls,
@@ -360,8 +362,9 @@ func (r *raidRun) lose(id int, at int64, player string) {
 }
 
 // spawnOf is an add of a name appearing at at (clockMS on the pull's clock), named by spells: the oldest unused
-// spawner of its name within its rule's time; else the latest landing of a cause the reference gives for it within
-// its rule's time; nil for an add the reference says nothing about.
+// spawner of its name within its rule's time; else, for a rule that needs a carrier (Lost), nobody picked it up
+// (notPickedUp, no players); else the latest landing of a cause the reference gives for it within its rule's time;
+// nil for an add the reference says nothing about.
 func (r *raidRun) spawnOf(name string, at, clockMS int64, spells map[int]string) *models.RaidSpawn {
 	for i := range r.spawners { // in order, so the first that fits is the oldest
 		if s := &r.spawners[i]; !s.used && s.rule.Add == name && at >= s.at && at-s.at <= s.rule.WithinMS {
@@ -379,6 +382,7 @@ func (r *raidRun) spawnOf(name string, at, clockMS int64, spells map[int]string)
 			seen = &models.RaidSpawn{ClockMS: clockMS, Players: []string{}}
 		}
 		if rule.Lost != 0 { // its carrier's lost buff names the spawner, not whoever the cause landed on
+			seen.Cause = cmp.Or(seen.Cause, notPickedUp)
 			continue
 		}
 		if c := r.causes[rule.Cause]; c != nil && at-c.at <= rule.WithinMS && c.at >= when {

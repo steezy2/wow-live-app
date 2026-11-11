@@ -100,10 +100,10 @@ func (k *LogTracker) spikeMS() int64 {
 	return int64(k.raid.rules.Suggestions.SpikeSeconds * 1000)
 }
 
-// coversSpike is whether a raid cooldown covers a spike from start to end: cast by its end, and its buff up (or cast) no
-// more than window before its start.
+// coversSpike is whether a raid cooldown covers a spike from start to end: cast by its end, and its buff still up at
+// its start or, when none was seen leaving, cast no more than window before it.
 func coversSpike(c models.KeyCast, start, end, window int64) bool {
-	return c.ClockMS <= end && max(c.EndMS, c.ClockMS) >= start-window
+	return c.ClockMS <= end && (c.EndMS >= start || c.EndMS == 0 && c.ClockMS >= start-window)
 }
 
 // spike is the raid's worst damage taken over window ms, from the track's meter samples (each raider's damage taken

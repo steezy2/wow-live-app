@@ -1,8 +1,8 @@
 package service
 
 import (
-	"hash/crc32"
 	"fmt"
+	"hash/crc32"
 	"slices"
 	"testing"
 
