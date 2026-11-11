@@ -55,6 +55,13 @@ definitions:
           $ref: '#/definitions/models.TrackPoint'
         type: array
     type: object
+  models.ForcesPace:
+    properties:
+      bestPct:
+        type: number
+      fasterPct:
+        type: number
+    type: object
   models.ForcesPoint:
     properties:
       clockMS:
@@ -157,9 +164,9 @@ definitions:
         type: integer
       needsCheck:
         type: boolean
+      pace:
+        $ref: '#/definitions/models.ForcesPace'
       pct:
-        type: number
-      referencePct:
         type: number
       total:
         type: integer
@@ -322,6 +329,14 @@ definitions:
         type: number
       start:
         type: integer
+      topBosses:
+        additionalProperties:
+          format: int64
+          type: integer
+        description: |-
+          TopBosses is how long each boss took in the similar top runs (the median, by boss name; missing in reviews
+          saved before Nov 11).
+        type: object
     type: object
   models.KeySpike:
     properties:
@@ -462,6 +477,11 @@ definitions:
         items:
           $ref: '#/definitions/models.KeyHit'
         type: array
+      bestBosses:
+        additionalProperties:
+          format: int64
+          type: integer
+        type: object
       betweenPulls:
         description: BetweenPulls is the time between each pull and the one before
           it (from the second pull), on the key's clock.

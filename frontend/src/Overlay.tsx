@@ -98,7 +98,7 @@ function OverlayKey({ keyView: key, clockMS, split }: { keyView: KeyView; clockM
         )}
       </div>
       {timer > 0 && <TimerBar clockMS={clockMS} timerMS={timer} keyView={key} best={projection?.best ?? []} />}
-      {key.forces && <ForcesBar forces={key.forces} />}
+      {key.forces && <ForcesBar forces={key.forces} level={key.level} />}
       {key.status === 'running' && clockMS < START_CHECK_MS && key.buffs.length > 0 && (
         <p className="warning small overlay-extra">
           Missing: {key.buffs.map((b) => `${b.player} ${b.missing.join(', ')}`).join(' · ')}

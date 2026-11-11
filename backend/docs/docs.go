@@ -782,6 +782,17 @@ const docTemplate = `{
                 }
             }
         },
+        "models.ForcesPace": {
+            "type": "object",
+            "properties": {
+                "bestPct": {
+                    "type": "number"
+                },
+                "fasterPct": {
+                    "type": "number"
+                }
+            }
+        },
         "models.ForcesPoint": {
             "type": "object",
             "properties": {
@@ -936,10 +947,10 @@ const docTemplate = `{
                 "needsCheck": {
                     "type": "boolean"
                 },
-                "pct": {
-                    "type": "number"
+                "pace": {
+                    "$ref": "#/definitions/models.ForcesPace"
                 },
-                "referencePct": {
+                "pct": {
                     "type": "number"
                 },
                 "total": {
@@ -1181,6 +1192,14 @@ const docTemplate = `{
                 },
                 "start": {
                     "type": "integer"
+                },
+                "topBosses": {
+                    "description": "TopBosses is how long each boss took in the similar top runs (the median, by boss name; missing in reviews\nsaved before Nov 11).",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer",
+                        "format": "int64"
+                    }
                 }
             }
         },
@@ -1383,6 +1402,13 @@ const docTemplate = `{
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/models.KeyHit"
+                    }
+                },
+                "bestBosses": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer",
+                        "format": "int64"
                     }
                 },
                 "betweenPulls": {

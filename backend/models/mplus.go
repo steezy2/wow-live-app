@@ -146,6 +146,9 @@ type KeyReview struct {
 	Notes    []string       `json:"notes"` // the party as a whole: deaths' cost, must-stop casts, time between pulls
 	Baseline string         `json:"baseline"`
 	Points   float64        `json:"points"`
+	// TopBosses is how long each boss took in the similar top runs (the median, by boss name; missing in reviews
+	// saved before Nov 11).
+	TopBosses map[string]int64 `json:"topBosses,omitempty"`
 }
 
 // PlayerReview is one party member's numbers against their baselines, up to four things to work on with the
@@ -333,17 +336,17 @@ type ReadyPlayer struct {
 }
 
 // KeyForces is a key's enemy forces: the count killed of the dungeon's total, and its share (it can pass 100; 100 once
-// a key is finished, since the game needs it), each counted kill's share (saved with the key), where your earlier runs
-// stood at the same clock (0 without any), whether a finished key's kills fell short enough that the dungeon file
+// a key is finished, since the game needs it), each counted kill's share (saved with the key), the pace against
+// your best run at the level (running keys only, when there is one), whether a finished key's kills fell short enough that the dungeon file
 // needs checking, and the enemies that died without being in the dungeon file at all.
 type KeyForces struct {
-	Count        int            `json:"count"`
-	Total        int            `json:"total"`
-	Pct          float64        `json:"pct"`
-	At           []ForcesPoint  `json:"at"`
-	ReferencePct float64        `json:"referencePct"`
-	NeedsCheck   bool           `json:"needsCheck"`
-	Uncounted    []UncountedNPC `json:"uncounted"`
+	Count      int            `json:"count"`
+	Total      int            `json:"total"`
+	Pct        float64        `json:"pct"`
+	At         []ForcesPoint  `json:"at"`
+	Pace       *ForcesPace    `json:"pace,omitempty"`
+	NeedsCheck bool           `json:"needsCheck"`
+	Uncounted  []UncountedNPC `json:"uncounted"`
 }
 
 // UncountedNPC is an enemy that died in a key without a forces count in the dungeon file: its NPC ID, name and how
@@ -352,6 +355,14 @@ type UncountedNPC struct {
 	NPC    int    `json:"npc"`
 	Name   string `json:"name"`
 	Deaths int    `json:"deaths"`
+}
+
+// ForcesPace is how a running key's forces compare with the best run of its dungeon at its level (the fastest timed
+// one): the best run's forces at the same clock, and how much sooner (+) or later (-) the key reached its forces than
+// the best run did, as a share of the best run's time to get there.
+type ForcesPace struct {
+	BestPct   float64 `json:"bestPct"`
+	FasterPct float64 `json:"fasterPct"`
 }
 
 // ForcesPoint is the forces share after a kill, at a time on the key's clock.
@@ -393,6 +404,12 @@ type Consumables struct {
 	CombatPotions []string `toml:"combat_potions"`
 }
 
+// RunSummary is a ranked Warcraft Logs run's party damage taken and each boss kill's length, by boss name.
+type RunSummary struct {
+	DamageTaken int64
+	BossMS      map[string]int64
+}
+
 // KeyBoss is a boss fight in a key: when it started and ended on the key's clock, and whether it died.
 type KeyBoss struct {
 	Name    string `json:"name"`
@@ -403,15 +420,17 @@ type KeyBoss struct {
 
 // KeyView is a key as the page shows it at one moment: the clock with the death penalty (and the penalty on its
 // own), the +2 and +3 marks, the most chests still in reach (3, 2, 1, or 0 once over time; -1 without a timer), and
-// the projected result when earlier runs of the dungeon give one.
+// the projected result when earlier runs of the dungeon give one, and how long each boss took in the best earlier run
+// at the level (by name, when there is one).
 type KeyView struct {
 	Key
-	ClockMS    int64          `json:"clockMS"`
-	PenaltyMS  int64          `json:"penaltyMS"`
-	Plus2MS    int64          `json:"plus2MS"`
-	Plus3MS    int64          `json:"plus3MS"`
-	Chests     int            `json:"chests"`
-	Projection *KeyProjection `json:"projection,omitempty"`
+	ClockMS    int64            `json:"clockMS"`
+	PenaltyMS  int64            `json:"penaltyMS"`
+	Plus2MS    int64            `json:"plus2MS"`
+	Plus3MS    int64            `json:"plus3MS"`
+	Chests     int              `json:"chests"`
+	Projection *KeyProjection   `json:"projection,omitempty"`
+	BestBosses map[string]int64 `json:"bestBosses,omitempty"`
 	// SilentMS is how long ago the last line of a running key was logged (0 once it's over). The game writes its log
 	// in batches as fights start and end, so a long silence is a long fight, or a party that left.
 	SilentMS int64 `json:"silentMS"`

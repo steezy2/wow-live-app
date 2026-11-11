@@ -300,7 +300,7 @@ func TestProjectionWeighsRunsAndShowsTheBestRun(t *testing.T) {
 	// A +20 without a forces timeline counts half, from boss kills alone: its 50:00 before any kill.
 	far := models.Key{MapID: 585, Level: 20, Status: "depleted", FinalMS: 3_000_000,
 		Bosses: []models.KeyBoss{{Name: "A", EndMS: 900_000, Kill: true}}}
-	key := models.Key{MapID: 585, Level: 10, TimerMS: 1_800_000,
+	key := models.Key{Start: 1, MapID: 585, Level: 10, TimerMS: 1_800_000,
 		Forces: &models.KeyForces{Pct: 50, At: []models.ForcesPoint{{ClockMS: 200_000, Pct: 50}}}}
 	p := projection(key, 200_000, []models.Key{earlierRun, far})
 	want := &models.KeyProjection{FinalMS: 1_500_000, LowMS: 1_500_000, HighMS: 3_000_000, Chests: 1,
@@ -403,5 +403,19 @@ func TestASilentKeyStaysClosedWhenThePartyLeftOrStartedAnother(t *testing.T) {
 		if saved := keys.Saved(); len(saved) != 1 || saved[0].Status != "abandoned" || keys.history[0].End != last {
 			t.Errorf("after %s: saved %+v; want the silent key still abandoned at its last line", next, saved)
 		}
+	}
+}
+
+func TestAViewHasTheBestOtherRunsBossLengths(t *testing.T) {
+	key := models.Key{Start: 1, MapID: 586, Level: 15, Status: "timed", FinalMS: 1_500_000}
+	boss := func(ms int64) []models.KeyBoss {
+		return []models.KeyBoss{{Name: "Nalorakk", StartMS: 100_000, EndMS: 100_000 + ms, Kill: true}}
+	}
+	history := []models.Key{key,
+		{Start: 2, MapID: 586, Level: 15, Status: "timed", FinalMS: 1_400_000, Bosses: boss(90_000)},
+		{Start: 3, MapID: 586, Level: 15, Status: "timed", FinalMS: 1_600_000, Bosses: boss(80_000)},
+		{Start: 4, MapID: 586, Level: 15, Status: "depleted", FinalMS: 1_300_000, Bosses: boss(70_000)}}
+	if got := finished(key, history).BestBosses; !reflect.DeepEqual(got, map[string]int64{"Nalorakk": 90_000}) {
+		t.Fatalf("BestBosses = %v, want the fastest timed other run's Nalorakk, 1:30", got)
 	}
 }

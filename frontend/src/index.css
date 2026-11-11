@@ -259,6 +259,14 @@ button {
   gap: 2px;
 }
 
+/* A list row that opens its details (a boss fight). */
+.row-button {
+  display: flex;
+  justify-content: space-between;
+  padding: 0;
+  text-align: left;
+}
+
 .scroll {
   max-height: 320px;
   overflow-y: auto;
@@ -837,4 +845,47 @@ polyline.graph-taken {
 
 span.graph-taken {
   color: var(--bad);
+}
+
+line.graph-now {
+  stroke: var(--text);
+  stroke-width: 2;
+}
+
+svg.seekable {
+  cursor: crosshair;
+}
+
+svg.pointing {
+  cursor: pointer;
+}
+
+/* The line under the pointer: its player and number in the corner, readable over the other lines. */
+.graph-hover {
+  pointer-events: none;
+}
+
+.graph-hover text {
+  font-size: 13px;
+  font-weight: 600;
+  paint-order: stroke;
+  stroke: var(--panel);
+  stroke-width: 4px;
+}
+
+polyline.graph-damage {
+  stroke: var(--accent);
+}
+
+span.graph-damage {
+  color: var(--accent);
+}
+
+.graph-legend button {
+  padding: 0 var(--s1);
+  border-radius: 3px;
+}
+
+.graph-legend button[aria-pressed='true'] {
+  outline: 1px solid currentColor;
 }

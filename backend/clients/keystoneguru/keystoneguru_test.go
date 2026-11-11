@@ -2,8 +2,10 @@ package keystoneguru
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -23,7 +25,7 @@ func TestDungeonsKeepsMappedFloorsWithSafeTileFoldersAndTheNewestForces(t *testi
 		   {"index": 1, "ui_map_id": 5, "ingame_min_x": 1, "ingame_max_x": 2, "ingame_min_y": 1, "ingame_max_y": 2}]}]`))
 	}))
 	defer server.Close()
-	dungeons, err := Client{CacheDir: t.TempDir(), Raw: server.URL}.Dungeons(context.Background())
+	dungeons, err := Client{CacheDir: t.TempDir(), Raw: server.URL, Assets: server.URL}.Dungeons(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -36,5 +38,38 @@ func TestDungeonsKeepsMappedFloorsWithSafeTileFoldersAndTheNewestForces(t *testi
 	}
 	if len(dungeons[1].Floors) != 0 {
 		t.Errorf("a key with ../ gave floors %+v; want none", dungeons[1].Floors)
+	}
+}
+
+func TestAFloorWithoutTilesTakesThoseOfItsTwinAndAFloorWithNoneGoes(t *testing.T) {
+	// Like Den of Nalorakk: floor 1 (2513) has no tiles, floor 3 has its bounds and tiles under another ID, floor 2 is
+	// fine, and floor 4 has no tiles and no twin.
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case strings.HasSuffix(r.URL.Path, "/mapping_versions.json"):
+			_, _ = w.Write([]byte(`[]`))
+		case strings.Contains(r.URL.Path, "/den/1/") || strings.Contains(r.URL.Path, "/den/4/"):
+			http.NotFound(w, r)
+		case strings.Contains(r.URL.Path, "/tiles_webp/"):
+			_, _ = w.Write([]byte("webp"))
+		default:
+			_, _ = w.Write([]byte(`[{"id": 9, "challenge_mode_id": 586, "key": "den", "name": "dungeons.midnight.den.name", "floors": [
+			  {"index": 1, "ui_map_id": 2513, "ingame_min_x": 5350, "ingame_max_x": 4406, "ingame_min_y": 4500, "ingame_max_y": 5129},
+			  {"index": 2, "ui_map_id": 2514, "ingame_min_x": 5856, "ingame_max_x": 4731, "ingame_min_y": 4014, "ingame_max_y": 4764},
+			  {"index": 3, "ui_map_id": 2564, "ingame_min_x": 5350, "ingame_max_x": 4406, "ingame_min_y": 4500, "ingame_max_y": 5129},
+			  {"index": 4, "ui_map_id": 2600, "ingame_min_x": 1, "ingame_max_x": 2, "ingame_min_y": 1, "ingame_max_y": 2}]}]`))
+		}
+	}))
+	defer server.Close()
+	dungeons, err := Client{CacheDir: t.TempDir(), Raw: server.URL, Assets: server.URL}.Dungeons(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	for _, f := range dungeons[586].Floors {
+		got = append(got, fmt.Sprint(f.UIMapID, " ", f.Tiles))
+	}
+	if want := []string{"2513 midnight/den/3", "2514 midnight/den/2"}; !slices.Equal(got, want) {
+		t.Errorf("floors = %q, want %q", got, want)
 	}
 }
