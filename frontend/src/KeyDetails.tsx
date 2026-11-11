@@ -95,7 +95,7 @@ export function KeyDetails({
           <span aria-hidden="true">{resultIcon[key.status]}</span> {resultText(key.status, key.chests, clockMS, timer)}
         </section>
       )}
-      {key.status !== 'running' && key.bestFinalMS !== undefined && key.bestFinalMS > 0 && (
+      {(key.status === 'timed' || key.status === 'depleted') && key.bestFinalMS !== undefined && key.bestFinalMS > 0 && (
         <p className="muted">
           Your best timed +{key.level} here: {clock(key.bestFinalMS)} ·{' '}
           {clock(Math.abs(clockMS - key.bestFinalMS))} {clockMS <= key.bestFinalMS ? 'faster' : 'slower'}
