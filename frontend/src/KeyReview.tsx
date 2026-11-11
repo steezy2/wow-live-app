@@ -1,5 +1,12 @@
 import { useEffect, useState } from 'react'
-import { fetchReview, makeReview, type KeyReview as Review, type KeyView, type ReviewMetric } from './api'
+import {
+  fetchReview,
+  makeReview,
+  type KeyReview as Review,
+  type KeyTrack,
+  type KeyView,
+  type ReviewMetric,
+} from './api'
 import { amount } from './format'
 import { PlayerFocus } from './PlayerFocus'
 
@@ -37,8 +44,10 @@ export function KeyReview(props: {
   focus: string
   onFocus: (player: string) => void
   onSeek: (clockMS: number) => void
+  track: KeyTrack | null
+  now: number
 }) {
-  const { keyView: key, justEnded, onReview, focus, onFocus, onSeek } = props
+  const { keyView: key, justEnded, onReview, focus, onFocus, onSeek, track, now } = props
   const [review, setReview] = useState<Review | null>(null)
   useEffect(() => {
     if (review) onReview(review)
@@ -89,7 +98,7 @@ export function KeyReview(props: {
           </button>
         )}
         {error && <p className="warning">{error}</p>}
-        <PlayerFocus keyView={key} focus={focus} onFocus={onFocus} onSeek={onSeek} />
+        <PlayerFocus keyView={key} focus={focus} onFocus={onFocus} onSeek={onSeek} track={track} now={now} />
       </section>
     )
   }
@@ -156,7 +165,7 @@ export function KeyReview(props: {
             </div>
           ))}
         </div>
-        <PlayerFocus keyView={key} focus={focus} onFocus={onFocus} onSeek={onSeek} />
+        <PlayerFocus keyView={key} focus={focus} onFocus={onFocus} onSeek={onSeek} track={track} now={now} />
       </div>
     </section>
   )

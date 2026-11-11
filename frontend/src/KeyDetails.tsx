@@ -142,6 +142,8 @@ export function KeyDetails({
           focus={focus}
           onFocus={setFocus}
           onSeek={show}
+          track={track}
+          now={replay.at}
         />
       )}
       {key.status !== 'running' && track && (

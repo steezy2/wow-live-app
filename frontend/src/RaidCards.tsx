@@ -273,7 +273,7 @@ export const PullMeters = memo(function PullMeters(props: {
     )
   }
   const views = abilityViews(focus, pull.abilities ?? [], pull.taken ?? [])
-  const targets = raidTargets(pull, focus)
+  const targets = raidTargets(pull.targets, focus)
   const color = classColors[classes[focus]] ?? 'var(--accent)'
   const back = (e: MouseEvent) => {
     e.preventDefault()

@@ -127,6 +127,9 @@ type keyRun struct {
 	raid      *raidRun                         // nil for a key
 	abilities map[[2]string]*models.KeyAbility // (player, ability) -> what it did
 	takenBy   map[[2]string]int64              // (player, ability) -> damage taken from it
+	sample    abilitySampler                   // what the replay's focus bars keep
+	hpSum     int64                            // the max health of the mobs seen so far, and how many
+	hpCount   int64
 }
 
 // NewLogTracker tracks keys with each dungeon's time limit (map ID -> ms), affix names (ID -> name), the page's
@@ -400,7 +403,7 @@ func (k *LogTracker) start(line models.LogLine) {
 
 // newRun is a run starting with key in the instance the log names (a key's or a raid pull's), with nothing seen yet.
 func newRun(key models.Key, instance string) *keyRun {
-	return &keyRun{instance: instance, key: key, recent: map[string][]hitAt{}, dead: map[string]bool{},
+	run := &keyRun{instance: instance, key: key, recent: map[string][]hitAt{}, dead: map[string]bool{},
 		casting: map[string]*openCast{}, lastKick: map[string]int64{}, debuffs: map[[2]string]int64{},
 		removed: map[[2]string][2]int64{}, uncounted: map[int]*models.UncountedNPC{},
 		down: map[string]bool{}, fighting: map[string]map[int64]bool{}, acting: map[string]map[int64]bool{},
@@ -410,7 +413,12 @@ func newRun(key models.Key, instance string) *keyRun {
 		track: models.KeyTrack{Players: map[string][]models.TrackPoint{}, Deaths: []models.TrackPoint{},
 			Meters: map[string][]models.MeterPoint{}, Bosses: map[string][]models.TrackPoint{}},
 		auras: map[string][]int{}, gear: map[string][]int{}, total: map[string]*models.KeyMeterRow{}, inPull: map[string]*models.KeyMeterRow{},
-		abilities: map[[2]string]*models.KeyAbility{}, takenBy: map[[2]string]int64{}}
+		abilities: map[[2]string]*models.KeyAbility{}, takenBy: map[[2]string]int64{},
+		sample: abilitySampler{every: mplusAbilityEveryMS, abilitiesWere: map[[2]string]models.KeyAbility{},
+			takenWere: map[[2]string]int64{}, targetsWere: map[[2]string]int64{}, casting: map[string]int{}}}
+	run.track.Casts, run.track.Abilities = map[string][]models.TrackCast{}, map[string][]models.AbilitySeries{}
+	run.track.TargetSeries = map[string][]models.AbilitySeries{}
+	return run
 }
 
 // end closes the running key: CHALLENGE_MODE_END,2923,1,17,1686807,... (timed or not, level, the game's time).
@@ -440,6 +448,8 @@ func (k *LogTracker) closeCurrent(at int64, status string, final int64) {
 	}
 	run.key.End, run.key.Status, run.key.FinalMS = at, status, final
 	endPull(run)
+	run.sample.at = -run.sample.every // closes the last stretch, however short
+	k.sampleAbilities(at)
 	key := k.details(run, at)
 	key.Abilities, key.Taken = abilities(run, k.schools)
 	if slices.Contains(run.party, k.logger) {
@@ -524,6 +534,9 @@ func (k *LogTracker) event(at int64, event string, f []string) {
 		return
 	}
 	k.position(at, event, f)
+	if run.raid == nil && (event == "SPELL_CAST_START" || event == "SPELL_CAST_SUCCESS" || event == "SPELL_CAST_FAILED") {
+		k.trackCast(at, event, f)
+	}
 	src, dst := k.player(f[0], f[2]), k.player(f[4], f[6])
 	if src != "" && strings.HasPrefix(f[0], "Player-") && activity[event] {
 		mark(run.acting, src, at/1000, at/1000+1) // a cast or hit covers about a global cooldown

@@ -144,6 +144,9 @@ export function topMeter(meter: KeyMeter, by: 'dps' | 'hps', n: number): KeyMete
   return { ...meter, rows: [...meter.rows].sort((a, b) => b[by] - a[by]).slice(0, n) }
 }
 
+/** A boss unit not seen for this long (gone, or submerged) isn't drawn. */
+export const BOSS_GONE_MS = 5_000
+
 /** A player's last position at or before a clock reading. */
 export function lastAt(points: TrackPoint[], now: number): TrackPoint | undefined {
   let last: TrackPoint | undefined
@@ -180,7 +183,12 @@ export interface AbilitiesUpTo {
  * numbers grow smoothly), and their casts counted as they finished (not stopped ones); hits only over the whole pull,
  * so 0 (hidden). Nothing at 0. Schools come from the pull's. Undefined for a track without the series; targets
  * undefined for one saved before they were kept. */
-export function abilitiesUpTo(track: KeyTrack, pull: RaidPull, player: string, now: number): AbilitiesUpTo | undefined {
+export function abilitiesUpTo(
+  track: KeyTrack,
+  pull: Pick<RaidPull, 'abilities' | 'taken'>,
+  player: string,
+  now: number,
+): AbilitiesUpTo | undefined {
   const series = track.abilities?.[player]
   const ends = track.abilityTimes
   if (!series || !ends) return undefined

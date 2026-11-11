@@ -56,7 +56,7 @@ export function RaidFocus(props: {
           more={[
             {
               name: 'Targets',
-              body: <AbilityBars rows={raidTargets(pull, player, upTo?.targets)} color={color} label="Enemy" />,
+              body: <AbilityBars rows={raidTargets(upTo?.targets ?? pull.targets, player)} color={color} label="Enemy" />,
             },
           ]}
         />

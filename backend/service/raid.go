@@ -79,13 +79,6 @@ type raidRun struct {
 	// and the raiders who lost one as its cause landed, in order (spawners).
 	lostAt, landedAt map[spellOn]int64
 	spawners         []spawner
-	// For the replay: when the ability totals were last kept and what they were then, and each raider's cast going
-	// (GUID -> its index in their track casts).
-	abilitiesAt   int64
-	abilitiesWere map[[2]string]models.KeyAbility
-	takenWere     map[[2]string]int64
-	targetsWere   map[[2]string]int64
-	casting       map[string]int
 }
 
 // pickupAt is a raider picking something up (taking on a pickup rule's aura).
@@ -193,11 +186,8 @@ func (k *LogTracker) startPull(line models.LogLine) {
 		units: map[string]*raidUnit{}, soaks: map[int]*soakTally{}, stacks: map[int]map[string]int{},
 		priority: map[string]int64{}, lustEnds: map[int64]int64{}, marks: map[lane][]models.RaidMark{},
 		causes: map[int]*causeAt{}, lostAt: map[spellOn]int64{}, landedAt: map[spellOn]int64{},
-		abilitiesWere: map[[2]string]models.KeyAbility{},
-		takenWere:     map[[2]string]int64{}, targetsWere: map[[2]string]int64{},
-		casting: map[string]int{}}
-	run.track.Casts, run.track.Abilities = map[string][]models.TrackCast{}, map[string][]models.AbilitySeries{}
-	run.track.TargetSeries = map[string][]models.AbilitySeries{}
+	}
+	run.sample.every = abilityEveryMS
 	if len(run.raid.phases) > 0 {
 		run.raid.phase = "P1"
 	}
@@ -505,7 +495,7 @@ func (k *LogTracker) finishPull(kill bool) {
 		run.key.Status = "kill"
 	}
 	endPull(run)
-	run.raid.abilitiesAt = -abilityEveryMS // closes the last stretch, however short
+	run.sample.at = -run.sample.every // closes the last stretch, however short
 	k.sampleAbilities(at)
 	pull := k.raidPull(run, k.details(run, at), at, kill)
 	k.current = nil
