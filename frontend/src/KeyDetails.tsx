@@ -5,6 +5,7 @@ import { KickLedger, PriorityLedger, SpikeLedger } from './KeyLedgers'
 import { KeyMap } from './KeyMap'
 import { KeyReview } from './KeyReview'
 import { MeterCards } from './MeterCards'
+import { useReplay, useTrack } from './replay'
 import { Tabs } from './Tabs'
 
 /** The result's icon, so it doesn't rest on colour alone. */
@@ -15,7 +16,8 @@ const resultIcon: Record<KeyView['status'], string> = {
   abandoned: '–',
 }
 
-/** One key as the page shows it, live or saved, at a clock reading, with its review once it's over. */
+/** One key as the page shows it, live or saved, at a clock reading, with its review once it's over; the graph and the
+ * boss list move the replay. Keyed by the key's start, so the replay starts over for another key. */
 export function KeyDetails({
   keyView: key,
   clockMS,
@@ -29,6 +31,8 @@ export function KeyDetails({
   const timer = key.timerMS ?? 0
   const projection = key.status === 'running' ? key.projection : undefined
   const cc = key.casts.filter((c) => c.kind === 'cc')
+  const track = useTrack(key.start, key.status === 'running')
+  const replay = useReplay(clockMS, clockMS)
   return (
     <>
       <header className="title">
@@ -110,7 +114,9 @@ export function KeyDetails({
       )}
 
       {key.status !== 'running' && <KeyReview key={key.start} keyView={key} justEnded={justEnded} />}
-      {key.status !== 'running' && <DamageGraph key={`graph-${key.start}`} keyView={key} />}
+      {key.status !== 'running' && track && (
+        <DamageGraph keyView={key} track={track} now={replay.at} onSeek={replay.setAt} />
+      )}
 
       {key.buffs.length > 0 && (
         <section className="panel attention">
@@ -127,7 +133,7 @@ export function KeyDetails({
 
       <section className="panel map-panel">
         <h2>Replay</h2>
-        <KeyMap key={key.start} keyView={key} clockMS={clockMS} />
+        <KeyMap keyView={key} clockMS={clockMS} track={track} replay={replay} />
       </section>
 
       <Tabs

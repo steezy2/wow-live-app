@@ -1,14 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   fetchDungeonMap,
-  fetchTrack,
-  subscribe,
   TILES_PER_SIDE,
   tileURL,
   type DungeonFloor,
   type DungeonMap,
   type KeyMeter,
-  type KeyMeterRow,
   type KeyTrack,
   type KeyView,
   type TrackPoint,
@@ -16,7 +13,8 @@ import {
 import { classColors } from './classColors'
 import { defense, offense } from './meterColumns'
 import { MeterCard } from './MeterCards'
-import { clock, valueAt } from './format'
+import { clock } from './format'
+import { floorsOf, lastAt, meterBetween, type useReplay } from './replay'
 
 /** The trail the live map draws. */
 const LIVE_TRAIL_MS = 30_000
@@ -25,32 +23,21 @@ const TRAILS = [10_000, 30_000, 120_000, Infinity]
 /** Above this many yards a second between two samples is a teleport, so the line breaks. */
 const JUMP_YARDS_PER_S = 15
 
-/** The party on the dungeon's map: live, the last 30 s of trails; for a finished key, a replay with controls. Floors
- * Keystone.guru maps are drawn on its tiles; any other floor's shape is where parties have walked in its saved runs. */
-export function KeyMap({ keyView: key, clockMS }: { keyView: KeyView; clockMS: number }) {
+/** The party on the dungeon's map (from the key's track): live, the last 30 s of trails; for a finished key, a replay
+ * with controls on the page's replay clock. Floors Keystone.guru maps are drawn on its tiles; any other floor's shape is
+ * where parties have walked in its saved runs. */
+export function KeyMap(props: {
+  keyView: KeyView
+  clockMS: number
+  track: KeyTrack | null
+  replay: ReturnType<typeof useReplay>
+}) {
+  const { keyView: key, clockMS, track, replay } = props
   const live = key.status === 'running'
-  const [track, setTrack] = useState<KeyTrack | null>(null)
   const [dungeon, setDungeon] = useState<DungeonMap>({ floors: [], walked: [] })
-  const [at, setAt] = useState(clockMS)
-  const [playing, setPlaying] = useState(false)
-  const [speed, setSpeed] = useState(8)
   const [trail, setTrail] = useState(30_000)
   const [follow, setFollow] = useState('')
   const [floor, setFloor] = useState<number | null>(null)
-
-  useEffect(() => {
-    const controller = new AbortController()
-    const read = () => fetchTrack(key.start, controller.signal).then(setTrack, () => undefined)
-    if (!live) {
-      void read()
-      return () => controller.abort()
-    }
-    const unsubscribe = subscribe(() => void read())
-    return () => {
-      controller.abort()
-      unsubscribe()
-    }
-  }, [key.start, live])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -58,22 +45,9 @@ export function KeyMap({ keyView: key, clockMS }: { keyView: KeyView; clockMS: n
     return () => controller.abort()
   }, [key.mapID])
 
-  useEffect(() => {
-    if (!playing) return
-    const step = 100
-    const timer = setInterval(() => setAt((t) => Math.min(t + step * speed, clockMS)), step)
-    return () => clearInterval(timer)
-  }, [playing, speed, clockMS])
-
-  const now = live ? clockMS : at
+  const now = live ? clockMS : replay.at
   const shown = live ? LIVE_TRAIL_MS : trail
-  const floors = useMemo(() => {
-    const counts = new Map<number, number>()
-    Object.values(track?.players ?? {}).forEach((ps) =>
-      ps.forEach((p) => counts.set(p.map, (counts.get(p.map) ?? 0) + 1)),
-    )
-    return [...counts].sort((a, b) => b[1] - a[1]).map(([m]) => m)
-  }, [track])
+  const floors = floorsOf(track)
   const followed = follow ? track?.players[follow] : undefined
   const current = followed ? lastAt(followed, now)?.map : (floor ?? floors[0])
 
@@ -83,22 +57,15 @@ export function KeyMap({ keyView: key, clockMS }: { keyView: KeyView; clockMS: n
       <div className="map-controls">
         {!live && (
           <>
-            <button
-              onClick={() => {
-                if (!playing && at >= clockMS) setAt(0)
-                setPlaying(!playing)
-              }}
-            >
-              {playing ? 'Pause' : 'Play'}
-            </button>
+            <button onClick={replay.toggle}>{replay.playing ? 'Pause' : 'Play'}</button>
             <div className="replay-slider">
               <input
                 type="range"
                 min={0}
                 max={clockMS}
                 step={1000}
-                value={at}
-                onChange={(e) => setAt(Number(e.target.value))}
+                value={replay.at}
+                onChange={(e) => replay.setAt(Number(e.target.value))}
                 aria-label="replay time"
               />
               <div className="map-marks">
@@ -122,8 +89,8 @@ export function KeyMap({ keyView: key, clockMS }: { keyView: KeyView; clockMS: n
                 ))}
               </div>
             </div>
-            <span>{clock(at)}</span>
-            <select value={speed} onChange={(e) => setSpeed(Number(e.target.value))} aria-label="speed">
+            <span>{clock(replay.at)}</span>
+            <select value={replay.speed} onChange={(e) => replay.setSpeed(Number(e.target.value))} aria-label="speed">
               {SPEEDS.map((s) => (
                 <option key={s} value={s}>
                   {s}×
@@ -175,39 +142,12 @@ export function KeyMap({ keyView: key, clockMS }: { keyView: KeyView; clockMS: n
   )
 }
 
-/** A meter row with nothing in it, for the fields the replay's track doesn't keep. */
-const EMPTY_ROW: KeyMeterRow = {
-  player: '',
-  class: '',
-  damage: 0,
-  healing: 0,
-  dps: 0,
-  hps: 0,
-  interrupts: 0,
-  dispels: 0,
-  purges: 0,
-  damageTaken: 0,
-  avoidable: 0,
-  priorityDamage: 0,
-}
-
 /** The replay's meters at its moment, like the live cards: DPS and HPS for the pull it's in (or the last one before
  * it) and for the key so far. Keys saved before pulls were tracked show the key so far only. */
 function ReplayMeters({ track, now }: { track: KeyTrack; now: number }) {
   const started = (track.pulls ?? []).filter((p) => p.startMS <= now)
   const pull = started.length > 0 ? started[started.length - 1] : undefined
-  const meter = (from: number, to: number): KeyMeter => ({
-    startMS: from,
-    endMS: to,
-    ongoing: false,
-    rows: Object.entries(track.meters ?? {}).map(([player, points]) => {
-      const seconds = Math.max(1, (to - from) / 1000)
-      const damage = valueAt(points, to, 'd') - valueAt(points, from, 'd')
-      const healing = valueAt(points, to, 'h') - valueAt(points, from, 'h')
-      const role = { player, class: track.classes[player] ?? '', damage, healing }
-      return { ...EMPTY_ROW, ...role, dps: damage / seconds, hps: healing / seconds }
-    }),
-  })
+  const meter = (from: number, to: number) => meterBetween(track, from, to)
   const meters: [string, KeyMeter][] = [['Whole key', meter(0, now)]]
   if (pull) {
     const end = pull.endMS > 0 && pull.endMS < now ? pull.endMS : now
@@ -344,14 +284,4 @@ function onWalked(walked: TrackPoint[], track: KeyTrack, floor: number, canvas: 
   const pad = 12
   const scale = Math.min((canvas.width - 2 * pad) / (maxX - minX || 1), (canvas.height - 2 * pad) / (maxY - minY || 1))
   return (p: TrackPoint): [number, number] => [pad + (-p.y - minX) * scale, canvas.height - pad - (p.x - minY) * scale]
-}
-
-/** A player's last position at or before a clock reading. */
-function lastAt(points: TrackPoint[], now: number): TrackPoint | undefined {
-  let last: TrackPoint | undefined
-  for (const p of points) {
-    if (p.t > now) break
-    last = p
-  }
-  return last
 }

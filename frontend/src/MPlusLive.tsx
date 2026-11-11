@@ -34,7 +34,7 @@ export function MPlusLive({ onEnded }: { onEnded: () => void }) {
           )}
         </p>
       )}
-      <KeyDetails keyView={key} clockMS={clockMS} justEnded={endedHere === key.start} />
+      <KeyDetails key={key.start} keyView={key} clockMS={clockMS} justEnded={endedHere === key.start} />
     </>
   )
 }

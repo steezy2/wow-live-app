@@ -72,5 +72,5 @@ function SavedKey({ start }: { start: number }) {
     return () => controller.abort()
   }, [start])
   if (error) return <p className="warning">{error}</p>
-  return key ? <KeyDetails keyView={key} clockMS={key.clockMS} /> : <p className="muted">Loading…</p>
+  return key ? <KeyDetails key={key.start} keyView={key} clockMS={key.clockMS} /> : <p className="muted">Loading…</p>
 }
