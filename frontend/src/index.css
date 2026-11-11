@@ -314,6 +314,19 @@ button {
   min-height: 210px;
 }
 
+/* A card with only a few rows (the avoidable damage a player took): no room kept for five players. */
+.card.small {
+  min-height: 0;
+}
+
+.card.small .card-row {
+  grid-template-columns: 1fr auto auto;
+}
+
+.card.small .card-head {
+  grid-template-columns: 1fr auto;
+}
+
 .card-row {
   display: grid;
   gap: var(--s2);
