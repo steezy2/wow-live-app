@@ -14,21 +14,11 @@ import (
 )
 
 func TestLearnSkipsReadLogs(t *testing.T) {
-	logs, cache := t.TempDir(), t.TempDir()
+	logs := t.TempDir()
 	path := filepath.Join(logs, "WoWCombatLog-111026_190211.txt")
-	if err := os.WriteFile(path, []byte(zoneLine), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	store := keystore.Store{Dir: filepath.Join(cache, "local-keys")}
-	newKeys := func() (*service.LogTracker, error) {
-		return service.NewLogTracker(nil, nil, models.MPlusRules{}, nil, store)
-	}
-	keys, err := newKeys()
-	if err != nil {
-		t.Fatal(err)
-	}
-	s := &Site{Keys: keys, Changes: &service.Changes{}, newKeys: newKeys,
-		opts: Options{Cache: cache, LogsDir: func() string { return logs }}}
+	writeLog(t, logs, filepath.Base(path), time.Hour)
+	s := testSite(t, &logs)
+	cache := s.opts.Cache
 	learn := func(step string, all bool, want int) {
 		t.Helper()
 		if read, _, err := s.Learn(all); err != nil || read != want {

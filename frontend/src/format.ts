@@ -95,7 +95,8 @@ export function median(values: number[]): number {
   return sorted.length === 0 ? 0 : (sorted[Math.floor((sorted.length - 1) / 2)] + sorted[Math.floor(sorted.length / 2)]) / 2
 }
 
-/** A file size: "820 MB", "1.4 GB". */
+/** A file size: "40 KB", "820 MB", "1.4 GB". */
 export function sizeText(bytes: number): string {
-  return bytes >= 1e9 ? `${(bytes / 1e9).toFixed(1)} GB` : `${Math.round(bytes / 1e6)} MB`
+  if (bytes >= 1e9) return `${(bytes / 1e9).toFixed(1)} GB`
+  return bytes >= 1e6 ? `${Math.round(bytes / 1e6)} MB` : `${Math.ceil(bytes / 1e3)} KB`
 }

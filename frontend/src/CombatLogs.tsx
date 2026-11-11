@@ -57,7 +57,7 @@ export function CombatLogs() {
               <input
                 type="checkbox"
                 disabled={f.active || !!note?.busy}
-                checked={picked.has(rowKey(f)) && !f.active}
+                checked={picked.has(rowKey(f))}
                 onChange={() => toggle(rowKey(f))}
               />{' '}
               {new Date(f.writtenMS).toLocaleDateString()} · {sizeText(f.bytes)}{' '}

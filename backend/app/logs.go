@@ -1,7 +1,6 @@
 package app
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"path/filepath"
@@ -27,17 +26,14 @@ func (s *Site) LogFiles() ([]models.LogFile, error) {
 		return nil, err
 	}
 	learnt := readLearned(filepath.Join(s.opts.Cache, "learned.json"))
-	read := map[string]bool{}
 	var files []models.LogFile
 	for _, path := range logs {
-		info, err := os.Stat(path)
+		entry, err := logEntry(path)
 		if err != nil {
-			return nil, fmt.Errorf("reading %s: %w", path, err)
+			return nil, err
 		}
-		file := learnedLog{File: info.Name(), Size: info.Size(), ModTime: info.ModTime().UnixMilli()}
-		read[file.File] = learnt.ReaderVersion == readerVersion && slices.Contains(learnt.Logs, file)
-		files = append(files, models.LogFile{Name: file.File, Path: path, Bytes: file.Size, WrittenMS: file.ModTime,
-			FirstMS: combatlog.FirstMS(path)})
+		files = append(files, models.LogFile{Name: entry.File, Path: path, Bytes: entry.Size, WrittenMS: entry.ModTime,
+			FirstMS: combatlog.FirstMS(path), Read: learnt.has(entry)})
 	}
 	for _, z := range zips {
 		files = append(files, models.LogFile{Name: z.Name, Path: z.Path, Bytes: z.Bytes,
@@ -52,8 +48,7 @@ func (s *Site) LogFiles() ([]models.LogFile, error) {
 			pullStarts = append(pullStarts, p.Start)
 		}
 	}
-	return service.LogFiles(files, func(name string) bool { return read[name] }, keyStarts, pullStarts,
-		s.opts.Now().UnixMilli()), nil
+	return service.LogFiles(files, keyStarts, pullStarts, s.opts.Now().UnixMilli()), nil
 }
 
 // ArchiveLogs zips the named logs into the log folder's archive (reading the folder first when one isn't read yet,

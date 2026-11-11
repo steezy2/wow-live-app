@@ -164,7 +164,7 @@ export function SettingsPage({ view, onSaved }: { view: SettingsView; onSaved: (
           Archiving zips a log into the log folder's WoW Live archive folder: it stops loading, takes about a tenth of
           the space, and Read everything again still reads it. Delete removes archived logs for good.
         </p>
-        <CombatLogs key={logsRead} />
+        <CombatLogs key={`${view.logsDir}|${logsRead}`} />
       </section>
     </div>
   )

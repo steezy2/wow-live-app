@@ -67,7 +67,7 @@ func zipped(path string) (Zipped, error) {
 
 // EachZippedLine is EachLine on the log archived in the zip at path.
 func EachZippedLine(path string, add func(models.LogLine)) error {
-	return withZipped(path, func(log io.Reader) error { return EachLine(log, add) })
+	return withZipped(path, func(r io.Reader) error { return EachLine(r, add) })
 }
 
 // withZipped opens the one log in the zip at path for use.
@@ -80,12 +80,12 @@ func withZipped(path string, use func(io.Reader) error) error {
 	if len(r.File) != 1 {
 		return fmt.Errorf("reading %s: want one log in it, found %d files", path, len(r.File))
 	}
-	log, err := r.File[0].Open()
+	entry, err := r.File[0].Open()
 	if err != nil {
 		return fmt.Errorf("reading %s: %w", path, err)
 	}
-	defer log.Close()
-	if err := use(log); err != nil {
+	defer entry.Close()
+	if err := use(entry); err != nil {
 		return fmt.Errorf("reading %s: %w", path, err)
 	}
 	return nil
@@ -152,11 +152,11 @@ func Archive(path string) error {
 // writeZip writes the log at path, as one entry named and dated like it, into a new zip at out. BestSpeed: about three
 // times faster than the default for a few percent more size on a text log.
 func writeZip(path, out string, info os.FileInfo) error {
-	log, err := os.Open(path)
+	src, err := os.Open(path)
 	if err != nil {
 		return err
 	}
-	defer log.Close()
+	defer src.Close()
 	file, err := os.Create(out)
 	if err != nil {
 		return err
@@ -170,16 +170,19 @@ func writeZip(path, out string, info os.FileInfo) error {
 		header.Method = zip.Deflate
 		var entry io.Writer
 		if entry, err = w.CreateHeader(header); err == nil {
-			_, err = io.Copy(entry, log)
+			_, err = io.Copy(entry, src)
 		}
 	}
-	return errors.Join(err, w.Close(), file.Close())
+	if err = errors.Join(err, w.Close()); err == nil {
+		err = file.Sync() // on disk before the log is removed, not only in the OS's cache
+	}
+	return errors.Join(err, file.Close())
 }
 
 // checkZip reads the zip at path back whole: archive/zip fails on a bad CRC, and the size must be the log's.
 func checkZip(path string, size int64) error {
-	return withZipped(path, func(log io.Reader) error {
-		n, err := io.Copy(io.Discard, log)
+	return withZipped(path, func(r io.Reader) error {
+		n, err := io.Copy(io.Discard, r)
 		if err == nil && n != size {
 			err = fmt.Errorf("the zip holds %d bytes of a %d byte log", n, size)
 		}
