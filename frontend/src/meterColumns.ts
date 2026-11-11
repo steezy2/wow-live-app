@@ -7,6 +7,17 @@ export interface Column {
   value: (r: KeyMeterRow) => number
   show?: (r: KeyMeterRow) => string
   title?: (r: KeyMeterRow) => string
+  /** Starts a new group (offense, defense): drawn with a faint rule on its left. */
+  group?: boolean
+  /** Colours the cell, given the row and every row of the card. */
+  tone?: (r: KeyMeterRow, rows: KeyMeterRow[]) => 'warn' | undefined
+}
+
+/** Amber for avoidable damage over the party's median. */
+const aboveMedian = (r: KeyMeterRow, rows: KeyMeterRow[]) => {
+  const sorted = rows.map((x) => x.avoidable).sort((a, b) => a - b)
+  const median = (sorted[Math.floor((sorted.length - 1) / 2)] + sorted[Math.floor(sorted.length / 2)]) / 2
+  return r.avoidable > median ? 'warn' : undefined
 }
 
 /** The offense columns. */
@@ -15,6 +26,7 @@ export const offense: Column[] = [
   { label: 'Damage', value: (r) => r.damage },
   {
     label: 'Kicks',
+    group: true,
     value: (r) => r.interrupts,
     show: (r) => String(r.interrupts),
   },
@@ -37,11 +49,12 @@ export function defense(listed: boolean): Column[] {
   return [
     { label: 'HPS', value: (r) => r.hps },
     { label: 'Healing', value: (r) => r.healing },
-    { label: 'Taken', value: (r) => r.damageTaken },
+    { label: 'Taken', value: (r) => r.damageTaken, group: true },
     {
       label: 'Avoidable',
       value: (r) => r.avoidable,
       show: (r) => (listed ? amount(r.avoidable) : '–'),
+      tone: listed ? aboveMedian : undefined,
     },
   ]
 }
