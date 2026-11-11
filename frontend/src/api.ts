@@ -258,10 +258,12 @@ export interface KeyTrack {
   bosses?: Record<string, TrackPoint[]>
   /** The bosses GUIDs the health box shows: the boss's own units, then the adds to burst. */
   health?: string[]
-  /** Each raider's casts (e: when one with a cast time ended), and what each ability did in each stretch: [end, damage,
-   * healing, casts]; none in a key or in pulls saved before Nov 11. */
+  /** Each raider's casts (e: when one with a cast time ended), what each ability did and what they took damage from in
+   * each stretch ([end, damage, healing, damage taken]), and when the stretches ended (each starts where the one before
+   * it ended); none in a key or in pulls saved before Nov 11. */
   casts?: Record<string, { t: number; s: string; e?: number }[]>
   abilities?: Record<string, { a: string; p: [number, number, number, number][] }[]>
+  abilityTimes?: number[]
 }
 
 /** One number of a player's run: the median of their spec's top runs (0 without), their usual here (-1 without), and
@@ -650,7 +652,7 @@ export interface RaidPull extends RaidPullSummary {
   /** Each raider's abilities, their damage taken by ability and their damage into each enemy, most first: missing in
    * pulls saved before Nov 11. */
   abilities?: KeyAbility[]
-  taken?: { player: string; ability: string; damage: number }[]
+  taken?: { player: string; ability: string; damage: number; school?: number }[]
   targets?: { player: string; target: string; damage: number }[]
 }
 

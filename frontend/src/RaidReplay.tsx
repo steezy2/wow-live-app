@@ -90,6 +90,7 @@ export function RaidReplay(props: {
               backdrop={backdrop}
               floor={current}
               now={now}
+              clock={replay.playing ? replay.now : undefined}
               trailMS={trail}
               deaths={pull.deaths}
               focus={focus}

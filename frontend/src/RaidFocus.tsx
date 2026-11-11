@@ -61,8 +61,8 @@ export function RaidFocus(props: {
   const sofar = meterBetween(track, 0, now).rows.find((r) => r.player === player)
   const whole = pull.meter.rows.find((r) => r.player === player)
   const events = eventsOf(pull, player)
-  const upTo = abilitiesUpTo(track, player, now, pull.abilities ?? [])
-  const views = abilityViews(player, upTo ?? pull.abilities ?? [], pull.taken ?? [])
+  const upTo = abilitiesUpTo(track, pull, player, now)
+  const views = abilityViews(player, upTo?.abilities ?? pull.abilities ?? [], upTo?.taken ?? pull.taken ?? [])
   return (
     <div
       className="card focus raid-focus"
@@ -94,9 +94,7 @@ export function RaidFocus(props: {
       )}
       {pull.abilities && (
         <p className="muted small">
-          {upTo
-            ? `Damage, healing and casts up to ${clock(now)}; damage taken and targets over the whole pull`
-            : 'Over the whole pull'}
+          {upTo ? `Up to ${clock(now)}; targets over the whole pull` : 'Over the whole pull'}
         </p>
       )}
       {pull.abilities ? (

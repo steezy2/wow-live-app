@@ -73,6 +73,7 @@ type raidRun struct {
 	// (GUID -> its index in their track casts).
 	abilitiesAt   int64
 	abilitiesWere map[[2]string]models.KeyAbility
+	takenWere     map[[2]string]int64
 	casting       map[string]int
 }
 
@@ -168,7 +169,8 @@ func (k *LogTracker) startPull(line models.LogLine) {
 		units: map[string]*raidUnit{}, soaks: map[int]*soakTally{}, stacks: map[int]map[string]int{},
 		priority: map[string]int64{}, lustEnds: map[int64]int64{}, marks: map[lane][]models.RaidMark{},
 		causes: map[int]*causeAt{}, abilitiesWere: map[[2]string]models.KeyAbility{},
-		casting: map[string]int{}}
+		takenWere: map[[2]string]int64{},
+		casting:   map[string]int{}}
 	run.track.Casts, run.track.Abilities = map[string][]models.TrackCast{}, map[string][]models.AbilitySeries{}
 	if len(run.raid.phases) > 0 {
 		run.raid.phase = "P1"

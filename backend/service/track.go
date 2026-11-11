@@ -87,9 +87,9 @@ func (k *LogTracker) sampleMeters(at int64) {
 // abilityEveryMS: how often a raid pull's ability totals are kept for the replay's focus bars.
 const abilityEveryMS = 10_000
 
-// sampleAbilities keeps, about every abilityEveryMS in a raid pull, the damage, healing and casts of each raider's
-// abilities since the last time (only what changed), so the replay can sum them up to any moment. Damage taken and
-// hits stay whole-pull: with them a long pull's track passes 1 MB.
+// sampleAbilities keeps, about every abilityEveryMS in a raid pull, the damage, healing and damage taken of each
+// raider's abilities since the last time (only what changed) and when it was kept, so the replay can sum them up to
+// any moment and share out the stretch it's in. Casts come from the track's casts; hits stay whole-pull.
 func (k *LogTracker) sampleAbilities(at int64) {
 	run := k.current
 	r := run.raid
@@ -98,13 +98,8 @@ func (k *LogTracker) sampleAbilities(at int64) {
 	}
 	r.abilitiesAt = at
 	clockMS := k.clockAt(at)
-	for id, a := range run.abilities {
-		was := r.abilitiesWere[id]
-		p := [4]int64{clockMS, a.Damage - was.Damage, a.Healing - was.Healing, int64(a.Casts - was.Casts)}
-		if p[1] == 0 && p[2] == 0 && p[3] == 0 {
-			continue
-		}
-		r.abilitiesWere[id] = *a
+	run.track.AbilityTimes = append(run.track.AbilityTimes, clockMS)
+	add := func(id [2]string, p [4]int64) {
 		series := run.track.Abilities[id[0]]
 		i := slices.IndexFunc(series, func(s models.AbilitySeries) bool { return s.Ability == id[1] })
 		if i < 0 {
@@ -112,6 +107,18 @@ func (k *LogTracker) sampleAbilities(at int64) {
 		}
 		series[i].Points = append(series[i].Points, p)
 		run.track.Abilities[id[0]] = series
+	}
+	for id, a := range run.abilities {
+		if was := r.abilitiesWere[id]; a.Damage != was.Damage || a.Healing != was.Healing {
+			add(id, [4]int64{clockMS, a.Damage - was.Damage, a.Healing - was.Healing, 0})
+			r.abilitiesWere[id] = *a
+		}
+	}
+	for id, taken := range run.takenBy {
+		if was := r.takenWere[id]; taken != was {
+			add(id, [4]int64{clockMS, 0, 0, taken - was})
+			r.takenWere[id] = taken
+		}
 	}
 }
 
@@ -175,6 +182,7 @@ func (k *LogTracker) trackOf(run *keyRun) models.KeyTrack {
 		}
 		slices.Sort(adds)
 		t.Health = append(t.Health, adds...)
+		t.AbilityTimes = list(run.track.AbilityTimes)
 		t.Casts, t.Abilities = map[string][]models.TrackCast{}, map[string][]models.AbilitySeries{}
 		for name, casts := range run.track.Casts {
 			t.Casts[name] = list(casts)

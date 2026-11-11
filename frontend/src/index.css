@@ -1038,6 +1038,11 @@ span.graph-taken {
   margin: 2px 0 var(--s1);
 }
 
+/* The page follows a playing replay 10 times a second: the bars slide between, as the map moves every frame. */
+.map-box .fill {
+  transition: width 100ms linear;
+}
+
 /* A time clicked in a card brings the replay to the top, under the nav. */
 .replay-box {
   scroll-margin-top: calc(var(--nav) + var(--s2));

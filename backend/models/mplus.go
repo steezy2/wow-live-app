@@ -206,6 +206,8 @@ type KeyTrack struct {
 	// pulls saved before Nov 11.
 	Casts     map[string][]TrackCast     `json:"casts,omitempty"`
 	Abilities map[string][]AbilitySeries `json:"abilities,omitempty"`
+	// AbilityTimes is when Abilities' stretches ended, in order: a stretch starts where the one before it ended.
+	AbilityTimes []int64 `json:"abilityTimes,omitempty"`
 }
 
 // TrackCast is a cast on the pull's clock: when it started, the spell, and for one with a cast time when it ended
@@ -216,11 +218,12 @@ type TrackCast struct {
 	EndMS   int64  `json:"e,omitempty"`
 }
 
-// AbilitySeries is what one of a raider's abilities did in each stretch it did something in: each point is the
-// stretch's end on the pull's clock, then its damage, healing and casts (numbers only, as a long pull has thousands).
+// AbilitySeries is what one of a raider's abilities did, or what they took damage from, in each stretch it did
+// something in: each point is the stretch's end on the pull's clock, then its damage, healing and damage taken
+// (numbers only, as a long pull has thousands).
 type AbilitySeries struct {
 	Ability string     `json:"a"`
-	Points  [][4]int64 `json:"p"` // [end clockMS, damage, healing, casts]
+	Points  [][4]int64 `json:"p"` // [end clockMS, damage, healing, damage taken]
 }
 
 // PullSpan is a pull's start and end on the key's clock; EndMS is 0 while it's being fought.

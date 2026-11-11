@@ -894,7 +894,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "p": {
-                    "description": "[end clockMS, damage, healing, casts]",
+                    "description": "[end clockMS, damage, healing, damage taken]",
                     "type": "array",
                     "items": {
                         "type": "array",
@@ -1520,6 +1520,13 @@ const docTemplate = `{
                         "items": {
                             "$ref": "#/definitions/models.AbilitySeries"
                         }
+                    }
+                },
+                "abilityTimes": {
+                    "description": "AbilityTimes is when Abilities' stretches ended, in order: a stretch starts where the one before it ended.",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
                     }
                 },
                 "bosses": {

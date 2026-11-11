@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { KeyTrack, TrackPoint } from './api'
+import type { KeyTrack, RaidPull, TrackPoint } from './api'
 import { abilitiesUpTo, positionAt } from './replay'
 
 const at = (t: number, x: number, map = 1): TrackPoint => ({ t, x, y: 0, map })
@@ -22,15 +22,20 @@ describe('positionAt', () => {
 
 describe('abilitiesUpTo', () => {
   const track = {
-    abilities: { Kaz: [{ a: 'Fireball', p: [[10_000, 100, 0, 2], [20_000, 50, 0, 1]] }] },
+    abilities: { Kaz: [{ a: 'Fireball', p: [[10_000, 100, 0, 0], [20_000, 50, 0, 40]] }] },
+    abilityTimes: [10_000, 20_000],
+    casts: { Kaz: [{ t: 1000, s: 'Fireball', e: 3000 }, { t: 14_000, s: 'Fireball', e: 16_000 }] },
   } as unknown as KeyTrack
-  it('sums the stretches that ended by then, with the school from the whole pull', () => {
-    const whole = [{ player: 'Kaz', ability: 'Fireball', damage: 150, healing: 0, casts: 3, hits: 9, school: 4 }]
-    expect(abilitiesUpTo(track, 'Kaz', 15_000, whole)).toEqual([
-      { player: 'Kaz', ability: 'Fireball', damage: 100, healing: 0, casts: 2, hits: 0, school: 4 },
-    ])
+  const pull = { abilities: [{ player: 'Kaz', ability: 'Fireball', school: 4 }] } as unknown as RaidPull
+
+  it('shares out the stretch the moment is in, and counts casts as they finished', () => {
+    expect(abilitiesUpTo(track, pull, 'Kaz', 15_000)).toEqual({
+      abilities: [{ player: 'Kaz', ability: 'Fireball', damage: 125, healing: 0, casts: 1, hits: 0, school: 4 }],
+      taken: [{ player: 'Kaz', ability: 'Fireball', damage: 20, school: 4 }],
+    })
   })
+
   it('has nothing for a track without abilities', () => {
-    expect(abilitiesUpTo({} as KeyTrack, 'Kaz', 15_000, [])).toBeUndefined()
+    expect(abilitiesUpTo({} as KeyTrack, pull, 'Kaz', 15_000)).toBeUndefined()
   })
 })

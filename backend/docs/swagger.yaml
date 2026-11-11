@@ -20,7 +20,7 @@ definitions:
       a:
         type: string
       p:
-        description: '[end clockMS, damage, healing, casts]'
+        description: '[end clockMS, damage, healing, damage taken]'
         items:
           items:
             format: int64
@@ -439,6 +439,12 @@ definitions:
             $ref: '#/definitions/models.AbilitySeries'
           type: array
         type: object
+      abilityTimes:
+        description: 'AbilityTimes is when Abilities'' stretches ended, in order:
+          a stretch starts where the one before it ended.'
+        items:
+          type: integer
+        type: array
       bosses:
         additionalProperties:
           items:
