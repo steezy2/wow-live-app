@@ -98,6 +98,11 @@ func TestAdviceNamesWhatElseToWorkOn(t *testing.T) {
 	if mage := got.Players[0].Advice; !reflect.DeepEqual(mage, wantAdvice) {
 		t.Errorf("mage advice = %q\nwant %q", mage, wantAdvice)
 	}
+	key.Deaths, key.Buffs = nil, nil // room under the cap for the idle time
+	const idle = "Active 70% of the time in pulls, the least in the group"
+	if mage := buildReview(key, earlier, nil, nil).Players[0].Advice; !slices.Contains(mage, idle) {
+		t.Errorf("mage advice = %q; want %q among it", mage, idle)
+	}
 	// The shaman kicked nothing either, but a healer isn't told to; their one line is the crowd control.
 	wantShaman := []string{"Used no crowd control while 1 must-stop cast went off: a stun or knock stops a cast too"}
 	if shaman := got.Players[1].Advice; !reflect.DeepEqual(shaman, wantShaman) {
