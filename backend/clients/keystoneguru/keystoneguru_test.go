@@ -28,7 +28,7 @@ func TestDungeonsKeepsMappedFloorsWithSafeTileFoldersAndTheNewestForces(t *testi
 		t.Fatal(err)
 	}
 	temple := dungeons[250]
-	if len(temple.Floors) != 1 || temple.Floors[0].Tiles != "bfa/templeofsethraliss/1" || temple.Floors[0].UIMapID != 1038 {
+	if f := temple.Floors; len(f) != 1 || f[0].Tiles != "bfa/templeofsethraliss/1" || f[0].UIMapID != 1038 {
 		t.Errorf("Temple floors = %+v; want floor 1 only (the overview has no bounds)", temple.Floors)
 	}
 	if temple.ForcesTotal != 687 {
