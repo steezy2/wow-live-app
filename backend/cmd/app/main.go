@@ -18,7 +18,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/BurntSushi/toml"
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
 	"github.com/wailsapp/wails/v3/pkg/icons"
@@ -240,8 +239,8 @@ func carried() (app.Options, error) {
 		return app.Options{}, err
 	}
 	opts := app.Options{Pages: pages}
-	if _, err := toml.DecodeFS(files, "embed/"+config.RulesFile, &opts.Rules); err != nil {
-		return opts, fmt.Errorf("reading the built-in M+ rules: %w", err)
+	if err := config.DecodeTOML(files, "embed/"+config.RulesFile, &opts.Rules); err != nil {
+		return opts, fmt.Errorf("the built-in M+ rules: %w", err)
 	}
 	reference, err := files.ReadFile("embed/mplus-dungeons.json")
 	if err != nil {
@@ -252,8 +251,8 @@ func carried() (app.Options, error) {
 		return opts, fmt.Errorf("reading the built-in dungeon facts: %w", err)
 	}
 	opts.Dungeons = ref.Dungeons
-	if _, err := toml.DecodeFS(files, "embed/"+config.RaidRulesFile, &opts.RaidRules); err != nil {
-		return opts, fmt.Errorf("reading the built-in raid rules: %w", err)
+	if err := config.DecodeTOML(files, "embed/"+config.RaidRulesFile, &opts.RaidRules); err != nil {
+		return opts, fmt.Errorf("the built-in raid rules: %w", err)
 	}
 	bosses, err := files.ReadFile("embed/raid-bosses.json")
 	if err != nil {

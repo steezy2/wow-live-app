@@ -9,9 +9,13 @@ const WAIT_MS = 90_000
 
 /** A finished key's review: each player's numbers against their spec's top runs, their usual here and the party,
  * what to work on, and one thing done well, beside one player's key up close. Made by the site when the key ends, or
- * here on request. */
-export function KeyReview({ keyView: key, justEnded }: { keyView: KeyView; justEnded: boolean }) {
+ * here on request; onReview hears of it once shown. */
+export function KeyReview(props: { keyView: KeyView; justEnded: boolean; onReview: (review: Review) => void }) {
+  const { keyView: key, justEnded, onReview } = props
   const [review, setReview] = useState<Review | null>(null)
+  useEffect(() => {
+    if (review) onReview(review)
+  }, [review, onReview])
   const [state, setState] = useState<'loading' | 'waiting' | 'none' | 'making'>('loading')
   const [error, setError] = useState<string | null>(null)
 

@@ -34,6 +34,9 @@ const (
 	// fight), so the line that says they left can come minutes later, and a boss fight is as silent as an empty
 	// dungeon: this has to outlast the longest fight.
 	quietMS = 10 * 60_000
+	// resumeMS: a key closed as abandoned runs again once its log goes on this long past its last line, with no zone
+	// change out or new key: the game writes late, so the first lines after the close can be from before the party left.
+	resumeMS = 2 * 60_000
 	// lustMS: Bloodlust landing this long after the last counts as a new one (it lands on everyone at once).
 	lustMS = 60_000
 	// healthPotion names any health potion (their names are long).
@@ -48,8 +51,7 @@ var activity = map[string]bool{"SPELL_CAST_START": true, "SPELL_CAST_SUCCESS": t
 
 // LogTracker follows Mythic+ keys and raid pulls through combat log lines: the running one live, and the last one
 // that ended. Finished keys and pulls go to their stores (SaveFinished), keys also to the history the projection
-// learns from. Safe for one writer
-// (the log follower) and many readers (the page).
+// learns from. Safe for one writer (the log follower) and many readers (the page).
 type LogTracker struct {
 	mu           sync.RWMutex
 	timers       map[int]int64
@@ -69,12 +71,13 @@ type LogTracker struct {
 	unsaved      []savedRun
 	lastTrack    *models.KeyTrack
 	current      *keyRun
-	left         *keyRun // a key Abandon closed, taken up again if the log goes on in it
+	left         *keyRun          // a key Abandon closed, taken up again if the log goes on in it for resumeMS
+	held         []models.LogLine // the lines read since left closed, which it takes in if it runs again
 	last         *models.Key
 	ready        *readyWatch        // the party's buffs before the next key, while in a Mythic dungeon
 	top          map[[2]int][]int64 // (map ID, level) -> top Warcraft Logs run times, for a first run's estimate
 	asked        map[[2]int]bool    // (map ID, level) -> top runs asked for already
-	version      int64              // goes up with every line read during a key or pull, when one starts, and as the ready check changes
+	version      int64              // goes up with every line read in a key or pull, as one starts, and as the ready check changes
 	lastAt       int64              // the time of the last line read before the one being read
 	raid         *raidSetup         // nil until EnableRaid: raid pulls aren't read
 	pulls        []models.RaidPull  // finished raid pulls, newest first
@@ -186,9 +189,15 @@ func (k *LogTracker) Add(line models.LogLine) {
 	}
 	k.mu.Lock()
 	defer k.mu.Unlock()
+	if !k.hold(line) {
+		k.add(line)
+	}
+}
+
+// add reads one line, under the lock.
+func (k *LogTracker) add(line models.LogLine) {
 	defer func() { k.lastAt = line.Time }()
 	f := line.Fields
-	k.resume(line.Event, f)
 	if k.current != nil || line.Event == "CHALLENGE_MODE_START" {
 		k.version++
 	}
@@ -266,8 +275,8 @@ func (k *LogTracker) Add(line models.LogLine) {
 }
 
 // Abandon closes the running key as abandoned at its last line, for a party that left when the log hasn't said so
-// yet; false when no key is running. If the log then goes on in the key, it runs again. A raid pull is left alone:
-// the game writes nothing during a fight, and a pull can outlast any silence worth waiting for.
+// yet; false when no key is running. If the log then goes on in the key for resumeMS, it runs again. A raid pull is
+// left alone: the game writes nothing during a fight, and a pull can outlast any silence worth waiting for.
 func (k *LogTracker) Abandon() bool {
 	k.mu.Lock()
 	defer k.mu.Unlock()
@@ -292,22 +301,33 @@ func (k *LogTracker) CloseQuiet(now int64) {
 	}
 }
 
-// resume takes the key Abandon closed up again when the log goes on in it (it was only written late): on the next
-// line, unless that's a new key or a zone outside its dungeon.
-func (k *LogTracker) resume(event string, f []string) {
+// hold keeps the lines read after Abandon closed a key while the log goes on in its dungeon. After resumeMS of them,
+// or at a CHALLENGE_MODE_END, a zone outside the dungeon or a new key, the key takes them in; the line that ended the
+// hold then closes it again if it says the party left (the held lines are the key's own, only written late). False
+// when the line isn't held.
+func (k *LogTracker) hold(line models.LogLine) bool {
 	run := k.left
 	if run == nil {
-		return
+		return false
 	}
-	k.left = nil
-	if event == "CHALLENGE_MODE_START" || event == "ZONE_CHANGE" && len(f) > 0 && f[0] != run.instance {
-		return
+	f := line.Fields
+	out := line.Event == "CHALLENGE_MODE_START" || line.Event == "CHALLENGE_MODE_END" ||
+		line.Event == "ZONE_CHANGE" && len(f) > 0 && f[0] != run.instance
+	if !out && line.Time-run.key.End < resumeMS {
+		k.held = append(k.held, line)
+		return true
 	}
+	held := append(k.held, line)
+	k.left, k.held = nil, nil
 	run.key.Status, run.key.End = "running", 0
 	if n := len(run.track.Pulls); n > 0 {
 		run.track.Pulls[n-1].EndMS = 0
 	}
 	k.current = run
+	for _, l := range held {
+		k.add(l)
+	}
+	return true
 }
 
 // learn keeps what every line tells about names, specs, spell names, pets (from summons and advanced logging's owner

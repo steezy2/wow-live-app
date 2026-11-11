@@ -500,7 +500,7 @@
           "maxX": 4406.25,
           "minY": 4500,
           "maxY": 5129.16,
-          "tiles": "midnight/den_of_nalorakk/1"
+          "tiles": "midnight/den_of_nalorakk/3"
         },
         {
           "uiMapID": 2514,
@@ -509,14 +509,6 @@
           "minY": 4014.58,
           "maxY": 4764.58,
           "tiles": "midnight/den_of_nalorakk/2"
-        },
-        {
-          "uiMapID": 2564,
-          "minX": 5350,
-          "maxX": 4406.25,
-          "minY": 4500,
-          "maxY": 5129.16,
-          "tiles": "midnight/den_of_nalorakk/3"
         }
       ],
       "forces": {

@@ -70,6 +70,13 @@ definitions:
           $ref: '#/definitions/models.TrackPoint'
         type: array
     type: object
+  models.ForcesPace:
+    properties:
+      bestPct:
+        type: number
+      fasterPct:
+        type: number
+    type: object
   models.ForcesPoint:
     properties:
       clockMS:
@@ -180,9 +187,9 @@ definitions:
         type: integer
       needsCheck:
         type: boolean
+      pace:
+        $ref: '#/definitions/models.ForcesPace'
       pct:
-        type: number
-      referencePct:
         type: number
       total:
         type: integer
@@ -348,6 +355,14 @@ definitions:
         type: number
       start:
         type: integer
+      topBosses:
+        additionalProperties:
+          format: int64
+          type: integer
+        description: |-
+          TopBosses is how long each boss took in the similar top runs (the median, by boss name; missing in reviews
+          saved before Nov 11).
+        type: object
     type: object
   models.KeySpike:
     properties:
@@ -534,6 +549,11 @@ definitions:
         items:
           $ref: '#/definitions/models.KeyHit'
         type: array
+      bestBosses:
+        additionalProperties:
+          format: int64
+          type: integer
+        type: object
       betweenPulls:
         description: BetweenPulls is the time between each pull and the one before
           it (from the second pull), on the key's clock.
@@ -1581,7 +1601,7 @@ paths:
       description: |-
         For a party that left a key: the game logs no end for it, and writes the line that says they left
         with its next batch, which can be minutes later. The key ends at its last line and is saved and
-        reviewed like any other; if the log then goes on in it, it runs again.
+        reviewed like any other; if the log goes on in it for 2 more minutes, it runs again.
       responses:
         "204":
           description: No Content

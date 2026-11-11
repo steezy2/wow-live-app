@@ -1,6 +1,6 @@
 # WoW Live
 
-A Windows app for Mythic+ keys, read live from the game's combat log (README.md).
+A Windows app for Mythic+ keys and raid pulls, read live from the game's combat log (README.md).
 
 - The `Makefile` wraps the commands below: `make check` (what CI runs), `make app`, `make swag`, `make ref`.
 - `backend/` is one Go module (`clients/` outside systems, `models/` types and interfaces, `service/` the rules, `controller/` the Gin API with swaggo annotations, `app/` the wiring, `cmd/` entry points). Run `gofmt`, `go vet ./...` and `go test ./...` there; after changing an endpoint or its types, run `swag init -g cmd/site/main.go -o docs --parseInternal`.

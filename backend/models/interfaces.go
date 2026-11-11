@@ -26,7 +26,7 @@ type KeySource interface {
 type MPlusBaselines interface {
 	MPlusEncounters(ctx context.Context) (map[string]int, error)
 	MPlusRankings(ctx context.Context, encounter, level int, class, spec, metric string) ([]MPlusRanking, error)
-	RunDamageTaken(ctx context.Context, code string, fightID int) (int64, error)
+	Run(ctx context.Context, code string, fightID int) (RunSummary, error)
 	PointsLeft(ctx context.Context) (float64, error)
 }
 

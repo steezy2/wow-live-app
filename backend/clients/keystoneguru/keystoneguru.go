@@ -8,7 +8,9 @@ import (
 	"cmp"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -97,9 +99,53 @@ func (c Client) Dungeons(ctx context.Context) (map[int]Dungeon, error) {
 			dungeon.Floors = append(dungeon.Floors, models.DungeonFloor{UIMapID: f.UIMapID, MinX: f.MinX, MaxX: f.MaxX,
 				MinY: f.MinY, MaxY: f.MaxY, Tiles: tiles})
 		}
+		floors, err := c.withTiles(ctx, dungeon.Floors)
+		if err != nil {
+			return nil, err
+		}
+		dungeon.Floors = floors
 		out[*d.ChallengeModeID] = dungeon
 	}
 	return out, nil
+}
+
+// withTiles keeps the floors whose tiles exist. A floor without tiles takes those of a floor with the same bounds, and
+// that floor goes, since its bounds are a copy (Den of Nalorakk's 2513 is drawn as index 3, under 2564's ID); a floor
+// left without tiles goes too, so the page draws where parties walked instead. A center tile is probed for each.
+func (c Client) withTiles(ctx context.Context, floors []models.DungeonFloor) ([]models.DungeonFloor, error) {
+	tiled := make([]bool, len(floors))
+	for i, f := range floors {
+		_, err := c.Tile(ctx, f.Tiles, 1, 1)
+		if err != nil && !errors.Is(err, cachefile.ErrNotFound) {
+			return nil, err
+		}
+		tiled[i] = err == nil
+	}
+	drop := make([]bool, len(floors))
+	for i, f := range floors {
+		if tiled[i] {
+			continue
+		}
+		drop[i] = true
+		for j, g := range floors {
+			if tiled[j] && !drop[j] && f.MinX == g.MinX && f.MaxX == g.MaxX && f.MinY == g.MinY && f.MaxY == g.MaxY {
+				log.Printf("Keystone.guru: floor %d has no tiles, so it takes %s and floor %d goes", f.UIMapID, g.Tiles,
+					g.UIMapID)
+				floors[i].Tiles, drop[i], drop[j] = g.Tiles, false, true
+				break
+			}
+		}
+	}
+	var kept []models.DungeonFloor
+	for i, f := range floors {
+		if !drop[i] {
+			kept = append(kept, f)
+		} else if !tiled[i] {
+			log.Printf("Keystone.guru: floor %d (%s) has no tiles; the page draws where parties walked", f.UIMapID,
+				f.Tiles)
+		}
+	}
+	return kept, nil
 }
 
 // getJSON decodes one of the repository's dungeon data files, downloaded at most every dataMaxAge.

@@ -16,11 +16,11 @@ import (
 )
 
 // Router is the site for hosts (LocalHosts, or the app's own): the API under /api (the raid overview's when raid
-// isn't nil), the settings and Warcraft Logs keys when settings isn't nil (the desktop app), its spec at /swagger/index.html, and the built page from pages
-// (frontend/dist, on disk or built into the app) for every other path, so the page's own routes load index.html. Only requests addressed
-// to this PC by name are answered, so another website can't read the API by pointing its domain at 127.0.0.1 (DNS
-// rebinding), and requests sent by another website's page are refused, so it can't spend points or delete keys
-// through a plain form post.
+// isn't nil), the settings and Warcraft Logs keys when settings isn't nil (the desktop app), its spec at
+// /swagger/index.html, and the built page from pages (frontend/dist, on disk or built into the app) for every other
+// path, so the page's own routes load index.html. Only requests addressed to this PC by name are answered, so another
+// website can't read the API by pointing its domain at 127.0.0.1 (DNS rebinding), and requests sent by another
+// website's page are refused, so it can't spend points or delete keys through a plain form post.
 func Router(mplus MPlus, raid *Raid, settings *SettingsAPI, pages fs.FS, hosts ...string) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()

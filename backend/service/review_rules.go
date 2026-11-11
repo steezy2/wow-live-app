@@ -79,10 +79,10 @@ var (
 	}
 )
 
-// buildReview reviews a finished key: each player's numbers against the top runs of their spec (baselines, by
-// player), their own earlier runs of the dungeon (history) and the party, with advice and one positive callout; and
+// buildReview reviews a finished key: each player's DPS and HPS against the top runs of their spec (baselines,
+// by player then metric name), their own earlier runs of the dungeon (history) and the party, with advice and one positive callout; and
 // the party's damage taken per second against similar top runs (taken).
-func buildReview(key models.Key, history []models.Key, baselines map[string][]models.MPlusRanking,
+func buildReview(key models.Key, history []models.Key, baselines map[string]map[string][]models.MPlusRanking,
 	taken []float64) models.KeyReview {
 	review := models.KeyReview{Start: key.Start, End: key.End, Players: []models.PlayerReview{},
 		Baseline: "No Warcraft Logs baseline for this key"}
@@ -119,7 +119,7 @@ func buildReview(key models.Key, history []models.Key, baselines map[string][]mo
 			case "HPS":
 				metric.Total, metric.TotalName = float64(row.Healing), "healing"
 			}
-			if top := baselines[player]; m.name == mainMetric(spec) && len(top) > 0 {
+			if top := baselines[player][m.name]; len(top) > 0 {
 				amounts := make([]float64, len(top))
 				for j, r := range top {
 					amounts[j] = r.Amount
@@ -253,7 +253,7 @@ func unlessAbandoned(key models.Key, note string) string {
 // reviewed is every metric of a review, in the page's column order: DPS and HPS for everyone, then the rest.
 var reviewed = append([]reviewMetric{dpsMetric, hpsMetric}, otherMetrics...)
 
-// mainMetric is the metric compared with a spec's top runs: HPS for healers, DPS for everyone else.
+// mainMetric is the metric a spec is ranked and advised by: HPS for healers, DPS for everyone else (tanks too, in M+).
 func mainMetric(spec specInfo) string {
 	if spec.Healer {
 		return hpsMetric.name

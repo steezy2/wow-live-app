@@ -68,7 +68,7 @@ func (m MPlus) Live(c *gin.Context) {
 //	@Summary		End the running key as abandoned
 //	@Description	For a party that left a key: the game logs no end for it, and writes the line that says they left
 //	@Description	with its next batch, which can be minutes later. The key ends at its last line and is saved and
-//	@Description	reviewed like any other; if the log then goes on in it, it runs again.
+//	@Description	reviewed like any other; if the log goes on in it for 2 more minutes, it runs again.
 //	@Tags			mplus
 //	@Success		204
 //	@Failure		409	{object}	ErrorResponse	"no key is running"

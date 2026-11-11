@@ -101,8 +101,9 @@ func (c *Client) MPlusRankings(ctx context.Context, encounter, level int, class,
 	return runs, nil
 }
 
-// RunDamageTaken is the party's damage taken in a ranked run, from its fight's summary table.
-func (c *Client) RunDamageTaken(ctx context.Context, code string, fightID int) (int64, error) {
+// Run is a ranked run's party damage taken (from its fight's summary table) and how long each boss it killed took
+// (its dungeon pulls with an encounter), in one query.
+func (c *Client) Run(ctx context.Context, code string, fightID int) (models.RunSummary, error) {
 	var data struct {
 		ReportData struct {
 			Report struct {
@@ -113,19 +114,36 @@ func (c *Client) RunDamageTaken(ctx context.Context, code string, fightID int) (
 						} `json:"damageTaken"`
 					} `json:"data"`
 				} `json:"table"`
+				Fights []struct {
+					DungeonPulls []struct {
+						Name        string `json:"name"`
+						EncounterID int    `json:"encounterID"`
+						StartTime   int64  `json:"startTime"`
+						EndTime     int64  `json:"endTime"`
+						Kill        bool   `json:"kill"`
+					} `json:"dungeonPulls"`
+				} `json:"fights"`
 			} `json:"report"`
 		} `json:"reportData"`
 	}
-	gql := `query($r: String!, $f: Int!) { reportData { report(code: $r) { table(fightIDs: [$f], dataType: Summary) } } }`
-	if err := c.cachedQuery(ctx, fmt.Sprintf("taken-%s-%d.json", code, fightID), 0, gql,
+	gql := `query($r: String!, $f: Int!) { reportData { report(code: $r) { table(fightIDs: [$f], dataType: Summary) ` +
+		`fights(fightIDs: [$f]) { dungeonPulls { name encounterID startTime endTime kill } } } } }`
+	if err := c.cachedQuery(ctx, fmt.Sprintf("run-%s-%d.json", code, fightID), 0, gql,
 		map[string]any{"r": code, "f": fightID}, &data); err != nil {
-		return 0, err
+		return models.RunSummary{}, err
 	}
-	var total int64
+	run := models.RunSummary{BossMS: map[string]int64{}}
 	for _, a := range data.ReportData.Report.Table.Data.DamageTaken {
-		total += a.Total
+		run.DamageTaken += a.Total
 	}
-	return total, nil
+	for _, f := range data.ReportData.Report.Fights {
+		for _, p := range f.DungeonPulls {
+			if p.EncounterID != 0 && p.Kill {
+				run.BossMS[p.Name] = p.EndTime - p.StartTime
+			}
+		}
+	}
+	return run, nil
 }
 
 // PointsLeft is how many of this hour's points the account has left.

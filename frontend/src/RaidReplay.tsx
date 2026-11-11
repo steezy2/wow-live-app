@@ -99,16 +99,16 @@ export function RaidReplay(props: {
           <div>
             <div className="map-stage">
               <MapCanvas
-              key={current}
-              track={track}
-              backdrop={backdrop}
-              floor={current}
-              now={now}
-              clock={replay.playing ? replay.now : undefined}
-              trailMS={trail}
-              deaths={pull.deaths}
-              focus={focus}
-              onPick={onFocus}
+                key={current}
+                track={track}
+                backdrop={backdrop}
+                floor={current}
+                now={now}
+                clock={replay.playing ? replay.now : undefined}
+                trailMS={trail}
+                deaths={pull.deaths}
+                focus={focus}
+                onPick={onFocus}
               />
               <BossBox track={track} now={now} />
               {focus && <CastBox track={track} player={focus} now={now} />}

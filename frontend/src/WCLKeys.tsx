@@ -86,16 +86,23 @@ export function WCLKeys() {
         </>
       ) : (
         <form className="settings" onSubmit={save(false)}>
+          <p className="muted">These are Warcraft Logs credentials, not your Battle.net login.</p>
           <ol className="muted">
+            <li>
+              Sign in to Warcraft Logs with your Battle.net account linked to it (link it first in your Warcraft Logs
+              settings if it isn't, or the keys won't work).
+            </li>
             <li>
               Open{' '}
               <a href={CLIENTS_URL} target="_blank" rel="noreferrer">
                 {CLIENTS_URL}
               </a>{' '}
-              and sign in.
+              and Create Client: any name, redirect URL <code>http://localhost</code>, and leave Public Client
+              unchecked.
             </li>
-            <li>Create Client: any name, redirect URL http://localhost, leave the rest.</li>
-            <li>Copy the client ID and secret here.</li>
+            <li>
+              Don't close that page yet: copy its client ID and client secret into the boxes below, then Test and save.
+            </li>
           </ol>
           <label>
             Client ID

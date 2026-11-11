@@ -146,15 +146,17 @@ export interface KeyProjection {
   best: KeyGhost[]
 }
 
-/** The key's enemy forces: the share killed (it can pass 100), each kill's share, where earlier runs stood at this
- * clock (0 without any), and whether a finished key fell short enough that the dungeon file needs checking. */
+/** The key's enemy forces: the share killed (it can pass 100), each kill's share, the pace against the best run at
+ * the level, and whether a finished key fell short enough that the dungeon file needs checking. */
 export interface KeyForces {
   /** The count killed of the dungeon's total (0 in keys saved before Nov 8). */
   count: number
   total: number
   pct: number
   at: { clockMS: number; pct: number }[]
-  referencePct: number
+  /** A running key's pace against the fastest timed run of the dungeon at its level, when there is one: that run's
+   * forces at this clock, and how much sooner (+) or later (-) the key got to its forces, in % of that run's time. */
+  pace?: { bestPct: number; fasterPct: number }
   needsCheck: boolean
   /** Enemies that died without being in the dungeon file (missing in keys saved before Nov 8). */
   uncounted?: { npc: number; name: string; deaths: number }[]
@@ -198,6 +200,9 @@ export interface KeyView {
   /** Most chests still in reach: 3, 2, 1, or 0 once over time; -1 without a timer. */
   chests: number
   projection?: KeyProjection
+  /** How long each boss took in your fastest timed other run of the dungeon at this level, by name (when there is
+   * one). */
+  bestBosses?: Record<string, number>
   /** How long ago a running key's last line was logged (0 once it's over): the game writes its log in batches as
    * fights start and end, so a long silence is a long fight, or a party that left. */
   silentMS: number
@@ -259,9 +264,8 @@ export interface KeyTrack {
   /** The bosses GUIDs the health box shows: the boss's own units, then the adds to burst. */
   health?: string[]
   /** Each raider's casts (e: when one with a cast time ended; x: it never finished), what each ability did and what
-   * they took damage from in
-   * each stretch ([end, damage, healing, damage taken]), and when the stretches ended (each starts where the one before
-   * it ended); none in a key or in pulls saved before Nov 11. */
+   * they took damage from in each stretch ([end, damage, healing, damage taken]), and when the stretches ended (each
+   * starts where the one before it ended); none in a key or in pulls saved before Nov 11. */
   casts?: Record<string, { t: number; s: string; e?: number; x?: boolean }[]>
   abilities?: Record<string, { a: string; p: [number, number, number, number][] }[]>
   abilityTimes?: number[]
@@ -302,6 +306,8 @@ export interface KeyReview {
   notes?: string[]
   baseline: string
   points: number
+  /** How long each boss took in the similar top runs, by name (missing in reviews made before Nov 11). */
+  topBosses?: Record<string, number>
 }
 
 /** A dungeon floor with Keystone.guru tiles: the combat log's map ID and its in-game bounds (Keystone.guru's x is the
@@ -350,7 +356,7 @@ export async function fetchLiveKey(signal?: AbortSignal): Promise<KeyView | null
 }
 
 /** Ends the running key as abandoned, for a party that left before the game's log says so; it runs again if the log
- * goes on in it. */
+ * goes on in it for 2 more minutes. */
 export async function abandonLiveKey(): Promise<void> {
   await call('/api/mplus/live/abandon', { method: 'POST' })
 }

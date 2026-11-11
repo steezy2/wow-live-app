@@ -692,8 +692,7 @@ func (r *raidRun) bossUnits() map[string]*raidUnit {
 
 // adds is each kind of hostile unit the raid hit that isn't one of the boss's NPCs (nor a soak circle or a lure):
 // how many showed up, died and were up at the end, the longest one lived, and each one's spawn where the reference
-// says how they spawn; those still up first, at most shownAdds plus
-// those with spawns.
+// says how they spawn; those still up first, at most shownAdds plus those with spawns.
 func (r *raidRun) adds(end int64) []models.RaidAdd {
 	boss := r.bossUnits()
 	byName := map[string]*models.RaidAdd{}

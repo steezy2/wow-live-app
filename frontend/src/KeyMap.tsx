@@ -1,9 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react'
 import {
   fetchDungeonMap,
-  fetchTrack,
   raidMapURL,
-  subscribe,
   TILES_PER_SIDE,
   tileURL,
   type DungeonFloor,
@@ -18,7 +16,7 @@ import { classColors } from './classColors'
 import { defense, offense } from './meterColumns'
 import { MeterCard } from './MeterCards'
 import { clock } from './format'
-import { floorsOf, JUMP_YARDS_PER_S, lastAt, meterBetween, positionAt, useReplay, type SliderMark } from './replay'
+import { floorsOf, JUMP_YARDS_PER_S, lastAt, meterBetween, positionAt, type SliderMark, type useReplay } from './replay'
 
 /** The trail the live map draws. */
 const LIVE_TRAIL_MS = 30_000
@@ -110,30 +108,22 @@ export function ReplayControls(props: {
   )
 }
 
-/** The party on the dungeon's map: live, the last 30 s of trails; for a finished key, a replay with controls. Floors
- * Keystone.guru maps are drawn on its tiles; any other floor's shape is where parties have walked in its saved runs. */
-export function KeyMap({ keyView: key, clockMS }: { keyView: KeyView; clockMS: number }) {
+/** The party on the dungeon's map (from the key's track): live, the last 30 s of trails; for a finished key, a
+ * replay with controls on the page's replay clock. Floors Keystone.guru maps are drawn on its tiles; any other floor's
+ * shape is where parties have walked in its saved runs. A click on a player (their dot or a meter row) follows them,
+ * a right click on the map the whole party again. */
+export function KeyMap(props: {
+  keyView: KeyView
+  clockMS: number
+  track: KeyTrack | null
+  replay: ReturnType<typeof useReplay>
+}) {
+  const { keyView: key, clockMS, track, replay } = props
   const live = key.status === 'running'
-  const [track, setTrack] = useState<KeyTrack | null>(null)
   const [dungeon, setDungeon] = useState<DungeonMap>({ floors: [], walked: [] })
-  const replay = useReplay(clockMS, clockMS)
   const [trail, setTrail] = useState(30_000)
   const [follow, setFollow] = useState('')
   const [floor, setFloor] = useState<number | null>(null)
-
-  useEffect(() => {
-    const controller = new AbortController()
-    const read = () => fetchTrack(key.start, controller.signal).then(setTrack, () => undefined)
-    if (!live) {
-      void read()
-      return () => controller.abort()
-    }
-    const unsubscribe = subscribe(() => void read())
-    return () => {
-      controller.abort()
-      unsubscribe()
-    }
-  }, [key.start, live])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -189,24 +179,32 @@ export function KeyMap({ keyView: key, clockMS }: { keyView: KeyView; clockMS: n
           clock={replay.playing ? replay.now : undefined}
           trailMS={live ? LIVE_TRAIL_MS : trail}
           deaths={key.deaths}
+          focus={follow}
+          onPick={setFollow}
         />
-        <ReplayMeters track={track} now={now} />
+        <ReplayMeters track={track} now={now} onPick={setFollow} />
       </div>
-      {tiled && (
-        <p className="muted small">
-          Map:{' '}
-          <a href="https://keystone.guru" target="_blank" rel="noreferrer">
-            Keystone.guru
-          </a>
-        </p>
-      )}
+      <p className="muted small">
+        Scroll to zoom, drag to move, double click for the whole floor · click a player to follow them, right click for
+        the whole party
+        {tiled && (
+          <>
+            {' '}
+            · map:{' '}
+            <a href="https://keystone.guru" target="_blank" rel="noreferrer">
+              Keystone.guru
+            </a>
+          </>
+        )}
+      </p>
     </section>
   )
 }
 
 /** The replay's meters at its moment, like the live cards: DPS and HPS for the pull it's in (or the last one before
- * it) and for the key so far. Keys saved before pulls were tracked show the key so far only. */
-function ReplayMeters({ track, now }: { track: KeyTrack; now: number }) {
+ * it) and for the key so far; a click on a row picks its player. Keys saved before pulls were tracked show the key so
+ * far only. */
+function ReplayMeters({ track, now, onPick }: { track: KeyTrack; now: number; onPick: (player: string) => void }) {
   const started = (track.pulls ?? []).filter((p) => p.startMS <= now)
   const pull = started.length > 0 ? started[started.length - 1] : undefined
   const meters: [string, KeyMeter][] = [['Whole key', meterBetween(track, 0, now)]]
@@ -218,7 +216,7 @@ function ReplayMeters({ track, now }: { track: KeyTrack; now: number }) {
     <div className="replay-meters">
       {[offense.slice(0, 2), defense(false).slice(0, 2)].map((columns) =>
         meters.map(([title, m]) => (
-          <MeterCard key={columns[0].label + title} title={title} meter={m} columns={columns} />
+          <MeterCard key={columns[0].label + title} title={title} meter={m} columns={columns} onPick={onPick} />
         )),
       )}
     </div>
@@ -417,8 +415,7 @@ export function MapCanvas(props: {
         ctx.stroke()
         ctx.globalAlpha = 1
         // Where they are: their last place even past the trail, and before their first sample where they were first
-        // seen.
-        // Dead until they're seen again after their last death (a release and run back, or a battle res).
+        // seen. Dead until they're seen again after their last death (a release and run back, or a battle res).
         const last = positionAt(points, now) ?? points[0]
         const dead = died.has(player) && (!last || last.t <= (died.get(player) ?? 0) + REVIVED_AFTER_MS)
         if (!last || last.map !== floor) return

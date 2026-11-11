@@ -1,12 +1,14 @@
-import type { KeyForces, KeyGhost, KeyView } from './api'
+import { useState } from 'react'
+import type { KeyForces, KeyGhost, KeyReview as Review, KeyView } from './api'
 import { chestLabel, clock, oddsText, resultText, share } from './format'
 import { DamageGraph } from './DamageGraph'
-import { PriorityLedger } from './KeyLedgers'
+import { BossList, PriorityLedger } from './KeyLedgers'
 import { fightTabs } from './KeyTabs'
 import { PlayerTable } from './PlayerTable'
 import { KeyMap } from './KeyMap'
 import { KeyReview } from './KeyReview'
 import { MeterCards } from './MeterCards'
+import { useReplay, useTrack } from './replay'
 import { Tabs } from './Tabs'
 
 /** The result's icon, so it doesn't rest on colour alone. */
@@ -17,7 +19,8 @@ const resultIcon: Record<KeyView['status'], string> = {
   abandoned: '–',
 }
 
-/** One key as the page shows it, live or saved, at a clock reading, with its review once it's over. */
+/** One key as the page shows it, live or saved, at a clock reading, with its review once it's over; the graph and the
+ * boss list move the replay. Keyed by the key's start, so the replay starts over for another key. */
 export function KeyDetails({
   keyView: key,
   clockMS,
@@ -31,6 +34,9 @@ export function KeyDetails({
   const timer = key.timerMS ?? 0
   const projection = key.status === 'running' ? key.projection : undefined
   const fight = fightTabs(key, `Deaths ${key.deaths.length} (+${clock(key.penaltyMS)})`, 'party')
+  const track = useTrack(key.start, key.status === 'running')
+  const replay = useReplay(clockMS, clockMS)
+  const [review, setReview] = useState<Review | null>(null)
   return (
     <>
       <header className="title">
@@ -73,7 +79,7 @@ export function KeyDetails({
         </section>
       )}
       {timer > 0 && <TimerBar clockMS={clockMS} timerMS={timer} keyView={key} best={projection?.best ?? []} />}
-      {key.forces && <ForcesBar forces={key.forces} />}
+      {key.forces && <ForcesBar forces={key.forces} level={key.level} />}
       {timer > 0 && key.status === 'running' && (
         <p className="muted">
           {clock(timer - clockMS)} left · +3 by {clock(key.plus3MS)} · +2 by {clock(key.plus2MS)}
@@ -111,8 +117,10 @@ export function KeyDetails({
         </p>
       )}
 
-      {key.status !== 'running' && <KeyReview key={key.start} keyView={key} justEnded={justEnded} />}
-      {key.status !== 'running' && <DamageGraph key={`graph-${key.start}`} keyView={key} />}
+      {key.status !== 'running' && <KeyReview keyView={key} justEnded={justEnded} onReview={setReview} />}
+      {key.status !== 'running' && track && (
+        <DamageGraph keyView={key} track={track} now={replay.at} onSeek={replay.setAt} />
+      )}
 
       {key.buffs.length > 0 && (
         <section className="panel attention">
@@ -129,34 +137,20 @@ export function KeyDetails({
 
       <section className="panel map-panel">
         <h2>Replay</h2>
-        <KeyMap key={key.start} keyView={key} clockMS={clockMS} />
+        <KeyMap keyView={key} clockMS={clockMS} track={track} replay={replay} />
       </section>
 
       <Tabs
         tabs={[
           {
-            name: 'Bosses',
-            body: (
-              <ul className="list">
-                {key.bosses.map((b) => (
-                  <li key={`${b.name}-${b.startMS}`}>
-                    <span>{b.name}</span>
-                    <span className="muted">
-                      {clock(b.startMS)} →{' '}
-                      {b.endMS === undefined ? 'on now' : `${clock(b.endMS)}${b.kill ? '' : ' (wipe)'}`}
-                    </span>
-                  </li>
-                ))}
-                {key.bosses.length === 0 && <li className="muted">None yet</li>}
-              </ul>
-            ),
-          },
-          ...fight.slice(0, 4),
-          {
             name: `Minibosses ${key.pulls.filter((p) => p.late).length}/${key.pulls.length}`,
             body: <PriorityLedger keyView={key} />,
           },
-          ...fight.slice(4),
+          {
+            name: 'Bosses',
+            body: <BossList keyView={key} track={track} topBosses={review?.topBosses} onSeek={replay.setAt} />,
+          },
+          ...fight,
           {
             name: 'Players',
             body: (
@@ -214,26 +208,33 @@ export function TimerBar({
   )
 }
 
-/** Enemy forces as a bar: the share killed, a mark at 100%, and a tick where earlier runs stood at this time. */
-export function ForcesBar({ forces }: { forces: KeyForces }) {
-  const ref = forces.referencePct
-  const ahead = forces.pct >= ref
+/** Within this many % of the best run's pace, the key is on pace with it. */
+const PACE_EVEN_PCT = 1
+
+/** Enemy forces as a bar: the share killed, and against the best run at the level (a tick where it stood at this
+ * time, and how much faster or slower the key is). */
+export function ForcesBar({ forces, level }: { forces: KeyForces; level: number }) {
+  const pace = forces.pace
+  const best = `your best +${level}`
   return (
     <div className="forces">
       <div className="bar" role="img" aria-label={`forces ${forces.pct.toFixed(1)}%`}>
         <div
-          className={`fill ${ref > 0 && !ahead ? 'behind' : 'ahead'}`}
+          className={`fill ${pace && pace.fasterPct <= -PACE_EVEN_PCT ? 'behind' : 'ahead'}`}
           style={{ width: `${Math.min(100, forces.pct)}%` }}
         />
-        {ref > 0 && <div className="mark" style={{ left: `${Math.min(100, ref)}%` }} title="your earlier runs" />}
+        {pace && <div className="mark" style={{ left: `${Math.min(100, pace.bestPct)}%` }} title={best} />}
       </div>
       <span className="small">
         Forces {forces.pct >= 100 ? `100% (${forces.pct.toFixed(0)}%)` : `${forces.pct.toFixed(1)}%`}
         {forces.count > 0 && <span className="muted"> · {forces.count}/{forces.total}</span>}
-        {ref > 0 && (
+        {pace && (
           <span className="muted">
             {' '}
-            · {ahead ? 'ahead' : 'behind'} of your runs ({ref.toFixed(0)}%)
+            ·{' '}
+            {Math.abs(pace.fasterPct) < PACE_EVEN_PCT
+              ? `on pace with ${best}`
+              : `${Math.round(Math.abs(pace.fasterPct))}% ${pace.fasterPct > 0 ? 'faster' : 'slower'} than ${best}`}
           </span>
         )}
       </span>

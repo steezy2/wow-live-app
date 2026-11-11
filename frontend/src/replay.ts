@@ -1,5 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { KeyAbility, KeyMeter, KeyMeterRow, KeyTrack, RaidPull, TrackPoint } from './api'
+import {
+  fetchTrack,
+  subscribe,
+  type KeyAbility,
+  type KeyMeter,
+  type KeyMeterRow,
+  type KeyTrack,
+  type RaidPull,
+  type TrackPoint,
+} from './api'
 import { valueAt } from './format'
 
 /** A move between two track points faster than this (yards per second) is a jump (a teleport, a release, a portal),
@@ -55,6 +64,25 @@ export function useReplay(end: number, start: number, firstSpeed = 8) {
     setPlaying(!playing)
   }
   return { at, setAt, now, playing, toggle, speed, setSpeed }
+}
+
+/** A key's track (positions and meters over time), read again on each change while the key runs. */
+export function useTrack(start: number, live: boolean): KeyTrack | null {
+  const [track, setTrack] = useState<KeyTrack | null>(null)
+  useEffect(() => {
+    const controller = new AbortController()
+    const read = () => fetchTrack(start, controller.signal).then(setTrack, () => undefined)
+    if (!live) {
+      void read()
+      return () => controller.abort()
+    }
+    const unsubscribe = subscribe(() => void read())
+    return () => {
+      controller.abort()
+      unsubscribe()
+    }
+  }, [start, live])
+  return track
 }
 
 /** A mark under the replay's slider: a boss kill or a death. */

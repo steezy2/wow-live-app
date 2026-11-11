@@ -39,6 +39,7 @@ type ItemSet struct {
 // close two raid cooldowns are to be stacked.
 type SuggestionRules struct {
 	Most                   int     `toml:"most"`
+	SpikeSeconds           float64 `toml:"spike_seconds"`
 	AddsLonger             float64 `toml:"adds_longer"`
 	PriorityBelow          float64 `toml:"priority_below"`
 	LustAfterSeconds       float64 `toml:"lust_after_seconds"`

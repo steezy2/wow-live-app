@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -96,16 +97,23 @@ func LoadRaidRules(root string) (models.RaidRules, error) {
 	return loadTOML[models.RaidRules](filepath.Join(root, RaidRulesFile))
 }
 
-func loadTOML[T any](path string) (T, error) {
-	var v T
-	md, err := toml.DecodeFile(path, &v)
+// DecodeTOML reads the TOML file name in fsys into v, failing on a key v doesn't have (a typo would drop a rule
+// without a word).
+func DecodeTOML(fsys fs.FS, name string, v any) error {
+	md, err := toml.DecodeFS(fsys, name, v)
 	if err != nil {
-		return v, fmt.Errorf("reading %s: %w", filepath.Base(path), err)
+		return fmt.Errorf("reading %s: %w", name, err)
 	}
 	if unknown := md.Undecoded(); len(unknown) > 0 {
-		return v, fmt.Errorf("reading %s: unknown keys %v (a typo would drop a rule without a word)", filepath.Base(path), unknown)
+		return fmt.Errorf("reading %s: unknown keys %v", name, unknown)
 	}
-	return v, nil
+	return nil
+}
+
+func loadTOML[T any](path string) (T, error) {
+	var v T
+	err := DecodeTOML(os.DirFS(filepath.Dir(path)), filepath.Base(path), &v)
+	return v, err
 }
 
 // defaultLogsDir is where the game writes its combat log on a default Windows install.

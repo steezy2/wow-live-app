@@ -429,7 +429,7 @@ const docTemplate = `{
         },
         "/api/mplus/live/abandon": {
             "post": {
-                "description": "For a party that left a key: the game logs no end for it, and writes the line that says they left\nwith its next batch, which can be minutes later. The key ends at its last line and is saved and\nreviewed like any other; if the log then goes on in it, it runs again.",
+                "description": "For a party that left a key: the game logs no end for it, and writes the line that says they left\nwith its next batch, which can be minutes later. The key ends at its last line and is saved and\nreviewed like any other; if the log goes on in it for 2 more minutes, it runs again.",
                 "tags": [
                     "mplus"
                 ],
@@ -985,6 +985,17 @@ const docTemplate = `{
                 }
             }
         },
+        "models.ForcesPace": {
+            "type": "object",
+            "properties": {
+                "bestPct": {
+                    "type": "number"
+                },
+                "fasterPct": {
+                    "type": "number"
+                }
+            }
+        },
         "models.ForcesPoint": {
             "type": "object",
             "properties": {
@@ -1148,10 +1159,10 @@ const docTemplate = `{
                 "needsCheck": {
                     "type": "boolean"
                 },
-                "pct": {
-                    "type": "number"
+                "pace": {
+                    "$ref": "#/definitions/models.ForcesPace"
                 },
-                "referencePct": {
+                "pct": {
                     "type": "number"
                 },
                 "total": {
@@ -1397,6 +1408,14 @@ const docTemplate = `{
                 },
                 "start": {
                     "type": "integer"
+                },
+                "topBosses": {
+                    "description": "TopBosses is how long each boss took in the similar top runs (the median, by boss name; missing in reviews\nsaved before Nov 11).",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer",
+                        "format": "int64"
+                    }
                 }
             }
         },
@@ -1652,6 +1671,13 @@ const docTemplate = `{
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/models.KeyHit"
+                    }
+                },
+                "bestBosses": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer",
+                        "format": "int64"
                     }
                 },
                 "betweenPulls": {

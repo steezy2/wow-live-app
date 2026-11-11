@@ -53,3 +53,19 @@ func TestLoadRaidMechanicsRefusesUnknownKeys(t *testing.T) {
 		t.Fatal("a misspelt key loaded; want an error naming it")
 	}
 }
+
+func TestTheRepoRulesFilesHaveNoUnknownKeys(t *testing.T) {
+	root, err := Root(func() string { wd, _ := os.Getwd(); return wd }())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := LoadRules(root); err != nil {
+		t.Error(err)
+	}
+	if _, err := LoadRaidRules(root); err != nil {
+		t.Error(err)
+	}
+	if _, err := LoadRaidMechanics(RaidMechanicsPath(root)); err != nil {
+		t.Error(err)
+	}
+}

@@ -53,7 +53,7 @@ func newRaidTracker(t *testing.T) (*LogTracker, *memPulls) {
 	rules.Deaths.MassKillPlayers, rules.Deaths.MassKillWindowSeconds = 2, 10
 	rules.Soaks.WindowMS = 1500
 	rules.Cooldowns.Names = []string{"Tranquility"}
-	rules.Suggestions = models.SuggestionRules{Most: 5, AddsLonger: 1.25, PriorityBelow: 0.8}
+	rules.Suggestions = models.SuggestionRules{Most: 5, SpikeSeconds: 6, AddsLonger: 1.25, PriorityBelow: 0.8}
 	bosses := map[string]models.RaidBoss{"Testboss": {NPCs: []int{240001}, Avoidable: []int{1001}, Soak: []int{1002},
 		Stacks: map[int]int{1003: 5}, Priority: []string{"Testboss"}}}
 	store := &memPulls{tracks: map[int64]models.KeyTrack{}}
@@ -218,7 +218,7 @@ func TestSuggestionsPutWhatToFixFirst(t *testing.T) {
 			{Ability: "Toxic Spill", Players: []models.PlayerCount{{Player: "D", Count: 1}}}},
 		Soaks:     []models.RaidSoak{{Ability: "Spectral Coils", Died: []string{"E"}}},
 		MassKills: []models.MassKill{{Ability: "Caustic Waves", Killed: 2, ClockMS: 61_000}},
-		Spikes:    []models.KeySpike{{ClockMS: 90_000, Damage: 3_600_000, PartyCDs: []string{}}},
+		Spikes:    []models.KeySpike{{ClockMS: 90_000, Damage: 7_200_000, PartyCDs: []string{}}},
 		Stacks:    []models.RaidStacks{{Ability: "Eternal Venom", Limit: 5, Players: []models.PlayerCount{{Player: "F", Count: 6}, {Player: "G", Count: 5}}}},
 		WentOff:   []models.KeyStop{{Spell: "Anguished Cry"}, {Spell: "Anguished Cry"}},
 		Adds:      []models.RaidAdd{{Name: "Blightscale Clutch", LongestMS: 30_000}},
@@ -238,7 +238,7 @@ func TestSuggestionsPutWhatToFixFirst(t *testing.T) {
 		"Toxic Spill hit 1 raider 1 time",
 		"Damage into Ula'tek's Heart: 1.0M (3.0M in pull 4)",
 	}
-	rules := models.SuggestionRules{Most: 20, AddsLonger: 1.25, PriorityBelow: 0.8}
+	rules := models.SuggestionRules{Most: 20, SpikeSeconds: 6, AddsLonger: 1.25, PriorityBelow: 0.8}
 	if got := suggestions(p, best, rules); fmt.Sprint(got) != fmt.Sprint(want) {
 		t.Fatalf("suggestions =\n%q\nwant\n%q", got, want)
 	}

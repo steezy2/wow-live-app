@@ -1,5 +1,5 @@
-import { useEffect, useState, type MouseEvent } from 'react'
-import { fetchTrack, type KeyTrack, type KeyView, type MeterPoint } from './api'
+import { useState, type MouseEvent } from 'react'
+import { type KeyTrack, type KeyView, type MeterPoint } from './api'
 import { classColors } from './classColors'
 import { amount, clock, valueAt } from './format'
 import type { SliderMark } from './replay'
@@ -17,15 +17,15 @@ const TOTAL = ' total'
 /** A line this close to the pointer (in the drawing's units) is the one under it. */
 const HOVER_REACH = 14
 
-/** A finished key's damage (or healing) graph, from its track. */
-export function DamageGraph({ keyView: key }: { keyView: KeyView }) {
-  const [track, setTrack] = useState<KeyTrack | null>(null)
-  useEffect(() => {
-    const controller = new AbortController()
-    fetchTrack(key.start, controller.signal).then(setTrack, () => undefined)
-    return () => controller.abort()
-  }, [key.start])
-  if (!track) return null
+/** A finished key's damage (or healing) graph over its track, with boss kills and deaths marked; a click moves the
+ * replay there (onSeek) and now is drawn as a line. */
+export function DamageGraph(props: {
+  keyView: KeyView
+  track: KeyTrack
+  now: number
+  onSeek: (clockMS: number) => void
+}) {
+  const { keyView: key, track, now, onSeek } = props
   const marks: SliderMark[] = [
     ...key.bosses
       .filter((b) => b.kill && b.endMS !== undefined)
@@ -36,7 +36,9 @@ export function DamageGraph({ keyView: key }: { keyView: KeyView }) {
       title: `${d.player} died at ${clock(d.clockMS)}`,
     })),
   ]
-  return <MeterGraph track={track} end={key.clockMS} marks={marks} group="party" over="key" />
+  return (
+    <MeterGraph track={track} end={key.clockMS} marks={marks} group="party" over="key" now={now} onSeek={onSeek} />
+  )
 }
 
 /** Damage (or healing) per second over a key or a raid pull, a line per player in class colours, or the group's total,

@@ -301,7 +301,7 @@ func TestProjectionWeighsRunsAndShowsTheBestRun(t *testing.T) {
 	// A +20 without a forces timeline counts half, from boss kills alone: its 50:00 before any kill.
 	far := models.Key{MapID: 585, Level: 20, Status: "depleted", FinalMS: 3_000_000,
 		Bosses: []models.KeyBoss{{Name: "A", EndMS: 900_000, Kill: true}}}
-	key := models.Key{MapID: 585, Level: 10, TimerMS: 1_800_000,
+	key := models.Key{Start: 1, MapID: 585, Level: 10, TimerMS: 1_800_000,
 		Forces: &models.KeyForces{Pct: 50, At: []models.ForcesPoint{{ClockMS: 200_000, Pct: 50}}}}
 	p := projection(key, 200_000, []models.Key{earlierRun, far})
 	want := &models.KeyProjection{FinalMS: 1_500_000, LowMS: 1_500_000, HighMS: 3_000_000, Chests: 1,
@@ -376,8 +376,12 @@ func TestASilentKeyClosesAsAbandonedAndGoesOnIfTheLogDoes(t *testing.T) {
 		t.Fatalf("after the silence: %s, ended %d, %d ms, saved %v (%v); want it abandoned at the last line and saved, "+
 			"with no key left to abandon", got.Status, got.End, got.ClockMS, saved, err)
 	}
-	// The game only wrote its log late: the fight went on, and then the party left.
-	killed := feed(t, keys, "11/3/2026 23:13:00.000-7  ENCOUNTER_END,3286,\"Second\",8,5,1,60000")[0].Time
+	// The game only wrote its log late: the fight went on for over resumeMS, and then the party left.
+	feed(t, keys, "11/3/2026 23:13:00.000-7  ENCOUNTER_END,3286,\"Second\",8,5,1,60000")
+	if got, _ = keys.Latest(0); got.Status != "abandoned" {
+		t.Fatalf("a minute of log after the close: %s; want it still abandoned", got.Status)
+	}
+	later := feed(t, keys, `11/3/2026 23:14:30.000-7  ZONE_CHANGE,2923,"Voidscar Arena",8`)[0].Time
 	got, _ = keys.Latest(last + 5*60_000)
 	if track, _ := keys.Track(got.Start); got.Status != "running" || !got.Bosses[1].Kill || track.Pulls[1].EndMS != 0 {
 		t.Fatalf("after the log went on: %s, bosses %+v, pulls %+v; want it running with the second boss killed",
@@ -385,7 +389,7 @@ func TestASilentKeyClosesAsAbandonedAndGoesOnIfTheLogDoes(t *testing.T) {
 	}
 	feed(t, keys, `11/3/2026 23:20:00.000-7  ZONE_CHANGE,0,"Silvermoon City",0`)
 	got, _ = keys.Latest(0)
-	if saved, _ := keys.SaveFinished(); got.Status != "abandoned" || got.End != killed || len(saved) != 1 ||
+	if saved, _ := keys.SaveFinished(); got.Status != "abandoned" || got.End != later || len(saved) != 1 ||
 		len(keys.Saved()) != 1 {
 		t.Fatalf("after leaving: %s, ended %d, saved %v, %d keys; want it abandoned at its last line, saved over its "+
 			"copy", got.Status, got.End, saved, len(keys.Saved()))
@@ -395,14 +399,17 @@ func TestASilentKeyClosesAsAbandonedAndGoesOnIfTheLogDoes(t *testing.T) {
 func TestASilentKeyStaysClosedWhenThePartyLeftOrStartedAnother(t *testing.T) {
 	for _, next := range []string{`ZONE_CHANGE,0,"Silvermoon City",0`,
 		`CHALLENGE_MODE_START,"Voidscar Arena",2923,585,17,[9]`} {
-		keys, last := silentKey(t)
+		keys, _ := silentKey(t)
 		keys.Abandon()
-		// The next day's log: its header says nothing about the key; the line after it does.
-		feed(t, keys, "11/4/2026 08:00:00.000-7  COMBAT_LOG_VERSION,22,ADVANCED_LOG_ENABLED,1",
+		// The game wrote the boss kill late, then the next day's log: its header says nothing about the key; the line
+		// after it does.
+		killed := feed(t, keys, "11/3/2026 23:13:00.000-7  ENCOUNTER_END,3286,\"Second\",8,5,1,60000",
+			"11/4/2026 08:00:00.000-7  COMBAT_LOG_VERSION,22,ADVANCED_LOG_ENABLED,1",
 			"11/4/2026 08:00:01.000-7  "+next,
-			"11/4/2026 08:00:02.000-7  ENCOUNTER_START,3286,\"Second\",8,5,2923")
-		if saved := keys.Saved(); len(saved) != 1 || saved[0].Status != "abandoned" || keys.history[0].End != last {
-			t.Errorf("after %s: saved %+v; want the silent key still abandoned at its last line", next, saved)
+			"11/4/2026 08:00:02.000-7  ENCOUNTER_START,3286,\"Second\",8,5,2923")[0].Time
+		if saved := keys.Saved(); len(saved) != 1 || saved[0].Status != "abandoned" || keys.history[0].End != killed ||
+			!keys.history[0].Bosses[1].Kill {
+			t.Errorf("after %s: saved %+v; want the key abandoned at its late boss kill, with the kill", next, saved)
 		}
 	}
 }
@@ -423,5 +430,28 @@ func TestSaveQueuedKeepsWhatFailedForTheNextCall(t *testing.T) {
 	fail = false
 	if err := saveQueued(&mu, &queue, save); err != nil || len(queue) != 0 || !slices.Equal(written, []int{1, 2, 3}) {
 		t.Fatalf("second call: %v, queue %v, written %v; want 1, 2, 3 written once each", err, queue, written)
+	}
+}
+
+func TestAKeyEndedByMistakeKeepsItsTimedEnd(t *testing.T) {
+	keys, _ := silentKey(t)
+	keys.Abandon()
+	feed(t, keys, "11/3/2026 23:13:00.000-7  CHALLENGE_MODE_END,2923,1,17,1300000,0.000000,0.000000")
+	if got, _ := keys.Latest(0); got.Status != "timed" || got.FinalMS != 1_300_000 {
+		t.Fatalf("timed a minute after Abandon: %s in %d ms; want it timed in 21:40", got.Status, got.FinalMS)
+	}
+}
+
+func TestAViewHasTheBestOtherRunsBossLengths(t *testing.T) {
+	key := models.Key{Start: 1, MapID: 586, Level: 15, Status: "timed", FinalMS: 1_500_000}
+	boss := func(ms int64) []models.KeyBoss {
+		return []models.KeyBoss{{Name: "Nalorakk", StartMS: 100_000, EndMS: 100_000 + ms, Kill: true}}
+	}
+	history := []models.Key{key,
+		{Start: 2, MapID: 586, Level: 15, Status: "timed", FinalMS: 1_400_000, Bosses: boss(90_000)},
+		{Start: 3, MapID: 586, Level: 15, Status: "timed", FinalMS: 1_600_000, Bosses: boss(80_000)},
+		{Start: 4, MapID: 586, Level: 15, Status: "depleted", FinalMS: 1_300_000, Bosses: boss(70_000)}}
+	if got := finished(key, history).BestBosses; !reflect.DeepEqual(got, map[string]int64{"Nalorakk": 90_000}) {
+		t.Fatalf("BestBosses = %v, want the fastest timed other run's Nalorakk, 1:30", got)
 	}
 }
