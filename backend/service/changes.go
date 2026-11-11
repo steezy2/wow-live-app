@@ -33,7 +33,7 @@ func (c *Changes) Subscribe() (<-chan int64, func()) {
 	}
 }
 
-// Publish notes the keys' version (KeyTracker.Version) and tells the subscribers if it's new.
+// Publish notes the keys' version (LogTracker.Version) and tells the subscribers if it's new.
 func (c *Changes) Publish(version int64) {
 	c.mu.Lock()
 	defer c.mu.Unlock()

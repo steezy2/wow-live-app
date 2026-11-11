@@ -40,6 +40,14 @@ func splitName(full string) (string, string) {
 	return parts[0], parts[1]
 }
 
+// unitName is a line's unit name, "" for none ("nil": the environment, or an effect without a source).
+func unitName(name string) string {
+	if name == "nil" {
+		return ""
+	}
+	return name
+}
+
 func atoi(s string) int {
 	v, _ := strconv.Atoi(s)
 	return v

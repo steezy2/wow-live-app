@@ -1,0 +1,78 @@
+# WoW Live's raid rules: what the raid overview checks on each pull, built into the app by backend/cmd/app/build.sh.
+# Personal defensives, health potions and Bloodlust are mplus.toml's; each boss's mechanics are generated into
+# reference/raid-bosses.json by cmd/raidref.
+
+[deaths]
+# Early deaths: the first few of a pull, plus any later death this long before the pull ended (the pull kept going).
+# After that it's the wipe, not its cause.
+first = 5
+before_wipe_seconds = 45
+# A mass kill is one ability killing at least this many raiders within this many seconds.
+mass_kill_players = 3
+mass_kill_window_seconds = 10
+
+[soaks]
+# Hits of one soak spell this close together (ms) are one soak; pickups of one thing, and an add's cause landing on
+# several raiders, this close are one wave.
+window_ms = 1500
+
+[suggestions]
+# The "Fix next pull" list at the top of a pull: at most this many, most important first.
+most = 5
+# The pull's damage spike is the raid's worst burst of damage taken over this many seconds (the Spikes tab's, so a
+# long wave counts whole); a raid cooldown whose buff was up in it, or was cast up to the death window before it,
+# covered it.
+spike_seconds = 6
+# An add that lived this many times as long as in tonight's best pull is worth a line.
+adds_longer = 1.25
+# Damage into a unit to burst below this share of tonight's best pull is worth a line.
+priority_below = 0.8
+# A pull longer than this with no Bloodlust, or with raiders who used no combat potion, is worth a line each.
+lust_after_seconds = 60
+# A dispellable debuff that sat longer than this before its dispel (or ran out) is worth a line.
+dispel_slow_seconds = 4
+# Two raid cooldowns used within this long of each other were stacked.
+cooldown_overlap_seconds = 3
+
+[cooldowns]
+# Raid healing and damage-reduction cooldowns besides mplus.toml's raid_cooldowns, shown on the pull's cooldown lane (each for as long as its buff was on
+# a raider) with Bloodlust and combat potions.
+names = [
+  "Apotheosis", "Ascendance", "Avenging Crusader", "Celestial Conduit",
+  "Convoke the Spirits", "Divine Hymn", "Dream Flight", "Evangelism", "Healing Tide Totem",
+  "Restoral", "Revival", "Rewind", "Tranquility",
+]
+# These count only when a healer casts them: Elemental and Enhancement have an Ascendance, Windwalker a Celestial
+# Conduit.
+healer_only = ["Ascendance", "Celestial Conduit"]
+
+[consumables]
+# Checked with mplus.toml's flask and food at each pull's start and between pulls (flask, food and mplus.toml's
+# [buffs] also through each pull: who lost one for 5 s or more): a buff whose name contains one, or
+# an aura by ID. The runes' auras (Wowhead: 1303171 "Vantus Rune: Tides", 1303187 "Vantus Rune: Ula'tek") show only
+# in the pull-start aura lists, never named in a line.
+vantus = ["Vantus Rune"]
+vantus_ids = [1303171, 1303187]
+# The difficulties the rune works in: it isn't asked for in the others. Raid Finder left out as in earlier tiers
+# (Wowhead's rune pages don't say; not yet checked against a Normal or Raid Finder log).
+vantus_difficulties = ["Normal", "Heroic", "Mythic"]
+
+[tier]
+# The raid's class tier sets (Wowhead item-set IDs, one per class): cmd/raidref writes their items into
+# reference/raid-bosses.json, and a raider wearing fewer than 2 (or 4) of their class's pieces at a pull's start is
+# missing the 2-set (or 4-set).
+sets = [2055, 2056, 2057, 2058, 2059, 2060, 2061, 2062, 2063, 2064, 2065, 2066, 2067]
+
+# Per boss (as ENCOUNTER_START names it): its phases after phase 1, numbered as Warcraft Logs numbers them, and what
+# starts each in the combat log (event and spell ID). A phase without a trigger is listed but not marked; find its
+# trigger the first night the raid reaches it.
+[[phases."Ula'tek"]]
+id = 2
+event = "SPELL_CAST_START"
+spell = 1306862  # Hatching Doom, cast by the eggs about 1 s before every phase 2 (10 of 10 on Nov 3)
+
+[[phases."Ula'tek"]]
+id = 3
+
+[[phases."Ula'tek"]]
+id = 4

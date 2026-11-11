@@ -18,7 +18,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/BurntSushi/toml"
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
 	"github.com/wailsapp/wails/v3/pkg/icons"
@@ -46,8 +45,8 @@ const (
 	overlayW, overlayH, overlayMargin = 420, 340, 24
 )
 
-// files are what build.sh puts in: the built page (dist/), mplus.toml (the M+ rules), mplus-dungeons.json and the
-// tray's icon.ico (from cmd/appicon).
+// files are what build.sh puts in: the built page (dist/), mplus.toml and raid-rules.toml (the rules),
+// mplus-dungeons.json and raid-bosses.json (the reference files) and the tray's icon.ico (from cmd/appicon).
 //
 //go:embed embed
 var files embed.FS
@@ -91,7 +90,7 @@ func run() error {
 		time.Now
 	var site *app.Site
 	opts.Settings = &controller.SettingsAPI{Settings: settings, Keys: keys,
-		ReadOldKeys: func() (int, error) { return site.Learn() }}
+		ReadOldKeys: func(all bool) (int, int, error) { return site.Learn(all) }}
 	opts.LogsDir, opts.Region, opts.Hosts = settings.Current().LogsDir, settings.Current().Region,
 		[]string{"wails.localhost"}
 	ctx := context.Background()
@@ -101,8 +100,8 @@ func run() error {
 	}
 	if len(site.Keys.Saved()) == 0 { // a first run: the estimate needs earlier runs, and the log folder has them
 		go func() {
-			if _, err := site.Learn(); err != nil {
-				log.Printf("reading old keys: %v", err)
+			if _, _, err := site.Learn(false); err != nil {
+				log.Printf("reading old logs: %v", err)
 			}
 		}()
 	}
@@ -138,8 +137,10 @@ func run() error {
 		_, ok := site.Keys.Ready()
 		return ok
 	}
+	// ...and between raid pulls, the last pull for service.RaidLinger.
+	betweenPulls := func() bool { return site.Keys.BetweenPulls(time.Now().UnixMilli()) }
 	up := func(show string) bool {
-		return moving.Load() || show == "always" || show == "keys" && (running() || readyCheck())
+		return moving.Load() || show == "always" || show == "keys" && (running() || readyCheck() || betweenPulls())
 	}
 	showOrHide := func(show string) {
 		if up(show) {
@@ -206,6 +207,7 @@ func run() error {
 	versions, _ := site.Changes.Subscribe()
 	go func() {
 		var hide *time.Timer
+		forRaid := false // the overlay is up for the last raid pull, until the next pull or key
 		for v := range versions {
 			wails.Event.Emit("change", v)
 			switch {
@@ -215,6 +217,13 @@ func run() error {
 					hide = nil
 				}
 				overlay.Show()
+				if forRaid = betweenPulls(); forRaid { // no change comes between pulls to take it down
+					hide = time.AfterFunc(service.RaidLinger, func() { showOrHide(settings.Current().Overlay.Show) })
+				}
+			case forRaid: // a pull or a key started
+				hide.Stop()
+				hide, forRaid = nil, false
+				showOrHide(settings.Current().Overlay.Show)
 			case hide == nil && overlay.IsVisible():
 				hide = time.AfterFunc(overlayLinger, func() { showOrHide(settings.Current().Overlay.Show) })
 			}
@@ -223,15 +232,15 @@ func run() error {
 	return wails.Run()
 }
 
-// carried reads the page, the M+ rules and the dungeon facts built into the app.
+// carried reads the page, the M+ and raid rules, the dungeon facts and the raid's boss mechanics built into the app.
 func carried() (app.Options, error) {
 	pages, err := fs.Sub(files, "embed/dist")
 	if err != nil {
 		return app.Options{}, err
 	}
 	opts := app.Options{Pages: pages}
-	if _, err := toml.DecodeFS(files, "embed/"+config.RulesFile, &opts.Rules); err != nil {
-		return opts, fmt.Errorf("reading the built-in M+ rules: %w", err)
+	if err := config.DecodeTOML(files, "embed/"+config.RulesFile, &opts.Rules); err != nil {
+		return opts, fmt.Errorf("the built-in M+ rules: %w", err)
 	}
 	reference, err := files.ReadFile("embed/mplus-dungeons.json")
 	if err != nil {
@@ -242,6 +251,18 @@ func carried() (app.Options, error) {
 		return opts, fmt.Errorf("reading the built-in dungeon facts: %w", err)
 	}
 	opts.Dungeons = ref.Dungeons
+	if err := config.DecodeTOML(files, "embed/"+config.RaidRulesFile, &opts.RaidRules); err != nil {
+		return opts, fmt.Errorf("the built-in raid rules: %w", err)
+	}
+	bosses, err := files.ReadFile("embed/raid-bosses.json")
+	if err != nil {
+		return opts, err
+	}
+	var raid models.RaidReference
+	if err := json.Unmarshal(bosses, &raid); err != nil {
+		return opts, fmt.Errorf("reading the built-in raid bosses: %w", err)
+	}
+	opts.Bosses, opts.Tier = raid.Bosses, raid.Tier
 	return opts, nil
 }
 

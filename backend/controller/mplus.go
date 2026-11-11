@@ -86,7 +86,8 @@ func (m MPlus) Abandon(c *gin.Context) {
 //	@Summary		The ready check before the next key
 //	@Description	While the party is in a Mythic dungeon with no key running: each member's missing flask, food and
 //	@Description	party buffs, and those not seen since the party zoned in (from the combat log, so a buff from before
-//	@Description	logging started there is never seen). Read again on each notice from /api/mplus/events.
+//	@Description	logging started there is never seen). Read again on each notice from /api/mplus/events. A raid's is
+//	@Description	in /api/raid/live.
 //	@Tags			mplus
 //	@Produce		json
 //	@Success		200	{object}	models.ReadyCheck
@@ -249,6 +250,15 @@ func (m MPlus) Tile(c *gin.Context) {
 	}
 }
 
+// boolQuery reads a boolean query parameter (false when absent), answering 400 when it isn't one.
+func boolQuery(c *gin.Context, name string) (bool, bool) {
+	v, err := strconv.ParseBool(c.DefaultQuery(name, "false"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: name + " must be true or false"})
+	}
+	return v, err == nil
+}
+
 // intParams reads whole-number path parameters, answering 400 when one isn't.
 func intParams(c *gin.Context, names ...string) ([]int, bool) {
 	ids := make([]int, len(names))
@@ -360,11 +370,12 @@ func (m MPlus) deleteSaved(c *gin.Context, start int64) {
 	c.Status(http.StatusNoContent)
 }
 
-// startParam reads the :start path parameter, answering 400 when it isn't a positive number.
+// startParam reads the :start path parameter (a key's or a raid pull's), answering 400 when it isn't a positive
+// number.
 func startParam(c *gin.Context) (int64, bool) {
 	start, err := strconv.ParseInt(c.Param("start"), 10, 64)
 	if err != nil || start <= 0 {
-		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "start must be a key's start time in ms"})
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "start must be a start time in ms"})
 		return 0, false
 	}
 	return start, true

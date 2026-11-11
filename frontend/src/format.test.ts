@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { clock, oddsText, resultText } from './format'
+import { clock, median, oddsText, progressText, resultText } from './format'
 
 describe('clock', () => {
   it('shows minutes and seconds, hours past an hour, and a sign when negative', () => {
@@ -24,5 +24,29 @@ describe('resultText', () => {
     ['timed', -1, 1_312_271, 0, 'Timed · 21:52'],
   ])('%s with %i chests', (status, chests, clockMS, timerMS, want) => {
     expect(resultText(status, chests, clockMS, timerMS)).toBe(want)
+  })
+})
+
+describe('progressText', () => {
+  const pull = { start: 0, night: '', boss: '', difficulty: 'Mythic' as const, number: 1, durationMS: 0 }
+  it.each([
+    [true, 0, '', 'Kill'],
+    [false, 70.9, 'P2', '71% P2'],
+    [false, -1, 'P2', 'P2'],
+    [false, 40.2, '', '40%'],
+    [false, -1, '', 'Wipe'],
+  ])('kill %s at %d%% %s', (kill, bossPct, phase, want) => {
+    expect(progressText({ ...pull, kill, bossPct, phase })).toBe(want)
+  })
+})
+
+describe('median', () => {
+  it.each([
+    [[], 0],
+    [[5], 5],
+    [[3, 1, 2], 2],
+    [[4, 1, 3, 2], 2.5],
+  ])('median of %j is %d', (values, want) => {
+    expect(median(values)).toBe(want)
   })
 })

@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"reflect"
 	"slices"
+	"strings"
 	"testing"
 
 	"wow-live/backend/models"
@@ -64,7 +65,7 @@ func TestBuildReview(t *testing.T) {
 		metrics[m.Name] = m.Value
 	}
 	if _, wasted := metrics["wasted %"]; wasted || metrics["priority %"] != 20 || metrics["active %"] != 82.5 ||
-		metrics["potions at lust"] != 1 || metrics["crowd control"] != 1 {
+		metrics["combat potions"] != 1 || metrics["crowd control"] != 1 {
 		t.Errorf("mage metrics = %v; want 20%% priority, 82.5%% active, a potion at lust, a CC, no wasted %%", metrics)
 	}
 	wantNotes := []string{"1 death added 0:15 to the clock", "Stopped 1 of 3 must-stop casts (33%)",
@@ -95,7 +96,7 @@ func TestAdviceNamesWhatElseToWorkOn(t *testing.T) {
 	earlier := []models.Key{{Overall: models.KeyMeter{Rows: []models.KeyMeterRow{{Player: "Mage", DPS: 100_000}}}}}
 	got := buildReview(key, earlier, nil, nil)
 	wantAdvice := []string{"Died to Burrow 2 times", "DPS 80k, 80% of your usual here (100k)",
-		"Used a combat potion in 1 of 3 Bloodlusts", "Started the key without flask"}
+		"Used 1 combat potion in a key with 3 Bloodlusts", "Started the key without flask"}
 	if mage := got.Players[0].Advice; !reflect.DeepEqual(mage, wantAdvice) {
 		t.Errorf("mage advice = %q\nwant %q", mage, wantAdvice)
 	}
@@ -208,5 +209,46 @@ func TestSpecLabelAddsWarcraftLogsMissingSpaces(t *testing.T) {
 		if got := specs[id].label(); got != want {
 			t.Errorf("specs[%d].label() = %q, want %q", id, got, want)
 		}
+	}
+}
+
+// TestReviewMetrics: combat potions count every potion over the key (a pre-pot too), health potions and healthstones
+// are counts alone (no rank, never advice), and a Bloodlust passing without a potion near it is the only advice.
+func TestReviewMetrics(t *testing.T) {
+	casts := []models.KeyCast{{Player: "Mage", Kind: "combat potion", ClockMS: -3_000},
+		{Player: "Mage", Kind: "combat potion", ClockMS: 900_000}, {Player: "Mage", Kind: "health potion"},
+		{Player: "Mage", Kind: "healthstone"}, {Player: "Mage", Kind: "healthstone"}}
+	for _, tc := range []struct {
+		name       string
+		lusts      []int64
+		wantAdvice []string
+	}{
+		{"a pre-pot is near the Bloodlust", []int64{5_000}, []string{}},
+		{"a Bloodlust without a potion near it", []int64{300_000},
+			[]string{"Used 2 combat potions in a key with 1 Bloodlust"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			key := models.Key{Level: 10, Status: "timed", FinalMS: 1_500_000, Players: []string{"Mage"},
+				Specs: map[string]int{"Mage": 62}, Activity: map[string]float64{"Mage": 90}, Casts: casts, Lusts: tc.lusts,
+				Overall: models.KeyMeter{Rows: []models.KeyMeterRow{{Player: "Mage", DPS: 100_000}}}}
+			mage := buildReview(key, nil, nil, nil).Players[0]
+			want := map[string]struct{ value, rank int }{"combat potions": {2, 1}, "health potions": {1, 0},
+				"healthstones": {2, 0}}
+			for _, m := range mage.Metrics {
+				if w, ok := want[m.Name]; ok && (int(m.Value) != w.value || m.PartyRank != w.rank) {
+					t.Errorf("%s = %v, rank %d; want %d, rank %d", m.Name, m.Value, m.PartyRank, w.value, w.rank)
+				}
+				delete(want, m.Name)
+			}
+			if len(want) > 0 {
+				t.Errorf("metrics missing %v", want)
+			}
+			if !reflect.DeepEqual(mage.Advice, tc.wantAdvice) {
+				t.Errorf("advice = %q, want %q", mage.Advice, tc.wantAdvice)
+			}
+			if strings.Contains(mage.Positive, "health") {
+				t.Errorf("positive = %q; a reference count is never the callout", mage.Positive)
+			}
+		})
 	}
 }

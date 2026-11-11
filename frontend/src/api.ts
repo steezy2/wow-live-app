@@ -34,12 +34,17 @@ export interface KeyInterrupt {
   clockMS: number
 }
 
-/** A defensive, healthstone, health potion or combat potion used, or a kick that interrupted nothing. */
+/** A defensive, healthstone, health potion or combat potion used, a kick that interrupted nothing, crowd control,
+ * or a raid cooldown. */
 export interface KeyCast {
   player: string
   ability: string
-  kind: 'defensive' | 'healthstone' | 'health potion' | 'combat potion' | 'kick' | 'cc'
+  kind: 'defensive' | 'healthstone' | 'health potion' | 'combat potion' | 'kick' | 'cc' | 'raid cooldown'
   clockMS: number
+  /** A raid cooldown: when its buff last left a raider. */
+  endMS?: number
+  /** A combat potion drunk before the run started. */
+  prepot?: boolean
 }
 
 /** A must-stop cast and what happened to it: interrupted (by a player, intoMS into the cast), stopped (by a debuff,
@@ -184,6 +189,8 @@ export interface KeyView {
   forces?: KeyForces
   lastPull: KeyMeter
   overall: KeyMeter
+  /** Each player's share of their time alive in pulls with a cast going or a hit landing (%). */
+  activity?: Record<string, number>
   buffs: KeyBuffCheck[]
   clockMS: number
   /** Time the deaths added to the clock. */
@@ -196,6 +203,8 @@ export interface KeyView {
   /** How long each boss took in your fastest timed other run of the dungeon at this level, by name (when there is
    * one). */
   bestBosses?: Record<string, number>
+  /** The fastest timed other run's time. */
+  bestFinalMS?: number
   /** How long ago a running key's last line was logged (0 once it's over): the game writes its log in batches as
    * fights start and end, so a long silence is a long fight, or a party that left. */
   silentMS: number
@@ -205,6 +214,10 @@ export interface KeyView {
   taken?: { player: string; ability: string; damage: number; school?: number }[]
   /** The party member whose game wrote the log; missing in keys saved before Nov 11. */
   logger?: string
+  /** The key's timeline for the replay's lanes; missing in keys saved before Nov 11. */
+  lanes?: RaidLane[]
+  /** What to fix next key, most important first; missing in keys saved before Nov 11. */
+  suggestions?: string[]
 }
 
 /** One ability in a player's key (models.KeyAbility): its damage and healing as the meters count them (pets under
@@ -228,9 +241,10 @@ export interface TrackPoint {
   y: number
   map: number
   name?: string
+  /** A raid boss's or add's health left (%). */
+  hp?: number
 }
 
-/** Where a key's party went (each member about once a second, with their class) and where its mobs died. */
 /** A player's damage, healing and damage taken so far at a time on the key's clock (tk is missing in keys saved
  * before Nov 8). */
 export interface MeterPoint {
@@ -240,6 +254,8 @@ export interface MeterPoint {
   tk?: number
 }
 
+/** Where a key's party (or a raid pull's raid) went, each member about once a second with their class, where its mobs
+ * died, and the meters over time. */
 export interface KeyTrack {
   players: Record<string, TrackPoint[]>
   classes: Record<string, string>
@@ -248,6 +264,25 @@ export interface KeyTrack {
   meters: Record<string, MeterPoint[]>
   /** Each pull's start and end on the key's clock (end 0 while fought); missing in keys saved before Nov 8. */
   pulls?: { startMS: number; endMS: number }[]
+  /** A raid boss's units and the adds to burst by GUID, about once a second, each point named with its health; a
+   * pull's or a key's, once it has ended. */
+  bosses?: Record<string, TrackPoint[]>
+  /** The bosses GUIDs the health box shows: the boss's own units, then the adds to burst. */
+  health?: string[]
+  /** Each raider's casts (e: when one with a cast time ended; x: it never finished), what each ability did and what
+   * they took damage from in each stretch ([end, damage, healing, damage taken]), and when the stretches ended (each
+   * starts where the one before it ended); none in pulls saved before Nov 11. */
+  casts?: Record<string, { t: number; s: string; e?: number; x?: boolean }[]>
+  abilities?: Record<string, AbilitySeries[]>
+  abilityTimes?: number[]
+  /** Each raider's damage into each enemy (the enemy's name as `a`) in the same stretches as abilities. */
+  targetSeries?: Record<string, AbilitySeries[]>
+}
+
+/** One ability's (or enemy's) numbers in each stretch: [end, damage, healing, damage taken]. */
+interface AbilitySeries {
+  a: string
+  p: [number, number, number, number][]
 }
 
 /** One number of a player's run: the median of their spec's top runs (0 without), their usual here (-1 without), and
@@ -262,6 +297,8 @@ export interface ReviewMetric {
   amount?: boolean
   /** What the metric counts (missing in reviews made before Nov 8). */
   help?: string
+  /** It starts a new group of columns (offense, defense, consumables, deaths). */
+  group?: boolean
   /** DPS and HPS: the key's damage or healing in all, and what it is ("damage", "healing"). */
   total?: number
   totalName?: string
@@ -289,13 +326,7 @@ export interface KeyReview {
 
 /** A dungeon floor with Keystone.guru tiles: the combat log's map ID and its in-game bounds (Keystone.guru's x is the
  * log's -y, its y the log's x). */
-export interface DungeonFloor {
-  uiMapID: number
-  minX: number
-  maxX: number
-  minY: number
-  maxY: number
-}
+export type DungeonFloor = RaidMap
 
 /** What the replay draws a dungeon on. */
 export interface DungeonMap {
@@ -338,12 +369,12 @@ export async function abandonLiveKey(): Promise<void> {
   await call('/api/mplus/live/abandon', { method: 'POST' })
 }
 
-/** The ready check before the next key (models.ReadyCheck): each member's missing flask, food and party buffs, and
- * those not seen since the party zoned in. */
+/** The ready check before the next key or raid pull (models.ReadyCheck): each member's class (once known), missing
+ * flask, food, Vantus Rune and party buffs, and those not seen since the party zoned in. */
 export interface ReadyCheck {
   sinceMS: number
   dungeon: string
-  players: { player: string; missing: string[]; notSeen: string[] }[]
+  players: { player: string; class?: string; missing: string[]; notSeen: string[] }[]
 }
 
 /** The ready check, or null outside a Mythic dungeon between keys. */
@@ -550,7 +581,188 @@ export async function removeKeys(): Promise<void> {
   await call('/api/settings/warcraftlogs', { method: 'DELETE' })
 }
 
-/** Reads every combat log in the log folder and saves each finished key; says how many keys are saved. */
-export async function readOldKeys(): Promise<number> {
-  return ((await (await call('/api/settings/read-keys', { method: 'POST' })).json()) as { saved: number }).saved
+/** How many logs a read of the log folder read, and how many keys are saved (controller.OldKeys). */
+export interface OldKeys {
+  read: number
+  saved: number
+}
+
+/** Reads the log folder's new or changed logs (all: every log again) and saves each finished key and raid pull. */
+export async function readOldKeys(all = false): Promise<OldKeys> {
+  return (await (await call(`/api/settings/read-keys${all ? '?all=true' : ''}`, { method: 'POST' })).json()) as OldKeys
+}
+
+/** A raid pull in a list (models.RaidPullSummary): when, which boss, its number tonight, and how far it got (bossPct
+ * -1 without advanced logging; phase "" for a boss without phase triggers). */
+export interface RaidPullSummary {
+  start: number
+  night: string
+  boss: string
+  difficulty: 'LFR' | 'Normal' | 'Heroic' | 'Mythic'
+  number: number
+  durationMS: number
+  kill: boolean
+  bossPct: number
+  phase: string
+}
+
+/** A raider's death in a raid pull: the M+ death with whether it was early (before the wipe) and their last hits. */
+export interface RaidDeath extends KeyDeath {
+  early: boolean
+  recap: { ability: string; source: string; amount: number; beforeMS: number }[]
+}
+
+/** A number for one raider. */
+export interface PlayerCount {
+  player: string
+  count: number
+}
+
+/** One raid pull as the overview shows it (models.RaidPull). */
+export interface RaidPull extends RaidPullSummary {
+  end: number
+  players: string[]
+  deaths: RaidDeath[]
+  massKills: { ability: string; killed: number; clockMS: number }[]
+  avoidable: { ability: string; players: PlayerCount[] }[]
+  /** needed: raiders each cast wants (0: everyone or unknown); hits: who soaked each cast (missing before Nov 11). */
+  soaks: {
+    ability: string
+    casts: number
+    fewest: number
+    most: number
+    needed: number
+    hits?: { clockMS: number; players: string[] }[]
+    died: string[]
+  }[]
+  /** The fight's lists as a key has them, for the tabs both pages show, and each raider's active time (%); missing
+   * in pulls saved before Nov 11. */
+  interrupts?: KeyInterrupt[]
+  stops?: KeyStop[]
+  wastedKicks?: KeyCast[]
+  debuffs?: KeyDispel[]
+  spikes?: KeySpike[]
+  casts?: KeyCast[]
+  activity?: Record<string, number>
+  /** Each raider's flask, food, Vantus Rune, tier bonus or raid buff missing at the pull's start (from 0) and each
+   * flask, food or raid buff that came off them for a while, in order (missing before Nov 12). */
+  buffGaps?: RaidMissing[]
+  /** What raiders picked up (eggs), a wave per line, with the living raiders who missed something everyone should
+   * pick up (missed); tethers they broke and the effect each set off. */
+  pickups?: { clockMS: number; name: string; players: string[]; missed?: string[] }[]
+  breaks?: { clockMS: number; player: string; aura: string; effect?: string; hit: number; then?: string[] }[]
+  stacks: { ability: string; limit: number; players: PlayerCount[]; over: string[] }[]
+  dispels: KeyDispel[]
+  wentOff: KeyStop[]
+  /** spawns: each one's appearance and what spawned it, for adds the reference says how they spawn. */
+  adds: {
+    name: string
+    spawned: number
+    killed: number
+    aliveEnd: number
+    longestMS: number
+    spawns?: { clockMS: number; cause?: string; players: string[] }[]
+  }[]
+  priority: { target: string; damage: number }[]
+  meter: KeyMeter
+  lusts: number[]
+  cooldowns: KeyCast[]
+  comparisons?: { tonight?: RaidPullSummary; ever?: RaidPullSummary }
+  /** The boss's rooms for the replay. */
+  maps: RaidMap[]
+  lanes: RaidLane[]
+  /** What to fix on the next pull, most important first. */
+  suggestions: string[]
+  /** Each raider's abilities, their damage taken by ability and their damage into each enemy, most first: missing in
+   * pulls saved before Nov 11. */
+  abilities?: KeyAbility[]
+  taken?: { player: string; ability: string; damage: number; school?: number }[]
+  targets?: { player: string; target: string; damage: number }[]
+}
+
+/** A raider without a buff ("flask", "Arcane Intellect", "2-set") from fromMS to toMS on the pull's clock (toMS is
+ * the pull's end when it never came back). */
+export interface RaidMissing {
+  player: string
+  buff: string
+  fromMS: number
+  toMS: number
+}
+
+/** A raid room's map (the combat log's uiMapID) and its edges in the log's yards: x runs north (maxX at the top), y
+ * west (maxY at the left). */
+export interface RaidMap {
+  uiMapID: number
+  minX: number
+  maxX: number
+  minY: number
+  maxY: number
+}
+
+/** One row of a pull's timeline: a mechanic (or phases, deaths, Bloodlust, cooldowns, an add kind) and each time it
+ * came up; a mark with endMS is a stretch (a phase, an add's life, how long a buff lasted). */
+export interface RaidLane {
+  name: string
+  kind:
+    | 'pulls'
+    | 'bosses'
+    | 'phases'
+    | 'deaths'
+    | 'lust'
+    | 'cooldowns'
+    | 'potions'
+    | 'spike'
+    | 'stops'
+    | 'cc'
+    | 'avoidable'
+    | 'soak'
+    | 'pickups'
+    | 'stacks'
+    | 'adds'
+  marks: { clockMS: number; endMS?: number; text: string; bad?: boolean }[]
+}
+
+/** The raid now: a pull on (its boss and start), the last pull, and whether the overlay shows it. */
+export interface RaidLive {
+  pulling: boolean
+  betweenPulls: boolean
+  boss?: string
+  since?: number
+  last?: RaidPull
+  /** Who's missing a flask, food, Vantus Rune or raid buff, in a raid between pulls. */
+  ready?: ReadyCheck
+}
+
+/** One raid night's pulls, newest first. */
+export interface RaidNight {
+  night: string
+  pulls: RaidPullSummary[]
+}
+
+/** The raid now. */
+export async function fetchRaidLive(signal?: AbortSignal): Promise<RaidLive> {
+  return (await (await call('/api/raid/live', { signal })).json()) as RaidLive
+}
+
+/** Every raid night's pulls, newest first. */
+export async function fetchRaidNights(signal?: AbortSignal): Promise<RaidNight[]> {
+  return (await (await call('/api/raid/nights', { signal })).json()) as RaidNight[]
+}
+
+/** One raid pull. */
+export async function fetchRaidPull(start: number, signal?: AbortSignal): Promise<RaidPull> {
+  return (await (await call(`/api/raid/pulls/${start}`, { signal })).json()) as RaidPull
+}
+
+/** One raid pull's replay track; null for a pull saved before replays were kept. */
+export async function fetchRaidTrack(start: number, signal?: AbortSignal): Promise<KeyTrack | null> {
+  const response = await fetch(`/api/raid/pulls/${start}/track`, { signal })
+  if (response.status === 404) return null
+  if (!response.ok) throw await failure(response)
+  return (await response.json()) as KeyTrack
+}
+
+/** A raid room's map image. */
+export function raidMapURL(uiMapID: number): string {
+  return `/api/raid/maps/${uiMapID}`
 }

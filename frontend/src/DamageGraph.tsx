@@ -24,8 +24,10 @@ export function DamageGraph(props: {
   track: KeyTrack
   now: number
   onSeek: (clockMS: number) => void
+  focus: string
+  onFocus: (player: string) => void
 }) {
-  const { keyView: key, track, now, onSeek } = props
+  const { keyView: key, track, now, onSeek, focus, onFocus } = props
   const marks: SliderMark[] = [
     ...key.bosses
       .filter((b) => b.kill && b.endMS !== undefined)
@@ -37,7 +39,17 @@ export function DamageGraph(props: {
     })),
   ]
   return (
-    <MeterGraph track={track} end={key.clockMS} marks={marks} group="party" over="key" now={now} onSeek={onSeek} />
+    <MeterGraph
+      track={track}
+      end={key.clockMS}
+      marks={marks}
+      group="party"
+      over="key"
+      now={now}
+      onSeek={onSeek}
+      focus={focus}
+      onFocus={onFocus}
+    />
   )
 }
 

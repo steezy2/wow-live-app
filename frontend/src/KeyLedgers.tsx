@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import type { KeyTrack, KeyView } from './api'
+import type { FightData } from './KeyTabs'
 import { amount, clock, coverText } from './format'
 import { defense, offense } from './meterColumns'
 import { MeterCard } from './MeterCards'
 import { meterBetween } from './replay'
+import { When, type Seeker } from './Seek'
 
 /** The key's boss fights; a click moves the replay to one and opens its details: its length against your best run at
  * the level and the top runs (topBosses, from the review), the deaths and must-stops that went off in it, and the
@@ -85,7 +87,7 @@ export function BossList(props: {
 
 /** Must-stop casts (the dungeon's casts that have to be stopped) by pull, what happened to each, and each player's
  * must-stop interrupts and wasted kicks. Every interrupt, must-stop or not, is on the Interrupts tab. */
-export function KickLedger({ keyView: key }: { keyView: KeyView }) {
+export function KickLedger({ data: key, seek }: { data: FightData; seek?: Seeker }) {
   const outcomes = new Map<string, number>()
   key.stops.forEach((s) => outcomes.set(s.outcome, (outcomes.get(s.outcome) ?? 0) + 1))
   const players = new Map<string, { kicks: number; wasted: number }>()
@@ -98,7 +100,7 @@ export function KickLedger({ keyView: key }: { keyView: KeyView }) {
   key.wastedKicks.forEach((w) => add(w.player, 'wasted'))
   const pulls = [...new Set(key.stops.map((s) => s.pull))]
   if (!key.reference)
-    return <p className="muted">This dungeon has no must-stop list (reference/mplus-dungeons.json).</p>
+    return <p className="muted">No must-stop list for this fight (reference/mplus-dungeons.json).</p>
   return (
     <>
       <p>
@@ -117,7 +119,7 @@ export function KickLedger({ keyView: key }: { keyView: KeyView }) {
               .filter((s) => s.pull === pull)
               .map((s, i) => (
                 <span key={i} className={s.outcome === 'went off' ? 'bad' : undefined}>
-                  {clock(s.clockMS)} {s.mob}: {s.spell} — {s.outcome}
+                  <When ms={s.clockMS} seek={seek} /> {s.mob}: {s.spell} — {s.outcome}
                   {s.by && ` (${s.by}${s.intoMS ? `, ${(s.intoMS / 1000).toFixed(1)} s in` : ''})`}
                 </span>
               ))}
@@ -161,7 +163,8 @@ export function PriorityLedger({ keyView: key }: { keyView: KeyView }) {
 }
 
 /** The worst bursts of party damage with each member's cover, and how fast dispellable debuffs came off. */
-export function SpikeLedger({ keyView: key }: { keyView: KeyView }) {
+export function SpikeLedger(props: { data: FightData; group: 'party' | 'raid'; seek?: Seeker }) {
+  const { data: key, group, seek } = props
   const dispelled = key.debuffs.filter((d) => d.by).map((d) => d.afterMS)
   dispelled.sort((a, b) => a - b)
   return (
@@ -178,9 +181,12 @@ export function SpikeLedger({ keyView: key }: { keyView: KeyView }) {
         {key.spikes.map((s) => (
           <li key={s.clockMS} className="stack">
             <span>
-              <b>{clock(s.clockMS)}</b> {amount(s.damage)} in 3 s{' '}
+              <b>
+                <When ms={s.clockMS} seek={seek} />
+              </b>{' '}
+              {amount(s.damage)} in 3 s{' '}
               <span className={s.partyCDs.length ? 'muted' : 'bad'}>
-                {s.partyCDs.length ? s.partyCDs.join(', ') : 'no party cooldown'}
+                {s.partyCDs.length ? s.partyCDs.join(', ') : `no ${group} cooldown`}
                 {s.overlap && ' (overlapping)'}
               </span>
             </span>

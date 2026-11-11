@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 
 	"wow-live/backend/clients/combatlog"
@@ -39,7 +40,7 @@ func (m *memStore) Track(start int64) (models.KeyTrack, error) {
 	return t, nil
 }
 
-func newTracker(t *testing.T, timers map[int]int64) *KeyTracker {
+func newTracker(t *testing.T, timers map[int]int64) *LogTracker {
 	t.Helper()
 	rules := models.MPlusRules{
 		Defensives:  models.Defensives{WindowSeconds: 10, Names: []string{"Ice Block"}},
@@ -51,16 +52,16 @@ func newTracker(t *testing.T, timers map[int]int64) *KeyTracker {
 	// Voidscar Arena's avoidable list has Light Bolt, so TestKeyStep2's hit counts as avoidable.
 	// The Radiant Spellsower (NPC 245336) is a quarter of the forces. Den of Nalorakk's (586) mob 3 is a boss.
 	facts := map[int]models.DungeonFacts{586: {Minibosses: []int{245331, 245332}, Bosses: []int{245333}}, 585: {Avoidable: []int{1238063}, MustStop: []int{1238063}, Dispel: []int{1234846},
-		Floors: []models.DungeonFloor{{UIMapID: 2610, Tiles: "midnight/voidscar_arena/1"}},
+		Floors: []models.DungeonFloor{{RaidMap: models.RaidMap{UIMapID: 2610}, Tiles: "midnight/voidscar_arena/1"}},
 		Forces: models.Forces{Total: 40, NPCs: map[int]int{245336: 10}}}}
-	keys, err := NewKeyTracker(timers, map[int]string{9: "Tyrannical"}, rules, facts, &memStore{})
+	keys, err := NewLogTracker(timers, map[int]string{9: "Tyrannical"}, rules, facts, &memStore{})
 	if err != nil {
 		t.Fatal(err)
 	}
 	return keys
 }
 
-func feed(t *testing.T, keys *KeyTracker, raw ...string) []models.LogLine {
+func feed(t *testing.T, keys *LogTracker, raw ...string) []models.LogLine {
 	t.Helper()
 	var lines []models.LogLine
 	for _, text := range raw {
@@ -221,6 +222,19 @@ func TestKeyStep2(t *testing.T) {
 		len(track.Meters["Testmage"]) == 0 {
 		t.Fatalf("track = %+v, %v; want the mage's position and the mob's death", track, err)
 	}
+	damage := int64(0)
+	for _, s := range track.Abilities["Testmage"] {
+		for _, p := range s.Points {
+			if s.Ability == "Arcane Barrage" {
+				damage += p[1]
+			}
+		}
+	}
+	if !slices.ContainsFunc(track.Casts["Testshaman"], func(c models.TrackCast) bool { return c.Spell == "Capacitor Totem" }) ||
+		damage != 5000 || len(track.AbilityTimes) == 0 || len(track.TargetSeries["Testmage"]) == 0 {
+		t.Fatalf("track casts %+v, abilities %+v, times %v; want the totem cast and the barrage's 5000 in stretches",
+			track.Casts["Testshaman"], track.Abilities["Testmage"], track.AbilityTimes)
+	}
 	if m, err := keys.DungeonMap(585); err != nil || len(m.Walked) == 0 || len(m.Floors) != 1 {
 		t.Fatalf("dungeon map = %+v, %v; want the saved track's squares and the dungeon file's floor", m, err)
 	}
@@ -344,7 +358,7 @@ func TestARunningKeyCountsTheClockToNowAndAnAbandonedKeyEnds(t *testing.T) {
 }
 
 // silentKey is a tracker on a key whose log stopped mid-fight, and the time of its last line.
-func silentKey(t *testing.T) (*KeyTracker, int64) {
+func silentKey(t *testing.T) (*LogTracker, int64) {
 	keys := newTracker(t, map[int]int64{585: 1_800_000})
 	lines := feed(t, keys,
 		keyStart+`CHALLENGE_MODE_START,"Voidscar Arena",2923,585,17,[9,10,147]`,
@@ -410,6 +424,25 @@ func TestASilentKeyStaysClosedWhenThePartyLeftOrStartedAnother(t *testing.T) {
 			!keys.history[0].Bosses[1].Kill {
 			t.Errorf("after %s: saved %+v; want the key abandoned at its late boss kill, with the kill", next, saved)
 		}
+	}
+}
+
+func TestSaveQueuedKeepsWhatFailedForTheNextCall(t *testing.T) {
+	var mu sync.RWMutex
+	queue, written, fail := []int{1, 2, 3}, []int{}, true
+	save := func(n int) error {
+		if n == 2 && fail {
+			return fs.ErrPermission
+		}
+		written = append(written, n)
+		return nil
+	}
+	if err := saveQueued(&mu, &queue, save); err == nil || !slices.Equal(queue, []int{2, 3}) {
+		t.Fatalf("first call: %v, queue %v; want the error and 2, 3 still queued", err, queue)
+	}
+	fail = false
+	if err := saveQueued(&mu, &queue, save); err != nil || len(queue) != 0 || !slices.Equal(written, []int{1, 2, 3}) {
+		t.Fatalf("second call: %v, queue %v, written %v; want 1, 2, 3 written once each", err, queue, written)
 	}
 }
 

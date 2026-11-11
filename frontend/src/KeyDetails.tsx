@@ -1,13 +1,17 @@
-import { useState } from 'react'
-import type { KeyCast, KeyForces, KeyGhost, KeyReview as Review, KeyView } from './api'
-import { chestLabel, clock, coverText, oddsText, resultText, share } from './format'
+import { useCallback, useMemo, useRef, useState } from 'react'
+import type { KeyForces, KeyGhost, KeyReview as Review, KeyView } from './api'
+import { chestLabel, clock, oddsText, resultText, share } from './format'
 import { DamageGraph } from './DamageGraph'
-import { BossList, KickLedger, PriorityLedger, SpikeLedger } from './KeyLedgers'
+import { BossList, PriorityLedger } from './KeyLedgers'
+import { fightTabs } from './KeyTabs'
+import { PlayerTable } from './PlayerTable'
 import { KeyMap } from './KeyMap'
 import { KeyReview } from './KeyReview'
 import { MeterCards } from './MeterCards'
 import { useReplay, useTrack } from './replay'
+import { RaidLanes } from './RaidReplay'
 import { Tabs } from './Tabs'
+import type { Seeker } from './Seek'
 
 /** The result's icon, so it doesn't rest on colour alone. */
 const resultIcon: Record<KeyView['status'], string> = {
@@ -31,9 +35,24 @@ export function KeyDetails({
 }) {
   const timer = key.timerMS ?? 0
   const projection = key.status === 'running' ? key.projection : undefined
-  const cc = key.casts.filter((c) => c.kind === 'cc')
   const track = useTrack(key.start, key.status === 'running')
   const replay = useReplay(clockMS, clockMS)
+  const [focus, setFocus] = useState('')
+  const replayBox = useRef<HTMLElement>(null)
+  const setAt = replay.setAt
+  const show = useCallback(
+    (ms: number) => {
+      setAt(ms)
+      replayBox.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    },
+    [setAt],
+  )
+  const seek = useMemo<Seeker | undefined>(
+    () =>
+      key.status === 'running' ? undefined : { onSeek: show, classes: track?.classes ?? {}, onFocus: setFocus },
+    [key.status, show, track],
+  )
+  const fight = fightTabs(key, `Deaths ${key.deaths.length} (+${clock(key.penaltyMS)})`, 'party', seek)
   const [review, setReview] = useState<Review | null>(null)
   return (
     <>
@@ -76,6 +95,12 @@ export function KeyDetails({
           <span aria-hidden="true">{resultIcon[key.status]}</span> {resultText(key.status, key.chests, clockMS, timer)}
         </section>
       )}
+      {(key.status === 'timed' || key.status === 'depleted') && key.bestFinalMS !== undefined && key.bestFinalMS > 0 && (
+        <p className="muted">
+          Your best timed +{key.level} here: {clock(key.bestFinalMS)} ·{' '}
+          {clock(Math.abs(clockMS - key.bestFinalMS))} {clockMS <= key.bestFinalMS ? 'faster' : 'slower'}
+        </p>
+      )}
       {timer > 0 && <TimerBar clockMS={clockMS} timerMS={timer} keyView={key} best={projection?.best ?? []} />}
       {key.forces && <ForcesBar forces={key.forces} level={key.level} />}
       {timer > 0 && key.status === 'running' && (
@@ -115,9 +140,37 @@ export function KeyDetails({
         </p>
       )}
 
-      {key.status !== 'running' && <KeyReview keyView={key} justEnded={justEnded} onReview={setReview} />}
+      {key.status !== 'running' && key.suggestions && key.suggestions.length > 0 && (
+        <section className="panel attention">
+          <h2>Fix next key</h2>
+          <ol className="fix-next">
+            {key.suggestions.map((s) => (
+              <li key={s}>{s}</li>
+            ))}
+          </ol>
+        </section>
+      )}
+      {key.status !== 'running' && (
+        <KeyReview
+          keyView={key}
+          justEnded={justEnded}
+          onReview={setReview}
+          focus={focus}
+          onFocus={setFocus}
+          onSeek={show}
+          track={track}
+          now={replay.at}
+        />
+      )}
       {key.status !== 'running' && track && (
-        <DamageGraph keyView={key} track={track} now={replay.at} onSeek={replay.setAt} />
+        <DamageGraph
+          keyView={key}
+          track={track}
+          now={replay.at}
+          onSeek={replay.setAt}
+          focus={focus}
+          onFocus={setFocus}
+        />
       )}
 
       {key.buffs.length > 0 && (
@@ -131,11 +184,18 @@ export function KeyDetails({
         </section>
       )}
 
+      {key.status !== 'running' && key.lanes && key.lanes.length > 0 && (
+        <section className="panel">
+          <h2>Timeline</h2>
+          <RaidLanes lanes={key.lanes} end={clockMS} now={replay.at} onSeek={replay.setAt} />
+        </section>
+      )}
+
       <MeterCards keyView={key} clockMS={clockMS} />
 
-      <section className="panel map-panel">
+      <section ref={replayBox} className="panel map-panel">
         <h2>Replay</h2>
-        <KeyMap keyView={key} clockMS={clockMS} track={track} replay={replay} />
+        <KeyMap keyView={key} clockMS={clockMS} track={track} replay={replay} focus={focus} onFocus={setFocus} />
       </section>
 
       <Tabs
@@ -146,87 +206,21 @@ export function KeyDetails({
           },
           {
             name: 'Bosses',
-            body: <BossList keyView={key} track={track} topBosses={review?.topBosses} onSeek={replay.setAt} />,
+            body: <BossList keyView={key} track={track} topBosses={review?.topBosses} onSeek={show} />,
           },
+          ...fight,
           {
-            name: `Deaths ${key.deaths.length} (+${clock(key.penaltyMS)})`,
+            name: 'Players',
             body: (
-              <ul className="list">
-                {key.deaths.map((d, i) => (
-                  <li key={`${d.player}-${d.clockMS}-${i}`} className="stack">
-                    <span>
-                      <b>{d.player}</b> {d.ability || 'unknown'}{' '}
-                      <span className="muted">from {d.killer || 'unknown'}</span>
-                    </span>
-                    <span className="muted">
-                      {clock(d.clockMS)} · {coverText(d.defensive, d.ready)}
-                    </span>
-                  </li>
-                ))}
-                {key.deaths.length === 0 && <li className="muted">None</li>}
-              </ul>
-            ),
-          },
-          {
-            name: `Interrupts ${key.interrupts.length}`,
-            body: (
-              <>
-                <p className="muted">
-                  Every interrupt, must-stop or not:{' '}
-                  {countBy(key.interrupts.map((i) => `${i.player} (${i.kick || 'kick'})`))}
-                </p>
-                <ul className="list scroll">
-                  {[...key.interrupts].reverse().map((i, n) => (
-                    <li key={n}>
-                      <span>
-                        <b>{i.player}</b> {i.kick && `${i.kick} → `}
-                        {i.spell} <span className="muted">on {i.target}</span>
-                      </span>
-                      <span className="muted">{clock(i.clockMS)}</span>
-                    </li>
-                  ))}
-                </ul>
-              </>
-            ),
-          },
-          {
-            name: `Must-stops ${key.stops.filter((s) => s.outcome !== 'went off').length}/${key.stops.length}`,
-            body: <KickLedger keyView={key} />,
-          },
-          {
-            name: `Spikes ${key.spikes.length}`,
-            body: <SpikeLedger keyView={key} />,
-          },
-          {
-            name: 'Defensives and potions',
-            body: (
-              <ul className="list scroll">
-                {byPlayer(key.casts.filter((c) => c.kind !== 'cc')).map(([player, casts]) => (
-                  <li key={player} className="stack">
-                    <b>{player}</b>
-                    <span className="muted">
-                      {countBy(casts.map((c) => (c.kind === 'defensive' ? c.ability : c.kind)))}
-                    </span>
-                  </li>
-                ))}
-                {key.casts.length === cc.length && <li className="muted">None</li>}
-              </ul>
-            ),
-          },
-          {
-            name: `CC ${cc.length}`,
-            body: (
-              <ul className="list scroll">
-                {byPlayer(cc).map(([player, casts]) => (
-                  <li key={player} className="stack">
-                    <span>
-                      <b>{player}</b> {casts.length}
-                    </span>
-                    <span className="muted">{countBy(casts.map((c) => c.ability))}</span>
-                  </li>
-                ))}
-                {cc.length === 0 && <li className="muted">None ([cc] in mplus.toml)</li>}
-              </ul>
+              <PlayerTable
+                title="Whole key"
+                meter={key.overall}
+                casts={key.casts}
+                activity={key.activity}
+                deaths={key.deaths}
+                avoidableListed={key.reference}
+                onPick={key.status === 'running' ? undefined : setFocus}
+              />
             ),
           },
         ]}
@@ -305,21 +299,4 @@ export function ForcesBar({ forces, level }: { forces: KeyForces; level: number 
       </span>
     </div>
   )
-}
-
-/** "Testshaman 20 · Testpriest 19": how often each value comes up, most first. */
-function countBy(values: string[]): string {
-  const counts = new Map<string, number>()
-  values.forEach((v) => counts.set(v, (counts.get(v) ?? 0) + 1))
-  return [...counts]
-    .sort((a, b) => b[1] - a[1])
-    .map(([v, n]) => `${v} ${n}`)
-    .join(' · ')
-}
-
-/** Casts grouped by player, in the order players first used something. */
-function byPlayer(casts: KeyCast[]): [string, KeyCast[]][] {
-  const groups = new Map<string, KeyCast[]>()
-  casts.forEach((c) => groups.set(c.player, [...(groups.get(c.player) ?? []), c]))
-  return [...groups]
 }

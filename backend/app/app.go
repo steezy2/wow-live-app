@@ -1,20 +1,27 @@
-// Package app starts the live M+ site the same way for cmd/site (run from the repo) and the desktop app
-// (installed): the key tracker and saved keys, key reviews, map tiles, change notices, the page's router, and the
-// follower that reads the game's log into them. It's wiring, not rules.
+// Package app starts the live M+ and raid site the same way for cmd/site (run from the repo) and the desktop app
+// (installed): the log tracker with its saved keys and raid pulls, key reviews, map tiles, change notices, the page's
+// router, and the follower that reads the game's log into them. It's wiring, not rules.
 package app
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
 	"io/fs"
 	"log"
 	"net/http"
+	"os"
 	"path/filepath"
+	"slices"
 	"time"
 
+	"wow-live/backend/clients/cachefile"
 	"wow-live/backend/clients/combatlog"
 	"wow-live/backend/clients/keystoneguru"
 	"wow-live/backend/clients/keystore"
 	"wow-live/backend/clients/raiderio"
+	"wow-live/backend/clients/wcl"
 	"wow-live/backend/controller"
 	"wow-live/backend/models"
 	"wow-live/backend/service"
@@ -31,6 +38,9 @@ type Options struct {
 	Region    string                      // for this week's affix names
 	Rules     models.MPlusRules           // from mplus.toml
 	Dungeons  map[int]models.DungeonFacts // from reference/mplus-dungeons.json
+	RaidRules models.RaidRules            // from raid-rules.toml
+	Bosses    map[string]models.RaidBoss  // from reference/raid-bosses.json
+	Tier      map[string][]int            // each class's tier items, from reference/raid-bosses.json
 	Baselines models.MPlusBaselines       // Warcraft Logs; nil means no key reviews
 	Pages     fs.FS                       // the built page
 	Hosts     []string                    // the names the page reaches the site by, for the router's host check
@@ -40,21 +50,29 @@ type Options struct {
 
 // Site is a started site: its keys and change notices, and the page and API.
 type Site struct {
-	Keys    *service.KeyTracker
+	Keys    *service.LogTracker
 	Changes *service.Changes
 	Handler http.Handler
 	opts    Options
 	reviews controller.Reviews
 	topRuns func(ctx context.Context, key models.Key) ([]int64, error) // nil without Warcraft Logs
-	newKeys func() (*service.KeyTracker, error)                        // another tracker on the same saved keys, for Learn
+	newKeys func() (*service.LogTracker, error)                        // another tracker on the same saved keys, for Learn
 }
 
 // Start builds the site from opts. Follow, Learn or a replay then feed it the game's log.
 func Start(ctx context.Context, opts Options) (*Site, error) {
 	timers, affixes := dungeonData(ctx, opts.Cache, opts.Region)
 	store := keystore.Store{Dir: filepath.Join(opts.Cache, "local-keys")}
-	newKeys := func() (*service.KeyTracker, error) {
-		return service.NewKeyTracker(timers, affixes, opts.Rules, opts.Dungeons, store)
+	pulls := keystore.Pulls{Dir: filepath.Join(opts.Cache, "raid-pulls")}
+	newKeys := func() (*service.LogTracker, error) {
+		keys, err := service.NewLogTracker(timers, affixes, opts.Rules, opts.Dungeons, store)
+		if err != nil {
+			return nil, err
+		}
+		if err := keys.EnableRaid(opts.RaidRules, opts.Bosses, opts.Tier, pulls); err != nil {
+			return nil, err
+		}
+		return keys, nil
 	}
 	keys, err := newKeys()
 	if err != nil {
@@ -67,8 +85,11 @@ func Start(ctx context.Context, opts Options) (*Site, error) {
 	}
 	tiles := service.MapTiles{Facts: opts.Dungeons,
 		Source: keystoneguru.Client{CacheDir: filepath.Join(opts.Cache, "keystone-guru")}}
+	raidMaps := service.RaidMaps{Bosses: opts.Bosses,
+		Source: wcl.MapImages{CacheDir: filepath.Join(opts.Cache, "raid-maps")}}
 	s.Handler = controller.Router(controller.MPlus{Keys: keys, Reviews: s.reviews, Changes: s.Changes,
-		Now: opts.Now, Tiles: tiles}, opts.Settings, opts.Pages, opts.Hosts...)
+		Now: opts.Now, Tiles: tiles}, &controller.Raid{Pulls: keys, Maps: raidMaps, Now: opts.Now}, opts.Settings,
+		opts.Pages, opts.Hosts...)
 	return s, nil
 }
 
@@ -88,7 +109,7 @@ func dungeonData(ctx context.Context, cache, region string) (map[int]int64, map[
 }
 
 // add feeds parsed lines to keys, skipping a line that doesn't parse.
-func add(keys *service.KeyTracker, lines []string) {
+func add(keys *service.LogTracker, lines []string) {
 	for _, text := range lines {
 		if line, err := combatlog.ParseLine(text); err == nil {
 			keys.Add(line)
@@ -96,42 +117,87 @@ func add(keys *service.KeyTracker, lines []string) {
 	}
 }
 
-// Learn reads every log in the game's folder, oldest first, into a tracker of its own (so it's safe while Follow
-// runs), saves the keys that ended in them, and has the site's keys read the saved ones again, for the list and the
-// estimate. It returns how many keys are saved.
-func (s *Site) Learn() (int, error) {
+// readerVersion is the version of what Learn saves from a log. Bump it with any change that saves new key or raid pull
+// fields, so the next Learn reads every log again.
+const readerVersion = 4
+
+// learned is learned.json: the logs Learn has read and the reader that read them, so it reads only new or changed
+// logs next time.
+type learned struct {
+	ReaderVersion int          `json:"readerVersion"`
+	Logs          []learnedLog `json:"logs"`
+}
+
+// learnedLog is a log as Learn read it.
+type learnedLog struct {
+	File    string `json:"file"`
+	Size    int64  `json:"size"`
+	ModTime int64  `json:"modTime"` // Unix ms
+}
+
+// Learn reads the logs in the game's folder, oldest first, into a tracker of its own (so it's safe while Follow
+// runs), saves the keys and raid pulls that ended in them, and has the site's keys read the saved ones again, for the
+// list and the estimate. A log already read by this readerVersion, unchanged since, is skipped unless all is set. It
+// returns how many logs it read and how many keys are saved.
+func (s *Site) Learn(all bool) (read, saved int, err error) {
 	logs, err := combatlog.WrittenSince(s.opts.LogsDir, time.Time{})
 	if err != nil {
-		return 0, err
+		return 0, 0, err
 	}
 	keys, err := s.newKeys()
 	if err != nil {
-		return 0, err
+		return 0, 0, err
 	}
-	for _, path := range logs {
-		tail := &combatlog.Tail{File: path}
-		for {
-			lines, _, err := tail.Read()
-			if err != nil {
-				return 0, err
-			}
-			if len(lines) == 0 {
-				break
-			}
-			add(keys, lines)
+	path := filepath.Join(s.opts.Cache, "learned.json")
+	var before learned
+	if !all {
+		before = readLearned(path)
+	}
+	now := learned{ReaderVersion: readerVersion}
+	for _, logPath := range logs {
+		info, err := os.Stat(logPath)
+		if err != nil {
+			return read, 0, fmt.Errorf("reading %s: %w", logPath, err)
 		}
-		if _, err := keys.SaveFinished(); err != nil {
-			return 0, err
+		file := learnedLog{File: filepath.Base(logPath), Size: info.Size(), ModTime: info.ModTime().UnixMilli()}
+		if before.ReaderVersion != readerVersion || !slices.Contains(before.Logs, file) {
+			if err := combatlog.EachLine(logPath, keys.Add); err != nil {
+				return read, 0, err
+			}
+			if _, err := keys.SaveFinished(); err != nil {
+				return read, 0, err
+			}
+			read++
+			log.Printf("read %s", file.File)
 		}
-		log.Printf("read %s", filepath.Base(path))
+		now.Logs = append(now.Logs, file)
+		if err := cachefile.WriteJSON(path, now); err != nil {
+			return read, 0, err
+		}
 	}
 	if err := s.Keys.Reload(); err != nil {
-		return 0, err
+		return read, 0, err
 	}
 	s.Changes.Publish(s.Keys.Version())
-	saved := len(s.Keys.Saved())
-	log.Printf("%d keys saved", saved)
-	return saved, nil
+	saved = len(s.Keys.Saved())
+	log.Printf("%d of %d logs read, %d keys saved", read, len(logs), saved)
+	return read, saved, nil
+}
+
+// readLearned is the learned.json at path; a missing, unreadable or odd one is nothing learned, so every log is read.
+func readLearned(path string) learned {
+	var l learned
+	data, err := os.ReadFile(path)
+	if err == nil {
+		err = json.Unmarshal(data, &l)
+	}
+	if err != nil {
+		if !errors.Is(err, os.ErrNotExist) {
+			log.Printf("reading every log again: %s: %v", path, err)
+		}
+		return learned{}
+	}
+	return l
 }
 
 // Follow reads the newest log in dir into the keys as the game writes it until ctx ends, closing a key the log went

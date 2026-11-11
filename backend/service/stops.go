@@ -45,7 +45,7 @@ type pendingKick struct {
 
 // stopEvent follows must-stop casts, kicks and dispellable debuffs. It runs for
 // every line inside a key, after event's own handling.
-func (k *KeyTracker) stopEvent(at int64, event string, f []string, src, dst string) {
+func (k *LogTracker) stopEvent(at int64, event string, f []string, src, dst string) {
 	run := k.current
 	if p := run.kick; p != nil && at-p.at > kickWindowMS {
 		run.key.WastedKicks = append(run.key.WastedKicks, models.KeyCast{Player: p.player, Ability: p.spell,
@@ -122,7 +122,7 @@ func (k *KeyTracker) stopEvent(at int64, event string, f []string, src, dst stri
 
 // endCast records a must-stop cast's outcome: interrupted (by a player), stopped (by a debuff, or unknown), went
 // off, or the mob died first.
-func (k *KeyTracker) endCast(guid, outcome, by string, at int64) {
+func (k *LogTracker) endCast(guid, outcome, by string, at int64) {
 	run := k.current
 	c := run.casting[guid]
 	delete(run.casting, guid)
@@ -135,7 +135,7 @@ func (k *KeyTracker) endCast(guid, outcome, by string, at int64) {
 }
 
 // recordDebuff keeps a dispellable debuff that came off a party member: dispelled by someone, or it ran out (by "").
-func (k *KeyTracker) recordDebuff(key [2]string, span [2]int64, by string) {
+func (k *LogTracker) recordDebuff(key [2]string, span [2]int64, by string) {
 	run := k.current
 	delete(run.removed, key)
 	run.key.Debuffs = append(run.key.Debuffs, models.KeyDispel{Player: k.names[key[0]], Spell: key[1], By: by,
@@ -143,7 +143,7 @@ func (k *KeyTracker) recordDebuff(key [2]string, span [2]int64, by string) {
 }
 
 // mobDied ends a must-stop cast whose caster died: stopped when a debuff landed during it, else the mob died first.
-func (k *KeyTracker) mobDied(guid string, at int64) {
+func (k *LogTracker) mobDied(guid string, at int64) {
 	if c, ok := k.current.casting[guid]; ok {
 		outcome := "died"
 		if c.cc != "" {
@@ -153,19 +153,29 @@ func (k *KeyTracker) mobDied(guid string, at int64) {
 	}
 }
 
-// spikes is the run's worst bursts of party damage taken (the top spikeShare of spikeMS stretches), worst first,
+// spikeWindow is how long a spike lasts, in ms: spikeMS, or a raid's own (raid-rules.toml's spike_seconds, since a
+// raid's damage comes in longer waves).
+func (k *LogTracker) spikeWindow(run *keyRun) int64 {
+	if run.raid != nil {
+		return int64(k.raid.rules.Suggestions.SpikeSeconds * 1000)
+	}
+	return spikeMS
+}
+
+// spikes is the run's worst bursts of party damage taken (the top spikeShare of spikeWindow stretches), worst first,
 // with each hit member's cover by the death rules and the party cooldowns used for it.
-func (k *KeyTracker) spikes(run *keyRun, casts []models.KeyCast, buffs []models.BuffUp, kit models.Kit) []models.KeySpike {
+func (k *LogTracker) spikes(run *keyRun, casts []models.KeyCast, buffs []models.BuffUp, kit models.Kit) []models.KeySpike {
 	party := map[int64]int64{}
 	for _, bySecond := range run.taken {
 		for s, n := range bySecond {
 			party[s] += n
 		}
 	}
+	window := k.spikeWindow(run)
 	var stretches [][2]int64 // start second, damage
 	for s := range party {
 		sum := int64(0)
-		for i := range int64(spikeMS / 1000) {
+		for i := range window / 1000 {
 			sum += party[s+i]
 		}
 		stretches = append(stretches, [2]int64{s, sum})
@@ -181,26 +191,37 @@ func (k *KeyTracker) spikes(run *keyRun, casts []models.KeyCast, buffs []models.
 		if s[1] < threshold || len(spikes) == maxSpikes {
 			break
 		}
-		if slices.ContainsFunc(taken, func(t int64) bool { return max(t-s[0], s[0]-t) < spikeMS/1000 }) {
+		if slices.ContainsFunc(taken, func(t int64) bool { return max(t-s[0], s[0]-t) < window/1000 }) {
 			continue
 		}
 		taken = append(taken, s[0])
-		spikes = append(spikes, k.spike(run, s[0], s[1], casts, buffs, kit))
+		spikes = append(spikes, k.spike(run, s[0], s[1], window, casts, buffs, kit))
 	}
 	return spikes
 }
 
 // spike is one burst starting at a second of the key (log time / 1000): who was hit and their cover, and the party
-// cooldowns used from the death window before it to its end.
-func (k *KeyTracker) spike(run *keyRun, second, damage int64, casts []models.KeyCast, buffs []models.BuffUp,
+// cooldowns (externals) used from the death window before it to its end; in a raid, the raid cooldowns whose buff
+// was up during it.
+func (k *LogTracker) spike(run *keyRun, second, damage, span int64, casts []models.KeyCast, buffs []models.BuffUp,
 	kit models.Kit) models.KeySpike {
 	at := second * 1000
 	sp := models.KeySpike{ClockMS: k.clockAt(at), Damage: damage, PartyCDs: []string{}, Members: []models.KeySpikeMember{}}
 	window := int64(k.rules.Defensives.WindowSeconds * 1000)
+	covers := func(c models.KeyCast) bool {
+		return (slices.Contains(k.rules.Defensives.Externals, c.Ability) ||
+			slices.Contains(k.rules.Defensives.RaidCooldowns, c.Ability)) &&
+			c.ClockMS >= sp.ClockMS-window && c.ClockMS <= sp.ClockMS+span
+	}
+	if run.raid != nil { // a raid's cover is its raid cooldowns (coversSpike)
+		casts = run.raid.cooldowns
+		covers = func(c models.KeyCast) bool {
+			return coversSpike(c, sp.ClockMS, sp.ClockMS+span, window)
+		}
+	}
 	var cdAt []int64
 	for _, c := range casts {
-		if slices.Contains(k.rules.Defensives.Externals, c.Ability) && c.ClockMS >= sp.ClockMS-window &&
-			c.ClockMS <= sp.ClockMS+spikeMS {
+		if covers(c) {
 			sp.PartyCDs = append(sp.PartyCDs, c.Ability+" ("+c.Player+")")
 			cdAt = append(cdAt, c.ClockMS)
 		}
@@ -212,9 +233,12 @@ func (k *KeyTracker) spike(run *keyRun, second, damage int64, casts []models.Key
 	var hit []models.Death
 	var amounts []int64
 	for player, bySecond := range run.taken {
-		n := bySecond[second] + bySecond[second+1] + bySecond[second+2]
+		n := int64(0)
+		for i := range span / 1000 {
+			n += bySecond[second+i]
+		}
 		if n > 0 {
-			hit = append(hit, models.Death{Fight: run.pullOf[second], At: at + spikeMS, Player: player})
+			hit = append(hit, models.Death{Fight: run.pullOf[second], At: at + span, Player: player})
 			amounts = append(amounts, n)
 		}
 	}

@@ -28,24 +28,9 @@ func (s Store) Save(key models.Key) error {
 
 // List is every saved key, newest first; a missing folder is no keys.
 func (s Store) List() ([]models.Key, error) {
-	paths, err := filepath.Glob(filepath.Join(s.Dir, "*.json"))
-	if err != nil {
-		return nil, fmt.Errorf("listing saved keys: %w", err)
-	}
-	keys := []models.Key{}
-	for _, path := range paths {
-		data, err := os.ReadFile(path)
-		if err != nil {
-			return nil, fmt.Errorf("reading %s: %w", path, err)
-		}
-		var key models.Key
-		if err := json.Unmarshal(data, &key); err != nil {
-			return nil, fmt.Errorf("reading %s: %w", path, err)
-		}
-		keys = append(keys, key)
-	}
+	keys, err := readAll[models.Key](s.Dir)
 	slices.SortFunc(keys, func(a, b models.Key) int { return cmp.Compare(b.Start, a.Start) })
-	return keys, nil
+	return keys, err
 }
 
 // SaveTrack writes a key's track, replacing an earlier copy.
@@ -53,15 +38,15 @@ func (s Store) SaveTrack(start int64, track models.KeyTrack) error {
 	return cachefile.WriteJSON(s.trackPath(start), track)
 }
 
-// Track reads a key's track; the error wraps os.ErrNotExist when the key has none.
+// Track reads a key's (or a raid pull's) track; the error wraps os.ErrNotExist when it has none.
 func (s Store) Track(start int64) (models.KeyTrack, error) {
 	var t models.KeyTrack
 	data, err := os.ReadFile(s.trackPath(start))
 	if err != nil {
-		return t, fmt.Errorf("reading a key's track: %w", err)
+		return t, fmt.Errorf("reading a track: %w", err)
 	}
 	if err := json.Unmarshal(data, &t); err != nil {
-		return t, fmt.Errorf("reading a key's track: %w", err)
+		return t, fmt.Errorf("reading a track: %w", err)
 	}
 	return t, nil
 }

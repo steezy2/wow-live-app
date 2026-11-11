@@ -1,4 +1,4 @@
-import type { KeyView, MeterPoint } from './api'
+import type { KeyView, MeterPoint, RaidPullSummary } from './api'
 
 /** A duration as the game shows it: "18:42", "1:05:09" past an hour, "-0:12" when negative. */
 export function clock(ms: number): string {
@@ -8,6 +8,13 @@ export function clock(ms: number): string {
   const minutes = Math.floor((total % 3600) / 60)
   const seconds = String(total % 60).padStart(2, '0')
   return hours > 0 ? `${sign}${hours}:${String(minutes).padStart(2, '0')}:${seconds}` : `${sign}${minutes}:${seconds}`
+}
+
+/** How far a pull got: "Kill", "71% P2", "P2" without advanced logging, or "71%" for a boss without phases. */
+export function progressText(p: RaidPullSummary): string {
+  if (p.kill) return 'Kill'
+  const pct = p.bossPct >= 0 ? `${Math.round(p.bossPct)}%` : ''
+  return [pct, p.phase].filter(Boolean).join(' ') || 'Wipe'
 }
 
 /** A share of the timer as a percentage for the bar, kept between 0 and 100. */
@@ -30,6 +37,16 @@ export function oddsText(odds: number[]): string {
     .reverse()
     .map((o) => `${chestLabel(o.chests)} ${Math.round(o.share * 100)}%`)
     .join(' · ')
+}
+
+/** A count with its word: "1 death", "3 deaths". */
+export function counted(n: number, word: string): string {
+  return `${n} ${word}${n === 1 ? '' : 's'}`
+}
+
+/** A short time in seconds: "6.3 s". */
+export function seconds(ms: number): string {
+  return `${(ms / 1000).toFixed(1)} s`
 }
 
 /** A big number shortened for a meter: "413.0M", "265k", "950". */
@@ -70,4 +87,10 @@ export function valueAt(points: MeterPoint[], t: number, kind: 'd' | 'h' | 'tk')
     value = p[kind] ?? 0
   }
   return value
+}
+
+/** The middle value, or the mean of the two middle ones for an even count (0 for none). */
+export function median(values: number[]): number {
+  const sorted = [...values].sort((a, b) => a - b)
+  return sorted.length === 0 ? 0 : (sorted[Math.floor((sorted.length - 1) / 2)] + sorted[Math.floor(sorted.length / 2)]) / 2
 }

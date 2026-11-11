@@ -15,7 +15,7 @@ import { WCLKeys } from './WCLKeys'
 
 /** What each of the app's overlay choices is called. */
 const SHOW_LABELS: Record<OverlaySettings['show'], string> = {
-  keys: 'During keys',
+  keys: 'During keys and between raid pulls',
   always: 'Always',
   off: 'Off',
 }
@@ -24,7 +24,7 @@ const SHOW_LABELS: Record<OverlaySettings['show'], string> = {
 const OVERLAY_SAVE_MS = 300
 
 /** The desktop app's settings in four sections: the game (combat log folder, with when the game last wrote a log
- * there, and region), the overlay (saved as it changes), the Warcraft Logs keys, and reading old keys. Shown first
+ * there, and region), the overlay (saved as it changes), the Warcraft Logs keys, and reading old logs. Shown first
  * when the log folder isn't found. */
 export function SettingsPage({ view, onSaved }: { view: SettingsView; onSaved: (view: SettingsView) => void }) {
   const [logsDir, setLogsDir] = useState(view.logsDir)
@@ -52,6 +52,13 @@ export function SettingsPage({ view, onSaved }: { view: SettingsView; onSaved: (
     const call = saveSettings({ logsDir: logsDir.trim(), region, overlay })
     track(call, setGame, 'Saving…', () => 'Saved').then(onSaved, () => undefined)
   }
+  const readLogs = (all: boolean) =>
+    void track(
+      readOldKeys(all),
+      setOldKeys,
+      'Reading the log folder…',
+      ({ read, saved }) => `${read} logs read · ${saved} keys saved`,
+    ).catch(() => undefined)
   const minutes = view.lastLogMS ? Math.round((Date.now() - view.lastLogMS) / 60_000) : null
   return (
     <div className="settings-page">
@@ -137,18 +144,16 @@ export function SettingsPage({ view, onSaved }: { view: SettingsView; onSaved: (
       <WCLKeys />
       <section className="panel settings">
         <h2>Your data</h2>
-        <p className="muted">Saves every finished key in the log folder, so the estimate has your earlier runs to go on.</p>
+        <p className="muted">
+          Saves every finished key and raid pull in the log folder, so the estimate and the best pulls have your
+          earlier runs to go on. Logs already read are skipped unless you read everything again.
+        </p>
         <div className="actions">
-          <button
-            type="button"
-            disabled={!!oldKeys?.busy}
-            onClick={() =>
-              void track(readOldKeys(), setOldKeys, 'Reading the log folder…', (n) => `${n} keys saved.`).catch(
-                () => undefined,
-              )
-            }
-          >
-            Read old keys
+          <button type="button" disabled={!!oldKeys?.busy} onClick={() => readLogs(false)}>
+            Read old logs
+          </button>
+          <button type="button" disabled={!!oldKeys?.busy} onClick={() => readLogs(true)}>
+            Read everything again
           </button>
         </div>
         <NoteLine note={oldKeys} />

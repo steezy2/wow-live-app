@@ -1,48 +1,33 @@
-import { useState } from 'react'
-import type { KeyView } from './api'
+import type { ReactNode } from 'react'
+import { abilityViews, raidTargets, type AbilityRow } from './abilities'
+import type { KeyTrack, KeyView } from './api'
 import { classColors } from './classColors'
-import { amount } from './format'
+import { eventsOf } from './events'
+import { amount, clock } from './format'
 import { BarRow } from './MeterCards'
 import { schoolBar, schoolName } from './schoolColors'
+import { abilitiesUpTo } from './replay'
+import { EventList } from './Seek'
 import { Tabs } from './Tabs'
 
-/** One line of a player's breakdown: an ability and its number, with its spell school and how often it was cast and
- * hit where those are known. */
-interface AbilityRow {
-  name: string
-  value: number
-  school?: number
-  casts?: number
-  hits?: number
-}
-
-/** One player's key up close, picked from the party (first the one whose game wrote the log): their damage and
- * healing by ability with casts and hits, what they took damage from, and what they cast, each as bars against the
- * biggest in the ability's spell school colour (the player's class colour in keys saved without schools). */
-export function PlayerFocus({ keyView: key }: { keyView: KeyView }) {
-  const [player, setPlayer] = useState(key.logger ?? key.players[0] ?? '')
+/** One player's key up close, the page's focused player or else the one whose game wrote the log (a pick here
+ * focuses them everywhere via onFocus): their damage and healing by ability with casts and hits, what they took
+ * damage from, and what they cast, each as bars against the biggest in the ability's spell school colour (the
+ * player's class colour in keys saved without schools). */
+export function PlayerFocus(props: {
+  keyView: KeyView
+  focus: string
+  onFocus: (player: string) => void
+  onSeek: (clockMS: number) => void
+  track: KeyTrack | null
+  now: number
+}) {
+  const { keyView: key, focus, onFocus: setPlayer, onSeek, track, now } = props
+  const player = focus || (key.logger ?? key.players[0] ?? '')
   const row = key.overall.rows.find((r) => r.player === player)
   const color = classColors[row?.class ?? ''] ?? 'var(--accent)'
-  const mine = (key.abilities ?? []).filter((a) => a.player === player)
-  const done = (pick: 'damage' | 'healing') =>
-    mine
-      .filter((a) => a[pick] > 0)
-      .map((a) => ({ name: a.ability, value: a[pick], school: a.school, casts: a.casts, hits: a.hits }))
-  const views: { name: string; rows: AbilityRow[]; count?: boolean }[] = [
-    { name: 'Damage', rows: done('damage') },
-    { name: 'Healing', rows: done('healing') },
-    {
-      name: 'Damage taken',
-      rows: (key.taken ?? [])
-        .filter((h) => h.player === player)
-        .map((h) => ({ name: h.ability, value: h.damage, school: h.school })),
-    },
-    {
-      name: 'Casts',
-      rows: mine.filter((a) => a.casts > 0).map((a) => ({ name: a.ability, value: a.casts, school: a.school })),
-      count: true,
-    },
-  ]
+  const upTo = track ? abilitiesUpTo(track, key, player, now) : undefined
+  const views = abilityViews(player, upTo?.abilities ?? key.abilities ?? [], upTo?.taken ?? key.taken ?? [])
   return (
     <div className="card focus">
       <h2>
@@ -63,11 +48,27 @@ export function PlayerFocus({ keyView: key }: { keyView: KeyView }) {
               {key.deaths.filter((d) => d.player === player).length} deaths · {row.interrupts} kicks
             </p>
           )}
-          <Tabs
-            tabs={views.map((v) => ({
-              name: v.name,
-              body: <AbilityBars rows={v.rows} color={color} count={v.count} />,
-            }))}
+          <EventList
+            events={eventsOf(
+              { deaths: key.deaths, lanes: key.lanes ?? [], dispels: key.debuffs, cooldowns: key.casts },
+              player,
+            )}
+            onSeek={onSeek}
+          />
+          {upTo && <p className="muted small">Up to {clock(now)} on the replay</p>}
+          <AbilityTabs
+            views={views}
+            color={color}
+            more={
+              upTo?.targets
+                ? [
+                    {
+                      name: 'Targets',
+                      body: <AbilityBars rows={raidTargets(upTo.targets, player)} color={color} label="Enemy" />,
+                    },
+                  ]
+                : []
+            }
           />
         </>
       ) : (
@@ -77,22 +78,55 @@ export function PlayerFocus({ keyView: key }: { keyView: KeyView }) {
   )
 }
 
-/** Abilities as bars, biggest first, each in its spell school's colour (color without one): the number, its share of
- * the total, and casts and hits where the rows have them. Counts show whole; everything else shortened. */
-function AbilityBars({ rows, color, count = false }: { rows: AbilityRow[]; color: string; count?: boolean }) {
+/** A player's breakdowns as tabs: Damage, Healing, Damage taken and Casts, then any more the page adds. */
+export function AbilityTabs(props: {
+  views: ReturnType<typeof abilityViews>
+  color: string
+  more?: { name: string; body: ReactNode }[]
+}) {
+  const { views, color, more = [] } = props
+  return (
+    <Tabs
+      tabs={[
+        { name: 'Damage', body: <AbilityBars rows={views.damage} color={color} /> },
+        { name: 'Healing', body: <AbilityBars rows={views.healing} color={color} /> },
+        { name: 'Damage taken', body: <AbilityBars rows={views.taken} color={color} /> },
+        { name: 'Casts', body: <AbilityBars rows={views.casts} color={color} count /> },
+        ...more,
+      ]}
+    />
+  )
+}
+
+/** Abilities (or whatever label names) as bars, biggest first, each in its spell school's colour (color without one):
+ * the number, its share of the total, and casts and hits where the rows have them. Counts show whole; everything else
+ * shortened. */
+export function AbilityBars({
+  rows,
+  color,
+  count = false,
+  label = 'Ability',
+}: {
+  rows: AbilityRow[]
+  color: string
+  count?: boolean
+  label?: string
+}) {
   const sorted = [...rows].sort((a, b) => b.value - a.value)
   const total = sorted.reduce((sum, r) => sum + r.value, 0)
   const withCasts = sorted.some((r) => r.casts !== undefined)
-  const grid = { gridTemplateColumns: `minmax(120px, 2fr) repeat(${withCasts ? 4 : 2}, minmax(48px, 1fr))` }
+  const withHits = sorted.some((r) => r.hits) // none up to a replay's moment, which keeps no hits
+  const columns = 2 + Number(withCasts) + Number(withHits)
+  const grid = { gridTemplateColumns: `minmax(120px, 2fr) repeat(${columns}, minmax(48px, 1fr))` }
   if (sorted.length === 0) return <p className="muted">None</p>
   return (
     <div className="scroll">
       <div className="card-row card-head muted" style={grid}>
-        <span>Ability</span>
+        <span>{label}</span>
         <span>{count ? 'Casts' : 'Amount'}</span>
         <span>%</span>
         {withCasts && <span>Casts</span>}
-        {withCasts && <span>Hits</span>}
+        {withHits && <span>Hits</span>}
       </div>
       {sorted.map((r) => (
         <BarRow key={r.name} share={r.value / sorted[0].value} {...schoolBar(r.school, color)} grid={grid}>
@@ -102,7 +136,7 @@ function AbilityBars({ rows, color, count = false }: { rows: AbilityRow[]; color
           <span>{count ? r.value : amount(r.value)}</span>
           <span>{((100 * r.value) / total).toFixed(1)}</span>
           {withCasts && <span>{r.casts || '–'}</span>}
-          {withCasts && <span>{r.hits}</span>}
+          {withHits && <span>{r.hits || '–'}</span>}
         </BarRow>
       ))}
     </div>

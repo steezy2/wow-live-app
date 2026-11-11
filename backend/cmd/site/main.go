@@ -65,6 +65,14 @@ func run(port int, replay string, key int, speed float64, learn bool, region str
 	if err != nil {
 		log.Printf("no dungeon facts, so no avoidable damage or forces: %v", err)
 	}
+	raidRules, err := config.LoadRaidRules(root)
+	if err != nil {
+		return err
+	}
+	raid, err := config.LoadRaidReference(config.RaidReferencePath(root))
+	if err != nil {
+		log.Printf("no raid boss mechanics, so raid pulls show deaths and meters only: %v", err)
+	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 	clock := &replayClock{speed: speed}
@@ -73,7 +81,8 @@ func run(port int, replay string, key int, speed float64, learn bool, region str
 		log.Printf("no built page in %s: run npm run build in frontend/ (the API still works)", pages)
 	}
 	opts := app.Options{Cache: config.CachePath(root), DelayLog: config.DelayLogPath(root), LogsDir: config.LogsDir(),
-		Region: region, Rules: rules, Dungeons: ref.Dungeons, Pages: os.DirFS(pages),
+		Region: region, Rules: rules, Dungeons: ref.Dungeons, RaidRules: raidRules, Bosses: raid.Bosses,
+		Tier: raid.Tier, Pages: os.DirFS(pages),
 		Hosts: controller.LocalHosts(port), Now: clock.Now}
 	if logs, err := wcl.New(opts.Cache); err != nil {
 		log.Printf("no key reviews: %v", err)
@@ -85,7 +94,7 @@ func run(port int, replay string, key int, speed float64, learn bool, region str
 		return err
 	}
 	if learn {
-		_, err := site.Learn()
+		_, _, err := site.Learn(false)
 		return err
 	}
 	if replay == "" {

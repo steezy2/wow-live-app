@@ -43,6 +43,10 @@ type Key struct {
 	Taken     []KeyHit     `json:"taken,omitempty"`
 	// Logger is the party member whose game wrote the log ("" in keys saved before Nov 11).
 	Logger string `json:"logger,omitempty"`
+	// Lanes is the key's timeline for the replay (see keyLanes), and Suggestions what to fix next key, worked out when
+	// the key is read (see keySuggestions); both empty in keys saved before Nov 11.
+	Lanes       []RaidLane `json:"lanes,omitempty"`
+	Suggestions []string   `json:"suggestions,omitempty"`
 }
 
 // KeyAbility is one ability in a player's key: its damage to enemies and healing done as the meters count them (pets
@@ -96,12 +100,15 @@ type KeyInterrupt struct {
 	ClockMS int64  `json:"clockMS"`
 }
 
-// KeyCast is a player using a defensive, healthstone, health potion or combat potion, or crowd control.
+// KeyCast is a player using a defensive, healthstone, health potion or combat potion, crowd control, or a raid
+// cooldown.
 type KeyCast struct {
 	Player  string `json:"player"`
 	Ability string `json:"ability"`
-	Kind    string `json:"kind" enums:"defensive,healthstone,health potion,combat potion,kick,cc"`
+	Kind    string `json:"kind" enums:"defensive,healthstone,health potion,combat potion,kick,cc,raid cooldown"`
 	ClockMS int64  `json:"clockMS"`
+	EndMS   int64  `json:"endMS,omitempty"`  // a raid cooldown: when its buff last left a raider (0 when none was seen to)
+	Prepot  bool   `json:"prepot,omitempty"` // a combat potion drunk before the run started
 }
 
 // KeyPull is a trash pull with minibosses (the dungeon file's miniboss NPCs): the share of the party's damage that went
@@ -127,11 +134,13 @@ type KeyMiniboss struct {
 	Of     int    `json:"of"`
 }
 
-// KeyHit is damage a player took from one ability, with its spell school where the key has it (as KeyAbility's).
+// KeyHit is damage a player took from one ability: with its direct hits for an avoidable one, and its spell school
+// in damage taken where the key has it (as KeyAbility's).
 type KeyHit struct {
 	Player  string `json:"player"`
 	Ability string `json:"ability"`
 	Damage  int64  `json:"damage"`
+	Hits    int    `json:"hits"` // direct hits; 0 in keys saved before Nov 9
 	School  int    `json:"school,omitempty"`
 }
 
@@ -173,6 +182,7 @@ type ReviewMetric struct {
 	PartyRank int     `json:"partyRank"`
 	Amount    bool    `json:"amount"`              // shown shortened ("2.1M"), else as a whole number
 	Help      string  `json:"help"`                // what the metric counts, for the page to show on hover
+	Group     bool    `json:"group,omitempty"`     // it starts a new group of columns (offense, defense, consumables, deaths)
 	Total     float64 `json:"total,omitempty"`     // DPS and HPS: the key's damage or healing in all
 	TotalName string  `json:"totalName,omitempty"` // what Total is: "damage" or "healing"
 }
@@ -193,6 +203,38 @@ type KeyTrack struct {
 	Deaths  []TrackPoint            `json:"deaths"`
 	Meters  map[string][]MeterPoint `json:"meters"` // each player's damage and healing so far, about every 2 s
 	Pulls   []PullSpan              `json:"pulls"`  // each pull, in order; missing in keys saved before Nov 8
+	// Bosses is a raid boss's units and the adds to burst (by GUID, each point named, with its health) about once a
+	// second; a raid pull's or a key's, once it has ended.
+	Bosses map[string][]TrackPoint `json:"bosses,omitempty"`
+	// Health is the Bosses GUIDs the replay's health box shows: the units whose health is the boss's, then the adds
+	// to burst.
+	Health []string `json:"health,omitempty"`
+	// Casts is each raider's casts in order, and Abilities what each one's abilities did in each abilityEveryMS
+	// stretch, so the replay shows what a raider was casting and their bars up to its moment; none in pulls saved
+	// before Nov 11.
+	Casts     map[string][]TrackCast     `json:"casts,omitempty"`
+	Abilities map[string][]AbilitySeries `json:"abilities,omitempty"`
+	// AbilityTimes is when Abilities' stretches ended, in order: a stretch starts where the one before it ended.
+	AbilityTimes []int64 `json:"abilityTimes,omitempty"`
+	// TargetSeries is each raider's damage into each enemy (by name, as Ability) in the same stretches.
+	TargetSeries map[string][]AbilitySeries `json:"targetSeries,omitempty"`
+}
+
+// TrackCast is a cast on the pull's clock: when it started, the spell, for one with a cast time when it ended
+// (finished, or stopped; 0 for an instant), and whether it never finished (stopped, or the pull ended mid-cast).
+type TrackCast struct {
+	ClockMS int64  `json:"t"`
+	Spell   string `json:"s"`
+	EndMS   int64  `json:"e,omitempty"`
+	Cut     bool   `json:"x,omitempty"`
+}
+
+// AbilitySeries is what one of a raider's abilities did, or what they took damage from, in each stretch it did
+// something in: each point is the stretch's end on the pull's clock, then its damage, healing and damage taken
+// (numbers only, as a long pull has thousands).
+type AbilitySeries struct {
+	Ability string     `json:"a"`
+	Points  [][4]int64 `json:"p"` // [end clockMS, damage, healing, damage taken]
 }
 
 // PullSpan is a pull's start and end on the key's clock; EndMS is 0 while it's being fought.
@@ -217,6 +259,7 @@ type TrackPoint struct {
 	Y       float64 `json:"y"`
 	Map     int     `json:"map"`
 	Name    string  `json:"name,omitempty"`
+	HP      float64 `json:"hp,omitempty"` // a raid boss's or add's health left (%), 0 when unknown
 }
 
 // KeyStop is a must-stop cast (the dungeon file's mustStop list) and its outcome: interrupted (By the player, IntoMS
@@ -242,8 +285,9 @@ type KeyDispel struct {
 	ClockMS int64  `json:"clockMS"`
 }
 
-// KeySpike is a burst of party damage taken over 3 s: when, how much, the party cooldowns used for it (Overlap when
-// two came within 5 s of each other), and each member hit with their cover.
+// KeySpike is a burst of party damage taken over 3 s (a raid pull's: raid-rules.toml's spike_seconds): when, how
+// much, the party cooldowns used for it (Overlap when two came within 5 s of each other), and each member hit with
+// their cover.
 type KeySpike struct {
 	ClockMS  int64            `json:"clockMS"`
 	Damage   int64            `json:"damage"`
@@ -327,10 +371,11 @@ type ReadyCheck struct {
 	Players []ReadyPlayer `json:"players"`
 }
 
-// ReadyPlayer is one member's ready check: flask, food and party buffs ("flask", "Arcane Intellect") missing, and those
-// not seen.
+// ReadyPlayer is one member's ready check: their class (empty until a COMBATANT_INFO names their spec), and the flask,
+// food, Vantus Rune and party buffs ("flask", "Arcane Intellect") missing, and those not seen.
 type ReadyPlayer struct {
 	Player  string   `json:"player"`
+	Class   string   `json:"class,omitempty"`
 	Missing []string `json:"missing"`
 	NotSeen []string `json:"notSeen"`
 }
@@ -382,9 +427,19 @@ type MPlusRules struct {
 	CC struct {
 		Names []string `toml:"names"`
 	} `toml:"cc"`
-	Defensives  Defensives        `toml:"defensives"`
-	Consumables Consumables       `toml:"consumables"`
-	Buffs       map[string]string `toml:"buffs"` // party buff -> the class that gives it
+	Defensives  Defensives         `toml:"defensives"`
+	Consumables Consumables        `toml:"consumables"`
+	Buffs       map[string]string  `toml:"buffs"` // party buff -> the class that gives it
+	Suggestions KeySuggestionRules `toml:"suggestions"`
+}
+
+// KeySuggestionRules are mplus.toml's [suggestions]: how many "Fix next key" lines, how much longer (in % and in
+// seconds) than in the best run a pull is slow, and how long a wait between pulls is long.
+type KeySuggestionRules struct {
+	Most            int     `toml:"most"`
+	SlowPullPct     float64 `toml:"slow_pull_pct"`
+	SlowPullSeconds float64 `toml:"slow_pull_seconds"`
+	GapSeconds      float64 `toml:"gap_seconds"`
 }
 
 // Defensives are the tracked survival buttons: class defensives, externals, healthstones and health potions, and
@@ -393,15 +448,18 @@ type Defensives struct {
 	WindowSeconds float64  `toml:"window_seconds"`
 	Names         []string `toml:"names"`
 	Externals     []string `toml:"externals"`
+	RaidCooldowns []string `toml:"raid_cooldowns"` // externals the raid lanes also show
 	Healthstones  []string `toml:"healthstones"`
 	HealthPotions []string `toml:"health_potions"`
 }
 
-// Consumables are name patterns for the buffs everyone should have and the combat potions.
+// Consumables are name patterns for the buffs everyone should have, and the combat potions by name and by their
+// buff's aura ID (for a log whose first sighting of one is a pull-start aura list, which gives no names).
 type Consumables struct {
-	Flask         []string `toml:"flask"`
-	Food          []string `toml:"food"`
-	CombatPotions []string `toml:"combat_potions"`
+	Flask           []string `toml:"flask"`
+	Food            []string `toml:"food"`
+	CombatPotions   []string `toml:"combat_potions"`
+	CombatPotionIDs []int    `toml:"combat_potion_ids"`
 }
 
 // RunSummary is a ranked Warcraft Logs run's party damage taken and each boss kill's length, by boss name.
@@ -431,6 +489,8 @@ type KeyView struct {
 	Chests     int              `json:"chests"`
 	Projection *KeyProjection   `json:"projection,omitempty"`
 	BestBosses map[string]int64 `json:"bestBosses,omitempty"`
+	// BestFinalMS is the best other timed run's time, for the pace line under the result.
+	BestFinalMS int64 `json:"bestFinalMS,omitempty"`
 	// SilentMS is how long ago the last line of a running key was logged (0 once it's over). The game writes its log
 	// in batches as fights start and end, so a long silence is a long fight, or a party that left.
 	SilentMS int64 `json:"silentMS"`

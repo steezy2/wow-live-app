@@ -1,11 +1,13 @@
 package wcl
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"time"
 
@@ -17,38 +19,51 @@ import (
 // kept for good: delete logs/cache/wcl-mplus/ for a new season.
 const zonesMaxAge = 7 * 24 * time.Hour
 
-// MPlusEncounters is the newest Mythic+ zone's dungeons by name, as Warcraft Logs encounter IDs.
-func (c *Client) MPlusEncounters(ctx context.Context) (map[string]int, error) {
+// zone is a Warcraft Logs zone (a raid, or a Mythic+ season) and its encounters.
+type zone struct {
+	ID         int         `json:"id"`
+	Name       string      `json:"name"`
+	Encounters []encounter `json:"encounters"`
+}
+
+// encounter is a boss (or a dungeon) of a Warcraft Logs zone.
+type encounter struct {
+	ID   int    `json:"id"`
+	Name string `json:"name"`
+}
+
+// zones is every Warcraft Logs zone, oldest first.
+func (c *Client) zones(ctx context.Context) ([]zone, error) {
 	var data struct {
 		WorldData struct {
-			Zones []struct {
-				ID         int    `json:"id"`
-				Name       string `json:"name"`
-				Encounters []struct {
-					ID   int    `json:"id"`
-					Name string `json:"name"`
-				} `json:"encounters"`
-			} `json:"zones"`
+			Zones []zone `json:"zones"`
 		} `json:"worldData"`
 	}
 	if err := c.cachedQuery(ctx, "zones.json", zonesMaxAge, "{ worldData { zones { id name encounters { id name } } } }",
 		nil, &data); err != nil {
 		return nil, err
 	}
-	newest := -1
-	for i, z := range data.WorldData.Zones {
-		if strings.HasPrefix(z.Name, "Mythic+") && (newest < 0 || z.ID > data.WorldData.Zones[newest].ID) {
-			newest = i
+	zones := data.WorldData.Zones
+	slices.SortFunc(zones, func(a, b zone) int { return cmp.Compare(a.ID, b.ID) })
+	return zones, nil
+}
+
+// MPlusEncounters is the newest Mythic+ zone's dungeons by name, as Warcraft Logs encounter IDs.
+func (c *Client) MPlusEncounters(ctx context.Context) (map[string]int, error) {
+	zones, err := c.zones(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for i := len(zones) - 1; i >= 0; i-- {
+		if strings.HasPrefix(zones[i].Name, "Mythic+") {
+			encounters := map[string]int{}
+			for _, e := range zones[i].Encounters {
+				encounters[e.Name] = e.ID
+			}
+			return encounters, nil
 		}
 	}
-	if newest < 0 {
-		return nil, fmt.Errorf("Warcraft Logs lists no Mythic+ zone")
-	}
-	encounters := map[string]int{}
-	for _, e := range data.WorldData.Zones[newest].Encounters {
-		encounters[e.Name] = e.ID
-	}
-	return encounters, nil
+	return nil, fmt.Errorf("Warcraft Logs lists no Mythic+ zone")
 }
 
 // MPlusRankings is the top runs of a class and spec ("Paladin", "Holy") in a dungeon at a keystone level by "dps" or

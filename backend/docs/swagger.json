@@ -442,7 +442,7 @@
         },
         "/api/mplus/ready": {
             "get": {
-                "description": "While the party is in a Mythic dungeon with no key running: each member's missing flask, food and\nparty buffs, and those not seen since the party zoned in (from the combat log, so a buff from before\nlogging started there is never seen). Read again on each notice from /api/mplus/events.",
+                "description": "While the party is in a Mythic dungeon with no key running: each member's missing flask, food and\nparty buffs, and those not seen since the party zoned in (from the combat log, so a buff from before\nlogging started there is never seen). Read again on each notice from /api/mplus/events. A raid's is\nin /api/raid/live.",
                 "produces": [
                     "application/json"
                 ],
@@ -459,6 +459,173 @@
                     },
                     "204": {
                         "description": "Not in a Mythic dungeon between keys"
+                    }
+                }
+            }
+        },
+        "/api/raid/live": {
+            "get": {
+                "description": "Whether a raid pull is on (its boss and start), the last pull that ended with its deaths,\nmechanics, meters and cooldowns, compared with tonight's best and the best ever on the boss, and in\na raid between pulls the ready check (ready). The page reads it again on each notice from\n/api/mplus/events.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "raid"
+                ],
+                "summary": "The raid now: a pull on, and the last pull",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.RaidLive"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/raid/maps/{uiMapID}": {
+            "get": {
+                "description": "Placed by the pull's maps (models.RaidMap): its left edge is maxY, its top maxX.",
+                "produces": [
+                    "image/png"
+                ],
+                "tags": [
+                    "raid"
+                ],
+                "summary": "A raid room's map image (the game's map art, as Warcraft Logs' replay draws it)",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "the room's map ID in the combat log",
+                        "name": "uiMapID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "502": {
+                        "description": "Warcraft Logs failed",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/raid/nights": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "raid"
+                ],
+                "summary": "Every raid night's pulls",
+                "responses": {
+                    "200": {
+                        "description": "newest night first, each night's pulls newest first",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.RaidNight"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/raid/pulls/{start}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "raid"
+                ],
+                "summary": "One raid pull",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "the pull's start (ms since the epoch)",
+                        "name": "start",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.RaidPull"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/raid/pulls/{start}/track": {
+            "get": {
+                "description": "Each raider's position about once a second, the boss's units' and the adds to burst with their\nhealth (hp) and which the health box shows (health), killed adds' last places, each raider's\ndamage, healing and damage taken so far about every 2 s, their casts, and what each ability did in\neach 2 s stretch (abilities, abilityTimes), on the pull's clock.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "raid"
+                ],
+                "summary": "One raid pull's replay track",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "the pull's start (ms since the epoch)",
+                        "name": "start",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.KeyTrack"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
                     }
                 }
             }
@@ -528,19 +695,33 @@
         },
         "/api/settings/read-keys": {
             "post": {
-                "description": "Reads every combat log in the folder and saves each finished key, so the estimate has earlier runs\nto go on. Takes about a minute for a few hundred MB of logs.",
+                "description": "Reads the combat logs in the folder that are new or changed since the last read (all=true: every\none) and saves each finished key and raid pull, so the estimate and the best pulls have earlier runs\nto go on. Reading 3 GB of logs takes about 10 s.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "settings"
                 ],
-                "summary": "Save the keys already in the log folder",
+                "summary": "Save the keys and raid pulls already in the log folder",
+                "parameters": [
+                    {
+                        "type": "boolean",
+                        "description": "read every log again, even ones already read",
+                        "name": "all",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/controller.OldKeys"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
                         }
                     },
                     "500": {
@@ -708,8 +889,30 @@
         "controller.OldKeys": {
             "type": "object",
             "properties": {
+                "read": {
+                    "type": "integer"
+                },
                 "saved": {
                     "type": "integer"
+                }
+            }
+        },
+        "models.AbilitySeries": {
+            "type": "object",
+            "properties": {
+                "a": {
+                    "type": "string"
+                },
+                "p": {
+                    "description": "[end clockMS, damage, healing, damage taken]",
+                    "type": "array",
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "type": "integer",
+                            "format": "int64"
+                        }
+                    }
                 }
             }
         },
@@ -863,6 +1066,10 @@
                 "clockMS": {
                     "type": "integer"
                 },
+                "endMS": {
+                    "description": "a raid cooldown: when its buff last left a raider (0 when none was seen to)",
+                    "type": "integer"
+                },
                 "kind": {
                     "type": "string",
                     "enum": [
@@ -871,11 +1078,16 @@
                         "health potion",
                         "combat potion",
                         "kick",
-                        "cc"
+                        "cc",
+                        "raid cooldown"
                     ]
                 },
                 "player": {
                     "type": "string"
+                },
+                "prepot": {
+                    "description": "a combat potion drunk before the run started",
+                    "type": "boolean"
                 }
             }
         },
@@ -978,6 +1190,10 @@
                     "type": "string"
                 },
                 "damage": {
+                    "type": "integer"
+                },
+                "hits": {
+                    "description": "direct hits; 0 in keys saved before Nov 9",
                     "type": "integer"
                 },
                 "player": {
@@ -1326,6 +1542,42 @@
         "models.KeyTrack": {
             "type": "object",
             "properties": {
+                "abilities": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/definitions/models.AbilitySeries"
+                        }
+                    }
+                },
+                "abilityTimes": {
+                    "description": "AbilityTimes is when Abilities' stretches ended, in order: a stretch starts where the one before it ended.",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "bosses": {
+                    "description": "Bosses is a raid boss's units and the adds to burst (by GUID, each point named, with its health) about once a\nsecond; a raid pull's or a key's, once it has ended.",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/definitions/models.TrackPoint"
+                        }
+                    }
+                },
+                "casts": {
+                    "description": "Casts is each raider's casts in order, and Abilities what each one's abilities did in each abilityEveryMS\nstretch, so the replay shows what a raider was casting and their bars up to its moment; none in pulls saved\nbefore Nov 11.",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/definitions/models.TrackCast"
+                        }
+                    }
+                },
                 "classes": {
                     "type": "object",
                     "additionalProperties": {
@@ -1336,6 +1588,13 @@
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/models.TrackPoint"
+                    }
+                },
+                "health": {
+                    "description": "Health is the Bosses GUIDs the replay's health box shows: the units whose health is the boss's, then the adds\nto burst.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
                     }
                 },
                 "meters": {
@@ -1362,6 +1621,16 @@
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/models.PullSpan"
+                    }
+                },
+                "targetSeries": {
+                    "description": "TargetSeries is each raider's damage into each enemy (by name, as Ability) in the same stretches.",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/definitions/models.AbilitySeries"
+                        }
                     }
                 }
             }
@@ -1403,6 +1672,10 @@
                         "type": "integer",
                         "format": "int64"
                     }
+                },
+                "bestFinalMS": {
+                    "description": "BestFinalMS is the best other timed run's time, for the pace line under the result.",
+                    "type": "integer"
                 },
                 "betweenPulls": {
                     "description": "BetweenPulls is the time between each pull and the one before it (from the second pull), on the key's clock.",
@@ -1470,6 +1743,13 @@
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/models.KeyInterrupt"
+                    }
+                },
+                "lanes": {
+                    "description": "Lanes is the key's timeline for the replay (see keyLanes), and Suggestions what to fix next key, worked out when\nthe key is read (see keySuggestions); both empty in keys saved before Nov 11.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.RaidLane"
                     }
                 },
                 "lastPull": {
@@ -1561,6 +1841,12 @@
                         "$ref": "#/definitions/models.KeyStop"
                     }
                 },
+                "suggestions": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "taken": {
                     "type": "array",
                     "items": {
@@ -1577,6 +1863,20 @@
                     "items": {
                         "$ref": "#/definitions/models.KeyCast"
                     }
+                }
+            }
+        },
+        "models.MassKill": {
+            "type": "object",
+            "properties": {
+                "ability": {
+                    "type": "string"
+                },
+                "clockMS": {
+                    "type": "integer"
+                },
+                "killed": {
+                    "type": "integer"
                 }
             }
         },
@@ -1620,6 +1920,17 @@
                 }
             }
         },
+        "models.PlayerCount": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "player": {
+                    "type": "string"
+                }
+            }
+        },
         "models.PlayerReview": {
             "type": "object",
             "properties": {
@@ -1659,6 +1970,666 @@
                 }
             }
         },
+        "models.RaidAdd": {
+            "type": "object",
+            "properties": {
+                "aliveEnd": {
+                    "type": "integer"
+                },
+                "killed": {
+                    "type": "integer"
+                },
+                "longestMS": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "spawned": {
+                    "type": "integer"
+                },
+                "spawns": {
+                    "description": "Spawns is each one's appearance and its cause, for adds the reference says how they spawn; missing in pulls\nsaved before Nov 11.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.RaidSpawn"
+                    }
+                }
+            }
+        },
+        "models.RaidBreak": {
+            "type": "object",
+            "properties": {
+                "aura": {
+                    "type": "string"
+                },
+                "clockMS": {
+                    "type": "integer"
+                },
+                "effect": {
+                    "type": "string"
+                },
+                "hit": {
+                    "type": "integer"
+                },
+                "player": {
+                    "type": "string"
+                },
+                "then": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "models.RaidComparisons": {
+            "type": "object",
+            "properties": {
+                "ever": {
+                    "$ref": "#/definitions/models.RaidPullSummary"
+                },
+                "tonight": {
+                    "$ref": "#/definitions/models.RaidPullSummary"
+                }
+            }
+        },
+        "models.RaidDeath": {
+            "type": "object",
+            "properties": {
+                "ability": {
+                    "type": "string"
+                },
+                "clockMS": {
+                    "type": "integer"
+                },
+                "defensive": {
+                    "type": "string"
+                },
+                "early": {
+                    "type": "boolean"
+                },
+                "killer": {
+                    "type": "string"
+                },
+                "player": {
+                    "type": "string"
+                },
+                "ready": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "recap": {
+                    "description": "the last hits before the death, oldest first",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.RaidHit"
+                    }
+                }
+            }
+        },
+        "models.RaidHit": {
+            "type": "object",
+            "properties": {
+                "ability": {
+                    "type": "string"
+                },
+                "amount": {
+                    "type": "integer"
+                },
+                "beforeMS": {
+                    "type": "integer"
+                },
+                "source": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.RaidHits": {
+            "type": "object",
+            "properties": {
+                "ability": {
+                    "type": "string"
+                },
+                "players": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.PlayerCount"
+                    }
+                }
+            }
+        },
+        "models.RaidLane": {
+            "type": "object",
+            "properties": {
+                "kind": {
+                    "type": "string",
+                    "enum": [
+                        "pulls",
+                        "bosses",
+                        "phases",
+                        "deaths",
+                        "lust",
+                        "cooldowns",
+                        "potions",
+                        "spike",
+                        "stops",
+                        "cc",
+                        "avoidable",
+                        "soak",
+                        "pickups",
+                        "stacks",
+                        "adds"
+                    ]
+                },
+                "marks": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.RaidMark"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.RaidLive": {
+            "type": "object",
+            "properties": {
+                "betweenPulls": {
+                    "type": "boolean"
+                },
+                "boss": {
+                    "type": "string"
+                },
+                "last": {
+                    "$ref": "#/definitions/models.RaidPull"
+                },
+                "pulling": {
+                    "type": "boolean"
+                },
+                "ready": {
+                    "description": "Ready is who's missing a flask, food, Vantus Rune or raid buff, in a raid between pulls.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.ReadyCheck"
+                        }
+                    ]
+                },
+                "since": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.RaidMap": {
+            "type": "object",
+            "properties": {
+                "maxX": {
+                    "type": "number"
+                },
+                "maxY": {
+                    "type": "number"
+                },
+                "minX": {
+                    "type": "number"
+                },
+                "minY": {
+                    "type": "number"
+                },
+                "uiMapID": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.RaidMark": {
+            "type": "object",
+            "properties": {
+                "bad": {
+                    "type": "boolean"
+                },
+                "clockMS": {
+                    "type": "integer"
+                },
+                "endMS": {
+                    "type": "integer"
+                },
+                "text": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.RaidMissing": {
+            "type": "object",
+            "properties": {
+                "buff": {
+                    "type": "string"
+                },
+                "fromMS": {
+                    "type": "integer"
+                },
+                "player": {
+                    "type": "string"
+                },
+                "toMS": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.RaidNight": {
+            "type": "object",
+            "properties": {
+                "night": {
+                    "type": "string"
+                },
+                "pulls": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.RaidPullSummary"
+                    }
+                }
+            }
+        },
+        "models.RaidPickup": {
+            "type": "object",
+            "properties": {
+                "clockMS": {
+                    "type": "integer"
+                },
+                "missed": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                },
+                "players": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "models.RaidPriority": {
+            "type": "object",
+            "properties": {
+                "damage": {
+                    "type": "integer"
+                },
+                "target": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.RaidPull": {
+            "type": "object",
+            "properties": {
+                "abilities": {
+                    "description": "Abilities is each raider's damage, healing and casts by ability, Taken their damage taken by ability and Targets\ntheir damage into each enemy, most first: missing in pulls saved before Nov 11.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.KeyAbility"
+                    }
+                },
+                "activity": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "number",
+                        "format": "float64"
+                    }
+                },
+                "adds": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.RaidAdd"
+                    }
+                },
+                "avoidable": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.RaidHits"
+                    }
+                },
+                "boss": {
+                    "type": "string"
+                },
+                "bossPct": {
+                    "description": "the boss's health left, 0-100; -1 without advanced logging",
+                    "type": "number"
+                },
+                "breaks": {
+                    "description": "tethers raiders broke, in order",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.RaidBreak"
+                    }
+                },
+                "buffGaps": {
+                    "description": "BuffGaps is each raider's flask, food, Vantus Rune, tier bonus or raid buff missing at the pull's start (from 0)\nand each flask, food or raid buff that came off them in the pull for a while, in order; missing before Nov 12.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.RaidMissing"
+                    }
+                },
+                "casts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.KeyCast"
+                    }
+                },
+                "comparisons": {
+                    "$ref": "#/definitions/models.RaidComparisons"
+                },
+                "cooldowns": {
+                    "description": "raid cooldowns and combat potions, in order",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.KeyCast"
+                    }
+                },
+                "deaths": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.RaidDeath"
+                    }
+                },
+                "debuffs": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.KeyDispel"
+                    }
+                },
+                "difficulty": {
+                    "type": "string",
+                    "enum": [
+                        "LFR",
+                        "Normal",
+                        "Heroic",
+                        "Mythic"
+                    ]
+                },
+                "dispels": {
+                    "description": "slowest first",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.KeyDispel"
+                    }
+                },
+                "durationMS": {
+                    "type": "integer"
+                },
+                "end": {
+                    "type": "integer"
+                },
+                "interrupts": {
+                    "description": "The fight's lists as a key has them, for the tabs both pages show: every interrupt, must-stop cast, kick that\nstopped nothing, dispellable debuff, damage spike and survival, potion or crowd-control button pressed, and each\nraider's active time (%); missing in pulls saved before Nov 11.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.KeyInterrupt"
+                    }
+                },
+                "kill": {
+                    "type": "boolean"
+                },
+                "lanes": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.RaidLane"
+                    }
+                },
+                "lusts": {
+                    "description": "when Bloodlust landed, ms into the pull",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "maps": {
+                    "description": "the boss's rooms for the replay, from the reference file",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.RaidMap"
+                    }
+                },
+                "massKills": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.MassKill"
+                    }
+                },
+                "meter": {
+                    "$ref": "#/definitions/models.KeyMeter"
+                },
+                "night": {
+                    "description": "the raid night: the start's date, before 6 am counting as the day before",
+                    "type": "string",
+                    "example": "2026-11-03"
+                },
+                "number": {
+                    "description": "the pull's number on this boss and difficulty tonight, from the pulls known when it's read",
+                    "type": "integer"
+                },
+                "phase": {
+                    "description": "the last phase reached (\"P2\"); empty for a boss without phase triggers",
+                    "type": "string"
+                },
+                "pickups": {
+                    "description": "what raiders picked up (eggs), each wave in order",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.RaidPickup"
+                    }
+                },
+                "players": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "priority": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.RaidPriority"
+                    }
+                },
+                "soaks": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.RaidSoak"
+                    }
+                },
+                "spikes": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.KeySpike"
+                    }
+                },
+                "stacks": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.RaidStacks"
+                    }
+                },
+                "start": {
+                    "type": "integer"
+                },
+                "stops": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.KeyStop"
+                    }
+                },
+                "suggestions": {
+                    "description": "Suggestions is what to fix on the next pull, most important first, worked out when the pull is read so it's\ncompared with the best pull as of then.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "taken": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.KeyHit"
+                    }
+                },
+                "targets": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.RaidTarget"
+                    }
+                },
+                "wastedKicks": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.KeyCast"
+                    }
+                },
+                "wentOff": {
+                    "description": "must-stop casts that finished",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.KeyStop"
+                    }
+                }
+            }
+        },
+        "models.RaidPullSummary": {
+            "type": "object",
+            "properties": {
+                "boss": {
+                    "type": "string"
+                },
+                "bossPct": {
+                    "type": "number"
+                },
+                "difficulty": {
+                    "type": "string"
+                },
+                "durationMS": {
+                    "type": "integer"
+                },
+                "kill": {
+                    "type": "boolean"
+                },
+                "night": {
+                    "type": "string"
+                },
+                "number": {
+                    "type": "integer"
+                },
+                "phase": {
+                    "type": "string"
+                },
+                "start": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.RaidSoak": {
+            "type": "object",
+            "properties": {
+                "ability": {
+                    "type": "string"
+                },
+                "casts": {
+                    "type": "integer"
+                },
+                "died": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "fewest": {
+                    "type": "integer"
+                },
+                "hits": {
+                    "description": "missing in pulls saved before Nov 11",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.RaidSoakCast"
+                    }
+                },
+                "most": {
+                    "type": "integer"
+                },
+                "needed": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.RaidSoakCast": {
+            "type": "object",
+            "properties": {
+                "clockMS": {
+                    "type": "integer"
+                },
+                "players": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "models.RaidSpawn": {
+            "type": "object",
+            "properties": {
+                "cause": {
+                    "type": "string"
+                },
+                "clockMS": {
+                    "type": "integer"
+                },
+                "players": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "models.RaidStacks": {
+            "type": "object",
+            "properties": {
+                "ability": {
+                    "type": "string"
+                },
+                "limit": {
+                    "type": "integer"
+                },
+                "over": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "players": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.PlayerCount"
+                    }
+                }
+            }
+        },
+        "models.RaidTarget": {
+            "type": "object",
+            "properties": {
+                "damage": {
+                    "type": "integer"
+                },
+                "player": {
+                    "type": "string"
+                },
+                "target": {
+                    "type": "string"
+                }
+            }
+        },
         "models.ReadyCheck": {
             "type": "object",
             "properties": {
@@ -1679,6 +2650,9 @@
         "models.ReadyPlayer": {
             "type": "object",
             "properties": {
+                "class": {
+                    "type": "string"
+                },
                 "missing": {
                     "type": "array",
                     "items": {
@@ -1701,6 +2675,10 @@
             "properties": {
                 "amount": {
                     "description": "shown shortened (\"2.1M\"), else as a whole number",
+                    "type": "boolean"
+                },
+                "group": {
+                    "description": "it starts a new group of columns (offense, defense, consumables, deaths)",
                     "type": "boolean"
                 },
                 "help": {
@@ -1794,9 +2772,30 @@
                 }
             }
         },
+        "models.TrackCast": {
+            "type": "object",
+            "properties": {
+                "e": {
+                    "type": "integer"
+                },
+                "s": {
+                    "type": "string"
+                },
+                "t": {
+                    "type": "integer"
+                },
+                "x": {
+                    "type": "boolean"
+                }
+            }
+        },
         "models.TrackPoint": {
             "type": "object",
             "properties": {
+                "hp": {
+                    "description": "a raid boss's or add's health left (%), 0 when unknown",
+                    "type": "number"
+                },
                 "map": {
                     "type": "integer"
                 },

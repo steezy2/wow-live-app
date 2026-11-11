@@ -114,20 +114,8 @@ func checkLogs(path string) error {
 	}
 	hits := service.NewHitCounter()
 	for _, file := range logs {
-		tail := &combatlog.Tail{File: file}
-		for {
-			lines, _, err := tail.Read()
-			if err != nil {
-				return err
-			}
-			if len(lines) == 0 {
-				break
-			}
-			for _, text := range lines {
-				if line, err := combatlog.ParseLine(text); err == nil {
-					hits.Add(line)
-				}
-			}
+		if err := combatlog.EachLine(file, hits.Add); err != nil {
+			return err
 		}
 	}
 	for _, u := range hits.Uneven() {

@@ -4,7 +4,9 @@ import (
 	"cmp"
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
+	"sync"
 
 	"wow-live/backend/models"
 )
@@ -14,11 +16,11 @@ var ErrNoSuchKey = errors.New("no saved key starts then")
 
 // Latest is the running key as of now (ms since the epoch), with its projected result, or else the last one that
 // ended; false before any key.
-func (k *KeyTracker) Latest(now int64) (models.KeyView, bool) {
+func (k *LogTracker) Latest(now int64) (models.KeyView, bool) {
 	k.mu.RLock()
 	defer k.mu.RUnlock()
 	switch {
-	case k.current != nil:
+	case k.current != nil && k.current.raid == nil:
 		run := k.current
 		v := view(k.details(run, now), clock(run.key.Start, now, len(run.deaths)), k.history)
 		v.SilentMS = max(0, now-k.lastAt)
@@ -39,11 +41,11 @@ func (k *KeyTracker) Latest(now int64) (models.KeyView, bool) {
 // FirstRun is the running key when it's the first of its dungeon here (no finished runs saved) and its top Warcraft Logs runs
 // haven't been asked for: asking marks them, so they're fetched once a dungeon and level. False until COMBATANT_INFO
 // names the party's specs.
-func (k *KeyTracker) FirstRun() (models.Key, bool) {
+func (k *LogTracker) FirstRun() (models.Key, bool) {
 	k.mu.Lock()
 	defer k.mu.Unlock()
 	run := k.current
-	if run == nil || len(run.party) == 0 {
+	if run == nil || run.raid != nil || len(run.party) == 0 {
 		return models.Key{}, false
 	}
 	id := [2]int{run.key.MapID, run.key.Level}
@@ -60,7 +62,7 @@ func (k *KeyTracker) FirstRun() (models.Key, bool) {
 }
 
 // SetTopRuns keeps the times of a dungeon's top Warcraft Logs runs at a level, for a first run's estimate.
-func (k *KeyTracker) SetTopRuns(mapID, level int, ms []int64) {
+func (k *LogTracker) SetTopRuns(mapID, level int, ms []int64) {
 	k.mu.Lock()
 	defer k.mu.Unlock()
 	k.top[[2]int{mapID, level}] = ms
@@ -69,30 +71,49 @@ func (k *KeyTracker) SetTopRuns(mapID, level int, ms []int64) {
 
 // SaveFinished saves the keys that ended since the last call (the log follower calls it after each read), and says
 // which (by start time).
-func (k *KeyTracker) SaveFinished() ([]int64, error) {
-	k.mu.Lock()
-	done := k.unsaved
-	k.unsaved = nil
-	k.mu.Unlock()
+func (k *LogTracker) SaveFinished() ([]int64, error) {
 	var saved []int64
-	for i, run := range done {
+	err := saveQueued(&k.mu, &k.unsaved, func(run savedRun) error {
 		err := k.store.Save(run.key)
 		if err == nil {
 			err = k.store.SaveTrack(run.key.Start, run.track)
 		}
 		if err != nil {
-			k.mu.Lock()
-			k.unsaved = append(done[i:], k.unsaved...)
-			k.mu.Unlock()
-			return saved, fmt.Errorf("saving the %s key (retried after the next read): %w", run.key.Dungeon, err)
+			return fmt.Errorf("saving the %s key (retried after the next read): %w", run.key.Dungeon, err)
 		}
 		saved = append(saved, run.key.Start)
+		return nil
+	})
+	if err == nil && k.raid != nil {
+		err = k.savePulls()
 	}
-	return saved, nil
+	return saved, err
+}
+
+// saveQueued saves queue's items in order with save, then takes the saved ones off it; the first that fails stays
+// queued with those after it, for the next call. Items stay queued while they're written, so readers still find them.
+// Only the tracker appends to queue (under mu), so the saved ones are still its first.
+func saveQueued[T any](mu *sync.RWMutex, queue *[]T, save func(T) error) error {
+	mu.RLock()
+	done := slices.Clone(*queue)
+	mu.RUnlock()
+	saved := 0
+	defer func() {
+		mu.Lock()
+		*queue = (*queue)[saved:]
+		mu.Unlock()
+	}()
+	for _, item := range done {
+		if err := save(item); err != nil {
+			return err
+		}
+		saved++
+	}
+	return nil
 }
 
 // Saved is every saved key, newest first.
-func (k *KeyTracker) Saved() []models.KeySummary {
+func (k *LogTracker) Saved() []models.KeySummary {
 	k.mu.RLock()
 	defer k.mu.RUnlock()
 	saved := []models.KeySummary{}
@@ -108,7 +129,7 @@ func (k *KeyTracker) Saved() []models.KeySummary {
 }
 
 // SavedKey is one saved key as the page shows it.
-func (k *KeyTracker) SavedKey(start int64) (models.KeyView, error) {
+func (k *LogTracker) SavedKey(start int64) (models.KeyView, error) {
 	k.mu.RLock()
 	defer k.mu.RUnlock()
 	i := slices.IndexFunc(k.history, func(key models.Key) bool { return key.Start == start })
@@ -119,7 +140,7 @@ func (k *KeyTracker) SavedKey(start int64) (models.KeyView, error) {
 }
 
 // DeleteSaved removes one saved key, or every one when start is 0.
-func (k *KeyTracker) DeleteSaved(start int64) error {
+func (k *LogTracker) DeleteSaved(start int64) error {
 	k.mu.Lock()
 	defer k.mu.Unlock()
 	if start == 0 {
@@ -140,9 +161,10 @@ func (k *KeyTracker) DeleteSaved(start int64) error {
 	return nil
 }
 
-// details is a run as the page shows it at a log time: deaths with what covered them or was ready, the last
-// pull's and the whole key's meters, and who lacked a buff at the start.
-func (k *KeyTracker) details(run *keyRun, at int64) models.Key {
+// details is a run as the page shows it at a log time: deaths with what covered them or was ready, avoidable hits,
+// casts, must-stops, dispels, Bloodlust, the whole run's meter, spikes, activity and who lacked a buff at the start;
+// and for a key, its pulls, last pull's meter and forces (a raid pull shows none of those).
+func (k *LogTracker) details(run *keyRun, at int64) models.Key {
 	key := run.key
 	buffs := slices.Clone(run.buffs)
 	for open, from := range k.up {
@@ -153,6 +175,9 @@ func (k *KeyTracker) details(run *keyRun, at int64) models.Key {
 	}
 	deaths := slices.Clone(run.deaths)
 	kit := LearnKit(run.casts)
+	if run.raid != nil {
+		addKit(kit, k.raid.kit)
+	}
 	ClassifyDeaths(deaths, run.casts, buffs, kit, int64(k.rules.Defensives.WindowSeconds*1000))
 	key.Deaths = list(run.key.Deaths)
 	for i := range key.Deaths {
@@ -164,40 +189,17 @@ func (k *KeyTracker) details(run *keyRun, at int64) models.Key {
 		key.Specs[k.names[guid]] = k.specs[guid]
 	}
 	key.AvoidableHits = []models.KeyHit{}
-	for player, byAbility := range run.avoidable {
-		for ability, damage := range byAbility {
-			key.AvoidableHits = append(key.AvoidableHits, models.KeyHit{Player: player, Ability: ability, Damage: damage})
-		}
+	for _, hit := range run.avoidable {
+		key.AvoidableHits = append(key.AvoidableHits, *hit)
 	}
 	slices.SortFunc(key.AvoidableHits, func(a, b models.KeyHit) int { return cmp.Compare(b.Damage, a.Damage) })
 	key.Bosses, key.Affixes = list(key.Bosses), list(key.Affixes)
-	key.Interrupts, key.Casts = list(key.Interrupts), list(key.Casts)
+	key.Interrupts, key.Casts = list(key.Interrupts), append(k.prepots(run), key.Casts...)
 	key.Stops, key.WastedKicks, key.Debuffs = list(key.Stops), list(key.WastedKicks), list(key.Debuffs)
 	slices.SortStableFunc(key.Stops, func(a, b models.KeyStop) int { return cmp.Compare(a.ClockMS, b.ClockMS) })
-	key.Spikes = k.spikes(run, key.Casts, buffs, kit)
-	key.Pulls = priorityPulls(run)
-	key.LastPull = run.lastPull
-	if len(run.inPull) > 0 {
-		key.LastPull = k.pullMeter(run)
-		key.LastPull.Ongoing = key.Status == "running" && at-run.pullLast <= pullGapMS
-	}
-	key.LastPull.Rows = list(key.LastPull.Rows)
-	key.Overall = meter(run.total, k.classes(run), 0, clock(key.Start, at, len(run.deaths)),
-		max(0, at-key.Start-keyCountdownMS))
-	all := make([]int, 0, len(run.pulls))
-	for n := range run.pulls {
-		all = append(all, n)
-	}
-	lastPull := run.pull
-	if len(run.inPull) == 0 {
-		lastPull--
-	}
-	withPriority(key.Overall.Rows, run, all...)
-	withPriority(key.LastPull.Rows, run, lastPull)
-	key.Lusts, key.BetweenPulls, key.Activity = list(key.Lusts), []int64{}, map[string]float64{}
-	for i := 1; i < len(run.track.Pulls); i++ {
-		key.BetweenPulls = append(key.BetweenPulls, run.track.Pulls[i].StartMS-run.track.Pulls[i-1].EndMS)
-	}
+	key.Overall = meter(run.total, k.classes(run), 0, run.clock(at), run.elapsed(at))
+	key.Lusts = list(key.Lusts)
+	key.Spikes, key.Activity = k.spikes(run, key.Casts, buffs, kit), map[string]float64{}
 	for player, seconds := range run.fighting {
 		active := 0
 		for s := range seconds {
@@ -208,6 +210,30 @@ func (k *KeyTracker) details(run *keyRun, at int64) models.Key {
 		key.Activity[player] = 100 * float64(active) / float64(len(seconds))
 	}
 	key.Buffs = k.buffCheck(run)
+	if run.raid != nil {
+		return key
+	}
+	key.Pulls = priorityPulls(run)
+	key.LastPull = run.lastPull
+	if len(run.inPull) > 0 {
+		key.LastPull = k.pullMeter(run)
+		key.LastPull.Ongoing = key.Status == "running" && at-run.pullLast <= pullGapMS
+	}
+	key.LastPull.Rows = list(key.LastPull.Rows)
+	all := make([]int, 0, len(run.pulls))
+	for n := range run.pulls {
+		all = append(all, n)
+	}
+	lastPull := run.pull
+	if len(run.inPull) == 0 {
+		lastPull--
+	}
+	withPriority(key.Overall.Rows, run, all...)
+	withPriority(key.LastPull.Rows, run, lastPull)
+	key.BetweenPulls = []int64{}
+	for i := 1; i < len(run.track.Pulls); i++ {
+		key.BetweenPulls = append(key.BetweenPulls, run.track.Pulls[i].StartMS-run.track.Pulls[i-1].EndMS)
+	}
 	if run.key.Forces != nil {
 		forces := *run.key.Forces
 		forces.At = list(forces.At)
@@ -226,13 +252,16 @@ func (k *KeyTracker) details(run *keyRun, at int64) models.Key {
 		})
 		key.Forces = &forces
 	}
+	if key.Status != "running" {
+		key.Lanes = keyLanes(key, run.track.Pulls)
+		key.Suggestions = keySuggestions(key, bestRun(key, k.history), k.rules.Suggestions)
+	}
 	return key
 }
 
 // pullMeter is the meter of the run's current pull.
-func (k *KeyTracker) pullMeter(run *keyRun) models.KeyMeter {
-	return meter(run.inPull, k.classes(run), run.pullAt, clock(run.key.Start, run.pullLast, len(run.deaths)),
-		run.pullLast-run.pullFrom)
+func (k *LogTracker) pullMeter(run *keyRun) models.KeyMeter {
+	return meter(run.inPull, k.classes(run), run.pullAt, run.clock(run.pullLast), run.pullLast-run.pullFrom)
 }
 
 // meter is each player's row over a stretch shown from startMS to endMS on the key's clock, with their class, per
@@ -261,7 +290,7 @@ func withPriority(rows []models.KeyMeterRow, run *keyRun, pulls ...int) {
 }
 
 // classes is each party member's class by name.
-func (k *KeyTracker) classes(run *keyRun) map[string]string {
+func (k *LogTracker) classes(run *keyRun) map[string]string {
 	classes := map[string]string{}
 	for _, guid := range run.party {
 		classes[k.names[guid]] = specs[k.specs[guid]].Class
@@ -269,39 +298,89 @@ func (k *KeyTracker) classes(run *keyRun) map[string]string {
 	return classes
 }
 
-// buffCheck is who lacked a flask, food or a party buff a class in the group gives (augment runes are rare in M+),
-// from their auras at the key's start. A buff the log never named counts as missing, so a flask drunk before logging
-// started shows.
-func (k *KeyTracker) buffCheck(run *keyRun) []models.KeyBuffCheck {
-	classes := map[string]bool{}
+// buffCheck is who lacked a flask, food (in a raid, their tier set's bonuses too, and a Vantus Rune where the raid's
+// rune works) or a party buff a class in the group gives (augment runes are rare in M+), from their auras and gear at
+// the key's or pull's start. A buff the log never named counts as missing unless a consumable lists its ID, so a
+// flask drunk before logging started shows.
+func (k *LogTracker) buffCheck(run *keyRun) []models.KeyBuffCheck {
+	classes, difficulty := map[string]bool{}, ""
 	for _, guid := range run.party {
 		classes[specs[k.specs[guid]].Class] = true
 	}
+	if run.raid != nil {
+		difficulty = run.raid.difficulty
+	}
+	buffs := k.applicableBuffs(classes)
 	checks := []models.KeyBuffCheck{}
-	c := k.rules.Consumables
 	for _, guid := range run.party {
-		ids, player := run.auras[guid], k.names[guid]
-		var have []string
-		for _, id := range ids {
-			have = append(have, k.spells[id])
+		have := map[int]string{}
+		for _, id := range run.auras[guid] {
+			have[id] = k.spells[id]
 		}
 		var missing []string
-		for kind, patterns := range map[string][]string{"flask": c.Flask, "food": c.Food} {
-			if !slices.ContainsFunc(have, func(name string) bool { return named(name, patterns) }) {
+		for kind, c := range k.consumables(difficulty) {
+			if !c.had(have) {
 				missing = append(missing, kind)
 			}
 		}
-		for buff, class := range k.rules.Buffs {
-			if classes[class] && !slices.Contains(have, buff) {
+		names := slices.Collect(maps.Values(have))
+		for _, buff := range buffs {
+			if !slices.Contains(names, buff) {
 				missing = append(missing, buff)
 			}
 		}
+		if run.raid != nil {
+			missing = append(missing, k.tierMissing(guid, run.gear[guid])...)
+		}
 		if len(missing) > 0 {
 			slices.Sort(missing)
-			checks = append(checks, models.KeyBuffCheck{Player: player, Missing: missing})
+			checks = append(checks, models.KeyBuffCheck{Player: k.names[guid], Missing: missing})
 		}
 	}
 	return checks
+}
+
+// tierMissing is the tier bonus a raider (by GUID) lacks with their equipped items: "2-set" under 2 of their class's
+// tier pieces, "4-set" under 4; nothing for a class without a tier list.
+func (k *LogTracker) tierMissing(guid string, gear []int) []string {
+	tier := k.raid.tier[specs[k.specs[guid]].Class]
+	if len(tier) == 0 {
+		return nil
+	}
+	switch n := len(slices.DeleteFunc(slices.Clone(gear), func(id int) bool { return !slices.Contains(tier, id) })); {
+	case n < 2:
+		return []string{"2-set"}
+	case n < 4:
+		return []string{"4-set"}
+	}
+	return nil
+}
+
+// castBy is whether player has a cast of ability in casts.
+func castBy(casts []models.KeyCast, player, ability string) bool {
+	return slices.ContainsFunc(casts, func(c models.KeyCast) bool { return c.Player == player && c.Ability == ability })
+}
+
+// prepots are the combat potions drunk before the run started, at 0: a potion's buff in a member's pull-start auras,
+// unless the run already has that member's potion of that name (drunk in the run, or its buff seen leaving).
+func (k *LogTracker) prepots(run *keyRun) []models.KeyCast {
+	out := []models.KeyCast{}
+	for _, guid := range run.party {
+		player := k.names[guid]
+		for _, id := range run.auras[guid] {
+			name := k.spells[id]
+			if k.kinds[name] != "combat potion" && !slices.Contains(k.rules.Consumables.CombatPotionIDs, id) {
+				continue
+			}
+			if name == "" {
+				name = combatPotion
+			}
+			if !castBy(run.key.Casts, player, name) {
+				out = append(out, models.KeyCast{Player: player, Ability: name, Kind: "combat potion", Prepot: true})
+			}
+		}
+	}
+	return out
 }
 
 // killTimes is when each boss died on the key's clock, wipes left out.
@@ -328,6 +407,7 @@ func view(key models.Key, clockMS int64, history []models.Key) models.KeyView {
 		v.Plus3MS = int64(float64(key.TimerMS) * plus3Share)
 	}
 	if best := bestRun(key, history); best != nil {
+		v.BestFinalMS = best.FinalMS
 		v.BestBosses = map[string]int64{}
 		for _, b := range best.Bosses {
 			if b.Kill {

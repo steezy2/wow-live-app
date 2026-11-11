@@ -28,12 +28,8 @@ type DungeonFacts struct {
 // bounds (Keystone.guru's x is the log's -y and its y the log's x), and its tile folder on Keystone.guru's assets
 // ("bfa/templeofsethraliss/1").
 type DungeonFloor struct {
-	UIMapID int     `json:"uiMapID"`
-	MinX    float64 `json:"minX"`
-	MaxX    float64 `json:"maxX"`
-	MinY    float64 `json:"minY"`
-	MaxY    float64 `json:"maxY"`
-	Tiles   string  `json:"tiles"`
+	RaidMap
+	Tiles string `json:"tiles"`
 }
 
 // DungeonMap is what the replay draws a dungeon on: its floors with map tiles (none for a dungeon Keystone.guru

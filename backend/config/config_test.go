@@ -42,3 +42,30 @@ func TestLoadEnvSetsMissingKeysOnly(t *testing.T) {
 		t.Fatalf("a missing .env is fine, got %v", err)
 	}
 }
+
+func TestLoadRaidMechanicsRefusesUnknownKeys(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "raid-mechanics.toml")
+	text := "raid = \"venomous-abyss\"\n[bosses.\"Ula'tek\"]\nmust_stops = [1]\n" // must_stop, misspelt
+	if err := os.WriteFile(path, []byte(text), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := LoadRaidMechanics(path); err == nil {
+		t.Fatal("a misspelt key loaded; want an error naming it")
+	}
+}
+
+func TestTheRepoRulesFilesHaveNoUnknownKeys(t *testing.T) {
+	root, err := RootFromWorkingDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := LoadRules(root); err != nil {
+		t.Error(err)
+	}
+	if _, err := LoadRaidRules(root); err != nil {
+		t.Error(err)
+	}
+	if _, err := LoadRaidMechanics(RaidMechanicsPath(root)); err != nil {
+		t.Error(err)
+	}
+}

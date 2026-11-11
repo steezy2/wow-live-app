@@ -51,7 +51,7 @@ func npcOf(guid string) int {
 
 // hitMob counts a party member's hit on a mob for the pull's miniboss numbers; the mob belongs to the pull it was
 // first hit in.
-func (k *KeyTracker) hitMob(at int64, guid, name, player string, amount int64) {
+func (k *LogTracker) hitMob(at int64, guid, name, player string, amount int64) {
 	run := k.current
 	stat := run.pulls[run.pull]
 	if stat == nil {
@@ -76,7 +76,7 @@ func (k *KeyTracker) hitMob(at int64, guid, name, player string, amount int64) {
 }
 
 // mobDown records when a mob the party hit died, in the pull it was first hit in.
-func (k *KeyTracker) mobDown(at int64, guid string) {
+func (k *LogTracker) mobDown(at int64, guid string) {
 	run := k.current
 	n, ok := run.mobPull[guid]
 	if stat := run.pulls[n]; ok && stat != nil && stat.mobs[guid] != nil && !stat.mobs[guid].dead {

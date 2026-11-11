@@ -1,0 +1,552 @@
+{
+  "raid": "venomous-abyss",
+  "sources": {
+    "maps": "wago.tools' UiMapAssignment: each map's edges",
+    "mechanics": "reference/raid-mechanics.toml (kept by hand, checked against logs), else Wowhead's boss cheat sheets (each boss's guide): spell IDs sorted by the words of their line",
+    "npcs": "Warcraft Logs: the boss actors and maps of each encounter's top-ranked kill",
+    "tier": "Wowhead's item sets (raid-rules.toml's [tier] sets): each class's tier items",
+    "written": "2026-11-11"
+  },
+  "bosses": {
+    "Entombed Sentinels": {
+      "name": "Entombed Sentinels",
+      "guide": "https://www.wowhead.com/guide/midnight/raids/venomous-abyss-entombed-sentinels-boss-strategy-abilities",
+      "npcs": [
+        258557,
+        258558
+      ],
+      "avoidable": [
+        1296882,
+        1284209
+      ],
+      "soak": [
+        1288282
+      ],
+      "dispel": [
+        1284471
+      ],
+      "mustStop": [],
+      "stacks": {
+        "1284491": 0,
+        "1284500": 0,
+        "1284506": 0
+      },
+      "priority": [
+        "Venom Coagulation"
+      ],
+      "checked": "wcl Ljvh4yqWwTfQJ3Xz#13",
+      "sources": [
+        "https://www.mythictrap.com/en/venomous-abyss/entombed-sentinels/mythic"
+      ],
+      "maps": [
+        {
+          "uiMapID": 2608,
+          "minX": 265,
+          "maxX": 885,
+          "minY": -802.5,
+          "maxY": 127.5
+        }
+      ]
+    },
+    "Kith'ix": {
+      "name": "Kith'ix",
+      "guide": "",
+      "npcs": [
+        267861
+      ],
+      "avoidable": [
+        1302914,
+        1302917,
+        1308881
+      ],
+      "soak": [],
+      "dispel": [
+        1304046
+      ],
+      "mustStop": [],
+      "stacks": {
+        "1302319": 0,
+        "1318467": 0
+      },
+      "priority": [],
+      "pickups": [
+        {
+          "aura": 1304526,
+          "name": "a light mote",
+          "expect": 1304424
+        }
+      ],
+      "checked": "wcl yABcgtXjV48kFrW2#17",
+      "sources": [
+        "https://www.mythictrap.com/en/venomous-abyss/kithix/mythic",
+        "https://www.mythictrap.com/en/venomous-abyss/kithix/heroic"
+      ],
+      "maps": [
+        {
+          "uiMapID": 2669,
+          "minX": 1510.4169921875,
+          "maxX": 2022.9169921875,
+          "minY": -393.75,
+          "maxY": 375
+        }
+      ]
+    },
+    "Nek'zali the Soulcoiler": {
+      "name": "Nek'zali the Soulcoiler",
+      "guide": "https://www.wowhead.com/guide/midnight/raids/venomous-abyss-nekzali-the-soulcoiler-boss-strategy-abilities",
+      "npcs": [
+        259927,
+        263050
+      ],
+      "avoidable": [
+        1295085
+      ],
+      "soak": [
+        1289855
+      ],
+      "dispel": [
+        1287434
+      ],
+      "mustStop": [],
+      "stacks": {
+        "1284109": 0,
+        "1288772": 0
+      },
+      "priority": [
+        "Echo of Jawae",
+        "Restless Amani",
+        "Drowned Echo"
+      ],
+      "checked": "wcl WQ9PkqZdnGKNRyXL#1",
+      "sources": [
+        "https://www.mythictrap.com/en/venomous-abyss/nekzali-the-soulcoiler/mythic"
+      ],
+      "maps": [
+        {
+          "uiMapID": 2606,
+          "minX": -110,
+          "maxX": 525,
+          "minY": -476.25,
+          "maxY": 476.25
+        }
+      ]
+    },
+    "Nymrissa Wavecaller": {
+      "name": "Nymrissa Wavecaller",
+      "guide": "",
+      "npcs": [
+        252959
+      ],
+      "avoidable": [
+        1258677
+      ],
+      "soak": [
+        1313448
+      ],
+      "soakers": {
+        "1313448": 1
+      },
+      "dispel": [],
+      "mustStop": [],
+      "stacks": {
+        "1282947": 0
+      },
+      "priority": [
+        "Bubblefin Frostscale"
+      ],
+      "checked": "log 2026-11-09 Heroic; wcl ZFcfXnBRAMCyDvwg#1",
+      "sources": [
+        "https://www.mythictrap.com/en/venomous-abyss/nymrissa-wavecaller/mythic"
+      ],
+      "maps": [
+        {
+          "uiMapID": 2632,
+          "minX": 4610.419921875,
+          "maxX": 4939.580078125,
+          "minY": -12325,
+          "maxY": -11831.299804688
+        }
+      ]
+    },
+    "Sszorak": {
+      "name": "Sszorak",
+      "guide": "https://www.wowhead.com/guide/midnight/raids/venomous-abyss-sszorak-boss-strategy-abilities",
+      "npcs": [
+        257347
+      ],
+      "avoidable": [
+        1287083,
+        1305998
+      ],
+      "soak": [
+        1285999
+      ],
+      "soakers": {
+        "1285999": 8
+      },
+      "dispel": [],
+      "mustStop": [],
+      "stacks": {
+        "1282873": 0
+      },
+      "priority": [],
+      "checked": "wcl RQh621nVzHXABD8W#30",
+      "sources": [
+        "https://www.mythictrap.com/en/venomous-abyss/sszorak/mythic"
+      ],
+      "maps": [
+        {
+          "uiMapID": 2609,
+          "minX": 175,
+          "maxX": 940,
+          "minY": -113.75,
+          "maxY": 1033.75
+        }
+      ]
+    },
+    "The Coiled Altar": {
+      "name": "The Coiled Altar",
+      "guide": "https://www.wowhead.com/guide/midnight/raids/venomous-abyss-coiled-altar-boss-strategy-abilities",
+      "npcs": [
+        257911,
+        259854
+      ],
+      "avoidable": [
+        1310883
+      ],
+      "soak": [
+        1283594
+      ],
+      "soakers": {
+        "1283594": 5
+      },
+      "dispel": [
+        1306906
+      ],
+      "mustStop": [
+        1286918,
+        1286441
+      ],
+      "stacks": {
+        "1298795": 0
+      },
+      "priority": [
+        "Spiteful Soulcoiler"
+      ],
+      "checked": "wcl ZcDwmXQqhJYCA6Gd#20",
+      "sources": [
+        "https://www.mythictrap.com/en/venomous-abyss/the-coiled-altar/mythic"
+      ],
+      "maps": [
+        {
+          "uiMapID": 2610,
+          "minX": 980,
+          "maxX": 1755,
+          "minY": -581.25,
+          "maxY": 581.25
+        }
+      ]
+    },
+    "The Lost Explorers": {
+      "name": "The Lost Explorers",
+      "guide": "https://www.wowhead.com/guide/midnight/raids/venomous-abyss-lost-explorers-boss-strategy-abilities",
+      "npcs": [
+        261584,
+        261835,
+        261848,
+        261843
+      ],
+      "avoidable": [
+        1291935,
+        1292764,
+        1291918
+      ],
+      "soak": [
+        1300237
+      ],
+      "dispel": [],
+      "mustStop": [
+        1286922
+      ],
+      "stacks": {
+        "1291929": 0
+      },
+      "priority": [],
+      "checked": "log 2026-11-10 Heroic; wcl ZpbaLr3gGDdc7jKf#25",
+      "sources": [
+        "https://www.mythictrap.com/en/venomous-abyss/the-lost-explorers/mythic"
+      ],
+      "maps": [
+        {
+          "uiMapID": 2609,
+          "minX": 175,
+          "maxX": 940,
+          "minY": -113.75,
+          "maxY": 1033.75
+        }
+      ]
+    },
+    "The Twin Fangs": {
+      "name": "The Twin Fangs",
+      "guide": "https://www.wowhead.com/guide/midnight/raids/venomous-abyss-twin-fangs-boss-strategy-abilities",
+      "npcs": [
+        257368,
+        257361
+      ],
+      "avoidable": [
+        1292806,
+        1294605,
+        1306876,
+        1293295
+      ],
+      "soak": [
+        1289201,
+        1290662,
+        1310371
+      ],
+      "soakers": {
+        "1289201": 1,
+        "1310371": 1
+      },
+      "dispel": [],
+      "mustStop": [],
+      "stacks": {
+        "1290336": 8,
+        "1310360": 0
+      },
+      "priority": [],
+      "checked": "wcl 1RmLgyrbBjcNTVpk#40",
+      "sources": [
+        "https://www.mythictrap.com/en/venomous-abyss/the-twin-fangs/mythic"
+      ],
+      "maps": [
+        {
+          "uiMapID": 2607,
+          "minX": 410,
+          "maxX": 1088,
+          "minY": -508.5,
+          "maxY": 508.5
+        }
+      ]
+    },
+    "Ula'tek": {
+      "name": "Ula'tek",
+      "guide": "https://www.wowhead.com/guide/midnight/raids/venomous-abyss-ulatek-boss-strategy-abilities",
+      "npcs": [
+        257758,
+        259555,
+        267460
+      ],
+      "health": [
+        257758
+      ],
+      "avoidable": [
+        1292403,
+        1302982,
+        1301510
+      ],
+      "soak": [
+        1287265,
+        1293146
+      ],
+      "dispel": [],
+      "mustStop": [
+        1290779,
+        1305650,
+        1310764
+      ],
+      "stacks": {},
+      "priority": [
+        "Venomous Heart",
+        "Doomscale Warden"
+      ],
+      "pickups": [
+        {
+          "aura": 1307612,
+          "name": "an egg"
+        },
+        {
+          "aura": 1300312,
+          "name": "a Doomscale Egg"
+        }
+      ],
+      "breaks": [
+        {
+          "aura": 1311611,
+          "effect": 1311609,
+          "withinMS": 250
+        }
+      ],
+      "spawns": [
+        {
+          "add": "Blightscale Viper",
+          "cause": 1307635,
+          "lost": 1307612,
+          "withinMS": 3000
+        },
+        {
+          "add": "Blightscale Viper",
+          "cause": 1292403,
+          "lost": 1307612,
+          "withinMS": 3000
+        },
+        {
+          "add": "Blightscale Clutch",
+          "cause": 1302950,
+          "withinMS": 2000
+        },
+        {
+          "add": "Doomscale Warden",
+          "cause": 1306862,
+          "withinMS": 3000
+        }
+      ],
+      "checked": "log 2026-11-10 Mythic; wcl JL3bgnz1xpBh4HjT#17",
+      "sources": [
+        "https://www.mythictrap.com/en/venomous-abyss/ulatek/mythic",
+        "https://www.method.gg/guides/the-venomous-abyss/ulatek"
+      ],
+      "maps": [
+        {
+          "uiMapID": 2610,
+          "minX": 980,
+          "maxX": 1755,
+          "minY": -581.25,
+          "maxY": 581.25
+        }
+      ]
+    },
+    "Vashnik the Malignant": {
+      "name": "Vashnik the Malignant",
+      "guide": "https://www.wowhead.com/guide/midnight/raids/venomous-abyss-vashnik-the-malignant-boss-strategy-abilities",
+      "npcs": [
+        259181
+      ],
+      "avoidable": [
+        1281925,
+        1295798,
+        1302489
+      ],
+      "soak": [
+        1282525
+      ],
+      "dispel": [
+        1295173
+      ],
+      "mustStop": [],
+      "stacks": {
+        "1280934": 0
+      },
+      "priority": [
+        "Burning Venom",
+        "Shrouded Venom"
+      ],
+      "checked": "log 2026-11-10 Heroic; wcl R7cP6rmx4A1tzyQv#31",
+      "sources": [
+        "https://www.mythictrap.com/en/venomous-abyss/vashnik-the-malignant/mythic"
+      ],
+      "maps": [
+        {
+          "uiMapID": 2608,
+          "minX": 265,
+          "maxX": 885,
+          "minY": -802.5,
+          "maxY": 127.5
+        }
+      ]
+    }
+  },
+  "tier": {
+    "DeathKnight": [
+      271472,
+      271473,
+      271474,
+      271475,
+      271477
+    ],
+    "DemonHunter": [
+      271535,
+      271536,
+      271537,
+      271538,
+      271540
+    ],
+    "Druid": [
+      271526,
+      271527,
+      271528,
+      271529,
+      271531
+    ],
+    "Evoker": [
+      271499,
+      271500,
+      271501,
+      271502,
+      271504
+    ],
+    "Hunter": [
+      271490,
+      271491,
+      271492,
+      271493,
+      271495
+    ],
+    "Mage": [
+      271562,
+      271563,
+      271564,
+      271565,
+      271567
+    ],
+    "Monk": [
+      271517,
+      271518,
+      271519,
+      271520,
+      271522
+    ],
+    "Paladin": [
+      271463,
+      271464,
+      271465,
+      271466,
+      271468
+    ],
+    "Priest": [
+      271553,
+      271554,
+      271555,
+      271556,
+      271558
+    ],
+    "Rogue": [
+      271508,
+      271509,
+      271510,
+      271511,
+      271513
+    ],
+    "Shaman": [
+      271481,
+      271482,
+      271483,
+      271484,
+      271486
+    ],
+    "Warlock": [
+      271544,
+      271545,
+      271546,
+      271547,
+      271549
+    ],
+    "Warrior": [
+      271454,
+      271455,
+      271456,
+      271457,
+      271459
+    ]
+  }
+}
