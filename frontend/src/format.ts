@@ -39,6 +39,16 @@ export function oddsText(odds: number[]): string {
     .join(' · ')
 }
 
+/** A count with its word: "1 death", "3 deaths". */
+export function counted(n: number, word: string): string {
+  return `${n} ${word}${n === 1 ? '' : 's'}`
+}
+
+/** A short time in seconds: "6.3 s". */
+export function seconds(ms: number): string {
+  return `${(ms / 1000).toFixed(1)} s`
+}
+
 /** A big number shortened for a meter: "413.0M", "265k", "950". */
 export function amount(n: number): string {
   if (n >= 1e6) return `${(n / 1e6).toFixed(1)}M`

@@ -45,17 +45,17 @@ func (k *LogTracker) betweenPulls(now int64) bool {
 	return now-end <= RaidLinger.Milliseconds() && (k.last == nil || k.last.End < end)
 }
 
-// RaidNights is every raid night's pulls in order, newest night first.
+// RaidNights is every raid night's pulls, newest first.
 func (k *LogTracker) RaidNights() []models.RaidNight {
 	k.mu.RLock()
 	defer k.mu.RUnlock()
 	nights := []models.RaidNight{}
-	for i := len(k.pulls) - 1; i >= 0; i-- { // oldest pull first
-		p := k.pulls[i]
-		if len(nights) == 0 || nights[0].Night != p.Night {
-			nights = append([]models.RaidNight{{Night: p.Night, Pulls: []models.RaidPullSummary{}}}, nights...)
+	for _, p := range k.pulls {
+		if n := len(nights); n == 0 || nights[n-1].Night != p.Night {
+			nights = append(nights, models.RaidNight{Night: p.Night})
 		}
-		nights[0].Pulls = append(nights[0].Pulls, pullSummary(k.numbered(p)))
+		last := &nights[len(nights)-1]
+		last.Pulls = append(last.Pulls, pullSummary(k.numbered(p)))
 	}
 	return nights
 }

@@ -442,6 +442,11 @@ button {
   height: auto;
   background: var(--panel);
   border-radius: 6px;
+  touch-action: none; /* a drag pans the map */
+}
+
+.map-canvas.zoomed {
+  cursor: grab;
 }
 
 .map-marks {
@@ -714,6 +719,28 @@ html:has(.overlay) body {
   margin: 0;
 }
 
+/* The raid card's rows under its title and bar: deaths, what to fix, and the top DPS and HPS side by side. */
+.overlay-rows {
+  display: grid;
+  gap: 2px;
+}
+
+.overlay-fix {
+  margin: 2px 0;
+  padding-left: 1.5em;
+}
+
+.overlay-meters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 4px;
+}
+
+.overlay-meters .card {
+  min-width: 0;
+  overflow: hidden;
+}
+
 /* Strip mode: an overlay made this short keeps only the clock, timer, forces and deaths. */
 @media (max-height: 160px) {
   .overlay-extra {
@@ -802,7 +829,7 @@ span.graph-taken {
 
 @media (min-width: 1401px) {
   .replay .map-body {
-    grid-template-columns: minmax(0, 1fr) 360px;
+    grid-template-columns: minmax(0, 1fr) 420px;
   }
 
   .replay-meters.raid {
@@ -817,23 +844,161 @@ span.graph-taken {
 
 .pull-row {
   display: grid;
-  grid-template-columns: 2.5em 3.5em 1fr;
+  grid-template-columns: 2.5em 3.5em 1fr auto;
   gap: var(--s2);
+  align-items: baseline;
   width: 100%;
 }
 
-/* The pull's lanes: a name, then its marks across the pull at the graph's scale, the replay's moment as a line. */
+/* A raider's name and a time on the pull's clock, as buttons: focus them, show that moment. */
+.name.pick,
+.at {
+  padding: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.name.pick {
+  font-weight: 600;
+}
+
+.name.pick:hover,
+.at:hover {
+  text-decoration: underline;
+}
+
+.card-row.pick {
+  cursor: pointer;
+}
+
+.card-row.pick:hover {
+  background: var(--panel-2);
+}
+
+.back {
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0 var(--s2);
+  font-size: var(--t-small);
+}
+
+.mechanic-group h3,
+.drill h3 {
+  margin: var(--s2) 0 var(--s1);
+  font-weight: 600;
+}
+
+/* The focused raider's cards: beside the replay's map, and the pull's meters drilled into their abilities. */
+.cards .focus,
+.raid-focus {
+  margin-top: 0;
+  min-width: 0;
+}
+
+.raid-focus {
+  padding: var(--s2) var(--s3);
+  font-size: var(--t-small);
+}
+
+.drill .scroll {
+  max-height: 260px;
+}
+
+.raid-focus .events {
+  max-height: 150px;
+  overflow-y: auto;
+  margin: var(--s2) 0;
+  font-size: var(--t-small);
+}
+
+.raid-focus .events li {
+  padding: 2px 6px;
+  margin-bottom: 2px;
+}
+
+/* A time clicked in a card brings the replay to the top, under the nav. */
+.replay-box {
+  scroll-margin-top: calc(var(--nav) + var(--s2));
+}
+
+.replay .map-canvas {
+  cursor: pointer;
+}
+
+.replay .map-canvas.zoomed {
+  cursor: grab;
+}
+
+/* The pull's lanes: a name, then its marks across the pull, over a ruler of time ticks; the replay's moment is one
+ * line through all of them. Anywhere on them seeks, so no text selects on a drag. */
 .lanes {
+  --lane-name: 180px;
+  position: relative;
   display: grid;
   gap: 2px;
   margin: var(--s4) 0;
+  cursor: crosshair;
+  user-select: none;
 }
 
 .lane {
   display: grid;
-  grid-template-columns: 180px 1fr;
+  grid-template-columns: var(--lane-name) 1fr;
   gap: var(--s2);
   align-items: center;
+}
+
+.lane-track.lane-ruler {
+  height: 20px;
+  background: none;
+  border-top: 1px solid var(--border);
+  border-radius: 0;
+}
+
+.lane-tick {
+  position: absolute;
+  top: 0;
+  padding-top: 5px;
+  transform: translateX(-50%);
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.lane-tick::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 1px;
+  height: 4px;
+  background: var(--muted);
+}
+
+.lanes-now {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(var(--lane-name) + var(--s2) + (100% - var(--lane-name) - var(--s2)) * var(--at));
+  width: 2px;
+  margin-left: -1px;
+  background: var(--text);
+  pointer-events: none;
+}
+
+.lanes-now span {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0 var(--s1);
+  border-radius: 3px;
+  background: var(--text);
+  color: var(--bg);
+  font-size: 10px;
+  line-height: 14px;
+  font-variant-numeric: tabular-nums;
 }
 
 .lane-name {
@@ -891,16 +1056,23 @@ span.graph-taken {
 }
 
 .lane-lust .lane-mark,
+.lane-lust .lane-span,
 .lane-potions .lane-mark {
   background: var(--warn);
 }
 
 .lane-cooldowns .lane-mark,
+.lane-cooldowns .lane-span,
 .lane-adds .lane-span:not(.bad-mark) {
   background: var(--good);
 }
 
-.lane-now,
+/* A buff's stretch (Bloodlust, a raid cooldown) is stronger than an add's life; two that overlap show darker. */
+.lane-lust .lane-span,
+.lane-cooldowns .lane-span {
+  opacity: 0.7;
+}
+
 .graph-now {
   position: absolute;
   top: 0;
@@ -917,6 +1089,23 @@ line.graph-now {
 
 svg.seekable {
   cursor: crosshair;
+}
+
+svg.pointing {
+  cursor: pointer;
+}
+
+/* The line under the pointer: its player and number in the corner, readable over the other lines. */
+.graph-hover {
+  pointer-events: none;
+}
+
+.graph-hover text {
+  font-size: 13px;
+  font-weight: 600;
+  paint-order: stroke;
+  stroke: var(--panel);
+  stroke-width: 4px;
 }
 
 polyline.graph-damage {

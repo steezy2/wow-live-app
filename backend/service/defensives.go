@@ -32,6 +32,21 @@ func LearnKit(casts []models.Cast) models.Kit {
 	return kit
 }
 
+// addKit adds what another kit knows to kit: what each player carries, and each item's shortest cooldown.
+func addKit(kit, other models.Kit) {
+	for player, items := range other.Carried {
+		if kit.Carried[player] == nil {
+			kit.Carried[player] = map[string]bool{}
+		}
+		maps.Copy(kit.Carried[player], items)
+	}
+	for item, cooldown := range other.Cooldown {
+		if seen, ok := kit.Cooldown[item]; !ok || cooldown < seen {
+			kit.Cooldown[item] = cooldown
+		}
+	}
+}
+
 // ClassifyDeaths sets each death's Defensive (the latest tracked cast in the window before it, or else a defensive
 // buff up at the death) or else its Ready list (what the player carries and could still have used). casts cover the whole run, so an item used in one fight can still be on
 // cooldown in the next.

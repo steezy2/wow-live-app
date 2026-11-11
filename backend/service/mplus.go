@@ -503,7 +503,7 @@ func (k *LogTracker) event(at int64, event string, f []string) {
 			run.ability(src, f[9]).Casts++
 		}
 		if kind := k.kinds[f[9]]; kind != "" && src != "" {
-			if kind != "cc" { // the death rules' kit is survival buttons
+			if kind != "cc" && kind != "combat potion" { // the death rules' kit is survival buttons
 				run.casts = append(run.casts, models.Cast{Fight: run.pull, At: at, Player: src, Ability: f[9]})
 			}
 			run.key.Casts = append(run.key.Casts, models.KeyCast{Player: src, Ability: f[9], Kind: kind,

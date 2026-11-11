@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react'
 import {
   fetchDungeonMap,
   fetchTrack,
@@ -23,7 +23,38 @@ import { floorsOf, lastAt, meterBetween, useReplay, type SliderMark } from './re
 /** The trail the live map draws. */
 const LIVE_TRAIL_MS = 30_000
 const SPEEDS = [1, 2, 4, 8, 16, 32]
-const TRAILS = [10_000, 30_000, 120_000, Infinity]
+const TRAILS = [0, 10_000, 30_000, 120_000, Infinity]
+/** How far the map zooms in, each wheel step's factor, and how far (CSS px) a press moves before it's a drag. */
+const MAX_ZOOM = 8
+const ZOOM_STEP = 1.25
+const DRAG_PX = 4
+
+/** The part of the canvas shown: zoomed k times (1 is all of it) from x and y, its left and top in canvas pixels. */
+interface View {
+  k: number
+  x: number
+  y: number
+}
+const WHOLE: View = { k: 1, x: 0, y: 0 }
+
+/** A view kept inside the canvas and the zoom's range. */
+function inside(v: View, canvas: HTMLCanvasElement): View {
+  const k = Math.min(MAX_ZOOM, Math.max(1, v.k))
+  const within = (at: number, size: number) => Math.min(size - size / k, Math.max(0, at))
+  return { k, x: within(v.x, canvas.width), y: within(v.y, canvas.height) }
+}
+
+/** Where a pointer is on the canvas in canvas pixels (before the zoom), and how many of them a CSS pixel is; the
+ * drawing sits centred in a canvas element that's a different shape (object-fit: contain). */
+function onCanvas(e: { clientX: number; clientY: number }, canvas: HTMLCanvasElement): [number, number, number] {
+  const box = canvas.getBoundingClientRect()
+  const scale = Math.max(canvas.width / box.width, canvas.height / box.height)
+  return [
+    (e.clientX - box.left - box.width / 2) * scale + canvas.width / 2,
+    (e.clientY - box.top - box.height / 2) * scale + canvas.height / 2,
+    scale,
+  ]
+}
 /** Above this many yards a second between two samples is a teleport, so the line breaks. */
 const JUMP_YARDS_PER_S = 15
 /** A raid replay shows at least this share of the room's image, padded by this share of the fight on each side. */
@@ -73,7 +104,7 @@ export function ReplayControls(props: {
       <select value={trail} onChange={(e) => setTrail(Number(e.target.value))} aria-label="trail">
         {TRAILS.map((t) => (
           <option key={t} value={t}>
-            {t === Infinity ? 'whole path' : `${t / 1000} s trail`}
+            {t === Infinity ? 'whole path' : t === 0 ? 'no trail' : `${t / 1000} s trail`}
           </option>
         ))}
       </select>
@@ -152,6 +183,7 @@ export function KeyMap({ keyView: key, clockMS }: { keyView: KeyView; clockMS: n
       </div>
       <div className="map-body">
         <MapCanvas
+          key={current}
           track={track}
           backdrop={backdrop}
           floor={current}
@@ -219,7 +251,9 @@ function canvasSize(backdrop: Backdrop): [number, number] {
 }
 
 /** The map itself: the backdrop, each player's trail and dot in their class colour (a cross where they died), a raid
- * boss's units, and mob deaths so far. */
+ * boss's units, and mob deaths so far. The wheel zooms around the pointer, a drag pans and a double click shows all
+ * of it again. With onPick, a click on a player's dot picks them and a right click picks nobody (''); the focused
+ * player gets a ring and their name, and the others' trails fade. */
 export function MapCanvas(props: {
   track: KeyTrack
   backdrop: Backdrop
@@ -227,11 +261,53 @@ export function MapCanvas(props: {
   now: number
   trailMS: number
   deaths: { player: string; clockMS: number }[]
+  focus?: string
+  onPick?: (player: string) => void
 }) {
-  const { track, backdrop, floor, now, trailMS, deaths } = props
+  const { track, backdrop, floor, now, trailMS, deaths, focus, onPick } = props
   const ref = useRef<HTMLCanvasElement>(null)
   const [loaded, setLoaded] = useState(0)
+  const [view, setView] = useState(WHOLE)
+  const shown = useRef(WHOLE) // the view as last drawn, for the wheel
+  const dots = useRef<{ player: string; x: number; y: number }[]>([]) // where each player was last drawn
+  const press = useRef<{ x: number; y: number; dragged: boolean } | null>(null)
   const [width, height] = canvasSize(backdrop)
+  useEffect(() => {
+    const canvas = ref.current
+    if (!canvas) return
+    // Not React's onWheel: that listener is passive, so it can't keep the page from scrolling while the map zooms.
+    const wheel = (e: WheelEvent) => {
+      const from = shown.current
+      const k = Math.min(MAX_ZOOM, Math.max(1, from.k * (e.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP)))
+      if (k === from.k) return // all the way out (or in): the page scrolls
+      e.preventDefault()
+      const [x, y] = onCanvas(e, canvas)
+      setView(inside({ k, x: from.x + x / from.k - x / k, y: from.y + y / from.k - y / k }, canvas))
+    }
+    canvas.addEventListener('wheel', wheel, { passive: false })
+    return () => canvas.removeEventListener('wheel', wheel)
+  }, [])
+  const drag = (e: PointerEvent<HTMLCanvasElement>) => {
+    const from = press.current
+    if (!from) return
+    const [dx, dy] = [e.clientX - from.x, e.clientY - from.y]
+    if (!from.dragged && Math.hypot(dx, dy) < DRAG_PX) return
+    press.current = { x: e.clientX, y: e.clientY, dragged: true }
+    const canvas = e.currentTarget
+    const scale = onCanvas(e, canvas)[2]
+    setView((v) => inside({ k: v.k, x: v.x - (dx * scale) / v.k, y: v.y - (dy * scale) / v.k }, canvas))
+  }
+  const release = (e: PointerEvent<HTMLCanvasElement>) => {
+    const from = press.current
+    press.current = null
+    if (!from || from.dragged || !onPick) return
+    const [x, y] = onCanvas(e, e.currentTarget)
+    const [atX, atY] = [view.x + x / view.k, view.y + y / view.k]
+    const far = (d: { x: number; y: number }) => Math.hypot(d.x - atX, d.y - atY)
+    const reach = ((e.currentTarget.width / 160) * 2.5) / view.k
+    const [nearest] = dots.current.filter((d) => far(d) <= reach).sort((a, b) => far(a) - far(b))
+    if (nearest) onPick(nearest.player)
+  }
   const area = useMemo<[number, number, number]>(
     () => (backdrop.kind === 'image' ? fightArea(backdrop.map, track, floor) : [0, 0, 1]),
     [backdrop, track, floor],
@@ -258,7 +334,11 @@ export function MapCanvas(props: {
       return img.complete && img.naturalWidth > 0 ? img : undefined
     }
     const style = getComputedStyle(canvas)
+    ctx.setTransform(1, 0, 0, 1, 0, 0)
     ctx.clearRect(0, 0, canvas.width, canvas.height)
+    ctx.setTransform(view.k, 0, 0, view.k, -view.x * view.k, -view.y * view.k)
+    shown.current = view
+    dots.current = []
     if (backdrop.kind === 'tiles') {
       const [w, h] = [canvas.width / TILES_PER_SIDE, canvas.height / TILES_PER_SIDE]
       for (let x = 0; x < TILES_PER_SIDE; x++) {
@@ -283,7 +363,13 @@ export function MapCanvas(props: {
         })
       ctx.globalAlpha = 1
     }
-    const dot = canvas.width / 160
+    const dot = canvas.width / 160 / view.k // the same size on screen at any zoom
+    const label = (text: string, x: number, y: number) => {
+      ctx.fillStyle = style.getPropertyValue('--text')
+      ctx.font = `${Math.round(dot * 2.6 * 10) / 10}px system-ui, sans-serif`
+      ctx.textAlign = 'center'
+      ctx.fillText(text, x, y - dot * 3.4)
+    }
     ctx.fillStyle = style.getPropertyValue('--bad')
     track.deaths
       .filter((d) => d.map === floor && d.t <= now)
@@ -302,20 +388,19 @@ export function MapCanvas(props: {
       ctx.arc(x, y, dot * 2.4, 0, 2 * Math.PI)
       ctx.fill()
       ctx.stroke()
-      ctx.fillStyle = style.getPropertyValue('--text')
-      ctx.font = `${Math.round(dot * 2.6)}px system-ui, sans-serif`
-      ctx.textAlign = 'center'
-      ctx.fillText(last.name ?? '', x, y - dot * 3.4)
+      label(last.name ?? '', x, y)
     })
     const died = new Map<string, number>() // each player's last death so far
     deaths
       .filter((d) => d.clockMS <= now)
       .forEach((d) => died.set(d.player, Math.max(died.get(d.player) ?? 0, d.clockMS)))
-    Object.entries(track.players).forEach(([player, points]) => {
+    const players = Object.entries(track.players).sort(([a], [b]) => Number(a === focus) - Number(b === focus))
+    players.forEach(([player, points]) => {
       const colour = classColors[track.classes[player]] ?? style.getPropertyValue('--accent')
       const seen = points.filter((p) => p.t <= now && p.t >= now - trailMS && p.map === floor)
       ctx.strokeStyle = colour
       ctx.lineWidth = dot / 2
+      ctx.globalAlpha = focus && player !== focus ? 0.3 : 1
       ctx.beginPath()
       seen.forEach((p, i) => {
         const [x, y] = at(p)
@@ -326,12 +411,22 @@ export function MapCanvas(props: {
         else ctx.lineTo(x, y)
       })
       ctx.stroke()
+      ctx.globalAlpha = 1
       // Where they are: their last place even past the trail, and before their first sample where they were first seen.
       // Dead until they're seen again after their last death (a release and run back, or a battle res).
       const last = lastAt(points, now) ?? points[0]
       const dead = died.has(player) && (!last || last.t <= (died.get(player) ?? 0) + REVIVED_AFTER_MS)
       if (!last || last.map !== floor) return
       const [x, y] = at(last)
+      dots.current.push({ player, x, y })
+      if (player === focus) {
+        ctx.strokeStyle = style.getPropertyValue('--text')
+        ctx.lineWidth = dot / 3
+        ctx.beginPath()
+        ctx.arc(x, y, dot * 2.2, 0, 2 * Math.PI)
+        ctx.stroke()
+        label(player, x, y)
+      }
       if (dead) {
         ctx.strokeStyle = style.getPropertyValue('--bad')
         ctx.lineWidth = dot / 2
@@ -351,9 +446,31 @@ export function MapCanvas(props: {
       ctx.fill()
       ctx.stroke()
     })
-  }, [track, backdrop, area, floor, now, trailMS, deaths, loaded])
+  }, [track, backdrop, area, floor, now, trailMS, deaths, loaded, view, focus])
   return (
-    <canvas ref={ref} width={width} height={height} className="map-canvas" role="img" aria-label="players on the map" />
+    <canvas
+      ref={ref}
+      width={width}
+      height={height}
+      className={view.k > 1 ? 'map-canvas zoomed' : 'map-canvas'}
+      role="img"
+      aria-label="players on the map"
+      onPointerDown={(e) => {
+        if (e.button !== 0) return
+        press.current = { x: e.clientX, y: e.clientY, dragged: false }
+        e.currentTarget.setPointerCapture(e.pointerId)
+      }}
+      onPointerMove={drag}
+      onPointerUp={release}
+      onDoubleClick={() => setView(WHOLE)}
+      onContextMenu={
+        onPick &&
+        ((e) => {
+          e.preventDefault()
+          onPick('')
+        })
+      }
+    />
   )
 }
 

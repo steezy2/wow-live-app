@@ -174,6 +174,9 @@ func (k *LogTracker) details(run *keyRun, at int64) models.Key {
 	}
 	deaths := slices.Clone(run.deaths)
 	kit := LearnKit(run.casts)
+	if run.raid != nil {
+		addKit(kit, k.raid.kit)
+	}
 	ClassifyDeaths(deaths, run.casts, buffs, kit, int64(k.rules.Defensives.WindowSeconds*1000))
 	key.Deaths = list(run.key.Deaths)
 	for i := range key.Deaths {
