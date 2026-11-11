@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
+  fetchRaidTrack,
   fetchTrack,
   subscribe,
   type KeyAbility,
@@ -58,6 +59,12 @@ export function useReplay(end: number, start: number, firstSpeed = 8) {
     frame = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(frame)
   }, [playing, speed, end])
+  // A replay left at its end stays there as the end moves on: a key that ends while the page watches lands at its end.
+  const last = useRef(end)
+  useEffect(() => {
+    if (clock.current >= last.current) setAt(end)
+    last.current = end
+  }, [end, setAt])
   const toggle = () => {
     if (playing) setShown(clock.current) // the page catches up with the map
     else if (clock.current >= end) setAt(0)
@@ -123,7 +130,22 @@ const EMPTY_ROW: KeyMeterRow = {
   priorityDamage: 0,
 }
 
-/** A track's meters between two moments: each player's damage and healing, and per second. */
+/** A raid pull's track, read once: undefined while it loads, null for a pull saved without one. */
+export function useRaidTrack(start: number): { track: KeyTrack | null | undefined; error: string | null } {
+  const [track, setTrack] = useState<KeyTrack | null | undefined>(undefined)
+  const [error, setError] = useState<string | null>(null)
+  useEffect(() => {
+    const controller = new AbortController()
+    fetchRaidTrack(start, controller.signal).then(setTrack, (err: unknown) => {
+      if (!controller.signal.aborted) setError(err instanceof Error ? err.message : String(err))
+    })
+    return () => controller.abort()
+  }, [start])
+  return { track, error }
+}
+
+/** A track's meters between two moments: each player's damage and healing (and per second), damage taken, and from
+ * tracks that keep them (hasCounts) their avoidable damage, damage into priority targets, kicks and dispels. */
 export function meterBetween(track: KeyTrack, from: number, to: number): KeyMeter {
   return {
     startMS: from,
@@ -131,12 +153,31 @@ export function meterBetween(track: KeyTrack, from: number, to: number): KeyMete
     ongoing: false,
     rows: Object.entries(track.meters ?? {}).map(([player, points]) => {
       const seconds = Math.max(1, (to - from) / 1000)
-      const damage = valueAt(points, to, 'd') - valueAt(points, from, 'd')
-      const healing = valueAt(points, to, 'h') - valueAt(points, from, 'h')
-      const role = { player, class: track.classes[player] ?? '', damage, healing }
-      return { ...EMPTY_ROW, ...role, dps: damage / seconds, hps: healing / seconds }
+      const delta = (kind: Parameters<typeof valueAt>[2]) => valueAt(points, to, kind) - valueAt(points, from, kind)
+      const [damage, healing] = [delta('d'), delta('h')]
+      return {
+        ...EMPTY_ROW,
+        player,
+        class: track.classes[player] ?? '',
+        damage,
+        healing,
+        dps: damage / seconds,
+        hps: healing / seconds,
+        damageTaken: delta('tk'),
+        avoidable: delta('av'),
+        priorityDamage: delta('pd'),
+        interrupts: delta('k'),
+        dispels: delta('ds'),
+      }
     }),
   }
+}
+
+/** Whether a track's meters keep avoidable damage, priority damage, kicks and dispels (saved from Nov 11). */
+export function hasCounts(track: KeyTrack): boolean {
+  return Object.values(track.meters ?? {}).some((ps) =>
+    ps.some((p) => p.av !== undefined || p.pd !== undefined || p.k !== undefined || p.ds !== undefined),
+  )
 }
 
 /** A meter with only its top n rows by a column, highest first. */
@@ -232,4 +273,36 @@ export function abilitiesUpTo(
     ?.map((s) => ({ player, target: s.a, damage: sumUp(s.p)[0] }))
     .filter((t) => t.damage > 0)
   return { abilities, taken, targets }
+}
+
+/** A raider's fight between two clock readings (abilitiesUpTo at to, less at from), dropping what did nothing in it;
+ * undefined for a track without the series. */
+export function abilitiesBetween(
+  track: KeyTrack,
+  fight: Pick<RaidPull, 'abilities' | 'taken'>,
+  player: string,
+  from: number,
+  to: number,
+): AbilitiesUpTo | undefined {
+  const end = abilitiesUpTo(track, fight, player, to)
+  if (!end || from <= 0) return end
+  const start = abilitiesUpTo(track, fight, player, from)
+  const before = <T,>(rows: T[] | undefined, key: (r: T) => string) => new Map((rows ?? []).map((r) => [key(r), r]))
+  const done = before(start?.abilities, (a) => a.ability)
+  const took = before(start?.taken, (h) => h.ability)
+  const hit = before(start?.targets, (t) => t.target)
+  return {
+    abilities: end.abilities
+      .map((a) => {
+        const was = done.get(a.ability)
+        return { ...a, damage: a.damage - (was?.damage ?? 0), healing: a.healing - (was?.healing ?? 0), casts: a.casts - (was?.casts ?? 0) }
+      })
+      .filter((a) => a.damage > 0 || a.healing > 0 || a.casts > 0),
+    taken: end.taken
+      .map((h) => ({ ...h, damage: h.damage - (took.get(h.ability)?.damage ?? 0) }))
+      .filter((h) => h.damage > 0),
+    targets: end.targets
+      ?.map((t) => ({ ...t, damage: t.damage - (hit.get(t.target)?.damage ?? 0) }))
+      .filter((t) => t.damage > 0),
+  }
 }

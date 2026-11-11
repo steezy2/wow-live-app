@@ -1,11 +1,6 @@
-import { Fragment, memo, type MouseEvent, type ReactNode } from 'react'
-import { abilityViews, raidTargets, type AbilityRow } from './abilities'
-import type { KeyMeter, PlayerCount, RaidPull } from './api'
-import { classColors } from './classColors'
+import { Fragment, memo, type ReactNode } from 'react'
+import type { PlayerCount, RaidPull } from './api'
 import { amount, clock, coverText, seconds } from './format'
-import { defense, raidOffense, type Column } from './meterColumns'
-import { MeterCard } from './MeterCards'
-import { AbilityBars } from './PlayerFocus'
 import { At, Name, type Classes } from './Seek'
 
 /** How many raiders a mechanic's line names before it counts the rest. */
@@ -266,76 +261,4 @@ function breakLines(pull: RaidPull, names: (players: string[]) => ReactNode): Me
       </>
     ),
   }))
-}
-
-/** A card's columns without those every raider has 0 in, the first (the one it sorts by) always kept. */
-function nonZero(columns: Column[], meter: KeyMeter): Column[] {
-  return columns.filter((c, i) => i === 0 || meter.rows.some((r) => c.value(r) !== 0))
-}
-
-/** The whole pull's meters: damage done, and healing with damage taken; a click on a raider focuses them. Focused,
- * the first card is their damage by ability over their damage into each enemy, and the second their healing by
- * ability over what they took damage from; a right click (or Whole raid) goes back. */
-export const PullMeters = memo(function PullMeters(props: {
-  pull: RaidPull
-  classes: Classes
-  focus: string
-  onFocus: (player: string) => void
-}) {
-  const { pull, classes, focus, onFocus } = props
-  if (!focus) {
-    return (
-      <section className="cards">
-        <MeterCard title="Damage done" meter={pull.meter} columns={nonZero(raidOffense, pull.meter)} onPick={onFocus} />
-        <MeterCard
-          title="Healing and damage taken"
-          meter={pull.meter}
-          columns={nonZero(defense(true), pull.meter)}
-          onPick={onFocus}
-        />
-      </section>
-    )
-  }
-  const views = abilityViews(focus, pull.abilities ?? [], pull.taken ?? [])
-  const targets = raidTargets(pull.targets, focus)
-  const color = classColors[classes[focus]] ?? 'var(--accent)'
-  const back = (e: MouseEvent) => {
-    e.preventDefault()
-    onFocus('')
-  }
-  const card = (title: string, rows: AbilityRow[], under: string, underLabel: string, underRows: AbilityRow[]) => (
-    <div className="card focus drill" onContextMenu={back}>
-      <h2>
-        <button className="back" onClick={back}>
-          ‹ Whole raid
-        </button>{' '}
-        {title} · <Name player={focus} classes={classes} />
-      </h2>
-      {pull.abilities ? (
-        <>
-          <AbilityBars rows={rows} color={color} />
-          <h3 className="muted small">{under}</h3>
-          <AbilityBars rows={underRows} color={color} label={underLabel} />
-        </>
-      ) : (
-        <NoAbilities />
-      )}
-    </div>
-  )
-  return (
-    <section className="cards">
-      {card('Damage done', views.damage, 'Damage into each enemy', 'Enemy', targets)}
-      {card('Healing and damage taken', views.healing, 'Damage taken from', 'Ability', views.taken)}
-    </section>
-  )
-})
-
-/** What shows in place of a raider's abilities for a pull saved without them. */
-export function NoAbilities() {
-  return (
-    <p className="muted">
-      This pull was saved before abilities were kept: <i>Read old logs</i> in Settings fills them in from the logs still
-      in the game's folder.
-    </p>
-  )
 }

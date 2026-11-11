@@ -1,48 +1,28 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent } from 'react'
-import { fetchRaidTrack, type KeyTrack, type RaidLane, type RaidPull } from './api'
+import { useMemo, useRef, useState, type CSSProperties, type MouseEvent } from 'react'
+import type { KeyTrack, RaidLane, RaidPull } from './api'
 import { clock } from './format'
 import { MapCanvas, ReplayControls, type Backdrop } from './KeyMap'
-import {
-  abilitiesUpTo,
-  floorsOf,
-  meterBetween,
-  tickStep,
-  topMeter,
-  type SliderMark,
-  type useReplay,
-} from './replay'
+import { abilitiesUpTo, floorsOf, tickStep, type SliderMark, type useReplay } from './replay'
 import { MeterGraph } from './DamageGraph'
-import { MeterCard } from './MeterCards'
-import { defense, raidOffense } from './meterColumns'
-import { RaidFocus } from './RaidFocus'
 import { BossBox, CastBox, TakenBox } from './ReplayBoxes'
 
-/** How many raiders the replay's meters list, top first. */
-const REPLAY_METER_ROWS = 10
-
 /** A raid pull's replay: the mechanics' lanes and the DPS and HPS graph, the play bar, then the raid and the boss on
- * the room's map with the meters at that moment, all on the page's one clock: a click on the lanes or the graph moves
- * the map there. A click on a raider (their dot, a meter row, their line) focuses them: a ring and their name on the
- * map, their focus card in place of the meters, and their line alone on the graph; a right click goes back. */
+ * the room's map, all on the page's one clock: a click on the lanes or the graph moves the map there. A click on a
+ * raider (their dot or their line) focuses them: a ring and their name on the map, what they're casting and what hit
+ * them over it, and their line alone on the graph; a right click goes back. The track is the page's (useRaidTrack):
+ * undefined while it loads, null for a pull saved without one. */
 export function RaidReplay(props: {
   pull: RaidPull
+  track: KeyTrack | null | undefined
+  error: string | null
   replay: ReturnType<typeof useReplay>
   focus: string
   onFocus: (player: string) => void
 }) {
-  const { pull, replay, focus, onFocus } = props
-  const [track, setTrack] = useState<KeyTrack | null | undefined>(undefined) // null: no replay kept
-  const [error, setError] = useState<string | null>(null)
+  const { pull, track, error, replay, focus, onFocus } = props
   const end = pull.durationMS
   const [trail, setTrail] = useState(10_000)
   const [floor, setFloor] = useState<number | null>(null)
-  useEffect(() => {
-    const controller = new AbortController()
-    fetchRaidTrack(pull.start, controller.signal).then(setTrack, (err: unknown) => {
-      if (!controller.signal.aborted) setError(err instanceof Error ? err.message : String(err))
-    })
-    return () => controller.abort()
-  }, [pull.start])
   const floors = useMemo(() => floorsOf(track ?? null), [track])
   const current = floor ?? floors[0]
   const room = pull.maps.find((m) => m.uiMapID === current)
@@ -61,7 +41,6 @@ export function RaidReplay(props: {
   }
   if (!track) return <p className="panel muted">Loading the replay…</p>
   const now = replay.at
-  const sofar = meterBetween(track, 0, now)
   const upTo = focus ? abilitiesUpTo(track, pull, focus, now) : undefined
   return (
     <section className="panel replay">
@@ -89,66 +68,38 @@ export function RaidReplay(props: {
       {floors.length === 0 ? (
         <p className="muted">No positions in this pull (needs Advanced Combat Logging).</p>
       ) : (
-        <div className="map-body">
-          <div>
-            <div className="map-stage">
-              <MapCanvas
-                key={current}
-                track={track}
-                backdrop={backdrop}
-                floor={current}
-                now={now}
-                clock={replay.playing ? replay.now : undefined}
-                trailMS={trail}
-                deaths={pull.deaths}
-                focus={focus}
-                onPick={onFocus}
-              />
-              <BossBox track={track} now={now} />
-              {focus && <CastBox track={track} player={focus} now={now} />}
-              {upTo && <TakenBox taken={upTo.taken} />}
-            </div>
-            <p className="muted small">
-              Scroll to zoom, drag to move, double click for the whole room · click a raider to focus them, right click
-              for the whole raid
-              {room && (
-                <>
-                  {' '}
-                  · map:{' '}
-                  <a href="https://www.warcraftlogs.com" target="_blank" rel="noreferrer">
-                    Warcraft Logs
-                  </a>
-                </>
-              )}
-            </p>
-          </div>
-          {focus ? (
-            <RaidFocus
-              pull={pull}
+        <>
+          <div className="map-stage">
+            <MapCanvas
+              key={current}
               track={track}
-              player={focus}
-              upTo={upTo}
+              backdrop={backdrop}
+              floor={current}
               now={now}
-              onSeek={replay.setAt}
-              onBack={() => onFocus('')}
+              clock={replay.playing ? replay.now : undefined}
+              trailMS={trail}
+              deaths={pull.deaths}
+              focus={focus}
+              onPick={onFocus}
             />
-          ) : (
-            <div className="replay-meters raid">
-              <MeterCard
-                title="DPS so far"
-                meter={topMeter(sofar, 'dps', REPLAY_METER_ROWS)}
-                columns={raidOffense.slice(0, 2)}
-                onPick={onFocus}
-              />
-              <MeterCard
-                title="HPS so far"
-                meter={topMeter(sofar, 'hps', REPLAY_METER_ROWS)}
-                columns={defense(false).slice(0, 2)}
-                onPick={onFocus}
-              />
-            </div>
-          )}
-        </div>
+            <BossBox track={track} now={now} />
+            {focus && <CastBox track={track} player={focus} now={now} />}
+            {upTo && <TakenBox taken={upTo.taken} />}
+          </div>
+          <p className="muted small">
+            Scroll to zoom, drag to move, double click for the whole room · click a raider to focus them, right click
+            for the whole raid
+            {room && (
+              <>
+                {' '}
+                · map:{' '}
+                <a href="https://www.warcraftlogs.com" target="_blank" rel="noreferrer">
+                  Warcraft Logs
+                </a>
+              </>
+            )}
+          </p>
+        </>
       )}
     </section>
   )

@@ -1,22 +1,8 @@
 import { useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react'
-import type { KeyMeter, KeyMeterRow, KeyView } from './api'
-import { type Column, defense, offense } from './meterColumns'
+import type { KeyMeter, KeyMeterRow } from './api'
+import type { Column } from './meterColumns'
 import { classColors } from './classColors'
-import { amount, clock, pullTitle } from './format'
-
-/** The four meter cards: offense and defense, for the current (or last) pull and the whole key. */
-export function MeterCards({ keyView: key, clockMS }: { keyView: KeyView; clockMS: number }) {
-  const pull = key.lastPull
-  const title = pullTitle(key, clockMS)
-  return (
-    <section className="cards">
-      <MeterCard title={title} meter={pull} columns={offense} />
-      <MeterCard title="Whole key" meter={key.overall} columns={offense} />
-      <MeterCard title={title} meter={pull} columns={defense(key.reference)} />
-      <MeterCard title="Whole key" meter={key.overall} columns={defense(key.reference)} />
-    </section>
-  )
-}
+import { amount, clock } from './format'
 
 const NAME_PX = 96
 const NUMBER_PX = 64

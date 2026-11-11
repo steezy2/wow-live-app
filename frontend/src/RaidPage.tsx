@@ -5,10 +5,11 @@ import { defense, raidOffense } from './meterColumns'
 import { MeterCard } from './MeterCards'
 import { fightTabs, type FightData } from './KeyTabs'
 import { PlayerTable } from './PlayerTable'
-import { BuffGaps, EarlyDeaths, Mechanics, NoAbilities, PullMeters } from './RaidCards'
+import { BuffGaps, EarlyDeaths, Mechanics } from './RaidCards'
+import { FightMeters, NoAbilities } from './FightMeters'
 import { Name, type Seeker } from './Seek'
 import { RaidReplay } from './RaidReplay'
-import { topMeter, useReplay } from './replay'
+import { topMeter, useRaidTrack, useReplay } from './replay'
 import { Tabs } from './Tabs'
 import { ReadyPanel } from './ReadyPanel'
 import { useRaidLive } from './useLiveKey'
@@ -146,7 +147,8 @@ function classesOf(pull: RaidPull): Record<string, string> {
  * brings it into view, and a raider picked anywhere (the map, a meter, the graph, a name) is focused everywhere. Shown
  * with the pull's start as its key, so both start over with each pull. */
 export function RaidPullView({ pull }: { pull: RaidPull }) {
-  const replay = useReplay(pull.durationMS, 0, 4)
+  const replay = useReplay(pull.durationMS, pull.durationMS, 4)
+  const { track, error } = useRaidTrack(pull.start)
   const [focus, setFocus] = useState('')
   const replayBox = useRef<HTMLDivElement>(null)
   const classes = useMemo(() => classesOf(pull), [pull])
@@ -189,10 +191,27 @@ export function RaidPullView({ pull }: { pull: RaidPull }) {
       <BuffGaps pull={pull} classes={classes} onSeek={show} onFocus={setFocus} />
 
       <div ref={replayBox} className="replay-box">
-        <RaidReplay pull={pull} replay={replay} focus={focus} onFocus={setFocus} />
+        <RaidReplay pull={pull} track={track} error={error} replay={replay} focus={focus} onFocus={setFocus} />
       </div>
 
-      <PullMeters pull={pull} classes={classes} focus={focus} onFocus={setFocus} />
+      <FightMeters
+        windows={[
+          {
+            title: 'Whole pull',
+            from: 0,
+            to: replay.at,
+            saved: replay.at >= pull.durationMS || !track ? pull.meter : undefined,
+          },
+        ]}
+        track={track ?? null}
+        fight={pull}
+        offense={raidOffense}
+        listed
+        group="raid"
+        classes={classes}
+        focus={focus}
+        onFocus={setFocus}
+      />
       <PullTabs pull={pull} seek={{ onSeek: show, classes, onFocus: setFocus }} />
     </>
   )

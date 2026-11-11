@@ -1,14 +1,6 @@
 import { useEffect, useState } from 'react'
-import {
-  fetchReview,
-  makeReview,
-  type KeyReview as Review,
-  type KeyTrack,
-  type KeyView,
-  type ReviewMetric,
-} from './api'
+import { fetchReview, makeReview, type KeyReview as Review, type KeyView, type ReviewMetric } from './api'
 import { amount, median } from './format'
-import { PlayerFocus } from './PlayerFocus'
 
 /** The cell's tone: deaths red, avoidable damage over the party's median amber, a combat potion green. */
 function tone(m: ReviewMetric, party: ReviewMetric[]): string {
@@ -30,19 +22,10 @@ const WAIT_POLL_MS = 5000
 const WAIT_MS = 90_000
 
 /** A finished key's review: each player's numbers against their spec's top runs, their usual here and the party,
- * what to work on, and one thing done well, beside one player's key up close. Made by the site when the key ends, or
- * here on request; onReview hears of it once shown. */
-export function KeyReview(props: {
-  keyView: KeyView
-  justEnded: boolean
-  onReview: (review: Review) => void
-  focus: string
-  onFocus: (player: string) => void
-  onSeek: (clockMS: number) => void
-  track: KeyTrack | null
-  now: number
-}) {
-  const { keyView: key, justEnded, onReview, focus, onFocus, onSeek, track, now } = props
+ * what to work on, and one thing done well. Made by the site when the key ends, or here on request; onReview hears of
+ * it once shown. */
+export function KeyReview(props: { keyView: KeyView; justEnded: boolean; onReview: (review: Review) => void }) {
+  const { keyView: key, justEnded, onReview } = props
   const [review, setReview] = useState<Review | null>(null)
   useEffect(() => {
     if (review) onReview(review)
@@ -93,7 +76,6 @@ export function KeyReview(props: {
           </button>
         )}
         {error && <p className="warning">{error}</p>}
-        <PlayerFocus keyView={key} focus={focus} onFocus={onFocus} onSeek={onSeek} track={track} now={now} />
       </section>
     )
   }
@@ -148,19 +130,16 @@ export function KeyReview(props: {
           </tbody>
         </table>
       </div>
-      <div className="review-split">
-        <div>
-          {review.players.map((p) => (
-            <div key={p.player} className="review-player">
-              <b>{p.player}</b>
-              <p className="good">✓ {p.positive}</p>
-              {p.advice.map((a) => (
-                <p key={a}>• {a}</p>
-              ))}
-            </div>
-          ))}
-        </div>
-        <PlayerFocus keyView={key} focus={focus} onFocus={onFocus} onSeek={onSeek} track={track} now={now} />
+      <div className="review-players">
+        {review.players.map((p) => (
+          <div key={p.player} className="review-player">
+            <b>{p.player}</b>
+            <p className="good">✓ {p.positive}</p>
+            {p.advice.map((a) => (
+              <p key={a}>• {a}</p>
+            ))}
+          </div>
+        ))}
       </div>
     </section>
   )

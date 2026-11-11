@@ -1,13 +1,14 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
-import type { KeyForces, KeyGhost, KeyReview as Review, KeyView } from './api'
-import { chestLabel, clock, oddsText, resultText, share } from './format'
+import type { KeyForces, KeyGhost, KeyReview as Review, KeyTrack, KeyView } from './api'
+import { chestLabel, clock, oddsText, pullTitle, resultText, share } from './format'
 import { DamageGraph } from './DamageGraph'
 import { BossList, PriorityLedger } from './KeyLedgers'
 import { fightTabs } from './KeyTabs'
 import { PlayerTable } from './PlayerTable'
 import { KeyMap } from './KeyMap'
 import { KeyReview } from './KeyReview'
-import { MeterCards } from './MeterCards'
+import { FightMeters, type MeterWindow } from './FightMeters'
+import { offense } from './meterColumns'
 import { useReplay, useTrack } from './replay'
 import { RaidLanes } from './RaidReplay'
 import { Tabs } from './Tabs'
@@ -151,16 +152,7 @@ export function KeyDetails({
         </section>
       )}
       {key.status !== 'running' && (
-        <KeyReview
-          keyView={key}
-          justEnded={justEnded}
-          onReview={setReview}
-          focus={focus}
-          onFocus={setFocus}
-          onSeek={show}
-          track={track}
-          now={replay.at}
-        />
+        <KeyReview keyView={key} justEnded={justEnded} onReview={setReview} />
       )}
       {key.status !== 'running' && track && (
         <DamageGraph
@@ -191,7 +183,17 @@ export function KeyDetails({
         </section>
       )}
 
-      <MeterCards keyView={key} clockMS={clockMS} />
+      <FightMeters
+        windows={meterWindows(key, track, replay.at, clockMS)}
+        track={track}
+        fight={key}
+        offense={offense}
+        listed={key.reference}
+        group="party"
+        classes={track?.classes ?? {}}
+        focus={focus}
+        onFocus={key.status === 'running' ? undefined : setFocus}
+      />
 
       <section ref={replayBox} className="panel map-panel">
         <h2>Replay</h2>
@@ -228,6 +230,26 @@ export function KeyDetails({
       <p className="muted small">{key.players.join(' · ')}</p>
     </>
   )
+}
+
+/** The key's meter windows at the replay's moment (at; end: the key's end): the pull it's in, or the last one before
+ * it, then the whole key so far, each its saved meter at the end. A running key, or one without a track, shows its
+ * saved last pull and whole key. */
+function meterWindows(key: KeyView, track: KeyTrack | null, at: number, end: number): MeterWindow[] {
+  const atEnd = at >= end
+  if (key.status === 'running' || !track) {
+    const pull = key.lastPull
+    return [
+      { title: pullTitle(key, end), from: pull.startMS, to: pull.endMS, saved: pull },
+      { title: 'Whole key', from: 0, to: end, saved: key.overall },
+    ]
+  }
+  const whole: MeterWindow = { title: 'Whole key', from: 0, to: at, saved: atEnd ? key.overall : undefined }
+  const started = (track.pulls ?? []).filter((p) => p.startMS <= at)
+  const pull = started[started.length - 1]
+  if (!pull) return [whole]
+  const to = pull.endMS > 0 && pull.endMS < at ? pull.endMS : at
+  return [{ title: `Pull ${started.length}`, from: pull.startMS, to, saved: atEnd ? key.lastPull : undefined }, whole]
 }
 
 /** The timer as a bar: the clock so far, the +3 and +2 marks, each boss kill, each death, and the best run's kills. */

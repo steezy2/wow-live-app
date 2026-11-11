@@ -581,18 +581,11 @@ button {
   border-left: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
 }
 
-/* The players' advice beside the player focus card; one under the other when narrow. */
-.review-split {
+/* Each player's advice side by side, as many across as fit. */
+.review-players {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: var(--s5);
-  align-items: start;
-}
-
-@media (max-width: 1280px) {
-  .review-split {
-    grid-template-columns: minmax(0, 1fr);
-  }
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 0 var(--s5);
 }
 
 .review-player {
@@ -615,10 +608,6 @@ button {
   background: var(--panel-2);
 }
 
-.focus .tabs {
-  margin-top: var(--s2);
-}
-
 /* The abilities scroll under their headings. */
 .focus .scroll {
   overflow-x: hidden;
@@ -629,14 +618,6 @@ button {
   top: 0;
   z-index: 1;
   background: var(--panel-2);
-}
-
-.focus select {
-  background: var(--panel);
-  color: var(--text);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: var(--s1) var(--s2);
 }
 
 .review-player p {
@@ -709,34 +690,6 @@ button {
   object-fit: contain;
 }
 
-.map-body {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 520px;
-  gap: var(--s4);
-  align-items: start;
-}
-
-.replay-meters {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--s2);
-}
-
-.replay-meters .card {
-  min-height: 0;
-  padding: var(--s2) var(--s3);
-  font-size: var(--t-small);
-}
-
-@media (max-width: 1400px) {
-  .map-body {
-    grid-template-columns: 1fr;
-  }
-
-  .replay-meters {
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  }
-}
 
 .settings {
   display: grid;
@@ -1000,16 +953,6 @@ span.graph-taken {
   }
 }
 
-@media (min-width: 1401px) {
-  .replay .map-body {
-    grid-template-columns: minmax(0, 1fr) 420px;
-  }
-
-  .replay-meters.raid {
-    grid-template-columns: 1fr;
-  }
-}
-
 .boss-pulls h3 {
   margin: var(--s2) 0 var(--s1);
   font-weight: 600;
@@ -1067,32 +1010,14 @@ span.graph-taken {
   font-weight: 600;
 }
 
-/* The focused raider's cards: beside the replay's map, and the pull's meters drilled into their abilities. */
-.cards .focus,
-.raid-focus {
+/* The meter cards drilled into the focused player's abilities. */
+.cards .focus {
   margin-top: 0;
   min-width: 0;
 }
 
-.raid-focus {
-  padding: var(--s2) var(--s3);
-  font-size: var(--t-small);
-}
-
 .drill .scroll {
   max-height: 260px;
-}
-
-.raid-focus .events {
-  max-height: 150px;
-  overflow-y: auto;
-  margin: var(--s2) 0;
-  font-size: var(--t-small);
-}
-
-.raid-focus .events li {
-  padding: 2px 6px;
-  margin-bottom: 2px;
 }
 
 /* Boxes over the replay's map: the boss's health at the top right, the focused raider's casts at the bottom left and
