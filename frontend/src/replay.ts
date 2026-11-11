@@ -225,7 +225,8 @@ export interface AbilitiesUpTo {
   targets?: NonNullable<RaidPull['targets']>
 }
 
-const schoolCache = new WeakMap<object, { dealt: Map<string, number | undefined>; taken: Map<string, number | undefined> }>()
+type Schools = Map<string, number | undefined>
+const schoolCache = new WeakMap<object, { dealt: Schools; taken: Schools }>()
 
 /** A pull's schools by `player|ability`, from its abilities and from what its players took (the first of each wins);
  * built once per pull. */
@@ -233,8 +234,11 @@ function schoolsOf(pull: Pick<RaidPull, 'abilities' | 'taken'>) {
   let schools = schoolCache.get(pull)
   if (!schools) {
     const index = (rows: { player: string; ability: string; school?: number }[] | undefined) => {
-      const map = new Map<string, number | undefined>()
-      for (const r of rows ?? []) if (!map.has(`${r.player}|${r.ability}`)) map.set(`${r.player}|${r.ability}`, r.school)
+      const map: Schools = new Map()
+      for (const r of rows ?? []) {
+        const key = `${r.player}|${r.ability}`
+        if (!map.has(key)) map.set(key, r.school)
+      }
       return map
     }
     schools = { dealt: index(pull.abilities), taken: index(pull.taken) }
@@ -276,7 +280,8 @@ export function abilitiesUpTo(
     if (!c.x && (c.e ?? c.t) <= now) casts.set(c.s, (casts.get(c.s) ?? 0) + 1)
   }
   const schools = schoolsOf(pull)
-  const school = (ability: string) => schools.dealt.get(`${player}|${ability}`) ?? schools.taken.get(`${player}|${ability}`)
+  const school = (ability: string) =>
+    schools.dealt.get(`${player}|${ability}`) ?? schools.taken.get(`${player}|${ability}`)
   const sums = new Map<string, [number, number, number]>([...casts.keys()].map((a) => [a, [0, 0, 0]]))
   for (const s of series) {
     const [d, h, t] = sumUp(s.p)

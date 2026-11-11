@@ -284,7 +284,7 @@ export function Avoidable({ data, seek }: { data: FightData; seek?: Seeker }) {
                   .map((h, i) => (
                     <span key={h.player}>
                       {i > 0 && ', '}
-                      <Who player={h.player} seek={seek} /> {amount(h.damage)} ({h.hits})
+                      <Who player={h.player} seek={seek} /> {amount(h.damage)} {h.hits > 0 && `(${h.hits})`}
                     </span>
                   ))}
               </span>
