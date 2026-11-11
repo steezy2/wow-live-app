@@ -248,5 +248,6 @@ func (k *LogTracker) spike(run *keyRun, second, damage, span int64, casts []mode
 			Defensive: h.Defensive, Ready: list(h.Ready)})
 	}
 	slices.SortFunc(sp.Members, func(a, b models.KeySpikeMember) int { return cmp.Compare(b.Taken, a.Taken) })
+	sp.Unused = unusedDefensive(sp)
 	return sp
 }

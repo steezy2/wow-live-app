@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { KeyTrack, RaidPull, TrackPoint } from './api'
-import { abilitiesUpTo, positionAt } from './replay'
+import { abilitiesBetween, abilitiesUpTo, meterBetween, positionAt } from './replay'
 
 const at = (t: number, x: number, map = 1): TrackPoint => ({ t, x, y: 0, map })
 
@@ -60,5 +60,42 @@ describe('abilitiesUpTo', () => {
 
   it('has nothing for a track without abilities', () => {
     expect(abilitiesUpTo({} as KeyTrack, pull, 'Kaz', 15_000)).toBeUndefined()
+  })
+})
+
+describe('abilitiesBetween', () => {
+  const track = {
+    abilities: { Kaz: [{ a: 'Fireball', p: [[10_000, 100, 0, 0], [20_000, 50, 0, 40]] }] },
+    targetSeries: { Kaz: [{ a: 'Boss', p: [[10_000, 60, 0, 0], [20_000, 40, 0, 0]] }] },
+    abilityTimes: [10_000, 20_000],
+    casts: { Kaz: [{ t: 1000, s: 'Fireball', e: 3000 }, { t: 14_000, s: 'Fireball', e: 16_000 }] },
+  } as unknown as KeyTrack
+  const pull = { abilities: [] } as unknown as RaidPull
+
+  it('subtracts the window start', () => {
+    expect(abilitiesBetween(track, pull, 'Kaz', 10_000, 20_000)).toEqual({
+      abilities: [{ player: 'Kaz', ability: 'Fireball', damage: 50, healing: 0, casts: 1, hits: 0, school: undefined }],
+      taken: [{ player: 'Kaz', ability: 'Fireball', damage: 40, school: undefined }],
+      targets: [{ player: 'Kaz', target: 'Boss', damage: 40 }],
+    })
+  })
+})
+
+describe('meterBetween', () => {
+  it('fills avoidable, priority, kicks and dispels', () => {
+    const track = {
+      classes: { Kaz: 'Mage' },
+      meters: {
+        Kaz: [
+          { t: 0, d: 0, h: 0, tk: 0 },
+          { t: 2000, d: 1000, h: 0, tk: 500, av: 300, pd: 400, k: 1, ds: 2 },
+          { t: 4000, d: 3000, h: 0, tk: 900, av: 700, pd: 1000, k: 3, ds: 2 },
+        ],
+      },
+    } as unknown as KeyTrack
+    const [row] = meterBetween(track, 2000, 4000).rows
+    expect([row.damage, row.damageTaken, row.avoidable, row.priorityDamage, row.interrupts, row.dispels]).toEqual([
+      2000, 400, 400, 600, 2, 0,
+    ])
   })
 })

@@ -3,12 +3,14 @@ import { fetchRaidNights, fetchRaidPull, type RaidNight, type RaidPull, type Rai
 import { clock, counted, progressText } from './format'
 import { defense, raidOffense } from './meterColumns'
 import { MeterCard } from './MeterCards'
+import { eventsOf } from './events'
 import { fightTabs, type FightData } from './KeyTabs'
 import { PlayerTable } from './PlayerTable'
-import { BuffGaps, EarlyDeaths, Mechanics, NoAbilities, PullMeters } from './RaidCards'
+import { BuffGaps, EarlyDeaths, Mechanics } from './RaidCards'
+import { FightMeters, NoAbilities } from './FightMeters'
 import { Name, type Seeker } from './Seek'
 import { RaidReplay } from './RaidReplay'
-import { topMeter, useReplay } from './replay'
+import { topMeter, useRaidTrack, useReplay } from './replay'
 import { Tabs } from './Tabs'
 import { ReadyPanel } from './ReadyPanel'
 import { useRaidLive } from './useLiveKey'
@@ -146,7 +148,8 @@ function classesOf(pull: RaidPull): Record<string, string> {
  * brings it into view, and a raider picked anywhere (the map, a meter, the graph, a name) is focused everywhere. Shown
  * with the pull's start as its key, so both start over with each pull. */
 export function RaidPullView({ pull }: { pull: RaidPull }) {
-  const replay = useReplay(pull.durationMS, 0, 4)
+  const replay = useReplay(pull.durationMS, pull.durationMS, 4)
+  const { track, error } = useRaidTrack(pull.start)
   const [focus, setFocus] = useState('')
   const replayBox = useRef<HTMLDivElement>(null)
   const classes = useMemo(() => classesOf(pull), [pull])
@@ -189,11 +192,29 @@ export function RaidPullView({ pull }: { pull: RaidPull }) {
       <BuffGaps pull={pull} classes={classes} onSeek={show} onFocus={setFocus} />
 
       <div ref={replayBox} className="replay-box">
-        <RaidReplay pull={pull} replay={replay} focus={focus} onFocus={setFocus} />
+        <RaidReplay pull={pull} track={track} error={error} replay={replay} focus={focus} onFocus={setFocus} />
       </div>
 
-      <PullMeters pull={pull} classes={classes} focus={focus} onFocus={setFocus} />
-      <PullTabs pull={pull} seek={{ onSeek: show, classes, onFocus: setFocus }} />
+      <FightMeters
+        windows={[
+          {
+            title: 'Whole pull',
+            from: 0,
+            to: replay.at,
+            saved: pull.meter,
+          },
+        ]}
+        track={track ?? null}
+        atEnd={replay.at >= pull.durationMS}
+        fight={pull}
+        offense={raidOffense}
+        listed
+        group="raid"
+        classes={classes}
+        focus={focus}
+        onFocus={setFocus}
+      />
+      <PullTabs pull={pull} seek={{ onSeek: show, classes, onFocus: setFocus }} focus={focus} />
     </>
   )
 }
@@ -256,8 +277,9 @@ export function RaidOverlayCard({ pull }: { pull: RaidPull }) {
 }
 
 /** Under the meters: every raider's pull in one table, and the tabs a key has (deaths, interrupts, must-stops, spikes,
- * defensives and potions, CC); a pull saved before they were kept says how to fill them in. */
-function PullTabs({ pull, seek }: { pull: RaidPull; seek: Seeker }) {
+ * big hits, avoidable, defensives and potions, CC, the focused raider's moments); a pull saved before they were kept
+ * says how to fill them in. */
+function PullTabs({ pull, seek, focus }: { pull: RaidPull; seek: Seeker; focus: string }) {
   if (!pull.casts) return <NoAbilities />
   const data: FightData = {
     deaths: pull.deaths,
@@ -268,7 +290,10 @@ function PullTabs({ pull, seek }: { pull: RaidPull; seek: Seeker }) {
     spikes: pull.spikes ?? [],
     debuffs: pull.debuffs ?? [],
     reference: true,
+    avoidableHits: pull.avoidableHits,
+    lanes: pull.lanes,
   }
+  const moments = { player: focus || undefined, events: focus ? eventsOf(pull, focus) : [] }
   return (
     <>
       <PlayerTable
@@ -280,7 +305,7 @@ function PullTabs({ pull, seek }: { pull: RaidPull; seek: Seeker }) {
         avoidableListed
         onPick={seek.onFocus}
       />
-      <Tabs tabs={fightTabs(data, `Deaths ${pull.deaths.length}`, 'raid', seek)} />
+      <Tabs tabs={fightTabs(data, `Deaths ${pull.deaths.length}`, 'raid', seek, moments)} />
     </>
   )
 }

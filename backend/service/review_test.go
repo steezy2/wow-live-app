@@ -212,6 +212,41 @@ func TestSpecLabelAddsWarcraftLogsMissingSpaces(t *testing.T) {
 	}
 }
 
+func TestReviewHealthstonesOnlyWithWarlock(t *testing.T) {
+	for _, tc := range []struct {
+		class string
+		want  bool
+	}{{"Warlock", true}, {"Priest", false}} {
+		key := models.Key{Players: []string{"Mage"}, Specs: map[string]int{"Mage": 62},
+			Activity: map[string]float64{}, Overall: models.KeyMeter{Rows: []models.KeyMeterRow{{Player: "Mage"},
+				{Player: "Other", Class: tc.class}}}}
+		metrics := buildReview(key, nil, nil, nil).Players[0].Metrics
+		got := slices.ContainsFunc(metrics, func(m models.ReviewMetric) bool { return m.Name == "healthstones" })
+		if got != tc.want {
+			t.Errorf("with a %s: healthstones shown %v, want %v", tc.class, got, tc.want)
+		}
+		if slices.ContainsFunc(metrics, func(m models.ReviewMetric) bool { return strings.HasPrefix(m.Name, "big hits") }) {
+			t.Errorf("with a %s: a big hits column; it moved to the Big hits tab", tc.class)
+		}
+	}
+}
+
+func TestUnusedDefensive(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		members []models.KeySpikeMember
+		want    string
+	}{
+		{"hardest hit used one", []models.KeySpikeMember{{Player: "A", Defensive: "Ice Block", Ready: []string{"Alter Time"}}}, ""},
+		{"hardest hit had one ready", []models.KeySpikeMember{{Player: "A", Ready: []string{"Ice Block"}}}, "Ice Block"},
+		{"only someone else had one ready", []models.KeySpikeMember{{Player: "A"}, {Player: "B", Ready: []string{"Barkskin"}}}, ""},
+	} {
+		if got := unusedDefensive(models.KeySpike{Members: tc.members}); got != tc.want {
+			t.Errorf("%s: %q, want %q", tc.name, got, tc.want)
+		}
+	}
+}
+
 // TestReviewMetrics: combat potions count every potion over the key (a pre-pot too), health potions and healthstones
 // are counts alone (no rank, never advice), and a Bloodlust passing without a potion near it is the only advice.
 func TestReviewMetrics(t *testing.T) {
@@ -230,7 +265,8 @@ func TestReviewMetrics(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			key := models.Key{Level: 10, Status: "timed", FinalMS: 1_500_000, Players: []string{"Mage"},
 				Specs: map[string]int{"Mage": 62}, Activity: map[string]float64{"Mage": 90}, Casts: casts, Lusts: tc.lusts,
-				Overall: models.KeyMeter{Rows: []models.KeyMeterRow{{Player: "Mage", DPS: 100_000}}}}
+				Overall: models.KeyMeter{Rows: []models.KeyMeterRow{{Player: "Mage", DPS: 100_000},
+					{Player: "Lock", Class: "Warlock"}}}}
 			mage := buildReview(key, nil, nil, nil).Players[0]
 			want := map[string]struct{ value, rank int }{"combat potions": {2, 1}, "health potions": {1, 0},
 				"healthstones": {2, 0}}

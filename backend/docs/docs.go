@@ -1442,6 +1442,10 @@ const docTemplate = `{
                     "items": {
                         "type": "string"
                     }
+                },
+                "unused": {
+                    "description": "Unused is the defensive the member hit hardest had ready and didn't use (\"\" when they used one or had none\nready); missing in keys saved before Nov 11.",
+                    "type": "string"
                 }
             }
         },
@@ -1890,10 +1894,22 @@ const docTemplate = `{
         "models.MeterPoint": {
             "type": "object",
             "properties": {
+                "av": {
+                    "type": "integer"
+                },
                 "d": {
                     "type": "integer"
                 },
+                "ds": {
+                    "type": "integer"
+                },
                 "h": {
+                    "type": "integer"
+                },
+                "k": {
+                    "type": "integer"
+                },
+                "pd": {
                     "type": "integer"
                 },
                 "t": {
@@ -2299,6 +2315,13 @@ const docTemplate = `{
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/models.RaidHits"
+                    }
+                },
+                "avoidableHits": {
+                    "description": "AvoidableHits is each raider's avoidable damage by ability, most first; missing in pulls saved before Nov 11.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.KeyHit"
                     }
                 },
                 "boss": {

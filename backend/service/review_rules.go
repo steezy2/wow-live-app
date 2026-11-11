@@ -63,10 +63,6 @@ var (
 		}), true, false, false},
 		{"active %", since(func(k models.Key, r models.KeyMeterRow) float64 { return k.Activity[r.Player] }), true,
 			false, false},
-		{"big hits, defensive ready", func(k models.Key, r models.KeyMeterRow) float64 {
-			n, _ := unusedDefensives(k, r.Player)
-			return float64(n)
-		}, false, false, false},
 		{"crowd control", since(castCount("cc")), true, false, false},
 		{"combat potions", since(castCount("combat potion")), true, false, false},
 		{"health potions", since(castCount("health potion")), true, false, true},
@@ -97,13 +93,14 @@ func buildReview(key models.Key, history []models.Key, baselines map[string]map[
 	for _, r := range key.Overall.Rows {
 		rows[r.Player] = r
 	}
+	warlock := slices.ContainsFunc(key.Overall.Rows, func(r models.KeyMeterRow) bool { return r.Class == "Warlock" })
 	for _, player := range key.Players {
 		spec := specs[key.Specs[player]]
 		row := rows[player]
 		pr := models.PlayerReview{Player: player, Spec: spec.label(), Advice: []string{}}
 		for _, m := range reviewed {
 			value := m.value(key, row)
-			if math.IsNaN(value) { // a key saved before the metric existed
+			if math.IsNaN(value) || (m.name == "healthstones" && !warlock) { // healthstones need a warlock to make them
 				continue
 			}
 			metric := models.ReviewMetric{Name: m.name, Value: value, Usual: -1, Amount: m.amount,
@@ -265,21 +262,20 @@ var groupStarts = map[string]bool{"kicks": true, "damage taken": true, "combat p
 
 // metricHelp says what each reviewed metric counts.
 var metricHelp = map[string]string{
-	"DPS":                       "damage per second over the key",
-	"HPS":                       "healing per second over the key, absorbs included",
-	"kicks":                     "every interrupt, must-stop or not",
-	"dispels":                   "debuffs dispelled off the party, and buffs purged off enemies",
-	"damage taken":              "all damage taken",
-	"avoidable damage":          "damage from the dungeon's avoidable abilities (reference/mplus-dungeons.json)",
-	"deaths":                    "times died",
-	"wasted kicks":              "interrupts cast that stopped nothing: the cast was already stopped, or the target couldn't be",
-	"priority %":                "share of damage into trash pulls' minibosses and into bosses",
-	"active %":                  "share of time alive in pulls with a cast or hit of theirs going",
-	"big hits, defensive ready": "damage spikes they took the most of with a defensive ready and none used",
-	"combat potions":            "combat potions drunk over the key, a pre-pot included",
-	"health potions":            "health potions drunk over the key",
-	"healthstones":              "healthstones used over the key",
-	"crowd control":             "stuns, incapacitates, fears, roots, knocks (up or back) and grips cast ([cc] in mplus.toml; an area stun counts once)",
+	"DPS":              "damage per second over the key",
+	"HPS":              "healing per second over the key, absorbs included",
+	"kicks":            "every interrupt, must-stop or not",
+	"dispels":          "debuffs dispelled off the party, and buffs purged off enemies",
+	"damage taken":     "all damage taken",
+	"avoidable damage": "damage from the dungeon's avoidable abilities (reference/mplus-dungeons.json)",
+	"deaths":           "times died",
+	"wasted kicks":     "interrupts cast that stopped nothing: the cast was already stopped, or the target couldn't be",
+	"priority %":       "share of damage into trash pulls' minibosses and into bosses",
+	"active %":         "share of time alive in pulls with a cast or hit of theirs going",
+	"combat potions":   "combat potions drunk over the key, a pre-pot included",
+	"health potions":   "health potions drunk over the key",
+	"healthstones":     "healthstones used over the key",
+	"crowd control":    "stuns, incapacitates, fears, roots, knocks (up or back) and grips cast ([cc] in mplus.toml; an area stun counts once)",
 }
 
 // since reads a metric only from keys saved with it (Nov 8 on; older keys have no activity): NaN for older ones, so a
@@ -312,14 +308,23 @@ func potionWithLust(key models.Key, player string, lust int64) bool {
 	})
 }
 
+// unusedDefensive is the defensive the member a spike hit hardest had ready and didn't use: "" when they used one or
+// had none ready.
+func unusedDefensive(s models.KeySpike) string {
+	if m := s.Members; len(m) > 0 && m[0].Defensive == "" && len(m[0].Ready) > 0 {
+		return m[0].Ready[0]
+	}
+	return ""
+}
+
 // unusedDefensives is how many damage spikes a player took the most of with a defensive ready and none used, and one
-// they had ready.
+// they had ready. It reads the members, not Unused, so keys saved before Unused count too.
 func unusedDefensives(key models.Key, player string) (int, string) {
 	var n int
 	var ready string
 	for _, s := range key.Spikes {
-		if m := s.Members; len(m) > 0 && m[0].Player == player && m[0].Defensive == "" && len(m[0].Ready) > 0 {
-			n, ready = n+1, m[0].Ready[0]
+		if d := unusedDefensive(s); d != "" && s.Members[0].Player == player {
+			n, ready = n+1, d
 		}
 	}
 	return n, ready

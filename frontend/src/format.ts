@@ -78,9 +78,9 @@ export function pullTitle(key: KeyView, clockMS: number): string {
     : 'Last pull'
 }
 
-/** A player's damage ('d'), healing ('h') or damage taken ('tk') so far at a clock reading, from a track's meter
- * points. */
-export function valueAt(points: MeterPoint[], t: number, kind: 'd' | 'h' | 'tk'): number {
+/** One of a player's numbers so far at a clock reading (damage 'd', healing 'h', damage taken 'tk', and so on), from a
+ * track's meter points. */
+export function valueAt(points: MeterPoint[], t: number, kind: Exclude<keyof MeterPoint, 't'>): number {
   let value = 0
   for (const p of points) {
     if (p.t > t) break

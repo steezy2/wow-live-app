@@ -1,14 +1,22 @@
 import type { ReactNode } from 'react'
-import type { KeyCast, KeyView } from './api'
+import type { KeyCast, KeyHit, KeyView, RaidLane } from './api'
 import { coverText } from './format'
-import { KickLedger, SpikeLedger } from './KeyLedgers'
-import { When, Who, type Seeker } from './Seek'
+import type { PlayerEvent } from './events'
+import { Avoidable, BigHits, KickLedger, SpikeLedger } from './KeyLedgers'
+import { EventList, When, Who, type Seeker } from './Seek'
 
-/** What a fight's tabs read: a key's view, or a raid pull's lists. */
+/** What a fight's tabs read: a key's view, or a raid pull's lists; avoidableHits missing in pulls saved before Nov
+ * 11. */
 export type FightData = Pick<
   KeyView,
   'deaths' | 'interrupts' | 'casts' | 'stops' | 'wastedKicks' | 'spikes' | 'debuffs' | 'reference'
->
+> & { avoidableHits?: KeyHit[]; lanes: RaidLane[] }
+
+/** One player's moments for their tab: the focused player, else the log's writer; none for a raid without a focus. */
+export interface Moments {
+  player?: string
+  events: PlayerEvent[]
+}
 
 /** A tab: its name and what it shows. */
 export interface FightTab {
@@ -16,10 +24,16 @@ export interface FightTab {
   body: ReactNode
 }
 
-/** The tabs a key and a raid pull share, in order: Deaths (named deathsName), Interrupts, Must-stops, Spikes,
- * Defensives and potions, CC; group names the cooldowns that cover a spike. With seek, a row's time moves the replay
- * and a name focuses the player. */
-export function fightTabs(data: FightData, deathsName: string, group: 'party' | 'raid', seek?: Seeker): FightTab[] {
+/** The tabs a key and a raid pull share, in order: Deaths (named deathsName), Interrupts, Must-stops, Spikes, Big
+ * hits, Avoidable, Defensives and potions, CC, then (with moments, once the fight is over) one player's moments; group
+ * names the cooldowns that cover a spike. With seek, a row's time moves the replay and a name focuses the player. */
+export function fightTabs(
+  data: FightData,
+  deathsName: string,
+  group: 'party' | 'raid',
+  seek?: Seeker,
+  moments?: Moments,
+): FightTab[] {
   const cc = data.casts.filter((c) => c.kind === 'cc')
   const pressed = data.casts.filter((c) => c.kind !== 'cc')
   return [
@@ -71,6 +85,11 @@ export function fightTabs(data: FightData, deathsName: string, group: 'party' | 
       body: <KickLedger data={data} seek={seek} />,
     },
     { name: `Spikes ${data.spikes.length}`, body: <SpikeLedger data={data} group={group} seek={seek} /> },
+    { name: `Big hits ${data.spikes.filter((s) => s.unused).length}`, body: <BigHits data={data} seek={seek} /> },
+    {
+      name: `Avoidable ${new Set(data.avoidableHits?.map((h) => h.ability)).size}`,
+      body: <Avoidable data={data} seek={seek} />,
+    },
     {
       name: 'Defensives and potions',
       body: (
@@ -101,6 +120,18 @@ export function fightTabs(data: FightData, deathsName: string, group: 'party' | 
         </ul>
       ),
     },
+    ...(moments && seek
+      ? [
+          {
+            name: moments.player ?? 'Moments',
+            body: moments.player ? (
+              <EventList events={moments.events} onSeek={seek.onSeek} />
+            ) : (
+              <p className="muted">Pick a {group === 'raid' ? 'raider' : 'player'} to see their moments</p>
+            ),
+          },
+        ]
+      : []),
   ]
 }
 

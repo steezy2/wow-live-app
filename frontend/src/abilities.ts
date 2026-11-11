@@ -8,6 +8,8 @@ export interface AbilityRow {
   school?: number
   casts?: number
   hits?: number
+  /** An ability on the dungeon's or boss's avoidable list (damage taken). */
+  avoidable?: boolean
 }
 
 /** One player's breakdowns: their damage and healing by ability with casts and hits, what they took damage from, and
