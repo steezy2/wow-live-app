@@ -3,6 +3,7 @@ import type { KeyHit, KeyTrack, KeyView } from './api'
 import type { FightData } from './KeyTabs'
 import { amount, causesText, clock, coverText, groupBy } from './format'
 import { defense, offense } from './meterColumns'
+import { RecapRow, recapOf } from './HitRecap'
 import { MeterCard } from './MeterCards'
 import { meterBetween } from './replay'
 import { When, Who, type Seeker } from './Seek'
@@ -205,19 +206,31 @@ export function SpikeLedger(props: { data: FightData; group: 'party' | 'raid'; s
   )
 }
 
-/** The damage spikes whose hardest-hit player had a defensive ready and used none, newest first: when, who, how much
- * they took and what was ready. */
-export function BigHits({ data, seek }: { data: FightData; seek?: Seeker }) {
-  const hits = data.spikes.filter((s) => s.unused).reverse()
+/** Each big hit a player took, newest first: when, who, how much (and what % of their health), what hit them and their
+ * cover, red when a defensive was ready and none used; a click opens its recap (a player who died soon after has the
+ * death's). */
+export function BigHits({ data, seek, track }: { data: FightData; seek?: Seeker; track?: KeyTrack | null }) {
+  if (!data.bigHits) {
+    return <p className="muted">Saved before big hits were kept: Read old logs in Settings fills it in</p>
+  }
+  const hits = [...data.bigHits].reverse()
   return (
     <ul className="list scroll">
-      {hits.map((s) => (
-        <li key={s.clockMS}>
-          <span>
-            <When ms={s.clockMS} seek={seek} /> <Who player={s.members[0].player} seek={seek} />{' '}
-            {amount(s.members[0].taken)} <span className="muted">with {s.unused} ready</span>
+      {hits.map((h) => (
+        <RecapRow
+          key={`${h.player}-${h.clockMS}`}
+          recap={recapOf(track, h.player, h.clockMS)}
+          ready={h.ready}
+          died={h.died}
+        >
+          <span className={!h.used && !h.defensive && h.ready.length > 0 ? 'bad' : ''}>
+            <When ms={h.clockMS} seek={seek} /> <Who player={h.player} seek={seek} /> {amount(h.taken)} (
+            {Math.round(h.pct)}%){h.died && <b className="bad"> died</b>}
           </span>
-        </li>
+          <span className="muted">
+            {causesText({ damage: h.taken, causes: h.causes })} &middot; {coverText(h)}
+          </span>
+        </RecapRow>
       ))}
       {hits.length === 0 && <li className="muted">None</li>}
     </ul>

@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react'
-import type { KeyCast, KeyHit, KeyView, RaidLane } from './api'
+import type { KeyBigHit, KeyCast, KeyHit, KeyTrack, KeyView, RaidLane } from './api'
 import { coverText } from './format'
 import type { PlayerEvent } from './events'
+import { RecapRow, recapOf } from './HitRecap'
 import { Avoidable, BigHits, KickLedger, SpikeLedger } from './KeyLedgers'
 import { EventList, When, Who, type Seeker } from './Seek'
 
@@ -10,7 +11,7 @@ import { EventList, When, Who, type Seeker } from './Seek'
 export type FightData = Pick<
   KeyView,
   'deaths' | 'interrupts' | 'casts' | 'stops' | 'wastedKicks' | 'spikes' | 'debuffs' | 'reference'
-> & { avoidableHits?: KeyHit[]; lanes: RaidLane[] }
+> & { avoidableHits?: KeyHit[]; bigHits?: KeyBigHit[]; lanes: RaidLane[] }
 
 /** One player's moments for their tab: the focused player, else the log's writer; none for a raid without a focus. */
 export interface Moments {
@@ -26,13 +27,15 @@ export interface FightTab {
 
 /** The tabs a key and a raid pull share, in order: Deaths (named deathsName), Interrupts, Must-stops, Spikes, Big
  * hits, Avoidable, Defensives and potions, CC, then (with moments, once the fight is over) one player's moments; group
- * names the cooldowns that cover a spike. With seek, a row's time moves the replay and a name focuses the player. */
+ * names the cooldowns that cover a spike. With seek, a row's time moves the replay and a name focuses the player. With
+ * the fight's track, a death or big hit opens its recap. */
 export function fightTabs(
   data: FightData,
   deathsName: string,
   group: 'party' | 'raid',
   seek?: Seeker,
   moments?: Moments,
+  track?: KeyTrack | null,
 ): FightTab[] {
   const cc = data.casts.filter((c) => c.kind === 'cc')
   const pressed = data.casts.filter((c) => c.kind !== 'cc')
@@ -42,7 +45,7 @@ export function fightTabs(
       body: (
         <ul className="list scroll">
           {data.deaths.map((d, i) => (
-            <li key={`${d.player}-${d.clockMS}-${i}`} className="stack">
+            <RecapRow key={`${d.player}-${d.clockMS}-${i}`} recap={recapOf(track, d.player, d.clockMS)} ready={d.ready} died>
               <span>
                 <Who player={d.player} seek={seek} /> {d.ability || 'unknown'}{' '}
                 <span className="muted">from {d.killer || 'unknown'}</span>
@@ -50,7 +53,7 @@ export function fightTabs(
               <span className="muted">
                 <When ms={d.clockMS} seek={seek} /> · {coverText(d)}
               </span>
-            </li>
+            </RecapRow>
           ))}
           {data.deaths.length === 0 && <li className="muted">None</li>}
         </ul>
@@ -85,7 +88,7 @@ export function fightTabs(
       body: <KickLedger data={data} seek={seek} />,
     },
     { name: `Spikes ${data.spikes.length}`, body: <SpikeLedger data={data} group={group} seek={seek} /> },
-    { name: `Big hits ${data.spikes.filter((s) => s.unused).length}`, body: <BigHits data={data} seek={seek} /> },
+    { name: `Big hits ${data.bigHits?.length ?? 0}`, body: <BigHits data={data} seek={seek} track={track} /> },
     {
       name: `Avoidable ${new Set(data.avoidableHits?.map((h) => h.ability)).size}`,
       body: <Avoidable data={data} seek={seek} />,
