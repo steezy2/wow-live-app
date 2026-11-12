@@ -230,7 +230,7 @@ type ImportPlan struct {
 // ImportKindPlan is one kind's fights in an ImportPlan: how many, their minutes, an estimate of their points, and
 // whether the page ticks it at first.
 type ImportKindPlan struct {
-	Kind    ImportKind `json:"kind" enums:"keys,raidKills,raidWipes"`
+	Kind    ImportKind `json:"kind"`
 	Fights  int        `json:"fights"`
 	Minutes int        `json:"minutes"`
 	Points  float64    `json:"points"`

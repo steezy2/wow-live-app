@@ -129,7 +129,7 @@ export function WCLImport({ view, onSaved }: { view: SettingsView; onSaved: (vie
             <span>{importTotal(plan, kinds)}</span>
             <button
               type="button"
-              disabled={busy || kinds.length === 0}
+              disabled={busy || !plan.kinds.some((k) => kinds.includes(k.kind) && k.fights > 0)}
               onClick={() => void act(startImport(kinds), 'Checking the character…', 'Started')}
             >
               Import

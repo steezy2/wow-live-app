@@ -542,6 +542,9 @@ func (k *LogTracker) kill(at int64, f []string) {
 // and healing.
 func (k *LogTracker) event(at int64, event string, f []string) {
 	run := k.current
+	if !strings.HasSuffix(event, "_SUPPORT") { // a support line adds to the hit or heal right before it, or nothing
+		run.lastDealt, run.lastHealed = [2]string{}, [2]string{}
+	}
 	if len(f) < 8 {
 		return
 	}

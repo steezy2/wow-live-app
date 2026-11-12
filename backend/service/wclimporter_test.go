@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math"
 	"slices"
 	"sync"
 	"testing"
@@ -213,20 +212,17 @@ func TestPlanCountsEachKind(t *testing.T) {
 	if plan.Character != "Testmage-Area52" || plan.PointsPerHour != 3400 || plan.ListedPoints != 4 {
 		t.Errorf("plan %+v, want Testmage's, 3,400 points an hour and 4 spent listing", plan)
 	}
-	for i, want := range []models.ImportKindPlan{
-		{Kind: models.ImportKeys, Fights: 2, Minutes: 60, Points: 60 * 5 * pointsPerPlayerMinute, Default: true},
-		{Kind: models.ImportRaidKills, Fights: 1, Minutes: 5, Points: 5 * 20 * pointsPerPlayerMinute, Default: true},
-		{Kind: models.ImportRaidWipes, Fights: 1, Minutes: 2, Points: 2 * 20 * pointsPerPlayerMinute}, // not Testrogue's
-	} {
-		if i >= len(plan.Kinds) || math.Abs(plan.Kinds[i].Points-want.Points) > 1e-9 ||
-			plan.Kinds[i].Fights != want.Fights || plan.Kinds[i].Minutes != want.Minutes ||
-			plan.Kinds[i].Kind != want.Kind || plan.Kinds[i].Default != want.Default {
-			t.Errorf("kinds %+v, want %+v at %d", plan.Kinds, want, i)
-		}
+	want := []models.ImportKindPlan{
+		{Kind: models.ImportKeys, Fights: 2, Minutes: 60, Points: 81, Default: true}, // 60 × 5 × 0.27
+		{Kind: models.ImportRaidKills, Fights: 1, Minutes: 5, Points: 27, Default: true},
+		{Kind: models.ImportRaidWipes, Fights: 1, Minutes: 2, Points: 11}, // not Testrogue's
+	}
+	if !slices.Equal(plan.Kinds, want) {
+		t.Errorf("kinds %+v, want %+v", plan.Kinds, want)
 	}
 }
 
-func TestPlanWaitsForTheRunningImport(t *testing.T) {
+func TestPlanIsBusyWhileAnImportRuns(t *testing.T) {
 	ti := newTestImporter(t, []models.RateLimit{plenty})
 	release := make(chan struct{})
 	ti.Prepare = func() error { <-release; return nil }
@@ -340,5 +336,18 @@ func TestAStoppedImportDoesntResumeAfterARestart(t *testing.T) {
 	ti.finish()
 	if st, err := ti.readState(); err != nil || len(st.left()) != 0 {
 		t.Errorf("state %+v (%v): want no fights left to resume", st, err)
+	}
+}
+
+func TestASecondImportCountsOnlyItsOwnFights(t *testing.T) {
+	ti := newTestImporter(t, []models.RateLimit{plenty})
+	for _, kinds := range [][]models.ImportKind{keysOnly, {models.ImportRaidKills}} {
+		if err := ti.Start(context.Background(), "us", "Testmage-Area52", kinds); err != nil {
+			t.Fatal(err)
+		}
+		ti.finish()
+	}
+	if s := ti.Status(); s.Fights != 1 || s.FightsDone != 1 {
+		t.Errorf("status %+v, want the raid kill as 1 of 1 fight, not the keys done before", s)
 	}
 }

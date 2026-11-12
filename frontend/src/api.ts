@@ -654,7 +654,7 @@ export interface ImportPlan {
 
 /** Lists the saved character's reports (spending points) and counts what an import would fetch. */
 export async function fetchImportPlan(): Promise<ImportPlan> {
-  return (await (await call('/api/settings/warcraftlogs/import/plan')).json()) as ImportPlan
+  return (await (await call('/api/settings/warcraftlogs/import/plan', { method: 'POST' })).json()) as ImportPlan
 }
 
 /** Starts importing the saved character's fights of this season of kinds in the background. */

@@ -125,7 +125,11 @@ func (im *Importer) Plan(ctx context.Context, region, character string) (models.
 	if err != nil {
 		return models.ImportPlan{}, err
 	}
-	fights, err := im.fights(ctx, region, character, name, slug)
+	var done []models.ReportLink
+	if old, err := im.readState(); err == nil && old.Character == character {
+		done = old.Done
+	}
+	fights, err := im.fights(ctx, region, character, name, slug, done)
 	if err != nil {
 		return models.ImportPlan{}, err
 	}
@@ -147,7 +151,7 @@ func (im *Importer) Plan(ctx context.Context, region, character string) (models.
 			minutes += m
 			k.Points += m * float64(f.Players) * pointsPerPlayerMinute
 		}
-		k.Minutes = int(math.Round(minutes))
+		k.Minutes, k.Points = int(math.Round(minutes)), math.Round(k.Points)
 		plan.Kinds = append(plan.Kinds, k)
 	}
 	return plan, nil
@@ -262,7 +266,7 @@ func (im *Importer) run(state importState, first func(context.Context, *importSt
 
 // list fills st's fights from the character's reports.
 func (im *Importer) list(ctx context.Context, st *importState, name, slug string) error {
-	fights, err := im.fights(ctx, st.Region, st.Character, name, slug)
+	fights, err := im.fights(ctx, st.Region, st.Character, name, slug, st.Done)
 	if err != nil {
 		return err
 	}
@@ -274,8 +278,9 @@ func (im *Importer) list(ctx context.Context, st *importState, name, slug string
 }
 
 // fights are the character's fights to import (PickFights), from its reports back to the first page with none of
-// this season's, once new local logs are read.
-func (im *Importer) fights(ctx context.Context, region, character, name, slug string) ([]models.FightRef, error) {
+// this season's, once new local logs are read, but those done (fetched before, and saved nothing).
+func (im *Importer) fights(ctx context.Context, region, character, name, slug string, done []models.ReportLink) (
+	[]models.FightRef, error) {
 	if err := im.Prepare(); err != nil && !errors.Is(err, ErrBusy) {
 		return nil, err
 	}
@@ -300,7 +305,9 @@ func (im *Importer) fights(ctx context.Context, region, character, name, slug st
 	if err != nil {
 		return nil, err
 	}
-	return PickFights(reports, zones, character, keys, pulls), nil
+	return slices.DeleteFunc(PickFights(reports, zones, character, keys, pulls), func(f models.FightRef) bool {
+		return slices.Contains(done, f.ReportLink)
+	}), nil
 }
 
 // fetchAll fetches st's fights left, newest first, saving the state after each.
@@ -405,8 +412,9 @@ func (st importState) left() []models.FightRef {
 
 // show copies st's counts into the status; im.mu is held.
 func (im *Importer) show(st *importState) {
-	im.status.Character, im.status.Fights = st.Character, len(st.picked())
-	im.status.FightsDone, im.status.FightsFailed = len(st.Done), len(st.Failed)
+	picked, left := st.picked(), st.left() // Done also holds earlier imports' fights, which aren't picked
+	im.status.Character, im.status.Fights = st.Character, len(picked)
+	im.status.FightsDone, im.status.FightsFailed = len(picked)-len(left)-len(st.Failed), len(st.Failed)
 	im.status.PointsSpent = st.PointsSpent
 }
 

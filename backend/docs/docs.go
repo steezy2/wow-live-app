@@ -1087,8 +1087,8 @@ const docTemplate = `{
             }
         },
         "/api/settings/warcraftlogs/import/plan": {
-            "get": {
-                "description": "Lists the reports the settings' character is in (about 2 points a report, reused for 10 minutes) and\ncounts the fights an import would fetch by kind (Mythic+ keys, raid kills, raid wipes), with their\nminutes and an estimate of their points, and the points an import spends an hour.",
+            "post": {
+                "description": "Lists the reports the settings' character is in (about 2 points a report, reused for 10 minutes) and\ncounts the fights an import would fetch by kind (Mythic+ keys, raid kills, raid wipes), with their\nminutes and an estimate of their points, and the points an import spends an hour. A POST, since\nlisting spends points.",
                 "produces": [
                     "application/json"
                 ],
@@ -1219,11 +1219,6 @@ const docTemplate = `{
                     "minItems": 1,
                     "uniqueItems": true,
                     "items": {
-                        "enum": [
-                            "keys",
-                            "raidKills",
-                            "raidWipes"
-                        ],
                         "$ref": "#/definitions/models.ImportKind"
                     }
                 }
@@ -1381,16 +1376,7 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "kind": {
-                    "enum": [
-                        "keys",
-                        "raidKills",
-                        "raidWipes"
-                    ],
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/models.ImportKind"
-                        }
-                    ]
+                    "$ref": "#/definitions/models.ImportKind"
                 },
                 "minutes": {
                     "type": "integer"

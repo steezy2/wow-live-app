@@ -16,13 +16,18 @@ func TestSupportDamageMovesToTheEvoker(t *testing.T) {
 	for _, tc := range []struct {
 		name      string
 		supporter string
+		between   []string         // lines between the hit and its support line
 		want      map[string]int64 // damage, also priority damage, by player
 		abilities []models.KeyAbility
 	}{
-		{"an Evoker in the party", "Player-76-0000BBBB", map[string]int64{"Testmage": 800, "Testevoker": 200},
+		{"an Evoker in the party", "Player-76-0000BBBB", nil, map[string]int64{"Testmage": 800, "Testevoker": 200},
 			[]models.KeyAbility{{Player: "Testmage", Ability: "Arcane Barrage", Damage: 800, Hits: 1, School: 0x40},
 				{Player: "Testevoker", Ability: "Ebon Might", Damage: 200, Hits: 1, School: 0xc}}},
-		{"an Evoker in another party", "Player-76-0000CCCC", map[string]int64{"Testmage": 1000},
+		{"an Evoker in another party", "Player-76-0000CCCC", nil, map[string]int64{"Testmage": 1000},
+			[]models.KeyAbility{{Player: "Testmage", Ability: "Arcane Barrage", Damage: 1000, Hits: 1, School: 0x40}}},
+		{"not after its hit", "Player-76-0000BBBB", []string{at(3, `DAMAGE_SHIELD,`+testPlayer+`,`+mobUnit(3)+
+			`,17,"Thorns",0x8,`+advancedOf(boss, "0000000000000000")+`,5,5,-1,8,0,0,0,nil,nil,nil`)},
+			map[string]int64{"Testmage": 1000},
 			[]models.KeyAbility{{Player: "Testmage", Ability: "Arcane Barrage", Damage: 1000, Hits: 1, School: 0x40}}},
 	} {
 		keys := newTracker(t, nil)
@@ -31,7 +36,8 @@ func TestSupportDamageMovesToTheEvoker(t *testing.T) {
 				`Player-76-0000BBBB,"Testevoker-Sargeras-US",0x512,0x80000000,395296,"Ebon Might",0xc,BUFF`),
 			at(2, `ENCOUNTER_START,3285,"Nalorakk",8,5,2825`),
 			at(3, `SPELL_DAMAGE,`+testPlayer+`,`+mobUnit(3)+`,44425,"Arcane Barrage",0x40,`+
-				advancedOf(boss, "0000000000000000")+`,1000,1000,-1,64,0,0,0,nil,nil,nil,ST`),
+				advancedOf(boss, "0000000000000000")+`,1000,1000,-1,64,0,0,0,nil,nil,nil,ST`))
+		lines = append(append(lines, tc.between...),
 			at(3, `SPELL_DAMAGE_SUPPORT,`+testPlayer+`,`+mobUnit(3)+`,395152,"Ebon Might",0xc,`+
 				advancedOf(boss, "0000000000000000")+`,200,200,-1,12,0,0,0,nil,nil,nil,`+tc.supporter),
 			at(9, `CHALLENGE_MODE_END,2825,1,10,9000,100.0,3000.0`))

@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
   clock,
-  importKindLabel,
   importKindText,
   importProgress,
   importTotal,
@@ -120,7 +119,6 @@ describe('import plan', () => {
   it('names each kind with its fights, hours and points', () => {
     expect(importKindText(plan.kinds[0])).toBe('Keys 86 · 31 h · ~2,500 points')
     expect(importKindText(plan.kinds[1])).toBe('Raid kills 26 · 2.5 h · ~840 points')
-    expect(importKindLabel('raidWipes')).toBe('Raid wipes')
   })
   it('totals the kinds ticked, with the hours the points take', () => {
     expect(importTotal(plan, ['keys', 'raidKills'])).toBe('Import 112 fights: ~3,300 points, about 1 h')

@@ -82,7 +82,7 @@ type LogNames struct {
 
 // ImportKinds are the kinds of fight to import, each once.
 type ImportKinds struct {
-	Kinds []models.ImportKind `json:"kinds" binding:"required,min=1,unique" enums:"keys,raidKills,raidWipes"`
+	Kinds []models.ImportKind `json:"kinds" binding:"required,min=1,unique"`
 }
 
 // OldKeys is how many logs were read and how many keys are saved after reading the log folder.
@@ -270,8 +270,8 @@ func characterFailed(c *gin.Context, err error) bool {
 	case errors.Is(err, models.ErrNoCredentials):
 		c.JSON(http.StatusNotFound, ErrorResponse{Error: "save the Warcraft Logs keys first: they check the realm"})
 	default:
-		log.Printf("checking the character: %v", err)
-		c.JSON(http.StatusBadGateway, ErrorResponse{Error: "couldn't reach Warcraft Logs to check the realm"})
+		log.Printf("asking Warcraft Logs: %v", err)
+		c.JSON(http.StatusBadGateway, ErrorResponse{Error: "couldn't reach Warcraft Logs"})
 	}
 	return true
 }
@@ -371,7 +371,8 @@ func (s SettingsAPI) ImportStatus(c *gin.Context) {
 //	@Summary		What an import of the character's Warcraft Logs reports would fetch
 //	@Description	Lists the reports the settings' character is in (about 2 points a report, reused for 10 minutes) and
 //	@Description	counts the fights an import would fetch by kind (Mythic+ keys, raid kills, raid wipes), with their
-//	@Description	minutes and an estimate of their points, and the points an import spends an hour.
+//	@Description	minutes and an estimate of their points, and the points an import spends an hour. A POST, since
+//	@Description	listing spends points.
 //	@Tags			settings
 //	@Produce		json
 //	@Success		200	{object}	models.ImportPlan
@@ -379,7 +380,7 @@ func (s SettingsAPI) ImportStatus(c *gin.Context) {
 //	@Failure		404	{object}	ErrorResponse	"No Warcraft Logs keys saved"
 //	@Failure		409	{object}	ErrorResponse	"An import is running"
 //	@Failure		502	{object}	ErrorResponse	"Warcraft Logs couldn't be reached"
-//	@Router			/api/settings/warcraftlogs/import/plan [get]
+//	@Router			/api/settings/warcraftlogs/import/plan [post]
 func (s SettingsAPI) ImportPlan(c *gin.Context) {
 	settings, ok := s.importCharacter(c)
 	if !ok {
@@ -438,18 +439,13 @@ func (s SettingsAPI) importCharacter(c *gin.Context) (models.Settings, bool) {
 	return settings, true
 }
 
-// importFailed answers an import's or plan's error, if any.
+// importFailed answers an import's or plan's error, if any: 409 while one runs, else as characterFailed.
 func importFailed(c *gin.Context, err error) bool {
-	switch {
-	case errors.Is(err, service.ErrBusy):
+	if errors.Is(err, service.ErrBusy) {
 		c.JSON(http.StatusConflict, ErrorResponse{Error: "an import is already running"})
-	case err == nil || errors.Is(err, service.ErrBadCharacter) || errors.Is(err, models.ErrNoCredentials):
-		return characterFailed(c, err)
-	default:
-		log.Printf("importing from Warcraft Logs: %v", err)
-		c.JSON(http.StatusBadGateway, ErrorResponse{Error: "couldn't reach Warcraft Logs"})
+		return true
 	}
-	return true
+	return characterFailed(c, err)
 }
 
 // StopImport godoc

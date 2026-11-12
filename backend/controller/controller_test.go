@@ -452,38 +452,33 @@ func (f fakeImport) Remove() error               { return f.err }
 func TestImportNeedsACharacterKindsAndOneImportAtATime(t *testing.T) {
 	const keys = `{"kinds": ["keys", "raidKills"]}`
 	for _, tc := range []struct {
-		method, body, character string
-		err                     error
-		code                    int
+		path, body, character string
+		err                   error
+		code                  int
 	}{
-		{http.MethodPost, keys, "Testmage-Somerealm", nil, http.StatusAccepted},
-		{http.MethodPost, keys, "", nil, http.StatusBadRequest},
-		{http.MethodPost, keys, "Testmage-Somerealm", service.ErrBusy, http.StatusConflict},
-		{http.MethodPost, keys, "Testmage-Somerealm", service.ErrBadCharacter, http.StatusBadRequest},
-		{http.MethodPost, keys, "Testmage-Somerealm", models.ErrNoCredentials, http.StatusNotFound},
-		{http.MethodPost, "", "Testmage-Somerealm", nil, http.StatusBadRequest},
-		{http.MethodPost, `{"kinds": []}`, "Testmage-Somerealm", nil, http.StatusBadRequest},
-		{http.MethodPost, `{"kinds": ["keys", "trash"]}`, "Testmage-Somerealm", nil, http.StatusBadRequest},
-		{http.MethodPost, `{"kinds": ["keys", "keys"]}`, "Testmage-Somerealm", nil, http.StatusBadRequest},
-		{http.MethodGet, "", "Testmage-Somerealm", nil, http.StatusOK},
-		{http.MethodGet, "", "", nil, http.StatusBadRequest},
-		{http.MethodGet, "", "Testmage-Somerealm", service.ErrBusy, http.StatusConflict},
-		{http.MethodGet, "", "Testmage-Somerealm", models.ErrNoCredentials, http.StatusNotFound},
-		{http.MethodGet, "", "Testmage-Somerealm", errors.New("down"), http.StatusBadGateway},
+		{"", keys, "Testmage-Somerealm", nil, http.StatusAccepted},
+		{"", keys, "", nil, http.StatusBadRequest},
+		{"", keys, "Testmage-Somerealm", service.ErrBusy, http.StatusConflict},
+		{"", keys, "Testmage-Somerealm", service.ErrBadCharacter, http.StatusBadRequest},
+		{"", keys, "Testmage-Somerealm", models.ErrNoCredentials, http.StatusNotFound},
+		{"", "", "Testmage-Somerealm", nil, http.StatusBadRequest},
+		{"", `{"kinds": []}`, "Testmage-Somerealm", nil, http.StatusBadRequest},
+		{"", `{"kinds": ["keys", "trash"]}`, "Testmage-Somerealm", nil, http.StatusBadRequest},
+		{"", `{"kinds": ["keys", "keys"]}`, "Testmage-Somerealm", nil, http.StatusBadRequest},
+		{"/plan", "", "Testmage-Somerealm", nil, http.StatusOK},
+		{"/plan", "", "", nil, http.StatusBadRequest},
+		{"/plan", "", "Testmage-Somerealm", service.ErrBusy, http.StatusConflict},
+		{"/plan", "", "Testmage-Somerealm", errors.New("down"), http.StatusBadGateway},
 	} {
 		saved := models.Settings{Region: "us", Character: tc.character}
 		router := Router(MPlus{Keys: &fakeKeys{}, Now: time.Now}, nil, &SettingsAPI{Settings: fakeSettings{&saved},
 			Import: fakeImport{tc.err}}, os.DirFS(t.TempDir()), LocalHosts(port)...)
-		url := "/api/settings/warcraftlogs/import"
-		if tc.method == http.MethodGet {
-			url += "/plan"
-		}
-		r := httptest.NewRequest(tc.method, url, strings.NewReader(tc.body))
+		r := httptest.NewRequest(http.MethodPost, "/api/settings/warcraftlogs/import"+tc.path, strings.NewReader(tc.body))
 		r.Host = "localhost:8080"
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, r)
 		if w.Code != tc.code {
-			t.Errorf("%s %s %q (%v): %d %s, want %d", tc.method, tc.body, tc.character, tc.err, w.Code, w.Body, tc.code)
+			t.Errorf("%s %s %q (%v): %d %s, want %d", tc.path, tc.body, tc.character, tc.err, w.Code, w.Body, tc.code)
 		}
 	}
 }
