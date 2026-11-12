@@ -188,6 +188,10 @@ export function topMeter(meter: KeyMeter, by: 'dps' | 'hps', n: number): KeyMete
 /** A boss unit not seen for this long (gone, or submerged) isn't drawn. */
 export const BOSS_GONE_MS = 5_000
 
+/** A mob is drawn until it dies, even while stunned or idle; one that never died (a reset, or a key left) isn't
+ * drawn this long after it was last seen. */
+export const MOB_GONE_MS = 30_000
+
 /** The index of the first point after a clock reading (points.length if none); points are in time order. */
 export function indexAfter(points: TrackPoint[], now: number): number {
   let [lo, hi] = [0, points.length]

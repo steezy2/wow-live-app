@@ -1,6 +1,6 @@
 import { Fragment, memo, type ReactNode } from 'react'
-import type { PlayerCount, RaidPull } from './api'
-import { amount, clock, coverText, seconds } from './format'
+import type { PlayerCount, RaidMissing, RaidPull } from './api'
+import { amount, clock, coverText, groupBy, seconds } from './format'
 import { At, Name, type Classes } from './Seek'
 
 /** How many raiders a mechanic's line names before it counts the rest. */
@@ -212,24 +212,47 @@ export const Mechanics = memo(function Mechanics({ pull, classes, onSeek, onFocu
   )
 })
 
-/** The pull's buffs in one card: what each raider lacked at the start (at 0:00) until it came, and each flask, food
- * or raid buff that came off them for a while; a time shows that moment in the replay. Hidden when there are none, or
- * for a pull saved before they were kept. */
+/** The pull's buffs in one small card, a line per buff (the most raiders first): who lacked it all pull ("everyone"
+ * when the whole raid did), then each shorter gap as a raider and its start (a time that shows that moment in the
+ * replay) to its end. Hidden when there are none, or for a pull saved before they were kept. */
 export const BuffGaps = memo(function BuffGaps({ pull, classes, onSeek, onFocus }: CardProps) {
   const gaps = pull.buffGaps ?? []
   if (gaps.length === 0) return null
-  const until = (fromMS: number, toMS: number) =>
-    toMS < pull.durationMS ? `until ${clock(toMS)}` : fromMS > 0 ? 'to the end' : 'all pull'
+  const buffs = [...groupBy(gaps, (g) => g.buff)].sort(([, a], [, b]) => b.length - a.length)
+  const allPull = (g: RaidMissing) => g.fromMS === 0 && g.toMS >= pull.durationMS
   return (
     <section className="panel">
       <h2>Missing buffs</h2>
-      <ul className="list">
-        {gaps.map((g) => (
-          <li key={`${g.player}-${g.buff}-${g.fromMS}`}>
-            <At ms={g.fromMS} onSeek={onSeek} /> <Name player={g.player} classes={classes} onPick={onFocus} /> no{' '}
-            {g.buff} <span className="muted small">{until(g.fromMS, g.toMS)}</span>
-          </li>
-        ))}
+      <ul className="list buff-gaps small">
+        {buffs.map(([buff, list]) => {
+          const whole = list.filter(allPull)
+          const parts = list.filter((g) => !allPull(g))
+          return (
+            <li key={buff}>
+              <b>{buff}</b>{' '}
+              {whole.length > 0 && (
+                <span>
+                  {whole.length === pull.players.length
+                    ? 'everyone'
+                    : whole.map((g, i) => (
+                        <Fragment key={g.player}>
+                          {i > 0 && ', '}
+                          <Name player={g.player} classes={classes} onPick={onFocus} />
+                        </Fragment>
+                      ))}{' '}
+                  <span className="muted">all pull</span>
+                </span>
+              )}
+              {parts.map((g, i) => (
+                <span key={`${g.player}-${g.fromMS}`}>
+                  {(whole.length > 0 || i > 0) && ' · '}
+                  <Name player={g.player} classes={classes} onPick={onFocus} /> <At ms={g.fromMS} onSeek={onSeek} />
+                  <span className="muted">–{g.toMS < pull.durationMS ? clock(g.toMS) : 'end'}</span>
+                </span>
+              ))}
+            </li>
+          )
+        })}
       </ul>
     </section>
   )

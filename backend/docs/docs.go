@@ -1776,6 +1776,13 @@ const docTemplate = `{
                         }
                     }
                 },
+                "mobs": {
+                    "description": "Mobs is every other hostile mob (by GUID) the replay draws as a small dot: about every 2 s while it acts, and\nwhen it died; none in tracks saved before Nov 11.",
+                    "type": "object",
+                    "additionalProperties": {
+                        "$ref": "#/definitions/models.MobTrail"
+                    }
+                },
                 "players": {
                     "type": "object",
                     "additionalProperties": {
@@ -2119,6 +2126,20 @@ const docTemplate = `{
                 "tk": {
                     "description": "damage taken so far; 0 in keys saved before Nov 8",
                     "type": "integer"
+                }
+            }
+        },
+        "models.MobTrail": {
+            "type": "object",
+            "properties": {
+                "died": {
+                    "type": "integer"
+                },
+                "p": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.TrackPoint"
+                    }
                 }
             }
         },

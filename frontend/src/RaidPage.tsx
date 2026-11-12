@@ -143,8 +143,8 @@ function classesOf(pull: RaidPull): Record<string, string> {
 }
 
 /** One pull's overview: how far it got against the best pulls, what to fix next, the early deaths and what went
- * wrong, the buffs missing at the start and through the pull, the replay with its mechanic lanes and graphs, and the
- * meters. The replay's clock and the focused raider are the page's: a time in a card moves the replay there and
+ * wrong, the replay with its mechanic lanes and graphs, the meters and tabs, and last the buffs missing through the
+ * pull. The replay's clock and the focused raider are the page's: a time in a card moves the replay there and
  * brings it into view, and a raider picked anywhere (the map, a meter, the graph, a name) is focused everywhere. Shown
  * with the pull's start as its key, so both start over with each pull. */
 export function RaidPullView({ pull }: { pull: RaidPull }) {
@@ -189,7 +189,6 @@ export function RaidPullView({ pull }: { pull: RaidPull }) {
         <EarlyDeaths pull={pull} classes={classes} onSeek={show} onFocus={setFocus} />
         <Mechanics pull={pull} classes={classes} onSeek={show} onFocus={setFocus} />
       </div>
-      <BuffGaps pull={pull} classes={classes} onSeek={show} onFocus={setFocus} />
 
       <div ref={replayBox} className="replay-box">
         <RaidReplay pull={pull} track={track} error={error} replay={replay} focus={focus} onFocus={setFocus} />
@@ -215,6 +214,7 @@ export function RaidPullView({ pull }: { pull: RaidPull }) {
         onFocus={setFocus}
       />
       <PullTabs pull={pull} seek={{ onSeek: show, classes, onFocus: setFocus }} focus={focus} />
+      <BuffGaps pull={pull} classes={classes} onSeek={show} onFocus={setFocus} />
     </>
   )
 }
