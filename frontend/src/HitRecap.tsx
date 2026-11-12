@@ -10,23 +10,25 @@ export function recapOf(track: KeyTrack | null | undefined, player: string, from
   return track?.recaps?.find((r) => r.player === player && r.clockMS >= fromMS)
 }
 
-/** The recap's length. */
-const RECAP_MS = 10_000
+/** How long a recap covers: from its first event to its end (the backend's recap_seconds at most). */
+const spanOf = (recap: HitRecap) => (recap.events.length > 0 ? recap.clockMS - recap.events[0].t : 0)
+
 const WIDTH = 120
 const HEIGHT = 24
 
 /** Their health over the recap from the events that know it (melee swings don't); a death ends at 0. Nothing without
  * a known point. */
 function HealthLine({ recap, died }: { recap: HitRecap; died?: boolean }) {
-  const start = recap.clockMS - RECAP_MS
+  const span = Math.max(1, spanOf(recap))
+  const start = recap.clockMS - span
   const known = recap.events.filter((e) => e.hp)
   if (known.length === 0) return null
   const point = (t: number, hp: number) =>
-    `${(((t - start) / RECAP_MS) * WIDTH).toFixed(1)},${(HEIGHT - (hp / 100) * HEIGHT).toFixed(1)}`
+    `${(((t - start) / span) * WIDTH).toFixed(1)},${(HEIGHT - (hp / 100) * HEIGHT).toFixed(1)}`
   const points = known.map((e) => point(e.t, e.hp!))
   if (died) points.push(point(recap.clockMS, 0))
   return (
-    <svg className="recap-hp" viewBox={`0 0 ${WIDTH} ${HEIGHT}`} role="img" aria-label="Health over the last 10 s">
+    <svg className="recap-hp" viewBox={`0 0 ${WIDTH} ${HEIGHT}`} role="img" aria-label="Health over the recap">
       <polyline points={points.join(' ')} fill="none" stroke="var(--bad)" strokeWidth="1.5" />
     </svg>
   )
@@ -51,7 +53,7 @@ export function HitRecapView(props: { recap: HitRecap; ready?: string[]; died?: 
   return (
     <div className="recap">
       <p className="small">
-        {summary.join(' · ')} in 10 s{used.length > 0 && ` · used ${used.join(', ')}`}
+        {summary.join(' · ')} in {seconds(spanOf(recap))}{used.length > 0 && ` · used ${used.join(', ')}`}
         {ready && ready.length > 0 && ` · ready ${ready.join(', ')}`}
       </p>
       <HealthLine recap={recap} died={died} />
