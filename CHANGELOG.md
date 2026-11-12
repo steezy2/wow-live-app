@@ -4,6 +4,8 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 
 ## [Unreleased]
 
+### Changed
+- A new app icon: a purple keystone gem crossed by a live pulse line, in a gold-framed tile, without the red dot. `docs/store-listing.md` holds the Microsoft Store text and the screenshot plan for the next listing update.
 ### Fixed
 - Starting WoW Live while it already runs opens the running copy's window instead of a second copy (with its own tray icon, overlay and log reading).
 - *Quit* in the tray closes the main window and stops following the log, instead of the window's hide-to-tray cancelling its close. The window's X still hides it to the tray.
