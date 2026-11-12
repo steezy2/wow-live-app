@@ -438,35 +438,52 @@ func TestSecurityHeaders(t *testing.T) {
 	}
 }
 
-// fakeImport is an import whose Start fails with err.
+// fakeImport is an import whose Start and Plan fail with err.
 type fakeImport struct{ err error }
 
-func (f fakeImport) Start(context.Context, string, string) error { return f.err }
-func (f fakeImport) Stop()                                       {}
-func (f fakeImport) Status() models.ImportStatus                 { return models.ImportStatus{State: "listing"} }
-func (f fakeImport) Remove() error                               { return f.err }
+func (f fakeImport) Start(context.Context, string, string, []models.ImportKind) error { return f.err }
+func (f fakeImport) Plan(context.Context, string, string) (models.ImportPlan, error) {
+	return models.ImportPlan{}, f.err
+}
+func (f fakeImport) Stop()                       {}
+func (f fakeImport) Status() models.ImportStatus { return models.ImportStatus{State: "listing"} }
+func (f fakeImport) Remove() error               { return f.err }
 
-func TestStartImportNeedsACharacterAndOneImportAtATime(t *testing.T) {
+func TestImportNeedsACharacterKindsAndOneImportAtATime(t *testing.T) {
+	const keys = `{"kinds": ["keys", "raidKills"]}`
 	for _, tc := range []struct {
-		character string
-		err       error
-		code      int
+		method, body, character string
+		err                     error
+		code                    int
 	}{
-		{"Testmage-Somerealm", nil, http.StatusAccepted},
-		{"", nil, http.StatusBadRequest},
-		{"Testmage-Somerealm", service.ErrBusy, http.StatusConflict},
-		{"Testmage-Somerealm", service.ErrBadCharacter, http.StatusBadRequest},
-		{"Testmage-Somerealm", models.ErrNoCredentials, http.StatusNotFound},
+		{http.MethodPost, keys, "Testmage-Somerealm", nil, http.StatusAccepted},
+		{http.MethodPost, keys, "", nil, http.StatusBadRequest},
+		{http.MethodPost, keys, "Testmage-Somerealm", service.ErrBusy, http.StatusConflict},
+		{http.MethodPost, keys, "Testmage-Somerealm", service.ErrBadCharacter, http.StatusBadRequest},
+		{http.MethodPost, keys, "Testmage-Somerealm", models.ErrNoCredentials, http.StatusNotFound},
+		{http.MethodPost, "", "Testmage-Somerealm", nil, http.StatusBadRequest},
+		{http.MethodPost, `{"kinds": []}`, "Testmage-Somerealm", nil, http.StatusBadRequest},
+		{http.MethodPost, `{"kinds": ["keys", "trash"]}`, "Testmage-Somerealm", nil, http.StatusBadRequest},
+		{http.MethodPost, `{"kinds": ["keys", "keys"]}`, "Testmage-Somerealm", nil, http.StatusBadRequest},
+		{http.MethodGet, "", "Testmage-Somerealm", nil, http.StatusOK},
+		{http.MethodGet, "", "", nil, http.StatusBadRequest},
+		{http.MethodGet, "", "Testmage-Somerealm", service.ErrBusy, http.StatusConflict},
+		{http.MethodGet, "", "Testmage-Somerealm", models.ErrNoCredentials, http.StatusNotFound},
+		{http.MethodGet, "", "Testmage-Somerealm", errors.New("down"), http.StatusBadGateway},
 	} {
 		saved := models.Settings{Region: "us", Character: tc.character}
 		router := Router(MPlus{Keys: &fakeKeys{}, Now: time.Now}, nil, &SettingsAPI{Settings: fakeSettings{&saved},
 			Import: fakeImport{tc.err}}, os.DirFS(t.TempDir()), LocalHosts(port)...)
-		r := httptest.NewRequest(http.MethodPost, "/api/settings/warcraftlogs/import", nil)
+		url := "/api/settings/warcraftlogs/import"
+		if tc.method == http.MethodGet {
+			url += "/plan"
+		}
+		r := httptest.NewRequest(tc.method, url, strings.NewReader(tc.body))
 		r.Host = "localhost:8080"
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, r)
 		if w.Code != tc.code {
-			t.Errorf("%q (%v): %d %s, want %d", tc.character, tc.err, w.Code, w.Body, tc.code)
+			t.Errorf("%s %s %q (%v): %d %s, want %d", tc.method, tc.body, tc.character, tc.err, w.Code, w.Body, tc.code)
 		}
 	}
 }

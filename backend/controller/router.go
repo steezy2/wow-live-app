@@ -65,6 +65,7 @@ func Router(mplus MPlus, raid *Raid, settings *SettingsAPI, pages fs.FS, hosts .
 		api.POST("/settings/warcraftlogs/test", settings.TestKeys)
 		api.DELETE("/settings/warcraftlogs", settings.RemoveKeys)
 		api.GET("/settings/warcraftlogs/import", settings.ImportStatus)
+		api.GET("/settings/warcraftlogs/import/plan", settings.ImportPlan)
 		api.POST("/settings/warcraftlogs/import", settings.StartImport)
 		api.DELETE("/settings/warcraftlogs/import", settings.StopImport)
 		api.DELETE("/settings/warcraftlogs/imported", settings.RemoveImported)
