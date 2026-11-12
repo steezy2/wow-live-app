@@ -4,13 +4,13 @@ import { clock } from './format'
 import { MapCanvas, ReplayControls, type Backdrop } from './KeyMap'
 import { abilitiesUpTo, floorsOf, tickStep, type SliderMark, type useReplay } from './replay'
 import { MeterGraph } from './DamageGraph'
-import { BossBox, CastBox, TakenBox } from './ReplayBoxes'
+import { BossBox, FocusBoxes } from './ReplayBoxes'
 
 /** A raid pull's replay: the mechanics' lanes and the DPS and HPS graph, the play bar, then the raid and the boss on
  * the room's map, all on the page's one clock: a click on the lanes or the graph moves the map there. A click on a
  * raider (their dot or their line) focuses them: a ring and their name on the map, what they're casting and what hit
- * them over it, and their line alone on the graph; a right click goes back. The track is the page's (useRaidTrack):
- * undefined while it loads, null for a pull saved without one. */
+ * them over it, and their line alone on the graph; a click on an enemy shows its casts; a right click lets go of
+ * both. The track is the page's (useRaidTrack): undefined while it loads, null for a pull saved without one. */
 export function RaidReplay(props: {
   pull: RaidPull
   track: KeyTrack | null | undefined
@@ -23,6 +23,7 @@ export function RaidReplay(props: {
   const end = pull.durationMS
   const [trail, setTrail] = useState(0)
   const [floor, setFloor] = useState<number | null>(null)
+  const [enemy, setEnemy] = useState('')
   const floors = useMemo(() => floorsOf(track ?? null), [track])
   const current = floor ?? floors[0]
   const room = pull.maps.find((m) => m.uiMapID === current)
@@ -81,14 +82,15 @@ export function RaidReplay(props: {
               deaths={pull.deaths}
               focus={focus}
               onPick={onFocus}
+              enemy={enemy}
+              onPickEnemy={setEnemy}
             />
             <BossBox track={track} now={now} />
-            {focus && <CastBox track={track} player={focus} now={now} />}
-            {upTo && <TakenBox taken={upTo.taken} />}
+            <FocusBoxes track={track} player={focus} enemy={enemy} taken={upTo?.taken} now={now} />
           </div>
           <p className="muted small">
-            Scroll to zoom, drag to move, double click for the whole room · click a raider to focus them, right click
-            for the whole raid
+            Scroll to zoom, drag to move, double click for the whole room · click a raider to focus them or an enemy for
+            its casts, right click for neither
             {room && (
               <>
                 {' '}

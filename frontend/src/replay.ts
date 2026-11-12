@@ -105,13 +105,33 @@ export function tickStep(end: number): number {
   return end <= 600_000 ? 30_000 : 60_000
 }
 
-/** The floors a track's players stood on, most stood on first. */
+/** A floor needs this many player points (about 15 s of one player) to be one: the game logs a stray point or two on
+ * a map the party never walked (Voidscar Arena's map 0, Temple of Sethraliss's 875). */
+export const MIN_FLOOR_POINTS = 15
+
+/** The floors a track's players stood on, most stood on first, without a floor of fewer than MIN_FLOOR_POINTS points
+ * (but always the most stood on, so a track just started has one). */
 export function floorsOf(track: KeyTrack | null): number[] {
   const counts = new Map<number, number>()
   Object.values(track?.players ?? {}).forEach((ps) =>
     ps.forEach((p) => counts.set(p.map, (counts.get(p.map) ?? 0) + 1)),
   )
-  return [...counts].sort((a, b) => b[1] - a[1]).map(([m]) => m)
+  return [...counts]
+    .sort((a, b) => b[1] - a[1])
+    .filter(([, n], i) => i === 0 || n >= MIN_FLOOR_POINTS)
+    .map(([m]) => m)
+}
+
+/** An enemy's name by its GUID: a boss's from its points; a mob's (its trail is unnamed) from its death, which is
+ * where its trail ends (the nearest, when several died that moment); 'Enemy' for a mob that never died. */
+export function enemyName(track: KeyTrack, guid: string): string {
+  const boss = track.bosses?.[guid]?.[0]?.name
+  const mob = track.mobs?.[guid]
+  const end = mob?.p[mob.p.length - 1]
+  if (boss || !mob?.died || !end) return boss || 'Enemy'
+  const near = (d: TrackPoint) => Math.hypot(d.x - end.x, d.y - end.y)
+  const [death] = track.deaths.filter((d) => d.t === mob.died).sort((a, b) => near(a) - near(b))
+  return death?.name ?? 'Enemy'
 }
 
 /** A meter row with nothing in it, for the fields the replay's track doesn't keep. */
