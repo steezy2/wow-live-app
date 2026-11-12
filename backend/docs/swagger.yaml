@@ -143,6 +143,19 @@ definitions:
       pct:
         type: number
     type: object
+  models.HitRecap:
+    properties:
+      clockMS:
+        type: integer
+      events:
+        items:
+          $ref: '#/definitions/models.RecapEvent'
+        type: array
+      maxHP:
+        type: integer
+      player:
+        type: string
+    type: object
   models.ImportKind:
     enum:
     - keys
@@ -236,6 +249,31 @@ definitions:
         type: string
       school:
         type: integer
+    type: object
+  models.KeyBigHit:
+    properties:
+      causes:
+        items:
+          $ref: '#/definitions/models.SpikeCause'
+        type: array
+      clockMS:
+        type: integer
+      defensive:
+        type: string
+      died:
+        type: boolean
+      pct:
+        type: number
+      player:
+        type: string
+      ready:
+        items:
+          type: string
+        type: array
+      taken:
+        type: integer
+      used:
+        type: boolean
     type: object
   models.KeyBoss:
     properties:
@@ -420,6 +458,10 @@ definitions:
     type: object
   models.KeyMiniboss:
     properties:
+      afterMS:
+        type: integer
+      damagePct:
+        type: number
       diedMS:
         type: integer
       name:
@@ -667,6 +709,12 @@ definitions:
           type: array
         description: each player's damage and healing so far, about every 2 s
         type: object
+      mobCasts:
+        additionalProperties:
+          items:
+            $ref: '#/definitions/models.TrackCast'
+          type: array
+        type: object
       mobs:
         additionalProperties:
           $ref: '#/definitions/models.MobTrail'
@@ -684,6 +732,13 @@ definitions:
         description: each pull, in order; missing in keys saved before Nov 8
         items:
           $ref: '#/definitions/models.PullSpan'
+        type: array
+      recaps:
+        description: |-
+          Recaps is each death's and big hit's recap, in order; MobCasts each enemy's casts (by GUID, as Mobs and
+          Bosses). Both missing in tracks saved before Nov 12.
+        items:
+          $ref: '#/definitions/models.HitRecap'
         type: array
       targetSeries:
         additionalProperties:
@@ -734,6 +789,13 @@ definitions:
           it (from the second pull), on the key's clock.
         items:
           type: integer
+        type: array
+      bigHits:
+        description: |-
+          BigHits is each time a player took a big share of their health fast, in order; missing in keys saved before
+          Nov 12.
+        items:
+          $ref: '#/definitions/models.KeyBigHit'
         type: array
       bosses:
         items:
@@ -941,6 +1003,8 @@ definitions:
     properties:
       died:
         type: integer
+      "n":
+        type: string
       p:
         items:
           $ref: '#/definitions/models.TrackPoint'
@@ -953,8 +1017,32 @@ definitions:
           ClickThrough lets clicks on the overlay through to the game; off (the default), a click on a player's row
           shows their abilities in the pull.
         type: boolean
+      columns:
+        items:
+          enum:
+          - dps
+          - hps
+          - kicks
+          - pullDps
+          - taken
+          - avoidable
+          - priority
+          - dispels
+          - deaths
+          type: string
+        type: array
+      oneCard:
+        description: OneCard shows the pull and the whole key in one card instead
+          of two, one above the other (the default).
+        type: boolean
       opacity:
         maximum: 100
+        minimum: 0
+        type: integer
+      rows:
+        description: |-
+          Rows is how many players each card shows, the top ones (0 for everyone); Columns the cards' columns in order
+          (empty for DPS, HPS and kicks).
         minimum: 0
         type: integer
       show:
@@ -963,10 +1051,6 @@ definitions:
         - always
         - "off"
         type: string
-      split:
-        description: Split shows the pull and the whole key as two cards, one above
-          the other, instead of one card.
-        type: boolean
     type: object
   models.PlayerCount:
     properties:
@@ -1225,6 +1309,10 @@ definitions:
           first; missing in pulls saved before Nov 11.
         items:
           $ref: '#/definitions/models.KeyHit'
+        type: array
+      bigHits:
+        items:
+          $ref: '#/definitions/models.KeyBigHit'
         type: array
       boss:
         type: string
@@ -1485,32 +1573,6 @@ definitions:
       target:
         type: string
     type: object
-  models.ReadyCheck:
-    properties:
-      dungeon:
-        type: string
-      players:
-        items:
-          $ref: '#/definitions/models.ReadyPlayer'
-        type: array
-      sinceMS:
-        type: integer
-    type: object
-  models.ReadyPlayer:
-    properties:
-      class:
-        type: string
-      missing:
-        items:
-          type: string
-        type: array
-      notSeen:
-        items:
-          type: string
-        type: array
-      player:
-        type: string
-    type: object
   models.Recap:
     properties:
       deaths:
@@ -1588,6 +1650,26 @@ definitions:
       runs:
         type: integer
       timed:
+        type: integer
+    type: object
+  models.RecapEvent:
+    properties:
+      a:
+        type: string
+      hp:
+        type: number
+      k:
+        enum:
+        - damage
+        - heal
+        - absorb
+        - cast
+        type: string
+      "n":
+        type: integer
+      s:
+        type: string
+      t:
         type: integer
     type: object
   models.RecapFact:
@@ -1730,6 +1812,11 @@ definitions:
         type: integer
       overlay:
         $ref: '#/definitions/models.OverlaySettings'
+      overlayColumns:
+        description: OverlayColumns are the columns the overlay's cards can show.
+        items:
+          type: string
+        type: array
       overlayShows:
         items:
           type: string
@@ -2094,25 +2181,6 @@ paths:
           schema:
             $ref: '#/definitions/controller.ErrorResponse'
       summary: End the running key as abandoned
-      tags:
-      - mplus
-  /api/mplus/ready:
-    get:
-      description: |-
-        While the party is in a Mythic dungeon with no key running: each member's missing flask, food and
-        party buffs, and those not seen since the party zoned in (from the combat log, so a buff from before
-        logging started there is never seen). Read again on each notice from /api/mplus/events. A raid's is
-        in /api/raid/live.
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/models.ReadyCheck'
-        "204":
-          description: Not in a Mythic dungeon between keys
-      summary: The ready check before the next key
       tags:
       - mplus
   /api/raid/live:

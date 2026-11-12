@@ -5,17 +5,30 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 ## [Unreleased]
 
 ### Added
-- Each damage spike names what hit the party in it: the three abilities that did the most, with the enemy that cast each and its share ("Crushing Slam (Bonebreaker) 58%"), on keys and raid pulls alike (`causes` on a spike). `readerVersion` 11, so *Read old logs* fills them in.
+- Each damage spike names what hit the party in it: the three abilities that did the most, with the enemy that cast each and its share ("Crushing Slam (Bonebreaker) 58%"), on keys and raid pulls alike (`causes` on a spike).
 - A **Recap** tab: this month, last month, this season (Raider.IO's dates), this year or all time as tiles (keys, timed %, highest timed, hours, deaths a key), facts that open their key (fastest and closest timed, most deaths, deadliest ability, most kicks, longest, most improved), the dungeons run most, your character (specs, median DPS or HPS per dungeon, what killed you, your Warcraft Logs parses), who you ran with, and the raid by boss (first kill, best wipe, your deaths, what hit hardest). `GET /api/recap/periods`, `GET /api/recap?from=&to=`; read from the saved keys only, no points.
 - Keys and raid pulls from your own logs that are in your Warcraft Logs reports get linked to them whenever the import lists the reports (*Find fights*, or **Find my report** under a finished key or pull): their header links to the fight on Warcraft Logs and WoWAnalyzer, the lists tag them, and reading the log again keeps the link. Until then the header offers **Upload to Warcraft Logs** (the uploader's download page). `linked` in the import's status.
 - Your character's Warcraft Logs parses this season (best and median per dungeon and boss, runs, spec) in the Recap tab: `GET /api/settings/warcraftlogs/parses`, read once a day.
 - The overlay takes clicks by default: a click on a player's row shows their top 8 spells and their damage into each enemy over that card's span, the last pull or the whole key so far (the one-card meter: the whole key); Esc, a right click, the title or a new pull goes back. **Ctrl+Alt+K**, a tray item and a Settings switch let clicks through to the game instead (`clickThrough` in the overlay settings).
 
+- A click on a death (the overlay's deaths line, or the Deaths tab) or a big hit shows that player's last 10 s: their health, each hit with who cast it, heals and shields with who gave them, and the buttons pressed (`recaps` on the track; `[big_hits] recap_seconds` in `mplus.toml`).
+- **Big hits** are one player at a time: 50% of a tank's max HP (40% for anyone else) within 3 s that left them under 40% health, with what hit them, their cover as a death's and whether they died (`bigHits` on a key and a raid pull; `[big_hits]` in `mplus.toml`).
+- Overlay settings: players per card and which columns (DPS, HPS, kicks, pull DPS, taken, avoidable, priority %, dispels, deaths), `rows` and `columns`, the choices served as `overlayColumns`.
+- The replay's enemies are clickable: a ring and their casts, bottom right (`mobCasts` on the track; a mob's trail keeps its name).
+- *Fix next key* names the DPS or tank who put the least damage into priority targets when it's under 20% of theirs or under half the party's average.
+- An M+ key's **Buffs** tab: who was missing a flask, food, rune or party buff at the start.
+- `readerVersion` 12, so *Read old logs* fills all of these in.
+
 ### Changed
+- The overlay scales to its window instead of scrolling, and its text is shorter ("25% slower than best +17", "3 deaths +0:45 · last …"). It shows two cards (the pull and the whole key) by default: `oneCard` replaces `split`. New installs start at 90% opacity.
+- The Defensives and potions and CC tabs are a card per player that opens to each use's time; a player's deaths are on their Defensives card. The player's Moments tab is gone. CC counts uses, and the tab says so.
+- Priority targets (the Minibosses tab, renamed) say how long after the rest of its pack one died and its share of the damage; *Fix next key* reads "Priority target died late in 3 of 4 pulls, last up to 6 s after the rest of its pack (pull 5)".
+- The replay leaves out a floor with fewer than 15 player points (stray points on a floor the party never stood on).
 - The key and raid pull lists group anything older than 8 weeks by month instead of by week.
 - A saved key's and pull's list entry carries its `report` (code and fight) and `imported`, instead of the imported fight's URL; the page makes the links.
 - An M+ key's damage spikes are the worst 5 s instead of 3 s, and each spike says how long it is (`seconds`; a raid's is still `spike_seconds`, 6 s).
 - Replays start at 1× with no trail.
+- The M+ ready check before a key is gone (the live page, the overlay and `GET /api/mplus/ready`): what was missing at the start is in the key's Buffs tab. The overlay no longer shows before a key starts.
 - Settings says an import from Warcraft Logs always leaves the hour's last 200 points for key reviews and parses, waiting for the hour below them (`reservePoints` in the import status).
 
 ## [0.4.0] - 2026-11-12

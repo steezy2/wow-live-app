@@ -447,29 +447,6 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/mplus/ready": {
-            "get": {
-                "description": "While the party is in a Mythic dungeon with no key running: each member's missing flask, food and\nparty buffs, and those not seen since the party zoned in (from the combat log, so a buff from before\nlogging started there is never seen). Read again on each notice from /api/mplus/events. A raid's is\nin /api/raid/live.",
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "mplus"
-                ],
-                "summary": "The ready check before the next key",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/models.ReadyCheck"
-                        }
-                    },
-                    "204": {
-                        "description": "Not in a Mythic dungeon between keys"
-                    }
-                }
-            }
-        },
         "/api/raid/live": {
             "get": {
                 "description": "Whether a raid pull is on (its boss and start), the last pull that ended with its deaths,\nmechanics, meters and cooldowns, compared with tonight's best and the best ever on the boss, and in\na raid between pulls the ready check (ready). The page reads it again on each notice from\n/api/mplus/events.",
@@ -1515,6 +1492,26 @@ const docTemplate = `{
                 }
             }
         },
+        "models.HitRecap": {
+            "type": "object",
+            "properties": {
+                "clockMS": {
+                    "type": "integer"
+                },
+                "events": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.RecapEvent"
+                    }
+                },
+                "maxHP": {
+                    "type": "integer"
+                },
+                "player": {
+                    "type": "string"
+                }
+            }
+        },
         "models.ImportKind": {
             "type": "string",
             "enum": [
@@ -1645,6 +1642,44 @@ const docTemplate = `{
                 },
                 "school": {
                     "type": "integer"
+                }
+            }
+        },
+        "models.KeyBigHit": {
+            "type": "object",
+            "properties": {
+                "causes": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.SpikeCause"
+                    }
+                },
+                "clockMS": {
+                    "type": "integer"
+                },
+                "defensive": {
+                    "type": "string"
+                },
+                "died": {
+                    "type": "boolean"
+                },
+                "pct": {
+                    "type": "number"
+                },
+                "player": {
+                    "type": "string"
+                },
+                "ready": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "taken": {
+                    "type": "integer"
+                },
+                "used": {
+                    "type": "boolean"
                 }
             }
         },
@@ -1918,6 +1953,12 @@ const docTemplate = `{
         "models.KeyMiniboss": {
             "type": "object",
             "properties": {
+                "afterMS": {
+                    "type": "integer"
+                },
+                "damagePct": {
+                    "type": "number"
+                },
                 "diedMS": {
                     "type": "integer"
                 },
@@ -2262,6 +2303,15 @@ const docTemplate = `{
                         }
                     }
                 },
+                "mobCasts": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/definitions/models.TrackCast"
+                        }
+                    }
+                },
                 "mobs": {
                     "description": "Mobs is every other hostile mob (by GUID) the replay draws as a small dot: about every 2 s while it acts, and\nwhen it died; none in tracks saved before Nov 11.",
                     "type": "object",
@@ -2283,6 +2333,13 @@ const docTemplate = `{
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/models.PullSpan"
+                    }
+                },
+                "recaps": {
+                    "description": "Recaps is each death's and big hit's recap, in order; MobCasts each enemy's casts (by GUID, as Mobs and\nBosses). Both missing in tracks saved before Nov 12.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.HitRecap"
                     }
                 },
                 "targetSeries": {
@@ -2344,6 +2401,13 @@ const docTemplate = `{
                     "type": "array",
                     "items": {
                         "type": "integer"
+                    }
+                },
+                "bigHits": {
+                    "description": "BigHits is each time a player took a big share of their health fast, in order; missing in keys saved before\nNov 12.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.KeyBigHit"
                     }
                 },
                 "bosses": {
@@ -2633,6 +2697,9 @@ const docTemplate = `{
                 "died": {
                     "type": "integer"
                 },
+                "n": {
+                    "type": "string"
+                },
                 "p": {
                     "type": "array",
                     "items": {
@@ -2648,9 +2715,35 @@ const docTemplate = `{
                     "description": "ClickThrough lets clicks on the overlay through to the game; off (the default), a click on a player's row\nshows their abilities in the pull.",
                     "type": "boolean"
                 },
+                "columns": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "enum": [
+                            "dps",
+                            "hps",
+                            "kicks",
+                            "pullDps",
+                            "taken",
+                            "avoidable",
+                            "priority",
+                            "dispels",
+                            "deaths"
+                        ]
+                    }
+                },
+                "oneCard": {
+                    "description": "OneCard shows the pull and the whole key in one card instead of two, one above the other (the default).",
+                    "type": "boolean"
+                },
                 "opacity": {
                     "type": "integer",
                     "maximum": 100,
+                    "minimum": 0
+                },
+                "rows": {
+                    "description": "Rows is how many players each card shows, the top ones (0 for everyone); Columns the cards' columns in order\n(empty for DPS, HPS and kicks).",
+                    "type": "integer",
                     "minimum": 0
                 },
                 "show": {
@@ -2660,10 +2753,6 @@ const docTemplate = `{
                         "always",
                         "off"
                     ]
-                },
-                "split": {
-                    "description": "Split shows the pull and the whole key as two cards, one above the other, instead of one card.",
-                    "type": "boolean"
                 }
             }
         },
@@ -3044,6 +3133,12 @@ const docTemplate = `{
                         "$ref": "#/definitions/models.KeyHit"
                     }
                 },
+                "bigHits": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.KeyBigHit"
+                    }
+                },
                 "boss": {
                     "type": "string"
                 },
@@ -3407,46 +3502,6 @@ const docTemplate = `{
                 }
             }
         },
-        "models.ReadyCheck": {
-            "type": "object",
-            "properties": {
-                "dungeon": {
-                    "type": "string"
-                },
-                "players": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/models.ReadyPlayer"
-                    }
-                },
-                "sinceMS": {
-                    "type": "integer"
-                }
-            }
-        },
-        "models.ReadyPlayer": {
-            "type": "object",
-            "properties": {
-                "class": {
-                    "type": "string"
-                },
-                "missing": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "notSeen": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "player": {
-                    "type": "string"
-                }
-            }
-        },
         "models.Recap": {
             "type": "object",
             "properties": {
@@ -3562,6 +3617,35 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "timed": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.RecapEvent": {
+            "type": "object",
+            "properties": {
+                "a": {
+                    "type": "string"
+                },
+                "hp": {
+                    "type": "number"
+                },
+                "k": {
+                    "type": "string",
+                    "enum": [
+                        "damage",
+                        "heal",
+                        "absorb",
+                        "cast"
+                    ]
+                },
+                "n": {
+                    "type": "integer"
+                },
+                "s": {
+                    "type": "string"
+                },
+                "t": {
                     "type": "integer"
                 }
             }
@@ -3764,6 +3848,13 @@ const docTemplate = `{
                 },
                 "overlay": {
                     "$ref": "#/definitions/models.OverlaySettings"
+                },
+                "overlayColumns": {
+                    "description": "OverlayColumns are the columns the overlay's cards can show.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "overlayShows": {
                     "type": "array",
