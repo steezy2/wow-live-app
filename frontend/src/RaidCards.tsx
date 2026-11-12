@@ -75,9 +75,26 @@ interface MechanicLine {
   bad?: boolean
 }
 
+/** A kind's lines in order, those with the same name together (a line whose what is more than a name stands alone). */
+function byName(lines: MechanicLine[]): MechanicLine[][] {
+  const named = new Map<string, MechanicLine[]>()
+  return lines.flatMap((l) => {
+    if (typeof l.what !== 'string') return [[l]]
+    const same = named.get(l.what)
+    if (same) {
+      same.push(l)
+      return []
+    }
+    const group = [l]
+    named.set(l.what, group)
+    return [group]
+  })
+}
+
 /** What went wrong by kind of mechanic, a heading per kind: each line leads with when it happened (a click shows it
  * in the replay; a first soak or stack past the limit, from the pull's lanes), then what, then who in
- * class colours and how much. A kind with nothing to show is left out. */
+ * class colours and how much. Lines with the same name fold into one small card with their count, opened to list
+ * each time and detail. A kind with nothing to show is left out. */
 export const Mechanics = memo(function Mechanics({ pull, classes, onSeek, onFocus }: CardProps) {
   const first = (kind: string, name: string) =>
     pull.lanes.find((l) => l.kind === kind && l.name === name)?.marks[0]?.clockMS
@@ -195,15 +212,32 @@ export const Mechanics = memo(function Mechanics({ pull, classes, onSeek, onFocu
         <div key={title} className="mechanic-group">
           <h3 className="muted small">{title}</h3>
           <ul className="list">
-            {lines.map((l, i) => (
-              <li key={i} className="stack">
-                <span>
-                  {l.at !== undefined && <At ms={l.at} onSeek={onSeek} />}{' '}
-                  <b className={l.bad ? 'bad' : undefined}>{l.what}</b>
-                </span>
-                <span className="muted small">{l.detail}</span>
-              </li>
-            ))}
+            {byName(lines).map(([l, ...more], i) => {
+              const all = [l, ...more]
+              return more.length === 0 ? (
+                <li key={i} className="stack">
+                  <span>
+                    {l.at !== undefined && <At ms={l.at} onSeek={onSeek} />}{' '}
+                    <b className={l.bad ? 'bad' : undefined}>{l.what}</b>
+                  </span>
+                  <span className="muted small">{l.detail}</span>
+                </li>
+              ) : (
+                <li key={i} className="stack">
+                  <details className="mechanic-times">
+                    <summary>
+                      <b className={all.some((m) => m.bad) ? 'bad' : undefined}>{l.what}</b>{' '}
+                      <span className="muted small">×{all.length}</span>
+                    </summary>
+                    {all.map((m, j) => (
+                      <div key={j} className={`small${m.bad ? ' bad' : ''}`}>
+                        {m.at !== undefined && <At ms={m.at} onSeek={onSeek} />} <span className="muted">{m.detail}</span>
+                      </div>
+                    ))}
+                  </details>
+                </li>
+              )
+            })}
           </ul>
         </div>
       ))}
