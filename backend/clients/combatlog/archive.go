@@ -117,11 +117,15 @@ func FirstMS(path string) int64 {
 	return ms
 }
 
-// Archive zips the log at path into its folder's ArchiveDir as <name>.zip, then removes the log. The zip is written
-// beside as .tmp and read back whole (archive/zip checks its CRC) before it replaces any earlier zip of the same log,
-// so a failure leaves the log as it was. A log the game still has open fails to be removed, and its zip goes too.
+// Archive zips the log at path into its folder's ArchiveDir as <name>.zip (WriteZip), then removes the log. A log the
+// game still has open fails to be removed, and its zip goes too.
 func Archive(path string) error {
-	info, err := os.Stat(path)
+	src, err := os.Open(path)
+	if err != nil {
+		return fmt.Errorf("archiving %s: %w", path, err)
+	}
+	defer src.Close()
+	info, err := src.Stat()
 	if err != nil {
 		return fmt.Errorf("archiving %s: %w", path, err)
 	}
@@ -130,18 +134,10 @@ func Archive(path string) error {
 		return fmt.Errorf("archiving %s: %w", path, err)
 	}
 	target := filepath.Join(dir, info.Name()+".zip")
-	tmp := target + ".tmp"
-	err = writeZip(path, tmp, info)
-	if err == nil {
-		err = checkZip(tmp, info.Size())
-	}
-	if err == nil {
-		err = os.Rename(tmp, target)
-	}
-	if err != nil {
-		os.Remove(tmp)
+	if err := WriteZip(src, info.Name(), info.ModTime(), target); err != nil {
 		return fmt.Errorf("archiving %s: %w", path, err)
 	}
+	src.Close()
 	if err := os.Remove(path); err != nil {
 		os.Remove(target)
 		return fmt.Errorf("archiving %s: the game may still be writing it: %w", path, err)
@@ -149,42 +145,53 @@ func Archive(path string) error {
 	return nil
 }
 
-// writeZip writes the log at path, as one entry named and dated like it, into a new zip at out. BestSpeed: about three
-// times faster than the default for a few percent more size on a text log.
-func writeZip(path, out string, info os.FileInfo) error {
-	src, err := os.Open(path)
-	if err != nil {
-		return err
+// WriteZip zips what r reads into target as one entry, name, dated modified. The zip is written beside as .tmp and
+// read back whole (archive/zip checks its CRC, and the size must be what was read) before it replaces any earlier zip
+// at target, so a failure leaves target as it was.
+func WriteZip(r io.Reader, name string, modified time.Time, target string) error {
+	tmp := target + ".tmp"
+	size, err := writeZip(r, name, modified, tmp)
+	if err == nil {
+		err = checkZip(tmp, size)
 	}
-	defer src.Close()
+	if err == nil {
+		err = os.Rename(tmp, target)
+	}
+	if err != nil {
+		os.Remove(tmp)
+		return fmt.Errorf("zipping %s: %w", name, err)
+	}
+	return nil
+}
+
+// writeZip writes what r reads into a new zip at out as one entry, named and dated as given, and says how many bytes
+// it zipped. BestSpeed: about three times faster than the default for a few percent more size on a text log.
+func writeZip(r io.Reader, name string, modified time.Time, out string) (int64, error) {
 	file, err := os.Create(out)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	w := zip.NewWriter(file)
 	w.RegisterCompressor(zip.Deflate, func(out io.Writer) (io.WriteCloser, error) {
 		return flate.NewWriter(out, flate.BestSpeed)
 	})
-	header, err := zip.FileInfoHeader(info)
+	var size int64
+	entry, err := w.CreateHeader(&zip.FileHeader{Name: name, Method: zip.Deflate, Modified: modified})
 	if err == nil {
-		header.Method = zip.Deflate
-		var entry io.Writer
-		if entry, err = w.CreateHeader(header); err == nil {
-			_, err = io.Copy(entry, src)
-		}
+		size, err = io.Copy(entry, r)
 	}
 	if err = errors.Join(err, w.Close()); err == nil {
 		err = file.Sync() // on disk before the log is removed, not only in the OS's cache
 	}
-	return errors.Join(err, file.Close())
+	return size, errors.Join(err, file.Close())
 }
 
-// checkZip reads the zip at path back whole: archive/zip fails on a bad CRC, and the size must be the log's.
+// checkZip reads the zip at path back whole: archive/zip fails on a bad CRC, and the size must be what was zipped.
 func checkZip(path string, size int64) error {
 	return withZipped(path, func(r io.Reader) error {
 		n, err := io.Copy(io.Discard, r)
 		if err == nil && n != size {
-			err = fmt.Errorf("the zip holds %d bytes of a %d byte log", n, size)
+			err = fmt.Errorf("the zip holds %d of the %d bytes zipped", n, size)
 		}
 		return err
 	})

@@ -148,15 +148,24 @@ func left(p models.RaidPull) float64 {
 
 // pullSummary is a pull as a list shows it.
 func pullSummary(p models.RaidPull) models.RaidPullSummary {
-	return models.RaidPullSummary{Start: p.Start, Night: p.Night, Boss: p.Boss, Difficulty: p.Difficulty,
+	summary := models.RaidPullSummary{Start: p.Start, Night: p.Night, Boss: p.Boss, Difficulty: p.Difficulty,
 		Number: p.Number, DurationMS: p.DurationMS, Kill: p.Kill, BossPct: p.BossPct, Phase: p.Phase}
+	if p.Imported {
+		summary.Imported = p.Report.URL()
+	}
+	return summary
 }
 
 // savePulls saves the raid pulls that ended since the last call, keeping the failed ones for the next (saveQueued),
 // so RaidTrack always finds a pull's track.
 func (k *LogTracker) savePulls() error {
 	return saveQueued(&k.mu, &k.unsavedPulls, func(p savedPull) error {
-		err := k.raid.store.SavePull(p.pull)
+		skip, err := keepLocal(&k.mu, &k.pulls, p.pull, samePull, func(pull models.RaidPull) bool { return pull.Imported },
+			func(pull models.RaidPull) int64 { return pull.Start }, k.raid.store.DeletePull)
+		if skip || err != nil {
+			return err
+		}
+		err = k.raid.store.SavePull(p.pull)
 		if err == nil {
 			err = k.raid.store.SaveTrack(p.pull.Start, p.track)
 		}

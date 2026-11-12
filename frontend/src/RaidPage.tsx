@@ -4,6 +4,7 @@ import { clock, counted, groupBy, progressText } from './format'
 import { defense, raidOffense } from './meterColumns'
 import { MeterCard } from './MeterCards'
 import { eventsOf } from './events'
+import { ImportedTag } from './ImportedTag'
 import { fightTabs, type FightData } from './KeyTabs'
 import { PlayerTable } from './PlayerTable'
 import { BuffGaps, EarlyDeaths, Mechanics } from './RaidCards'
@@ -56,7 +57,9 @@ export function RaidPage() {
                 {label.startsWith('Week of') && <h2>{new Date(nightTime(n)).toLocaleDateString()}</h2>}
                 {[...groupBy(n.pulls, (p) => `${p.boss} ${p.difficulty}`)].map(([boss, pulls]) => (
                   <div key={boss} className="boss-pulls">
-                    <h3 className="muted small">{boss}</h3>
+                    <h3 className="muted small">
+                      {boss} <Imported pulls={pulls} />
+                    </h3>
                     {pulls.map((p) => (
                       <button
                         key={p.start}
@@ -100,6 +103,12 @@ export function RaidPage() {
       </main>
     </div>
   )
+}
+
+/** The Warcraft Logs tag of a boss's pulls on a night, when any was imported: it opens the first one's fight. */
+function Imported({ pulls }: { pulls: RaidPullSummary[] }) {
+  const url = pulls.find((p) => p.imported)?.imported
+  return url ? <ImportedTag url={url} /> : null
 }
 
 /** Midday of a raid night ("2026-11-10"), so a night is grouped by its date whatever the time zone. */

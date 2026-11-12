@@ -94,6 +94,36 @@ definitions:
       pct:
         type: number
     type: object
+  models.ImportStatus:
+    properties:
+      character:
+        type: string
+      fights:
+        type: integer
+      fightsDone:
+        type: integer
+      fightsFailed:
+        type: integer
+      imported:
+        type: integer
+      pointsPerFight:
+        type: number
+      pointsSpent:
+        type: number
+      problem:
+        type: string
+      resumeAtMS:
+        type: integer
+      state:
+        enum:
+        - idle
+        - listing
+        - running
+        - waiting
+        - done
+        - failed
+        type: string
+    type: object
   models.KeyAbility:
     properties:
       ability:
@@ -456,6 +486,10 @@ definitions:
         type: string
       finalMS:
         type: integer
+      imported:
+        description: Imported is the Warcraft Logs page of the fight an imported key
+          came from; "" for one read from a local log.
+        type: string
       level:
         type: integer
       start:
@@ -622,6 +656,10 @@ definitions:
         allOf:
         - $ref: '#/definitions/models.KeyForces'
         description: nil when the dungeon file doesn't have the dungeon
+      imported:
+        description: Imported marks a key built from a Warcraft Logs report instead
+          of a local combat log.
+        type: boolean
       interrupts:
         items:
           $ref: '#/definitions/models.KeyInterrupt'
@@ -672,6 +710,11 @@ definitions:
         description: reference/mplus-dungeons.json has the dungeon (avoidable list,
           forces)
         type: boolean
+      report:
+        allOf:
+        - $ref: '#/definitions/models.ReportLink'
+        description: Report is the Warcraft Logs fight this key is, when one is known
+          (imported, or matched to a report).
       silentMS:
         description: |-
           SilentMS is how long ago the last line of a running key was logged (0 once it's over). The game writes its log
@@ -1112,6 +1155,10 @@ definitions:
         type: integer
       end:
         type: integer
+      imported:
+        description: Imported marks a pull built from a Warcraft Logs report instead
+          of a local combat log.
+        type: boolean
       interrupts:
         description: |-
           The fight's lists as a key has them, for the tabs both pages show: every interrupt, must-stop cast, kick that
@@ -1168,6 +1215,11 @@ definitions:
         items:
           $ref: '#/definitions/models.RaidPriority'
         type: array
+      report:
+        allOf:
+        - $ref: '#/definitions/models.ReportLink'
+        description: Report is the Warcraft Logs fight this pull is, when one is known
+          (imported, or matched to a report).
       soaks:
         items:
           $ref: '#/definitions/models.RaidSoak'
@@ -1221,6 +1273,10 @@ definitions:
         type: string
       durationMS:
         type: integer
+      imported:
+        description: Imported is the Warcraft Logs page of the fight an imported pull
+          came from; "" for one read from a local log.
+        type: string
       kill:
         type: boolean
       night:
@@ -1324,6 +1380,13 @@ definitions:
       player:
         type: string
     type: object
+  models.ReportLink:
+    properties:
+      code:
+        type: string
+      fightID:
+        type: integer
+    type: object
   models.ReviewMetric:
     properties:
       amount:
@@ -1355,6 +1418,11 @@ definitions:
     type: object
   models.Settings:
     properties:
+      character:
+        description: |-
+          Character is the player's own character as "Name-Realm" (the realm as the player writes it), whose Warcraft
+          Logs reports can be imported; empty for none.
+        type: string
       logsDir:
         type: string
       overlay:
@@ -1369,6 +1437,16 @@ definitions:
     type: object
   models.SettingsView:
     properties:
+      character:
+        description: |-
+          Character is the player's own character as "Name-Realm" (the realm as the player writes it), whose Warcraft
+          Logs reports can be imported; empty for none.
+        type: string
+      characterGuess:
+        description: |-
+          CharacterGuess is the name of the character that wrote most saved keys' logs, to prefill Character with ("" for
+          none); the logs don't name its realm.
+        type: string
       lastLogMS:
         type: integer
       logsDir:
@@ -1889,7 +1967,8 @@ paths:
       - application/json
       description: |-
         The log folder and the overlay change right away; a new region's affix names show from the next
-        start.
+        start. A character ("Name-Realm", empty for none) needs a name of 2 to 12 letters and a realm Warcraft
+        Logs lists in the region, which takes the saved Warcraft Logs keys.
       parameters:
       - description: the settings
         in: body
@@ -1908,8 +1987,16 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/controller.ErrorResponse'
+        "404":
+          description: A character needs saved Warcraft Logs keys
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
         "500":
           description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+        "502":
+          description: Warcraft Logs couldn't be reached to check the character
           schema:
             $ref: '#/definitions/controller.ErrorResponse'
       summary: Save the desktop app's settings
@@ -2111,6 +2198,78 @@ paths:
           schema:
             $ref: '#/definitions/controller.ErrorResponse'
       summary: Test and save the Warcraft Logs client ID and secret
+      tags:
+      - settings
+  /api/settings/warcraftlogs/import:
+    delete:
+      description: What it fetched stays, so the next import goes on from there.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.ImportStatus'
+      summary: Stop the import of Warcraft Logs reports
+      tags:
+      - settings
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.ImportStatus'
+      summary: How the import of the character's Warcraft Logs reports stands
+      tags:
+      - settings
+    post:
+      description: |-
+        Lists the reports the settings' character is in, then in the background fetches each Mythic+ key and
+        raid boss pull of the current season and raid not saved yet (a key or pull read from a local log
+        is skipped) and saves it, tagged with its report. It waits for the hour's points when they run
+        low, and goes on after a restart.
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/models.ImportStatus'
+        "400":
+          description: No character, or one that doesn't fit
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+        "404":
+          description: No Warcraft Logs keys saved
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+        "409":
+          description: An import is running
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+        "502":
+          description: Warcraft Logs couldn't be reached
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+      summary: Import the character's Warcraft Logs reports of this season
+      tags:
+      - settings
+  /api/settings/warcraftlogs/imported:
+    delete:
+      description: Stops the import and deletes what it fetched; importing them again
+        spends the points again.
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+      summary: Remove every key and raid pull imported from Warcraft Logs
       tags:
       - settings
   /api/settings/warcraftlogs/test:

@@ -23,8 +23,11 @@ type memStore struct {
 
 func (m *memStore) Save(k models.Key) error     { m.keys = append(m.keys, k); return nil }
 func (m *memStore) List() ([]models.Key, error) { return m.keys, nil }
-func (m *memStore) Delete(int64) error          { return nil }
-func (m *memStore) Clear() error                { m.keys = nil; return nil }
+func (m *memStore) Delete(start int64) error {
+	m.keys = slices.DeleteFunc(m.keys, func(k models.Key) bool { return k.Start == start })
+	return nil
+}
+func (m *memStore) Clear() error { m.keys = nil; return nil }
 func (m *memStore) SaveTrack(start int64, track models.KeyTrack) error {
 	if m.tracks == nil {
 		m.tracks = map[int64]models.KeyTrack{}

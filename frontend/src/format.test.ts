@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { clock, median, oddsText, periodLabel, progressText, resultText } from './format'
+import { clock, importProgress, median, oddsText, periodLabel, progressText, resultText } from './format'
 
 describe('clock', () => {
   it('shows minutes and seconds, hours past an hour, and a sign when negative', () => {
@@ -65,4 +65,32 @@ describe('periodLabel', () => {
     ['a week ago, a Wednesday', at(10, 4), week(10, 2)],
     ['a Sunday', at(10, 1), week(9, 26)],
   ])('%s', (_, ms, want) => expect(periodLabel(ms, now)).toBe(want))
+})
+
+describe('importProgress', () => {
+  const status = {
+    state: 'running' as const,
+    character: 'Testmage-Somerealm',
+    fights: 40,
+    fightsDone: 11,
+    fightsFailed: 1,
+    pointsSpent: 300,
+    pointsPerFight: 25,
+    resumeAtMS: 0,
+    problem: 'boom',
+    imported: 11,
+  }
+  it('counts the fights and what they saved, with the points and the failures', () => {
+    expect(importProgress(status, 0)).toBe(
+      '12 of 40 fights · 11 keys and pulls imported · about 25 points a fight · 1 failed (boom)',
+    )
+  })
+  it('says how long it waits for the points', () => {
+    expect(importProgress({ ...status, state: 'waiting', resumeAtMS: 23 * 60_000, fightsFailed: 0 }, 0)).toBe(
+      "11 of 40 fights · 11 keys and pulls imported · waiting 23 min for the hour's points",
+    )
+  })
+  it('is empty before any import', () => {
+    expect(importProgress({ ...status, state: 'idle', fights: 0 }, 0)).toBe('')
+  })
 })

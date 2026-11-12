@@ -31,8 +31,7 @@ const (
 var RetryWaits = []time.Duration{10 * time.Second, 30 * time.Second}
 
 // ErrRateLimited means the account's hourly points are used up until the hour resets.
-var ErrRateLimited = errors.New("Warcraft Logs rate limit reached (the API allows so many points per hour); " +
-	"try again later")
+var ErrRateLimited = models.ErrRateLimited
 
 // Credentials are one Warcraft Logs API client.
 type Credentials = models.Credentials
@@ -77,12 +76,20 @@ func (c *Client) now() time.Time {
 	return time.Now()
 }
 
-func (c *Client) sleep(d time.Duration) {
+// sleep waits d, or until ctx ends (its error then), so a stopped import doesn't sit out a retry's wait.
+func (c *Client) sleep(ctx context.Context, d time.Duration) error {
 	if c.Sleep != nil {
 		c.Sleep(d)
-		return
+		return ctx.Err()
 	}
-	time.Sleep(d)
+	t := time.NewTimer(d)
+	defer t.Stop()
+	select {
+	case <-t.C:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 func orDefault(value, fallback string) string {
@@ -161,7 +168,9 @@ func (c *Client) Query(ctx context.Context, gql string, variables map[string]any
 		}
 		switch {
 		case retry && attempt <= len(waits):
-			c.sleep(waits[attempt-1])
+			if err := c.sleep(ctx, waits[attempt-1]); err != nil {
+				return err
+			}
 		case retry:
 			return fmt.Errorf("Warcraft Logs timed out %d times in a row; try again later: %w", attempt, err)
 		default:

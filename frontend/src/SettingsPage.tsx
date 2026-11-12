@@ -4,6 +4,7 @@ import {
   type OverlaySettings,
   readOldKeys,
   resetOverlay,
+  savedSettings,
   saveSettings,
   type Settings,
   type SettingsView,
@@ -12,6 +13,7 @@ import { type Note, track } from './note'
 import { NoteLine } from './NoteLine'
 import { useOverlayMoving } from './useLiveKey'
 import { CombatLogs } from './CombatLogs'
+import { WCLImport } from './WCLImport'
 import { WCLKeys } from './WCLKeys'
 
 /** What each of the app's overlay choices is called. */
@@ -24,9 +26,9 @@ const SHOW_LABELS: Record<OverlaySettings['show'], string> = {
 /** How long after the last change to the overlay it's saved, so dragging the opacity slider saves once. */
 const OVERLAY_SAVE_MS = 300
 
-/** The desktop app's settings in four sections: the game (combat log folder, with when the game last wrote a log
- * there, and region), the overlay (saved as it changes), the Warcraft Logs keys, and reading and archiving old
- * logs. Shown first when the log folder isn't found. */
+/** The desktop app's settings in five sections: the game (combat log folder, with when the game last wrote a log
+ * there, and region), the overlay (saved as it changes), the Warcraft Logs keys, importing a character's Warcraft
+ * Logs reports, and reading and archiving old logs. Shown first when the log folder isn't found. */
 export function SettingsPage({ view, onSaved }: { view: SettingsView; onSaved: (view: SettingsView) => void }) {
   const [logsDir, setLogsDir] = useState(view.logsDir)
   const [region, setRegion] = useState(view.region)
@@ -44,14 +46,14 @@ export function SettingsPage({ view, onSaved }: { view: SettingsView; onSaved: (
     )
       return
     const timer = setTimeout(() => {
-      const call = saveSettings({ logsDir: view.logsDir, region: view.region, overlay })
+      const call = saveSettings({ ...savedSettings(view), overlay })
       track(call, setOverlayNote, 'Saving…', () => 'Saved').then(onSaved, () => undefined)
     }, OVERLAY_SAVE_MS)
     return () => clearTimeout(timer)
   }, [overlay, view, onSaved])
   const save = (e: FormEvent) => {
     e.preventDefault()
-    const call = saveSettings({ logsDir: logsDir.trim(), region, overlay })
+    const call = saveSettings({ ...savedSettings(view), logsDir: logsDir.trim(), region, overlay })
     track(call, setGame, 'Saving…', () => 'Saved').then(onSaved, () => undefined)
   }
   const readLogs = (all: boolean) =>
@@ -144,6 +146,7 @@ export function SettingsPage({ view, onSaved }: { view: SettingsView; onSaved: (
         <NoteLine note={overlayNote} />
       </section>
       <WCLKeys />
+      <WCLImport view={view} onSaved={onSaved} />
       <section className="panel settings">
         <h2>Your data</h2>
         <p className="muted">

@@ -270,6 +270,48 @@ type fakeSettings struct{ saved *models.Settings }
 func (f fakeSettings) Get() models.SettingsView     { return models.SettingsView{Settings: *f.saved} }
 func (f fakeSettings) Save(s models.Settings) error { *f.saved = s; return nil }
 
+// fakeCharacters knows one character, Testmage-Somerealm, and guesses Testrogue.
+type fakeCharacters struct{ err error }
+
+func (f fakeCharacters) Resolve(_ context.Context, _, character string) (string, string, error) {
+	if f.err == nil && character != "Testmage-Somerealm" {
+		return "", "", service.ErrBadCharacter
+	}
+	return "Testmage", "some-realm", f.err
+}
+func (fakeCharacters) Guess() string { return "Testrogue" }
+
+func TestCharacterIsSavedOnlyWhenWarcraftLogsKnowsItsRealm(t *testing.T) {
+	for _, tc := range []struct {
+		character string
+		err       error
+		code      int
+	}{
+		{"Testmage-Somerealm", nil, http.StatusOK},
+		{" Testmage-Somerealm ", nil, http.StatusOK},
+		{"", nil, http.StatusOK},
+		{"Testmage-Nowhere", nil, http.StatusBadRequest},
+		{"Testmage-Somerealm", models.ErrNoCredentials, http.StatusNotFound},
+		{"Testmage-Somerealm", errors.New("down"), http.StatusBadGateway},
+	} {
+		var saved models.Settings
+		router := Router(MPlus{Keys: &fakeKeys{}, Now: time.Now}, nil, &SettingsAPI{Settings: fakeSettings{&saved},
+			Characters: fakeCharacters{tc.err}}, os.DirFS(t.TempDir()), LocalHosts(port)...)
+		body, _ := json.Marshal(map[string]any{"logsDir": t.TempDir(), "region": "us", "character": tc.character,
+			"overlay": map[string]any{"show": "keys", "opacity": 100}})
+		r := httptest.NewRequest(http.MethodPut, "/api/settings", strings.NewReader(string(body)))
+		r.Host = "localhost:8080"
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, r)
+		var got models.SettingsView
+		json.Unmarshal(w.Body.Bytes(), &got)
+		if w.Code != tc.code || (tc.code == http.StatusOK) != (saved.Region == "us") ||
+			tc.code == http.StatusOK && (got.CharacterGuess != "Testrogue" || saved.Character != strings.TrimSpace(tc.character)) {
+			t.Errorf("%q (%v): %d %s, saved %+v; want %d", tc.character, tc.err, w.Code, w.Body, saved, tc.code)
+		}
+	}
+}
+
 func TestSettingsAreSavedOnlyWithChoicesTheAPIOffers(t *testing.T) {
 	full, _ := json.Marshal(t.TempDir()) // a full path on any OS
 	for _, tc := range []struct {
@@ -284,8 +326,8 @@ func TestSettingsAreSavedOnlyWithChoicesTheAPIOffers(t *testing.T) {
 		{`""`, `{"show": "always", "opacity": 70}`, http.StatusBadRequest},
 	} {
 		var saved models.Settings
-		router := Router(MPlus{Keys: &fakeKeys{}, Now: time.Now}, nil, &SettingsAPI{Settings: fakeSettings{&saved}},
-			os.DirFS(t.TempDir()), LocalHosts(port)...)
+		router := Router(MPlus{Keys: &fakeKeys{}, Now: time.Now}, nil, &SettingsAPI{Settings: fakeSettings{&saved},
+			Characters: fakeCharacters{}}, os.DirFS(t.TempDir()), LocalHosts(port)...)
 		body := `{"logsDir": ` + tc.logsDir + `, "region": "eu", "overlay": ` + tc.overlay + `}`
 		r := httptest.NewRequest(http.MethodPut, "/api/settings", strings.NewReader(body))
 		r.Host = "localhost:8080"
@@ -393,5 +435,53 @@ func TestSecurityHeaders(t *testing.T) {
 			(h.Get("Content-Security-Policy") != "") != tc.policy {
 			t.Errorf("%s: headers %v", tc.url, h)
 		}
+	}
+}
+
+// fakeImport is an import whose Start fails with err.
+type fakeImport struct{ err error }
+
+func (f fakeImport) Start(context.Context, string, string) error { return f.err }
+func (f fakeImport) Stop()                                       {}
+func (f fakeImport) Status() models.ImportStatus                 { return models.ImportStatus{State: "listing"} }
+func (f fakeImport) Remove() error                               { return f.err }
+
+func TestStartImportNeedsACharacterAndOneImportAtATime(t *testing.T) {
+	for _, tc := range []struct {
+		character string
+		err       error
+		code      int
+	}{
+		{"Testmage-Somerealm", nil, http.StatusAccepted},
+		{"", nil, http.StatusBadRequest},
+		{"Testmage-Somerealm", service.ErrBusy, http.StatusConflict},
+		{"Testmage-Somerealm", service.ErrBadCharacter, http.StatusBadRequest},
+		{"Testmage-Somerealm", models.ErrNoCredentials, http.StatusNotFound},
+	} {
+		saved := models.Settings{Region: "us", Character: tc.character}
+		router := Router(MPlus{Keys: &fakeKeys{}, Now: time.Now}, nil, &SettingsAPI{Settings: fakeSettings{&saved},
+			Import: fakeImport{tc.err}}, os.DirFS(t.TempDir()), LocalHosts(port)...)
+		r := httptest.NewRequest(http.MethodPost, "/api/settings/warcraftlogs/import", nil)
+		r.Host = "localhost:8080"
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, r)
+		if w.Code != tc.code {
+			t.Errorf("%q (%v): %d %s, want %d", tc.character, tc.err, w.Code, w.Body, tc.code)
+		}
+	}
+}
+
+func TestAnUnchangedCharacterIsntCheckedAgain(t *testing.T) {
+	saved := models.Settings{Region: "us", Character: "Testmage-Somerealm"}
+	router := Router(MPlus{Keys: &fakeKeys{}, Now: time.Now}, nil, &SettingsAPI{Settings: fakeSettings{&saved},
+		Characters: fakeCharacters{errors.New("Warcraft Logs is down")}}, os.DirFS(t.TempDir()), LocalHosts(port)...)
+	body, _ := json.Marshal(map[string]any{"logsDir": t.TempDir(), "region": "us", "character": saved.Character,
+		"overlay": map[string]any{"show": "keys", "opacity": 50}})
+	r := httptest.NewRequest(http.MethodPut, "/api/settings", strings.NewReader(string(body)))
+	r.Host = "localhost:8080"
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, r)
+	if w.Code != http.StatusOK || saved.Overlay.Opacity != 50 {
+		t.Errorf("%d %s: want the overlay saved without asking Warcraft Logs", w.Code, w.Body)
 	}
 }

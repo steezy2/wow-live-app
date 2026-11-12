@@ -48,22 +48,39 @@ func (c *Client) zones(ctx context.Context) ([]zone, error) {
 	return zones, nil
 }
 
+// newestZone is the newest of zones (oldest first) that match says yes to.
+func newestZone(zones []zone, match func(zone) bool) (zone, bool) {
+	for _, z := range slices.Backward(zones) {
+		if match(z) {
+			return z, true
+		}
+	}
+	return zone{}, false
+}
+
+// isMPlus says whether z is a Mythic+ season's zone.
+func isMPlus(z zone) bool { return strings.HasPrefix(z.Name, "Mythic+") }
+
+// encounterIDs is z's encounters by name.
+func encounterIDs(z zone) map[string]int {
+	ids := map[string]int{}
+	for _, e := range z.Encounters {
+		ids[e.Name] = e.ID
+	}
+	return ids
+}
+
 // MPlusEncounters is the newest Mythic+ zone's dungeons by name, as Warcraft Logs encounter IDs.
 func (c *Client) MPlusEncounters(ctx context.Context) (map[string]int, error) {
 	zones, err := c.zones(ctx)
 	if err != nil {
 		return nil, err
 	}
-	for i := len(zones) - 1; i >= 0; i-- {
-		if strings.HasPrefix(zones[i].Name, "Mythic+") {
-			encounters := map[string]int{}
-			for _, e := range zones[i].Encounters {
-				encounters[e.Name] = e.ID
-			}
-			return encounters, nil
-		}
+	z, ok := newestZone(zones, isMPlus)
+	if !ok {
+		return nil, fmt.Errorf("Warcraft Logs lists no Mythic+ zone")
 	}
-	return nil, fmt.Errorf("Warcraft Logs lists no Mythic+ zone")
+	return encounterIDs(z), nil
 }
 
 // MPlusRankings is the top runs of a class and spec ("Paladin", "Holy") in a dungeon at a keystone level by "dps" or

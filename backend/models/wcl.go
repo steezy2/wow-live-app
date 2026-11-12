@@ -2,7 +2,10 @@ package models
 
 import (
 	"errors"
+	"fmt"
+	"strings"
 	"time"
+	"unicode"
 )
 
 // ReportURL is where a report is on Warcraft Logs; add the code (and "#fight=N" for one pull).
@@ -92,7 +95,27 @@ type Credentials struct {
 var (
 	ErrNoCredentials  = errors.New("no Warcraft Logs keys: add them in Settings")
 	ErrBadCredentials = errors.New("Warcraft Logs turned down the client ID and secret")
+	// ErrRateLimited means the account's hourly points are used up until the hour resets.
+	ErrRateLimited = errors.New("Warcraft Logs rate limit reached (the API allows so many points per hour); " +
+		"try again later")
 )
+
+// ImportStatus is how an import of a character's Warcraft Logs reports stands: listing the reports, fetching fights,
+// waiting for the hour's points (until ResumeAtMS), done, or failed (Problem says why; a failed fight leaves it
+// running, with the fight's error in Problem). PointsPerFight is the average so far; Imported is how many saved keys
+// and pulls came from Warcraft Logs, whichever import saved them.
+type ImportStatus struct {
+	State          string  `json:"state" enums:"idle,listing,running,waiting,done,failed"`
+	Character      string  `json:"character"`
+	Fights         int     `json:"fights"`
+	FightsDone     int     `json:"fightsDone"`
+	FightsFailed   int     `json:"fightsFailed"`
+	PointsSpent    float64 `json:"pointsSpent"`
+	PointsPerFight float64 `json:"pointsPerFight"`
+	ResumeAtMS     int64   `json:"resumeAtMS"`
+	Problem        string  `json:"problem"`
+	Imported       int     `json:"imported"`
+}
 
 // KeyStatus is what the page shows about the saved Warcraft Logs keys, never the secret: whether they're set, the
 // client ID's last 4 characters, and the last test (when, whether it worked, the points left of the hour's limit or
@@ -105,6 +128,76 @@ type KeyStatus struct {
 	PointsLeft   float64 `json:"pointsLeft"`
 	LimitPerHour float64 `json:"limitPerHour"`
 	Problem      string  `json:"problem"`
+}
+
+// ReportLink is a fight of a Warcraft Logs report: its code and the fight's ID in it.
+type ReportLink struct {
+	Code    string `json:"code"`
+	FightID int    `json:"fightID"`
+}
+
+// URL is the fight's page on Warcraft Logs.
+func (l ReportLink) URL() string {
+	return fmt.Sprintf("%s%s#fight=%d", ReportURL, l.Code, l.FightID)
+}
+
+// CharacterReport is one of a character's recent Warcraft Logs reports: when it ran (ms since the epoch), its zone
+// and its fights.
+type CharacterReport struct {
+	Code      string        `json:"code"`
+	StartTime int64         `json:"startTime"`
+	EndTime   int64         `json:"endTime"`
+	ZoneID    int           `json:"zoneID"`
+	Fights    []ReportFight `json:"fights"`
+}
+
+// ReportFight is one fight of a CharacterReport: a Mythic+ key (KeystoneLevel above 0), a boss pull (EncounterID
+// above 0) or trash. Times are ms since the report's start; Difficulty is Warcraft Logs' number (5 Mythic, 4 Heroic,
+// 3 Normal, 1 LFR); Players are the friendly players' names without their realms.
+type ReportFight struct {
+	ID            int      `json:"id"`
+	EncounterID   int      `json:"encounterID"`
+	KeystoneLevel int      `json:"keystoneLevel"`
+	Difficulty    int      `json:"difficulty"`
+	Kill          bool     `json:"kill"`
+	StartTime     int64    `json:"startTime"`
+	EndTime       int64    `json:"endTime"`
+	Players       []string `json:"players"`
+}
+
+// WCLZones are the Warcraft Logs zones an import reads: the newest Mythic+ zone and the newest raid zone, with their
+// dungeons' and bosses' encounter IDs by name.
+type WCLZones struct {
+	MPlusID    int            `json:"mplusID"`
+	RaidID     int            `json:"raidID"`
+	Encounters map[string]int `json:"encounters"`
+}
+
+// FightKind says whether an imported fight is a Mythic+ key or a raid boss pull.
+type FightKind string
+
+// The kinds of fight an import reads.
+const (
+	FightMPlus FightKind = "mplus"
+	FightRaid  FightKind = "raid"
+)
+
+// FightRef is one report fight to import: its report and ID, when it started (ms since the epoch) and its kind.
+type FightRef struct {
+	ReportLink
+	StartMS int64     `json:"startMS"`
+	Kind    FightKind `json:"kind" enums:"mplus,raid"`
+}
+
+// NormalizeRealm is a realm's name in lower case with only its letters and digits, so "Area 52", "area-52" and
+// "Area52" are one realm.
+func NormalizeRealm(realm string) string {
+	return strings.Map(func(r rune) rune {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) {
+			return unicode.ToLower(r)
+		}
+		return -1
+	}, realm)
 }
 
 // SecretStore keeps one secret per name (in the desktop app, Windows Credential Manager); Get is "" when none is

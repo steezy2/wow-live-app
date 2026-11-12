@@ -1329,3 +1329,19 @@ span.graph-damage {
 .graph-legend button[aria-pressed='true'] {
   outline: 1px solid currentColor;
 }
+
+/* The tag on a key or raid pull imported from Warcraft Logs. */
+.tag {
+  align-self: center;
+  border: 1px solid var(--muted);
+  border-radius: 3px;
+  color: var(--muted);
+  font-size: 0.7rem;
+  padding: 0 4px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.tag:hover {
+  color: var(--text);
+}
