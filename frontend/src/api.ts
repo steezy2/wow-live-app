@@ -626,6 +626,8 @@ export interface ImportStatus {
   imported: number
   /** What the last Find fights found, until an import starts. */
   plan?: ImportPlan
+  /** The character whose reports were listed, so Find fights only looks for new ones. */
+  listedFor: string
 }
 
 export async function fetchImportStatus(signal?: AbortSignal): Promise<ImportStatus> {

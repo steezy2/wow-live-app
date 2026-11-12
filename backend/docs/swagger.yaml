@@ -153,6 +153,8 @@ definitions:
         type: integer
       imported:
         type: integer
+      listedFor:
+        type: string
       plan:
         $ref: '#/definitions/models.ImportPlan'
       pointsPerFight:

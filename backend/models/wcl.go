@@ -104,7 +104,8 @@ var (
 // reports, fetching fights, waiting for the hour's points (until ResumeAtMS), done, or failed (Problem says why; a
 // failed fight leaves it running, with the fight's error in Problem). PointsPerFight is the average so far; Imported
 // is how many saved keys and pulls came from Warcraft Logs, whichever import saved them; Plan is what the last Find
-// fights found, until an import starts.
+// fights found, until an import starts; ListedFor is the character whose reports were listed, so the next Find only
+// looks for new ones.
 type ImportStatus struct {
 	State          string      `json:"state" enums:"idle,listing,running,waiting,done,failed"`
 	Character      string      `json:"character"`
@@ -117,6 +118,7 @@ type ImportStatus struct {
 	Problem        string      `json:"problem"`
 	Imported       int         `json:"imported"`
 	Plan           *ImportPlan `json:"plan,omitempty"`
+	ListedFor      string      `json:"listedFor"`
 }
 
 // KeyStatus is what the page shows about the saved Warcraft Logs keys, never the secret: whether they're set, the
