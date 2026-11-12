@@ -47,10 +47,9 @@ func TestRecapCountsKeysDungeonsAndParty(t *testing.T) {
 		t.Errorf("dungeons = %+v\nwant %+v", got.Dungeons, wantDungeons)
 	}
 	wantParty := []models.RecapMate{{Player: "Testpriest", Keys: 3, Timed: 3},
-		{Player: "Testrogue", Keys: 1, Timed: 0}, {Player: "Testrogue", Realm: "Sargeras", Class: "Rogue", Keys: 1,
-			Timed: 1}}
+		{Player: "Testrogue", Realm: "Sargeras", Class: "Rogue", Keys: 2, Timed: 1}}
 	if !reflect.DeepEqual(got.Party, wantParty) {
-		t.Errorf("party = %+v\nwant %+v (the rogue apart where only one key knows the realm)", got.Party, wantParty)
+		t.Errorf("party = %+v\nwant %+v (one rogue, though only one key knows the realm)", got.Party, wantParty)
 	}
 	if y := got.You; y == nil || y.Character != "Testmage" || y.Deaths != 1 || len(y.Specs) != 1 ||
 		y.Specs[0] != "Fire Mage" || !reflect.DeepEqual(y.Killers, []models.RecapCount{{Name: "Slam", Count: 1}}) {

@@ -15,12 +15,15 @@ func loggedBy(logger string, realms map[string]string, character string) bool {
 	if character == "" {
 		return true
 	}
-	name, realm, _ := strings.Cut(character, "-")
-	if logger == "" || !strings.EqualFold(logger, name) {
+	if logger == "" {
 		return false
 	}
+	_, realm, _ := strings.Cut(character, "-")
 	got := realms[logger]
-	return realm == "" || got == "" || models.NormalizeRealm(got) == models.NormalizeRealm(realm)
+	if realm == "" || got == "" {
+		got = realm
+	}
+	return models.SameCharacter(logger+"-"+got, character)
 }
 
 // Played is the characters whose game wrote the saved keys' and raid pulls' logs, most runs first; preferred (Settings'

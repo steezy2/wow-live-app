@@ -79,7 +79,7 @@ func (m MPlus) Recap(c *gin.Context) {
 //	@Param			to			query		int		true	"the period's end, ms since the epoch (excluded); after from"
 //	@Param			character	query		string	false	"only this character's runs (an id from /api/characters)"
 //	@Success		200			{array}		models.RecapTopTime
-//	@Success		204			"No Warcraft Logs keys"
+//	@Success		204			"No Warcraft Logs keys, or keys Warcraft Logs refuses"
 //	@Failure		400			{object}	ErrorResponse
 //	@Failure		502			{object}	ErrorResponse
 //	@Router			/api/recap/top-times [get]

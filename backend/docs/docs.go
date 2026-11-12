@@ -810,7 +810,7 @@ const docTemplate = `{
                         }
                     },
                     "204": {
-                        "description": "No Warcraft Logs keys"
+                        "description": "No Warcraft Logs keys, or keys Warcraft Logs refuses"
                     },
                     "400": {
                         "description": "Bad Request",

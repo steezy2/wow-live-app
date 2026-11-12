@@ -349,7 +349,7 @@ func (lw *logWriter) addUnits(meta fightMeta, logger string) {
 	}
 	mine := map[int]bool{}
 	for _, a := range meta.MasterData.Actors {
-		if a.Type == "Player" && logger != "" && sameCharacter(a.Name+"-"+a.Server, logger) {
+		if a.Type == "Player" && logger != "" && models.SameCharacter(a.Name+"-"+a.Server, logger) {
 			mine[a.ID] = true
 		}
 	}
@@ -404,13 +404,6 @@ func dungeonOf(dungeons map[int]models.DungeonFacts, f fightInfo) (int, models.D
 		}
 	}
 	return 0, models.DungeonFacts{}
-}
-
-// sameCharacter is whether two "Name-Realm"s are one character, ignoring case, spaces and apostrophes in the realm.
-func sameCharacter(a, b string) bool {
-	nameA, realmA, _ := strings.Cut(a, "-")
-	nameB, realmB, _ := strings.Cut(b, "-")
-	return strings.EqualFold(nameA, nameB) && models.NormalizeRealm(realmA) == models.NormalizeRealm(realmB)
 }
 
 // encounter marks a boss pull's ENCOUNTER_START and ENCOUNTER_END.

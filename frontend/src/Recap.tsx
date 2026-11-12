@@ -242,11 +242,13 @@ function DungeonCard({ d, top }: { d: RecapDungeon; top?: RecapTopTime }) {
         {counted(d.runs, 'run')}, {Math.round(d.successPct)}% timed
       </p>
       <p className="muted small">
-        {d.bestLevel ? `Timed at +${d.bestLevel}: ${d.bestRuns === 1 ? 'only once' : `${d.bestRuns} times`}` : 'None timed'}
+        {d.bestLevel
+          ? `Timed at +${d.bestLevel}: ${d.bestRuns === 1 ? 'only once' : `${d.bestRuns} times`}`
+          : 'None timed'}
       </p>
       {d.bestLevel > 0 && (
         <dl className="recap-times">
-          {d.avgMS !== d.bestMS ? (
+          {d.bestRuns > 1 ? (
             <>
               <dt>Average</dt>
               <dd>{clock(d.avgMS)}</dd>

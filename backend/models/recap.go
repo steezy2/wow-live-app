@@ -79,8 +79,9 @@ type RecapDungeon struct {
 	BestMS     int64   `json:"bestMS"` // the fastest
 }
 
-// RecapYou is the character a recap is for (the one picked, or the one whose game wrote most of the period's logs): the specs played,
-// the median DPS (HPS for a healer spec) per dungeon, the deaths, and what killed them most, most first.
+// RecapYou is the character a recap is for (the one picked, or the one whose game wrote most of the period's logs):
+// the specs played, the median DPS (HPS for a healer spec) per dungeon, the deaths, and what killed them most, most
+// first.
 type RecapYou struct {
 	Character string       `json:"character"`
 	Specs     []string     `json:"specs"`

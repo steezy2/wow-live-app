@@ -233,8 +233,8 @@ func recapAverages(keys []models.Key, you string) models.RecapAverages {
 	return models.RecapAverages{Party: per(party), You: per(yours)}
 }
 
-// recapParty is who you ran keys (newest first) with most, at most recapMates of them, each by name and realm with
-// their latest realm and class.
+// recapParty is who you ran keys (newest first) with most, at most recapMates of them, each by name with their latest
+// realm and class.
 func recapParty(keys []models.Key, you string) []models.RecapMate {
 	mates := map[string]*models.RecapMate{}
 	for _, k := range keys {
@@ -245,14 +245,14 @@ func recapParty(keys []models.Key, you string) []models.RecapMate {
 			if p == you {
 				continue
 			}
-			id := p + "-" + k.Realms[p]
-			m := mates[id]
+			m := mates[p]
 			if m == nil {
-				m = &models.RecapMate{Player: p, Realm: k.Realms[p]}
-				if i := slices.IndexFunc(k.Overall.Rows, func(r models.KeyMeterRow) bool { return r.Player == p }); i >= 0 {
-					m.Class = k.Overall.Rows[i].Class
-				}
-				mates[id] = m
+				m = &models.RecapMate{Player: p}
+				mates[p] = m
+			}
+			m.Realm = cmp.Or(m.Realm, k.Realms[p]) // keys are newest first, so the latest realm a key knew
+			if i := slices.IndexFunc(k.Overall.Rows, func(r models.KeyMeterRow) bool { return r.Player == p }); i >= 0 {
+				m.Class = cmp.Or(m.Class, k.Overall.Rows[i].Class)
 			}
 			m.Keys++
 			if k.Status == "timed" {
@@ -274,23 +274,6 @@ func keyLength(k models.Key) int64 {
 		return k.FinalMS
 	}
 	return k.End - k.Start
-}
-
-// mostLogged is the player whose game wrote most of keys' logs ("" when none says).
-func mostLogged(keys []models.Key) string {
-	counts := map[string]int{}
-	for _, k := range keys {
-		if k.Logger != "" {
-			counts[k.Logger]++
-		}
-	}
-	best := ""
-	for _, name := range slices.Sorted(maps.Keys(counts)) {
-		if counts[name] > counts[best] {
-			best = name
-		}
-	}
-	return best
 }
 
 // recapYou is you in keys (nil for no one): the specs played, most first; the median DPS, or HPS in a healer spec,
@@ -389,7 +372,7 @@ func recapFacts(keys []models.Key) []models.RecapFact {
 		add(k, "Closest call: %s with %s to spare", name(k), clockText(k.TimerMS-k.FinalMS))
 	}
 	if k, ok := best(func(k models.Key) float64 {
-		if k.Status != "timed" {
+		if !timed(k) {
 			return 0
 		}
 		return float64(len(k.Deaths))

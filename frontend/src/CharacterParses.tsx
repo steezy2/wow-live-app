@@ -37,7 +37,9 @@ export function CharacterParses({ character, kind }: { character: string; kind: 
       ) : (
         <>
           <p>{page}</p>
-          {shown.length === 0 && <p className="muted">{kind === 'raid' ? 'No ranked kills yet' : 'No ranked runs yet'}</p>}
+          {shown.length === 0 && (
+            <p className="muted">{kind === 'raid' ? 'No ranked kills yet' : 'No ranked runs yet'}</p>
+          )}
           <ul className="list">
             {shown.map((p) => (
               <li key={p.kind + p.encounter}>
