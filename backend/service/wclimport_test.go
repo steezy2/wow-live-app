@@ -71,6 +71,9 @@ func TestMatchReportsKeys(t *testing.T) {
 		{"two days later doesn't",
 			[]models.CharacterReport{report("A", 100, t0+48*hour, keyFight(3, 12, hour, length, testParty...))},
 			map[models.ReportLink]bool{}},
+		{"the closer length wins in a report", []models.CharacterReport{report("A", 100, t0,
+			keyFight(3, 12, hour, length-minute, testParty...), keyFight(4, 12, hour, length-20_000, testParty...))},
+			map[models.ReportLink]bool{link("A", 4): true}},
 		{"the same key in two reports is both", []models.CharacterReport{
 			report("A", 100, t0, keyFight(3, 12, hour, length-10_000, testParty...)),
 			report("B", 100, t0+20_000, keyFight(4, 12, hour, length+10_000, testParty...))},
@@ -211,8 +214,8 @@ func TestGuessIsTheMostFrequentLogger(t *testing.T) {
 
 func TestQuickRepullsAreNotCopies(t *testing.T) {
 	reports := []models.CharacterReport{report("RAID", 200, t0,
-		bossFight(1, false, 0, 40_000, testParty...), bossFight(2, false, 150_000, 95_000, testParty...))}
+		bossFight(1, false, 0, 20_000, testParty...), bossFight(2, false, 120_000, 23_000, testParty...))}
 	if got := PickFights(reports, testZones, "Testmage-Somerealm", nil, nil); len(got) != 2 {
-		t.Errorf("picked %+v; want both wipes, 2.5 minutes apart and of other lengths", got)
+		t.Errorf("picked %+v; want both wipes: one report never holds a fight twice", got)
 	}
 }

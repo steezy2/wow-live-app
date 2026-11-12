@@ -18,7 +18,8 @@ const (
 	// can trim or split a log, and Warcraft Logs' times follow the uploader's clock (a minute off seen).
 	matchSlackMS = 3 * 60_000
 	// copyLengthMS is how far two reports' copies of one fight may differ in length (the same log lines, cut alike),
-	// so two quick pulls of a boss aren't taken for one.
+	// so two quick pulls of a boss aren't taken for one. Two equal quick wipes that are each in only one uploader's
+	// report still are; it hasn't been seen.
 	copyLengthMS = 5000
 	// matchPlayers is how many of a key's players a report fight must have.
 	matchPlayers = 3
@@ -90,11 +91,11 @@ func (c Characters) Guess() string {
 	return best
 }
 
-// matchReports is the report fights that are saved keys and raid pulls, where the match is sure. A fight is a
-// candidate for a key when it has the same dungeon and level, a length and start within matchSlackMS and at least
-// matchPlayers of the key's players; for a pull, the same boss, difficulty and result, a length and start within
-// matchSlackMS and half the raid. The candidate with the closest length wins, unless the next is within matchTieMS
-// of it (never guess). encounters are the dungeon and boss names' Warcraft Logs encounter IDs.
+// matchReports is the report fights that are saved keys and raid pulls. A fight is a candidate for a key when it has
+// the same dungeon and level, a length and start within matchSlackMS and at least matchPlayers of the key's players;
+// for a pull, the same boss, difficulty and result, a length and start within matchSlackMS and half the raid. Each
+// report's closest-length candidate is the key or pull (sameFights). encounters are the dungeon and boss names'
+// Warcraft Logs encounter IDs.
 func matchReports(keys []models.Key, pulls []models.RaidPull, reports []models.CharacterReport,
 	encounters map[string]int) map[models.ReportLink]bool {
 	found := map[models.ReportLink]bool{}
@@ -116,16 +117,21 @@ func matchReports(keys []models.Key, pulls []models.RaidPull, reports []models.C
 	return found
 }
 
-// sameFights adds to found every report fight wanted says yes to whose start and length are within matchSlackMS
-// of start and durationMS: the same fight can be in several reports, uploaded by different players.
+// sameFights adds to found, in each report, the fight wanted says yes to whose start and length are within
+// matchSlackMS of start and durationMS, the closest length if several are: the same fight can be in several reports,
+// uploaded by different players, but only once in each, so its neighbours (the next quick wipe) stay unmatched.
 func sameFights(found map[models.ReportLink]bool, reports []models.CharacterReport, start, durationMS int64,
 	wanted func(models.ReportFight) bool) {
 	for _, r := range reports {
+		best, off := 0, int64(matchSlackMS+1)
 		for _, f := range r.Fights {
-			if abs(f.EndTime-f.StartTime-durationMS) <= matchSlackMS && abs(r.StartTime+f.StartTime-start) <= matchSlackMS &&
+			if o := abs(f.EndTime - f.StartTime - durationMS); o < off && abs(r.StartTime+f.StartTime-start) <= matchSlackMS &&
 				wanted(f) {
-				found[models.ReportLink{Code: r.Code, FightID: f.ID}] = true
+				best, off = f.ID, o
 			}
+		}
+		if off <= matchSlackMS {
+			found[models.ReportLink{Code: r.Code, FightID: best}] = true
 		}
 	}
 }
@@ -189,7 +195,7 @@ func PickFights(reports []models.CharacterReport, zones models.WCLZones, charact
 	var picked []models.FightRef
 	for i, c := range candidates {
 		copied := slices.ContainsFunc(candidates[:i], func(o candidate) bool { // the same fight in another report
-			return o.fight.EncounterID == c.fight.EncounterID && o.fight.KeystoneLevel == c.fight.KeystoneLevel &&
+			return o.ref.Code != c.ref.Code && o.fight.EncounterID == c.fight.EncounterID && o.fight.KeystoneLevel == c.fight.KeystoneLevel &&
 				o.fight.Difficulty == c.fight.Difficulty && o.fight.Kill == c.fight.Kill &&
 				abs(o.ref.StartMS-c.ref.StartMS) <= matchSlackMS && abs(length(o)-length(c)) <= copyLengthMS
 		})
