@@ -216,7 +216,8 @@ func (k *LogTracker) mobDeathAt(at int64, guid string) {
 // trackOf is a copy of a run's track with each player's class, safe to hand out while the run goes on.
 func (k *LogTracker) trackOf(run *keyRun) models.KeyTrack {
 	t := models.KeyTrack{Players: map[string][]models.TrackPoint{}, Classes: k.classes(run),
-		Deaths: list(run.track.Deaths), Meters: map[string][]models.MeterPoint{}, Pulls: list(run.track.Pulls)}
+		Deaths: list(run.track.Deaths), Meters: map[string][]models.MeterPoint{}, Pulls: list(run.track.Pulls),
+		Recaps: k.recaps(run)}
 	for name, points := range run.track.Players {
 		t.Players[name] = list(points)
 	}

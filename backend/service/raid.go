@@ -590,6 +590,7 @@ func (k *LogTracker) finishPull(kill bool) {
 		run.key.Status = "kill"
 	}
 	endPull(run)
+	k.finishBigHits(run, at, true)
 	run.sample.at = -run.sample.every // closes the last stretch, however short
 	k.sampleAbilities(at)
 	pull := k.raidPull(run, k.details(run, at), at, kill)
@@ -707,7 +708,7 @@ func (k *LogTracker) raidPull(run *keyRun, key models.Key, at int64, kill bool) 
 		}
 	}
 	slices.SortStableFunc(p.Cooldowns, func(a, b models.KeyCast) int { return cmp.Compare(a.ClockMS, b.ClockMS) })
-	p.Spikes = key.Spikes
+	p.Spikes, p.BigHits = key.Spikes, key.BigHits
 	p.Lanes = k.lanes(run, p, at)
 	p.Abilities, p.Taken = abilities(run, k.schools)
 	p.Targets = targets(run)
