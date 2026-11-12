@@ -1,4 +1,4 @@
-import { type CSSProperties, useCallback, useEffect, useRef, useState } from 'react'
+import { type CSSProperties, type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
 import { abilityViews, raidTargets } from './abilities'
 import {
   fetchSettings,
@@ -12,6 +12,7 @@ import {
 import { classColors } from './classColors'
 import { AbilityBars } from './FightMeters'
 import { chestLabel, clock, pullTitle, resultText } from './format'
+import { HitRecapView, recapOf } from './HitRecap'
 import { ForcesBar, TimerBar } from './KeyDetails'
 import { overlayColumn } from './meterColumns'
 import { MeterCard } from './MeterCards'
@@ -22,6 +23,9 @@ import { useLiveKey, useOverlayMoving, useRaidLive, useReady } from './useLiveKe
 
 /** How many of a player's abilities (and enemies) the overlay's breakdown lists. */
 const OVERLAY_SPELLS = 8
+
+/** How many rows of a death's recap the overlay shows (the newest). */
+const OVERLAY_RECAP_ROWS = 12
 
 /** How long into a key the overlay shows who started without a flask, food, rune or party buff (the countdown and
  * a little after, while there's still time to fix it). */
@@ -125,6 +129,8 @@ function OverlayKey(props: { keyView: KeyView; clockMS: number; settings: Overla
   const pickPull = useCallback((player: string) => setPicked({ player, pull, whole: false }), [pull])
   const pickWhole = useCallback((player: string) => setPicked({ player, pull, whole: true }), [pull])
   const back = useCallback(() => setPicked({ player: '', pull: 0, whole: false }), [])
+  const [deathsOpen, setDeathsOpen] = useState(false)
+  const closeDeaths = useCallback(() => setDeathsOpen(false), [])
   const focus = picked.whole || picked.pull === pull ? picked.player : ''
   const timer = key.timerMS ?? 0
   const projection = key.status === 'running' ? key.projection : undefined
@@ -162,12 +168,18 @@ function OverlayKey(props: { keyView: KeyView; clockMS: number; settings: Overla
           Missing: {key.buffs.map((b) => `${b.player} ${b.missing.join(', ')}`).join(' · ')}
         </p>
       )}
-      <p className="small overlay-wrap">
+      <button
+        className="row-button small overlay-wrap"
+        disabled={key.deaths.length === 0}
+        onClick={() => setDeathsOpen(true)}
+      >
         {key.deaths.length} deaths +{clock(key.penaltyMS)}
-        {latest && ` · last ${latest.player}: ${latest.ability || latest.killer} ${clock(latest.clockMS)}`}
-      </p>
+        {latest && ` · last ${deathText(latest)}`}
+      </button>
       <div className="overlay-extra">
-        {focus ? (
+        {deathsOpen ? (
+          <DeathsDrill keyView={key} onBack={closeDeaths} />
+        ) : focus ? (
           <Breakdown
             keyView={key}
             player={focus}
@@ -220,17 +232,34 @@ function Breakdown(props: {
 }) {
   const { keyView: key, player, title, from, to, onBack } = props
   const track = useTrack(key.start, key.status === 'running')
-  useEffect(() => {
-    const esc = (e: KeyboardEvent) => e.key === 'Escape' && onBack()
-    window.addEventListener('keydown', esc)
-    return () => window.removeEventListener('keydown', esc)
-  }, [onBack])
   const between = track ? abilitiesBetween(track, key, player, from, to) : undefined
   const views = between && abilityViews(player, between.abilities, between.taken)
   const sum = (rows: { value: number }[]) => rows.reduce((n, r) => n + r.value, 0)
   const healer = views !== undefined && sum(views.healing) > sum(views.damage)
   const color = classColors[key.overall.rows.find((r) => r.player === player)?.class ?? ''] ?? 'var(--accent)'
   const targets = healer ? [] : raidTargets(between?.targets, player)
+  return (
+    <Drill title={title} heading={`${player} · ${healer ? 'Healing' : 'Damage'}`} onBack={onBack}>
+      {views ? (
+        <>
+          <AbilityBars rows={healer ? views.healing : views.damage} color={color} limit={OVERLAY_SPELLS} />
+          {targets.length > 0 && <AbilityBars rows={targets} color={color} label="Enemy" limit={OVERLAY_SPELLS} />}
+        </>
+      ) : (
+        <p className="muted">{track ? 'No ability timeline for this key' : 'Loading…'}</p>
+      )}
+    </Drill>
+  )
+}
+
+/** A card the overlay shows in place of the meters: a title button, a right click or Esc goes back. */
+function Drill(props: { title: string; heading: string; onBack: () => void; children: ReactNode }) {
+  const { title, heading, onBack, children } = props
+  useEffect(() => {
+    const esc = (e: KeyboardEvent) => e.key === 'Escape' && onBack()
+    window.addEventListener('keydown', esc)
+    return () => window.removeEventListener('keydown', esc)
+  }, [onBack])
   return (
     <div
       className="card focus drill"
@@ -243,16 +272,42 @@ function Breakdown(props: {
         <button className="back" onClick={onBack}>
           ‹ {title}
         </button>{' '}
-        · {player} · {healer ? 'Healing' : 'Damage'}
+        · {heading}
       </h2>
-      {views ? (
-        <>
-          <AbilityBars rows={healer ? views.healing : views.damage} color={color} limit={OVERLAY_SPELLS} />
-          {targets.length > 0 && <AbilityBars rows={targets} color={color} label="Enemy" limit={OVERLAY_SPELLS} />}
-        </>
-      ) : (
-        <p className="muted">{track ? 'No ability timeline for this key' : 'Loading…'}</p>
-      )}
+      {children}
     </div>
+  )
+}
+
+/** "Name: Ability 12:03", the ability the death names or else its killer. */
+const deathText = (d: KeyDeath) => `${d.player}: ${d.ability || d.killer} ${clock(d.clockMS)}`
+
+/** The key's deaths, newest first; a click on one shows its recap (the last 12 rows) from the live track, and back
+ * returns to the list, then to the meters. */
+function DeathsDrill({ keyView: key, onBack }: { keyView: KeyView; onBack: () => void }) {
+  const track = useTrack(key.start, key.status === 'running')
+  const [picked, setPicked] = useState<KeyDeath>()
+  const back = useCallback(() => (picked ? setPicked(undefined) : onBack()), [picked, onBack])
+  const recap = picked && recapOf(track, picked.player, picked.clockMS)
+  return (
+    <Drill title={picked ? 'Deaths' : 'Key'} heading={picked ? deathText(picked) : 'Deaths'} onBack={back}>
+      {picked ? (
+        recap ? (
+          <HitRecapView recap={recap} ready={picked.ready} died limit={OVERLAY_RECAP_ROWS} />
+        ) : (
+          <p className="muted">{track ? 'No recap for this death' : 'Loading…'}</p>
+        )
+      ) : (
+        <ul className="list">
+          {[...key.deaths].reverse().map((d, i) => (
+            <li key={i}>
+              <button className="row-button" onClick={() => setPicked(d)}>
+                {deathText(d)}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Drill>
   )
 }
