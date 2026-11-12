@@ -12,11 +12,16 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 - The overlay takes clicks by default: a click on a player's row shows their top 8 spells and their damage into each enemy over that card's span, the last pull or the whole key so far (the one-card meter: the whole key); Esc, a right click, the title or a new pull goes back. **Ctrl+Alt+K**, a tray item and a Settings switch let clicks through to the game instead (`clickThrough` in the overlay settings).
 
 ### Changed
+- A new app icon: a purple keystone gem crossed by a live pulse line, in a gold-framed tile, without the red dot. `docs/store-listing.md` holds the Microsoft Store text and the screenshot plan for the next listing update.
 - The key and raid pull lists group anything older than 8 weeks by month instead of by week.
 - A saved key's and pull's list entry carries its `report` (code and fight) and `imported`, instead of the imported fight's URL; the page makes the links.
 - An M+ key's damage spikes are the worst 5 s instead of 3 s, and each spike says how long it is (`seconds`; a raid's is still `spike_seconds`, 6 s).
 - Replays start at 1× with no trail.
 - Settings says an import from Warcraft Logs always leaves the hour's last 200 points for key reviews and parses, waiting for the hour below them (`reservePoints` in the import status).
+
+### Fixed
+- Starting WoW Live while it already runs opens the running copy's window instead of a second copy (with its own tray icon, overlay and log reading).
+- *Quit* in the tray closes the main window and stops following the log, instead of the window's hide-to-tray cancelling its close. The window's X still hides it to the tray.
 
 ## [0.4.0] - 2026-11-12
 
