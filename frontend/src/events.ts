@@ -17,6 +17,16 @@ export interface EventSource {
   cooldowns: KeyCast[]
 }
 
+/** The lanes whose marks each name one player, first in the text ("Name · ability", or the name alone). */
+const playerLanes = new Set(['deaths', 'cooldowns', 'potions', 'cc'])
+
+/** The lanes with the deaths, defensives, potions and crowd control cut to one player's; other lanes as they are. */
+export function lanesOf(lanes: RaidLane[], player: string): RaidLane[] {
+  return lanes.map((l) =>
+    playerLanes.has(l.kind) ? { ...l, marks: l.marks.filter((m) => m.text.split(' · ')[0] === player) } : l,
+  )
+}
+
 /** A player's key or pull in order: their deaths, the avoidable hits and stacks past the limit the lanes marked for
  * them, debuffs on them and how they came off, and the cooldowns and potions they used. */
 export function eventsOf(src: EventSource, player: string): PlayerEvent[] {

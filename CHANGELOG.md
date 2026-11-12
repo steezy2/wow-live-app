@@ -9,6 +9,8 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 
 ### Changed
 - The side panels group saved keys and raid nights into dropdowns: one per day for the last 7 days ("Today", "Yesterday", "Mon, Nov 9"), then one per week ("Week of Nov 2"), each with its count. The newest group and the one holding the open key or pull start open.
+- The timeline's marks show their lane, time and text in a box as soon as the mouse is on them, instead of the browser's slow tooltip.
+- On a key, focusing a player cuts the timeline's Deaths, Defensives, Potions and Crowd control to that player's.
 
 ### Fixed
 - *Import from Warcraft Logs* fetched fights you already had from your own log, and the same fight once per report it's in (two raiders uploading the same night): a local key or pull now skips every report's copy of it, and a fight in several reports is fetched once. On the owner's season that's 489 fights instead of 1,297.
