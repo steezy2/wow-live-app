@@ -50,10 +50,10 @@ export function RaidPage() {
           count={(g) => counted(g.reduce((sum, n) => sum + n.pulls.length, 0), 'pull')}
           isSelected={(n) => n.pulls.some((p) => p.start === selected)}
         >
-          {(group) =>
+          {(group, label) =>
             group.map((n) => (
               <section key={n.night}>
-                {group.length > 1 && <h2>{new Date(nightTime(n)).toLocaleDateString()}</h2>}
+                {label.startsWith('Week of') && <h2>{new Date(nightTime(n)).toLocaleDateString()}</h2>}
                 {byBoss(n.pulls).map(([boss, pulls]) => (
                   <div key={boss} className="boss-pulls">
                     <h3 className="muted small">{boss}</h3>
