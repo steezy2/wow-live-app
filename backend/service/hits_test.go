@@ -22,7 +22,7 @@ func hitsTracker(t *testing.T, spec int) (*LogTracker, []string) {
 	t.Helper()
 	rules := models.MPlusRules{Defensives: models.Defensives{WindowSeconds: 10, Names: []string{"Ice Block"},
 		Externals: []string{"Pain Suppression"}},
-		BigHits: models.BigHitRules{Seconds: 3, TankPct: 50, OtherPct: 40, RecapSeconds: 10}}
+		BigHits: models.BigHitRules{Seconds: 3, TankPct: 50, OtherPct: 40, RecapSeconds: 10, LowHPPct: 40}}
 	keys, err := NewLogTracker(nil, nil, rules, nil, &memStore{})
 	if err != nil {
 		t.Fatal(err)
@@ -105,30 +105,32 @@ func TestRecapKeepsTheLastTenSeconds(t *testing.T) {
 }
 
 // TestBigHitsByRole: a big hit is a player taking 50% of their max HP within 3 s as a tank, 40% otherwise; a burst
-// that stays over the bar is one hit; a death within 10 s marks it Died, whose recap is the death's. A big hit
-// survived keeps its own recap, ending with the hit.
+// that stays over the bar is one hit; one is kept only when health fell under 40% in it (a death in it counts as 0); a
+// death within 10 s marks it Died, whose recap is the death's. A big hit survived keeps its own recap, ending with it.
 func TestBigHitsByRole(t *testing.T) {
 	for _, tc := range []struct {
 		name  string
 		spec  int
 		hits  []int // per mille of max HP, one hit a second from 20 s
-		death bool
+		hp    int   // health left after each hit, of 1000
+		death bool  // dying at 20.5 s, in the hit
 		want  int64 // the big hit's damage, 0 for none
 	}{
-		{"a tank taking 45%", 73, []int{225, 225}, false, 0},
-		{"a tank taking 55%", 73, []int{275, 275}, false, 550},
-		{"a mage taking 41%", 62, []int{205, 205}, false, 410},
-		{"a burst staying over the bar", 62, []int{250, 250, 250, 250}, false, 500},
-		{"a mage dying", 62, []int{450}, true, 450},
+		{"a tank taking 45%", 73, []int{225, 225}, 300, false, 0},
+		{"a tank taking 55%", 73, []int{275, 275}, 300, false, 550},
+		{"a mage taking 41%", 62, []int{205, 205}, 300, false, 410},
+		{"a mage left above 40% health", 62, []int{205, 205}, 500, false, 0},
+		{"a burst staying over the bar", 62, []int{250, 250, 250, 250}, 300, false, 500},
+		{"a mage dying", 62, []int{450}, 500, true, 450},
 	} {
 		keys, lines := hitsTracker(t, tc.spec)
 		lines = append(lines, at(15, `SPELL_HEAL,`+hitsShaman+`,`+testPlayer+`,2061,"Flash Heal",0x2,`+
 			hpBlock("Player-76-0000AAAA", 1000)+`,10,10,0,0,nil`)) // max HP known before the first hit
 		for i, n := range tc.hits {
-			lines = append(lines, spellHit(20+float64(i), n, 0, 500))
+			lines = append(lines, spellHit(20+float64(i), n, 0, tc.hp))
 		}
 		if tc.death {
-			lines = append(lines, diedAt(26))
+			lines = append(lines, diedAt(20.5))
 		}
 		feed(t, keys, append(lines, at(40, `CHALLENGE_MODE_END,2923,1,10,40000,100.0,3000.0`))...)
 		key, _ := keys.Latest(0)

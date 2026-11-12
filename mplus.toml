@@ -30,6 +30,8 @@ seconds = 3
 tank_pct = 50
 other_pct = 40
 recap_seconds = 10
+# A big hit is kept only when the player's health fell under this % during it (a death in it counts as 0).
+low_hp_pct = 40
 
 [lust]
 # Bloodlust and its copies, as the live M+ review finds when the party had it, to check combat potions were used then.

@@ -338,9 +338,9 @@ type KeySpike struct {
 	Causes []SpikeCause `json:"causes,omitempty"`
 }
 
-// KeyBigHit is a player taking a big share of their health fast ([big_hits] in mplus.toml): when it started on the
-// clock, how much they took (and what % of their max HP), what hit them, their cover (as a death's), and whether they
-// died within the recap's length.
+// KeyBigHit is a player taking a big share of their health fast ([big_hits] in mplus.toml), kept only when their health
+// fell under low_hp_pct in it: when it started on the clock, how much they took (and what % of their max HP), what
+// hit them, their cover (as a death's), and whether they died within the recap's length.
 type KeyBigHit struct {
 	Player    string       `json:"player"`
 	ClockMS   int64        `json:"clockMS"`
@@ -532,12 +532,14 @@ type KeySuggestionRules struct {
 }
 
 // BigHitRules are mplus.toml's [big_hits]: a big hit is a player taking TankPct (a tank) or OtherPct (anyone else) of
-// their max HP within Seconds; a death's or big hit's recap keeps RecapSeconds.
+// their max HP within Seconds, kept only when their health fell under LowHPPct in it (0: always; a death
+// in it counts as 0); a death's or big hit's recap keeps RecapSeconds.
 type BigHitRules struct {
 	Seconds      float64 `toml:"seconds"`
 	TankPct      float64 `toml:"tank_pct"`
 	OtherPct     float64 `toml:"other_pct"`
 	RecapSeconds float64 `toml:"recap_seconds"`
+	LowHPPct     float64 `toml:"low_hp_pct"`
 }
 
 // Defensives are the tracked survival buttons: class defensives, externals, healthstones and health potions, and
