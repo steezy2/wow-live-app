@@ -1,4 +1,4 @@
-import type { ImportStatus, KeyView, MeterPoint, RaidPullSummary } from './api'
+import type { ImportKind, ImportKindPlan, ImportPlan, ImportStatus, KeyView, MeterPoint, RaidPullSummary } from './api'
 
 /** A duration as the game shows it: "18:42", "1:05:09" past an hour, "-0:12" when negative. */
 export function clock(ms: number): string {
@@ -145,4 +145,36 @@ export function importProgress(s: ImportStatus, now: number): string {
     default:
       return `${done} · ${saved}${points}${failed}${s.state === 'idle' ? ' · stopped' : ''}`
   }
+}
+
+/** What the page calls a kind of fight to import. */
+export function importKindLabel(kind: ImportKind): string {
+  return { keys: 'Keys', raidKills: 'Raid kills', raidWipes: 'Raid wipes' }[kind]
+}
+
+/** An estimate of points, rounded to the nearest 100 from 1,000 and to 10 below: "~2,500 points". */
+function approxPoints(points: number): string {
+  const step = points >= 1000 ? 100 : 10
+  return `~${(Math.round(points / step) * step).toLocaleString('en-US')} points`
+}
+
+/** Hours to the nearest half hour, at least half an hour when there are any: "31 h", "2.5 h". */
+function approxHours(hours: number): string {
+  return `${hours > 0 ? Math.max(0.5, Math.round(hours * 2) / 2) : 0} h`
+}
+
+/** A kind's checkbox label, with its hours of fights: "Keys 86 · 31 h · ~2,500 points". */
+export function importKindText(k: ImportKindPlan): string {
+  return `${importKindLabel(k.kind)} ${k.fights} · ${approxHours(k.minutes / 60)} · ${approxPoints(k.points)}`
+}
+
+/** What importing the kinds ticked takes at the plan's points an hour: "Import 112 fights: ~3,300 points, about
+ * 1 h". */
+export function importTotal(plan: ImportPlan, kinds: ImportKind[]): string {
+  const ticked = plan.kinds.filter((k) => kinds.includes(k.kind))
+  const fights = ticked.reduce((n, k) => n + k.fights, 0)
+  const points = ticked.reduce((n, k) => n + k.points, 0)
+  if (fights === 0) return 'Nothing to import'
+  const hours = approxHours(points / plan.pointsPerHour)
+  return `Import ${counted(fights, 'fight')}: ${approxPoints(points)}, about ${hours}`
 }

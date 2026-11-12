@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"math"
 	"os"
 	"path/filepath"
 	"slices"
@@ -25,6 +26,9 @@ const (
 	importTries = 2
 	// importStateFile is the import's state in its folder, which a restart resumes from.
 	importStateFile = "state.json"
+	// pointsPerPlayerMinute is what importing a fight costs per player and minute, measured on keys and Mythic pulls
+	// alike (a 28-minute key 36 points, a 2:20 pull of 20 raiders 14).
+	pointsPerPlayerMinute = 0.27
 )
 
 // The states an import is in (models.ImportStatus.State).
@@ -74,19 +78,21 @@ type Importer struct {
 	done   chan struct{}
 }
 
-// importState is the import's state.json: the character, the fights to import and how far it got.
+// importState is the import's state.json: the character, the kinds picked (none, in a state from before them: all),
+// the fights picked for the character and how far it got.
 type importState struct {
 	Region      string              `json:"region"`
 	Character   string              `json:"character"`
+	Kinds       []models.ImportKind `json:"kinds"`
 	Fights      []models.FightRef   `json:"fights"`
 	Done        []models.ReportLink `json:"done"`
 	Failed      []models.ReportLink `json:"failed"`
 	PointsSpent float64             `json:"pointsSpent"`
 }
 
-// Start checks character and imports its fights of this season in the background, answering at once. It is
+// Start checks character and imports its fights of this season of kinds in the background, answering at once. It is
 // ErrBusy while an import runs; a bad character wraps ErrBadCharacter, missing keys models.ErrNoCredentials.
-func (im *Importer) Start(ctx context.Context, region, character string) error {
+func (im *Importer) Start(ctx context.Context, region, character string, kinds []models.ImportKind) error {
 	name, slug, err := im.Characters.Resolve(ctx, region, character)
 	if err != nil {
 		return err
@@ -95,11 +101,56 @@ func (im *Importer) Start(ctx context.Context, region, character string) error {
 	if err != nil {
 		log.Print(err) // a new import replaces it
 	}
-	state := importState{Region: region, Character: character}
+	state := importState{Region: region, Character: character, Kinds: kinds}
 	if old.Character == character { // a fight that saved nothing isn't fetched again
 		state.Done = old.Done
 	}
 	return im.run(state, func(ctx context.Context, st *importState) error { return im.list(ctx, st, name, slug) })
+}
+
+// Plan is what Start would import for character, by kind, with an estimate of the points; it lists the reports as
+// Start does, which caches them for a Start soon after. Its errors are Start's, and Warcraft Logs'.
+func (im *Importer) Plan(ctx context.Context, region, character string) (models.ImportPlan, error) {
+	im.mu.Lock()
+	busy := im.cancel != nil
+	im.mu.Unlock()
+	if busy {
+		return models.ImportPlan{}, ErrBusy
+	}
+	name, slug, err := im.Characters.Resolve(ctx, region, character)
+	if err != nil {
+		return models.ImportPlan{}, err
+	}
+	before, err := im.Source.RateLimit(ctx)
+	if err != nil {
+		return models.ImportPlan{}, err
+	}
+	fights, err := im.fights(ctx, region, character, name, slug)
+	if err != nil {
+		return models.ImportPlan{}, err
+	}
+	after, err := im.Source.RateLimit(ctx)
+	if err != nil {
+		return models.ImportPlan{}, err
+	}
+	plan := models.ImportPlan{Character: character, PointsPerHour: after.LimitPerHour - importReservePoints,
+		ListedPoints: spent(before, after)}
+	for _, kind := range models.ImportKinds {
+		k := models.ImportKindPlan{Kind: kind, Default: kind != models.ImportRaidWipes}
+		minutes := 0.0
+		for _, f := range fights {
+			if f.ImportKind() != kind {
+				continue
+			}
+			m := float64(f.DurationMS) / 60_000
+			k.Fights++
+			minutes += m
+			k.Points += m * float64(f.Players) * pointsPerPlayerMinute
+		}
+		k.Minutes = int(math.Round(minutes))
+		plan.Kinds = append(plan.Kinds, k)
+	}
+	return plan, nil
 }
 
 // Resume goes on with an import a restart stopped, if one has fights left.
@@ -209,20 +260,34 @@ func (im *Importer) run(state importState, first func(context.Context, *importSt
 	return nil
 }
 
-// list fills st's fights from the character's reports, back to the first page with none of this season's.
+// list fills st's fights from the character's reports.
 func (im *Importer) list(ctx context.Context, st *importState, name, slug string) error {
-	if err := im.Prepare(); err != nil && !errors.Is(err, ErrBusy) {
-		return err
-	}
-	zones, err := im.Source.CurrentZones(ctx, im.Bosses)
+	fights, err := im.fights(ctx, st.Region, st.Character, name, slug)
 	if err != nil {
 		return err
 	}
+	st.Fights = fights
+	im.mu.Lock()
+	im.show(st)
+	im.mu.Unlock()
+	return im.writeState(*st)
+}
+
+// fights are the character's fights to import (PickFights), from its reports back to the first page with none of
+// this season's, once new local logs are read.
+func (im *Importer) fights(ctx context.Context, region, character, name, slug string) ([]models.FightRef, error) {
+	if err := im.Prepare(); err != nil && !errors.Is(err, ErrBusy) {
+		return nil, err
+	}
+	zones, err := im.Source.CurrentZones(ctx, im.Bosses)
+	if err != nil {
+		return nil, err
+	}
 	var reports []models.CharacterReport
 	for page := 1; ; page++ {
-		got, more, err := im.Source.RecentReports(ctx, st.Region, slug, name, page)
+		got, more, err := im.Source.RecentReports(ctx, region, slug, name, page)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		reports = append(reports, got...)
 		if !more || !slices.ContainsFunc(got, func(r models.CharacterReport) bool {
@@ -233,13 +298,9 @@ func (im *Importer) list(ctx context.Context, st *importState, name, slug string
 	}
 	keys, pulls, err := im.Saved()
 	if err != nil {
-		return err
+		return nil, err
 	}
-	st.Fights = PickFights(reports, zones, st.Character, keys, pulls)
-	im.mu.Lock()
-	im.show(st)
-	im.mu.Unlock()
-	return im.writeState(*st)
+	return PickFights(reports, zones, character, keys, pulls), nil
 }
 
 // fetchAll fetches st's fights left, newest first, saving the state after each.
@@ -328,16 +389,23 @@ func spent(before, after models.RateLimit) float64 {
 	return after.PointsSpentThisHour
 }
 
-// left are st's fights neither done nor failed.
-func (st importState) left() []models.FightRef {
+// picked are st's fights of the kinds picked.
+func (st importState) picked() []models.FightRef {
 	return slices.DeleteFunc(slices.Clone(st.Fights), func(f models.FightRef) bool {
+		return len(st.Kinds) > 0 && !slices.Contains(st.Kinds, f.ImportKind())
+	})
+}
+
+// left are st's fights picked and neither done nor failed.
+func (st importState) left() []models.FightRef {
+	return slices.DeleteFunc(st.picked(), func(f models.FightRef) bool {
 		return slices.Contains(st.Done, f.ReportLink) || slices.Contains(st.Failed, f.ReportLink)
 	})
 }
 
 // show copies st's counts into the status; im.mu is held.
 func (im *Importer) show(st *importState) {
-	im.status.Character, im.status.Fights = st.Character, len(st.Fights)
+	im.status.Character, im.status.Fights = st.Character, len(st.picked())
 	im.status.FightsDone, im.status.FightsFailed = len(st.Done), len(st.Failed)
 	im.status.PointsSpent = st.PointsSpent
 }

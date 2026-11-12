@@ -56,10 +56,11 @@ type Characters interface {
 	Guess() string
 }
 
-// Import imports a character's Warcraft Logs fights in the background (service.Importer); Start's errors wrap
-// service.ErrBusy while one runs and as Characters.Resolve's do.
+// Import imports a character's Warcraft Logs fights in the background (service.Importer); Start's and Plan's errors
+// wrap service.ErrBusy while one runs and as Characters.Resolve's do.
 type Import interface {
-	Start(ctx context.Context, region, character string) error
+	Start(ctx context.Context, region, character string, kinds []models.ImportKind) error
+	Plan(ctx context.Context, region, character string) (models.ImportPlan, error)
 	Stop()
 	Status() models.ImportStatus
 	Remove() error
@@ -77,6 +78,11 @@ type SettingsAPI struct {
 // LogNames names the logs to archive or delete, as LogFiles lists them.
 type LogNames struct {
 	Names []string `json:"names" binding:"required,min=1"`
+}
+
+// ImportKinds are the kinds of fight to import, each once.
+type ImportKinds struct {
+	Kinds []models.ImportKind `json:"kinds" binding:"required,min=1,unique" enums:"keys,raidKills,raidWipes"`
 }
 
 // OldKeys is how many logs were read and how many keys are saved after reading the log folder.
@@ -360,36 +366,90 @@ func (s SettingsAPI) ImportStatus(c *gin.Context) {
 	c.JSON(http.StatusOK, s.Import.Status())
 }
 
-// StartImport godoc
+// ImportPlan godoc
 //
-//	@Summary		Import the character's Warcraft Logs reports of this season
-//	@Description	Lists the reports the settings' character is in, then in the background fetches each Mythic+ key and
-//	@Description	raid boss pull of the current season and raid not saved yet (a key or pull read from a local log
-//	@Description	is skipped) and saves it, tagged with its report. It waits for the hour's points when they run
-//	@Description	low, and goes on after a restart.
+//	@Summary		What an import of the character's Warcraft Logs reports would fetch
+//	@Description	Lists the reports the settings' character is in (about 2 points a report, reused for 10 minutes) and
+//	@Description	counts the fights an import would fetch by kind (Mythic+ keys, raid kills, raid wipes), with their
+//	@Description	minutes and an estimate of their points, and the points an import spends an hour.
 //	@Tags			settings
 //	@Produce		json
-//	@Success		202	{object}	models.ImportStatus
+//	@Success		200	{object}	models.ImportPlan
 //	@Failure		400	{object}	ErrorResponse	"No character, or one that doesn't fit"
 //	@Failure		404	{object}	ErrorResponse	"No Warcraft Logs keys saved"
 //	@Failure		409	{object}	ErrorResponse	"An import is running"
 //	@Failure		502	{object}	ErrorResponse	"Warcraft Logs couldn't be reached"
+//	@Router			/api/settings/warcraftlogs/import/plan [get]
+func (s SettingsAPI) ImportPlan(c *gin.Context) {
+	settings, ok := s.importCharacter(c)
+	if !ok {
+		return
+	}
+	plan, err := s.Import.Plan(c.Request.Context(), settings.Region, settings.Character)
+	if importFailed(c, err) {
+		return
+	}
+	c.JSON(http.StatusOK, plan)
+}
+
+// StartImport godoc
+//
+//	@Summary		Import the character's Warcraft Logs reports of this season
+//	@Description	Lists the reports the settings' character is in, then in the background fetches each Mythic+ key and
+//	@Description	raid boss pull of the kinds sent, of the current season and raid, not saved yet (a key or pull read
+//	@Description	from a local log is skipped) and saves it, tagged with its report. It waits for the hour's points
+//	@Description	when they run low, and goes on after a restart.
+//	@Tags			settings
+//	@Accept			json
+//	@Produce		json
+//	@Param			kinds	body		ImportKinds	true	"the kinds of fight to import"
+//	@Success		202		{object}	models.ImportStatus
+//	@Failure		400		{object}	ErrorResponse	"No character, one that doesn't fit, or no or unknown kinds"
+//	@Failure		404		{object}	ErrorResponse	"No Warcraft Logs keys saved"
+//	@Failure		409		{object}	ErrorResponse	"An import is running"
+//	@Failure		502		{object}	ErrorResponse	"Warcraft Logs couldn't be reached"
 //	@Router			/api/settings/warcraftlogs/import [post]
 func (s SettingsAPI) StartImport(c *gin.Context) {
-	settings := s.Settings.Get()
-	if settings.Character == "" {
-		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "save your character (Name-Realm) first"})
+	var body ImportKinds
+	if err := c.ShouldBindJSON(&body); err != nil || slices.ContainsFunc(body.Kinds, func(k models.ImportKind) bool {
+		return !slices.Contains(models.ImportKinds, k)
+	}) {
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "send the kinds of fight to import, each once: " +
+			fmt.Sprint(models.ImportKinds)})
 		return
 	}
-	err := s.Import.Start(c.Request.Context(), settings.Region, settings.Character)
-	if errors.Is(err, service.ErrBusy) {
-		c.JSON(http.StatusConflict, ErrorResponse{Error: "an import is already running"})
+	settings, ok := s.importCharacter(c)
+	if !ok {
 		return
 	}
-	if characterFailed(c, err) {
+	if importFailed(c, s.Import.Start(c.Request.Context(), settings.Region, settings.Character, body.Kinds)) {
 		return
 	}
 	c.JSON(http.StatusAccepted, s.Import.Status())
+}
+
+// importCharacter is the settings, when they have a character to import for; it answers 400 when they don't.
+func (s SettingsAPI) importCharacter(c *gin.Context) (models.Settings, bool) {
+	settings := s.Settings.Get().Settings
+	if settings.Character == "" {
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "save your character (Name-Realm) first"})
+		return settings, false
+	}
+	return settings, true
+}
+
+// importFailed answers an import's or plan's error, if any.
+func importFailed(c *gin.Context, err error) bool {
+	switch {
+	case errors.Is(err, service.ErrBusy):
+		c.JSON(http.StatusConflict, ErrorResponse{Error: "an import is already running"})
+	case err == nil || errors.Is(err, service.ErrBadCharacter) || errors.Is(err, models.ErrNoCredentials):
+		return characterFailed(c, err)
+	default:
+		log.Printf("importing from Warcraft Logs: %v", err)
+		c.JSON(http.StatusBadGateway, ErrorResponse{Error: "couldn't reach Warcraft Logs"})
+	}
+	return true
 }
 
 // StopImport godoc

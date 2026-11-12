@@ -630,9 +630,36 @@ export async function fetchImportStatus(signal?: AbortSignal): Promise<ImportSta
   return (await (await call('/api/settings/warcraftlogs/import', { signal })).json()) as ImportStatus
 }
 
-/** Starts importing the saved character's reports of this season in the background. */
-export async function startImport(): Promise<ImportStatus> {
-  return (await (await call('/api/settings/warcraftlogs/import', { method: 'POST' })).json()) as ImportStatus
+/** What the owner picks to import (models.ImportKind). */
+export type ImportKind = 'keys' | 'raidKills' | 'raidWipes'
+
+/** One kind's fights in an import plan: how many, their minutes, the points they'd take, and whether it starts
+ * ticked (models.ImportKindPlan). */
+export interface ImportKindPlan {
+  kind: ImportKind
+  fights: number
+  minutes: number
+  points: number
+  default: boolean
+}
+
+/** What an import of the character's reports would fetch, by kind, with the points an import spends an hour and what
+ * listing the reports cost (models.ImportPlan). */
+export interface ImportPlan {
+  character: string
+  kinds: ImportKindPlan[]
+  pointsPerHour: number
+  listedPoints: number
+}
+
+/** Lists the saved character's reports (spending points) and counts what an import would fetch. */
+export async function fetchImportPlan(): Promise<ImportPlan> {
+  return (await (await call('/api/settings/warcraftlogs/import/plan')).json()) as ImportPlan
+}
+
+/** Starts importing the saved character's fights of this season of kinds in the background. */
+export async function startImport(kinds: ImportKind[]): Promise<ImportStatus> {
+  return sendJSON<ImportStatus>('/api/settings/warcraftlogs/import', 'POST', { kinds })
 }
 
 /** Stops the import; what it fetched stays for the next one. */
