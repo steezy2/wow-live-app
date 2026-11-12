@@ -125,6 +125,39 @@ func advancedOf(guid, owner string) string {
 // TestKeyStep2 reads one short key: an interrupt, a pet's hit counted to its owner, a heal, a dispel, an avoidable
 // hit taken, a defensive just before a death, the buffs each player lacked at the start, and the key saved when it
 // ends.
+func TestADeathsDefensiveIsOnlyTheirOwn(t *testing.T) {
+	rules := models.MPlusRules{Defensives: models.Defensives{WindowSeconds: 10, Names: []string{"Zephyr"},
+		Externals: []string{"Pain Suppression"}, RaidCooldowns: []string{"Zephyr"}}} // Zephyr is both, as in mplus.toml
+	const shaman = `Player-76-0000BBBB,"Testshaman-Sargeras-US",0x512,0x80000000`
+	const mob = `Creature-0-3882-2859-27547-245336-00006BE4EA,"Radiant Spellsower",0x10a48,0x80000000`
+	none := "0000000000000000"
+	for _, tc := range []struct{ cast, target, kind string }{
+		{`374227,"Zephyr"`, none + `,nil,0x80000000,0x80000000`, "raid cooldown"},
+		{`33206,"Pain Suppression"`, shaman, "defensive"},
+	} {
+		keys, err := NewLogTracker(nil, nil, rules, nil, &memStore{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		feed(t, keys,
+			`11/4/2026 19:01:00.000-7  CHALLENGE_MODE_START,"Voidscar Arena",2923,585,10,[9]`,
+			`11/4/2026 19:01:00.000-7  COMBATANT_INFO,Player-76-0000AAAA,1,`+strings.Repeat("0,", 22)+
+				`1473,[(1,2,1)],(0,0,0),[],[],[]`,
+			`11/4/2026 19:01:25.000-7  SPELL_DAMAGE,`+mob+`,`+testPlayer+`,1238063,"Light Bolt",0x2,`+
+				advancedOf("Player-76-0000AAAA", none)+`,9000,9000,100,2,0,0,0,nil,nil,nil,ST`,
+			`11/4/2026 19:01:25.050-7  SPELL_CAST_SUCCESS,`+testPlayer+`,`+tc.target+`,`+tc.cast+`,0x8,`+
+				advancedOf("Player-76-0000AAAA", none),
+			`11/4/2026 19:01:25.100-7  UNIT_DIED,`+none+`,nil,0x80000000,0x80000000,`+testPlayer+`,0`,
+			`11/4/2026 19:03:00.000-7  CHALLENGE_MODE_END,2923,1,10,111000,100.0,3000.0`,
+		)
+		got, _ := keys.Latest(0)
+		if len(got.Casts) != 1 || got.Casts[0].Kind != tc.kind || len(got.Deaths) != 1 || got.Deaths[0].Defensive != "" {
+			t.Errorf("%s: casts %+v, deaths %+v; want a %s, not the death's defensive", tc.cast, got.Casts, got.Deaths,
+				tc.kind)
+		}
+	}
+}
+
 func TestKeyStep2(t *testing.T) {
 	keys := newTracker(t, nil)
 	const shaman = `Player-76-0000BBBB,"Testshaman-Sargeras-US",0x512,0x80000000`
