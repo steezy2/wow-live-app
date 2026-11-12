@@ -4,9 +4,11 @@ import (
 	"bufio"
 	"cmp"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
+	"math"
 	"os"
 	"path/filepath"
 	"slices"
@@ -148,13 +150,13 @@ type event struct {
 	AbilityGameID      int     `json:"abilityGameID"`
 	ExtraAbilityGameID int     `json:"extraAbilityGameID"`
 	HitType            int     `json:"hitType"`
-	Amount             int64   `json:"amount"`
-	UnmitigatedAmount  int64   `json:"unmitigatedAmount"`
-	Absorbed           int64   `json:"absorbed"`
-	Overheal           int64   `json:"overheal"`
-	Overkill           int64   `json:"overkill"`
-	Resisted           int64   `json:"resisted"`
-	Blocked            int64   `json:"blocked"`
+	Amount             whole   `json:"amount"`
+	UnmitigatedAmount  whole   `json:"unmitigatedAmount"`
+	Absorbed           whole   `json:"absorbed"`
+	Overheal           whole   `json:"overheal"`
+	Overkill           whole   `json:"overkill"`
+	Resisted           whole   `json:"resisted"`
+	Blocked            whole   `json:"blocked"`
 	Tick               bool    `json:"tick"`
 	IsAoE              bool    `json:"isAoE"`
 	Melee              bool    `json:"melee"`
@@ -163,9 +165,23 @@ type event struct {
 	ResourceChange     float64 `json:"resourceChange"`
 	ResourceChangeType int     `json:"resourceChangeType"`
 	Waste              float64 `json:"waste"`
-	MaxResourceAmount  int64   `json:"maxResourceAmount"`
+	MaxResourceAmount  whole   `json:"maxResourceAmount"`
 	resources
 	combatant
+}
+
+// whole is a number the game logs whole that Warcraft Logs can send with a fraction (an amount of 75801.453125), so
+// it reads any JSON number, rounded.
+type whole int64
+
+// UnmarshalJSON reads a JSON number into w, rounded to the nearest whole.
+func (w *whole) UnmarshalJSON(data []byte) error {
+	var f float64
+	if err := json.Unmarshal(data, &f); err != nil {
+		return err
+	}
+	*w = whole(math.Round(f))
+	return nil
 }
 
 // resources is a unit's state on an event, for advanced logging's block. Warcraft Logs keeps positions as the game's
@@ -173,14 +189,14 @@ type event struct {
 type resources struct {
 	ResourceActor  int             `json:"resourceActor"`
 	ClassResources []classResource `json:"classResources"`
-	HitPoints      int64           `json:"hitPoints"`
-	MaxHitPoints   int64           `json:"maxHitPoints"`
-	AttackPower    int64           `json:"attackPower"`
-	SpellPower     int64           `json:"spellPower"`
-	Armor          int64           `json:"armor"`
-	Versatility    int64           `json:"versatility"`
-	Avoidance      int64           `json:"avoidance"`
-	Absorb         int64           `json:"absorb"`
+	HitPoints      whole           `json:"hitPoints"`
+	MaxHitPoints   whole           `json:"maxHitPoints"`
+	AttackPower    whole           `json:"attackPower"`
+	SpellPower     whole           `json:"spellPower"`
+	Armor          whole           `json:"armor"`
+	Versatility    whole           `json:"versatility"`
+	Avoidance      whole           `json:"avoidance"`
+	Absorb         whole           `json:"absorb"`
 	X              float64         `json:"x"`
 	Y              float64         `json:"y"`
 	Facing         float64         `json:"facing"`
@@ -190,25 +206,25 @@ type resources struct {
 
 // classResource is one of a unit's powers (mana, energy...).
 type classResource struct {
-	Amount int64 `json:"amount"`
-	Max    int64 `json:"max"`
+	Amount whole `json:"amount"`
+	Max    whole `json:"max"`
 	Type   int   `json:"type"`
-	Cost   int64 `json:"cost"`
+	Cost   whole `json:"cost"`
 }
 
 // combatant is a combatantinfo event's player: stats (armor and avoidance are in resources, under the same names),
 // spec, talents, gear and auras.
 type combatant struct {
 	Faction, SpecID                       int
-	Strength, Agility, Stamina, Intellect int64
-	Dodge, Parry, Block                   int64
-	CritMelee, CritRanged, CritSpell      int64
-	Speed, Leech                          int64
-	HasteMelee, HasteRanged, HasteSpell   int64
-	Mastery                               int64
-	VersatilityDamageDone                 int64 `json:"versatilityDamageDone"`
-	VersatilityHealingDone                int64 `json:"versatilityHealingDone"`
-	VersatilityDamageReduction            int64 `json:"versatilityDamageReduction"`
+	Strength, Agility, Stamina, Intellect whole
+	Dodge, Parry, Block                   whole
+	CritMelee, CritRanged, CritSpell      whole
+	Speed, Leech                          whole
+	HasteMelee, HasteRanged, HasteSpell   whole
+	Mastery                               whole
+	VersatilityDamageDone                 whole `json:"versatilityDamageDone"`
+	VersatilityHealingDone                whole `json:"versatilityHealingDone"`
+	VersatilityDamageReduction            whole `json:"versatilityDamageReduction"`
 	TalentTree                            []struct{ ID, Rank, NodeID int }
 	PvpTalents                            []struct{ ID int }
 	Gear                                  []gearItem

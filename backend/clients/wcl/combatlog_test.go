@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
@@ -134,5 +135,13 @@ func TestAConvertedFightSavesTheKeyItWas(t *testing.T) {
 	if mage.Damage != 1700 || mage.Interrupts != 1 || mage.Purges != 1 || priest.Damage != 50 ||
 		priest.Healing != 950 || priest.Dispels != 1 || priest.DamageTaken != 9000 || mage.DamageTaken != 300 {
 		t.Fatalf("meter = %+v", meter)
+	}
+}
+
+func TestEventsReadAmountsSentWithAFraction(t *testing.T) {
+	var e event
+	err := json.Unmarshal([]byte(`{"type": "damage", "amount": 75801.453125, "absorbed": 12.5, "hitPoints": 3}`), &e)
+	if err != nil || e.Amount != 75801 || e.Absorbed != 13 || e.HitPoints != 3 {
+		t.Fatalf("amount %d, absorbed %d, hit points %d (%v); want 75801, 13, 3", e.Amount, e.Absorbed, e.HitPoints, err)
 	}
 }
