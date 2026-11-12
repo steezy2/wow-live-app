@@ -86,6 +86,39 @@ export interface KeySpike {
   causes?: SpikeCause[]
 }
 
+/** A player taking a big share of their health fast (models.KeyBigHit): how much and what % of their max HP, what
+ * hit them, their cover as a death's, and whether they died soon after. */
+export interface KeyBigHit {
+  player: string
+  clockMS: number
+  taken: number
+  pct: number
+  causes: SpikeCause[]
+  defensive: string
+  used?: boolean
+  ready: string[]
+  died?: boolean
+}
+
+/** A player's last seconds before a death or a big hit ended at clockMS (models.HitRecap), oldest event first. */
+export interface HitRecap {
+  player: string
+  clockMS: number
+  maxHP: number
+  events: RecapEvent[]
+}
+
+/** One thing that happened to a player (models.RecapEvent): a hit, heal, shield soaking a hit or button pressed, with
+ * its caster and their health after it (hp, missing when unknown). */
+export interface RecapEvent {
+  t: number
+  k: 'damage' | 'heal' | 'absorb' | 'cast'
+  a: string
+  s: string
+  n?: number
+  hp?: number
+}
+
 /** An ability that hit the party during a spike (models.SpikeCause): who cast it ('' when the log names no one). */
 export interface SpikeCause {
   ability: string
@@ -131,7 +164,9 @@ export interface KeyPull {
   openingPct: number
   priorityPct: number
   healthPct: number
-  minibosses: { name: string; diedMS: number; order: number; of: number }[]
+  /** afterMS: how long after the rest of its pack it died (missing when it wasn't last); damagePct: the share of the
+   * pull's damage into it (0 in keys saved before Nov 12). */
+  minibosses: { name: string; diedMS: number; order: number; of: number; afterMS?: number; damagePct: number }[]
   late: boolean
 }
 
@@ -208,6 +243,8 @@ export interface KeyView {
   wastedKicks: KeyCast[]
   debuffs: KeyDispel[]
   spikes: KeySpike[]
+  /** Missing in keys saved before Nov 12. */
+  bigHits?: KeyBigHit[]
   pulls: KeyPull[]
   /** The season's dungeon file has this dungeon (avoidable list, forces). */
   reference: boolean
@@ -310,12 +347,18 @@ export interface KeyTrack {
   /** Each raider's casts (e: when one with a cast time ended; x: it never finished), what each ability did and what
    * they took damage from in each stretch ([end, damage, healing, damage taken]), and when the stretches ended (each
    * starts where the one before it ended); none in pulls saved before Nov 11. */
-  casts?: Record<string, { t: number; s: string; e?: number; x?: boolean }[]>
+  casts?: Record<string, TrackCast[]>
   abilities?: Record<string, AbilitySeries[]>
   abilityTimes?: number[]
   /** Each raider's damage into each enemy (the enemy's name as `a`) in the same stretches as abilities. */
   targetSeries?: Record<string, AbilitySeries[]>
+  /** Each death's and big hit's recap, and each enemy's casts by GUID; missing in tracks saved before Nov 12. */
+  recaps?: HitRecap[]
+  mobCasts?: Record<string, TrackCast[]>
 }
+
+/** A cast on the clock (models.TrackCast): e when one with a cast time ended, x when it never finished. */
+export type TrackCast = { t: number; s: string; e?: number; x?: boolean }
 
 /** One ability's (or enemy's) numbers in each stretch: [end, damage, healing, damage taken]. */
 interface AbilitySeries {
@@ -587,16 +630,22 @@ export interface Settings {
 export interface OverlaySettings {
   show: 'keys' | 'always' | 'off'
   opacity: number
-  /** The pull and the whole key as two cards, one above the other, instead of one. */
-  split: boolean
+  /** The pull and the whole key in one card instead of two, one above the other. */
+  oneCard: boolean
+  /** Players each card shows, the top ones (0 for everyone), and its columns in order (empty for DPS, HPS, kicks). */
+  rows: number
+  columns: OverlayColumn[]
   /** Clicks go through the overlay to the game; off, a click on a player shows their abilities in the pull. */
   clickThrough: boolean
 }
+/** A column the overlay's cards can show (the settings' overlayColumns). */
+export type OverlayColumn = 'dps' | 'hps' | 'kicks' | 'pullDps' | 'taken' | 'avoidable' | 'priority' | 'dispels' | 'deaths'
 export interface SettingsView extends Settings {
   logsDirFound: boolean
   lastLogMS: number
   regions: Settings['region'][]
   overlayShows: OverlaySettings['show'][]
+  overlayColumns: OverlayColumn[]
   minOpacity: number
   /** The name of the character whose game wrote most saved keys, for the character's placeholder; "" for none. */
   characterGuess: string
@@ -892,6 +941,7 @@ export interface RaidPull extends RaidPullSummary {
   wastedKicks?: KeyCast[]
   debuffs?: KeyDispel[]
   spikes?: KeySpike[]
+  bigHits?: KeyBigHit[]
   casts?: KeyCast[]
   activity?: Record<string, number>
   /** Each raider's flask, food, Vantus Rune, tier bonus or raid buff missing at the pull's start (from 0) and each

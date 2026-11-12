@@ -80,7 +80,7 @@ func run() error {
 		return err
 	}
 	settings, err := app.LoadSettings(filepath.Join(data, "settings.json"),
-		models.Settings{LogsDir: logsDir(), Region: "us", Overlay: models.OverlaySettings{Show: "keys", Opacity: 100}})
+		models.Settings{LogsDir: logsDir(), Region: "us", Overlay: models.OverlaySettings{Show: "keys", Opacity: 90}})
 	if err != nil {
 		return err
 	}

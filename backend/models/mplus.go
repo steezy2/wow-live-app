@@ -22,6 +22,9 @@ type Key struct {
 	WastedKicks []KeyCast      `json:"wastedKicks"` // kicks that interrupted nothing
 	Debuffs     []KeyDispel    `json:"debuffs"`     // dispellable debuffs on the party and how fast they came off
 	Spikes      []KeySpike     `json:"spikes"`      // the worst bursts of party damage taken, worst first
+	// BigHits is each time a player took a big share of their health fast, in order; missing in keys saved before
+	// Nov 12.
+	BigHits []KeyBigHit `json:"bigHits,omitempty"`
 	// Lusts is when the party got Bloodlust or a copy, on the key's clock.
 	Lusts []int64 `json:"lusts"`
 	// BetweenPulls is the time between each pull and the one before it (from the second pull), on the key's clock.
@@ -135,12 +138,16 @@ type KeyPull struct {
 
 // KeyMiniboss is a miniboss in a pull: when it died on the key's clock, and its place among its pack's regular mobs
 // (first hit within 10 s of it) that died: Of is itself plus those, Order is 1 plus those that died before it (0 if it
-// didn't die). It's late when more than half of them died first.
+// didn't die). It's late when more than half of them died first. AfterMS is how long after the last of those it died
+// (0 when it wasn't last), DamagePct the share of the pull's damage that went into it; both 0 in keys saved before
+// Nov 12.
 type KeyMiniboss struct {
-	Name   string `json:"name"`
-	DiedMS int64  `json:"diedMS"`
-	Order  int    `json:"order"`
-	Of     int    `json:"of"`
+	Name      string  `json:"name"`
+	DiedMS    int64   `json:"diedMS"`
+	Order     int     `json:"order"`
+	Of        int     `json:"of"`
+	AfterMS   int64   `json:"afterMS,omitempty"`
+	DamagePct float64 `json:"damagePct"`
 }
 
 // KeyHit is damage a player took from one ability: with its direct hits for an avoidable one, and its spell school
@@ -230,6 +237,10 @@ type KeyTrack struct {
 	AbilityTimes []int64 `json:"abilityTimes,omitempty"`
 	// TargetSeries is each raider's damage into each enemy (by name, as Ability) in the same stretches.
 	TargetSeries map[string][]AbilitySeries `json:"targetSeries,omitempty"`
+	// Recaps is each death's and big hit's recap, in order; MobCasts each enemy's casts (by GUID, as Mobs and
+	// Bosses). Both missing in tracks saved before Nov 12.
+	Recaps   []HitRecap             `json:"recaps,omitempty"`
+	MobCasts map[string][]TrackCast `json:"mobCasts,omitempty"`
 }
 
 // MobTrail is where a mob went (its points unnamed) and when it died on the clock (0 while alive).
@@ -325,6 +336,42 @@ type KeySpike struct {
 	// Causes is what hit the party hardest in it, most damage first (at most three); missing in keys saved
 	// before Nov 12.
 	Causes []SpikeCause `json:"causes,omitempty"`
+}
+
+// KeyBigHit is a player taking a big share of their health fast ([big_hits] in mplus.toml): when it started on the
+// clock, how much they took (and what % of their max HP), what hit them, their cover (as a death's), and whether they
+// died within the recap's length.
+type KeyBigHit struct {
+	Player    string       `json:"player"`
+	ClockMS   int64        `json:"clockMS"`
+	Taken     int64        `json:"taken"`
+	Pct       float64      `json:"pct"`
+	Causes    []SpikeCause `json:"causes"`
+	Defensive string       `json:"defensive"`
+	Used      bool         `json:"used,omitempty"`
+	Ready     []string     `json:"ready"`
+	Died      bool         `json:"died,omitempty"`
+}
+
+// HitRecap is a player's last seconds ([big_hits] recap_seconds) before a death or a big hit ended (ClockMS): what
+// hit them, healed them or shielded them, and the buttons pressed for them, oldest first.
+type HitRecap struct {
+	Player  string       `json:"player"`
+	ClockMS int64        `json:"clockMS"`
+	MaxHP   int64        `json:"maxHP"`
+	Events  []RecapEvent `json:"events"`
+}
+
+// RecapEvent is one thing that happened to a player: a hit (Amount with what was absorbed), a heal (overheal left
+// out), a shield soaking a hit, or a button pressed (their own, or an external on them); HPPct is their health after
+// it, 0 when unknown.
+type RecapEvent struct {
+	ClockMS int64   `json:"t"`
+	Kind    string  `json:"k" enums:"damage,heal,absorb,cast"`
+	Ability string  `json:"a"`
+	Source  string  `json:"s"`
+	Amount  int64   `json:"n,omitempty"`
+	HPPct   float64 `json:"hp,omitempty"`
 }
 
 // SpikeCause is an ability that hit the party during a spike: who cast it ("" when the log names no one), its damage
@@ -468,6 +515,7 @@ type MPlusRules struct {
 	CC struct {
 		Names []string `toml:"names"`
 	} `toml:"cc"`
+	BigHits     BigHitRules        `toml:"big_hits"`
 	Defensives  Defensives         `toml:"defensives"`
 	Consumables Consumables        `toml:"consumables"`
 	Buffs       map[string]string  `toml:"buffs"` // party buff -> the class that gives it
@@ -481,6 +529,15 @@ type KeySuggestionRules struct {
 	SlowPullPct     float64 `toml:"slow_pull_pct"`
 	SlowPullSeconds float64 `toml:"slow_pull_seconds"`
 	GapSeconds      float64 `toml:"gap_seconds"`
+}
+
+// BigHitRules are mplus.toml's [big_hits]: a big hit is a player taking TankPct (a tank) or OtherPct (anyone else) of
+// their max HP within Seconds; a death's or big hit's recap keeps RecapSeconds.
+type BigHitRules struct {
+	Seconds      float64 `toml:"seconds"`
+	TankPct      float64 `toml:"tank_pct"`
+	OtherPct     float64 `toml:"other_pct"`
+	RecapSeconds float64 `toml:"recap_seconds"`
 }
 
 // Defensives are the tracked survival buttons: class defensives, externals, healthstones and health potions, and
@@ -588,8 +645,12 @@ type Settings struct {
 type OverlaySettings struct {
 	Show    string `json:"show" enums:"keys,always,off"`
 	Opacity int    `json:"opacity" minimum:"0" maximum:"100"`
-	// Split shows the pull and the whole key as two cards, one above the other, instead of one card.
-	Split bool `json:"split"`
+	// OneCard shows the pull and the whole key in one card instead of two, one above the other (the default).
+	OneCard bool `json:"oneCard"`
+	// Rows is how many players each card shows, the top ones (0 for everyone); Columns the cards' columns in order
+	// (empty for DPS, HPS and kicks).
+	Rows    int      `json:"rows" minimum:"0"`
+	Columns []string `json:"columns" enums:"dps,hps,kicks,pullDps,taken,avoidable,priority,dispels,deaths"`
 	// ClickThrough lets clicks on the overlay through to the game; off (the default), a click on a player's row
 	// shows their abilities in the pull.
 	ClickThrough bool `json:"clickThrough"`
@@ -604,7 +665,9 @@ type SettingsView struct {
 	// Regions are the regions to pick from, OverlayShows when the overlay can show, and MinOpacity its least opacity.
 	Regions      []string `json:"regions"`
 	OverlayShows []string `json:"overlayShows"`
-	MinOpacity   int      `json:"minOpacity"`
+	// OverlayColumns are the columns the overlay's cards can show.
+	OverlayColumns []string `json:"overlayColumns"`
+	MinOpacity     int      `json:"minOpacity"`
 	// CharacterGuess is the name of the character that wrote most saved keys' logs, to prefill Character with ("" for
 	// none); the logs don't name its realm.
 	CharacterGuess string `json:"characterGuess"`

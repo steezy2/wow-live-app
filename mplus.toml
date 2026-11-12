@@ -23,6 +23,14 @@ names = [
   "Ursol's Vortex", "Wing Buffet",
 ]
 
+[big_hits]
+# A big hit: a player takes this % of their max HP (tank_pct for a tank, other_pct for anyone else) within seconds.
+# Each death and big hit keeps a recap of the player's last recap_seconds: hits, heals, shields and buttons pressed.
+seconds = 3
+tank_pct = 50
+other_pct = 40
+recap_seconds = 10
+
 [lust]
 # Bloodlust and its copies, as the live M+ review finds when the party had it, to check combat potions were used then.
 names = ["Bloodlust", "Heroism", "Time Warp", "Primal Rage", "Fury of the Aspects", "Harrier's Cry"]

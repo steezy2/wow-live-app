@@ -225,6 +225,7 @@ type RaidPull struct {
 	WastedKicks []KeyCast          `json:"wastedKicks,omitempty"`
 	Debuffs     []KeyDispel        `json:"debuffs,omitempty"`
 	Spikes      []KeySpike         `json:"spikes,omitempty"`
+	BigHits     []KeyBigHit        `json:"bigHits,omitempty"`
 	Casts       []KeyCast          `json:"casts,omitempty"`
 	Activity    map[string]float64 `json:"activity,omitempty"`
 	// BuffGaps is each raider's flask, food, Vantus Rune, tier bonus or raid buff missing at the pull's start (from 0)
