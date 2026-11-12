@@ -116,9 +116,6 @@ func (im *Importer) Start(ctx context.Context, region, character string, kinds [
 	if old.Character == character { // a fight that saved nothing isn't fetched again
 		state.Done = old.Done
 	}
-	if err := os.Remove(filepath.Join(im.Dir, importPlanFile)); err != nil && !errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("removing the found fights: %w", err)
-	}
 	return im.run(state, func(ctx context.Context, st *importState) error { return im.list(ctx, st, name, slug) })
 }
 
@@ -317,8 +314,11 @@ func (im *Importer) run(state importState, first func(context.Context, *importSt
 	})
 }
 
-// list fills st's fights from the character's reports.
+// list drops the fights the last Find found and fills st's fights from the character's reports.
 func (im *Importer) list(ctx context.Context, st *importState, name, slug string) error {
+	if err := os.Remove(filepath.Join(im.Dir, importPlanFile)); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("removing the found fights: %w", err)
+	}
 	fights, err := im.fights(ctx, st.Region, st.Character, name, slug, st.Done)
 	if err != nil {
 		return err
