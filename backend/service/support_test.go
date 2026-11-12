@@ -1,6 +1,7 @@
 package service
 
 import (
+	"cmp"
 	"fmt"
 	"reflect"
 	"testing"
@@ -17,18 +18,28 @@ func TestSupportDamageMovesToTheEvoker(t *testing.T) {
 		name      string
 		supporter string
 		between   []string         // lines between the hit and its support line
+		event     string           // the support line's event, SPELL_DAMAGE_SUPPORT when ""
 		want      map[string]int64 // damage, also priority damage, by player
 		abilities []models.KeyAbility
 	}{
-		{"an Evoker in the party", "Player-76-0000BBBB", nil, map[string]int64{"Testmage": 800, "Testevoker": 200},
+		{"an Evoker in the party", "Player-76-0000BBBB", nil, "", map[string]int64{"Testmage": 800, "Testevoker": 200},
 			[]models.KeyAbility{{Player: "Testmage", Ability: "Arcane Barrage", Damage: 800, Hits: 1, School: 0x40},
 				{Player: "Testevoker", Ability: "Ebon Might", Damage: 200, Hits: 1, School: 0xc}}},
-		{"an Evoker in another party", "Player-76-0000CCCC", nil, map[string]int64{"Testmage": 1000},
+		{"an Evoker in another party", "Player-76-0000CCCC", nil, "", map[string]int64{"Testmage": 1000},
 			[]models.KeyAbility{{Player: "Testmage", Ability: "Arcane Barrage", Damage: 1000, Hits: 1, School: 0x40}}},
 		{"not after its hit", "Player-76-0000BBBB", []string{at(3, `DAMAGE_SHIELD,`+testPlayer+`,`+mobUnit(3)+
-			`,17,"Thorns",0x8,`+advancedOf(boss, "0000000000000000")+`,5,5,-1,8,0,0,0,nil,nil,nil`)},
+			`,17,"Thorns",0x8,`+advancedOf(boss, "0000000000000000")+`,5,5,-1,8,0,0,0,nil,nil,nil`)}, "",
 			map[string]int64{"Testmage": 1000},
 			[]models.KeyAbility{{Player: "Testmage", Ability: "Arcane Barrage", Damage: 1000, Hits: 1, School: 0x40}}},
+		{"a swing, whose support follows SWING_DAMAGE_LANDED", "Player-76-0000BBBB", []string{
+			at(3, `SWING_DAMAGE,`+testPlayer+`,`+mobUnit(3)+`,`+advancedOf(boss, "0000000000000000")+
+				`,500,500,-1,1,0,0,0,nil,nil,nil`),
+			at(3, `SWING_DAMAGE_LANDED,`+testPlayer+`,`+mobUnit(3)+`,`+advancedOf(boss, "0000000000000000")+
+				`,500,500,-1,1,0,0,0,nil,nil,nil`)}, "SWING_DAMAGE_LANDED_SUPPORT",
+			map[string]int64{"Testmage": 1300, "Testevoker": 200},
+			[]models.KeyAbility{{Player: "Testmage", Ability: "Arcane Barrage", Damage: 1000, Hits: 1, School: 0x40},
+				{Player: "Testmage", Ability: "Melee", Damage: 300, Hits: 1, School: 0x1},
+				{Player: "Testevoker", Ability: "Ebon Might", Damage: 200, Hits: 1, School: 0xc}}},
 	} {
 		keys := newTracker(t, nil)
 		lines := append(partyOfTwo(at(0, `CHALLENGE_MODE_START,"Den of Nalorakk",2825,586,10,[9]`)),
@@ -38,7 +49,7 @@ func TestSupportDamageMovesToTheEvoker(t *testing.T) {
 			at(3, `SPELL_DAMAGE,`+testPlayer+`,`+mobUnit(3)+`,44425,"Arcane Barrage",0x40,`+
 				advancedOf(boss, "0000000000000000")+`,1000,1000,-1,64,0,0,0,nil,nil,nil,ST`))
 		lines = append(append(lines, tc.between...),
-			at(3, `SPELL_DAMAGE_SUPPORT,`+testPlayer+`,`+mobUnit(3)+`,395152,"Ebon Might",0xc,`+
+			at(3, cmp.Or(tc.event, "SPELL_DAMAGE_SUPPORT")+`,`+testPlayer+`,`+mobUnit(3)+`,395152,"Ebon Might",0xc,`+
 				advancedOf(boss, "0000000000000000")+`,200,200,-1,12,0,0,0,nil,nil,nil,`+tc.supporter),
 			at(9, `CHALLENGE_MODE_END,2825,1,10,9000,100.0,3000.0`))
 		feed(t, keys, lines...)
@@ -77,6 +88,7 @@ func TestSupportHealingMovesToTheEvoker(t *testing.T) {
 			`,"Testevoker-Sargeras-US",0x512,0x80000000,395296,"Ebon Might",0xc,BUFF`),
 		at(1, heal("SPELL_HEAL", 1000, 100, `2061,"Flash Heal",0x2`, "")),
 		at(1, heal("SPELL_HEAL_SUPPORT", 300, 100, `413786,"Fate Mirror",0x40`, ","+evoker)),
+		at(1, heal("SPELL_HEAL_SUPPORT", 50, 0, `410089,"Prescience",0x40`, ","+evoker)), // a 2nd buff on that heal
 		at(2, absorb("SPELL_ABSORBED", 500, `17,"Power Word: Shield",0x2`, "")),
 		at(2, absorb("SPELL_ABSORBED_SUPPORT", 50, `413984,"Shifting Sands",0x40`, ","+evoker)),
 		at(9, `CHALLENGE_MODE_END,2825,1,10,9000,100.0,3000.0`))...)
@@ -89,9 +101,9 @@ func TestSupportHealingMovesToTheEvoker(t *testing.T) {
 	for _, a := range got.Abilities {
 		byAbility[a.Player+" "+a.Ability] = a.Healing
 	}
-	want := map[string]int64{"Testmage Flash Heal": 700, "Testevoker Fate Mirror": 200,
+	want := map[string]int64{"Testmage Flash Heal": 650, "Testevoker Fate Mirror": 200, "Testevoker Prescience": 50,
 		"Testmage Power Word: Shield": 450, "Testevoker Shifting Sands": 50}
-	if healing["Testmage"] != 1150 || healing["Testevoker"] != 250 || !reflect.DeepEqual(byAbility, want) {
-		t.Errorf("healing %v, abilities %v; want Testmage 1150, Testevoker 250, %v", healing, byAbility, want)
+	if healing["Testmage"] != 1100 || healing["Testevoker"] != 300 || !reflect.DeepEqual(byAbility, want) {
+		t.Errorf("healing %v, abilities %v; want Testmage 1100, Testevoker 300, %v", healing, byAbility, want)
 	}
 }

@@ -148,7 +148,7 @@ export function importProgress(s: ImportStatus, now: number): string {
 }
 
 /** What the page calls a kind of fight to import. */
-export function importKindLabel(kind: ImportKind): string {
+function importKindLabel(kind: ImportKind): string {
   return { keys: 'Keys', raidKills: 'Raid kills', raidWipes: 'Raid wipes' }[kind]
 }
 
