@@ -1,29 +1,35 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
-  <!-- WoW Live's icon, 48 px and up: a gold keystone gem inside a stopwatch whose blue timer arc is two-thirds run,
-       on a night-blue tile, with a red "live" dot. Original art: no Blizzard logo, font or game art. -->
+  <!-- WoW Live's icon, 48 px and up: a purple keystone gem crossed by a live pulse line, in a gold-framed tile like
+       an ability button. Original art: no Blizzard logo, font or game art. -->
   <defs>
-    <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#232c55"/>
-      <stop offset="1" stop-color="#0b0f1e"/>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2a1748"/>
+      <stop offset="1" stop-color="#0c0717"/>
     </linearGradient>
-    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#ffe29a"/>
-      <stop offset="1" stop-color="#c9842a"/>
+    <linearGradient id="rim" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffe7a3"/>
+      <stop offset="0.5" stop-color="#c58a2c"/>
+      <stop offset="1" stop-color="#6e4313"/>
     </linearGradient>
     <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
-      <stop offset="0" stop-color="#5b8def" stop-opacity="0.5"/>
-      <stop offset="1" stop-color="#5b8def" stop-opacity="0"/>
+      <stop offset="0" stop-color="#b65cff" stop-opacity="0.75"/>
+      <stop offset="1" stop-color="#b65cff" stop-opacity="0"/>
     </radialGradient>
+    <linearGradient id="gem" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#e9c6ff"/>
+      <stop offset="0.45" stop-color="#a335ee"/>
+      <stop offset="1" stop-color="#3d0c73"/>
+    </linearGradient>
   </defs>
-  <rect x="8" y="8" width="240" height="240" rx="56" fill="url(#tile)"/>
-  <rect x="9" y="9" width="238" height="238" rx="55" fill="none" stroke="#ffffff" stroke-opacity="0.1" stroke-width="2"/>
-  <circle cx="128" cy="138" r="96" fill="url(#glow)"/>
-  <rect x="113" y="30" width="30" height="18" rx="5" fill="url(#gold)"/>
-  <circle cx="128" cy="138" r="78" fill="none" stroke="#ffffff" stroke-opacity="0.14" stroke-width="16"/>
-  <circle cx="128" cy="138" r="78" fill="none" stroke="#5b8def" stroke-width="16" stroke-linecap="round"
-    stroke-dasharray="327 490" transform="rotate(-90 128 138)"/>
-  <path d="M128 88 L169 111 L169 165 L128 188 L87 165 L87 111 Z" fill="url(#gold)"/>
-  <path d="M128 88 L169 111 L128 134 L87 111 Z" fill="#fff6dc" fill-opacity="0.55"/>
-  <path d="M128 134 L128 188 L87 165 L87 111 Z" fill="#000000" fill-opacity="0.14"/>
-  <circle cx="204" cy="52" r="20" fill="#ff4d5e" stroke="#0b0f1e" stroke-width="7"/>
+  <rect x="8" y="8" width="240" height="240" rx="44" fill="url(#rim)"/>
+  <rect x="22" y="22" width="212" height="212" rx="32" fill="url(#bg)"/>
+  <circle cx="128" cy="128" r="96" fill="url(#glow)"/>
+  <path d="M128 50 L192 88 L192 168 L128 206 L64 168 L64 88 Z" fill="url(#gem)" stroke="#f3dcff" stroke-opacity="0.5"
+    stroke-width="3"/>
+  <path d="M128 50 L192 88 L128 126 L64 88 Z" fill="#ffffff" fill-opacity="0.28"/>
+  <path d="M128 126 L128 206 L64 168 L64 88 Z" fill="#000000" fill-opacity="0.18"/>
+  <path d="M30 136 H86 L100 104 L120 170 L140 86 L158 150 L170 136 H226" fill="none" stroke="#0c0717"
+    stroke-width="20" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M30 136 H86 L100 104 L120 170 L140 86 L158 150 L170 136 H226" fill="none" stroke="#7ff7e1"
+    stroke-width="10" stroke-linejoin="round" stroke-linecap="round"/>
 </svg>

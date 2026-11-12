@@ -4,6 +4,9 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 
 ## [Unreleased]
 
+### Changed
+- A new app icon: a purple keystone gem crossed by a live pulse line, in a gold-framed tile, without the red dot. `docs/store-listing.md` holds the Microsoft Store text and the screenshot plan for the next listing update.
+
 ## [0.4.0] - 2026-11-12
 
 ### Changed
