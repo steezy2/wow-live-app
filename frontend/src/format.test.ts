@@ -1,5 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { clock, importProgress, median, oddsText, periodLabel, progressText, resultText } from './format'
+import {
+  clock,
+  importKindText,
+  importProgress,
+  importTotal,
+  median,
+  oddsText,
+  periodLabel,
+  progressText,
+  resultText,
+} from './format'
 
 describe('clock', () => {
   it('shows minutes and seconds, hours past an hour, and a sign when negative', () => {
@@ -92,5 +102,26 @@ describe('importProgress', () => {
   })
   it('is empty before any import', () => {
     expect(importProgress({ ...status, state: 'idle', fights: 0 }, 0)).toBe('')
+  })
+})
+
+describe('import plan', () => {
+  const plan = {
+    character: 'Testmage-Somerealm',
+    kinds: [
+      { kind: 'keys' as const, fights: 86, minutes: 1846, points: 2493, default: true },
+      { kind: 'raidKills' as const, fights: 26, minutes: 155, points: 837, default: true },
+      { kind: 'raidWipes' as const, fights: 0, minutes: 0, points: 0, default: false },
+    ],
+    pointsPerHour: 3400,
+    listedPoints: 120,
+  }
+  it('names each kind with its fights, hours and points', () => {
+    expect(importKindText(plan.kinds[0])).toBe('Keys 86 · 31 h · ~2,500 points')
+    expect(importKindText(plan.kinds[1])).toBe('Raid kills 26 · 2.5 h · ~840 points')
+  })
+  it('totals the kinds ticked, with the hours the points take', () => {
+    expect(importTotal(plan, ['keys', 'raidKills'])).toBe('Import 112 fights: ~3,300 points, about 1 h')
+    expect(importTotal(plan, ['raidWipes'])).toBe('Nothing to import')
   })
 })

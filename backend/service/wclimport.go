@@ -150,7 +150,7 @@ func sharedPlayers(a, b []string) int {
 // PickFights are the report fights to import, newest first so the latest keys and pulls show up first: Mythic+
 // keys of the current Mythic+ zone's reports and boss pulls of the current raid zone's, that the character is in
 // (any case), that aren't saved yet (keys and pulls with a Report, imported or matched) and that no saved local key
-// or pull is (matchReports).
+// or pull is (matchReports), with their length, players and result.
 func PickFights(reports []models.CharacterReport, zones models.WCLZones, character string, keys []models.Key,
 	pulls []models.RaidPull) []models.FightRef {
 	name, _, _ := strings.Cut(character, "-")
@@ -183,7 +183,8 @@ func PickFights(reports []models.CharacterReport, zones models.WCLZones, charact
 			link := models.ReportLink{Code: r.Code, FightID: f.ID}
 			in := slices.ContainsFunc(f.Players, func(p string) bool { return strings.EqualFold(p, name) })
 			if kind != "" && in && !taken[link] {
-				ref := models.FightRef{ReportLink: link, StartMS: r.StartTime + f.StartTime, Kind: kind}
+				ref := models.FightRef{ReportLink: link, StartMS: r.StartTime + f.StartTime, Kind: kind,
+					DurationMS: f.EndTime - f.StartTime, Players: len(f.Players), Kill: f.Kill}
 				candidates = append(candidates, candidate{ref, f})
 			}
 		}

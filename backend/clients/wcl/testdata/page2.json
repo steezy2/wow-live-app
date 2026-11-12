@@ -1,6 +1,9 @@
 {"reportData": {"report": {"events": {"nextPageTimestamp": null, "data": [
   {"timestamp": 40000, "type": "damage", "sourceID": 1, "targetID": 4, "abilityGameID": 133, "hitType": 1,
    "amount": 1000, "resourceActor": 2, "hitPoints": 99000, "maxHitPoints": 100000},
+  {"timestamp": 40000, "type": "damage", "sourceID": 2, "targetID": 4, "abilityGameID": 395152, "hitType": 1,
+   "amount": 200, "supportID": 1, "subtractsFromSupportedActor": true, "resourceActor": 2, "hitPoints": 99000,
+   "maxHitPoints": 100000},
   {"timestamp": 45000, "type": "heal", "sourceID": 2, "targetID": 2, "abilityGameID": 2061, "hitType": 2,
    "amount": 250, "tick": true, "resourceActor": 2},
   {"timestamp": 50000, "type": "death", "sourceID": 1, "targetID": 4}]}}}}

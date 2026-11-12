@@ -182,11 +182,59 @@ const (
 	FightRaid  FightKind = "raid"
 )
 
-// FightRef is one report fight to import: its report and ID, when it started (ms since the epoch) and its kind.
+// FightRef is one report fight to import: its report and ID, when it started (ms since the epoch), its kind, how
+// long it lasted, how many players were in it and whether it was a kill.
 type FightRef struct {
 	ReportLink
-	StartMS int64     `json:"startMS"`
-	Kind    FightKind `json:"kind" enums:"mplus,raid"`
+	StartMS    int64     `json:"startMS"`
+	Kind       FightKind `json:"kind" enums:"mplus,raid"`
+	DurationMS int64     `json:"durationMS"`
+	Players    int       `json:"players"`
+	Kill       bool      `json:"kill"`
+}
+
+// ImportKind is what the owner picks to import: Mythic+ keys, raid kills or raid wipes.
+type ImportKind string
+
+// The kinds of fight the owner picks from.
+const (
+	ImportKeys      ImportKind = "keys"
+	ImportRaidKills ImportKind = "raidKills"
+	ImportRaidWipes ImportKind = "raidWipes"
+)
+
+// ImportKinds are every ImportKind, in the order the page lists them.
+var ImportKinds = []ImportKind{ImportKeys, ImportRaidKills, ImportRaidWipes}
+
+// ImportKind is which of the owner's choices the fight falls in.
+func (f FightRef) ImportKind() ImportKind {
+	switch {
+	case f.Kind == FightMPlus:
+		return ImportKeys
+	case f.Kill:
+		return ImportRaidKills
+	}
+	return ImportRaidWipes
+}
+
+// ImportPlan is what an import of a character's fights of this season would fetch, by kind in ImportKinds' order,
+// with the points an import spends an hour (the hour's limit less what it leaves for key reviews) and what listing
+// the reports cost.
+type ImportPlan struct {
+	Character     string           `json:"character"`
+	Kinds         []ImportKindPlan `json:"kinds"`
+	PointsPerHour float64          `json:"pointsPerHour"`
+	ListedPoints  float64          `json:"listedPoints"`
+}
+
+// ImportKindPlan is one kind's fights in an ImportPlan: how many, their minutes, an estimate of their points, and
+// whether the page ticks it at first.
+type ImportKindPlan struct {
+	Kind    ImportKind `json:"kind"`
+	Fights  int        `json:"fights"`
+	Minutes int        `json:"minutes"`
+	Points  float64    `json:"points"`
+	Default bool       `json:"default"`
 }
 
 // NormalizeRealm is a realm's name in lower case with only its letters and digits, so "Area 52", "area-52" and

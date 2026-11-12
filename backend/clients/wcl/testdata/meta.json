@@ -25,6 +25,8 @@
       {"gameID": 527, "name": "Purify", "type": "2"},
       {"gameID": 589, "name": "Shadow Word: Pain", "type": "32"},
       {"gameID": 883, "name": "Call Pet", "type": "1"},
+      {"gameID": 413786, "name": "Fate Mirror", "type": "64"},
+      {"gameID": 413984, "name": "Shifting Sands", "type": "64"},
       {"gameID": 2006, "name": "Resurrection", "type": "2"},
       {"gameID": 2061, "name": "Flash Heal", "type": "2"},
       {"gameID": 2139, "name": "Counterspell", "type": "64"},
@@ -33,4 +35,5 @@
       {"gameID": 9999, "name": "Big Cast", "type": "32"},
       {"gameID": 12051, "name": "Evocation", "type": "64"},
       {"gameID": 30449, "name": "Spellsteal", "type": "64"},
-      {"gameID": 108446, "name": "Soul Link", "type": "32"}]}}}}
+      {"gameID": 108446, "name": "Soul Link", "type": "32"},
+      {"gameID": 395152, "name": "Ebon Might", "type": "12"}]}}}}

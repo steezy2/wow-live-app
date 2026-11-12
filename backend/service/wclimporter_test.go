@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"sync"
@@ -11,8 +12,8 @@ import (
 	"wow-live/backend/models"
 )
 
-// fakeReports is Warcraft Logs with one report of two keys, and the points the budget answers in turn (the last
-// repeats).
+// fakeReports is Warcraft Logs with a report of two keys and a raid report (an hour older) of a kill, a wipe and a
+// wipe without the character, and the points the budget answers in turn (the last repeats).
 type fakeReports struct {
 	mu      sync.Mutex
 	budgets []models.RateLimit
@@ -24,12 +25,19 @@ func (f *fakeReports) CurrentZones(context.Context, []string) (models.WCLZones, 
 
 func (f *fakeReports) RecentReports(context.Context, string, string, string, int) ([]models.CharacterReport, bool,
 	error) {
-	fight := func(id int, start int64) models.ReportFight {
-		return models.ReportFight{ID: id, KeystoneLevel: 12, StartTime: start, EndTime: start + 1_800_000,
-			Players: []string{"Testmage"}}
+	party := []string{"Testmage", "Testrogue", "Testpriest", "Testhunter", "Testwarrior"}
+	raid := append(slices.Clone(party), make([]string, 15)...)
+	fight := func(id, level int, kill bool, start, length int64, players []string) models.ReportFight {
+		return models.ReportFight{ID: id, KeystoneLevel: level, EncounterID: 3000 + id, Kill: kill, StartTime: start,
+			EndTime: start + length, Players: players}
 	}
-	return []models.CharacterReport{{Code: "abc", ZoneID: 55, Fights: []models.ReportFight{fight(1, 0),
-		fight(2, 3_600_000)}}}, false, nil
+	return []models.CharacterReport{
+		{Code: "abc", ZoneID: 55, Fights: []models.ReportFight{fight(1, 12, false, 0, 30*60_000, party),
+			fight(2, 12, false, 3_600_000, 30*60_000, party)}},
+		{Code: "raid", ZoneID: 53, StartTime: -3_600_000, Fights: []models.ReportFight{
+			fight(1, 0, true, 0, 5*60_000, raid), fight(2, 0, false, 600_000, 2*60_000, raid),
+			fight(3, 0, false, 900_000, 3*60_000, []string{"Testrogue"})}},
+	}, false, nil
 }
 
 func (f *fakeReports) RateLimit(context.Context) (models.RateLimit, error) {
@@ -97,9 +105,11 @@ func (ti *testImporter) finish() {
 
 var plenty = models.RateLimit{LimitPerHour: 3600, PointsSpentThisHour: 100}
 
+var keysOnly = []models.ImportKind{models.ImportKeys}
+
 func TestImportFetchesEachFightNewestFirst(t *testing.T) {
 	ti := newTestImporter(t, []models.RateLimit{plenty, {LimitPerHour: 3600, PointsSpentThisHour: 140}})
-	if err := ti.Start(context.Background(), "us", "Testmage-Area52"); err != nil {
+	if err := ti.Start(context.Background(), "us", "Testmage-Area52", keysOnly); err != nil {
 		t.Fatal(err)
 	}
 	ti.finish()
@@ -115,7 +125,7 @@ func TestImportFetchesEachFightNewestFirst(t *testing.T) {
 func TestImportWaitsForThePointsToReset(t *testing.T) {
 	low := models.RateLimit{LimitPerHour: 3600, PointsSpentThisHour: 3500, PointsResetIn: 600}
 	ti := newTestImporter(t, []models.RateLimit{low, plenty})
-	if err := ti.Start(context.Background(), "us", "Testmage-Area52"); err != nil {
+	if err := ti.Start(context.Background(), "us", "Testmage-Area52", keysOnly); err != nil {
 		t.Fatal(err)
 	}
 	ti.finish()
@@ -129,7 +139,7 @@ func TestImportWaitsForThePointsToReset(t *testing.T) {
 
 func TestImportRetriesAFightThePointsStopped(t *testing.T) {
 	ti := newTestImporter(t, []models.RateLimit{plenty}, fmt.Errorf("page 3: %w", models.ErrRateLimited))
-	if err := ti.Start(context.Background(), "us", "Testmage-Area52"); err != nil {
+	if err := ti.Start(context.Background(), "us", "Testmage-Area52", keysOnly); err != nil {
 		t.Fatal(err)
 	}
 	ti.finish()
@@ -141,7 +151,7 @@ func TestImportRetriesAFightThePointsStopped(t *testing.T) {
 func TestImportMarksAFightFailedAfterItsTries(t *testing.T) {
 	boom := fmt.Errorf("boom")
 	ti := newTestImporter(t, []models.RateLimit{plenty}, boom, boom)
-	if err := ti.Start(context.Background(), "us", "Testmage-Area52"); err != nil {
+	if err := ti.Start(context.Background(), "us", "Testmage-Area52", keysOnly); err != nil {
 		t.Fatal(err)
 	}
 	ti.finish()
@@ -150,26 +160,86 @@ func TestImportMarksAFightFailedAfterItsTries(t *testing.T) {
 	}
 }
 
-func TestImportResumesFromItsState(t *testing.T) {
+func TestImportStartsWithTheKindsPicked(t *testing.T) {
 	ti := newTestImporter(t, []models.RateLimit{plenty})
-	st := importState{Region: "us", Character: "Testmage-Area52", Done: []models.ReportLink{{Code: "abc", FightID: 1}},
-		Fights: []models.FightRef{{ReportLink: models.ReportLink{Code: "abc", FightID: 1}, Kind: models.FightMPlus},
-			{ReportLink: models.ReportLink{Code: "abc", FightID: 2}, Kind: models.FightMPlus}}}
-	if err := ti.writeState(st); err != nil {
-		t.Fatal(err)
-	}
-	if err := ti.Resume(); err != nil {
+	if err := ti.Start(context.Background(), "us", "Testmage-Area52",
+		[]models.ImportKind{models.ImportRaidKills, models.ImportRaidWipes}); err != nil {
 		t.Fatal(err)
 	}
 	ti.finish()
-	if want := []models.ReportLink{{Code: "abc", FightID: 2}}; !slices.Equal(ti.read, want) {
-		t.Errorf("read %v, want only the fight left %v", ti.read, want)
+	want := []models.ReportLink{{Code: "raid", FightID: 2}, {Code: "raid", FightID: 1}}
+	if s := ti.Status(); !slices.Equal(ti.read, want) || s.Fights != 2 {
+		t.Errorf("read %v of %d fights, want only the raid's wipe and kill %v", ti.read, s.Fights, want)
+	}
+}
+
+func TestImportResumesFromItsState(t *testing.T) {
+	key := func(id int) models.FightRef {
+		return models.FightRef{ReportLink: models.ReportLink{Code: "abc", FightID: id}, Kind: models.FightMPlus}
+	}
+	kill := models.FightRef{ReportLink: models.ReportLink{Code: "raid", FightID: 1}, Kind: models.FightRaid, Kill: true}
+	for _, tc := range []struct {
+		name  string
+		kinds []models.ImportKind
+		want  []models.ReportLink
+	}{
+		{"a state from before kinds resumes every fight left", nil, []models.ReportLink{key(2).ReportLink,
+			kill.ReportLink}},
+		{"the saved kinds stay", []models.ImportKind{models.ImportRaidKills}, []models.ReportLink{kill.ReportLink}},
+	} {
+		ti := newTestImporter(t, []models.RateLimit{plenty})
+		st := importState{Region: "us", Character: "Testmage-Area52", Kinds: tc.kinds,
+			Done: []models.ReportLink{key(1).ReportLink}, Fights: []models.FightRef{key(1), key(2), kill}}
+		if err := ti.writeState(st); err != nil {
+			t.Fatal(err)
+		}
+		if err := ti.Resume(); err != nil {
+			t.Fatal(err)
+		}
+		ti.finish()
+		if !slices.Equal(ti.read, tc.want) {
+			t.Errorf("%s: read %v, want %v", tc.name, ti.read, tc.want)
+		}
+	}
+}
+
+func TestPlanCountsEachKind(t *testing.T) {
+	ti := newTestImporter(t, []models.RateLimit{plenty, {LimitPerHour: 3600, PointsSpentThisHour: 104}})
+	plan, err := ti.Plan(context.Background(), "us", "Testmage-Area52")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if plan.Character != "Testmage-Area52" || plan.PointsPerHour != 3400 || plan.ListedPoints != 4 {
+		t.Errorf("plan %+v, want Testmage's, 3,400 points an hour and 4 spent listing", plan)
+	}
+	want := []models.ImportKindPlan{
+		{Kind: models.ImportKeys, Fights: 2, Minutes: 60, Points: 81, Default: true}, // 60 × 5 × 0.27
+		{Kind: models.ImportRaidKills, Fights: 1, Minutes: 5, Points: 27, Default: true},
+		{Kind: models.ImportRaidWipes, Fights: 1, Minutes: 2, Points: 11}, // not Testrogue's
+	}
+	if !slices.Equal(plan.Kinds, want) {
+		t.Errorf("kinds %+v, want %+v", plan.Kinds, want)
+	}
+}
+
+func TestPlanIsBusyWhileAnImportRuns(t *testing.T) {
+	ti := newTestImporter(t, []models.RateLimit{plenty})
+	release := make(chan struct{})
+	ti.Prepare = func() error { <-release; return nil }
+	if err := ti.Start(context.Background(), "us", "Testmage-Area52", keysOnly); err != nil {
+		t.Fatal(err)
+	}
+	_, err := ti.Plan(context.Background(), "us", "Testmage-Area52")
+	close(release)
+	ti.finish()
+	if !errors.Is(err, ErrBusy) {
+		t.Errorf("planned during an import: %v, want ErrBusy", err)
 	}
 }
 
 func TestStartTurnsDownABadCharacter(t *testing.T) {
 	ti := newTestImporter(t, []models.RateLimit{plenty})
-	if err := ti.Start(context.Background(), "us", "Testmage-Nowhere"); err == nil {
+	if err := ti.Start(context.Background(), "us", "Testmage-Nowhere", keysOnly); err == nil {
 		t.Fatal("started with an unknown realm")
 	}
 	if s := ti.Status(); s.State != importIdle {
@@ -260,11 +330,24 @@ func TestAStoppedImportDoesntResumeAfterARestart(t *testing.T) {
 		ti.Stop()
 		return "", ctx.Err()
 	}
-	if err := ti.Start(context.Background(), "us", "Testmage-Area52"); err != nil {
+	if err := ti.Start(context.Background(), "us", "Testmage-Area52", keysOnly); err != nil {
 		t.Fatal(err)
 	}
 	ti.finish()
 	if st, err := ti.readState(); err != nil || len(st.left()) != 0 {
 		t.Errorf("state %+v (%v): want no fights left to resume", st, err)
+	}
+}
+
+func TestASecondImportCountsOnlyItsOwnFights(t *testing.T) {
+	ti := newTestImporter(t, []models.RateLimit{plenty})
+	for _, kinds := range [][]models.ImportKind{keysOnly, {models.ImportRaidKills}} {
+		if err := ti.Start(context.Background(), "us", "Testmage-Area52", kinds); err != nil {
+			t.Fatal(err)
+		}
+		ti.finish()
+	}
+	if s := ti.Status(); s.Fights != 1 || s.FightsDone != 1 {
+		t.Errorf("status %+v, want the raid kill as 1 of 1 fight, not the keys done before", s)
 	}
 }
