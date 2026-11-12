@@ -470,3 +470,18 @@ func TestStartImportNeedsACharacterAndOneImportAtATime(t *testing.T) {
 		}
 	}
 }
+
+func TestAnUnchangedCharacterIsntCheckedAgain(t *testing.T) {
+	saved := models.Settings{Region: "us", Character: "Testmage-Somerealm"}
+	router := Router(MPlus{Keys: &fakeKeys{}, Now: time.Now}, nil, &SettingsAPI{Settings: fakeSettings{&saved},
+		Characters: fakeCharacters{errors.New("Warcraft Logs is down")}}, os.DirFS(t.TempDir()), LocalHosts(port)...)
+	body, _ := json.Marshal(map[string]any{"logsDir": t.TempDir(), "region": "us", "character": saved.Character,
+		"overlay": map[string]any{"show": "keys", "opacity": 50}})
+	r := httptest.NewRequest(http.MethodPut, "/api/settings", strings.NewReader(string(body)))
+	r.Host = "localhost:8080"
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, r)
+	if w.Code != http.StatusOK || saved.Overlay.Opacity != 50 {
+		t.Errorf("%d %s: want the overlay saved without asking Warcraft Logs", w.Code, w.Body)
+	}
+}

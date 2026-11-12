@@ -107,8 +107,8 @@ func TestImportFetchesEachFightOldestFirst(t *testing.T) {
 	if !slices.Equal(ti.read, want) {
 		t.Errorf("read %v, want %v", ti.read, want)
 	}
-	if s := ti.Status(); s.State != importDone || s.FightsDone != 2 || s.KeysSaved != 2 || s.PointsSpent != 40 {
-		t.Errorf("status %+v, want done with 2 keys and 40 points", s)
+	if s := ti.Status(); s.State != importDone || s.FightsDone != 2 || s.PointsSpent != 40 {
+		t.Errorf("status %+v, want done with 2 fights and 40 points", s)
 	}
 }
 
@@ -235,5 +235,36 @@ func TestTheLocalCopyOfAKeyWins(t *testing.T) {
 		if err != nil || skip != tc.skip || !slices.Equal(deleted, tc.deleted) || !slices.Equal(left, tc.leftKeys) {
 			t.Errorf("%s: skip %v, deleted %v, left %v (%v)", tc.name, skip, deleted, left, err)
 		}
+	}
+}
+
+func TestAnImportedPullNeverReplacesTheLocalOneAtItsStart(t *testing.T) {
+	keys, store := newRaidTracker(t)
+	feed(t, keys, pullLines(3, 0, 120, 40, false)...)
+	if _, err := keys.SaveFinished(); err != nil {
+		t.Fatal(err)
+	}
+	keys.SetSource(&models.ReportLink{Code: "abc", FightID: 7}) // the same pull, uploaded from the same log
+	feed(t, keys, pullLines(3, 0, 120, 40, false)...)
+	if _, err := keys.SaveFinished(); err != nil {
+		t.Fatal(err)
+	}
+	if len(store.pulls) != 1 || store.pulls[0].Imported {
+		t.Errorf("saved %d pulls (imported %v), want only the local one", len(store.pulls), store.pulls[0].Imported)
+	}
+}
+
+func TestAStoppedImportDoesntResumeAfterARestart(t *testing.T) {
+	ti := newTestImporter(t, []models.RateLimit{plenty})
+	ti.Fetch = func(ctx context.Context, _ models.FightRef, _ string) (string, error) {
+		ti.Stop()
+		return "", ctx.Err()
+	}
+	if err := ti.Start(context.Background(), "us", "Testmage-Area52"); err != nil {
+		t.Fatal(err)
+	}
+	ti.finish()
+	if st, err := ti.readState(); err != nil || len(st.left()) != 0 {
+		t.Errorf("state %+v (%v): want no fights left to resume", st, err)
 	}
 }

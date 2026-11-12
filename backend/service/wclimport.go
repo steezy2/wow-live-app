@@ -14,16 +14,13 @@ import (
 )
 
 const (
-	// matchSlackMS is how far a report fight's length may differ from a saved key's or pull's: an uploader can trim or
-	// split a log.
+	// matchSlackMS is how far a report fight's length and start may differ from a saved key's or pull's: an uploader
+	// can trim or split a log, and Warcraft Logs' times follow the uploader's clock (a minute off seen).
 	matchSlackMS = 3 * 60_000
 	// matchTieMS is how close the second-best candidate may be to the best before neither is trusted.
 	matchTieMS = 5000
 	// matchPlayers is how many of a key's players a report fight must have.
 	matchPlayers = 3
-	// matchDayMS is how far apart in time of day a key and its report fight may start: the log's times are the PC's
-	// local clock and Warcraft Logs' are UTC, so only the date is trusted.
-	matchDayMS = 24 * 3600_000
 	// nameMin and nameMax are the length of a character's name.
 	nameMin, nameMax = 2, 12
 )
@@ -92,36 +89,31 @@ func (c Characters) Guess() string {
 	return best
 }
 
-// reportMatches are the report fight each saved key and pull is, by its index in the lists matchReports was given.
-type reportMatches struct {
-	keys, pulls map[int]models.ReportLink
-}
-
-// matchReports finds the report fight of each saved key and raid pull, if one is sure. A fight is a candidate for a
-// key when it has the same dungeon and level, a length within matchSlackMS, a start on the same date and at least
-// matchPlayers of the key's players; for a pull, the same boss, difficulty and result, a length within matchSlackMS
+// matchReports is the report fights that are saved keys and raid pulls, where the match is sure. A fight is a candidate for a
+// key when it has the same dungeon and level, a length and start within matchSlackMS and at least
+// matchPlayers of the key's players; for a pull, the same boss, difficulty and result, a length and start within matchSlackMS
 // and half the raid. The candidate with the closest length wins, unless the next is within matchTieMS of it (never
 // guess). encounters are the dungeon and boss names' Warcraft Logs encounter IDs.
 func matchReports(keys []models.Key, pulls []models.RaidPull, reports []models.CharacterReport,
-	encounters map[string]int) reportMatches {
-	found := reportMatches{keys: map[int]models.ReportLink{}, pulls: map[int]models.ReportLink{}}
-	for i, k := range keys {
+	encounters map[string]int) map[models.ReportLink]bool {
+	found := map[models.ReportLink]bool{}
+	for _, k := range keys {
 		wanted := func(f models.ReportFight) bool {
 			return f.KeystoneLevel == k.Level && f.EncounterID == encounters[k.Dungeon] && f.EncounterID != 0 &&
 				sharedPlayers(f.Players, k.Players) >= matchPlayers
 		}
 		if link, ok := closestFight(reports, k.Start, k.End-k.Start, wanted); ok {
-			found.keys[i] = link
+			found[link] = true
 		}
 	}
-	for i, p := range pulls {
+	for _, p := range pulls {
 		wanted := func(f models.ReportFight) bool {
 			return f.KeystoneLevel == 0 && f.EncounterID == encounters[p.Boss] && f.EncounterID != 0 &&
 				raidDifficultyNames[f.Difficulty] == p.Difficulty && f.Kill == p.Kill &&
 				2*sharedPlayers(f.Players, p.Players) >= len(p.Players)
 		}
 		if link, ok := closestFight(reports, p.Start, p.End-p.Start, wanted); ok {
-			found.pulls[i] = link
+			found[link] = true
 		}
 	}
 	return found
@@ -139,7 +131,7 @@ func closestFight(reports []models.CharacterReport, start, durationMS int64, wan
 	for _, r := range reports {
 		for _, f := range r.Fights {
 			off := abs(f.EndTime - f.StartTime - durationMS)
-			if off <= matchSlackMS && abs(r.StartTime+f.StartTime-start) <= matchDayMS && wanted(f) {
+			if off <= matchSlackMS && abs(r.StartTime+f.StartTime-start) <= matchSlackMS && wanted(f) {
 				candidates = append(candidates, candidate{models.ReportLink{Code: r.Code, FightID: f.ID}, off})
 			}
 		}
@@ -168,7 +160,7 @@ func sharedPlayers(a, b []string) int {
 func PickFights(reports []models.CharacterReport, zones models.WCLZones, character string, keys []models.Key,
 	pulls []models.RaidPull) []models.FightRef {
 	name, _, _ := strings.Cut(character, "-")
-	taken := map[models.ReportLink]bool{}
+	taken := matchReports(keys, pulls, reports, zones.Encounters)
 	for _, k := range keys {
 		if k.Report != nil {
 			taken[*k.Report] = true
@@ -177,12 +169,6 @@ func PickFights(reports []models.CharacterReport, zones models.WCLZones, charact
 	for _, p := range pulls {
 		if p.Report != nil {
 			taken[*p.Report] = true
-		}
-	}
-	matched := matchReports(keys, pulls, reports, zones.Encounters)
-	for _, links := range []map[int]models.ReportLink{matched.keys, matched.pulls} {
-		for _, link := range links {
-			taken[link] = true
 		}
 	}
 	var picked []models.FightRef
@@ -196,7 +182,7 @@ func PickFights(reports []models.CharacterReport, zones models.WCLZones, charact
 				kind = models.FightRaid
 			}
 			link := models.ReportLink{Code: r.Code, FightID: f.ID}
-			if kind != "" && !taken[link] && slices.Contains(f.Players, name) {
+			if kind != "" && !taken[link] && slices.ContainsFunc(f.Players, func(p string) bool { return strings.EqualFold(p, name) }) {
 				picked = append(picked, models.FightRef{ReportLink: link, StartMS: r.StartTime + f.StartTime, Kind: kind})
 			}
 		}

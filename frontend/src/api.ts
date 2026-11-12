@@ -617,8 +617,6 @@ export interface ImportStatus {
   fights: number
   fightsDone: number
   fightsFailed: number
-  keysSaved: number
-  pullsSaved: number
   pointsSpent: number
   pointsPerFight: number
   /** When it goes on after waiting for the hour's points (ms since the epoch). */

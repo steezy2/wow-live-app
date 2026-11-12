@@ -599,7 +599,9 @@ func (k *LogTracker) finishPull(kill bool) {
 		return
 	}
 	addKit(k.raid.kit, LearnKit(run.casts))
-	if i := slices.IndexFunc(k.pulls, func(p models.RaidPull) bool { return p.Start == pull.Start }); i >= 0 {
+	if i := slices.IndexFunc(k.pulls, func(p models.RaidPull) bool {
+		return p.Start == pull.Start && p.Imported == pull.Imported
+	}); i >= 0 {
 		k.pulls[i] = pull
 	} else {
 		k.pulls = append([]models.RaidPull{pull}, k.pulls...)

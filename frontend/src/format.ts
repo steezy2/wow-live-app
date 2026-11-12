@@ -130,7 +130,7 @@ export function importProgress(s: ImportStatus, now: number): string {
   if (s.state === 'idle' && s.fights === 0) return ''
   if (s.state === 'listing') return `Listing ${s.character}'s reports…`
   const done = `${s.fightsDone + s.fightsFailed} of ${counted(s.fights, 'fight')}`
-  const saved = `${counted(s.keysSaved, 'key')}, ${counted(s.pullsSaved, 'pull')}`
+  const saved = `${s.imported} keys and pulls imported`
   const points = s.pointsPerFight ? ` · about ${Math.round(s.pointsPerFight)} points a fight` : ''
   const failed = s.fightsFailed ? ` · ${s.fightsFailed} failed (${s.problem})` : ''
   switch (s.state) {
@@ -141,7 +141,7 @@ export function importProgress(s: ImportStatus, now: number): string {
     case 'failed':
       return `Stopped: ${s.problem}`
     case 'done':
-      return `Done: ${saved} imported${points}${failed}`
+      return `Done: ${saved}${points}${failed}`
     default:
       return `${done} · ${saved}${points}${failed}${s.state === 'idle' ? ' · stopped' : ''}`
   }

@@ -236,24 +236,21 @@ func (s SettingsAPI) Put(c *gin.Context) {
 			strings.Join(overlayShows, ", "), minOpacity)})
 		return
 	}
-	if next.Character = strings.TrimSpace(next.Character); next.Character != "" && !s.characterFits(c, next) {
-		return
+	before := s.Settings.Get().Settings
+	next.Character = strings.TrimSpace(next.Character)
+	if next.Character != "" && (next.Character != before.Character || next.Region != before.Region) {
+		if _, _, err := s.Characters.Resolve(c.Request.Context(), next.Region, next.Character); characterFailed(c, err) {
+			return
+		}
 	}
-	before := s.Settings.Get().Character
 	if err := s.Settings.Save(next); err != nil {
 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "couldn't save the settings"})
 		return
 	}
-	if s.Import != nil && next.Character != before {
+	if s.Import != nil && next.Character != before.Character {
 		s.Import.Stop() // its fights are the old character's
 	}
 	c.JSON(http.StatusOK, s.view())
-}
-
-// characterFits says whether next's character is valid in its region, answering why not when it isn't.
-func (s SettingsAPI) characterFits(c *gin.Context, next models.Settings) bool {
-	_, _, err := s.Characters.Resolve(c.Request.Context(), next.Region, next.Character)
-	return !characterFailed(c, err)
 }
 
 // characterFailed answers a character check's error, if any.
@@ -413,6 +410,7 @@ func (s SettingsAPI) StopImport(c *gin.Context) {
 //	@Summary		Remove every key and raid pull imported from Warcraft Logs
 //	@Description	Stops the import and deletes what it fetched; importing them again spends the points again.
 //	@Tags			settings
+//	@Produce		json
 //	@Success		204
 //	@Failure		500	{object}	ErrorResponse
 //	@Router			/api/settings/warcraftlogs/imported [delete]

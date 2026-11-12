@@ -82,8 +82,6 @@ type importState struct {
 	Done        []models.ReportLink `json:"done"`
 	Failed      []models.ReportLink `json:"failed"`
 	PointsSpent float64             `json:"pointsSpent"`
-	Keys        int                 `json:"keys"`
-	Pulls       int                 `json:"pulls"`
 }
 
 // Start checks character and imports its fights of this season in the background, answering at once. It is
@@ -93,7 +91,10 @@ func (im *Importer) Start(ctx context.Context, region, character string) error {
 	if err != nil {
 		return err
 	}
-	old, _ := im.readState()
+	old, err := im.readState()
+	if err != nil {
+		log.Print(err) // a new import replaces it
+	}
 	state := importState{Region: region, Character: character}
 	if old.Character == character { // a fight that saved nothing isn't fetched again
 		state.Done = old.Done
@@ -110,29 +111,37 @@ func (im *Importer) Resume() error {
 	return im.run(state, nil)
 }
 
-// Stop ends the running import, if any, and waits for it; fetched fights and pages stay for the next Start.
+// Stop ends the running import, if any, without waiting for it to wind down (a Start meanwhile is ErrBusy); fetched
+// fights and pages stay for the next Start, which a restart doesn't make by itself.
 func (im *Importer) Stop() {
+	im.mu.Lock()
+	defer im.mu.Unlock()
+	if im.cancel != nil {
+		im.cancel()
+	}
+}
+
+// Remove stops the import, waits for it, and deletes what it fetched and every imported key and raid pull; ErrBusy
+// when another import started meanwhile.
+func (im *Importer) Remove() error {
 	im.mu.Lock()
 	cancel, done := im.cancel, im.done
 	im.mu.Unlock()
-	if cancel == nil {
-		return
+	if cancel != nil {
+		cancel()
+		<-done
 	}
-	cancel()
-	<-done
-}
-
-// Remove stops the import and deletes what it fetched and every imported key and raid pull.
-func (im *Importer) Remove() error {
-	im.Stop()
+	im.mu.Lock()
+	defer im.mu.Unlock() // held so no import starts while its folder goes
+	if im.cancel != nil {
+		return ErrBusy
+	}
 	if err := im.RemoveImported(); err != nil {
 		return err
 	}
 	if err := os.RemoveAll(im.Dir); err != nil {
 		return fmt.Errorf("removing the imported fights: %w", err)
 	}
-	im.mu.Lock()
-	defer im.mu.Unlock()
 	im.status = models.ImportStatus{State: importIdle}
 	return nil
 }
@@ -162,6 +171,9 @@ func (im *Importer) run(state importState, first func(context.Context, *importSt
 	ctx, cancel := context.WithCancel(context.Background())
 	im.cancel, im.done = cancel, make(chan struct{})
 	im.status = models.ImportStatus{State: importRunning, Character: state.Character}
+	if first != nil {
+		im.status.State = importListing
+	}
 	im.show(&state)
 	go func() {
 		defer func() {
@@ -182,6 +194,10 @@ func (im *Importer) run(state importState, first func(context.Context, *importSt
 		defer im.mu.Unlock()
 		switch {
 		case ctx.Err() != nil:
+			state.Fights = nil // stopped: a restart doesn't resume it (Done stays, for the next Start)
+			if err := im.writeState(state); err != nil {
+				log.Print(err)
+			}
 			im.status.State, im.status.ResumeAtMS = importIdle, 0
 		case err != nil:
 			log.Printf("importing from Warcraft Logs: %v", err)
@@ -195,7 +211,6 @@ func (im *Importer) run(state importState, first func(context.Context, *importSt
 
 // list fills st's fights from the character's reports, back to the first page with none of this season's.
 func (im *Importer) list(ctx context.Context, st *importState, name, slug string) error {
-	im.setState(importListing, 0)
 	if err := im.Prepare(); err != nil && !errors.Is(err, ErrBusy) {
 		return err
 	}
@@ -251,7 +266,7 @@ func (im *Importer) fetchAll(ctx context.Context, st *importState) error {
 				return ctx.Err()
 			}
 			if errors.Is(err, models.ErrRateLimited) { // the fetched pages are kept for the next try
-				im.setState(importWaiting, im.now().Add(importRetryWait).UnixMilli())
+				im.setState(importWaiting, im.Now().Add(importRetryWait).UnixMilli())
 				if err := im.Wait(ctx, importRetryWait); err != nil {
 					return err
 				}
@@ -267,11 +282,6 @@ func (im *Importer) fetchAll(ctx context.Context, st *importState) error {
 			st.Failed = append(st.Failed, ref.ReportLink)
 		} else {
 			st.Done = append(st.Done, ref.ReportLink)
-			if ref.Kind == models.FightMPlus {
-				st.Keys++
-			} else {
-				st.Pulls++
-			}
 		}
 		im.mu.Lock()
 		im.show(st)
@@ -303,7 +313,7 @@ func (im *Importer) points(ctx context.Context) (models.RateLimit, error) {
 		default:
 			log.Printf("importing from Warcraft Logs: waiting %s: %v", wait, err)
 		}
-		im.setState(importWaiting, im.now().Add(wait).UnixMilli())
+		im.setState(importWaiting, im.Now().Add(wait).UnixMilli())
 		if err := im.Wait(ctx, wait); err != nil {
 			return budget, err
 		}
@@ -329,20 +339,13 @@ func (st importState) left() []models.FightRef {
 func (im *Importer) show(st *importState) {
 	im.status.Character, im.status.Fights = st.Character, len(st.Fights)
 	im.status.FightsDone, im.status.FightsFailed = len(st.Done), len(st.Failed)
-	im.status.KeysSaved, im.status.PullsSaved, im.status.PointsSpent = st.Keys, st.Pulls, st.PointsSpent
+	im.status.PointsSpent = st.PointsSpent
 }
 
 func (im *Importer) setState(state string, resumeAt int64) {
 	im.mu.Lock()
 	defer im.mu.Unlock()
 	im.status.State, im.status.ResumeAtMS = state, resumeAt
-}
-
-func (im *Importer) now() time.Time {
-	if im.Now != nil {
-		return im.Now()
-	}
-	return time.Now()
 }
 
 func (im *Importer) readState() (importState, error) {

@@ -157,14 +157,9 @@ func (c *Client) cachedPage(ctx context.Context, path, gql string, variables map
 	return cachefile.WriteJSON(path, out)
 }
 
-// importDir is where imported fights' zips are written, in CacheDir.
-func (c *Client) importDir() string {
-	return filepath.Join(c.CacheDir, "wcl-import")
-}
-
 // pagePath is a fight's cached page file: its metadata ("meta") or its events from a time.
 func (c *Client) pagePath(code string, fightID int, part string) string {
-	return filepath.Join(c.importDir(), "pages", fmt.Sprintf("%s-%d-%s.json", code, fightID, part))
+	return filepath.Join(c.CacheDir, ImportDir, "pages", fmt.Sprintf("%s-%d-%s.json", code, fightID, part))
 }
 
 // removePages deletes a fight's cached pages, once its zip is written.

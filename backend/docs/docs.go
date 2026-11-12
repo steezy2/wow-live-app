@@ -1075,6 +1075,9 @@ const docTemplate = `{
         "/api/settings/warcraftlogs/imported": {
             "delete": {
                 "description": "Stops the import and deletes what it fetched; importing them again spends the points again.",
+                "produces": [
+                    "application/json"
+                ],
                 "tags": [
                     "settings"
                 ],
@@ -1294,9 +1297,6 @@ const docTemplate = `{
                 "imported": {
                     "type": "integer"
                 },
-                "keysSaved": {
-                    "type": "integer"
-                },
                 "pointsPerFight": {
                     "type": "number"
                 },
@@ -1305,9 +1305,6 @@ const docTemplate = `{
                 },
                 "problem": {
                     "type": "string"
-                },
-                "pullsSaved": {
-                    "type": "integer"
                 },
                 "resumeAtMS": {
                     "type": "integer"

@@ -52,36 +52,36 @@ func TestMatchReportsKeys(t *testing.T) {
 	for _, tc := range []struct {
 		name    string
 		reports []models.CharacterReport
-		want    map[int]models.ReportLink
+		want    map[models.ReportLink]bool
 	}{
 		{"same key", []models.CharacterReport{report("A", 100, t0, keyFight(3, 12, hour, length, testParty...))},
-			map[int]models.ReportLink{0: link("A", 3)}},
+			map[models.ReportLink]bool{link("A", 3): true}},
 		{"2 minutes shorter still matches",
 			[]models.CharacterReport{report("A", 100, t0, keyFight(3, 12, hour, length-2*minute, testParty...))},
-			map[int]models.ReportLink{0: link("A", 3)}},
+			map[models.ReportLink]bool{link("A", 3): true}},
 		{"4 minutes longer doesn't",
 			[]models.CharacterReport{report("A", 100, t0, keyFight(3, 12, hour, length+4*minute, testParty...))},
-			map[int]models.ReportLink{}},
+			map[models.ReportLink]bool{}},
 		{"another level doesn't",
 			[]models.CharacterReport{report("A", 100, t0, keyFight(3, 13, hour, length, testParty...))},
-			map[int]models.ReportLink{}},
+			map[models.ReportLink]bool{}},
 		{"2 shared players don't",
 			[]models.CharacterReport{report("A", 100, t0, keyFight(3, 12, hour, length, "Testmage", "Testpriest", "Other"))},
-			map[int]models.ReportLink{}},
+			map[models.ReportLink]bool{}},
 		{"two days later doesn't",
 			[]models.CharacterReport{report("A", 100, t0+48*hour, keyFight(3, 12, hour, length, testParty...))},
-			map[int]models.ReportLink{}},
+			map[models.ReportLink]bool{}},
 		{"the closer length wins", []models.CharacterReport{report("A", 100, t0,
 			keyFight(3, 12, hour, length-minute, testParty...), keyFight(4, 12, hour, length-20_000, testParty...))},
-			map[int]models.ReportLink{0: link("A", 4)}},
+			map[models.ReportLink]bool{link("A", 4): true}},
 		{"a tie within 5 s is no match", []models.CharacterReport{report("A", 100, t0,
 			keyFight(3, 12, hour, length-10_000, testParty...), keyFight(4, 12, hour, length+10_000, testParty...))},
-			map[int]models.ReportLink{}},
+			map[models.ReportLink]bool{}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			got := matchReports([]models.Key{key}, nil, tc.reports, testZones.Encounters)
-			if !reflect.DeepEqual(got.keys, tc.want) {
-				t.Errorf("matched %v; want %v", got.keys, tc.want)
+			if !reflect.DeepEqual(got, tc.want) {
+				t.Errorf("matched %v; want %v", got, tc.want)
 			}
 		})
 	}
@@ -113,8 +113,8 @@ func TestMatchReportsPulls(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			got := matchReports(nil, []models.RaidPull{pull}, []models.CharacterReport{report("R", 200, t0, tc.fight)},
 				testZones.Encounters)
-			if _, ok := got.pulls[0]; ok != tc.want {
-				t.Errorf("matched %v; want %v", got.pulls, tc.want)
+			if ok := len(got) == 1; ok != tc.want {
+				t.Errorf("matched %v; want %v", got, tc.want)
 			}
 		})
 	}

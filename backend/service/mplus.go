@@ -469,7 +469,9 @@ func (k *LogTracker) closeCurrent(at int64, status string, final int64) {
 		return
 	}
 	// A restart reads the log again, so a key already saved replaces its copy instead of adding a second.
-	if i := slices.IndexFunc(k.history, func(h models.Key) bool { return h.Start == key.Start }); i >= 0 {
+	if i := slices.IndexFunc(k.history, func(h models.Key) bool {
+		return h.Start == key.Start && h.Imported == key.Imported
+	}); i >= 0 {
 		k.history[i] = key
 	} else {
 		k.history = append([]models.Key{key}, k.history...)

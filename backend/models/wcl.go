@@ -110,8 +110,6 @@ type ImportStatus struct {
 	Fights         int     `json:"fights"`
 	FightsDone     int     `json:"fightsDone"`
 	FightsFailed   int     `json:"fightsFailed"`
-	KeysSaved      int     `json:"keysSaved"`
-	PullsSaved     int     `json:"pullsSaved"`
 	PointsSpent    float64 `json:"pointsSpent"`
 	PointsPerFight float64 `json:"pointsPerFight"`
 	ResumeAtMS     int64   `json:"resumeAtMS"`

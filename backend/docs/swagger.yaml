@@ -106,16 +106,12 @@ definitions:
         type: integer
       imported:
         type: integer
-      keysSaved:
-        type: integer
       pointsPerFight:
         type: number
       pointsSpent:
         type: number
       problem:
         type: string
-      pullsSaved:
-        type: integer
       resumeAtMS:
         type: integer
       state:
@@ -2264,6 +2260,8 @@ paths:
     delete:
       description: Stops the import and deletes what it fetched; importing them again
         spends the points again.
+      produces:
+      - application/json
       responses:
         "204":
           description: No Content

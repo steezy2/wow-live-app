@@ -74,8 +74,6 @@ describe('importProgress', () => {
     fights: 40,
     fightsDone: 11,
     fightsFailed: 1,
-    keysSaved: 9,
-    pullsSaved: 2,
     pointsSpent: 300,
     pointsPerFight: 25,
     resumeAtMS: 0,
@@ -84,12 +82,12 @@ describe('importProgress', () => {
   }
   it('counts the fights and what they saved, with the points and the failures', () => {
     expect(importProgress(status, 0)).toBe(
-      '12 of 40 fights · 9 keys, 2 pulls · about 25 points a fight · 1 failed (boom)',
+      '12 of 40 fights · 11 keys and pulls imported · about 25 points a fight · 1 failed (boom)',
     )
   })
   it('says how long it waits for the points', () => {
     expect(importProgress({ ...status, state: 'waiting', resumeAtMS: 23 * 60_000, fightsFailed: 0 }, 0)).toBe(
-      "11 of 40 fights · 9 keys, 2 pulls · waiting 23 min for the hour's points",
+      "11 of 40 fights · 11 keys and pulls imported · waiting 23 min for the hour's points",
     )
   })
   it('is empty before any import', () => {
