@@ -82,27 +82,6 @@ func (m MPlus) Abandon(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
-// Ready godoc
-//
-//	@Summary		The ready check before the next key
-//	@Description	While the party is in a Mythic dungeon with no key running: each member's missing flask, food and
-//	@Description	party buffs, and those not seen since the party zoned in (from the combat log, so a buff from before
-//	@Description	logging started there is never seen). Read again on each notice from /api/mplus/events. A raid's is
-//	@Description	in /api/raid/live.
-//	@Tags			mplus
-//	@Produce		json
-//	@Success		200	{object}	models.ReadyCheck
-//	@Success		204	"Not in a Mythic dungeon between keys"
-//	@Router			/api/mplus/ready [get]
-func (m MPlus) Ready(c *gin.Context) {
-	ready, ok := m.Keys.Ready()
-	if !ok {
-		c.Status(http.StatusNoContent)
-		return
-	}
-	c.JSON(http.StatusOK, ready)
-}
-
 // Events godoc
 //
 //	@Summary		Notices that the keys changed

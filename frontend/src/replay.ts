@@ -105,13 +105,32 @@ export function tickStep(end: number): number {
   return end <= 600_000 ? 30_000 : 60_000
 }
 
-/** The floors a track's players stood on, most stood on first. */
+/** A floor needs this many player points (about 15 s of one player) to be one: the game logs a stray point or two on
+ * a map the party never walked (Voidscar Arena's map 0, Temple of Sethraliss's 875). */
+export const MIN_FLOOR_POINTS = 15
+
+/** The floors a track's players stood on, most stood on first, without a floor of fewer than MIN_FLOOR_POINTS points
+ * (but always the most stood on, so a track just started has one). */
 export function floorsOf(track: KeyTrack | null): number[] {
   const counts = new Map<number, number>()
   Object.values(track?.players ?? {}).forEach((ps) =>
     ps.forEach((p) => counts.set(p.map, (counts.get(p.map) ?? 0) + 1)),
   )
-  return [...counts].sort((a, b) => b[1] - a[1]).map(([m]) => m)
+  return [...counts]
+    .sort((a, b) => b[1] - a[1])
+    .filter(([, n], i) => i === 0 || n >= MIN_FLOOR_POINTS)
+    .map(([m]) => m)
+}
+
+/** An enemy's name by its GUID: a boss's from its points, a mob's from its trail; 'Enemy' when the track has none
+ * (tracks saved before Nov 12). */
+export function enemyName(track: KeyTrack, guid: string): string {
+  return track.bosses?.[guid]?.[0]?.name || track.mobs?.[guid]?.n || 'Enemy'
+}
+
+/** The player's recap ending at clockMS on the key's clock (a death's clockMS, a big hit's recapMS), if there is one. */
+export function recapOf(track: KeyTrack | null | undefined, player: string, clockMS: number | undefined) {
+  return track?.recaps?.find((r) => r.player === player && r.clockMS === clockMS)
 }
 
 /** A meter row with nothing in it, for the fields the replay's track doesn't keep. */

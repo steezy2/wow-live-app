@@ -3,8 +3,9 @@ import type { KeyHit, KeyTrack, KeyView } from './api'
 import type { FightData } from './KeyTabs'
 import { amount, causesText, clock, coverText, groupBy } from './format'
 import { defense, offense } from './meterColumns'
+import { RecapRow } from './HitRecap'
 import { MeterCard } from './MeterCards'
-import { meterBetween } from './replay'
+import { meterBetween, recapOf } from './replay'
 import { When, Who, type Seeker } from './Seek'
 
 /** The key's boss fights; a click moves the replay to one and opens its details: its length against your best run at
@@ -130,34 +131,34 @@ export function KickLedger({ data: key, seek }: { data: FightData; seek?: Seeker
   )
 }
 
-/** Each trash pull with minibosses: how many of each one's pack (the regular mobs first hit within 10 s of it) died
- * before it, which is fine as long as it's under half (red when it isn't), and the share of damage into them against
- * their share of the pull's health. */
+/** Each trash pull with priority targets (minibosses): when each died against the regular mobs of its pack (the ones
+ * first hit within 10 s of it; red when it died after more than half of them), the share of the pull's damage into it
+ * (and of its health when it's the only one), and the pull's share of damage in the first 10 s. */
 export function PriorityLedger({ keyView: key }: { keyView: KeyView }) {
   return (
     <ul className="list scroll">
       {key.pulls.map((p) => (
         <li key={p.pull} className="stack">
-          <span>
-            Pull {p.pull} <span className="muted">{clock(p.clockMS)}</span>
-          </span>
           {p.minibosses.map((m, i) => (
             <span key={i} className={m.order - 1 > (m.of - 1) / 2 ? 'bad' : undefined}>
-              {m.name}:{' '}
+              Pull {p.pull} <span className="muted">· {clock(p.clockMS)}</span> {m.name}{' '}
               {!m.order
                 ? "didn't die"
-                : m.of === 1
-                  ? 'no regular mobs in its pack'
-                  : `${m.order - 1} of ${m.of - 1} pack mobs died first`}
+                : m.afterMS
+                  ? `died ${Math.ceil(m.afterMS / 1000)} s after its pack`
+                  : m.of === 1
+                    ? 'died with no regular mobs in its pack'
+                    : m.order === m.of
+                      ? 'died after its pack'
+                      : `died with ${m.of - m.order} of ${m.of - 1} pack mobs still up`}
+              {m.damagePct > 0 && ` · ${Math.round(m.damagePct)}% of damage`}
+              {p.minibosses.length === 1 && ` (${Math.round(p.healthPct)}% of health)`}
             </span>
           ))}
-          <span className="muted">
-            {Math.round(p.priorityPct)}% of the damage into the minibosses ({Math.round(p.healthPct)}% of the pull's
-            health; {Math.round(p.openingPct)}% in the first 10 s)
-          </span>
+          <span className="muted">first 10 s: {Math.round(p.openingPct)}% of damage</span>
         </li>
       ))}
-      {key.pulls.length === 0 && <li className="muted">No pulls with a miniboss yet</li>}
+      {key.pulls.length === 0 && <li className="muted">No pulls with a priority target yet</li>}
     </ul>
   )
 }
@@ -205,19 +206,31 @@ export function SpikeLedger(props: { data: FightData; group: 'party' | 'raid'; s
   )
 }
 
-/** The damage spikes whose hardest-hit player had a defensive ready and used none, newest first: when, who, how much
- * they took and what was ready. */
-export function BigHits({ data, seek }: { data: FightData; seek?: Seeker }) {
-  const hits = data.spikes.filter((s) => s.unused).reverse()
+/** Each big hit a player took, newest first: when, who, how much (and what % of their health), what hit them and their
+ * cover, red when a defensive was ready and none used; a click opens its recap (a player who died soon after has the
+ * death's). */
+export function BigHits({ data, seek, track }: { data: FightData; seek?: Seeker; track?: KeyTrack | null }) {
+  if (!data.bigHits) {
+    return <p className="muted">Saved before big hits were kept: Read old logs in Settings fills it in</p>
+  }
+  const hits = [...data.bigHits].reverse()
   return (
     <ul className="list scroll">
-      {hits.map((s) => (
-        <li key={s.clockMS}>
-          <span>
-            <When ms={s.clockMS} seek={seek} /> <Who player={s.members[0].player} seek={seek} />{' '}
-            {amount(s.members[0].taken)} <span className="muted">with {s.unused} ready</span>
+      {hits.map((h) => (
+        <RecapRow
+          key={`${h.player}-${h.clockMS}`}
+          recap={recapOf(track, h.player, h.recapMS)}
+          ready={h.ready}
+          died={h.died}
+        >
+          <span className={!h.used && !h.defensive && h.ready.length > 0 ? 'bad' : ''}>
+            <When ms={h.clockMS} seek={seek} /> <Who player={h.player} seek={seek} /> {amount(h.taken)} (
+            {Math.round(h.pct)}%){h.died && <b className="bad"> died</b>}
           </span>
-        </li>
+          <span className="muted">
+            {causesText({ damage: h.taken, causes: h.causes })} &middot; {coverText(h)}
+          </span>
+        </RecapRow>
       ))}
       {hits.length === 0 && <li className="muted">None</li>}
     </ul>

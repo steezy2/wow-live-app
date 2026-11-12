@@ -21,6 +21,8 @@ var (
 	regions = []string{"us", "eu", "kr", "tw"}
 	// overlayShows are when the overlay shows: during keys, always, or never.
 	overlayShows = []string{"keys", "always", "off"}
+	// overlayColumns are the columns the overlay's cards can show (the page names them).
+	overlayColumns = []string{"dps", "hps", "kicks", "pullDps", "taken", "avoidable", "priority", "dispels", "deaths"}
 )
 
 // minOpacity is the overlay background's least opacity in %: 0 leaves only the text over the game.
@@ -237,10 +239,11 @@ func (s SettingsAPI) Put(c *gin.Context) {
 	err := c.ShouldBindJSON(&next)
 	next.LogsDir = filepath.Clean(next.LogsDir)
 	if o := next.Overlay; err != nil || !filepath.IsAbs(next.LogsDir) || !slices.Contains(regions, next.Region) ||
-		!slices.Contains(overlayShows, o.Show) || o.Opacity < minOpacity || o.Opacity > 100 {
+		!slices.Contains(overlayShows, o.Show) || o.Opacity < minOpacity || o.Opacity > 100 || o.Rows < 0 ||
+		slices.ContainsFunc(o.Columns, func(c string) bool { return !slices.Contains(overlayColumns, c) }) {
 		c.JSON(http.StatusBadRequest, ErrorResponse{Error: fmt.Sprintf("send a full log folder path, a region (%s), when "+
-			"overlay shows (%s) and its opacity (%d to 100)", strings.Join(regions, ", "),
-			strings.Join(overlayShows, ", "), minOpacity)})
+			"overlay shows (%s), its opacity (%d to 100), its rows (0 or more) and its columns (%s)",
+			strings.Join(regions, ", "), strings.Join(overlayShows, ", "), minOpacity, strings.Join(overlayColumns, ", "))})
 		return
 	}
 	before := s.Settings.Get().Settings
@@ -281,6 +284,7 @@ func characterFailed(c *gin.Context, err error) bool {
 func (s SettingsAPI) view() models.SettingsView {
 	view := s.Settings.Get()
 	view.Regions, view.OverlayShows, view.MinOpacity = regions, overlayShows, minOpacity
+	view.OverlayColumns = overlayColumns
 	view.CharacterGuess = s.Characters.Guess()
 	return view
 }

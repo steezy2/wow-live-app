@@ -215,6 +215,7 @@ func (k *LogTracker) details(run *keyRun, at int64) models.Key {
 	key.Overall = meter(run.total, k.classes(run), 0, run.clock(at), run.elapsed(at))
 	key.Lusts = list(key.Lusts)
 	key.Spikes, key.Activity = k.spikes(run, key.Casts, buffs, kit), map[string]float64{}
+	key.BigHits = k.bigHits(run, buffs, kit)
 	for player, seconds := range run.fighting {
 		active := 0
 		for s := range seconds {

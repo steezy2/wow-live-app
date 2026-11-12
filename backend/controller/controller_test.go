@@ -48,7 +48,6 @@ func (f *fakeKeys) Track(int64) (models.KeyTrack, error) {
 }
 
 func (f *fakeKeys) DungeonMap(int) (models.DungeonMap, error) { return models.DungeonMap{}, nil }
-func (f *fakeKeys) Ready() (models.ReadyCheck, bool)          { return models.ReadyCheck{}, false }
 func (f *fakeKeys) Abandon() bool                             { return f.ok }
 
 func (f *fakeKeys) DeleteSaved(start int64) error {
@@ -326,6 +325,9 @@ func TestSettingsAreSavedOnlyWithChoicesTheAPIOffers(t *testing.T) {
 		{string(full), `{"show": "always", "opacity": 70}`, http.StatusOK},
 		{string(full), `{"show": "sometimes", "opacity": 70}`, http.StatusBadRequest},
 		{string(full), `{"show": "keys", "opacity": 120}`, http.StatusBadRequest},
+		{string(full), `{"show": "keys", "opacity": 90, "rows": 5, "columns": ["dps", "taken"]}`, http.StatusOK},
+		{string(full), `{"show": "keys", "opacity": 90, "columns": ["dps", "mana"]}`, http.StatusBadRequest},
+		{string(full), `{"show": "keys", "opacity": 90, "rows": -1}`, http.StatusBadRequest},
 		{string(full), `{}`, http.StatusBadRequest},
 		{`"Logs"`, `{"show": "always", "opacity": 70}`, http.StatusBadRequest},
 		{`""`, `{"show": "always", "opacity": 70}`, http.StatusBadRequest},

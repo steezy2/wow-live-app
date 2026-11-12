@@ -194,7 +194,7 @@ func advice(key models.Key, player string, spec specInfo, metrics []models.Revie
 		}
 	}
 	wentOff := countFunc(key.Stops, func(s models.KeyStop) bool { return s.Outcome == "went off" })
-	if k := byName["kicks"]; wentOff > 0 && k.PartyRank > (party+1)/2 && !spec.Healer {
+	if k := byName["kicks"]; wentOff > 0 && k.PartyRank > (party+1)/2 && spec.Role != "healer" {
 		out = append(out, fmt.Sprintf("%d must-stop casts went off; you kicked %.0f", wentOff, k.Value))
 	}
 	switch main := byName[mainMetric(spec)]; {
@@ -209,7 +209,7 @@ func advice(key models.Key, player string, spec specInfo, metrics []models.Revie
 	if readyIn, ready := unusedDefensives(key, player); readyIn >= 2 {
 		out = append(out, fmt.Sprintf("Took big hits with %s ready in %d damage spikes", ready, readyIn))
 	}
-	if p, ok := byName["combat potions"]; ok && !spec.Healer && lustsWithoutPotion(key, player) > 0 {
+	if p, ok := byName["combat potions"]; ok && spec.Role != "healer" && lustsWithoutPotion(key, player) > 0 {
 		out = append(out, fmt.Sprintf("Used %s in a key with %s", counted(int(p.Value), "combat potion"),
 			counted(len(key.Lusts), "Bloodlust")))
 	}
@@ -249,7 +249,7 @@ var reviewed = append([]reviewMetric{dpsMetric, hpsMetric}, otherMetrics...)
 
 // mainMetric is the metric a spec is ranked and advised by: HPS for healers, DPS for everyone else (tanks too, in M+).
 func mainMetric(spec specInfo) string {
-	if spec.Healer {
+	if spec.Role == "healer" {
 		return hpsMetric.name
 	}
 	return dpsMetric.name
@@ -373,9 +373,8 @@ func partyNotes(key models.Key) []string {
 		notes = append(notes, fmt.Sprintf("%s; %s had room for %d", counted(len(key.Lusts), "Bloodlust"),
 			clockText(lengthMS(key)), room))
 	}
-	if late := countFunc(key.Pulls, func(p models.KeyPull) bool { return p.Late }); late > 0 {
-		notes = append(notes, fmt.Sprintf("A miniboss died after most of its pack in %d of %d pulls with one", late,
-			len(key.Pulls)))
+	if late := lateText(key.Pulls); late != "" {
+		notes = append(notes, late)
 	}
 	if ranOut := countFunc(key.Debuffs, func(d models.KeyDispel) bool { return d.By == "" }); ranOut >= lateDebuffs {
 		notes = append(notes, fmt.Sprintf("%d of %d dispellable debuffs ran their full time", ranOut, len(key.Debuffs)))

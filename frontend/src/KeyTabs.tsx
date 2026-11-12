@@ -1,22 +1,17 @@
-import type { ReactNode } from 'react'
-import type { KeyCast, KeyHit, KeyView, RaidLane } from './api'
+import { type ReactNode, useState } from 'react'
+import type { KeyBigHit, KeyCast, KeyDeath, KeyHit, KeyTrack, KeyView, RaidLane } from './api'
 import { coverText } from './format'
-import type { PlayerEvent } from './events'
+import { RecapRow } from './HitRecap'
 import { Avoidable, BigHits, KickLedger, SpikeLedger } from './KeyLedgers'
-import { EventList, When, Who, type Seeker } from './Seek'
+import { recapOf } from './replay'
+import { When, Who, type Seeker } from './Seek'
 
 /** What a fight's tabs read: a key's view, or a raid pull's lists; avoidableHits missing in pulls saved before Nov
  * 11. */
 export type FightData = Pick<
   KeyView,
   'deaths' | 'interrupts' | 'casts' | 'stops' | 'wastedKicks' | 'spikes' | 'debuffs' | 'reference'
-> & { avoidableHits?: KeyHit[]; lanes: RaidLane[] }
-
-/** One player's moments for their tab: the focused player, else the log's writer; none for a raid without a focus. */
-export interface Moments {
-  player?: string
-  events: PlayerEvent[]
-}
+> & { avoidableHits?: KeyHit[]; bigHits?: KeyBigHit[]; lanes: RaidLane[] }
 
 /** A tab: its name and what it shows. */
 export interface FightTab {
@@ -25,14 +20,14 @@ export interface FightTab {
 }
 
 /** The tabs a key and a raid pull share, in order: Deaths (named deathsName), Interrupts, Must-stops, Spikes, Big
- * hits, Avoidable, Defensives and potions, CC, then (with moments, once the fight is over) one player's moments; group
- * names the cooldowns that cover a spike. With seek, a row's time moves the replay and a name focuses the player. */
+ * hits, Avoidable, Defensives and potions, CC; group names the cooldowns that cover a spike. With seek, a row's time
+ * moves the replay and a name focuses the player. With the fight's track, a death or big hit opens its recap. */
 export function fightTabs(
   data: FightData,
   deathsName: string,
   group: 'party' | 'raid',
   seek?: Seeker,
-  moments?: Moments,
+  track?: KeyTrack | null,
 ): FightTab[] {
   const cc = data.casts.filter((c) => c.kind === 'cc')
   const pressed = data.casts.filter((c) => c.kind !== 'cc')
@@ -42,7 +37,7 @@ export function fightTabs(
       body: (
         <ul className="list scroll">
           {data.deaths.map((d, i) => (
-            <li key={`${d.player}-${d.clockMS}-${i}`} className="stack">
+            <RecapRow key={`${d.player}-${d.clockMS}-${i}`} recap={recapOf(track, d.player, d.clockMS)} ready={d.ready} died>
               <span>
                 <Who player={d.player} seek={seek} /> {d.ability || 'unknown'}{' '}
                 <span className="muted">from {d.killer || 'unknown'}</span>
@@ -50,7 +45,7 @@ export function fightTabs(
               <span className="muted">
                 <When ms={d.clockMS} seek={seek} /> · {coverText(d)}
               </span>
-            </li>
+            </RecapRow>
           ))}
           {data.deaths.length === 0 && <li className="muted">None</li>}
         </ul>
@@ -85,7 +80,7 @@ export function fightTabs(
       body: <KickLedger data={data} seek={seek} />,
     },
     { name: `Spikes ${data.spikes.length}`, body: <SpikeLedger data={data} group={group} seek={seek} /> },
-    { name: `Big hits ${data.spikes.filter((s) => s.unused).length}`, body: <BigHits data={data} seek={seek} /> },
+    { name: `Big hits ${data.bigHits?.length ?? 0}`, body: <BigHits data={data} seek={seek} track={track} /> },
     {
       name: `Avoidable ${new Set(data.avoidableHits?.map((h) => h.ability)).size}`,
       body: <Avoidable data={data} seek={seek} />,
@@ -93,46 +88,77 @@ export function fightTabs(
     {
       name: 'Defensives and potions',
       body: (
-        <ul className="list scroll">
-          {byPlayer(pressed).map(([player, casts]) => (
-            <li key={player} className="stack">
-              <b>{player}</b>
-              <span className="muted">{countBy(casts.map(castName))}</span>
-            </li>
+        <div className="cards compact">
+          {byPlayer(pressed, data.deaths).map(([player, casts]) => (
+            <PlayerCard key={player} player={player} summary={countBy(casts.map(castName)) || 'pressed nothing'} seek={seek}>
+              {casts.map((c, i) => (
+                <div key={i} className="card-row">
+                  <span className="name">{castName(c)}</span>
+                  <When ms={c.clockMS} seek={seek} />
+                </div>
+              ))}
+              <ul className="list">
+                {data.deaths
+                  .filter((d) => d.player === player)
+                  .map((d, i) => (
+                    <RecapRow key={i} recap={recapOf(track, d.player, d.clockMS)} ready={d.ready} died>
+                      <span className="bad">Died to {d.ability || 'unknown'}</span>
+                      <span className="muted">
+                        <When ms={d.clockMS} seek={seek} />
+                      </span>
+                    </RecapRow>
+                  ))}
+              </ul>
+            </PlayerCard>
           ))}
-          {pressed.length === 0 && <li className="muted">None</li>}
-        </ul>
+          {pressed.length === 0 && data.deaths.length === 0 && <p className="muted">None</p>}
+        </div>
       ),
     },
     {
       name: `CC ${cc.length}`,
       body: (
-        <ul className="list scroll">
-          {byPlayer(cc).map(([player, casts]) => (
-            <li key={player} className="stack">
-              <span>
-                <b>{player}</b> {casts.length}
-              </span>
-              <span className="muted">{countBy(casts.map((c) => c.ability))}</span>
-            </li>
-          ))}
-          {cc.length === 0 && <li className="muted">None ([cc] in mplus.toml)</li>}
-        </ul>
+        <>
+          <p className="muted small">Counts uses: an area stun counts once; a totem or trap counts when placed.</p>
+          <div className="cards compact">
+            {byPlayer(cc).map(([player, casts]) => (
+              <PlayerCard key={player} player={player} summary={`${casts.length} uses`} seek={seek}>
+                {casts.map((c, i) => (
+                  <div key={i} className="card-row">
+                    <span className="name">{c.ability}</span>
+                    <When ms={c.clockMS} seek={seek} />
+                  </div>
+                ))}
+              </PlayerCard>
+            ))}
+            {cc.length === 0 && <p className="muted">None ([cc] in mplus.toml)</p>}
+          </div>
+        </>
       ),
     },
-    ...(moments && seek
-      ? [
-          {
-            name: moments.player ?? 'Moments',
-            body: moments.player ? (
-              <EventList events={moments.events} onSeek={seek.onSeek} />
-            ) : (
-              <p className="muted">Pick a {group === 'raid' ? 'raider' : 'player'} to see their moments</p>
-            ),
-          },
-        ]
-      : []),
   ]
+}
+
+/** A player's card: their name and a summary, with a button that opens the children below. */
+// It lives with the tabs that use it; fightTabs beside it is why the rule fires.
+// eslint-disable-next-line react-refresh/only-export-components
+function PlayerCard(props: { player: string; summary: string; seek?: Seeker; children: ReactNode }) {
+  const { player, summary, seek, children } = props
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="card small">
+      <div className="card-row card-head">
+        <span>
+          <button className="back" aria-expanded={open} aria-label={`${player}'s details`} onClick={() => setOpen(!open)}>
+            {open ? '▾' : '▸'}
+          </button>{' '}
+          <Who player={player} seek={seek} />
+        </span>
+        <span className="muted">{summary}</span>
+      </div>
+      {open && children}
+    </div>
+  )
 }
 
 /** How a pressed button is counted: a defensive by its name, a raid cooldown by its name marked as one, a potion drunk
@@ -153,9 +179,11 @@ function countBy(values: string[]): string {
     .join(' · ')
 }
 
-/** Casts grouped by player, in the order players first used something. */
-function byPlayer(casts: KeyCast[]): [string, KeyCast[]][] {
+/** Casts grouped by player, in the order players first used something; players in deaths who pressed nothing follow
+ * with none. */
+function byPlayer(casts: KeyCast[], deaths: KeyDeath[] = []): [string, KeyCast[]][] {
   const groups = new Map<string, KeyCast[]>()
   casts.forEach((c) => groups.set(c.player, [...(groups.get(c.player) ?? []), c]))
+  deaths.forEach((d) => groups.has(d.player) || groups.set(d.player, []))
   return [...groups]
 }

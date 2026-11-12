@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { fetchRaidNights, fetchRaidPull, subscribe, type RaidNight, type RaidPull, type RaidPullSummary } from './api'
+import { fetchRaidNights, fetchRaidPull, subscribe, type KeyTrack, type RaidNight, type RaidPull, type RaidPullSummary } from './api'
 import { clock, counted, groupBy, progressText } from './format'
 import { defense, raidOffense } from './meterColumns'
 import { MeterCard } from './MeterCards'
-import { eventsOf } from './events'
 import { ReportLinks, ReportTag } from './ReportLinks'
 import { fightTabs, type FightData } from './KeyTabs'
 import { PlayerTable } from './PlayerTable'
@@ -231,15 +230,16 @@ export function RaidPullView({ pull }: { pull: RaidPull }) {
         focus={focus}
         onFocus={setFocus}
       />
-      <PullTabs pull={pull} seek={{ onSeek: show, classes, onFocus: setFocus }} focus={focus} />
+      <PullTabs pull={pull} seek={{ onSeek: show, classes, onFocus: setFocus }} track={track ?? null} />
       <BuffGaps pull={pull} classes={classes} onSeek={show} onFocus={setFocus} />
     </>
   )
 }
 
 /** The overlay's card between pulls: how far the last pull got, the boss's health as a bar with tonight's best pull
- * marked, the first deaths, the top things to fix, and the top DPS and HPS; made very short, the title and bar only. */
-export function RaidOverlayCard({ pull }: { pull: RaidPull }) {
+ * marked, the first deaths, the top things to fix, and the top DPS and HPS (rows players each when set, else 5 and 3);
+ * made very short, the title and bar only. */
+export function RaidOverlayCard({ pull, rows = 0 }: { pull: RaidPull; rows?: number }) {
   const classes = classesOf(pull)
   const best = pull.comparisons?.tonight
   const more = pull.deaths.length - OVERLAY_DEATHS
@@ -280,12 +280,12 @@ export function RaidOverlayCard({ pull }: { pull: RaidPull }) {
         <div className="overlay-meters">
           <MeterCard
             title="Damage"
-            meter={topMeter(pull.meter, 'dps', OVERLAY_DPS_ROWS)}
+            meter={topMeter(pull.meter, 'dps', rows || OVERLAY_DPS_ROWS)}
             columns={raidOffense.slice(0, 1)}
           />
           <MeterCard
             title="Healing"
-            meter={topMeter(pull.meter, 'hps', OVERLAY_HPS_ROWS)}
+            meter={topMeter(pull.meter, 'hps', rows || OVERLAY_HPS_ROWS)}
             columns={defense(false).slice(0, 1)}
           />
         </div>
@@ -295,9 +295,9 @@ export function RaidOverlayCard({ pull }: { pull: RaidPull }) {
 }
 
 /** Under the meters: every raider's pull in one table, and the tabs a key has (deaths, interrupts, must-stops, spikes,
- * big hits, avoidable, defensives and potions, CC, the focused raider's moments); a pull saved before they were kept
+ * big hits, avoidable, defensives and potions, CC); a pull saved before they were kept
  * says how to fill them in. */
-function PullTabs({ pull, seek, focus }: { pull: RaidPull; seek: Seeker; focus: string }) {
+function PullTabs({ pull, seek, track }: { pull: RaidPull; seek: Seeker; track: KeyTrack | null }) {
   if (!pull.casts) return <NoAbilities />
   const data: FightData = {
     deaths: pull.deaths,
@@ -309,9 +309,9 @@ function PullTabs({ pull, seek, focus }: { pull: RaidPull; seek: Seeker; focus: 
     debuffs: pull.debuffs ?? [],
     reference: true,
     avoidableHits: pull.avoidableHits,
+    bigHits: pull.bigHits,
     lanes: pull.lanes,
   }
-  const moments = { player: focus || undefined, events: focus ? eventsOf(pull, focus) : [] }
   return (
     <>
       <PlayerTable
@@ -322,7 +322,7 @@ function PullTabs({ pull, seek, focus }: { pull: RaidPull; seek: Seeker; focus: 
         deaths={pull.deaths}
         onPick={seek.onFocus}
       />
-      <Tabs tabs={fightTabs(data, `Deaths ${pull.deaths.length}`, 'raid', seek, moments)} />
+      <Tabs tabs={fightTabs(data, `Deaths ${pull.deaths.length}`, 'raid', seek, track)} />
     </>
   )
 }

@@ -318,7 +318,7 @@ func (k *LogTracker) raidLine(line models.LogLine) bool {
 // raidCooldown says whether a raider's (by GUID) spell is a raid cooldown: one of healer_only's only from a healer.
 func (k *LogTracker) raidCooldown(guid, spell string) bool {
 	return k.raid.cooldowns[spell] &&
-		(!slices.Contains(k.raid.rules.Cooldowns.HealerOnly, spell) || specs[k.specs[guid]].Healer)
+		(!slices.Contains(k.raid.rules.Cooldowns.HealerOnly, spell) || specs[k.specs[guid]].Role == "healer")
 }
 
 // auraOn notes an aura landing on a raider at at (clockMS on the pull's clock): a pickup, the effect of the last
@@ -590,6 +590,7 @@ func (k *LogTracker) finishPull(kill bool) {
 		run.key.Status = "kill"
 	}
 	endPull(run)
+	k.finishBigHits(run, at, true)
 	run.sample.at = -run.sample.every // closes the last stretch, however short
 	k.sampleAbilities(at)
 	pull := k.raidPull(run, k.details(run, at), at, kill)
@@ -708,7 +709,7 @@ func (k *LogTracker) raidPull(run *keyRun, key models.Key, at int64, kill bool) 
 		}
 	}
 	slices.SortStableFunc(p.Cooldowns, func(a, b models.KeyCast) int { return cmp.Compare(a.ClockMS, b.ClockMS) })
-	p.Spikes = key.Spikes
+	p.Spikes, p.BigHits = key.Spikes, key.BigHits
 	p.Lanes = k.lanes(run, p, at)
 	p.Abilities, p.Taken = abilities(run, k.schools)
 	p.Targets = targets(run)

@@ -76,10 +76,9 @@ type LogTracker struct {
 	left         *keyRun          // a key Abandon closed, taken up again if the log goes on in it for resumeMS
 	held         []models.LogLine // the lines read since left closed, which it takes in if it runs again
 	last         *models.Key
-	ready        *readyWatch        // the party's buffs before the next key, while in a Mythic dungeon
 	top          map[[2]int][]int64 // (map ID, level) -> top Warcraft Logs run times, for a first run's estimate
 	asked        map[[2]int]bool    // (map ID, level) -> top runs asked for already
-	version      int64              // goes up with every line read in a key or pull, as one starts, and as the ready check changes
+	version      int64              // goes up with every line read in a key or pull, and as one starts
 	lastAt       int64              // the time of the last line read before the one being read
 	raid         *raidSetup         // nil until EnableRaid: raid pulls aren't read
 	pulls        []models.RaidPull  // finished raid pulls, newest first
@@ -137,6 +136,7 @@ type keyRun struct {
 	lastHealed [2]string                        // player and ability of the last heal or absorb (support)
 	// takenAt is the party's damage taken by second of the log, ability and source, for spikeCauses.
 	takenAt map[int64]map[[2]string]*models.SpikeCause
+	hits    hitWatch // each party member's recap buffer and big hits (hits.go)
 }
 
 // NewLogTracker tracks keys with each dungeon's time limit (map ID -> ms), affix names (ID -> name), the page's
@@ -234,6 +234,9 @@ func (k *LogTracker) add(line models.LogLine) {
 		return
 	}
 	run := k.current
+	if run != nil {
+		k.finishBigHits(run, line.Time, false)
+	}
 	if run == nil && line.Event == "ENCOUNTER_START" && k.raid != nil && len(f) >= 5 && raidDifficulties[f[2]] != "" {
 		k.startPull(line)
 		return
@@ -242,12 +245,6 @@ func (k *LogTracker) add(line models.LogLine) {
 		return
 	}
 	if run == nil {
-		if line.Event == "ZONE_CHANGE" {
-			k.watchReady(line.Time, f)
-			k.version++
-		} else if k.ready != nil && k.readyLine(line.Event, f) {
-			k.version++
-		}
 		return
 	}
 	switch line.Event {
@@ -400,7 +397,6 @@ func advancedAt(event string) int {
 func (k *LogTracker) start(line models.LogLine) {
 	f := line.Fields
 	k.closeCurrent(k.lastAt, "abandoned", 0)
-	k.ready = nil // COMBATANT_INFO at the start has everyone's buffs
 	mapID := atoi(f[2])
 	run := newRun(models.Key{Dungeon: f[0], MapID: mapID, Level: atoi(f[3]), Start: line.Time, Status: "running",
 		TimerMS: k.timers[mapID]}, f[1])
@@ -432,7 +428,7 @@ func newRun(key models.Key, instance string) *keyRun {
 			Mobs: map[string]models.MobTrail{}},
 		auras: map[string][]int{}, gear: map[string][]int{}, total: map[string]*models.KeyMeterRow{}, inPull: map[string]*models.KeyMeterRow{},
 		abilities: map[[2]string]*models.KeyAbility{}, takenBy: map[[2]string]int64{},
-		takenAt: map[int64]map[[2]string]*models.SpikeCause{},
+		takenAt: map[int64]map[[2]string]*models.SpikeCause{}, hits: newHitWatch(),
 		sample: abilitySampler{every: mplusAbilityEveryMS, abilitiesWere: map[[2]string]models.KeyAbility{},
 			takenWere: map[[2]string]int64{}, targetsWere: map[[2]string]int64{}, casting: map[string]int{}}}
 	run.track.Casts, run.track.Abilities = map[string][]models.TrackCast{}, map[string][]models.AbilitySeries{}
@@ -467,6 +463,7 @@ func (k *LogTracker) closeCurrent(at int64, status string, final int64) {
 	}
 	run.key.End, run.key.Status, run.key.FinalMS = at, status, final
 	endPull(run)
+	k.finishBigHits(run, at, true)
 	run.sample.at = -run.sample.every // closes the last stretch, however short
 	k.sampleAbilities(at)
 	key := k.details(run, at)
@@ -499,8 +496,10 @@ func (k *LogTracker) death(at int64, f []string) {
 	}
 	run.deaths = append(run.deaths, models.Death{Fight: run.pull, At: at, Player: name, Ability: hit.ability})
 	run.down[name] = true
-	run.key.Deaths = append(run.key.Deaths, models.KeyDeath{Player: name, ClockMS: k.clockAt(at), Killer: hit.source,
+	clockMS := k.clockAt(at)
+	run.key.Deaths = append(run.key.Deaths, models.KeyDeath{Player: name, ClockMS: clockMS, Killer: hit.source,
 		Ability: hit.ability})
+	k.deathRecap(run, at, name, clockMS)
 	if run.raid != nil {
 		run.raid.recaps = append(run.raid.recaps, recap(run.recent[f[4]], at))
 	}
@@ -573,6 +572,9 @@ func (k *LogTracker) event(at int64, event string, f []string) {
 	case "SPELL_CAST_SUCCESS":
 		if src != "" && strings.HasPrefix(f[0], "Player-") {
 			run.ability(src, f[9]).Casts++
+			if run.hits.maxHP[src] == 0 {
+				run.hits.hpAfter(event, f, f[0], src) // their max HP, for one only ever hit by swings
+			}
 		}
 		if kind := k.kinds[f[9]]; kind != "" && src != "" {
 			ability := f[9]
@@ -586,6 +588,7 @@ func (k *LogTracker) event(at int64, event string, f []string) {
 			}
 			run.key.Casts = append(run.key.Casts, models.KeyCast{Player: src, Ability: ability, Kind: kind,
 				ClockMS: k.clockAt(at)})
+			k.recapCast(run, at, event, f, src, ability, kind)
 		}
 	case "SPELL_INTERRUPT":
 		if src != "" && len(f) > 12 {
@@ -619,9 +622,17 @@ func (k *LogTracker) event(at int64, event string, f []string) {
 	case "SPELL_DAMAGE_SUPPORT", "SPELL_PERIODIC_DAMAGE_SUPPORT", "RANGE_DAMAGE_SUPPORT", "SWING_DAMAGE_LANDED_SUPPORT":
 		k.support(at, f, src)
 	case "SPELL_HEAL", "SPELL_PERIODIC_HEAL":
-		if src != "" && len(f) > 32 {
-			k.heal(src, f[9], int64(atoi(f[30])-atoi(f[32]))).Hits++
+		if len(f) <= 32 {
+			break
+		}
+		amount := int64(atoi(f[30]) - atoi(f[32]))
+		if src != "" {
+			k.heal(src, f[9], amount).Hits++
 			run.lastHealed = [2]string{src, f[9]}
+		}
+		if dst != "" && amount > 0 && strings.HasPrefix(f[4], "Player-") {
+			k.recapEvent(run, at, dst, models.RecapEvent{Kind: "heal", Ability: f[9],
+				Source: cmp.Or(src, unitName(f[1])), Amount: amount, HPPct: run.hits.hpAfter(event, f, f[4], dst)})
 		}
 	case "SPELL_HEAL_SUPPORT", "SPELL_PERIODIC_HEAL_SUPPORT":
 		if src != "" && len(f) > 33 {
@@ -635,7 +646,12 @@ func (k *LogTracker) event(at int64, event string, f []string) {
 		if n < 18 {
 			break
 		}
-		switch caster, amount := k.player(f[n-10], f[n-8]), int64(atoi(f[n-3])); {
+		caster, amount := k.player(f[n-10], f[n-8]), int64(atoi(f[n-3]))
+		if !support && dst != "" && amount > 0 && strings.HasPrefix(f[4], "Player-") {
+			k.recapEvent(run, at, dst, models.RecapEvent{Kind: "absorb", Ability: f[n-5],
+				Source: cmp.Or(caster, unitName(f[n-9])), Amount: amount})
+		}
+		switch {
 		case caster == "":
 		case support:
 			k.supportHeal(caster, f[n], f[n-5], amount)
@@ -657,9 +673,9 @@ func (k *LogTracker) damage(at int64, event string, f []string, src, dst string)
 	if !strings.HasPrefix(event, "SWING") && len(f) > 9 {
 		ability = f[9]
 	}
-	amount := hitAmount(event, f)
+	amount, source := hitAmount(event, f), unitName(f[1])
 	if strings.HasPrefix(f[4], "Player-") {
-		run.took(f[4], hitAt{ability: ability, source: unitName(f[1]), amount: amount, at: at})
+		run.took(f[4], hitAt{ability: ability, source: source, amount: amount, at: at})
 	}
 	dealt := src != "" && hasFlag(f[6], hostileFlag)
 	if dealt || (dst != "" && hasFlag(f[2], hostileFlag)) {
@@ -677,8 +693,9 @@ func (k *LogTracker) damage(at int64, event string, f []string, src, dst string)
 		}
 		run.taken[name][at/1000] += amount
 		run.takenBy[[2]string{name, ability}] += amount
-		run.tookFrom(at/1000, ability, unitName(f[1]), amount)
+		tookFrom(run.takenAt, at/1000, ability, source, amount)
 		run.pullOf[at/1000] = run.pull
+		k.tookHit(run, at, event, f, name, ability, source, amount)
 		k.tally(name, func(r *models.KeyMeterRow) {
 			r.DamageTaken += amount
 			if avoidable {

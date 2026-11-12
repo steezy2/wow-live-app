@@ -1,4 +1,4 @@
-import type { KeyMeterRow } from './api'
+import type { KeyDeath, KeyMeter, KeyMeterRow, OverlayColumn } from './api'
 import { median } from './format'
 
 /** A card column: its heading, the value it sorts and draws by, and how it shows. */
@@ -55,4 +55,52 @@ export function defense(avoidable: boolean): Column[] {
     { label: 'Taken', value: (r) => r.damageTaken, group: true },
   ]
   return avoidable ? [...columns, { label: 'Avoidable', value: (r) => r.avoidable, tone: aboveMedian }] : columns
+}
+
+/** Each overlay column's short heading, by its settings id (models.OverlayColumns). */
+export const OVERLAY_LABELS: Record<OverlayColumn, string> = {
+  dps: 'DPS',
+  hps: 'HPS',
+  kicks: 'Kicks',
+  pullDps: 'Pull DPS',
+  taken: 'Taken',
+  avoidable: 'Avoid.',
+  priority: 'Prio %',
+  dispels: 'Disp.',
+  deaths: 'Deaths',
+}
+
+/** An overlay card's column by its settings id: pull is the last pull, for the Pull DPS column, and deaths the deaths
+ * inside the card's span, for the Deaths column. The others are the page's own columns (label in columns), under the
+ * overlay's heading and without a group rule. */
+export function overlayColumn(id: OverlayColumn, pull: KeyMeter, deaths: KeyDeath[]): Column {
+  const short = (columns: Column[], label: string): Column => ({
+    ...columns.find((c) => c.label === label)!,
+    label: OVERLAY_LABELS[id],
+    group: false,
+  })
+  switch (id) {
+    case 'dps':
+      return short(offense, 'DPS')
+    case 'hps':
+      return short(defense(false), 'HPS')
+    case 'kicks':
+      return short(offense, 'Kicks')
+    case 'pullDps': {
+      const byPlayer = new Map(pull.rows.map((r) => [r.player, r.dps]))
+      return { label: OVERLAY_LABELS[id], value: (r) => byPlayer.get(r.player) ?? 0 }
+    }
+    case 'taken':
+      return short(defense(false), 'Taken')
+    case 'avoidable':
+      return short(defense(true), 'Avoidable')
+    case 'priority':
+      return short(offense, 'Priority')
+    case 'dispels':
+      return short(offense, 'Dispels')
+    case 'deaths': {
+      const count = (r: KeyMeterRow) => deaths.filter((d) => d.player === r.player).length
+      return { label: OVERLAY_LABELS[id], value: count, show: (r) => String(count(r)) }
+    }
+  }
 }

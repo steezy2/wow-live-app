@@ -1,6 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import type { KeyTrack, RaidPull, TrackPoint } from './api'
-import { abilitiesBetween, abilitiesUpTo, indexAfter, lastAt, meterBetween, positionAt } from './replay'
+import {
+  abilitiesBetween,
+  abilitiesUpTo,
+  enemyName,
+  floorsOf,
+  indexAfter,
+  lastAt,
+  meterBetween,
+  MIN_FLOOR_POINTS,
+  positionAt,
+} from './replay'
 
 const at = (t: number, x: number, map = 1): TrackPoint => ({ t, x, y: 0, map })
 
@@ -125,5 +135,30 @@ describe('meterBetween', () => {
     expect([row.damage, row.damageTaken, row.avoidable, row.priorityDamage, row.interrupts, row.dispels]).toEqual([
       2000, 400, 400, 600, 2, 0,
     ])
+  })
+})
+
+describe('floorsOf', () => {
+  const on = (map: number, n: number) => Array.from({ length: n }, (_, i) => at(i * 1000, 0, map))
+  it('drops a floor with a few stray points', () => {
+    const players = { a: [...on(1, 40), ...on(0, 2)], b: on(2, MIN_FLOOR_POINTS) }
+    expect(floorsOf({ players } as unknown as KeyTrack)).toEqual([1, 2])
+  })
+  it('keeps the only floor of a track just started', () => {
+    expect(floorsOf({ players: { a: on(1, 3) } } as unknown as KeyTrack)).toEqual([1])
+  })
+})
+
+describe('enemyName', () => {
+  const track = {
+    bosses: { boss: [{ ...at(0, 0), name: 'Boss' }] },
+    mobs: { named: { n: 'Lost Sethrak', p: [at(0, 5)] }, old: { p: [at(0, 0)] } },
+  } as unknown as KeyTrack
+  it.each([
+    ['a boss, from its points', 'boss', 'Boss'],
+    ['a mob, from its trail', 'named', 'Lost Sethrak'],
+    ['a mob saved before names were kept', 'old', 'Enemy'],
+  ])('%s', (_, guid, name) => {
+    expect(enemyName(track, guid)).toBe(name)
   })
 })

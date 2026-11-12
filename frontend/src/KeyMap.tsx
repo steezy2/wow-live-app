@@ -16,6 +16,7 @@ import { clock } from './format'
 import {
   abilitiesUpTo,
   BOSS_GONE_MS,
+  enemyName,
   floorsOf,
   JUMP_YARDS_PER_S,
   indexAfter,
@@ -25,7 +26,7 @@ import {
   type SliderMark,
   type useReplay,
 } from './replay'
-import { BossBox, CastBox, TakenBox } from './ReplayBoxes'
+import { BossBox, FocusBoxes } from './ReplayBoxes'
 
 /** The trail the live map draws. */
 const LIVE_TRAIL_MS = 30_000
@@ -118,7 +119,7 @@ export function ReplayControls(props: {
 /** The party on the dungeon's map (from the key's track): live, the last 30 s of trails; for a finished key, a
  * replay with controls on the page's replay clock. Floors Keystone.guru maps are drawn on its tiles; any other floor's
  * shape is where parties have walked in its saved runs. A click on a player (their dot, or a row in the meter cards)
- * follows them, a right click on the map the whole party again. */
+ * follows them, a click on an enemy shows its casts, and a right click on the map lets go of both. */
 export function KeyMap(props: {
   keyView: KeyView
   clockMS: number
@@ -132,6 +133,7 @@ export function KeyMap(props: {
   const [dungeon, setDungeon] = useState<DungeonMap>({ floors: [], walked: [] })
   const [trail, setTrail] = useState(0)
   const [floor, setFloor] = useState<number | null>(null)
+  const [enemy, setEnemy] = useState('')
 
   useEffect(() => {
     const controller = new AbortController()
@@ -190,14 +192,15 @@ export function KeyMap(props: {
           deaths={key.deaths}
           focus={follow}
           onPick={setFollow}
+          enemy={enemy}
+          onPickEnemy={setEnemy}
         />
         <BossBox track={track} now={now} />
-        {follow && <CastBox track={track} player={follow} now={now} />}
-        {upTo && <TakenBox taken={upTo.taken} />}
+        <FocusBoxes track={track} player={follow} enemy={enemy} taken={upTo?.taken} now={now} />
       </div>
       <p className="muted small">
-        Scroll to zoom, drag to move, double click for the whole floor · click a player to follow them, right click for
-        the whole party
+        Scroll to zoom, drag to move, double click for the whole floor · click a player to follow them or an enemy for
+        its casts, right click for neither
         {tiled && (
           <>
             {' '}
@@ -238,8 +241,10 @@ function canvasSize(backdrop: Backdrop): [number, number] {
 
 /** The map itself: the backdrop, each player's trail and dot in their class colour (a cross where they died), a raid
  * boss's units and minibosses (named), the other mobs alive (small, unnamed), and mob deaths so far. The wheel zooms
- * around the pointer, a drag pans and a double click shows all of it again. With onPick, a click on a player's dot picks them and a right click picks nobody (''); the focused
- * player gets a ring and their name, and the others' trails fade. */
+ * around the pointer, a drag pans and a double click shows all of it again. With onPick, a click on a player's dot
+ * picks them and a right click picks nobody (''); the focused player gets a ring and their name, and the others'
+ * trails fade. With onPickEnemy, a click on a mob or a boss picks it (by GUID), the right click lets go of it too, and
+ * the picked enemy gets a ring and its name. */
 export function MapCanvas(props: {
   track: KeyTrack
   backdrop: Backdrop
@@ -251,13 +256,16 @@ export function MapCanvas(props: {
   deaths: { player: string; clockMS: number }[]
   focus?: string
   onPick?: (player: string) => void
+  enemy?: string
+  onPickEnemy?: (guid: string) => void
 }) {
-  const { track, backdrop, floor, now, clock, trailMS, deaths, focus, onPick } = props
+  const { track, backdrop, floor, now, clock, trailMS, deaths, focus, onPick, enemy, onPickEnemy } = props
   const ref = useRef<HTMLCanvasElement>(null)
   const [loaded, setLoaded] = useState(0)
   const [view, setView] = useState(WHOLE)
   const shown = useRef(WHOLE) // the view as last drawn, for the wheel
-  const dots = useRef<{ player: string; x: number; y: number }[]>([]) // where each player was last drawn
+  // Where each player and enemy (by its GUID) was last drawn, and its dot's radius.
+  const dots = useRef<{ id: string; enemy: boolean; x: number; y: number; r: number }[]>([])
   const press = useRef<{ x: number; y: number; dragged: boolean } | null>(null)
   const [width, height] = canvasSize(backdrop)
   useEffect(() => {
@@ -291,10 +299,11 @@ export function MapCanvas(props: {
     if (!from || from.dragged || !onPick) return
     const [x, y] = onCanvas(e, e.currentTarget)
     const [atX, atY] = [view.x + x / view.k, view.y + y / view.k]
-    const far = (d: { x: number; y: number }) => Math.hypot(d.x - atX, d.y - atY)
-    const reach = ((e.currentTarget.width / 160) * 2.5) / view.k
-    const [nearest] = dots.current.filter((d) => far(d) <= reach).sort((a, b) => far(a) - far(b))
-    if (nearest) onPick(nearest.player)
+    const far = (d: { x: number; y: number; r: number }) => Math.hypot(d.x - atX, d.y - atY) - d.r // from its edge
+    const reach = ((e.currentTarget.width / 160) * 1.3) / view.k
+    const pick = (d: { enemy: boolean }) => (d.enemy ? onPickEnemy : onPick)
+    const [nearest] = dots.current.filter((d) => pick(d) && far(d) <= reach).sort((a, b) => far(a) - far(b))
+    if (nearest) pick(nearest)?.(nearest.id)
   }
   const area = useMemo<[number, number, number]>(
     () => (backdrop.kind === 'image' ? fightArea(backdrop.map, track, floor) : [0, 0, 1]),
@@ -368,6 +377,13 @@ export function MapCanvas(props: {
         ctx.textAlign = 'center'
         ctx.fillText(text, x, y - dot * 3.4)
       }
+      const ring = (x: number, y: number, r: number) => {
+        ctx.strokeStyle = css.text
+        ctx.lineWidth = dot / 3
+        ctx.beginPath()
+        ctx.arc(x, y, r, 0, 2 * Math.PI)
+        ctx.stroke()
+      }
       ctx.fillStyle = css.bad
       track.deaths
         .filter((d) => d.map === floor && d.t <= now)
@@ -375,22 +391,28 @@ export function MapCanvas(props: {
           const [x, y] = at(d)
           ctx.fillRect(x - dot / 2, y - dot / 2, dot, dot)
         })
-      ctx.fillStyle = css.bad
-      ctx.strokeStyle = '#000'
-      ctx.lineWidth = dot / 5
-      Object.values(track.mobs ?? {}).forEach((m) => {
+      Object.entries(track.mobs ?? {}).forEach(([guid, m]) => {
         const last = positionAt(m.p, now)
         if (!last || last.map !== floor || (m.died ? m.died <= now : now - last.t > MOB_GONE_MS)) return
         const [x, y] = at(last)
+        dots.current.push({ id: guid, enemy: true, x, y, r: dot * 0.75 })
+        ctx.fillStyle = css.bad
+        ctx.strokeStyle = '#000'
+        ctx.lineWidth = dot / 5
         ctx.beginPath()
         ctx.arc(x, y, dot * 0.75, 0, 2 * Math.PI)
         ctx.fill()
         ctx.stroke()
+        if (guid === enemy) {
+          ring(x, y, dot * 2)
+          label(enemyName(track, guid), x, y)
+        }
       })
-      Object.values(track.bosses ?? {}).forEach((points) => {
+      Object.entries(track.bosses ?? {}).forEach(([guid, points]) => {
         const last = positionAt(points, now)
         if (!last || last.map !== floor || now - last.t > BOSS_GONE_MS) return
         const [x, y] = at(last)
+        dots.current.push({ id: guid, enemy: true, x, y, r: dot * 2.4 })
         ctx.fillStyle = '#000'
         ctx.strokeStyle = css.warn
         ctx.lineWidth = dot / 2
@@ -398,6 +420,7 @@ export function MapCanvas(props: {
         ctx.arc(x, y, dot * 2.4, 0, 2 * Math.PI)
         ctx.fill()
         ctx.stroke()
+        if (guid === enemy) ring(x, y, dot * 3.4)
         label(last.name ?? '', x, y)
       })
       const died = new Map<string, number>() // each player's last death so far
@@ -432,13 +455,9 @@ export function MapCanvas(props: {
         const dead = died.has(player) && (!last || last.t <= (died.get(player) ?? 0) + REVIVED_AFTER_MS)
         if (!last || last.map !== floor) return
         const [x, y] = at(last)
-        dots.current.push({ player, x, y })
+        dots.current.push({ id: player, enemy: false, x, y, r: dot * 1.2 })
         if (player === focus) {
-          ctx.strokeStyle = css.text
-          ctx.lineWidth = dot / 3
-          ctx.beginPath()
-          ctx.arc(x, y, dot * 2.2, 0, 2 * Math.PI)
-          ctx.stroke()
+          ring(x, y, dot * 2.2)
           label(player, x, y)
         }
         if (dead) {
@@ -472,7 +491,7 @@ export function MapCanvas(props: {
     }
     tick()
     return () => cancelAnimationFrame(frame)
-  }, [track, backdrop, walkedHere, area, floor, now, clock, trailMS, deaths, loaded, view, focus])
+  }, [track, backdrop, walkedHere, area, floor, now, clock, trailMS, deaths, loaded, view, focus, enemy])
   return (
     <canvas
       ref={ref}
@@ -494,6 +513,7 @@ export function MapCanvas(props: {
         ((e) => {
           e.preventDefault()
           onPick('')
+          onPickEnemy?.('')
         })
       }
     />

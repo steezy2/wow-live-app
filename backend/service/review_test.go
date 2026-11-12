@@ -111,7 +111,7 @@ func TestAdviceNamesWhatElseToWorkOn(t *testing.T) {
 		t.Errorf("shaman advice = %q\nwant %q", shaman, wantShaman)
 	}
 	wantNotes := []string{"2 deaths added 0:30 to the clock", "Stopped 0 of 1 must-stop casts (0%)",
-		"A miniboss died after most of its pack in 1 of 2 pulls with one",
+		"Priority target died after most of its pack in 1 of 2 pulls",
 		"3 of 4 dispellable debuffs ran their full time", "Party cooldowns overlapped in 1 damage spike"}
 	if !reflect.DeepEqual(got.Notes, wantNotes) {
 		t.Errorf("notes = %q\nwant %q", got.Notes, wantNotes)

@@ -268,15 +268,16 @@ func (k *LogTracker) spike(run *keyRun, second, damage, span int64, casts []mode
 	return sp
 }
 
-// tookFrom counts a hit on the party at a second of the log by ability and source, for spikeCauses.
-func (run *keyRun) tookFrom(second int64, ability, source string, amount int64) {
+// tookFrom counts a hit at a second of the log by ability and source into takenAt (the party's, or one player's), for
+// spikeCauses.
+func tookFrom(takenAt map[int64]map[[2]string]*models.SpikeCause, second int64, ability, source string, amount int64) {
 	if amount <= 0 {
 		return
 	}
-	bySource := run.takenAt[second]
+	bySource := takenAt[second]
 	if bySource == nil {
 		bySource = map[[2]string]*models.SpikeCause{}
-		run.takenAt[second] = bySource
+		takenAt[second] = bySource
 	}
 	c := bySource[[2]string{ability, source}]
 	if c == nil {
