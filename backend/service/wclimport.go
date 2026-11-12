@@ -151,13 +151,18 @@ func ReportLinks(reports []models.CharacterReport, encounters map[string]int, ke
 	}
 	keyLinks, pullLinks = map[int64]models.ReportLink{}, map[int64]models.ReportLink{}
 	for _, k := range keys {
-		if link, ok := newest(matchReports([]models.Key{k}, nil, reports, encounters)); ok && !k.Imported && k.Report == nil {
+		if k.Imported || k.Report != nil {
+			continue
+		}
+		if link, ok := newest(matchReports([]models.Key{k}, nil, reports, encounters)); ok {
 			keyLinks[k.Start] = link
 		}
 	}
 	for _, p := range pulls {
-		if link, ok := newest(matchReports(nil, []models.RaidPull{p}, reports, encounters)); ok && !p.Imported &&
-			p.Report == nil {
+		if p.Imported || p.Report != nil {
+			continue
+		}
+		if link, ok := newest(matchReports(nil, []models.RaidPull{p}, reports, encounters)); ok {
 			pullLinks[p.Start] = link
 		}
 	}
@@ -264,10 +269,14 @@ func (k *LogTracker) SetSource(link *models.ReportLink) {
 
 // LinkReports saves each Warcraft Logs fight in keyLinks and pullLinks (by start time, from ReportLinks) as its
 // saved key's or raid pull's Report, and says how many it linked; one linked already keeps its link.
-func (k *LogTracker) LinkReports(keyLinks, pullLinks map[int64]models.ReportLink) (int, error) {
+func (k *LogTracker) LinkReports(keyLinks, pullLinks map[int64]models.ReportLink) (n int, err error) {
 	k.mu.Lock()
 	defer k.mu.Unlock()
-	n := 0
+	defer func() {
+		if n > 0 {
+			k.version++
+		}
+	}()
 	for i, key := range k.history {
 		if link, ok := keyLinks[key.Start]; ok && !key.Imported && key.Report == nil {
 			key.Report = &link
@@ -289,9 +298,6 @@ func (k *LogTracker) LinkReports(keyLinks, pullLinks map[int64]models.ReportLink
 				n++
 			}
 		}
-	}
-	if n > 0 {
-		k.version++
 	}
 	return n, nil
 }

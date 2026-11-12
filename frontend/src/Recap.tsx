@@ -49,8 +49,8 @@ export function Recap({
           </button>
         ))}
       </div>
-      {answer.error && (!answer.period || current.error) ? (
-        <p className="warning">{answer.error}</p>
+      {current.error ? (
+        <p className="warning">{current.error}</p>
       ) : current.recap ? (
         <RecapBody recap={current.recap} onOpen={onOpen} />
       ) : (
