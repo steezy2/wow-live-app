@@ -505,7 +505,9 @@ func TestAnUnchangedCharacterIsntCheckedAgain(t *testing.T) {
 type fakeRecaps struct{}
 
 func (fakeRecaps) Periods(context.Context) []models.RecapPeriod { return []models.RecapPeriod{} }
-func (fakeRecaps) Recap(from, to int64) models.Recap            { return models.Recap{From: from, To: to} }
+func (fakeRecaps) Recap(from, to int64, _ string) models.Recap {
+	return models.Recap{From: from, To: to}
+}
 
 func TestRecapNeedsASpan(t *testing.T) {
 	for _, tc := range []struct {

@@ -7,6 +7,7 @@ import (
 	"log"
 	"maps"
 	"slices"
+	"strings"
 	"time"
 
 	"wow-live/backend/models"
@@ -57,39 +58,154 @@ func (r Recaps) Periods(ctx context.Context) []models.RecapPeriod {
 		models.RecapPeriod{Label: "All time", From: 0, To: now.UnixMilli()})
 }
 
-// Recap is the keys and raid pulls that started from from to to (ms since the epoch, to excluded).
-func (r Recaps) Recap(from, to int64) models.Recap {
+// Recap is the keys and raid pulls character played ("" for every character, see loggedBy) that started from from to
+// to (ms since the epoch, to excluded).
+func (r Recaps) Recap(from, to int64, character string) models.Recap {
 	keys, pulls := r.Saved()
-	return buildRecap(keys, pulls, from, to)
+	return buildRecap(keys, pulls, from, to, character)
 }
 
-// buildRecap is Recap on the keys and pulls given.
-func buildRecap(keys []models.Key, pulls []models.RaidPull, from, to int64) models.Recap {
+// buildRecap is Recap on the keys and pulls given. The recap is for character, or with none for the character who
+// played most of the period's runs.
+func buildRecap(keys []models.Key, pulls []models.RaidPull, from, to int64, character string) models.Recap {
 	out := func(start int64) bool { return start < from || start >= to }
-	keys = slices.DeleteFunc(slices.Clone(keys), func(k models.Key) bool { return out(k.Start) })
+	keys = slices.DeleteFunc(slices.Clone(keys), func(k models.Key) bool {
+		return out(k.Start) || !loggedBy(k.Logger, k.Realms, character)
+	})
 	slices.SortFunc(keys, func(a, b models.Key) int { return cmp.Compare(b.Start, a.Start) }) // a tie names the newest
-	pulls = slices.DeleteFunc(slices.Clone(pulls), func(p models.RaidPull) bool { return out(p.Start) })
+	pulls = slices.DeleteFunc(slices.Clone(pulls), func(p models.RaidPull) bool {
+		return out(p.Start) || !loggedBy(p.Logger, p.Realms, character)
+	})
 	slices.SortFunc(pulls, func(a, b models.RaidPull) int { return cmp.Compare(a.Start, b.Start) })
-	you := mostLogged(keys)
-	rc := models.Recap{From: from, To: to, Dungeons: []models.RecapDungeon{}, Party: []models.RecapMate{},
-		Facts: recapFacts(keys), Raid: recapRaid(pulls, you), You: recapYou(keys, you)}
-	dungeons := map[string]*models.RecapDungeon{}
-	mates := map[string]*models.RecapMate{}
+	you, _, _ := strings.Cut(character, "-")
+	if played := playedCharacters(keys, pulls, ""); you == "" && len(played) > 0 {
+		you = played[0].Name
+	}
+	return models.Recap{From: from, To: to, MPlus: recapMPlus(keys, you), Raid: recapRaid(pulls, you)}
+}
+
+// recapMPlus is the keys' half of a recap (keys newest first), for you.
+func recapMPlus(keys []models.Key, you string) models.RecapMPlus {
+	rc := models.RecapMPlus{Dungeons: []models.RecapDungeon{}, Facts: recapFacts(keys), You: recapYou(keys, you),
+		Averages: recapAverages(keys, you), Party: recapParty(keys, you)}
+	dungeons := map[string][]models.Key{}
 	for _, k := range keys {
-		timed := k.Status == "timed"
 		rc.Keys, rc.TimeMS, rc.Deaths = rc.Keys+1, rc.TimeMS+keyLength(k), rc.Deaths+len(k.Deaths)
-		d := dungeons[k.Dungeon]
-		if d == nil {
-			d = &models.RecapDungeon{Dungeon: k.Dungeon}
-			dungeons[k.Dungeon] = d
+		if k.Status == "timed" {
+			rc.Timed, rc.HighestTimed = rc.Timed+1, max(rc.HighestTimed, k.Level)
 		}
-		d.Runs++
-		if timed {
-			rc.Timed, rc.HighestTimed, d.Timed = rc.Timed+1, max(rc.HighestTimed, k.Level), d.Timed+1
-			if k.Level > d.BestLevel || k.Level == d.BestLevel && k.FinalMS < d.BestMS {
-				d.BestLevel, d.BestMS = k.Level, k.FinalMS
+		dungeons[k.Dungeon] = append(dungeons[k.Dungeon], k)
+	}
+	rc.SuccessPct = pct(rc.Timed, rc.Keys)
+	for name, runs := range dungeons {
+		rc.Dungeons = append(rc.Dungeons, recapDungeon(name, runs))
+	}
+	slices.SortFunc(rc.Dungeons, func(a, b models.RecapDungeon) int {
+		return cmp.Or(cmp.Compare(b.Runs, a.Runs), cmp.Compare(a.Dungeon, b.Dungeon))
+	})
+	return rc
+}
+
+// pct is part's share of all in %, 0 for none.
+func pct(part, all int) float64 {
+	if all == 0 {
+		return 0
+	}
+	return 100 * float64(part) / float64(all)
+}
+
+// recapDungeon is one dungeon's runs in a recap: counts, the best timed run, and the times at the highest level run.
+func recapDungeon(name string, runs []models.Key) models.RecapDungeon {
+	d := models.RecapDungeon{Dungeon: name, Runs: len(runs)}
+	for _, k := range runs {
+		d.TopLevel = max(d.TopLevel, k.Level)
+		if k.Status != "timed" {
+			continue
+		}
+		d.Timed++
+		if k.Level > d.BestLevel || k.Level == d.BestLevel && k.FinalMS < d.BestMS {
+			d.BestLevel, d.BestMS = k.Level, k.FinalMS
+		}
+	}
+	d.SuccessPct = pct(d.Timed, d.Runs)
+	var times []int64
+	for _, k := range runs {
+		if k.Level != d.TopLevel {
+			continue
+		}
+		d.TopRuns++
+		if k.Status == "timed" {
+			d.TopTimed++
+		}
+		if k.FinalMS > 0 {
+			times = append(times, k.FinalMS)
+		}
+	}
+	if len(times) > 0 {
+		var sum int64
+		for _, t := range times {
+			sum += t
+		}
+		d.AvgMS, d.MedianMS, d.FastestMS = sum/int64(len(times)), median(times), slices.Min(times)
+	}
+	return d
+}
+
+// recapAverages is keys' kicks, crowd control, dispels and priority damage per key, the party's and you's (in the keys
+// you played).
+func recapAverages(keys []models.Key, you string) models.RecapAverages {
+	type tally struct {
+		kicks, cc, dispels, keys int
+		priority, damage         float64
+	}
+	var party, yours tally
+	add := func(t *tally, k models.Key, player string) {
+		t.keys++
+		for _, i := range k.Interrupts {
+			if player == "" || i.Player == player {
+				t.kicks++
 			}
 		}
+		for _, c := range k.Casts {
+			if c.Kind == "cc" && (player == "" || c.Player == player) {
+				t.cc++
+			}
+		}
+		for _, row := range k.Overall.Rows {
+			if player == "" || row.Player == player {
+				t.dispels += row.Dispels
+				if row.PriorityDamage > 0 { // 0 in keys saved before it was kept
+					t.priority, t.damage = t.priority+float64(row.PriorityDamage), t.damage+float64(row.Damage)
+				}
+			}
+		}
+	}
+	for _, k := range keys {
+		add(&party, k, "")
+		if you != "" && slices.Contains(k.Players, you) {
+			add(&yours, k, you)
+		}
+	}
+	per := func(t tally) models.RecapPerKey {
+		if t.keys == 0 {
+			return models.RecapPerKey{Kicks: -1, CC: -1, Dispels: -1, PriorityPct: -1}
+		}
+		n := float64(t.keys)
+		p := models.RecapPerKey{Kicks: float64(t.kicks) / n, CC: float64(t.cc) / n, Dispels: float64(t.dispels) / n,
+			PriorityPct: -1}
+		if t.damage > 0 {
+			p.PriorityPct = 100 * t.priority / t.damage
+		}
+		return p
+	}
+	return models.RecapAverages{Party: per(party), You: per(yours)}
+}
+
+// recapParty is who you ran keys (newest first) with most, at most recapMates of them, each by name and realm with
+// their latest realm and class.
+func recapParty(keys []models.Key, you string) []models.RecapMate {
+	mates := map[string]*models.RecapMate{}
+	for _, k := range keys {
 		if you == "" || !slices.Contains(k.Players, you) {
 			continue
 		}
@@ -97,31 +213,27 @@ func buildRecap(keys []models.Key, pulls []models.RaidPull, from, to int64) mode
 			if p == you {
 				continue
 			}
-			m := mates[p]
+			id := p + "-" + k.Realms[p]
+			m := mates[id]
 			if m == nil {
-				m = &models.RecapMate{Player: p}
-				mates[p] = m
+				m = &models.RecapMate{Player: p, Realm: k.Realms[p]}
+				if i := slices.IndexFunc(k.Overall.Rows, func(r models.KeyMeterRow) bool { return r.Player == p }); i >= 0 {
+					m.Class = k.Overall.Rows[i].Class
+				}
+				mates[id] = m
 			}
 			m.Keys++
-			if timed {
+			if k.Status == "timed" {
 				m.Timed++
 			}
 		}
 	}
-	for _, d := range dungeons {
-		rc.Dungeons = append(rc.Dungeons, *d)
+	party := []models.RecapMate{}
+	for _, id := range slices.Sorted(maps.Keys(mates)) {
+		party = append(party, *mates[id])
 	}
-	slices.SortFunc(rc.Dungeons, func(a, b models.RecapDungeon) int {
-		return cmp.Or(cmp.Compare(b.Runs, a.Runs), cmp.Compare(a.Dungeon, b.Dungeon))
-	})
-	for _, m := range mates {
-		rc.Party = append(rc.Party, *m)
-	}
-	slices.SortFunc(rc.Party, func(a, b models.RecapMate) int {
-		return cmp.Or(cmp.Compare(b.Keys, a.Keys), cmp.Compare(a.Player, b.Player))
-	})
-	rc.Party = rc.Party[:min(len(rc.Party), recapMates)]
-	return rc
+	slices.SortStableFunc(party, func(a, b models.RecapMate) int { return cmp.Compare(b.Keys, a.Keys) })
+	return party[:min(len(party), recapMates)]
 }
 
 // keyLength is a key's time: the game's own once it ended, else from its start to its end.
@@ -243,8 +355,13 @@ func recapFacts(keys []models.Key) []models.RecapFact {
 	}); ok {
 		add(k, "Closest call: %s with %s to spare", name(k), clockText(k.TimerMS-k.FinalMS))
 	}
-	if k, ok := best(func(k models.Key) float64 { return float64(len(k.Deaths)) }); ok {
-		add(k, "Most deaths in a key: %d in %s", len(k.Deaths), name(k))
+	if k, ok := best(func(k models.Key) float64 {
+		if k.Status != "timed" {
+			return 0
+		}
+		return float64(len(k.Deaths))
+	}); ok {
+		add(k, "Most deaths in a timed key: %d in %s", len(k.Deaths), name(k))
 	}
 	killed := map[string]int{}
 	for _, k := range keys {
@@ -296,9 +413,11 @@ func recapFacts(keys []models.Key) []models.RecapFact {
 	return facts
 }
 
-// recapRaid is pulls (oldest first) by boss and difficulty, in the order first pulled: pulls, kills, the first kill,
-// the best wipe, your deaths and the ability that hit the raid hardest.
-func recapRaid(pulls []models.RaidPull, you string) []models.RecapBoss {
+// recapRaid is the pulls' half of a recap (pulls oldest first), for you: the totals, then each boss and difficulty in
+// the order first pulled with its pulls, kills, first kill, best wipe, your deaths and the ability that hit the raid
+// hardest.
+func recapRaid(pulls []models.RaidPull, you string) models.RecapRaid {
+	rc := models.RecapRaid{Bosses: []models.RecapBoss{}, Facts: []models.RecapFact{}}
 	bosses := []*models.RecapBoss{}
 	taken := map[*models.RecapBoss]map[string]int64{}
 	for _, p := range pulls {
@@ -309,6 +428,7 @@ func recapRaid(pulls []models.RaidPull, you string) []models.RecapBoss {
 		}
 		b := bosses[i]
 		b.Pulls++
+		rc.Pulls, rc.TimeMS, rc.Deaths = rc.Pulls+1, rc.TimeMS+p.DurationMS, rc.Deaths+len(p.Deaths)
 		switch {
 		case p.Kill:
 			b.Kills++
@@ -330,7 +450,6 @@ func recapRaid(pulls []models.RaidPull, you string) []models.RecapBoss {
 			taken[b][h.Ability] += h.Damage
 		}
 	}
-	out := []models.RecapBoss{}
 	for _, b := range bosses {
 		abilities := slices.SortedFunc(maps.Keys(taken[b]), func(x, y string) int {
 			return cmp.Or(cmp.Compare(taken[b][y], taken[b][x]), cmp.Compare(x, y))
@@ -338,7 +457,11 @@ func recapRaid(pulls []models.RaidPull, you string) []models.RecapBoss {
 		if len(abilities) > 0 {
 			b.MostHit = abilities[0]
 		}
-		out = append(out, *b)
+		rc.Kills += b.Kills
+		if b.Kills > 0 {
+			rc.Killed++
+		}
+		rc.Bosses = append(rc.Bosses, *b)
 	}
-	return out
+	return rc
 }
