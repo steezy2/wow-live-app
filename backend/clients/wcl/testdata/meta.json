@@ -33,4 +33,5 @@
       {"gameID": 9999, "name": "Big Cast", "type": "32"},
       {"gameID": 12051, "name": "Evocation", "type": "64"},
       {"gameID": 30449, "name": "Spellsteal", "type": "64"},
-      {"gameID": 108446, "name": "Soul Link", "type": "32"}]}}}}
+      {"gameID": 108446, "name": "Soul Link", "type": "32"},
+      {"gameID": 395152, "name": "Ebon Might", "type": "12"}]}}}}

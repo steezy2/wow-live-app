@@ -128,11 +128,12 @@ func TestAConvertedFightSavesTheKeyItWas(t *testing.T) {
 	for _, r := range key.Overall.Rows {
 		meter[r.Player] = r
 	}
-	// Testmage: melee 100, Fireball 500 and 1000, Auto Shot 20, the Wolf's 80 (not the Friendly Guide's 7), the
-	// absorbed 300 taken. Testpriest: 50 of Shadow Word: Pain, the killing 9000 taken (the meter leaves falling out),
+	// Testmage: melee 100, Fireball 500 and 1000, Auto Shot 20, the Wolf's 80 (not the Friendly Guide's 7), less the
+	// 200 of the last Fireball that Testpriest's Ebon Might added (Warcraft Logs' support event), the absorbed 300
+	// taken. Testpriest: 50 of Shadow Word: Pain and that 200, the killing 9000 taken (the meter leaves falling out),
 	// heals 400 + 300 absorbed + a 250 tick, dispels once.
 	mage, priest := meter["Testmage"], meter["Testpriest"]
-	if mage.Damage != 1700 || mage.Interrupts != 1 || mage.Purges != 1 || priest.Damage != 50 ||
+	if mage.Damage != 1500 || mage.Interrupts != 1 || mage.Purges != 1 || priest.Damage != 250 ||
 		priest.Healing != 950 || priest.Dispels != 1 || priest.DamageTaken != 9000 || mage.DamageTaken != 300 {
 		t.Fatalf("meter = %+v", meter)
 	}

@@ -166,6 +166,11 @@ type event struct {
 	ResourceChangeType int     `json:"resourceChangeType"`
 	Waste              float64 `json:"waste"`
 	MaxResourceAmount  whole   `json:"maxResourceAmount"`
+	// SupportID is the unit whose hit an Augmentation Evoker's buff (the source) added this damage to; Warcraft Logs
+	// moves it from that unit to the Evoker when SubtractsFromSupportedActor.
+	SupportID                   int  `json:"supportID"`
+	SupportInstance             int  `json:"supportInstance"`
+	SubtractsFromSupportedActor bool `json:"subtractsFromSupportedActor"`
 	resources
 	combatant
 }
@@ -485,8 +490,9 @@ func (lw *logWriter) text(e *event) string {
 }
 
 // damage is a damage event's line: SWING_ for melee, ENVIRONMENTAL_DAMAGE for the environment's, DAMAGE_SPLIT for a
-// share of another's (see spellPrefix for the rest), _MISSED for a miss or a hit absorbed whole. The log's amount
-// includes the overkill; Warcraft Logs' doesn't.
+// share of another's, _DAMAGE_SUPPORT for an Augmentation Evoker's share of an ally's hit (the ally as source, the
+// buff as spell, the Evoker's GUID last, as the game logs it; see spellPrefix for the rest), _MISSED for a miss or a
+// hit absorbed whole. The log's amount includes the overkill; Warcraft Logs' doesn't.
 func (lw *logWriter) damage(e *event, src, dst string) string {
 	amount := e.Amount + max(e.Overkill, 0)
 	base := cmp.Or(e.UnmitigatedAmount, amount+e.Absorbed)
@@ -511,6 +517,10 @@ func (lw *logWriter) damage(e *event, src, dst string) string {
 		reach = "AOE"
 	}
 	switch {
+	case e.SupportID != 0 && e.SubtractsFromSupportedActor:
+		return spellPrefix(e) + "DAMAGE_SUPPORT," + lw.unit(e.SupportID, e.SupportInstance) + "," + dst + "," +
+			lw.spell(e.AbilityGameID) + "," + lw.advanced(e, 2) + "," + hit + "," +
+			lw.guid(lw.units[e.SourceID], e.SourceInstance)
 	case splitAbilities[e.AbilityGameID]:
 		return "DAMAGE_SPLIT," + src + "," + dst + "," + lw.spell(e.AbilityGameID) + "," + lw.advanced(e, 2) + "," + hit +
 			"," + reach
