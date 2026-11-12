@@ -141,7 +141,7 @@ export function PriorityLedger({ keyView: key }: { keyView: KeyView }) {
         <li key={p.pull} className="stack">
           {p.minibosses.map((m, i) => (
             <span key={i} className={m.order - 1 > (m.of - 1) / 2 ? 'bad' : undefined}>
-              Pull {p.pull} <span className="muted">· {clock(p.clockMS)}</span> {m.name}{' '}
+              Pull {p.pull} <span className="muted">Â· {clock(p.clockMS)}</span> {m.name}{' '}
               {!m.order
                 ? "didn't die"
                 : m.afterMS
@@ -151,7 +151,7 @@ export function PriorityLedger({ keyView: key }: { keyView: KeyView }) {
                     : m.order === m.of
                       ? 'died after its pack'
                       : `died with ${m.of - m.order} of ${m.of - 1} pack mobs still up`}
-              {m.damagePct > 0 && ` · ${Math.round(m.damagePct)}% of damage`}
+              {m.damagePct > 0 && ` Â· ${Math.round(m.damagePct)}% of damage`}
               {p.minibosses.length === 1 && ` (${Math.round(p.healthPct)}% of health)`}
             </span>
           ))}
