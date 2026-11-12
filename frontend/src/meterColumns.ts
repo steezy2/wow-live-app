@@ -1,4 +1,4 @@
-import type { KeyMeterRow } from './api'
+import type { KeyDeath, KeyMeter, KeyMeterRow, OverlayColumn } from './api'
 import { median } from './format'
 
 /** A card column: its heading, the value it sorts and draws by, and how it shows. */
@@ -55,4 +55,43 @@ export function defense(avoidable: boolean): Column[] {
     { label: 'Taken', value: (r) => r.damageTaken, group: true },
   ]
   return avoidable ? [...columns, { label: 'Avoidable', value: (r) => r.avoidable, tone: aboveMedian }] : columns
+}
+
+/** The column of the same name from a list, headed with a short label and without a group rule. */
+function short(columns: Column[], label: string, as = label): Column {
+  return { ...columns.find((c) => c.label === label)!, label: as, group: false }
+}
+
+/** An overlay card's column by its settings id (models.OverlayColumns): pull is the last pull, for the Pull DPS
+ * column, and deaths the deaths inside the card's span, for the Deaths column. */
+export function overlayColumn(id: OverlayColumn, pull: KeyMeter, deaths: KeyDeath[]): Column {
+  switch (id) {
+    case 'dps':
+      return short(offense, 'DPS')
+    case 'hps':
+      return short(defense(false), 'HPS')
+    case 'kicks':
+      return short(offense, 'Kicks')
+    case 'pullDps': {
+      const byPlayer = new Map(pull.rows.map((r) => [r.player, r.dps]))
+      return { label: 'Pull DPS', value: (r) => byPlayer.get(r.player) ?? 0 }
+    }
+    case 'taken':
+      return short(defense(false), 'Taken')
+    case 'avoidable':
+      return short(defense(true), 'Avoidable', 'Avoid.')
+    case 'priority':
+      return short(offense, 'Priority', 'Prio %')
+    case 'dispels':
+      return short(offense, 'Dispels', 'Disp.')
+    case 'deaths': {
+      const count = (r: KeyMeterRow) => deaths.filter((d) => d.player === r.player).length
+      return { label: 'Deaths', value: count, show: (r) => String(count(r)) }
+    }
+  }
+}
+
+/** An overlay column's heading, for the settings' checkboxes. */
+export function overlayColumnLabel(id: OverlayColumn): string {
+  return overlayColumn(id, { startMS: 0, endMS: 0, ongoing: false, rows: [] }, []).label
 }

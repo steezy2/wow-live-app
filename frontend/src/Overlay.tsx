@@ -1,11 +1,19 @@
-import { type CSSProperties, useCallback, useEffect, useState } from 'react'
+import { type CSSProperties, useCallback, useEffect, useRef, useState } from 'react'
 import { abilityViews, raidTargets } from './abilities'
-import { fetchSettings, onAppEvent, type KeyView, type OverlaySettings, type Settings } from './api'
+import {
+  fetchSettings,
+  onAppEvent,
+  type KeyDeath,
+  type KeyView,
+  type OverlayColumn,
+  type OverlaySettings,
+  type Settings,
+} from './api'
 import { classColors } from './classColors'
 import { AbilityBars } from './FightMeters'
 import { chestLabel, clock, pullTitle, resultText } from './format'
 import { ForcesBar, TimerBar } from './KeyDetails'
-import { type Column } from './meterColumns'
+import { overlayColumn } from './meterColumns'
 import { MeterCard } from './MeterCards'
 import { ReadyPanel } from './ReadyPanel'
 import { RaidOverlayCard } from './RaidPage'
@@ -19,31 +27,47 @@ const OVERLAY_SPELLS = 8
  * a little after, while there's still time to fix it). */
 const START_CHECK_MS = 30_000
 
-/** The overlay's two-card columns: DPS (sorted by it), HPS and kicks, for the pull or the whole key. */
-const SPLIT_COLUMNS: Column[] = [
-  { label: 'DPS', value: (r) => r.dps },
-  { label: 'HPS', value: (r) => r.hps },
-  { label: 'Kicks', value: (r) => r.interrupts, show: (r) => String(r.interrupts) },
-]
+/** The columns the overlay shows when none are chosen in the settings. */
+const DEFAULT_COLUMNS: OverlayColumn[] = ['dps', 'hps', 'kicks']
 
-/** The overlay's one-card meter: one row per player with the pull's DPS (sorted by it), and the whole key's DPS, HPS
- * and interrupts. */
-function overlayColumns(pull: KeyView['lastPull']): Column[] {
-  const byPlayer = new Map(pull.rows.map((r) => [r.player, r]))
-  return [
-    { label: 'Pull DPS', value: (r) => byPlayer.get(r.player)?.dps ?? 0 },
-    { label: 'DPS', value: (r) => r.dps },
-    { label: 'HPS', value: (r) => r.hps },
-    { label: 'Kicks', value: (r) => r.interrupts, show: (r) => String(r.interrupts) },
-  ]
+/** The window's scale limits: the overlay scales to fill its window, but never below half or above double size. */
+const FIT_MIN = 0.5
+const FIT_MAX = 2
+
+/** Scales the overlay to its window with CSS zoom on root: the content's size at zoom 1 (its measured size divided
+ * by the current zoom) against the window's, so nothing scrolls. Returns the refs for the root and the content. */
+function useFitZoom() {
+  const root = useRef<HTMLDivElement>(null)
+  const content = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const fit = () => {
+      if (!root.current || !content.current) return
+      const zoom = Number(root.current.style.zoom) || 1
+      const { width, height } = content.current.getBoundingClientRect()
+      if (!width || !height) return
+      const next = Math.min(window.innerWidth / (width / zoom), window.innerHeight / (height / zoom))
+      const clamped = Math.min(FIT_MAX, Math.max(FIT_MIN, next))
+      if (Math.abs(clamped - zoom) > 0.005) root.current.style.zoom = String(clamped)
+    }
+    const observer = new ResizeObserver(fit)
+    observer.observe(content.current!)
+    window.addEventListener('resize', fit)
+    return () => {
+      observer.disconnect()
+      window.removeEventListener('resize', fit)
+    }
+  }, [])
+  return { root, content }
 }
 
-/** The overlay's settings (background opacity, one card or two), from the app's settings and each save of them. */
+/** The overlay's settings (opacity, one card or two, players and columns), from the app's settings and each save. */
 function useOverlaySettings(): OverlaySettings {
   const [settings, setSettings] = useState<OverlaySettings>({
     show: 'keys',
-    opacity: 100,
-    split: false,
+    opacity: 90,
+    oneCard: false,
+    rows: 0,
+    columns: [],
     clickThrough: false,
   })
   useEffect(() => {
@@ -68,21 +92,25 @@ export function Overlay() {
   const settings = useOverlaySettings()
   const ready = useReady()
   const raid = useRaidLive(key?.status !== 'running')
+  const { root, content } = useFitZoom()
   return (
     <div
+      ref={root}
       className={moving ? 'overlay moving' : 'overlay'}
       style={{ '--overlay-bg': `${settings.opacity}%` } as CSSProperties}
     >
-      {moving && <p className="small">Drag to move, drag an edge to resize; Ctrl+Alt+O or Settings when done.</p>}
-      {raid?.betweenPulls && raid.last ? (
-        <RaidOverlayCard pull={raid.last} />
-      ) : ready && key?.status !== 'running' ? (
-        <ReadyPanel ready={ready} compact />
-      ) : key ? (
-        <OverlayKey keyView={key} clockMS={clockMS} split={settings.split} />
-      ) : (
-        <p className="muted">Waiting for the next key</p>
-      )}
+      <div ref={content} className="overlay-fit">
+        {moving && <p className="small">Drag to move, drag an edge to resize; Ctrl+Alt+O or Settings when done.</p>}
+        {raid?.betweenPulls && raid.last ? (
+          <RaidOverlayCard pull={raid.last} rows={settings.rows} />
+        ) : ready && key?.status !== 'running' ? (
+          <ReadyPanel ready={ready} compact />
+        ) : key ? (
+          <OverlayKey keyView={key} clockMS={clockMS} settings={settings} />
+        ) : (
+          <p className="muted">Waiting for the next key</p>
+        )}
+      </div>
     </div>
   )
 }
@@ -90,7 +118,8 @@ export function Overlay() {
 /** The overlay's view of the live key; a click on a player's row (when the overlay takes clicks) shows their
  * abilities in that card's span: the last pull's until a new pull starts, or the whole key's so far (the one-card
  * meter's rows are the whole key's). */
-function OverlayKey({ keyView: key, clockMS, split }: { keyView: KeyView; clockMS: number; split: boolean }) {
+function OverlayKey(props: { keyView: KeyView; clockMS: number; settings: OverlaySettings }) {
+  const { keyView: key, clockMS, settings } = props
   const [picked, setPicked] = useState({ player: '', pull: 0, whole: false })
   const pull = key.lastPull.startMS
   const pickPull = useCallback((player: string) => setPicked({ player, pull, whole: false }), [pull])
@@ -100,6 +129,11 @@ function OverlayKey({ keyView: key, clockMS, split }: { keyView: KeyView; clockM
   const timer = key.timerMS ?? 0
   const projection = key.status === 'running' ? key.projection : undefined
   const latest = key.deaths.length > 0 ? key.deaths[key.deaths.length - 1] : undefined
+  const chosen = settings.columns.length > 0 ? settings.columns : DEFAULT_COLUMNS
+  const last = key.lastPull
+  const pullDeaths = key.deaths.filter((d) => d.clockMS >= last.startMS && d.clockMS <= last.endMS)
+  const columns = (ids: OverlayColumn[], deaths: KeyDeath[]) => ids.map((id) => overlayColumn(id, last, deaths))
+  const oneCardIds = ['pullDps' as const, ...chosen.filter((id) => id !== 'pullDps')]
   return (
     <>
       <div className="overlay-clock">
@@ -124,36 +158,49 @@ function OverlayKey({ keyView: key, clockMS, split }: { keyView: KeyView; clockM
       {timer > 0 && <TimerBar clockMS={clockMS} timerMS={timer} keyView={key} best={projection?.best ?? []} />}
       {key.forces && <ForcesBar forces={key.forces} level={key.level} />}
       {key.status === 'running' && clockMS < START_CHECK_MS && key.buffs.length > 0 && (
-        <p className="warning small overlay-extra">
+        <p className="warning small overlay-extra overlay-wrap">
           Missing: {key.buffs.map((b) => `${b.player} ${b.missing.join(', ')}`).join(' · ')}
         </p>
       )}
-      <p className="small">
-        {key.deaths.length} deaths · {clock(key.penaltyMS)} lost
-        {latest && ` · last: ${latest.player} to ${latest.ability || latest.killer} at ${clock(latest.clockMS)}`}
+      <p className="small overlay-wrap">
+        {key.deaths.length} deaths +{clock(key.penaltyMS)}
+        {latest && ` · last ${latest.player}: ${latest.ability || latest.killer} ${clock(latest.clockMS)}`}
       </p>
       <div className="overlay-extra">
         {focus ? (
           <Breakdown
             keyView={key}
             player={focus}
-            title={picked.whole ? 'Whole key' : pullTitle(key, clockMS)}
+            title={picked.whole ? 'Key' : pullTitle(key, clockMS)}
             from={picked.whole ? 0 : key.lastPull.startMS}
             to={picked.whole ? clockMS : key.lastPull.endMS}
             onBack={back}
           />
-        ) : split ? (
-          <>
-            <MeterCard title={pullTitle(key, clockMS)} meter={key.lastPull} columns={SPLIT_COLUMNS} onPick={pickPull} />
-            <MeterCard title="Whole key" meter={key.overall} columns={SPLIT_COLUMNS} onPick={pickWhole} />
-          </>
-        ) : (
+        ) : settings.oneCard ? (
           <MeterCard
-            title={`${pullTitle(key, clockMS)} · whole key`}
+            title={`${pullTitle(key, clockMS)} · key`}
             meter={key.overall}
-            columns={overlayColumns(key.lastPull)}
+            columns={columns(oneCardIds, key.deaths)}
+            rows={settings.rows}
             onPick={pickWhole}
           />
+        ) : (
+          <>
+            <MeterCard
+              title={pullTitle(key, clockMS)}
+              meter={last}
+              columns={columns(chosen, pullDeaths)}
+              rows={settings.rows}
+              onPick={pickPull}
+            />
+            <MeterCard
+              title="Key"
+              meter={key.overall}
+              columns={columns(chosen, key.deaths)}
+              rows={settings.rows}
+              onPick={pickWhole}
+            />
+          </>
         )}
       </div>
     </>

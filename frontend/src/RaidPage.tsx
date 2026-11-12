@@ -237,8 +237,9 @@ export function RaidPullView({ pull }: { pull: RaidPull }) {
 }
 
 /** The overlay's card between pulls: how far the last pull got, the boss's health as a bar with tonight's best pull
- * marked, the first deaths, the top things to fix, and the top DPS and HPS; made very short, the title and bar only. */
-export function RaidOverlayCard({ pull }: { pull: RaidPull }) {
+ * marked, the first deaths, the top things to fix, and the top DPS and HPS (rows players each when set, else 5 and 3);
+ * made very short, the title and bar only. */
+export function RaidOverlayCard({ pull, rows = 0 }: { pull: RaidPull; rows?: number }) {
   const classes = classesOf(pull)
   const best = pull.comparisons?.tonight
   const more = pull.deaths.length - OVERLAY_DEATHS
@@ -279,12 +280,12 @@ export function RaidOverlayCard({ pull }: { pull: RaidPull }) {
         <div className="overlay-meters">
           <MeterCard
             title="Damage"
-            meter={topMeter(pull.meter, 'dps', OVERLAY_DPS_ROWS)}
+            meter={topMeter(pull.meter, 'dps', rows || OVERLAY_DPS_ROWS)}
             columns={raidOffense.slice(0, 1)}
           />
           <MeterCard
             title="Healing"
-            meter={topMeter(pull.meter, 'hps', OVERLAY_HPS_ROWS)}
+            meter={topMeter(pull.meter, 'hps', rows || OVERLAY_HPS_ROWS)}
             columns={defense(false).slice(0, 1)}
           />
         </div>

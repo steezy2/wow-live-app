@@ -297,7 +297,7 @@ const PACE_EVEN_PCT = 1
  * time, and how much faster or slower the key is). */
 export function ForcesBar({ forces, level }: { forces: KeyForces; level: number }) {
   const pace = forces.pace
-  const best = `your best +${level}`
+  const best = `best +${level}`
   return (
     <div className="forces">
       <div className="bar" role="img" aria-label={`forces ${forces.pct.toFixed(1)}%`}>
