@@ -37,3 +37,11 @@ func TestRecentReportsNamePlayersAndMarkAnotherPage(t *testing.T) {
 		t.Fatalf("RecentReports = %+v, %v, %v; want %+v, true", reports, more, err, want)
 	}
 }
+
+func TestRecentReportsStopAtTheLastPageWarcraftLogsServes(t *testing.T) {
+	f := newFake(t, data(`{"characterData": {"character": {"recentReports": {"has_more_pages": true, "data": []}}}}`))
+	if _, more, err := f.client(t).RecentReports(context.Background(), "us", "somerealm", "Testmage",
+		maxReportPages); err != nil || more {
+		t.Fatalf("page %d: more %v, %v; want no page after it", maxReportPages, more, err)
+	}
+}

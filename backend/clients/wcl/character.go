@@ -62,8 +62,12 @@ func (c *Client) Realms(ctx context.Context, region string) (map[string]string, 
 	}
 }
 
+// maxReportPages is the last page of a character's recent reports Warcraft Logs serves ("The page argument must be a
+// value between 1 and 5"), so a listing holds at most the newest 150 reports.
+const maxReportPages = 5
+
 // RecentReports is one page (30) of the reports a character appears in, newest first, and whether another page
-// follows. Players are named from each report's player list. Cached for models.ReportListMaxAge. A page is 30 because
+// follows (never after maxReportPages). Players are named from each report's player list. Cached for models.ReportListMaxAge. A page is 30 because
 // 100 reports' fights and players are past Warcraft Logs' query complexity limit (50000; 100 came to 110702).
 func (c *Client) RecentReports(ctx context.Context, region, slug, name string, page int) (
 	[]models.CharacterReport, bool, error) {
@@ -127,7 +131,7 @@ func (c *Client) RecentReports(ctx context.Context, region, slug, name string, p
 		}
 		reports = append(reports, report)
 	}
-	return reports, character.RecentReports.HasMore, nil
+	return reports, character.RecentReports.HasMore && page < maxReportPages, nil
 }
 
 // CurrentZones are the newest Mythic+ zone and the newest raid zone (the one with a boss named in raidBosses, as

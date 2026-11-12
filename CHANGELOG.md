@@ -10,6 +10,9 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 ### Changed
 - The side panels group saved keys and raid nights into dropdowns: one per day for the last 7 days ("Today", "Yesterday", "Mon, Nov 9"), then one per week ("Week of Nov 2"), each with its count. The newest group and the one holding the open key or pull start open.
 
+### Fixed
+- *Import from Warcraft Logs* stopped with "The page argument must be a value between 1 and 5" for a character with more than 150 reports: Warcraft Logs serves only 5 pages of a character's recent reports, so the import now lists the newest 150 and goes on.
+
 ## [0.2.3] - 2026-11-11
 
 ### Removed
