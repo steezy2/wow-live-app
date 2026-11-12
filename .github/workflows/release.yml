@@ -83,7 +83,7 @@ jobs:
         with:
           name: wow-live-msix
           path: store
-      - uses: microsoft/microsoft-store-apppublisher@v1.1
+      - uses: microsoft/microsoft-store-apppublisher@v1.4
       - name: Sign in to the Store
         run: |
           msstore reconfigure \

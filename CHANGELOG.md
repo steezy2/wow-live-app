@@ -7,6 +7,7 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 ### Changed
 - A key's meter cards leave out the Avoidable column: a key's avoidable damage is in its Avoidable tab at the bottom. Raid pulls keep the column.
 - A raid pull's Mechanics card folds lines with the same name (a soak's hits, an add's spawns, the same cast going off) into one small card with their count; a click lists each time and who.
+- Build tooling: the Store release step uses `microsoft-store-apppublisher@v1.4` (Node 24, so no Node 20 warning), and the frontend lints with ESLint 10 (eslint-plugin-react-hooks 7, react-refresh 0.5), keeping the same two hook rules.
 
 ## [0.3.0] - 2026-11-12
 
