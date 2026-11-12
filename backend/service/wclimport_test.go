@@ -71,12 +71,10 @@ func TestMatchReportsKeys(t *testing.T) {
 		{"two days later doesn't",
 			[]models.CharacterReport{report("A", 100, t0+48*hour, keyFight(3, 12, hour, length, testParty...))},
 			map[models.ReportLink]bool{}},
-		{"the closer length wins", []models.CharacterReport{report("A", 100, t0,
-			keyFight(3, 12, hour, length-minute, testParty...), keyFight(4, 12, hour, length-20_000, testParty...))},
-			map[models.ReportLink]bool{link("A", 4): true}},
-		{"a tie within 5 s is no match", []models.CharacterReport{report("A", 100, t0,
-			keyFight(3, 12, hour, length-10_000, testParty...), keyFight(4, 12, hour, length+10_000, testParty...))},
-			map[models.ReportLink]bool{}},
+		{"the same key in two reports is both", []models.CharacterReport{
+			report("A", 100, t0, keyFight(3, 12, hour, length-10_000, testParty...)),
+			report("B", 100, t0+20_000, keyFight(4, 12, hour, length+10_000, testParty...))},
+			map[models.ReportLink]bool{link("A", 3): true, link("B", 4): true}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			got := matchReports([]models.Key{key}, nil, tc.reports, testZones.Encounters)
@@ -130,22 +128,24 @@ func TestPickFights(t *testing.T) {
 			models.ReportFight{ID: 2, StartTime: 10 * minute, EndTime: 20 * minute, Players: testParty}, // trash
 			bossFight(3, true, 30*minute, 5*minute, "Testrogue")),
 		report("STRANGER", 100, t0+20*hour, keyFight(1, 12, 0, length, "Testrogue", "Testhunter")),
+		report("COPY", 100, t0+30_000, keyFight(1, 10, 0, length, testParty...)),         // OLD#1, uploaded again
+		report("NEW2", 100, t0+10*hour+20_000, keyFight(1, 12, 0, length, testParty...)), // NEW#1, uploaded again
 	}
 	saved := []models.Key{
 		{Dungeon: "Test Dungeon", Level: 11, Report: &models.ReportLink{Code: "OLD", FightID: 2}, Imported: true},
 		localKey(t0+10*hour, length, 12, testParty...), // the game wrote NEW's key itself
 	}
-	t.Run("everything that qualifies, newest first", func(t *testing.T) {
+	t.Run("everything that qualifies, newest first, a fight in several reports once", func(t *testing.T) {
 		got := PickFights(reports, testZones, "Testmage-Somerealm", nil, nil)
 		var codes []string
 		for _, f := range got {
 			codes = append(codes, f.Code+":"+string(f.Kind))
 		}
-		want := []string{"NEW:mplus", "RAID:raid", "OLD:mplus", "OLD:mplus"}
+		want := []string{"NEW2:mplus", "RAID:raid", "OLD:mplus", "COPY:mplus"}
 		if !reflect.DeepEqual(codes, want) {
 			t.Errorf("picked %v; want %v (other zone, trash, a fight without the character and OLD's order matter)", codes, want)
 		}
-		if got[3].FightID != 1 || got[3].StartMS != t0 || got[1].StartMS != t0+5*hour {
+		if got[3].FightID != 1 || got[3].StartMS != t0+30_000 || got[1].StartMS != t0+5*hour {
 			t.Errorf("picked %+v; want start times from the report's start plus the fight's", got)
 		}
 	})
@@ -155,9 +155,10 @@ func TestPickFights(t *testing.T) {
 		for _, f := range got {
 			links = append(links, f.ReportLink)
 		}
-		want := []models.ReportLink{link("RAID", 1), link("OLD", 1)}
+		want := []models.ReportLink{link("RAID", 1), link("COPY", 1)}
 		if !reflect.DeepEqual(links, want) {
-			t.Errorf("picked %v; want %v: OLD#2 is imported and NEW#1 is a local key", links, want)
+			t.Errorf("picked %v; want %v: OLD#2 is imported, NEW#1 and its copy a local key, OLD#1 COPY's twin",
+				links, want)
 		}
 	})
 }
@@ -205,5 +206,13 @@ func TestGuessIsTheMostFrequentLogger(t *testing.T) {
 	}
 	if got := (Characters{Keys: fakeKeyList{{}}}).Guess(); got != "" {
 		t.Errorf("guessed %q from keys with no logger; want none", got)
+	}
+}
+
+func TestQuickRepullsAreNotCopies(t *testing.T) {
+	reports := []models.CharacterReport{report("RAID", 200, t0,
+		bossFight(1, false, 0, 40_000, testParty...), bossFight(2, false, 150_000, 95_000, testParty...))}
+	if got := PickFights(reports, testZones, "Testmage-Somerealm", nil, nil); len(got) != 2 {
+		t.Errorf("picked %+v; want both wipes, 2.5 minutes apart and of other lengths", got)
 	}
 }

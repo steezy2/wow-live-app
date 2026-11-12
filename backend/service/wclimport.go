@@ -17,8 +17,9 @@ const (
 	// matchSlackMS is how far a report fight's length and start may differ from a saved key's or pull's: an uploader
 	// can trim or split a log, and Warcraft Logs' times follow the uploader's clock (a minute off seen).
 	matchSlackMS = 3 * 60_000
-	// matchTieMS is how close the second-best candidate may be to the best before neither is trusted.
-	matchTieMS = 5000
+	// copyLengthMS is how far two reports' copies of one fight may differ in length (the same log lines, cut alike),
+	// so two quick pulls of a boss aren't taken for one.
+	copyLengthMS = 5000
 	// matchPlayers is how many of a key's players a report fight must have.
 	matchPlayers = 3
 	// nameMin and nameMax are the length of a character's name.
@@ -102,9 +103,7 @@ func matchReports(keys []models.Key, pulls []models.RaidPull, reports []models.C
 			return f.KeystoneLevel == k.Level && f.EncounterID == encounters[k.Dungeon] && f.EncounterID != 0 &&
 				sharedPlayers(f.Players, k.Players) >= matchPlayers
 		}
-		if link, ok := closestFight(reports, k.Start, k.End-k.Start, wanted); ok {
-			found[link] = true
-		}
+		sameFights(found, reports, k.Start, k.End-k.Start, wanted)
 	}
 	for _, p := range pulls {
 		wanted := func(f models.ReportFight) bool {
@@ -112,35 +111,23 @@ func matchReports(keys []models.Key, pulls []models.RaidPull, reports []models.C
 				raidDifficultyNames[f.Difficulty] == p.Difficulty && f.Kill == p.Kill &&
 				2*sharedPlayers(f.Players, p.Players) >= len(p.Players)
 		}
-		if link, ok := closestFight(reports, p.Start, p.End-p.Start, wanted); ok {
-			found[link] = true
-		}
+		sameFights(found, reports, p.Start, p.End-p.Start, wanted)
 	}
 	return found
 }
 
-// closestFight is the fight wanted says yes to that started within a day of start and has the length closest to
-// durationMS (within matchSlackMS), unless the runner-up is within matchTieMS of it.
-func closestFight(reports []models.CharacterReport, start, durationMS int64, wanted func(models.ReportFight) bool) (
-	models.ReportLink, bool) {
-	type candidate struct {
-		link models.ReportLink
-		off  int64
-	}
-	var candidates []candidate
+// sameFights adds to found every report fight wanted says yes to whose start and length are within matchSlackMS
+// of start and durationMS: the same fight can be in several reports, uploaded by different players.
+func sameFights(found map[models.ReportLink]bool, reports []models.CharacterReport, start, durationMS int64,
+	wanted func(models.ReportFight) bool) {
 	for _, r := range reports {
 		for _, f := range r.Fights {
-			off := abs(f.EndTime - f.StartTime - durationMS)
-			if off <= matchSlackMS && abs(r.StartTime+f.StartTime-start) <= matchSlackMS && wanted(f) {
-				candidates = append(candidates, candidate{models.ReportLink{Code: r.Code, FightID: f.ID}, off})
+			if abs(f.EndTime-f.StartTime-durationMS) <= matchSlackMS && abs(r.StartTime+f.StartTime-start) <= matchSlackMS &&
+				wanted(f) {
+				found[models.ReportLink{Code: r.Code, FightID: f.ID}] = true
 			}
 		}
 	}
-	slices.SortFunc(candidates, func(a, b candidate) int { return cmp.Compare(a.off, b.off) })
-	if len(candidates) == 0 || len(candidates) > 1 && candidates[1].off-candidates[0].off < matchTieMS {
-		return models.ReportLink{}, false
-	}
-	return candidates[0].link, true
 }
 
 // sharedPlayers is how many of a's names are in b.
@@ -172,7 +159,12 @@ func PickFights(reports []models.CharacterReport, zones models.WCLZones, charact
 			taken[*p.Report] = true
 		}
 	}
-	var picked []models.FightRef
+	type candidate struct {
+		ref   models.FightRef
+		fight models.ReportFight
+	}
+	length := func(c candidate) int64 { return c.fight.EndTime - c.fight.StartTime }
+	var candidates []candidate
 	for _, r := range reports {
 		for _, f := range r.Fights {
 			kind := models.FightKind("")
@@ -185,13 +177,26 @@ func PickFights(reports []models.CharacterReport, zones models.WCLZones, charact
 			link := models.ReportLink{Code: r.Code, FightID: f.ID}
 			in := slices.ContainsFunc(f.Players, func(p string) bool { return strings.EqualFold(p, name) })
 			if kind != "" && in && !taken[link] {
-				picked = append(picked, models.FightRef{ReportLink: link, StartMS: r.StartTime + f.StartTime, Kind: kind})
+				ref := models.FightRef{ReportLink: link, StartMS: r.StartTime + f.StartTime, Kind: kind}
+				candidates = append(candidates, candidate{ref, f})
 			}
 		}
 	}
-	slices.SortFunc(picked, func(a, b models.FightRef) int {
-		return cmp.Or(cmp.Compare(b.StartMS, a.StartMS), cmp.Compare(b.Code, a.Code), cmp.Compare(b.FightID, a.FightID))
+	slices.SortFunc(candidates, func(a, b candidate) int {
+		return cmp.Or(cmp.Compare(b.ref.StartMS, a.ref.StartMS), cmp.Compare(b.ref.Code, a.ref.Code),
+			cmp.Compare(b.ref.FightID, a.ref.FightID))
 	})
+	var picked []models.FightRef
+	for i, c := range candidates {
+		copied := slices.ContainsFunc(candidates[:i], func(o candidate) bool { // the same fight in another report
+			return o.fight.EncounterID == c.fight.EncounterID && o.fight.KeystoneLevel == c.fight.KeystoneLevel &&
+				o.fight.Difficulty == c.fight.Difficulty && o.fight.Kill == c.fight.Kill &&
+				abs(o.ref.StartMS-c.ref.StartMS) <= matchSlackMS && abs(length(o)-length(c)) <= copyLengthMS
+		})
+		if !copied {
+			picked = append(picked, c.ref)
+		}
+	}
 	return picked
 }
 
