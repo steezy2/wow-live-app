@@ -100,3 +100,10 @@ export function sizeText(bytes: number): string {
   if (bytes >= 1e9) return `${(bytes / 1e9).toFixed(1)} GB`
   return bytes >= 1e6 ? `${Math.round(bytes / 1e6)} MB` : `${Math.ceil(bytes / 1e3)} KB`
 }
+
+/** Items grouped by a key, the groups in the order their keys first came (Map.groupBy, past this build's ES2020). */
+export function groupBy<T>(items: T[], key: (item: T) => string): Map<string, T[]> {
+  const groups = new Map<string, T[]>()
+  items.forEach((item) => groups.get(key(item))?.push(item) ?? groups.set(key(item), [item]))
+  return groups
+}

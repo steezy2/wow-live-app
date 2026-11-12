@@ -16,6 +16,8 @@ import (
 const (
 	// trackEveryMS: a party member's position is kept at most this often.
 	trackEveryMS = 1_000
+	// mobEveryMS: an ordinary mob's position is kept at most this often, as a key has hundreds.
+	mobEveryMS = 2_000
 	// walkedGrid is the size in yards of the squares the walked area is drawn in.
 	walkedGrid = 3.0
 )
@@ -59,12 +61,18 @@ func (k *LogTracker) position(at int64, event string, f []string) {
 		if r == nil {
 			watched = run.bigUnit(guid, p.Name)
 		}
-		if watched && at-run.sampled[guid] >= trackEveryMS {
+		switch {
+		case watched && at-run.sampled[guid] >= trackEveryMS:
 			run.sampled[guid] = at
 			if hp, maxHP := atoi(f[i+2]), atoi(f[i+3]); maxHP > 0 {
 				p.HP = math.Round(1000*float64(hp)/float64(maxHP)) / 10
 			}
 			run.track.Bosses[guid] = append(run.track.Bosses[guid], p)
+		case !watched && run.track.Bosses[guid] == nil && hostileActor(guid, f) && at-run.sampled[guid] >= mobEveryMS:
+			run.sampled[guid] = at
+			m := run.track.Mobs[guid]
+			m.Points = append(m.Points, models.TrackPoint{ClockMS: p.ClockMS, X: x, Y: y, Map: p.Map})
+			run.track.Mobs[guid] = m
 		}
 	}
 }
@@ -186,13 +194,22 @@ func (k *LogTracker) trackCast(at int64, event string, f []string) {
 	}
 }
 
-// mobDeathAt puts a mob's death on the map where it was last seen.
+// hostileActor is whether the advanced-logging block's actor is the line's hostile source or target.
+func hostileActor(guid string, f []string) bool {
+	return (guid == f[0] && hasFlag(f[2], hostileFlag)) || (guid == f[4] && hasFlag(f[6], hostileFlag))
+}
+
+// mobDeathAt puts a mob's death on the map where it was last seen, and ends its trail there.
 func (k *LogTracker) mobDeathAt(at int64, guid string) {
 	run := k.current
 	if p, ok := run.mobAt[guid]; ok {
 		p.ClockMS = k.clockAt(at)
 		run.track.Deaths = append(run.track.Deaths, p)
 		delete(run.mobAt, guid)
+		if m, ok := run.track.Mobs[guid]; ok {
+			m.Died = p.ClockMS
+			run.track.Mobs[guid] = m
+		}
 	}
 }
 
@@ -210,6 +227,16 @@ func (k *LogTracker) trackOf(run *keyRun) models.KeyTrack {
 		t.Bosses = map[string][]models.TrackPoint{}
 		for guid, points := range run.track.Bosses {
 			t.Bosses[guid] = list(points)
+		}
+	}
+	if len(run.track.Mobs) > 0 {
+		t.Mobs = map[string]models.MobTrail{}
+		live := run.key.Status == "running"
+		for guid, m := range run.track.Mobs {
+			if live && m.Died > 0 { // the live map shows only the mobs still up
+				continue
+			}
+			t.Mobs[guid] = models.MobTrail{Points: list(m.Points), Died: m.Died}
 		}
 	}
 	if run.key.Status != "running" { // the focus bars and casts are for the replay of a finished run

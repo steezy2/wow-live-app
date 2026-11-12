@@ -222,6 +222,14 @@ func TestKeyStep2(t *testing.T) {
 		len(track.Meters["Testmage"]) == 0 {
 		t.Fatalf("track = %+v, %v; want the mage's position and the mob's death", track, err)
 	}
+	if len(track.Mobs) != 1 {
+		t.Fatalf("mobs = %+v; want the Spellsower's trail", track.Mobs)
+	}
+	for _, m := range track.Mobs {
+		if len(m.Points) == 0 || m.Points[0].Name != "" || m.Died != track.Deaths[0].ClockMS {
+			t.Fatalf("mob trail = %+v; want unnamed points ending at its death %d", m, track.Deaths[0].ClockMS)
+		}
+	}
 	for _, r := range got.Overall.Rows { // the replay's cards at the end match the meters
 		points := track.Meters[r.Player]
 		if p := points[len(points)-1]; p.Avoidable != r.Avoidable || p.Kicks != r.Interrupts ||

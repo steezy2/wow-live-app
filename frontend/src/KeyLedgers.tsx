@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { KeyHit, KeyTrack, KeyView } from './api'
 import type { FightData } from './KeyTabs'
-import { amount, clock, coverText } from './format'
+import { amount, clock, coverText, groupBy } from './format'
 import { defense, offense } from './meterColumns'
 import { MeterCard } from './MeterCards'
 import { meterBetween } from './replay'
@@ -220,12 +220,6 @@ export function BigHits({ data, seek }: { data: FightData; seek?: Seeker }) {
       {hits.length === 0 && <li className="muted">None</li>}
     </ul>
   )
-}
-
-function groupBy(hits: KeyHit[], key: (h: KeyHit) => string) {
-  const groups = new Map<string, KeyHit[]>()
-  hits.forEach((h) => groups.get(key(h))?.push(h) ?? groups.set(key(h), [h]))
-  return groups
 }
 
 const total = (hits: KeyHit[], pick: 'damage' | 'hits') => hits.reduce((n, h) => n + h[pick], 0)

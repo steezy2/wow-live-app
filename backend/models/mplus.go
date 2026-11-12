@@ -209,6 +209,9 @@ type KeyTrack struct {
 	// Health is the Bosses GUIDs the replay's health box shows: the units whose health is the boss's, then the adds
 	// to burst.
 	Health []string `json:"health,omitempty"`
+	// Mobs is every other hostile mob (by GUID) the replay draws as a small dot: about every 2 s while it acts, and
+	// when it died; none in tracks saved before Nov 11.
+	Mobs map[string]MobTrail `json:"mobs,omitempty"`
 	// Casts is each raider's casts in order, and Abilities what each one's abilities did in each abilityEveryMS
 	// stretch, so the replay shows what a raider was casting and their bars up to its moment; none in pulls saved
 	// before Nov 11.
@@ -218,6 +221,12 @@ type KeyTrack struct {
 	AbilityTimes []int64 `json:"abilityTimes,omitempty"`
 	// TargetSeries is each raider's damage into each enemy (by name, as Ability) in the same stretches.
 	TargetSeries map[string][]AbilitySeries `json:"targetSeries,omitempty"`
+}
+
+// MobTrail is where a mob went (its points unnamed) and when it died on the clock (0 while alive).
+type MobTrail struct {
+	Points []TrackPoint `json:"p"`
+	Died   int64        `json:"died,omitempty"`
 }
 
 // TrackCast is a cast on the pull's clock: when it started, the spell, for one with a cast time when it ended

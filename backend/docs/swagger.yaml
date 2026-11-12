@@ -518,6 +518,13 @@ definitions:
           type: array
         description: each player's damage and healing so far, about every 2 s
         type: object
+      mobs:
+        additionalProperties:
+          $ref: '#/definitions/models.MobTrail'
+        description: |-
+          Mobs is every other hostile mob (by GUID) the replay draws as a small dot: about every 2 s while it acts, and
+          when it died; none in tracks saved before Nov 11.
+        type: object
       players:
         additionalProperties:
           items:
@@ -771,6 +778,15 @@ definitions:
       tk:
         description: damage taken so far; 0 in keys saved before Nov 8
         type: integer
+    type: object
+  models.MobTrail:
+    properties:
+      died:
+        type: integer
+      p:
+        items:
+          $ref: '#/definitions/models.TrackPoint'
+        type: array
     type: object
   models.OverlaySettings:
     properties:

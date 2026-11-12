@@ -20,6 +20,7 @@ import {
   JUMP_YARDS_PER_S,
   indexAfter,
   lastAt,
+  MOB_GONE_MS,
   positionAt,
   type SliderMark,
   type useReplay,
@@ -236,8 +237,8 @@ function canvasSize(backdrop: Backdrop): [number, number] {
 }
 
 /** The map itself: the backdrop, each player's trail and dot in their class colour (a cross where they died), a raid
- * boss's units, and mob deaths so far. The wheel zooms around the pointer, a drag pans and a double click shows all
- * of it again. With onPick, a click on a player's dot picks them and a right click picks nobody (''); the focused
+ * boss's units and minibosses (named), the other mobs alive (small, unnamed), and mob deaths so far. The wheel zooms
+ * around the pointer, a drag pans and a double click shows all of it again. With onPick, a click on a player's dot picks them and a right click picks nobody (''); the focused
  * player gets a ring and their name, and the others' trails fade. */
 export function MapCanvas(props: {
   track: KeyTrack
@@ -374,6 +375,18 @@ export function MapCanvas(props: {
           const [x, y] = at(d)
           ctx.fillRect(x - dot / 2, y - dot / 2, dot, dot)
         })
+      ctx.fillStyle = css.bad
+      ctx.strokeStyle = '#000'
+      ctx.lineWidth = dot / 5
+      Object.values(track.mobs ?? {}).forEach((m) => {
+        const last = positionAt(m.p, now)
+        if (!last || last.map !== floor || (m.died ? m.died <= now : now - last.t > MOB_GONE_MS)) return
+        const [x, y] = at(last)
+        ctx.beginPath()
+        ctx.arc(x, y, dot * 0.75, 0, 2 * Math.PI)
+        ctx.fill()
+        ctx.stroke()
+      })
       Object.values(track.bosses ?? {}).forEach((points) => {
         const last = positionAt(points, now)
         if (!last || last.map !== floor || now - last.t > BOSS_GONE_MS) return
