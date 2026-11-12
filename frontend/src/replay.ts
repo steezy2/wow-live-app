@@ -25,12 +25,12 @@ const PAGE_EVERY_MS = 100
 
 /** A replay's clock: the moment shown (from start), whether it plays and how fast, up to end. Playing, it moves every
  * frame by the real time since the last one: now() is that moment, for the map to draw every frame, and at follows it
- * PAGE_EVERY_MS, so the rest of the page isn't drawn again 60 times a second. */
-export function useReplay(end: number, start: number, firstSpeed = 8) {
+ * PAGE_EVERY_MS, so the rest of the page isn't drawn again 60 times a second. It starts at 1×. */
+export function useReplay(end: number, start: number) {
   const [at, setShown] = useState(start)
   const clock = useRef(start)
   const [playing, setPlaying] = useState(false)
-  const [speed, setSpeed] = useState(firstSpeed)
+  const [speed, setSpeed] = useState(1)
   const setAt = useCallback((t: number) => {
     clock.current = t
     setShown(t)

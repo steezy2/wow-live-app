@@ -93,6 +93,7 @@ describe('importProgress', () => {
     problem: 'boom',
     imported: 11,
     linked: 0,
+    reservePoints: 200,
   }
   it('counts the fights and what they saved, with the points and the failures', () => {
     expect(importProgress(status, 0)).toBe(

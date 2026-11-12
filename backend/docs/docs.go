@@ -1602,6 +1602,10 @@ const docTemplate = `{
                 "problem": {
                     "type": "string"
                 },
+                "reservePoints": {
+                    "description": "ReservePoints are the hour's points an import leaves for key reviews and parses: with fewer left, it waits\nfor the hour to reset.",
+                    "type": "number"
+                },
                 "resumeAtMS": {
                     "type": "integer"
                 },
@@ -2064,6 +2068,9 @@ const docTemplate = `{
                     "items": {
                         "type": "string"
                     }
+                },
+                "seconds": {
+                    "type": "integer"
                 },
                 "unused": {
                     "description": "Unused is the defensive the member hit hardest had ready and didn't use (\"\" when they used one or had none\nready); missing in keys saved before Nov 11.",

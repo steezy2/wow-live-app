@@ -203,6 +203,11 @@ definitions:
         type: number
       problem:
         type: string
+      reservePoints:
+        description: |-
+          ReservePoints are the hour's points an import leaves for key reviews and parses: with fewer left, it waits
+          for the hour to reset.
+        type: number
       resumeAtMS:
         type: integer
       state:
@@ -521,6 +526,8 @@ definitions:
         items:
           type: string
         type: array
+      seconds:
+        type: integer
       unused:
         description: |-
           Unused is the defensive the member hit hardest had ready and didn't use ("" when they used one or had none

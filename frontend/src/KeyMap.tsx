@@ -130,7 +130,7 @@ export function KeyMap(props: {
   const { keyView: key, clockMS, track, replay, focus: follow, onFocus: setFollow } = props
   const live = key.status === 'running'
   const [dungeon, setDungeon] = useState<DungeonMap>({ floors: [], walked: [] })
-  const [trail, setTrail] = useState(30_000)
+  const [trail, setTrail] = useState(0)
   const [floor, setFloor] = useState<number | null>(null)
 
   useEffect(() => {

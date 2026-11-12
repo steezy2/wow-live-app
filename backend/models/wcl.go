@@ -118,6 +118,9 @@ type ImportStatus struct {
 	Plan           *ImportPlan `json:"plan,omitempty"`
 	// Linked is how many saved keys and pulls read from local logs the last listing linked to their report.
 	Linked int `json:"linked"`
+	// ReservePoints are the hour's points an import leaves for key reviews and parses: with fewer left, it waits
+	// for the hour to reset.
+	ReservePoints float64 `json:"reservePoints"`
 }
 
 // KeyStatus is what the page shows about the saved Warcraft Logs keys, never the secret: whether they're set, the

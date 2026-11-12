@@ -4,7 +4,8 @@ import { CharacterParses } from './CharacterParses'
 import { amount, clock, counted } from './format'
 
 /** The Recap tab: a period picked with chips (this month by default) read as a story: tiles, the dungeons run most,
- * your character, who you ran with, facts that open their key or pull (onOpen), and the raid by boss. */
+ * your character, who you ran with, facts that open their key or pull (onOpen), the raid by boss, and the character's
+ * parses this season. */
 export function Recap({
   character,
   onOpen,
@@ -51,21 +52,20 @@ export function Recap({
       {answer.error && (!answer.period || current.error) ? (
         <p className="warning">{answer.error}</p>
       ) : current.recap ? (
-        <RecapBody recap={current.recap} character={character} onOpen={onOpen} />
+        <RecapBody recap={current.recap} onOpen={onOpen} />
       ) : (
         <p className="muted">Loading…</p>
       )}
+      <CharacterParses character={character} />
     </>
   )
 }
 
 function RecapBody({
   recap: r,
-  character,
   onOpen,
 }: {
   recap: RecapData
-  character: string
   onOpen: (kind: 'mplus' | 'raid', start: number) => void
 }) {
   if (r.keys === 0 && r.raid.length === 0) return <p className="muted">No keys or raid pulls in this period</p>
@@ -142,7 +142,6 @@ function RecapBody({
               </li>
             ))}
           </ul>
-          <CharacterParses character={character} />
         </section>
       )}
       {r.party.length > 0 && (

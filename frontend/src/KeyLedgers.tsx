@@ -184,7 +184,8 @@ export function SpikeLedger(props: { data: FightData; group: 'party' | 'raid'; s
               <b>
                 <When ms={s.clockMS} seek={seek} />
               </b>{' '}
-              {amount(s.damage)} in 3 s{' '}
+              {amount(s.damage)}
+              {s.seconds > 0 && ` in ${s.seconds} s`}{' '}
               <span className={s.partyCDs.length ? 'muted' : 'bad'}>
                 {s.partyCDs.length ? s.partyCDs.join(', ') : `no ${group} cooldown`}
                 {s.overlap && ' (overlapping)'}

@@ -164,7 +164,7 @@ function classesOf(pull: RaidPull): Record<string, string> {
  * brings it into view, and a raider picked anywhere (the map, a meter, the graph, a name) is focused everywhere. Shown
  * with the pull's start as its key, so both start over with each pull. */
 export function RaidPullView({ pull }: { pull: RaidPull }) {
-  const replay = useReplay(pull.durationMS, pull.durationMS, 4)
+  const replay = useReplay(pull.durationMS, pull.durationMS)
   const { track, error } = useRaidTrack(pull.start)
   const [focus, setFocus] = useState('')
   const replayBox = useRef<HTMLDivElement>(null)

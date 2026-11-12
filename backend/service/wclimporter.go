@@ -17,7 +17,8 @@ import (
 )
 
 const (
-	// importReservePoints are the hour's points an import leaves for key reviews: under them it waits for the hour.
+	// importReservePoints are the hour's points an import leaves for key reviews (minReviewPoints) and parses: under
+	// them it waits for the hour.
 	importReservePoints = 200
 	// importRetryWait is how long an import waits when Warcraft Logs says the points ran out but not when they come
 	// back.
@@ -246,6 +247,7 @@ func (im *Importer) Status() models.ImportStatus {
 		status.PointsPerFight = status.PointsSpent / float64(done)
 	}
 	status.Imported = im.Count()
+	status.ReservePoints = importReservePoints
 	return status
 }
 

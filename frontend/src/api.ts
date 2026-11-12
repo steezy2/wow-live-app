@@ -70,9 +70,11 @@ export interface KeyDispel {
   clockMS: number
 }
 
-/** A 3 s burst of party damage: the party cooldowns used (overlap: two within 5 s) and each member's cover. */
+/** A burst of party damage over seconds (0 in keys saved before Nov 12): the party cooldowns used (overlap: two
+ * within 5 s) and each member's cover. */
 export interface KeySpike {
   clockMS: number
+  seconds: number
   damage: number
   partyCDs: string[]
   overlap: boolean
@@ -663,6 +665,8 @@ export interface ImportStatus {
   plan?: ImportPlan
   /** How many saved keys and pulls from local logs the last listing linked to their report. */
   linked: number
+  /** The hour's points an import leaves for key reviews and parses: with fewer left, it waits for the hour. */
+  reservePoints: number
 }
 
 export async function fetchImportStatus(signal?: AbortSignal): Promise<ImportStatus> {

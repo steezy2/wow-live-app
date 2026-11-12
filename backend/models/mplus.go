@@ -309,11 +309,12 @@ type KeyDispel struct {
 	ClockMS int64  `json:"clockMS"`
 }
 
-// KeySpike is a burst of party damage taken over 3 s (a raid pull's: raid-rules.toml's spike_seconds): when, how
-// much, the party cooldowns used for it (Overlap when two came within 5 s of each other), and each member hit with
+// KeySpike is a burst of party damage taken over Seconds (5 s; a raid pull's: raid-rules.toml's spike_seconds): when,
+// how much, the party cooldowns used for it (Overlap when two came within 5 s of each other), and each member hit with
 // their cover.
 type KeySpike struct {
 	ClockMS  int64            `json:"clockMS"`
+	Seconds  int64            `json:"seconds"`
 	Damage   int64            `json:"damage"`
 	PartyCDs []string         `json:"partyCDs"`
 	Overlap  bool             `json:"overlap"`

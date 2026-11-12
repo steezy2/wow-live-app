@@ -18,7 +18,7 @@ const (
 	castTimeoutMS = 15_000
 	// spikeMS and spikeShare: a spike is spikeMS of party damage taken above this share of all such stretches so
 	// far; at most maxSpikes are shown, after minSpikeStretches stretches of fighting.
-	spikeMS           = 3_000
+	spikeMS           = 5_000
 	spikeShare        = 0.95
 	maxSpikes         = 8
 	minSpikeStretches = 60
@@ -221,7 +221,7 @@ func (k *LogTracker) spikes(run *keyRun, casts []models.KeyCast, buffs []models.
 func (k *LogTracker) spike(run *keyRun, second, damage, span int64, casts []models.KeyCast, buffs []models.BuffUp,
 	kit models.Kit) models.KeySpike {
 	at := second * 1000
-	sp := models.KeySpike{ClockMS: k.clockAt(at), Damage: damage, PartyCDs: []string{}, Members: []models.KeySpikeMember{}}
+	sp := models.KeySpike{ClockMS: k.clockAt(at), Seconds: span / 1000, Damage: damage, PartyCDs: []string{}, Members: []models.KeySpikeMember{}}
 	window := int64(k.rules.Defensives.WindowSeconds * 1000)
 	covers := func(c models.KeyCast) bool {
 		return (slices.Contains(k.rules.Defensives.Externals, c.Ability) ||
