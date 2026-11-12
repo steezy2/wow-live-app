@@ -130,34 +130,34 @@ export function KickLedger({ data: key, seek }: { data: FightData; seek?: Seeker
   )
 }
 
-/** Each trash pull with minibosses: how many of each one's pack (the regular mobs first hit within 10 s of it) died
- * before it, which is fine as long as it's under half (red when it isn't), and the share of damage into them against
- * their share of the pull's health. */
+/** Each trash pull with priority targets (minibosses): when each died against the regular mobs of its pack (the ones
+ * first hit within 10 s of it; red when it died after more than half of them), the share of the pull's damage into it
+ * (and of its health when it's the only one), and the pull's share of damage in the first 10 s. */
 export function PriorityLedger({ keyView: key }: { keyView: KeyView }) {
   return (
     <ul className="list scroll">
       {key.pulls.map((p) => (
         <li key={p.pull} className="stack">
-          <span>
-            Pull {p.pull} <span className="muted">{clock(p.clockMS)}</span>
-          </span>
           {p.minibosses.map((m, i) => (
             <span key={i} className={m.order - 1 > (m.of - 1) / 2 ? 'bad' : undefined}>
-              {m.name}:{' '}
+              Pull {p.pull} <span className="muted">· {clock(p.clockMS)}</span> {m.name}{' '}
               {!m.order
                 ? "didn't die"
-                : m.of === 1
-                  ? 'no regular mobs in its pack'
-                  : `${m.order - 1} of ${m.of - 1} pack mobs died first`}
+                : m.afterMS
+                  ? `died ${Math.round(m.afterMS / 1000)} s after its pack`
+                  : m.of === 1
+                    ? 'died with no regular mobs in its pack'
+                    : m.order === m.of
+                      ? 'died after its pack'
+                      : `died with ${m.of - m.order} of ${m.of - 1} pack mobs still up`}
+              {m.damagePct > 0 && ` · ${Math.round(m.damagePct)}% of damage`}
+              {p.minibosses.length === 1 && ` (${Math.round(p.healthPct)}% of health)`}
             </span>
           ))}
-          <span className="muted">
-            {Math.round(p.priorityPct)}% of the damage into the minibosses ({Math.round(p.healthPct)}% of the pull's
-            health; {Math.round(p.openingPct)}% in the first 10 s)
-          </span>
+          <span className="muted">first 10 s: {Math.round(p.openingPct)}% of damage</span>
         </li>
       ))}
-      {key.pulls.length === 0 && <li className="muted">No pulls with a miniboss yet</li>}
+      {key.pulls.length === 0 && <li className="muted">No pulls with a priority target yet</li>}
     </ul>
   )
 }

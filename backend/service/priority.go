@@ -180,9 +180,15 @@ func priorityPulls(run *keyRun) []models.KeyPull {
 }
 
 // packOrder is a miniboss's place among the regular mobs of its pack (first hit within packMS of it) that died: Of is
-// itself plus those, Order is 1 plus those that died before it (0 if it didn't die).
+// itself plus those, Order is 1 plus those that died before it (0 if it didn't die). AfterMS is how long after the
+// last of them it died when it was last, and DamagePct its share of the pull's damage.
 func packOrder(s *pullStat, minis map[string]bool, mini *mobStat) models.KeyMiniboss {
 	m := models.KeyMiniboss{Name: mini.name, DiedMS: mini.diedMS, Of: 1}
+	var into, lastDiedMS int64
+	for _, d := range mini.byPlayer {
+		into += d
+	}
+	m.DamagePct = share(into, s.damage)
 	before := 0
 	for guid, mob := range s.mobs {
 		if minis[guid] || !mob.dead || max(mob.firstHit-mini.firstHit, mini.firstHit-mob.firstHit) > packMS {
@@ -191,10 +197,14 @@ func packOrder(s *pullStat, minis map[string]bool, mini *mobStat) models.KeyMini
 		m.Of++
 		if mini.dead && mob.diedMS < mini.diedMS {
 			before++
+			lastDiedMS = max(lastDiedMS, mob.diedMS)
 		}
 	}
 	if mini.dead {
 		m.Order = before + 1
+		if before > 0 && m.Order == m.Of {
+			m.AfterMS = mini.diedMS - lastDiedMS
+		}
 	}
 	return m
 }
