@@ -10,7 +10,6 @@ import {
   type SettingsView,
   startImport,
   stopImport,
-  UPLOADER_URL,
 } from './api'
 import { importKindText, importProgress, importTotal } from './format'
 import { track, useNote } from './note'
@@ -82,10 +81,7 @@ export function WCLImport({ view, onSaved }: { view: SettingsView; onSaved: (vie
         have in your own logs are skipped, and linked to their report instead, so they open on Warcraft Logs and
         WoWAnalyzer. It spends Warcraft Logs points: Find fights shows what it would fetch and about how many points
         that takes. It always leaves the last {status.reservePoints} points of the hour for key reviews and parses, so
-        with fewer left it waits for the hour to reset and then goes on by itself.{' '}
-        <a href={UPLOADER_URL} target="_blank" rel="noreferrer">
-          Upload your logs to Warcraft Logs
-        </a>
+        with fewer left it waits for the hour to reset and then goes on by itself.
       </p>
       <form className="settings" onSubmit={saveCharacter}>
         <label>
