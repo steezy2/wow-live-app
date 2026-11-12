@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"fmt"
 	"maps"
+	"math"
 	"slices"
 
 	"wow-live/backend/models"
@@ -39,7 +40,7 @@ func lateText(pulls []models.KeyPull) string {
 		return fmt.Sprintf("Priority target died after most of its pack in %d of %d pulls", late, len(pulls))
 	}
 	return fmt.Sprintf("Priority target died late in %d of %d pulls, last up to %.0f s after the rest of its pack (pull %d)",
-		late, len(pulls), float64(worst.AfterMS)/1000, worstPull)
+		late, len(pulls), math.Ceil(float64(worst.AfterMS)/1000), worstPull) // up: under a second still reads as 1 s
 }
 
 // lowPriorityText names the DPS (not a healer) with the smallest share of their damage into priority targets when it

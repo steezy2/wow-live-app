@@ -573,7 +573,9 @@ func (k *LogTracker) event(at int64, event string, f []string) {
 	case "SPELL_CAST_SUCCESS":
 		if src != "" && strings.HasPrefix(f[0], "Player-") {
 			run.ability(src, f[9]).Casts++
-			run.hits.hpAfter(event, f, f[0], src) // their max HP, for one only ever hit by swings
+			if run.hits.maxHP[src] == 0 {
+				run.hits.hpAfter(event, f, f[0], src) // their max HP, for one only ever hit by swings
+			}
 		}
 		if kind := k.kinds[f[9]]; kind != "" && src != "" {
 			ability := f[9]

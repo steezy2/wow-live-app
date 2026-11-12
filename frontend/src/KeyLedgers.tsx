@@ -145,7 +145,7 @@ export function PriorityLedger({ keyView: key }: { keyView: KeyView }) {
               {!m.order
                 ? "didn't die"
                 : m.afterMS
-                  ? `died ${Math.round(m.afterMS / 1000)} s after its pack`
+                  ? `died ${Math.ceil(m.afterMS / 1000)} s after its pack`
                   : m.of === 1
                     ? 'died with no regular mobs in its pack'
                     : m.order === m.of

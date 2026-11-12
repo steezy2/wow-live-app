@@ -24,7 +24,7 @@ type Settings struct {
 
 // LoadSettings reads path, or starts from defaults when there's no file yet.
 func LoadSettings(path string, defaults models.Settings) (*Settings, error) {
-	s := &Settings{path: path, file: settingsFile{Settings: defaults}}
+	s := &Settings{path: path, file: settingsFile{Settings: filled(defaults)}}
 	data, err := os.ReadFile(path)
 	if errors.Is(err, os.ErrNotExist) {
 		return s, nil
@@ -35,7 +35,17 @@ func LoadSettings(path string, defaults models.Settings) (*Settings, error) {
 	if err := json.Unmarshal(data, &s.file); err != nil {
 		return nil, fmt.Errorf("reading %s: %w", path, err)
 	}
+	s.file.Settings = filled(s.file.Settings)
 	return s, nil
+}
+
+// filled is settings with the overlay's columns as an empty list rather than null (files saved before Nov 12 have
+// none), so the page can read them as a list.
+func filled(s models.Settings) models.Settings {
+	if s.Overlay.Columns == nil {
+		s.Overlay.Columns = []string{}
+	}
+	return s
 }
 
 // Current is the settings as they are.
@@ -62,6 +72,7 @@ func (s *Settings) Get() models.SettingsView {
 func (s *Settings) Save(next models.Settings) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	next = filled(next)
 	file := s.file
 	file.Settings = next
 	if err := s.write(file); err != nil {

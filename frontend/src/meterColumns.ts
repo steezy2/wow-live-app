@@ -57,14 +57,28 @@ export function defense(avoidable: boolean): Column[] {
   return avoidable ? [...columns, { label: 'Avoidable', value: (r) => r.avoidable, tone: aboveMedian }] : columns
 }
 
-/** The column of the same name from a list, headed with a short label and without a group rule. */
-function short(columns: Column[], label: string, as = label): Column {
-  return { ...columns.find((c) => c.label === label)!, label: as, group: false }
+/** Each overlay column's short heading, by its settings id (models.OverlayColumns). */
+export const OVERLAY_LABELS: Record<OverlayColumn, string> = {
+  dps: 'DPS',
+  hps: 'HPS',
+  kicks: 'Kicks',
+  pullDps: 'Pull DPS',
+  taken: 'Taken',
+  avoidable: 'Avoid.',
+  priority: 'Prio %',
+  dispels: 'Disp.',
+  deaths: 'Deaths',
 }
 
-/** An overlay card's column by its settings id (models.OverlayColumns): pull is the last pull, for the Pull DPS
- * column, and deaths the deaths inside the card's span, for the Deaths column. */
+/** An overlay card's column by its settings id: pull is the last pull, for the Pull DPS column, and deaths the deaths
+ * inside the card's span, for the Deaths column. The others are the page's own columns (label in columns), under the
+ * overlay's heading and without a group rule. */
 export function overlayColumn(id: OverlayColumn, pull: KeyMeter, deaths: KeyDeath[]): Column {
+  const short = (columns: Column[], label: string): Column => ({
+    ...columns.find((c) => c.label === label)!,
+    label: OVERLAY_LABELS[id],
+    group: false,
+  })
   switch (id) {
     case 'dps':
       return short(offense, 'DPS')
@@ -74,24 +88,19 @@ export function overlayColumn(id: OverlayColumn, pull: KeyMeter, deaths: KeyDeat
       return short(offense, 'Kicks')
     case 'pullDps': {
       const byPlayer = new Map(pull.rows.map((r) => [r.player, r.dps]))
-      return { label: 'Pull DPS', value: (r) => byPlayer.get(r.player) ?? 0 }
+      return { label: OVERLAY_LABELS[id], value: (r) => byPlayer.get(r.player) ?? 0 }
     }
     case 'taken':
       return short(defense(false), 'Taken')
     case 'avoidable':
-      return short(defense(true), 'Avoidable', 'Avoid.')
+      return short(defense(true), 'Avoidable')
     case 'priority':
-      return short(offense, 'Priority', 'Prio %')
+      return short(offense, 'Priority')
     case 'dispels':
-      return short(offense, 'Dispels', 'Disp.')
+      return short(offense, 'Dispels')
     case 'deaths': {
       const count = (r: KeyMeterRow) => deaths.filter((d) => d.player === r.player).length
-      return { label: 'Deaths', value: count, show: (r) => String(count(r)) }
+      return { label: OVERLAY_LABELS[id], value: count, show: (r) => String(count(r)) }
     }
   }
-}
-
-/** An overlay column's heading, for the settings' checkboxes. */
-export function overlayColumnLabel(id: OverlayColumn): string {
-  return overlayColumn(id, { startMS: 0, endMS: 0, ongoing: false, rows: [] }, []).label
 }

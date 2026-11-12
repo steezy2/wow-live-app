@@ -89,7 +89,7 @@ export function fightTabs(
       body: (
         <div className="cards compact">
           {byPlayer(pressed, data.deaths).map(([player, casts]) => (
-            <PlayerCard key={player} player={player} summary={countBy(casts.map(castName))} seek={seek}>
+            <PlayerCard key={player} player={player} summary={countBy(casts.map(castName)) || 'pressed nothing'} seek={seek}>
               {casts.map((c, i) => (
                 <div key={i} className="card-row">
                   <span className="name">{castName(c)}</span>
@@ -139,7 +139,7 @@ export function fightTabs(
 }
 
 /** A player's card: their name and a summary, with a button that opens the children below. */
-// It lives with the tabs that use it; a component beside fightTabs doesn't break fast refresh in practice.
+// It lives with the tabs that use it; fightTabs beside it is why the rule fires.
 // eslint-disable-next-line react-refresh/only-export-components
 function PlayerCard(props: { player: string; summary: string; seek?: Seeker; children: ReactNode }) {
   const { player, summary, seek, children } = props

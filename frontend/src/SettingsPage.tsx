@@ -11,7 +11,7 @@ import {
 } from './api'
 import { track, useNote } from './note'
 import { NoteLine } from './NoteLine'
-import { overlayColumnLabel } from './meterColumns'
+import { OVERLAY_LABELS } from './meterColumns'
 import { useNow, useOverlayMoving } from './useLiveKey'
 import { CombatLogs } from './CombatLogs'
 import { WCLImport } from './WCLImport'
@@ -156,7 +156,7 @@ export function SettingsPage({ view, onSaved }: { view: SettingsView; onSaved: (
                   })
                 }
               />{' '}
-              {overlayColumnLabel(id)}
+              {OVERLAY_LABELS[id]}
             </label>
           ))}
         </fieldset>

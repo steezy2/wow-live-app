@@ -14,8 +14,8 @@ func TestSettingsFromAnOlderFileKeepDefaultsAndPlacesSurviveASave(t *testing.T) 
 	if err := os.WriteFile(path, []byte(`{"logsDir": "D:/Logs", "region": "eu"}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	overlay := models.OverlaySettings{Show: "keys", Opacity: 100}
-	s, err := LoadSettings(path, models.Settings{Region: "us", Overlay: overlay})
+	overlay := models.OverlaySettings{Show: "keys", Opacity: 100, Columns: []string{}} // no columns read as none, never null
+	s, err := LoadSettings(path, models.Settings{Region: "us", Overlay: models.OverlaySettings{Show: "keys", Opacity: 100}})
 	if err != nil {
 		t.Fatal(err)
 	}
