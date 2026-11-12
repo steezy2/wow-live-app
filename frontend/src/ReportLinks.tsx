@@ -1,4 +1,4 @@
-import { findFights, reportPages, UPLOADER_URL, type ReportLink } from './api'
+import { findFights, reportPages, type ReportLink } from './api'
 import { NoteLine } from './NoteLine'
 import { track, useNote } from './note'
 
@@ -13,7 +13,7 @@ export function ReportTag({ link, imported }: { link: ReportLink; imported?: boo
 }
 
 /** A finished key's or raid pull's (fight: its start) fight on Warcraft Logs and WoWAnalyzer once a report has it;
- * until then, the uploader's download page and Find my report, which looks through the character's recent reports. */
+ * until then, Find my report, which looks through the character's recent reports. */
 export function ReportLinks({ fight, link }: { fight: number; link?: ReportLink }) {
   const [note, setNote] = useNote(`find-report-${fight}`)
   if (link) {
@@ -40,9 +40,6 @@ export function ReportLinks({ fight, link }: { fight: number; link?: ReportLink 
   return (
     <>
       <p className="links">
-        <a href={UPLOADER_URL} target="_blank" rel="noreferrer">
-          Upload to Warcraft Logs
-        </a>{' '}
         <button onClick={find} disabled={!!note?.busy}>
           Find my report
         </button>
