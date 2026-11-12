@@ -393,9 +393,6 @@ export interface ReportLink {
   fightID: number
 }
 
-/** Where Warcraft Logs' uploader is downloaded: the app can't upload logs itself. */
-export const UPLOADER_URL = 'https://www.warcraftlogs.com/client/download'
-
 /** A report fight's pages on Warcraft Logs and WoWAnalyzer. */
 export function reportPages(link: ReportLink): { warcraftLogs: string; wowAnalyzer: string } {
   return {
