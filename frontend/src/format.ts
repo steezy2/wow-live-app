@@ -1,4 +1,4 @@
-import type { KeyView, MeterPoint, RaidPullSummary } from './api'
+import type { ImportStatus, KeyView, MeterPoint, RaidPullSummary } from './api'
 
 /** A duration as the game shows it: "18:42", "1:05:09" past an hour, "-0:12" when negative. */
 export function clock(ms: number): string {
@@ -123,4 +123,26 @@ export function periodLabel(ms: number, now = Date.now()): string {
   if (ago < 7) return day.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })
   day.setDate(day.getDate() - ((day.getDay() + 6) % 7))
   return `Week of ${day.toLocaleDateString([], { month: 'short', day: 'numeric' })}`
+}
+
+/** An import's state in a line at now (ms): how far it got, what it saved, the points, and why it stopped or waits. */
+export function importProgress(s: ImportStatus, now: number): string {
+  if (s.state === 'idle' && s.fights === 0) return ''
+  if (s.state === 'listing') return `Listing ${s.character}'s reports…`
+  const done = `${s.fightsDone + s.fightsFailed} of ${counted(s.fights, 'fight')}`
+  const saved = `${counted(s.keysSaved, 'key')}, ${counted(s.pullsSaved, 'pull')}`
+  const points = s.pointsPerFight ? ` · about ${Math.round(s.pointsPerFight)} points a fight` : ''
+  const failed = s.fightsFailed ? ` · ${s.fightsFailed} failed (${s.problem})` : ''
+  switch (s.state) {
+    case 'waiting': {
+      const minutes = Math.max(1, Math.round((s.resumeAtMS - now) / 60_000))
+      return `${done} · ${saved} · waiting ${minutes} min for the hour's points${failed}`
+    }
+    case 'failed':
+      return `Stopped: ${s.problem}`
+    case 'done':
+      return `Done: ${saved} imported${points}${failed}`
+    default:
+      return `${done} · ${saved}${points}${failed}${s.state === 'idle' ? ' · stopped' : ''}`
+  }
 }

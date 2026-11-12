@@ -365,6 +365,8 @@ export interface KeySummary {
   finalMS: number
   /** The upgrade it gave: 3, 2, 1; 0 when depleted or abandoned. */
   chests: number
+  /** The Warcraft Logs page of the fight an imported key came from; absent for a key from a local log. */
+  imported?: string
 }
 
 async function call(path: string, init?: RequestInit): Promise<Response> {
@@ -544,6 +546,8 @@ export interface Settings {
   logsDir: string
   region: 'us' | 'eu' | 'kr' | 'tw'
   overlay: OverlaySettings
+  /** The character Warcraft Logs reports are imported for, "Name-Realm"; "" for none. */
+  character: string
 }
 export interface OverlaySettings {
   show: 'keys' | 'always' | 'off'
@@ -557,6 +561,8 @@ export interface SettingsView extends Settings {
   regions: Settings['region'][]
   overlayShows: OverlaySettings['show'][]
   minOpacity: number
+  /** The name of the character whose game wrote most saved keys, for the character's placeholder; "" for none. */
+  characterGuess: string
 }
 
 export async function fetchSettings(signal?: AbortSignal): Promise<SettingsView | null> {
@@ -564,6 +570,11 @@ export async function fetchSettings(signal?: AbortSignal): Promise<SettingsView 
   if (response.status === 404) return null
   if (!response.ok) throw await failure(response)
   return (await response.json()) as SettingsView
+}
+
+/** The saved settings in view, without what the page shows beside them, to save them with one change. */
+export function savedSettings(view: SettingsView): Settings {
+  return { logsDir: view.logsDir, region: view.region, overlay: view.overlay, character: view.character }
 }
 
 /** Saves the settings; the app reads the new log folder and changes the overlay right away. */
@@ -597,6 +608,43 @@ export async function testKeys(): Promise<KeyStatus> {
 
 export async function removeKeys(): Promise<void> {
   await call('/api/settings/warcraftlogs', { method: 'DELETE' })
+}
+
+/** How the import of a character's Warcraft Logs reports stands (models.ImportStatus). */
+export interface ImportStatus {
+  state: 'idle' | 'listing' | 'running' | 'waiting' | 'done' | 'failed'
+  character: string
+  fights: number
+  fightsDone: number
+  fightsFailed: number
+  keysSaved: number
+  pullsSaved: number
+  pointsSpent: number
+  pointsPerFight: number
+  /** When it goes on after waiting for the hour's points (ms since the epoch). */
+  resumeAtMS: number
+  problem: string
+  /** How many saved keys and pulls came from Warcraft Logs. */
+  imported: number
+}
+
+export async function fetchImportStatus(signal?: AbortSignal): Promise<ImportStatus> {
+  return (await (await call('/api/settings/warcraftlogs/import', { signal })).json()) as ImportStatus
+}
+
+/** Starts importing the saved character's reports of this season in the background. */
+export async function startImport(): Promise<ImportStatus> {
+  return (await (await call('/api/settings/warcraftlogs/import', { method: 'POST' })).json()) as ImportStatus
+}
+
+/** Stops the import; what it fetched stays for the next one. */
+export async function stopImport(): Promise<ImportStatus> {
+  return (await (await call('/api/settings/warcraftlogs/import', { method: 'DELETE' })).json()) as ImportStatus
+}
+
+/** Deletes every imported key and pull, and what the import fetched. */
+export async function removeImported(): Promise<void> {
+  await call('/api/settings/warcraftlogs/imported', { method: 'DELETE' })
 }
 
 /** How many logs a read of the log folder read, and how many keys are saved (controller.OldKeys). */
@@ -654,6 +702,8 @@ export interface RaidPullSummary {
   kill: boolean
   bossPct: number
   phase: string
+  /** The Warcraft Logs page of the fight an imported pull came from; absent for a pull from a local log. */
+  imported?: string
 }
 
 /** A raider's death in a raid pull: the M+ death with whether it was early (before the wipe) and their last hits. */
