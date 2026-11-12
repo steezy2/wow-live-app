@@ -80,3 +80,24 @@ func TestRecentReportsStopAtTheLastPageWarcraftLogsServes(t *testing.T) {
 		t.Fatalf("page %d: more %v, %v; want no page after it", maxReportPages, more, err)
 	}
 }
+
+func TestCharacterParsesKeepRankedEncountersByKind(t *testing.T) {
+	f := newFake(t, data(`{"characterData": {"character": {
+		"mplus": {"rankings": [{"encounter": {"name": "Ara-Kara"}, "rankPercent": 91.5, "medianPercent": 80, "totalKills": 4, "spec": "Fire"},
+		                       {"encounter": {"name": "Skyreach"}, "rankPercent": null, "medianPercent": null, "totalKills": 0}]},
+		"raid": {"rankings": [{"encounter": {"name": "Test Boss"}, "rankPercent": 40, "medianPercent": 35, "totalKills": 2, "spec": "Fire"}]}}}}`),
+		data(`{"characterData": {"character": null}}`))
+	c := f.client(t)
+	got, err := c.CharacterParses(context.Background(), "us", "some-realm", "Testmage", models.WCLZones{MPlusID: 1, RaidID: 2})
+	want := models.CharacterParses{URL: "https://www.warcraftlogs.com/character/us/some-realm/testmage", Found: true,
+		Parses: []models.CharacterParse{
+			{Kind: models.FightMPlus, Encounter: "Ara-Kara", Best: 91.5, Median: 80, Runs: 4, Spec: "Fire"},
+			{Kind: models.FightRaid, Encounter: "Test Boss", Best: 40, Median: 35, Runs: 2, Spec: "Fire"}}}
+	if err != nil || !reflect.DeepEqual(got, want) {
+		t.Fatalf("CharacterParses = %+v, %v; want %+v", got, err, want)
+	}
+	got, err = c.CharacterParses(context.Background(), "us", "some-realm", "Nobody", models.WCLZones{MPlusID: 1})
+	if err != nil || got.Found || len(got.Parses) != 0 {
+		t.Fatalf("CharacterParses of an unknown character = %+v, %v; want not found", got, err)
+	}
+}

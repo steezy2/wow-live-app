@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"reflect"
 	"testing"
+	"time"
 )
 
 func TestTimersAndAffixesComeFromTheAPIOnceThenTheCache(t *testing.T) {
@@ -38,5 +39,21 @@ func TestTimersAndAffixesComeFromTheAPIOnceThenTheCache(t *testing.T) {
 	}
 	if calls != 2 {
 		t.Fatalf("API calls = %d; want 2 (the second round from the cache)", calls)
+	}
+}
+
+func TestSeasonDatesByRegion(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`{"seasons":[{"slug":"season-mn-1","starts":{"us":"2026-03-17T15:00:00Z","eu":null},
+			"ends":{"us":null}}]}`))
+	}))
+	defer server.Close()
+	c := Client{HTTP: server.Client(), CacheDir: t.TempDir(), BaseURL: server.URL}
+	start, end, err := c.SeasonDates(context.Background(), "us")
+	if err != nil || start != time.Date(2026, 3, 17, 15, 0, 0, 0, time.UTC) || !end.IsZero() {
+		t.Fatalf("SeasonDates(us) = %v, %v, %v; want the start and no end yet", start, end, err)
+	}
+	if _, _, err := c.SeasonDates(context.Background(), "eu"); err == nil {
+		t.Fatal("SeasonDates(eu) worked; want an error for a region without a start")
 	}
 }

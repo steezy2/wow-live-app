@@ -81,6 +81,7 @@ func newTestImporter(t *testing.T, budgets []models.RateLimit, fail ...error) *t
 			return nil
 		},
 		Saved:   func() ([]models.Key, []models.RaidPull, error) { return nil, nil, nil },
+		Link:    func(map[int64]models.ReportLink, map[int64]models.ReportLink) (int, error) { return 0, nil },
 		Prepare: func() error { return nil },
 		Count:   func() int { return 0 },
 		Dir:     t.TempDir(),

@@ -148,12 +148,9 @@ func left(p models.RaidPull) float64 {
 
 // pullSummary is a pull as a list shows it.
 func pullSummary(p models.RaidPull) models.RaidPullSummary {
-	summary := models.RaidPullSummary{Start: p.Start, Night: p.Night, Boss: p.Boss, Difficulty: p.Difficulty,
-		Number: p.Number, DurationMS: p.DurationMS, Kill: p.Kill, BossPct: p.BossPct, Phase: p.Phase}
-	if p.Imported {
-		summary.Imported = p.Report.URL()
-	}
-	return summary
+	return models.RaidPullSummary{Start: p.Start, Night: p.Night, Boss: p.Boss, Difficulty: p.Difficulty,
+		Number: p.Number, DurationMS: p.DurationMS, Kill: p.Kill, BossPct: p.BossPct, Phase: p.Phase, Report: p.Report,
+		Imported: p.Imported}
 }
 
 // savePulls saves the raid pulls that ended since the last call, keeping the failed ones for the next (saveQueued),

@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { fetchRaidNights, fetchRaidPull, type RaidNight, type RaidPull, type RaidPullSummary } from './api'
+import { fetchRaidNights, fetchRaidPull, subscribe, type RaidNight, type RaidPull, type RaidPullSummary } from './api'
 import { clock, counted, groupBy, progressText } from './format'
 import { defense, raidOffense } from './meterColumns'
 import { MeterCard } from './MeterCards'
 import { eventsOf } from './events'
-import { ImportedTag } from './ImportedTag'
+import { ReportLinks, ReportTag } from './ReportLinks'
 import { fightTabs, type FightData } from './KeyTabs'
 import { PlayerTable } from './PlayerTable'
 import { BuffGaps, EarlyDeaths, Mechanics } from './RaidCards'
@@ -28,10 +28,10 @@ function pullName(p: RaidPullSummary): string {
 }
 
 /** The Raid tab: tonight's and earlier nights' pulls on the side by night (by week past the last 7 days), newest first
- * by boss, and the last pull (or the one picked) as the overview, read again as pulls end. */
-export function RaidPage() {
+ * by boss, and the last pull (or the one picked, first initial) as the overview, read again as pulls end. */
+export function RaidPage({ initial = null }: { initial?: number | null }) {
   const live = useRaidLive()
-  const [selected, setSelected] = useState<number | null>(null)
+  const [selected, setSelected] = useState<number | null>(initial)
   const [nights, setNights] = useState<RaidNight[]>([])
   const lastStart = live?.last?.start
   useEffect(() => {
@@ -105,10 +105,10 @@ export function RaidPage() {
   )
 }
 
-/** The Warcraft Logs tag of a boss's pulls on a night, when any was imported: it opens the first one's fight. */
+/** The Warcraft Logs tag of a boss's pulls on a night, when any is a known report fight: it opens the first one's. */
 function Imported({ pulls }: { pulls: RaidPullSummary[] }) {
-  const url = pulls.find((p) => p.imported)?.imported
-  return url ? <ImportedTag url={url} /> : null
+  const p = pulls.find((p) => p.report)
+  return p?.report ? <ReportTag link={p.report} imported={p.imported} /> : null
 }
 
 /** Midday of a raid night ("2026-11-10"), so a night is grouped by its date whatever the time zone. */
@@ -116,18 +116,23 @@ function nightTime(n: RaidNight): number {
   return new Date(`${n.night}T12:00`).getTime()
 }
 
-/** A saved pull, read once. */
+/** A saved pull, read again when the saved keys and pulls change (a report linked to it, say). */
 function SavedPull({ start }: { start: number }) {
   const [pull, setPull] = useState<RaidPull | null>(null)
   const [error, setError] = useState<string | null>(null)
   useEffect(() => {
     const controller = new AbortController()
-    fetchRaidPull(start, controller.signal)
-      .then(setPull)
-      .catch((err: unknown) => {
-        if (!controller.signal.aborted) setError(err instanceof Error ? err.message : String(err))
-      })
-    return () => controller.abort()
+    const read = () =>
+      fetchRaidPull(start, controller.signal)
+        .then(setPull)
+        .catch((err: unknown) => {
+          if (!controller.signal.aborted) setError(err instanceof Error ? err.message : String(err))
+        })
+    const off = subscribe(() => void read())
+    return () => {
+      controller.abort()
+      off()
+    }
   }, [start])
   if (error) return <p className="warning">{error}</p>
   return pull?.start === start ? <RaidPullView key={start} pull={pull} /> : <p className="muted">Loading…</p>
@@ -183,6 +188,7 @@ export function RaidPullView({ pull }: { pull: RaidPull }) {
           {pull.lusts.length > 0 ? ` · Bloodlust at ${pull.lusts.map(clock).join(', ')}` : ' · no Bloodlust'}
         </p>
         <Comparisons pull={pull} />
+        <ReportLinks fight={pull.start} link={pull.report} />
       </section>
 
       {pull.suggestions.length > 0 && (

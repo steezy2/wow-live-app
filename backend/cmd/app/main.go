@@ -38,6 +38,9 @@ const (
 	// moveOverlay switches the overlay between letting clicks through to the game and taking them (to move and resize
 	// it), like Move overlay on the Settings page and in the tray.
 	moveOverlay = "CmdOrCtrl+Alt+O" // not Ctrl+Shift+O, which Radeon Software takes for its own overlay
+	// clickOverlay switches the overlay between taking clicks (a click on a player shows their abilities) and letting
+	// them through to the game, like Overlay takes clicks on the Settings page and in the tray.
+	clickOverlay = "CmdOrCtrl+Alt+K"
 	// overlayLinger is how long the overlay stays up after a key ends.
 	overlayLinger = time.Minute
 	// overlayW and overlayH are the overlay's first size, overlayMargin how far it sits from the primary screen's top
@@ -153,14 +156,25 @@ func run() error {
 	menu := wails.NewMenu()
 	menu.Add("Open " + name).OnClick(func(*application.Context) { show() })
 	moveItem := menu.AddCheckbox("Move or resize the overlay", false)
+	clickItem := menu.AddCheckbox("Overlay takes clicks", !settings.Current().Overlay.ClickThrough)
+	// passClicks lets clicks through to the game unless the overlay is being moved or takes them.
+	passClicks := func(o models.OverlaySettings) { overlay.SetIgnoreMouseEvents(o.ClickThrough && !moving.Load()) }
 	setMoving := func(on bool) {
 		moving.Store(on)
 		moveItem.SetChecked(on)
-		overlay.SetIgnoreMouseEvents(!on)
+		passClicks(settings.Current().Overlay)
 		wails.Event.Emit("overlay-moving", on)
 		showOrHide(settings.Current().Overlay.Show)
 	}
 	moveItem.OnClick(func(*application.Context) { setMoving(moveItem.Checked()) })
+	setClicks := func(on bool) { // saved, so OnSave applies it and tells the pages
+		next := settings.Current()
+		next.Overlay.ClickThrough = !on
+		if err := settings.Save(next); err != nil {
+			log.Printf("saving whether the overlay takes clicks: %v", err)
+		}
+	}
+	clickItem.OnClick(func(*application.Context) { setClicks(clickItem.Checked()) })
 	menu.Add("Quit").OnClick(func(*application.Context) { wails.Quit() })
 	icon, err := files.ReadFile("embed/icon.ico")
 	if err != nil {
@@ -188,6 +202,8 @@ func run() error {
 	settings.OnSave = func(next models.Settings) {
 		wails.Event.Emit("settings", next)
 		showOrHide(next.Overlay.Show)
+		clickItem.SetChecked(!next.Overlay.ClickThrough)
+		passClicks(next.Overlay)
 		if next.LogsDir == following {
 			return // following the same folder again would read its log into the keys twice
 		}
@@ -197,13 +213,18 @@ func run() error {
 	keepPlace(wails, window, "main", settings, nil)
 	keepPlace(wails, overlay, "overlay", settings, defaultPlace)
 	overlay.OnWindowEvent(events.Common.WindowRuntimeReady, func(*application.WindowEvent) {
-		go overlay.SetIgnoreMouseEvents(!moving.Load())
+		go passClicks(settings.Current().Overlay)
 	})
 	// Once the app runs: a hotkey that clashes with another app's reaches this log (before that Wails only queues it).
 	wails.Event.OnApplicationEvent(events.Common.ApplicationStarted, func(*application.ApplicationEvent) {
 		showOrHide(settings.Current().Overlay.Show)
 		if err := wails.GlobalShortcut.Register(moveOverlay, func() { setMoving(!moving.Load()) }); err != nil {
 			log.Printf("no %s to move the overlay (use Settings or the tray): %v", moveOverlay, err)
+		}
+		if err := wails.GlobalShortcut.Register(clickOverlay, func() {
+			setClicks(settings.Current().Overlay.ClickThrough)
+		}); err != nil {
+			log.Printf("no %s to switch the overlay's clicks (use Settings or the tray): %v", clickOverlay, err)
 		}
 	})
 	versions, _ := site.Changes.Subscribe()

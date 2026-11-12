@@ -46,7 +46,7 @@ export function SettingsPage({ view, onSaved }: { view: SettingsView; onSaved: (
     )
       return
     const timer = setTimeout(() => {
-      const call = saveSettings({ ...savedSettings(view), overlay })
+      const call = saveSettings({ ...savedSettings(view), overlay: { ...overlay, clickThrough: view.overlay.clickThrough } })
       track(call, setOverlayNote, 'Saving…', () => 'Saved').then(onSaved, () => undefined)
     }, OVERLAY_SAVE_MS)
     return () => clearTimeout(timer)
@@ -129,6 +129,19 @@ export function SettingsPage({ view, onSaved }: { view: SettingsView; onSaved: (
             onChange={(e) => setOverlay({ ...overlay, split: e.target.checked })}
           />{' '}
           The pull and the whole key as two cards (taller)
+        </label>
+        <label className="inline">
+          <input
+            type="checkbox"
+            checked={!view.overlay.clickThrough}
+            onChange={(e) => {
+              const next = { ...view.overlay, clickThrough: !e.target.checked }
+              const call = saveSettings({ ...savedSettings(view), overlay: next })
+              track(call, setOverlayNote, 'Saving…', () => 'Saved').then(onSaved, () => undefined)
+            }}
+          />{' '}
+          The overlay takes clicks (Ctrl+Alt+K): a click on a player shows their spells in the pull, but the game
+          gets no clicks where the overlay is
         </label>
         <div className="actions">
           <button type="button" aria-pressed={moving} onClick={() => moveOverlay(!moving)}>

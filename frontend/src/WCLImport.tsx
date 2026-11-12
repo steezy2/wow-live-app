@@ -10,7 +10,9 @@ import {
   type SettingsView,
   startImport,
   stopImport,
+  UPLOADER_URL,
 } from './api'
+import { CharacterParses } from './CharacterParses'
 import { importKindText, importProgress, importTotal } from './format'
 import { track, useNote } from './note'
 import { NoteLine } from './NoteLine'
@@ -78,8 +80,12 @@ export function WCLImport({ view, onSaved }: { view: SettingsView; onSaved: (vie
       <p className="muted">
         Saves the Mythic+ keys and raid boss pulls of this season and raid that a character's Warcraft Logs reports
         have, as if the app had read their logs: also a quick way to see the app on many runs. Keys and pulls you
-        have in your own logs are skipped. It spends Warcraft Logs points, so it waits when the hour's points run low:
-        Find fights shows what it would fetch and about how many points that takes.
+        have in your own logs are skipped, and linked to their report instead, so they open on Warcraft Logs and
+        WoWAnalyzer. It spends Warcraft Logs points, so it waits when the hour's points run low: Find fights shows what
+        it would fetch and about how many points that takes.{' '}
+        <a href={UPLOADER_URL} target="_blank" rel="noreferrer">
+          Upload your logs to Warcraft Logs
+        </a>
       </p>
       <form className="settings" onSubmit={saveCharacter}>
         <label>
@@ -116,6 +122,10 @@ export function WCLImport({ view, onSaved }: { view: SettingsView; onSaved: (vie
           )}
         </div>
       </form>
+      {saved && <CharacterParses character={view.character} />}
+      {status.linked > 0 && (
+        <p className="muted">{status.linked} keys and pulls from your own logs linked to their Warcraft Logs report</p>
+      )}
       {plan && (
         <div className="settings">
           {plan.kinds.map((k) => (

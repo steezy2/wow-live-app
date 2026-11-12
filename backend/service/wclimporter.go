@@ -63,6 +63,8 @@ type Importer struct {
 	Read func(path string, link models.ReportLink) error
 	// Saved are the saved keys and raid pulls, so fights already saved or read from a local log are skipped.
 	Saved func() ([]models.Key, []models.RaidPull, error)
+	// Link saves the Warcraft Logs fights ReportLinks finds on their local keys and pulls (LogTracker.LinkReports).
+	Link func(keyLinks, pullLinks map[int64]models.ReportLink) (int, error)
 	// Prepare runs before the reports are listed: it reads new local logs, so their keys win over imported copies.
 	Prepare func() error
 	// Count is how many saved keys and pulls are imported, and RemoveImported deletes them.
@@ -320,7 +322,8 @@ func (im *Importer) list(ctx context.Context, st *importState, name, slug string
 }
 
 // fights are the character's fights to import (PickFights), from its reports back to the first page with none of
-// this season's, once new local logs are read, but those done (fetched before, and saved nothing).
+// this season's, once new local logs are read, but those done (fetched before, and saved nothing); the local keys
+// and pulls a report has are linked to it on the way (the status's Linked).
 func (im *Importer) fights(ctx context.Context, region, character, name, slug string, done []models.ReportLink) (
 	[]models.FightRef, error) {
 	if err := im.Prepare(); err != nil && !errors.Is(err, ErrBusy) {
@@ -347,6 +350,13 @@ func (im *Importer) fights(ctx context.Context, region, character, name, slug st
 	if err != nil {
 		return nil, err
 	}
+	linked, err := im.Link(ReportLinks(reports, zones.Encounters, keys, pulls))
+	if err != nil {
+		return nil, err
+	}
+	im.mu.Lock()
+	im.status.Linked = linked
+	im.mu.Unlock()
 	return slices.DeleteFunc(PickFights(reports, zones, character, keys, pulls), func(f models.FightRef) bool {
 		return slices.Contains(done, f.ReportLink)
 	}), nil

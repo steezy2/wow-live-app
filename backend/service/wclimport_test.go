@@ -121,6 +121,54 @@ func TestMatchReportsPulls(t *testing.T) {
 	}
 }
 
+func TestReportLinks(t *testing.T) {
+	const length = 30 * minute
+	reports := []models.CharacterReport{
+		report("OLD", 100, t0, keyFight(1, 12, hour, length, testParty...)),
+		report("NEW", 100, t0+30_000, keyFight(4, 12, hour, length, testParty...)), // the same key, uploaded again
+		report("RAID", 200, t0+2*hour, bossFight(2, true, 0, 5*minute, testParty...)),
+	}
+	linked := localKey(t0+hour, length, 12, testParty...)
+	linked.Report = &models.ReportLink{Code: "OLD", FightID: 1}
+	imported := localKey(t0+hour, length, 12, testParty...)
+	imported.Imported = true
+	pull := models.RaidPull{Boss: "Test Boss", Difficulty: "Mythic", Kill: true, Start: t0 + 2*hour,
+		End: t0 + 2*hour + 5*minute, Players: testParty}
+	for _, tc := range []struct {
+		name      string
+		keys      []models.Key
+		wantKeys  map[int64]models.ReportLink
+		wantPulls map[int64]models.ReportLink
+	}{
+		{"a local key gets the newest report's fight", []models.Key{localKey(t0+hour, length, 12, testParty...)},
+			map[int64]models.ReportLink{t0 + hour: link("NEW", 4)}, map[int64]models.ReportLink{t0 + 2*hour: link("RAID", 2)}},
+		{"a linked or imported key is left alone", []models.Key{linked, imported}, map[int64]models.ReportLink{},
+			map[int64]models.ReportLink{t0 + 2*hour: link("RAID", 2)}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			keys, pulls := ReportLinks(reports, testZones.Encounters, tc.keys, []models.RaidPull{pull})
+			if !reflect.DeepEqual(keys, tc.wantKeys) || !reflect.DeepEqual(pulls, tc.wantPulls) {
+				t.Errorf("linked keys %v, pulls %v; want %v, %v", keys, pulls, tc.wantKeys, tc.wantPulls)
+			}
+		})
+	}
+}
+
+func TestLinkedReportSurvivesReadingTheLogAgain(t *testing.T) {
+	keys := newTracker(t, nil)
+	lines := []string{at(0, `CHALLENGE_MODE_START,"Voidscar Arena",2923,585,10,[9]`),
+		"11/4/2026 20:03:00.000-7  CHALLENGE_MODE_END,2923,1,10,180000,100.0,3000.0"}
+	fed := feed(t, keys, lines...)
+	start := fed[0].Time
+	if n, err := keys.LinkReports(map[int64]models.ReportLink{start: link("A", 3)}, nil); n != 1 || err != nil {
+		t.Fatalf("linked %d, %v; want the key", n, err)
+	}
+	feed(t, keys, lines...)
+	if got := keys.history; len(got) != 1 || got[0].Report == nil || *got[0].Report != link("A", 3) {
+		t.Fatalf("saved %+v; want the one key, still linked to A#3", got)
+	}
+}
+
 func TestPickFights(t *testing.T) {
 	const length = 30 * minute
 	reports := []models.CharacterReport{

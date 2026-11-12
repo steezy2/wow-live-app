@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { KeyHit, KeyTrack, KeyView } from './api'
 import type { FightData } from './KeyTabs'
-import { amount, clock, coverText, groupBy } from './format'
+import { amount, causesText, clock, coverText, groupBy } from './format'
 import { defense, offense } from './meterColumns'
 import { MeterCard } from './MeterCards'
 import { meterBetween } from './replay'
@@ -190,6 +190,7 @@ export function SpikeLedger(props: { data: FightData; group: 'party' | 'raid'; s
                 {s.overlap && ' (overlapping)'}
               </span>
             </span>
+            {s.causes?.length ? <span>{causesText(s)}</span> : null}
             {s.members.map((m) => (
               <span key={m.player} className="muted">
                 {m.player} {amount(m.taken)}: {coverText(m)}

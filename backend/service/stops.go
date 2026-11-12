@@ -2,6 +2,7 @@ package service
 
 import (
 	"cmp"
+	"maps"
 	"slices"
 
 	"wow-live/backend/models"
@@ -21,6 +22,8 @@ const (
 	spikeShare        = 0.95
 	maxSpikes         = 8
 	minSpikeStretches = 60
+	// spikeCauseCount: a spike names this many of the abilities that hit the party hardest in it.
+	spikeCauseCount = 3
 	// overlapMS: two party cooldowns this close together on one spike overlap.
 	overlapMS = 5_000
 )
@@ -261,5 +264,41 @@ func (k *LogTracker) spike(run *keyRun, second, damage, span int64, casts []mode
 	}
 	slices.SortFunc(sp.Members, func(a, b models.KeySpikeMember) int { return cmp.Compare(b.Taken, a.Taken) })
 	sp.Unused = unusedDefensive(sp)
+	sp.Causes = spikeCauses(run.takenAt, second, span)
 	return sp
+}
+
+// tookFrom counts a hit on the party at a second of the log by ability and source, for spikeCauses.
+func (run *keyRun) tookFrom(second int64, ability, source string, amount int64) {
+	if amount <= 0 {
+		return
+	}
+	bySource := run.takenAt[second]
+	if bySource == nil {
+		bySource = map[[2]string]*models.SpikeCause{}
+		run.takenAt[second] = bySource
+	}
+	c := bySource[[2]string{ability, source}]
+	if c == nil {
+		c = &models.SpikeCause{Ability: ability, Source: source}
+		bySource[[2]string{ability, source}] = c
+	}
+	c.Damage, c.Hits = c.Damage+amount, c.Hits+1
+}
+
+// spikeCauses is what hit the party hardest over span ms from a second of the log, most damage first (ties by
+// ability and source, so the order never follows the map's), at most spikeCauses of them.
+func spikeCauses(takenAt map[int64]map[[2]string]*models.SpikeCause, second, span int64) []models.SpikeCause {
+	sum := map[[2]string]models.SpikeCause{}
+	for i := range span / 1000 {
+		for id, c := range takenAt[second+i] {
+			s := sum[id]
+			s.Ability, s.Source, s.Damage, s.Hits = c.Ability, c.Source, s.Damage+c.Damage, s.Hits+c.Hits
+			sum[id] = s
+		}
+	}
+	causes := slices.SortedFunc(maps.Values(sum), func(a, b models.SpikeCause) int {
+		return cmp.Or(cmp.Compare(b.Damage, a.Damage), cmp.Compare(a.Ability, b.Ability), cmp.Compare(a.Source, b.Source))
+	})
+	return causes[:min(len(causes), spikeCauseCount)]
 }

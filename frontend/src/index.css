@@ -1413,3 +1413,64 @@ span.graph-damage {
 .tag:hover {
   color: var(--text);
 }
+
+/* Warcraft Logs' parse colours, a shade lighter where the dark background needs it. */
+.parse.grey {
+  color: #9d9d9d;
+}
+.parse.green {
+  color: #1eff00;
+}
+.parse.blue {
+  color: #4a9dff;
+}
+.parse.purple {
+  color: #b86cf5;
+}
+.parse.orange {
+  color: #ff8000;
+}
+.parse.pink {
+  color: #e268a8;
+}
+.parse.gold {
+  color: #e5cc80;
+}
+
+/* A button that reads as a link: a recap fact opening its key. */
+button.link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--accent);
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+}
+
+/* The Report links under a finished key or pull: Warcraft Logs, WoWAnalyzer, or Upload and Find my report. */
+.links {
+  display: flex;
+  gap: var(--s2);
+  align-items: center;
+}
+.links button {
+  background: var(--panel-2);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: var(--s1) var(--s2);
+}
+.links button:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+/* The recap's numbers in a wrapped row. */
+.recap-tiles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s4);
+}
+.recap-tiles b {
+  font-size: var(--t-h2);
+}

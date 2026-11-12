@@ -1,12 +1,19 @@
-import { type CSSProperties, useEffect, useState } from 'react'
+import { type CSSProperties, useCallback, useEffect, useState } from 'react'
+import { abilityViews } from './abilities'
 import { fetchSettings, onAppEvent, type KeyView, type OverlaySettings, type Settings } from './api'
+import { classColors } from './classColors'
+import { AbilityBars } from './FightMeters'
 import { chestLabel, clock, pullTitle, resultText } from './format'
 import { ForcesBar, TimerBar } from './KeyDetails'
 import { type Column } from './meterColumns'
 import { MeterCard } from './MeterCards'
 import { ReadyPanel } from './ReadyPanel'
 import { RaidOverlayCard } from './RaidPage'
+import { abilitiesBetween, useTrack } from './replay'
 import { useLiveKey, useOverlayMoving, useRaidLive, useReady } from './useLiveKey'
+
+/** How many of a player's abilities the overlay's breakdown lists. */
+const OVERLAY_SPELLS = 8
 
 /** How long into a key the overlay shows who started without a flask, food, rune or party buff (the countdown and
  * a little after, while there's still time to fix it). */
@@ -33,7 +40,12 @@ function overlayColumns(pull: KeyView['lastPull']): Column[] {
 
 /** The overlay's settings (background opacity, one card or two), from the app's settings and each save of them. */
 function useOverlaySettings(): OverlaySettings {
-  const [settings, setSettings] = useState<OverlaySettings>({ show: 'keys', opacity: 100, split: false })
+  const [settings, setSettings] = useState<OverlaySettings>({
+    show: 'keys',
+    opacity: 100,
+    split: false,
+    clickThrough: false,
+  })
   useEffect(() => {
     const controller = new AbortController()
     fetchSettings(controller.signal).then((view) => view && setSettings(view.overlay), () => undefined)
@@ -75,8 +87,14 @@ export function Overlay() {
   )
 }
 
-/** The overlay's view of the live key. */
+/** The overlay's view of the live key; a click on a player's row (when the overlay takes clicks) shows their
+ * abilities in the last pull until a new pull starts. */
 function OverlayKey({ keyView: key, clockMS, split }: { keyView: KeyView; clockMS: number; split: boolean }) {
+  const [picked, setPicked] = useState({ player: '', pull: 0 })
+  const pull = key.lastPull.startMS
+  const pick = useCallback((player: string) => setPicked({ player, pull }), [pull])
+  const back = useCallback(() => pick(''), [pick])
+  const focus = picked.pull === key.lastPull.startMS ? picked.player : ''
   const timer = key.timerMS ?? 0
   const projection = key.status === 'running' ? key.projection : undefined
   const latest = key.deaths.length > 0 ? key.deaths[key.deaths.length - 1] : undefined
@@ -113,19 +131,59 @@ function OverlayKey({ keyView: key, clockMS, split }: { keyView: KeyView; clockM
         {latest && ` · last: ${latest.player} to ${latest.ability || latest.killer} at ${clock(latest.clockMS)}`}
       </p>
       <div className="overlay-extra">
-        {split ? (
+        {focus ? (
+          <PullBreakdown keyView={key} player={focus} title={pullTitle(key, clockMS)} onBack={back} />
+        ) : split ? (
           <>
-            <MeterCard title={pullTitle(key, clockMS)} meter={key.lastPull} columns={SPLIT_COLUMNS} />
-            <MeterCard title="Whole key" meter={key.overall} columns={SPLIT_COLUMNS} />
+            <MeterCard title={pullTitle(key, clockMS)} meter={key.lastPull} columns={SPLIT_COLUMNS} onPick={pick} />
+            <MeterCard title="Whole key" meter={key.overall} columns={SPLIT_COLUMNS} onPick={pick} />
           </>
         ) : (
           <MeterCard
             title={`${pullTitle(key, clockMS)} · whole key`}
             meter={key.overall}
             columns={overlayColumns(key.lastPull)}
+            onPick={pick}
           />
         )}
       </div>
     </>
+  )
+}
+
+/** A player's top abilities in the key's last pull, from the live track's ability stretches: their damage, or their
+ * healing when they healed more. A click on the title or Esc goes back. */
+function PullBreakdown(props: { keyView: KeyView; player: string; title: string; onBack: () => void }) {
+  const { keyView: key, player, title, onBack } = props
+  const track = useTrack(key.start, key.status === 'running')
+  useEffect(() => {
+    const esc = (e: KeyboardEvent) => e.key === 'Escape' && onBack()
+    window.addEventListener('keydown', esc)
+    return () => window.removeEventListener('keydown', esc)
+  }, [onBack])
+  const last = key.lastPull
+  const between = track ? abilitiesBetween(track, key, player, last.startMS, last.endMS) : undefined
+  const views = between && abilityViews(player, between.abilities, between.taken)
+  const sum = (rows: { value: number }[]) => rows.reduce((n, r) => n + r.value, 0)
+  const healer = views !== undefined && sum(views.healing) > sum(views.damage)
+  const row = key.overall.rows.find((r) => r.player === player)
+  return (
+    <div className="card focus drill">
+      <h2>
+        <button className="back" onClick={onBack}>
+          ‹ {title}
+        </button>{' '}
+        · {player} · {healer ? 'Healing' : 'Damage'}
+      </h2>
+      {views ? (
+        <AbilityBars
+          rows={healer ? views.healing : views.damage}
+          color={classColors[row?.class ?? ''] ?? 'var(--accent)'}
+          limit={OVERLAY_SPELLS}
+        />
+      ) : (
+        <p className="muted">{track ? 'No ability timeline for this key' : 'Loading…'}</p>
+      )}
+    </div>
   )
 }

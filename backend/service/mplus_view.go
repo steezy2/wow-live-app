@@ -124,10 +124,7 @@ func (k *LogTracker) Saved() []models.KeySummary {
 	saved := []models.KeySummary{}
 	for _, key := range k.history {
 		summary := models.KeySummary{Start: key.Start, Dungeon: key.Dungeon, Level: key.Level, Status: key.Status,
-			FinalMS: key.FinalMS}
-		if key.Imported {
-			summary.Imported = key.Report.URL()
-		}
+			FinalMS: key.FinalMS, Report: key.Report, Imported: key.Imported}
 		if key.Status == "timed" {
 			summary.Chests = chests(key.FinalMS, key.TimerMS)
 		}

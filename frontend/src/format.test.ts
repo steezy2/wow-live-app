@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  causesText,
   clock,
   coverText,
   importKindText,
@@ -75,6 +76,7 @@ describe('periodLabel', () => {
     ['six days ago', at(10, 5), day(10, 5)],
     ['a week ago, a Wednesday', at(10, 4), week(10, 2)],
     ['a Sunday', at(10, 1), week(9, 26)],
+    ['eight weeks ago', at(8, 16), new Date(2026, 8, 16).toLocaleDateString([], { month: 'long', year: 'numeric' })],
   ])('%s', (_, ms, want) => expect(periodLabel(ms, now)).toBe(want))
 })
 
@@ -90,6 +92,7 @@ describe('importProgress', () => {
     resumeAtMS: 0,
     problem: 'boom',
     imported: 11,
+    linked: 0,
   }
   it('counts the fights and what they saved, with the points and the failures', () => {
     expect(importProgress(status, 0)).toBe(
@@ -124,6 +127,17 @@ describe('import plan', () => {
   it('totals the kinds ticked, with the hours the points take', () => {
     expect(importTotal(plan, ['keys', 'raidKills'])).toBe('Import 112 fights: ~3,300 points, about 1 h')
     expect(importTotal(plan, ['raidWipes'])).toBe('Nothing to import')
+  })
+})
+
+describe('causesText', () => {
+  it('names each ability with its caster when known and its share of the spike', () => {
+    const causes = [
+      { ability: 'Crushing Slam', source: 'Bonebreaker', damage: 580, hits: 2 },
+      { ability: 'Volley', source: '', damage: 220, hits: 5 },
+    ]
+    expect(causesText({ damage: 1000, causes })).toBe('Crushing Slam (Bonebreaker) 58%, Volley 22%')
+    expect(causesText({ damage: 1000 })).toBe('')
   })
 })
 

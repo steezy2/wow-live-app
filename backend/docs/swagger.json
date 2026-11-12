@@ -630,6 +630,71 @@
                 }
             }
         },
+        "/api/recap": {
+            "get": {
+                "description": "The keys run and timed, the highest timed level, the time in keys and the deaths; each dungeon's\nruns; your character (whose game wrote most of the logs): specs, median DPS or HPS per dungeon and\nwhat killed you; who you ran with most; a few facts, each opening its key; and the raid by boss.\nRead from the saved keys and pulls only: no Warcraft Logs points.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "recap"
+                ],
+                "summary": "A period's keys and raid pulls as a story",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "the period's start, ms since the epoch",
+                        "name": "from",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "the period's end, ms since the epoch (excluded); after from",
+                        "name": "to",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.Recap"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/recap/periods": {
+            "get": {
+                "description": "This month, last month, this Mythic+ season (from Raider.IO; left out when it can't be reached),\nthis year and all time, each with its span to pass to /api/recap.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "recap"
+                ],
+                "summary": "The periods a recap covers",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.RecapPeriod"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/settings": {
             "get": {
                 "produces": [
@@ -1146,6 +1211,44 @@
                 }
             }
         },
+        "/api/settings/warcraftlogs/parses": {
+            "get": {
+                "description": "The settings' character's best and median parse in each Mythic+ dungeon of the season and each boss\nof the current raid it has a ranked run or kill in, with its Warcraft Logs page (found false when\nWarcraft Logs doesn't know the character). Read once a day; a read costs a few points.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "The character's Warcraft Logs parses this season",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.CharacterParses"
+                        }
+                    },
+                    "400": {
+                        "description": "No character, or one that doesn't fit",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "No Warcraft Logs keys saved",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "502": {
+                        "description": "Warcraft Logs couldn't be reached",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/settings/warcraftlogs/test": {
             "post": {
                 "produces": [
@@ -1273,6 +1376,54 @@
                 }
             }
         },
+        "models.CharacterParse": {
+            "type": "object",
+            "properties": {
+                "best": {
+                    "type": "number"
+                },
+                "encounter": {
+                    "type": "string"
+                },
+                "kind": {
+                    "enum": [
+                        "mplus",
+                        "raid"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.FightKind"
+                        }
+                    ]
+                },
+                "median": {
+                    "type": "number"
+                },
+                "runs": {
+                    "type": "integer"
+                },
+                "spec": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.CharacterParses": {
+            "type": "object",
+            "properties": {
+                "found": {
+                    "type": "boolean"
+                },
+                "parses": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.CharacterParse"
+                    }
+                },
+                "url": {
+                    "type": "string"
+                }
+            }
+        },
         "models.Credentials": {
             "type": "object",
             "properties": {
@@ -1323,6 +1474,17 @@
                     }
                 }
             }
+        },
+        "models.FightKind": {
+            "type": "string",
+            "enum": [
+                "mplus",
+                "raid"
+            ],
+            "x-enum-varnames": [
+                "FightMPlus",
+                "FightRaid"
+            ]
         },
         "models.ForcesPace": {
             "type": "object",
@@ -1415,6 +1577,10 @@
                     "type": "integer"
                 },
                 "imported": {
+                    "type": "integer"
+                },
+                "linked": {
+                    "description": "Linked is how many saved keys and pulls read from local logs the last listing linked to their report.",
                     "type": "integer"
                 },
                 "plan": {
@@ -1864,6 +2030,13 @@
         "models.KeySpike": {
             "type": "object",
             "properties": {
+                "causes": {
+                    "description": "Causes is what hit the party hardest in it, most damage first (at most three); missing in keys saved\nbefore Nov 12.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.SpikeCause"
+                    }
+                },
                 "clockMS": {
                     "type": "integer"
                 },
@@ -1986,11 +2159,18 @@
                     "type": "integer"
                 },
                 "imported": {
-                    "description": "Imported is the Warcraft Logs page of the fight an imported key came from; \"\" for one read from a local log.",
-                    "type": "string"
+                    "type": "boolean"
                 },
                 "level": {
                     "type": "integer"
+                },
+                "report": {
+                    "description": "Report is the Warcraft Logs fight the key is, when one is known (imported, or matched to a report), and\nImported marks a key built from it instead of a local combat log.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.ReportLink"
+                        }
+                    ]
                 },
                 "start": {
                     "type": "integer"
@@ -2450,6 +2630,10 @@
         "models.OverlaySettings": {
             "type": "object",
             "properties": {
+                "clickThrough": {
+                    "description": "ClickThrough lets clicks on the overlay through to the game; off (the default), a click on a player's row\nshows their abilities in the pull.",
+                    "type": "boolean"
+                },
                 "opacity": {
                     "type": "integer",
                     "maximum": 100,
@@ -3077,8 +3261,7 @@
                     "type": "integer"
                 },
                 "imported": {
-                    "description": "Imported is the Warcraft Logs page of the fight an imported pull came from; \"\" for one read from a local log.",
-                    "type": "string"
+                    "type": "boolean"
                 },
                 "kill": {
                     "type": "boolean"
@@ -3091,6 +3274,14 @@
                 },
                 "phase": {
                     "type": "string"
+                },
+                "report": {
+                    "description": "Report is the Warcraft Logs fight the pull is, when one is known (imported, or matched to a report), and\nImported marks a pull built from it instead of a local combat log.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.ReportLink"
+                        }
+                    ]
                 },
                 "start": {
                     "type": "integer"
@@ -3242,6 +3433,223 @@
                 }
             }
         },
+        "models.Recap": {
+            "type": "object",
+            "properties": {
+                "deaths": {
+                    "type": "integer"
+                },
+                "dungeons": {
+                    "description": "most run first",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.RecapDungeon"
+                    }
+                },
+                "facts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.RecapFact"
+                    }
+                },
+                "from": {
+                    "type": "integer"
+                },
+                "highestTimed": {
+                    "description": "0 when none was timed",
+                    "type": "integer"
+                },
+                "keys": {
+                    "type": "integer"
+                },
+                "party": {
+                    "description": "most keys together first",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.RecapMate"
+                    }
+                },
+                "raid": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.RecapBoss"
+                    }
+                },
+                "timeMS": {
+                    "type": "integer"
+                },
+                "timed": {
+                    "type": "integer"
+                },
+                "to": {
+                    "type": "integer"
+                },
+                "you": {
+                    "$ref": "#/definitions/models.RecapYou"
+                }
+            }
+        },
+        "models.RecapBoss": {
+            "type": "object",
+            "properties": {
+                "bestWipePct": {
+                    "type": "number"
+                },
+                "boss": {
+                    "type": "string"
+                },
+                "difficulty": {
+                    "type": "string"
+                },
+                "firstKill": {
+                    "type": "integer"
+                },
+                "firstKillPull": {
+                    "type": "integer"
+                },
+                "kills": {
+                    "type": "integer"
+                },
+                "mostHit": {
+                    "type": "string"
+                },
+                "pulls": {
+                    "type": "integer"
+                },
+                "yourDeaths": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.RecapCount": {
+            "type": "object",
+            "properties": {
+                "count": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.RecapDungeon": {
+            "type": "object",
+            "properties": {
+                "bestLevel": {
+                    "type": "integer"
+                },
+                "bestMS": {
+                    "type": "integer"
+                },
+                "dungeon": {
+                    "type": "string"
+                },
+                "runs": {
+                    "type": "integer"
+                },
+                "timed": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.RecapFact": {
+            "type": "object",
+            "properties": {
+                "kind": {
+                    "enum": [
+                        "mplus",
+                        "raid"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.FightKind"
+                        }
+                    ]
+                },
+                "start": {
+                    "type": "integer"
+                },
+                "text": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.RecapMate": {
+            "type": "object",
+            "properties": {
+                "keys": {
+                    "type": "integer"
+                },
+                "player": {
+                    "type": "string"
+                },
+                "timed": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.RecapPeriod": {
+            "type": "object",
+            "properties": {
+                "from": {
+                    "type": "integer"
+                },
+                "label": {
+                    "type": "string",
+                    "example": "This month"
+                },
+                "to": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.RecapRate": {
+            "type": "object",
+            "properties": {
+                "dungeon": {
+                    "type": "string"
+                },
+                "median": {
+                    "type": "number"
+                },
+                "metric": {
+                    "type": "string",
+                    "enum": [
+                        "dps",
+                        "hps"
+                    ]
+                }
+            }
+        },
+        "models.RecapYou": {
+            "type": "object",
+            "properties": {
+                "character": {
+                    "type": "string"
+                },
+                "deaths": {
+                    "type": "integer"
+                },
+                "dungeons": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.RecapRate"
+                    }
+                },
+                "killers": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.RecapCount"
+                    }
+                },
+                "specs": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
         "models.ReportLink": {
             "type": "object",
             "properties": {
@@ -3364,6 +3772,23 @@
                     "items": {
                         "type": "string"
                     }
+                }
+            }
+        },
+        "models.SpikeCause": {
+            "type": "object",
+            "properties": {
+                "ability": {
+                    "type": "string"
+                },
+                "damage": {
+                    "type": "integer"
+                },
+                "hits": {
+                    "type": "integer"
+                },
+                "source": {
+                    "type": "string"
                 }
             }
         },
