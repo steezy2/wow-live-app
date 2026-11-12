@@ -6,6 +6,7 @@
 //	go run ./cmd/site                              follow the newest log, page at http://localhost:8080
 //	go run ./cmd/site --replay PATH --key 2 --speed 20   replay a past log's 2nd key, 20x faster
 //	go run ./cmd/site --learn                      save every finished key in the game's log folder, then exit
+//	go run ./cmd/site --wcl-fight CODE#4 [--wcl-logger Name-Realm]   write a Warcraft Logs fight as a zipped log
 //
 // Finished keys are saved in logs/cache/local-keys/: the page lists them, and their boss times feed the estimate.
 //
@@ -25,6 +26,8 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -43,7 +46,15 @@ func main() {
 	speed := flag.Float64("speed", 1, "with --replay: how many times faster than it happened")
 	learn := flag.Bool("learn", false, "save every finished key in the game's log folder, then exit")
 	region := flag.String("region", "us", "the region for affix names (us, eu, kr, tw)")
+	fight := flag.String("wcl-fight", "", "write this Warcraft Logs fight (CODE#N) as a zipped combat log, then exit")
+	logger := flag.String("wcl-logger", "", "with --wcl-fight: the character (Name-Realm) the log is written as")
 	flag.Parse()
+	if *fight != "" {
+		if err := importFight(*fight, *logger); err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
 	if err := run(*port, *replay, *key, *speed, *learn, *region); err != nil {
 		log.Fatal(err)
 	}
@@ -116,6 +127,48 @@ func run(port int, replay string, key int, speed float64, learn bool, region str
 	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return fmt.Errorf("serving the site: %w", err)
 	}
+	return nil
+}
+
+// importFight writes one Warcraft Logs fight ("CODE#N") as <cache>\wcl-import\<code>-<N>.zip, written as logger,
+// and prints the points it spent.
+func importFight(ref, logger string) error {
+	code, id, ok := strings.Cut(ref, "#")
+	fightID, err := strconv.Atoi(id)
+	if !ok || code == "" || err != nil {
+		return fmt.Errorf("--wcl-fight wants CODE#N, e.g. a1B2c3D4#4, not %q", ref)
+	}
+	root, err := config.RootFromWorkingDir()
+	if err != nil {
+		return err
+	}
+	if err := config.LoadEnv(filepath.Join(root, ".env")); err != nil {
+		return err
+	}
+	facts, err := config.LoadReference(config.ReferencePath(root))
+	if err != nil {
+		return err
+	}
+	logs, err := wcl.New(config.CachePath(root))
+	if err != nil {
+		return err
+	}
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stop()
+	start, err := logs.RateLimit(ctx)
+	if err != nil {
+		return err
+	}
+	path, err := logs.ImportFight(ctx, code, fightID, wcl.FightOptions{Logger: logger, Dungeons: facts.Dungeons})
+	if err != nil {
+		return err
+	}
+	line, err := logs.LogPoints(ctx, filepath.Join(root, "logs", "points.log"), "wcl-fight "+ref,
+		start.PointsSpentThisHour)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("wrote %s\n%s\n", path, line)
 	return nil
 }
 
