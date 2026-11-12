@@ -598,11 +598,6 @@ func (k *LogTracker) finishPull(kill bool) {
 		return
 	}
 	addKit(k.raid.kit, LearnKit(run.casts))
-	died := map[string]bool{}
-	for _, guid := range run.party {
-		died[guid] = slices.ContainsFunc(run.key.Deaths, func(d models.KeyDeath) bool { return d.Player == k.names[guid] })
-	}
-	k.seedReady(run.auras, died)
 	if i := slices.IndexFunc(k.pulls, func(p models.RaidPull) bool { return p.Start == pull.Start }); i >= 0 {
 		k.pulls[i] = pull
 	} else {

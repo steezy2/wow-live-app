@@ -12,60 +12,31 @@ import (
 const (
 	// readyDifficulty is ZONE_CHANGE's difficulty in a Mythic dungeon before its key starts (8 once it runs).
 	readyDifficulty = "23"
-	// partyFlags: a unit that's the logging player (0x1) or in their party (0x2); raidFlags adds their raid (0x4).
+	// partyFlags: a unit that's the logging player (0x1) or in their party (0x2).
 	partyFlags = 0x3
-	raidFlags  = 0x7
 )
 
-// readyWatch is what the log has shown of the party's buffs since they zoned into a Mythic dungeon, before its key, or
-// into a raid, between pulls: each member's buffs up, and the ones seen fade (ran out, died, cancelled). Buffs from
-// before logging started there are never seen, but a raid pull's start lists everyone's.
+// readyWatch is what the log has shown of the party's buffs since they zoned into a Mythic dungeon, before its key:
+// each member's buffs up, and the ones seen fade (ran out, died, cancelled). Buffs from before logging started there
+// are never seen.
 type readyWatch struct {
-	since      int64
-	instance   string
-	dungeon    string
-	raid       bool
-	difficulty string                    // the raid's ("Heroic"), for the Vantus Rune; empty in a dungeon
-	members    map[string]bool           // party GUIDs seen
-	up         map[string]map[int]string // GUID -> buffs up (aura ID -> name, "" for one the log never named)
-	faded      map[string]map[int]string // GUID -> buffs seen fade
-	seeded     map[string]bool           // GUIDs whose buffs a raid pull's start listed: what they lack is missing
+	since    int64
+	instance string
+	dungeon  string
+	members  map[string]bool           // party GUIDs seen
+	up       map[string]map[int]string // GUID -> buffs up (aura ID -> name, "" for one the log never named)
+	faded    map[string]map[int]string // GUID -> buffs seen fade
 }
 
-// watchReady starts the ready check on entering a Mythic dungeon (ZONE_CHANGE,2813,"Murder Row",23) or, with raids
-// read, a raid (difficulties 14-17), and stops it anywhere else. Zoning into the same place again keeps it: the log
-// doesn't show the party's buffs a second time, but a raid's difficulty can change.
+// watchReady starts the ready check on entering a Mythic dungeon (ZONE_CHANGE,2813,"Murder Row",23) and stops it
+// anywhere else. Zoning into the same dungeon again keeps it: the log doesn't show the party's buffs a second time.
 func (k *LogTracker) watchReady(at int64, f []string) {
-	raid := len(f) >= 3 && k.raid != nil && raidDifficulties[f[2]] != ""
 	switch {
-	case len(f) < 3 || (f[2] != readyDifficulty && !raid):
+	case len(f) < 3 || f[2] != readyDifficulty:
 		k.ready = nil
-		return
 	case k.ready == nil || k.ready.instance != f[0]:
-		k.ready = &readyWatch{since: at, instance: f[0], dungeon: f[1], raid: raid, members: map[string]bool{},
-			seeded: map[string]bool{}, up: map[string]map[int]string{}, faded: map[string]map[int]string{}}
-	}
-	if raid {
-		k.ready.difficulty = raidDifficulties[f[2]]
-	}
-}
-
-// seedReady sets the raid's ready check to what a raid pull's start listed: its raiders (one who left before it is
-// gone, with the buff they gave) and each one's auras, but the party buffs of those who died in the pull, which a
-// death takes off (flask, food and Vantus Rune stay).
-func (k *LogTracker) seedReady(auras map[string][]int, died map[string]bool) {
-	r := k.ready
-	if r == nil || !r.raid {
-		return
-	}
-	r.members = map[string]bool{}
-	for guid, ids := range auras {
-		r.members[guid], r.seeded[guid], r.up[guid], r.faded[guid] = true, true, map[int]string{}, map[int]string{}
-		for _, id := range ids {
-			if name := k.spells[id]; !died[guid] || k.rules.Buffs[name] == "" {
-				r.up[guid][id] = name
-			}
-		}
+		k.ready = &readyWatch{since: at, instance: f[0], dungeon: f[1], members: map[string]bool{},
+			up: map[string]map[int]string{}, faded: map[string]map[int]string{}}
 	}
 }
 
@@ -75,12 +46,8 @@ func (k *LogTracker) readyLine(event string, f []string) bool {
 	if len(f) < 8 {
 		return false
 	}
-	flags := int64(partyFlags)
-	if r.raid {
-		flags = raidFlags
-	}
 	for _, i := range []int{0, 4} {
-		if strings.HasPrefix(f[i], "Player-") && hasFlag(f[i+2], flags) {
+		if strings.HasPrefix(f[i], "Player-") && hasFlag(f[i+2], partyFlags) {
 			r.members[f[i]] = true
 		}
 	}
@@ -108,21 +75,12 @@ func (k *LogTracker) readyLine(event string, f []string) bool {
 
 // Ready is the ready check before the next key, while the party is in a Mythic dungeon with no key running: for each
 // member, the flask, food and party buffs they're missing (seen fade, or a party buff someone else has) and the ones
-// not seen since logging started there. False outside such a dungeon (a raid's is RaidLive's).
+// not seen since logging started there. False outside such a dungeon or while a key runs. Only the party buffs a
+// class in the group gives are asked for: while a member's class isn't known yet (no COMBATANT_INFO this session), a
+// buff someone has up counts its class in.
 func (k *LogTracker) Ready() (models.ReadyCheck, bool) {
 	k.mu.RLock()
 	defer k.mu.RUnlock()
-	if k.ready == nil || k.ready.raid {
-		return models.ReadyCheck{}, false
-	}
-	return k.readyCheck()
-}
-
-// readyCheck is the ready check as Ready describes it, in a raid with Vantus Rune too where the raid's rune works;
-// false while a key or pull runs. Only the party buffs a class in the group gives are asked for: while a member's
-// class isn't known yet (no COMBATANT_INFO this session), a buff someone has up counts its class in. The caller holds
-// k.mu.
-func (k *LogTracker) readyCheck() (models.ReadyCheck, bool) {
 	r := k.ready
 	if r == nil || k.current != nil {
 		return models.ReadyCheck{}, false
@@ -146,10 +104,10 @@ func (k *LogTracker) readyCheck() (models.ReadyCheck, bool) {
 		p := models.ReadyPlayer{Player: k.names[guid], Class: specs[k.specs[guid]].Class, Missing: []string{},
 			NotSeen: []string{}}
 		up, faded := slices.Collect(maps.Values(r.up[guid])), slices.Collect(maps.Values(r.faded[guid]))
-		for kind, c := range k.consumables(r.difficulty) {
+		for kind, c := range k.consumables("") {
 			switch {
 			case c.had(r.up[guid]):
-			case r.seeded[guid] || c.had(r.faded[guid]):
+			case c.had(r.faded[guid]):
 				p.Missing = append(p.Missing, kind)
 			default:
 				p.NotSeen = append(p.NotSeen, kind)

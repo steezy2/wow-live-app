@@ -963,11 +963,6 @@ definitions:
         $ref: '#/definitions/models.RaidPull'
       pulling:
         type: boolean
-      ready:
-        allOf:
-        - $ref: '#/definitions/models.ReadyCheck'
-        description: Ready is who's missing a flask, food, Vantus Rune or raid buff,
-          in a raid between pulls.
       since:
         type: integer
     type: object

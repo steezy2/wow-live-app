@@ -397,8 +397,8 @@ export async function abandonLiveKey(): Promise<void> {
   await call('/api/mplus/live/abandon', { method: 'POST' })
 }
 
-/** The ready check before the next key or raid pull (models.ReadyCheck): each member's class (once known), missing
- * flask, food, Vantus Rune and party buffs, and those not seen since the party zoned in. */
+/** The ready check before the next key (models.ReadyCheck): each member's class (once known), missing flask, food and
+ * party buffs, and those not seen since the party zoned in. */
 export interface ReadyCheck {
   sinceMS: number
   dungeon: string
@@ -781,8 +781,6 @@ export interface RaidLive {
   boss?: string
   since?: number
   last?: RaidPull
-  /** Who's missing a flask, food, Vantus Rune or raid buff, in a raid between pulls. */
-  ready?: ReadyCheck
 }
 
 /** One raid night's pulls, newest first. */

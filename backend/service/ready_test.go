@@ -47,41 +47,20 @@ func raidBuff(s float64, src, dst string, id int, name string) string {
 }
 
 func TestApplicableBuffs(t *testing.T) {
-	// A warrior shouts on the mage and leaves; the next pull is the mage and the shaman (pullLines), so neither its
-	// start nor the ready check after it asks for Battle Shout.
+	// A warrior shouts on the mage and leaves; the next pull is the mage and the shaman (pullLines), so its start
+	// doesn't ask for Battle Shout.
 	const warrior = `Player-76-0000DDDD,"Testwarrior-Sargeras-US",0x514,0x80000000`
 	keys, store := newRaidTracker(t)
 	keys.rules.Buffs["Battle Shout"] = "Warrior"
 	keys.specs["Player-76-0000DDDD"] = 71 // Arms, from an earlier pull
 	feed(t, keys, raidAt(3, -10, `ZONE_CHANGE,2939,"The Venomous Abyss",16`),
 		raidBuff(-9, warrior, testPlayer, 6673, "Battle Shout"))
-	if ready := keys.RaidLive(0).Ready; ready == nil || !strings.Contains(fmt.Sprint(ready.Players), "Battle Shout") {
-		t.Fatalf("ready with the warrior = %+v; want Battle Shout asked of the warrior, who lacks it", ready)
-	}
 	feed(t, keys, pullLines(3, 0, 60, 40, false)...)
 	if _, err := keys.SaveFinished(); err != nil {
 		t.Fatal(err)
 	}
-	ready := keys.RaidLive(0).Ready
-	if got := fmt.Sprint(store.pulls[0].BuffGaps, ready.Players); strings.Contains(got, "Battle Shout") ||
+	if got := fmt.Sprint(store.pulls[0].BuffGaps); strings.Contains(got, "Battle Shout") ||
 		!strings.Contains(got, "Arcane Intellect") {
-		t.Errorf("pull start and ready = %s; want Arcane Intellect asked, Battle Shout not", got)
-	}
-}
-
-func TestReadyVantusDifficulty(t *testing.T) {
-	for _, c := range []struct {
-		difficulty string
-		want       bool
-	}{{"17", false}, {"14", true}, {"16", true}} { // LFR, Normal, Mythic
-		keys, _ := newRaidTracker(t)
-		keys.raid.rules.Consumables.Vantus = []string{"Vantus Rune"}
-		keys.raid.rules.Consumables.VantusDifficulties = []string{"Normal", "Heroic", "Mythic"}
-		feed(t, keys, raidAt(3, 0, `ZONE_CHANGE,2939,"The Venomous Abyss",`+c.difficulty),
-			raidBuff(1, testPlayer, testPlayer, 1459, "Arcane Intellect"))
-		ready := keys.RaidLive(0).Ready
-		if got := ready != nil && strings.Contains(fmt.Sprint(ready.Players), "Vantus Rune"); got != c.want {
-			t.Errorf("difficulty %s: Vantus Rune asked = %v (%+v); want %v", c.difficulty, got, ready, c.want)
-		}
+		t.Errorf("pull start = %s; want Arcane Intellect asked, Battle Shout not", got)
 	}
 }

@@ -530,7 +530,7 @@ func TestRaidPullPickupsBreaksAndSpawns(t *testing.T) {
 	}
 }
 
-func TestRaidReadyCheckAtThePullAndBetweenPulls(t *testing.T) {
+func TestRaidBuffGapsAtThePull(t *testing.T) {
 	keys, store := newRaidTracker(t)
 	keys.raid.rules.Consumables.Vantus = []string{"Vantus Rune"}
 	keys.raid.rules.Consumables.VantusDifficulties = []string{"Mythic"}
@@ -563,13 +563,8 @@ func TestRaidReadyCheckAtThePullAndBetweenPulls(t *testing.T) {
 		"{Testshaman Vantus Rune 0 50000} {Testshaman food 0 50000}]" {
 		t.Errorf("missing at the pull = %s; want the shaman's food, Vantus Rune and Skyfury the whole pull", got)
 	}
-	ready := keys.RaidLive(0).Ready
-	if ready == nil || fmt.Sprint(ready.Players) != "[{Testmage Mage [Arcane Intellect] [Skyfury]} "+
-		"{Testshaman Shaman [Vantus Rune food] [Skyfury]}]" {
-		t.Errorf("ready between pulls = %+v; want the dead mage's raid buffs gone, the rest from the pull's start", ready)
-	}
 	if _, ok := keys.Ready(); ok {
-		t.Error("a raid's ready check on the M+ endpoint; want it in RaidLive only")
+		t.Error("a ready check in a raid; want none (it's M+ only)")
 	}
 }
 
@@ -596,7 +591,7 @@ func TestMissingWindows(t *testing.T) {
 	}
 	var got []models.RaidMissing
 	for _, g := range store.pulls[0].BuffGaps {
-		if g.FromMS > 0 { // the start check's gaps are TestRaidReadyCheckAtThePullAndBetweenPulls'
+		if g.FromMS > 0 { // the start check's gaps are TestRaidBuffGapsAtThePull's
 			got = append(got, g)
 		}
 	}

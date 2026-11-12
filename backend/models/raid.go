@@ -379,8 +379,6 @@ type RaidLive struct {
 	Boss         string    `json:"boss,omitempty"`
 	Since        int64     `json:"since,omitempty"`
 	Last         *RaidPull `json:"last,omitempty"`
-	// Ready is who's missing a flask, food, Vantus Rune or raid buff, in a raid between pulls.
-	Ready *ReadyCheck `json:"ready,omitempty"`
 }
 
 // RaidNight is one raid night's pulls, newest first.

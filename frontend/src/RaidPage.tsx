@@ -12,7 +12,6 @@ import { Name, type Seeker } from './Seek'
 import { RaidReplay } from './RaidReplay'
 import { topMeter, useRaidTrack, useReplay } from './replay'
 import { Tabs } from './Tabs'
-import { ReadyPanel } from './ReadyPanel'
 import { useRaidLive } from './useLiveKey'
 
 /** How many deaths, things to fix, and top damage and healing rows the overlay's card shows. */
@@ -71,12 +70,10 @@ export function RaidPage() {
         {nights.length === 0 && <p className="muted small">No raid pulls yet: each one is saved here as it ends.</p>}
       </aside>
       <main className="page">
-        {live?.pulling ? (
+        {live?.pulling && (
           <p className="panel">
             Pulling <b>{live.boss}</b> now · the overview of this pull shows when it ends.
           </p>
-        ) : (
-          live?.ready && <ReadyPanel ready={live.ready} raid />
         )}
         {selected !== null ? (
           <SavedPull start={selected} />

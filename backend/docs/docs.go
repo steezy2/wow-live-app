@@ -2395,14 +2395,6 @@ const docTemplate = `{
                 "pulling": {
                     "type": "boolean"
                 },
-                "ready": {
-                    "description": "Ready is who's missing a flask, food, Vantus Rune or raid buff, in a raid between pulls.",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/models.ReadyCheck"
-                        }
-                    ]
-                },
                 "since": {
                     "type": "integer"
                 }

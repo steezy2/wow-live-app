@@ -390,7 +390,7 @@ type ReadyCheck struct {
 }
 
 // ReadyPlayer is one member's ready check: their class (empty until a COMBATANT_INFO names their spec), and the flask,
-// food, Vantus Rune and party buffs ("flask", "Arcane Intellect") missing, and those not seen.
+// food and party buffs ("flask", "Arcane Intellect") missing, and those not seen.
 type ReadyPlayer struct {
 	Player  string   `json:"player"`
 	Class   string   `json:"class,omitempty"`
