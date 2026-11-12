@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { clock, median, oddsText, progressText, resultText } from './format'
+import { clock, median, oddsText, periodLabel, progressText, resultText } from './format'
 
 describe('clock', () => {
   it('shows minutes and seconds, hours past an hour, and a sign when negative', () => {
@@ -49,4 +49,20 @@ describe('median', () => {
   ])('median of %j is %d', (values, want) => {
     expect(median(values)).toBe(want)
   })
+})
+
+describe('periodLabel', () => {
+  const now = new Date(2026, 10, 11, 20).getTime()
+  const at = (month: number, day: number, hour = 21) => new Date(2026, month, day, hour).getTime()
+  const day = (month: number, d: number) =>
+    new Date(2026, month, d).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })
+  const week = (month: number, d: number) =>
+    `Week of ${new Date(2026, month, d).toLocaleDateString([], { month: 'short', day: 'numeric' })}`
+  it.each([
+    ['today', at(10, 11, 0), 'Today'],
+    ['yesterday late', at(10, 10, 23), 'Yesterday'],
+    ['six days ago', at(10, 5), day(10, 5)],
+    ['a week ago, a Wednesday', at(10, 4), week(10, 2)],
+    ['a Sunday', at(10, 1), week(9, 26)],
+  ])('%s', (_, ms, want) => expect(periodLabel(ms, now)).toBe(want))
 })

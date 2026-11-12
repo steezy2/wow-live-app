@@ -204,6 +204,16 @@ h2 {
   margin-top: 16px;
 }
 
+.side-group summary {
+  cursor: pointer;
+  font-weight: 600;
+  padding: 6px 0;
+}
+
+.side-group[open] > summary {
+  margin-bottom: 4px;
+}
+
 button {
   font: inherit;
   color: inherit;

@@ -107,3 +107,20 @@ export function groupBy<T>(items: T[], key: (item: T) => string): Map<string, T[
   items.forEach((item) => groups.get(key(item))?.push(item) ?? groups.set(key(item), [item]))
   return groups
 }
+
+const DAY_MS = 86_400_000
+
+/** The side panel's group for a time: its day ("Today", "Yesterday", "Mon, Nov 9") within the last week, else the
+ * week it fell in ("Week of Nov 2", weeks starting Monday). */
+export function periodLabel(ms: number, now = Date.now()): string {
+  const day = new Date(ms)
+  day.setHours(0, 0, 0, 0)
+  const today = new Date(now)
+  today.setHours(0, 0, 0, 0)
+  const ago = Math.round((today.getTime() - day.getTime()) / DAY_MS)
+  if (ago <= 0) return 'Today'
+  if (ago === 1) return 'Yesterday'
+  if (ago < 7) return day.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })
+  day.setDate(day.getDate() - ((day.getDay() + 6) % 7))
+  return `Week of ${day.toLocaleDateString([], { month: 'short', day: 'numeric' })}`
+}
