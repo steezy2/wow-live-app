@@ -89,11 +89,11 @@ func (c Characters) Guess() string {
 	return best
 }
 
-// matchReports is the report fights that are saved keys and raid pulls, where the match is sure. A fight is a candidate for a
-// key when it has the same dungeon and level, a length and start within matchSlackMS and at least
-// matchPlayers of the key's players; for a pull, the same boss, difficulty and result, a length and start within matchSlackMS
-// and half the raid. The candidate with the closest length wins, unless the next is within matchTieMS of it (never
-// guess). encounters are the dungeon and boss names' Warcraft Logs encounter IDs.
+// matchReports is the report fights that are saved keys and raid pulls, where the match is sure. A fight is a
+// candidate for a key when it has the same dungeon and level, a length and start within matchSlackMS and at least
+// matchPlayers of the key's players; for a pull, the same boss, difficulty and result, a length and start within
+// matchSlackMS and half the raid. The candidate with the closest length wins, unless the next is within matchTieMS
+// of it (never guess). encounters are the dungeon and boss names' Warcraft Logs encounter IDs.
 func matchReports(keys []models.Key, pulls []models.RaidPull, reports []models.CharacterReport,
 	encounters map[string]int) map[models.ReportLink]bool {
 	found := map[models.ReportLink]bool{}
@@ -154,9 +154,10 @@ func sharedPlayers(a, b []string) int {
 	return n
 }
 
-// PickFights are the report fights to import, oldest first so estimates build up in order: Mythic+ keys of the
-// current Mythic+ zone's reports and boss pulls of the current raid zone's, that the character is in, that aren't
-// saved yet (keys and pulls with a Report, imported or matched) and that no saved local key or pull is (matchReports).
+// PickFights are the report fights to import, newest first so the latest keys and pulls show up first: Mythic+
+// keys of the current Mythic+ zone's reports and boss pulls of the current raid zone's, that the character is in
+// (any case), that aren't saved yet (keys and pulls with a Report, imported or matched) and that no saved local key
+// or pull is (matchReports).
 func PickFights(reports []models.CharacterReport, zones models.WCLZones, character string, keys []models.Key,
 	pulls []models.RaidPull) []models.FightRef {
 	name, _, _ := strings.Cut(character, "-")
@@ -182,13 +183,14 @@ func PickFights(reports []models.CharacterReport, zones models.WCLZones, charact
 				kind = models.FightRaid
 			}
 			link := models.ReportLink{Code: r.Code, FightID: f.ID}
-			if kind != "" && !taken[link] && slices.ContainsFunc(f.Players, func(p string) bool { return strings.EqualFold(p, name) }) {
+			in := slices.ContainsFunc(f.Players, func(p string) bool { return strings.EqualFold(p, name) })
+			if kind != "" && in && !taken[link] {
 				picked = append(picked, models.FightRef{ReportLink: link, StartMS: r.StartTime + f.StartTime, Kind: kind})
 			}
 		}
 	}
 	slices.SortFunc(picked, func(a, b models.FightRef) int {
-		return cmp.Or(cmp.Compare(a.StartMS, b.StartMS), cmp.Compare(a.Code, b.Code), cmp.Compare(a.FightID, b.FightID))
+		return cmp.Or(cmp.Compare(b.StartMS, a.StartMS), cmp.Compare(b.Code, a.Code), cmp.Compare(b.FightID, a.FightID))
 	})
 	return picked
 }

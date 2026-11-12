@@ -242,7 +242,7 @@ func (im *Importer) list(ctx context.Context, st *importState, name, slug string
 	return im.writeState(*st)
 }
 
-// fetchAll fetches st's fights left, oldest first, saving the state after each.
+// fetchAll fetches st's fights left, newest first, saving the state after each.
 func (im *Importer) fetchAll(ctx context.Context, st *importState) error {
 	var budget models.RateLimit // unknown at first, then the one read after each fetch
 	var err error

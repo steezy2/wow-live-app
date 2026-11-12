@@ -97,13 +97,13 @@ func (ti *testImporter) finish() {
 
 var plenty = models.RateLimit{LimitPerHour: 3600, PointsSpentThisHour: 100}
 
-func TestImportFetchesEachFightOldestFirst(t *testing.T) {
+func TestImportFetchesEachFightNewestFirst(t *testing.T) {
 	ti := newTestImporter(t, []models.RateLimit{plenty, {LimitPerHour: 3600, PointsSpentThisHour: 140}})
 	if err := ti.Start(context.Background(), "us", "Testmage-Area52"); err != nil {
 		t.Fatal(err)
 	}
 	ti.finish()
-	want := []models.ReportLink{{Code: "abc", FightID: 1}, {Code: "abc", FightID: 2}}
+	want := []models.ReportLink{{Code: "abc", FightID: 2}, {Code: "abc", FightID: 1}}
 	if !slices.Equal(ti.read, want) {
 		t.Errorf("read %v, want %v", ti.read, want)
 	}

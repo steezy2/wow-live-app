@@ -135,17 +135,17 @@ func TestPickFights(t *testing.T) {
 		{Dungeon: "Test Dungeon", Level: 11, Report: &models.ReportLink{Code: "OLD", FightID: 2}, Imported: true},
 		localKey(t0+10*hour, length, 12, testParty...), // the game wrote NEW's key itself
 	}
-	t.Run("everything that qualifies, oldest first", func(t *testing.T) {
+	t.Run("everything that qualifies, newest first", func(t *testing.T) {
 		got := PickFights(reports, testZones, "Testmage-Somerealm", nil, nil)
 		var codes []string
 		for _, f := range got {
 			codes = append(codes, f.Code+":"+string(f.Kind))
 		}
-		want := []string{"OLD:mplus", "OLD:mplus", "RAID:raid", "NEW:mplus"}
+		want := []string{"NEW:mplus", "RAID:raid", "OLD:mplus", "OLD:mplus"}
 		if !reflect.DeepEqual(codes, want) {
 			t.Errorf("picked %v; want %v (other zone, trash, a fight without the character and OLD's order matter)", codes, want)
 		}
-		if got[0].FightID != 1 || got[0].StartMS != t0 || got[2].StartMS != t0+5*hour {
+		if got[3].FightID != 1 || got[3].StartMS != t0 || got[1].StartMS != t0+5*hour {
 			t.Errorf("picked %+v; want start times from the report's start plus the fight's", got)
 		}
 	})
@@ -155,7 +155,7 @@ func TestPickFights(t *testing.T) {
 		for _, f := range got {
 			links = append(links, f.ReportLink)
 		}
-		want := []models.ReportLink{link("OLD", 1), link("RAID", 1)}
+		want := []models.ReportLink{link("RAID", 1), link("OLD", 1)}
 		if !reflect.DeepEqual(links, want) {
 			t.Errorf("picked %v; want %v: OLD#2 is imported and NEW#1 is a local key", links, want)
 		}
