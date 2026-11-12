@@ -1,23 +1,38 @@
 import { useEffect, useState } from 'react'
-import { fetchRecap, fetchRecapPeriods, type Recap as RecapData, type RecapPeriod } from './api'
+import {
+  fetchRecap,
+  fetchRecapPeriods,
+  fetchRecapTopTimes,
+  type Character,
+  type Recap as RecapData,
+  type RecapDungeon,
+  type RecapMPlus,
+  type RecapPerKey,
+  type RecapPeriod,
+  type RecapRaid,
+  type RecapTopTime,
+} from './api'
 import { CharacterParses } from './CharacterParses'
-import { amount, clock, counted } from './format'
+import { classColors } from './classColors'
+import { amount, clock, counted, realmName, versus, withRealm } from './format'
+import { Tabs } from './Tabs'
 
-/** The Recap tab: a period picked with chips (this month by default) read as a story: tiles, the dungeons run most,
- * your character, who you ran with, facts that open their key or pull (onOpen), the raid by boss, and the character's
- * parses this season. */
-export function Recap({
-  character,
-  onOpen,
-}: {
-  character: string
-  onOpen: (kind: 'mplus' | 'raid', start: number) => void
-}) {
+type Open = (kind: 'mplus' | 'raid', start: number) => void
+
+/** The Recap tab for the character picked in the top bar (all of them when none): a period picked with chips (this
+ * month by default), then Mythic+ and raid on tabs of their own, each read as a story: tiles, cards, facts that open
+ * their key or pull (onOpen), and the Warcraft Logs parses of Settings' character (parsesFor), shown when the recap
+ * is theirs or everyone's. */
+export function Recap({ character, parsesFor, onOpen }: { character?: Character; parsesFor: string; onOpen: Open }) {
+  const id = character?.id ?? ''
   const [periods, setPeriods] = useState<RecapPeriod[]>([])
   const [label, setLabel] = useState('')
-  // The last answer, for the period it was asked for: a recap or why it failed.
-  const [answer, setAnswer] = useState<{ period?: RecapPeriod; recap?: RecapData; error?: string }>({})
+  // The last answer, for the period and character it was asked for (key): a recap or why it failed. It stays on
+  // screen while the next one loads, so the tabs keep the one picked.
+  const [answer, setAnswer] = useState<{ key?: string; recap?: RecapData; error?: string }>({})
+  const [top, setTop] = useState<{ key?: string; times?: RecapTopTime[] | null }>({})
   const period = periods.find((p) => p.label === label) ?? periods[0]
+  const key = period && `${period.label} ${id}`
   useEffect(() => {
     const controller = new AbortController()
     fetchRecapPeriods(controller.signal).then(setPeriods, (err: unknown) => {
@@ -28,19 +43,28 @@ export function Recap({
   useEffect(() => {
     if (!period) return
     const controller = new AbortController()
-    fetchRecap(period, controller.signal).then(
-      (recap) => setAnswer({ period, recap }),
+    fetchRecap(period, id, controller.signal).then(
+      (recap) => setAnswer({ key, recap }),
       (err: unknown) => {
-        if (!controller.signal.aborted) setAnswer({ period, error: err instanceof Error ? err.message : String(err) })
+        if (!controller.signal.aborted) setAnswer({ key, error: err instanceof Error ? err.message : String(err) })
       },
     )
+    // The recap reads fine without Warcraft Logs, so a failure only leaves the top runs out.
+    fetchRecapTopTimes(period, id, controller.signal).then((times) => setTop({ key, times }), () => undefined)
     return () => controller.abort()
-  }, [period])
-  const current = answer.period === period ? answer : {}
+  }, [period, id, key])
+  const loading = answer.key !== key
+  const showParses = !character || character.preferred
   return (
     <>
       <header className="title">
-        <h1>Recap</h1>
+        <h1>
+          Recap ·{' '}
+          <span style={{ color: character && classColors[character.class] }}>
+            {character ? withRealm(character.name, character.realm) : 'All characters'}
+          </span>
+        </h1>
+        {loading && answer.recap && <span className="muted small">Loading…</span>}
       </header>
       <div className="map-controls" role="group" aria-label="Period">
         {periods.map((p) => (
@@ -49,49 +73,141 @@ export function Recap({
           </button>
         ))}
       </div>
-      {answer.error && (!answer.period || current.error) ? (
+      {answer.error && !loading ? (
         <p className="warning">{answer.error}</p>
-      ) : current.recap ? (
-        <RecapBody recap={current.recap} onOpen={onOpen} />
+      ) : answer.recap ? (
+        <Tabs
+          initial={answer.recap.mplus.keys === 0 && answer.recap.raid.pulls > 0 ? 1 : 0}
+          tabs={[
+            {
+              name: 'Mythic+',
+              body: (
+                <>
+                  <MPlusRecap r={answer.recap.mplus} top={top.key === key ? top.times : undefined} onOpen={onOpen} />
+                  {showParses && <CharacterParses character={parsesFor} kind="mplus" />}
+                </>
+              ),
+            },
+            {
+              name: 'Raid',
+              body: (
+                <>
+                  <RaidRecap r={answer.recap.raid} onOpen={onOpen} />
+                  {showParses && <CharacterParses character={parsesFor} kind="raid" />}
+                </>
+              ),
+            },
+          ]}
+        />
       ) : (
         <p className="muted">Loading…</p>
       )}
-      <CharacterParses character={character} />
     </>
   )
 }
 
-function RecapBody({
-  recap: r,
-  onOpen,
-}: {
-  recap: RecapData
-  onOpen: (kind: 'mplus' | 'raid', start: number) => void
-}) {
-  if (r.keys === 0 && r.raid.length === 0) return <p className="muted">No keys or raid pulls in this period</p>
+/** Big numbers in boxes, each with its label under it. */
+function Tiles({ tiles }: { tiles: [string, string][] }) {
+  return (
+    <div className="recap-tiles">
+      {tiles.map(([value, label]) => (
+        <div key={label} className="card small">
+          <b>{value}</b>
+          <span className="muted small">{label}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/** The per-key averages the Mythic+ tab shows: label, field, decimals. */
+const AVERAGES: [string, keyof RecapPerKey, number][] = [
+  ['Kicks', 'kicks', 1],
+  ['CC', 'cc', 1],
+  ['Dispels', 'dispels', 1],
+  ['Priority damage %', 'priorityPct', 0],
+]
+
+/** A per-key average, "–" when no key had it. */
+function perKey(n: number, digits: number): string {
+  return n < 0 ? '–' : n.toFixed(digits)
+}
+
+/** The Mythic+ tab: tiles, a card per dungeon (top: Warcraft Logs' top runs, undefined while loading, null without
+ * Warcraft Logs keys), the averages per key, the character, who they ran with, and facts that open their key. */
+function MPlusRecap({ r, top, onOpen }: { r: RecapMPlus; top?: RecapTopTime[] | null; onOpen: Open }) {
+  if (r.keys === 0) return <p className="muted">No keys in this period</p>
+  const you = r.you
+  const tiles: [string, string][] = [
+    [String(r.keys), 'keys'],
+    [`${Math.round(r.successPct)}%`, 'timed'],
+    [r.highestTimed ? `+${r.highestTimed}` : '–', 'highest timed'],
+    [`${(r.timeMS / 3_600_000).toFixed(1)} h`, 'in keys'],
+    [(r.deaths / r.keys).toFixed(1), 'party deaths a key'],
+  ]
+  if (you?.keys) tiles.push([(you.deaths / you.keys).toFixed(1), 'your deaths a key'])
   return (
     <>
-      {r.keys > 0 && (
-        <section className="panel">
-          <p className="recap-tiles">
-            <span>
-              <b>{r.keys}</b> keys
-            </span>
-            <span>
-              <b>{Math.round((100 * r.timed) / r.keys)}%</b> timed
-            </span>
-            <span>
-              highest timed <b>{r.highestTimed ? `+${r.highestTimed}` : '–'}</b>
-            </span>
-            <span>
-              <b>{(r.timeMS / 3_600_000).toFixed(1)} h</b> in keys
-            </span>
-            <span>
-              <b>{(r.deaths / r.keys).toFixed(1)}</b> deaths a key
-            </span>
-          </p>
+      <Tiles tiles={tiles} />
+      <div className="cards compact">
+        {r.dungeons.map((d) => (
+          <DungeonCard key={d.dungeon} d={d} top={top?.find((t) => t.dungeon === d.dungeon)} />
+        ))}
+      </div>
+      <div className="cards compact">
+        <section className="card small per-key">
+          <h3>Per key</h3>
+          <div className="card-row card-head muted">
+            <span />
+            <span>Party</span>
+            <span>You</span>
+          </div>
+          {AVERAGES.map(([name, field, digits]) => (
+            <div key={field} className="card-row">
+              <span className="name">{name}</span>
+              <span>{perKey(r.averages.party[field], digits)}</span>
+              <span>{perKey(r.averages.you[field], digits)}</span>
+            </div>
+          ))}
         </section>
-      )}
+        {you && (
+          <section className="card small">
+            <h3>{you.character}</h3>
+            <p className="muted small">{you.specs.join(', ') || 'Spec not recorded'}</p>
+            {you.dungeons.map((d) => (
+              <div key={d.dungeon + d.metric} className="card-row">
+                <span className="name">{d.dungeon}</span>
+                <span>
+                  {amount(d.median)} <span className="muted small">{d.metric.toUpperCase()}</span>
+                </span>
+              </div>
+            ))}
+            {you.killers.length > 0 && (
+              <p className="small">
+                <span className="muted">Killed most by </span>
+                {you.killers.map((k) => `${k.name} (${k.count})`).join(', ')}
+              </p>
+            )}
+          </section>
+        )}
+        {r.party.length > 0 && (
+          <section className="card small">
+            <h3>Who you ran with</h3>
+            {r.party.map((m) => (
+              <div key={m.player + m.realm} className="card-row">
+                <span className="name">
+                  <span style={{ color: classColors[m.class] }}>{m.player}</span>
+                  {m.realm && <span className="muted small"> {realmName(m.realm)}</span>}
+                </span>
+                <span>
+                  {counted(m.keys, 'key')}{' '}
+                  <span className="muted small">{Math.round((100 * m.timed) / m.keys)}% timed</span>
+                </span>
+              </div>
+            ))}
+          </section>
+        )}
+      </div>
       {r.facts.length > 0 && (
         <section className="panel">
           <h2>Facts</h2>
@@ -106,85 +222,104 @@ function RecapBody({
           </ul>
         </section>
       )}
-      {r.dungeons.length > 0 && (
-        <section className="panel">
-          <h2>Most run dungeons</h2>
-          <ul className="list">
-            {r.dungeons.map((d) => (
-              <li key={d.dungeon}>
-                <span>
-                  {d.dungeon}{' '}
-                  <span className="muted small">
-                    {counted(d.runs, 'run')}, {d.timed} timed
+    </>
+  )
+}
+
+/** One dungeon: runs and success, then your timed runs at the highest level you timed and their times against
+ * Warcraft Logs' top runs there (top; missing while loading or without Warcraft Logs keys). One time when they all
+ * took the same (timed once). */
+function DungeonCard({ d, top }: { d: RecapDungeon; top?: RecapTopTime }) {
+  return (
+    <section className="card small">
+      <h3>
+        {d.dungeon} {d.bestLevel > 0 && <span className="muted">+{d.bestLevel}</span>}
+      </h3>
+      <div className="bar thin" role="img" aria-label={`${Math.round(d.successPct)}% timed`}>
+        <div className="fill ahead" style={{ width: `${d.successPct}%` }} />
+      </div>
+      <p className="small">
+        {counted(d.runs, 'run')}, {Math.round(d.successPct)}% timed
+      </p>
+      <p className="muted small">
+        {d.bestLevel
+          ? `Timed at +${d.bestLevel}: ${d.bestRuns === 1 ? 'only once' : `${d.bestRuns} times`}`
+          : 'None timed'}
+      </p>
+      {d.bestLevel > 0 && (
+        <dl className="recap-times">
+          {d.bestRuns > 1 ? (
+            <>
+              <dt>Average</dt>
+              <dd>{clock(d.avgMS)}</dd>
+              <dt>Median</dt>
+              <dd>{clock(d.medianMS)}</dd>
+              <dt>Fastest</dt>
+              <dd>{clock(d.bestMS)}</dd>
+            </>
+          ) : (
+            <>
+              <dt>Time</dt>
+              <dd>{clock(d.medianMS)}</dd>
+            </>
+          )}
+          {top && (
+            <>
+              <dt>Top runs median</dt>
+              {top.medianMS > 0 ? (
+                <dd>
+                  {clock(top.medianMS)}{' '}
+                  <span className={d.medianMS > top.medianMS ? 'bad' : 'good'}>
+                    {versus(d.medianMS, top.medianMS)}
                   </span>
-                </span>
-                <span>{d.bestLevel ? `best +${d.bestLevel} in ${clock(d.bestMS)}` : 'none timed'}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
+                </dd>
+              ) : (
+                <dd className="muted">too few ranked runs</dd>
+              )}
+            </>
+          )}
+        </dl>
       )}
-      {r.you && (
-        <section className="panel">
-          <h2>{r.you.character}</h2>
-          <p className="muted">
-            {r.you.specs.join(', ')} · {counted(r.you.deaths, 'death')}
-            {r.you.killers.length > 0 &&
-              ` · killed most by ${r.you.killers.map((k) => `${k.name} (${k.count})`).join(', ')}`}
-          </p>
-          <ul className="list">
-            {r.you.dungeons.map((d) => (
-              <li key={d.dungeon + d.metric}>
-                <span>{d.dungeon}</span>
-                <span>
-                  median {amount(d.median)} {d.metric.toUpperCase()}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-      {r.party.length > 0 && (
-        <section className="panel">
-          <h2>Who you ran with</h2>
-          <ul className="list">
-            {r.party.map((m) => (
-              <li key={m.player}>
-                <span>{m.player}</span>
-                <span>
-                  {counted(m.keys, 'key')} together, {Math.round((100 * m.timed) / m.keys)}% timed
-                </span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-      {r.raid.length > 0 && (
-        <section className="panel">
-          <h2>Raid</h2>
-          <ul className="list">
-            {r.raid.map((b) => (
-              <li key={b.boss + b.difficulty}>
-                <span>
-                  {b.boss} {b.difficulty}{' '}
-                  <span className="muted small">
-                    {counted(b.pulls, 'pull')}, {counted(b.kills, 'kill')}
-                    {b.yourDeaths > 0 && `, you died ${counted(b.yourDeaths, 'time')}`}
-                    {b.mostHit && ` · hit hardest by ${b.mostHit}`}
-                  </span>
-                </span>
-                {b.firstKill ? (
-                  <button className="link" onClick={() => onOpen('raid', b.firstKill)}>
-                    first kill on pull {b.firstKillPull}, {new Date(b.firstKill).toLocaleDateString()}
-                  </button>
-                ) : (
-                  <span>{b.bestWipePct >= 0 ? `best wipe ${b.bestWipePct.toFixed(1)}%` : 'no kill'}</span>
-                )}
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+    </section>
+  )
+}
+
+/** The Raid tab: tiles and a card per boss, its first kill opening the pull (onOpen). */
+function RaidRecap({ r, onOpen }: { r: RecapRaid; onOpen: Open }) {
+  if (r.pulls === 0) return <p className="muted">No raid pulls in this period</p>
+  return (
+    <>
+      <Tiles
+        tiles={[
+          [String(r.pulls), 'pulls'],
+          [String(r.kills), 'kills'],
+          [String(r.killed), 'bosses killed'],
+          [`${(r.timeMS / 3_600_000).toFixed(1)} h`, 'in pulls'],
+          [(r.deaths / r.pulls).toFixed(1), 'raid deaths a pull'],
+          [r.yourPulls ? (r.yourDeaths / r.yourPulls).toFixed(2) : '–', 'your deaths a pull'],
+        ]}
+      />
+      <div className="cards compact">
+        {r.bosses.map((b) => (
+          <section key={b.boss + b.difficulty} className="card small">
+            <h3>
+              {b.boss} <span className="muted">{b.difficulty}</span>
+            </h3>
+            <p className="small">
+              {counted(b.pulls, 'pull')}, {counted(b.kills, 'kill')}
+              {b.yourDeaths > 0 && <span className="muted"> · you died {counted(b.yourDeaths, 'time')}</span>}
+            </p>
+            {b.firstKill ? (
+              <button className="link small" onClick={() => onOpen('raid', b.firstKill)}>
+                First kill on pull {b.firstKillPull}, {new Date(b.firstKill).toLocaleDateString()}
+              </button>
+            ) : (
+              <p className="small">{b.bestWipePct >= 0 ? `Best wipe ${b.bestWipePct.toFixed(1)}%` : 'No kill'}</p>
+            )}
+            {b.mostHit && <p className="muted small">Hit hardest by {b.mostHit}</p>}
+          </section>
+        ))}
+      </div>
     </>
   )
 }

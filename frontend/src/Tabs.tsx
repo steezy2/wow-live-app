@@ -1,8 +1,8 @@
 import { type ReactNode, useState } from 'react'
 
-/** Lists under tabs, one shown at a time. */
-export function Tabs({ tabs }: { tabs: { name: string; body: ReactNode }[] }) {
-  const [open, setOpen] = useState(0)
+/** Lists under tabs, one shown at a time; initial is the one open first. */
+export function Tabs({ tabs, initial = 0 }: { tabs: { name: string; body: ReactNode }[]; initial?: number }) {
+  const [open, setOpen] = useState(initial)
   return (
     <section className="tabs">
       <div role="tablist">

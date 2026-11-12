@@ -8,40 +8,85 @@ type RecapPeriod struct {
 	To    int64  `json:"to"`
 }
 
-// Recap is a period's Mythic+ keys and raid pulls read as a story: the keys run and timed, the highest level timed,
-// the time spent in keys and the deaths; each dungeon's runs; the owner's character; who they ran with; a few facts
-// that each open a key or pull; and the raid by boss.
+// Recap is a period's Mythic+ keys and raid pulls read as a story, one character's or everyone's, in two halves that
+// never count each other's runs.
 type Recap struct {
-	From         int64          `json:"from"`
-	To           int64          `json:"to"`
+	From  int64      `json:"from"`
+	To    int64      `json:"to"`
+	MPlus RecapMPlus `json:"mplus"`
+	Raid  RecapRaid  `json:"raid"`
+}
+
+// RecapMPlus is a recap's keys: run, timed (and their share), the highest level timed, the time spent in them and the
+// party's deaths; the per-key averages; each dungeon's runs; the character; who they ran with; and a few facts that
+// each open a key.
+type RecapMPlus struct {
 	Keys         int            `json:"keys"`
 	Timed        int            `json:"timed"`
+	SuccessPct   float64        `json:"successPct"`
 	HighestTimed int            `json:"highestTimed"` // 0 when none was timed
 	TimeMS       int64          `json:"timeMS"`
-	Deaths       int            `json:"deaths"`
+	Deaths       int            `json:"deaths"` // the party's
+	Averages     RecapAverages  `json:"averages"`
 	Dungeons     []RecapDungeon `json:"dungeons"` // most run first
 	You          *RecapYou      `json:"you,omitempty"`
 	Party        []RecapMate    `json:"party"` // most keys together first
 	Facts        []RecapFact    `json:"facts"`
-	Raid         []RecapBoss    `json:"raid"`
 }
 
-// RecapDungeon is one dungeon in a recap: its runs, how many were timed, the highest level timed and the fastest time
-// at that level (0 for both when none was).
+// RecapAverages is a key's kicks, crowd control, dispels and priority damage on average, the party's and the
+// character's own (in the keys they played).
+type RecapAverages struct {
+	Party RecapPerKey `json:"party"`
+	You   RecapPerKey `json:"you"`
+}
+
+// RecapPerKey is an average per key: kicks, crowd control casts (mplus.toml's [cc]), dispels, and the share of
+// damage that went into minibosses and bosses (in %). Each is -1 when no key in the period had it (keys saved before
+// it was kept).
+type RecapPerKey struct {
+	Kicks       float64 `json:"kicks"`
+	CC          float64 `json:"cc"`
+	Dispels     float64 `json:"dispels"`
+	PriorityPct float64 `json:"priorityPct"`
+}
+
+// RecapRaid is a recap's raid pulls: pulls, kills, the bosses killed (by boss and difficulty), the time spent in
+// pulls and the raid's deaths, the pulls the character was in and their deaths in them; and each boss.
+type RecapRaid struct {
+	Pulls      int         `json:"pulls"`
+	Kills      int         `json:"kills"`
+	Killed     int         `json:"killed"`
+	TimeMS     int64       `json:"timeMS"`
+	Deaths     int         `json:"deaths"`
+	YourPulls  int         `json:"yourPulls"`
+	YourDeaths int         `json:"yourDeaths"`
+	Bosses     []RecapBoss `json:"bosses"` // in the order first pulled
+}
+
+// RecapDungeon is one dungeon in a recap: its runs, how many were timed and their share; and the highest level timed
+// with its timed runs and their average, median and fastest time (all 0 when none was timed). Untimed and abandoned
+// keys never count toward the level or the times.
 type RecapDungeon struct {
-	Dungeon   string `json:"dungeon"`
-	Runs      int    `json:"runs"`
-	Timed     int    `json:"timed"`
-	BestLevel int    `json:"bestLevel"`
-	BestMS    int64  `json:"bestMS"`
+	Dungeon    string  `json:"dungeon"`
+	Runs       int     `json:"runs"`
+	Timed      int     `json:"timed"`
+	SuccessPct float64 `json:"successPct"`
+	BestLevel  int     `json:"bestLevel"`
+	BestRuns   int     `json:"bestRuns"`
+	AvgMS      int64   `json:"avgMS"`
+	MedianMS   int64   `json:"medianMS"`
+	BestMS     int64   `json:"bestMS"` // the fastest
 }
 
-// RecapYou is the owner's character in a recap (the one whose game wrote most of the period's logs): the specs played,
-// the median DPS (HPS for a healer spec) per dungeon, the deaths, and what killed them most, most first.
+// RecapYou is the character a recap is for (the one picked, or the one whose game wrote most of the period's logs):
+// the specs played, the median DPS (HPS for a healer spec) per dungeon, the deaths, and what killed them most, most
+// first.
 type RecapYou struct {
 	Character string       `json:"character"`
 	Specs     []string     `json:"specs"`
 	Dungeons  []RecapRate  `json:"dungeons"`
+	Keys      int          `json:"keys"` // the keys they played, which Deaths is over
 	Deaths    int          `json:"deaths"`
 	Killers   []RecapCount `json:"killers"`
 }
@@ -59,9 +104,21 @@ type RecapCount struct {
 	Count int    `json:"count"`
 }
 
-// RecapMate is a player the owner ran keys with: the keys together and how many of them were timed.
+// RecapTopTime is the median time of a dungeon's top speed-ranked Warcraft Logs runs at a level (the highest the
+// recap's character timed there) and how many ranked runs it's over; MedianMS is 0 when fewer than the recap needs.
+type RecapTopTime struct {
+	Dungeon  string `json:"dungeon"`
+	Level    int    `json:"level"`
+	MedianMS int64  `json:"medianMS"`
+	Runs     int    `json:"runs"`
+}
+
+// RecapMate is a player the owner ran keys with: their realm and class ("" when unknown), the keys together and how
+// many of them were timed.
 type RecapMate struct {
 	Player string `json:"player"`
+	Realm  string `json:"realm"`
+	Class  string `json:"class"`
 	Keys   int    `json:"keys"`
 	Timed  int    `json:"timed"`
 }

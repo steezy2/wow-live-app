@@ -475,9 +475,10 @@ export async function abandonLiveKey(): Promise<void> {
   await call('/api/mplus/live/abandon', { method: 'POST' })
 }
 
-/** The saved keys, newest first. */
-export async function fetchSavedKeys(signal?: AbortSignal): Promise<KeySummary[]> {
-  return (await (await call('/api/mplus/keys', { signal })).json()) as KeySummary[]
+/** The saved keys one character played ('' for every character), newest first. */
+export async function fetchSavedKeys(character: string, signal?: AbortSignal): Promise<KeySummary[]> {
+  const query = new URLSearchParams({ character }).toString()
+  return (await (await call(`/api/mplus/keys?${query}`, { signal })).json()) as KeySummary[]
 }
 
 /** One saved key. */
@@ -751,32 +752,85 @@ export interface RecapPeriod {
   to: number
 }
 
-/** A period's keys and raid pulls read as a story (models.Recap). */
+/** A period's keys and raid pulls read as a story, Mythic+ and raid apart (models.Recap). */
 export interface Recap {
   from: number
   to: number
+  mplus: RecapMPlus
+  raid: RecapRaid
+}
+
+/** An average per key; each -1 when no key in the period had it (models.RecapPerKey). */
+export interface RecapPerKey {
+  kicks: number
+  cc: number
+  dispels: number
+  /** The share of damage into minibosses and bosses, in %. */
+  priorityPct: number
+}
+
+/** A recap's keys (models.RecapMPlus). */
+export interface RecapMPlus {
   keys: number
   timed: number
+  successPct: number
   /** 0 when none was timed. */
   highestTimed: number
   timeMS: number
+  /** The party's. */
   deaths: number
-  /** Most run first; bestLevel and bestMS 0 when none was timed. */
-  dungeons: { dungeon: string; runs: number; timed: number; bestLevel: number; bestMS: number }[]
-  /** The character whose game wrote most of the period's logs; missing when no key says. */
+  averages: { party: RecapPerKey; you: RecapPerKey }
+  /** Most run first (models.RecapDungeon). */
+  dungeons: RecapDungeon[]
+  /** The character the recap is for; missing when no key says. */
   you?: {
     character: string
     specs: string[]
     dungeons: { dungeon: string; metric: 'dps' | 'hps'; median: number }[]
+    /** The keys they played, which deaths is over. */
+    keys: number
     deaths: number
     killers: { name: string; count: number }[]
   }
-  /** Who you ran with most. */
-  party: { player: string; keys: number; timed: number }[]
-  /** Each opens its key (mplus) or pull (raid) by its start. */
-  facts: { text: string; kind: 'mplus' | 'raid'; start: number }[]
+  /** Who you ran with most; realm and class '' when unknown. */
+  party: { player: string; realm: string; class: string; keys: number; timed: number }[]
+  facts: RecapFact[]
+}
+
+/** A dungeon in a recap: the level is the highest you timed, with your timed runs there and their times (all 0 when
+ * none was timed; untimed and abandoned keys never count). */
+export interface RecapDungeon {
+  dungeon: string
+  runs: number
+  timed: number
+  successPct: number
+  bestLevel: number
+  bestRuns: number
+  avgMS: number
+  medianMS: number
+  /** The fastest. */
+  bestMS: number
+}
+
+/** A recap line that opens its key (mplus) or pull (raid) by its start. */
+export interface RecapFact {
+  text: string
+  kind: 'mplus' | 'raid'
+  start: number
+}
+
+/** A recap's raid pulls (models.RecapRaid); killed counts bosses (by difficulty) killed, yourPulls the pulls the
+ * character was in and yourDeaths their deaths in them. */
+export interface RecapRaid {
+  pulls: number
+  kills: number
+  killed: number
+  timeMS: number
+  deaths: number
+  yourPulls: number
+  yourDeaths: number
   /** By boss and difficulty; firstKill 0 for none, bestWipePct -1 for no wipe with advanced logging. */
-  raid: {
+  bosses: {
     boss: string
     difficulty: string
     pulls: number
@@ -789,14 +843,54 @@ export interface Recap {
   }[]
 }
 
+/** The median time of a dungeon's top Warcraft Logs runs at a level; medianMS 0 under the runs it needs. */
+export interface RecapTopTime {
+  dungeon: string
+  level: number
+  medianMS: number
+  runs: number
+}
+
+/** One of the owner's characters (models.Character): id is Name-Realm, or the name when no run knows the realm. */
+export interface Character {
+  id: string
+  name: string
+  realm: string
+  class: string
+  keys: number
+  pulls: number
+  preferred?: boolean
+}
+
 /** The periods a recap covers (this month, last month, this season when Raider.IO says, this year, all time). */
 export async function fetchRecapPeriods(signal?: AbortSignal): Promise<RecapPeriod[]> {
   return (await (await call('/api/recap/periods', { signal })).json()) as RecapPeriod[]
 }
 
-/** The recap of the keys and pulls that started in a period. */
-export async function fetchRecap(period: RecapPeriod, signal?: AbortSignal): Promise<Recap> {
-  return (await (await call(`/api/recap?from=${period.from}&to=${period.to}`, { signal })).json()) as Recap
+/** The query of a recap of a period, one character's ('' for all). */
+function recapQuery(period: RecapPeriod, character: string): string {
+  return new URLSearchParams({ from: String(period.from), to: String(period.to), character }).toString()
+}
+
+/** The recap of the keys and pulls that started in a period, one character's ('' for all). */
+export async function fetchRecap(period: RecapPeriod, character: string, signal?: AbortSignal): Promise<Recap> {
+  return (await (await call(`/api/recap?${recapQuery(period, character)}`, { signal })).json()) as Recap
+}
+
+/** Warcraft Logs' top-runs median per dungeon of a recap; null without Warcraft Logs keys. */
+export async function fetchRecapTopTimes(
+  period: RecapPeriod,
+  character: string,
+  signal?: AbortSignal,
+): Promise<RecapTopTime[] | null> {
+  const response = await call(`/api/recap/top-times?${recapQuery(period, character)}`, { signal })
+  return response.status === 204 ? null : ((await response.json()) as RecapTopTime[])
+}
+
+/** The owner's characters, most runs first, the one Settings names (preferred) marked. */
+export async function fetchCharacters(preferred: string, signal?: AbortSignal): Promise<Character[]> {
+  const query = new URLSearchParams({ preferred }).toString()
+  return (await (await call(`/api/characters?${query}`, { signal })).json()) as Character[]
 }
 
 /** The owner's character's Warcraft Logs parses this season (models.CharacterParses). */
@@ -1027,9 +1121,10 @@ export async function fetchRaidLive(signal?: AbortSignal): Promise<RaidLive> {
   return (await (await call('/api/raid/live', { signal })).json()) as RaidLive
 }
 
-/** Every raid night's pulls, newest first. */
-export async function fetchRaidNights(signal?: AbortSignal): Promise<RaidNight[]> {
-  return (await (await call('/api/raid/nights', { signal })).json()) as RaidNight[]
+/** Every raid night's pulls one character played ('' for every character), newest first. */
+export async function fetchRaidNights(character: string, signal?: AbortSignal): Promise<RaidNight[]> {
+  const query = new URLSearchParams({ character }).toString()
+  return (await (await call(`/api/raid/nights?${query}`, { signal })).json()) as RaidNight[]
 }
 
 /** One raid pull. */

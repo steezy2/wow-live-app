@@ -246,15 +246,16 @@ func TestKeyStep2(t *testing.T) {
 	if !reflect.DeepEqual(got.Abilities, wantAbilities) || !reflect.DeepEqual(got.Taken, wantTaken) {
 		t.Fatalf("abilities = %+v\nwant %+v\ntaken = %+v, want %+v", got.Abilities, wantAbilities, got.Taken, wantTaken)
 	}
-	if got.Logger != "Testmage" {
-		t.Fatalf("logger = %q; want Testmage, whose unit flags say the log is theirs", got.Logger)
+	if got.Logger != "Testmage" || got.Realms["Testshaman"] != "Sargeras" {
+		t.Fatalf("logger = %q, realms %v; want Testmage, whose unit flags say the log is theirs, and the shaman's realm",
+			got.Logger, got.Realms)
 	}
 	if a := got.Activity["Testmage"]; a <= 0 || a > 100 || got.Lusts == nil || got.BetweenPulls == nil {
 		t.Fatalf("activity = %v, lusts %v, between pulls %v; want the mage busy for part of the pull, and lists",
 			got.Activity, got.Lusts, got.BetweenPulls)
 	}
-	if _, err := keys.SaveFinished(); err != nil || len(keys.Saved()) != 1 {
-		t.Fatalf("saved %d keys, %v; want the key saved", len(keys.Saved()), err)
+	if _, err := keys.SaveFinished(); err != nil || len(keys.Saved("")) != 1 {
+		t.Fatalf("saved %d keys, %v; want the key saved", len(keys.Saved("")), err)
 	}
 	track, err := keys.Track(got.Start)
 	if me := track.Players["Testmage"]; err != nil || len(me) == 0 || me[0].X != 1599.81 || me[0].Map != 2610 ||
@@ -459,9 +460,9 @@ func TestASilentKeyClosesAsAbandonedAndGoesOnIfTheLogDoes(t *testing.T) {
 	feed(t, keys, `11/3/2026 23:20:00.000-7  ZONE_CHANGE,0,"Silvermoon City",0`)
 	got, _ = keys.Latest(0)
 	if saved, _ := keys.SaveFinished(); got.Status != "abandoned" || got.End != later || len(saved) != 1 ||
-		len(keys.Saved()) != 1 {
+		len(keys.Saved("")) != 1 {
 		t.Fatalf("after leaving: %s, ended %d, saved %v, %d keys; want it abandoned at its last line, saved over its "+
-			"copy", got.Status, got.End, saved, len(keys.Saved()))
+			"copy", got.Status, got.End, saved, len(keys.Saved("")))
 	}
 }
 
@@ -476,7 +477,7 @@ func TestASilentKeyStaysClosedWhenThePartyLeftOrStartedAnother(t *testing.T) {
 			"11/4/2026 08:00:00.000-7  COMBAT_LOG_VERSION,22,ADVANCED_LOG_ENABLED,1",
 			"11/4/2026 08:00:01.000-7  "+next,
 			"11/4/2026 08:00:02.000-7  ENCOUNTER_START,3286,\"Second\",8,5,2923")[0].Time
-		if saved := keys.Saved(); len(saved) != 1 || saved[0].Status != "abandoned" || keys.history[0].End != killed ||
+		if saved := keys.Saved(""); len(saved) != 1 || saved[0].Status != "abandoned" || keys.history[0].End != killed ||
 			!keys.history[0].Bosses[1].Kill {
 			t.Errorf("after %s: saved %+v; want the key abandoned at its late boss kill, with the kill", next, saved)
 		}

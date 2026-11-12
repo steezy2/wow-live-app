@@ -257,6 +257,13 @@ type ImportKindPlan struct {
 	Default bool       `json:"default"`
 }
 
+// SameCharacter is whether two "Name-Realm"s are one character, ignoring case, spaces and apostrophes in the realm.
+func SameCharacter(a, b string) bool {
+	nameA, realmA, _ := strings.Cut(a, "-")
+	nameB, realmB, _ := strings.Cut(b, "-")
+	return strings.EqualFold(nameA, nameB) && NormalizeRealm(realmA) == NormalizeRealm(realmB)
+}
+
 // NormalizeRealm is a realm's name in lower case with only its letters and digits, so "Area 52", "area-52" and
 // "Area52" are one realm.
 func NormalizeRealm(realm string) string {

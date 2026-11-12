@@ -45,12 +45,15 @@ func (k *LogTracker) betweenPulls(now int64) bool {
 	return now-end <= RaidLinger.Milliseconds() && (k.last == nil || k.last.End < end)
 }
 
-// RaidNights is every raid night's pulls, newest first.
-func (k *LogTracker) RaidNights() []models.RaidNight {
+// RaidNights is every raid night's pulls character played ("" for every character, see loggedBy), newest first.
+func (k *LogTracker) RaidNights(character string) []models.RaidNight {
 	k.mu.RLock()
 	defer k.mu.RUnlock()
 	nights := []models.RaidNight{}
 	for _, p := range k.pulls {
+		if !loggedBy(p.Logger, p.Realms, character) {
+			continue
+		}
 		if n := len(nights); n == 0 || nights[n-1].Night != p.Night {
 			nights = append(nights, models.RaidNight{Night: p.Night})
 		}

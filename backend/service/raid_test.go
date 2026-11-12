@@ -160,7 +160,7 @@ func TestRaidPullsComparedListedAndOverlayTiming(t *testing.T) {
 	lines = append(lines, raidAt(3, 300, `ENCOUNTER_START,3180,"Testboss",8,5,2939`)) // an M+ boss outside a key
 	lines = append(lines, pullLines(4, 0, 60, 0, true)...)
 	feed(t, keys, lines...)
-	nights := keys.RaidNights()
+	nights := keys.RaidNights("")
 	if len(nights) != 2 || nights[0].Night != "2026-11-04" || len(nights[1].Pulls) != 2 ||
 		nights[1].Pulls[0].Number != 2 || nights[0].Pulls[0].Number != 1 {
 		t.Fatalf("nights = %+v; want Nov 4's kill first, then Nov 3's pulls 2 and 1, the newest first", nights)
@@ -286,7 +286,7 @@ func TestRaidPullWithoutAnEndEndsAtItsLastFighting(t *testing.T) {
 		bossGUID+",0000000000000000,40,100,0,0,1470,0,0,0,3,0,100,0,1599.81,-1.23,2610,3.1461,93,"+
 		"5000,5000,-1,64,0,0,0,nil,nil,nil,ST"))
 	feed(t, keys, lines...)
-	pulls := keys.RaidNights()[0].Pulls
+	pulls := keys.RaidNights("")[0].Pulls
 	if len(pulls) != 2 || pulls[0].DurationMS != 1000 || pulls[1].DurationMS != 1000 || keys.RaidLive(0).Pulling {
 		t.Fatalf("pulls = %+v; want two pulls, each ended at its last hit (1 s in), none still on", pulls)
 	}
@@ -345,7 +345,7 @@ func TestAnEncounterNobodyFoughtIsNotAPull(t *testing.T) {
 	if _, err := keys.SaveFinished(); err != nil {
 		t.Fatal(err)
 	}
-	if pulls := keys.RaidNights()[0].Pulls; len(pulls) != 1 || pulls[0].Number != 1 || len(store.pulls) != 1 {
+	if pulls := keys.RaidNights("")[0].Pulls; len(pulls) != 1 || pulls[0].Number != 1 || len(store.pulls) != 1 {
 		t.Fatalf("pulls = %+v, saved %d; want only the fought pull, as pull 1", pulls, len(store.pulls))
 	}
 }

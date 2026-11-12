@@ -22,7 +22,7 @@ type MPlus struct {
 	Tiles   Tiles
 	Reviews Reviews // nil without Warcraft Logs credentials
 	Changes Changes
-	Recaps  Recaps // nil: no recap
+	Recaps  Recaps
 	Now     func() time.Time
 }
 
@@ -123,10 +123,14 @@ type ChangeEvent struct {
 //	@Summary	The saved Mythic+ keys, newest first
 //	@Tags		mplus
 //	@Produce	json
-//	@Success	200	{array}	models.KeySummary
+//	@Param		character	query		string	false	"only this character's keys (an id from /api/characters)"
+//	@Success	200			{array}		models.KeySummary
+//	@Failure	400			{object}	ErrorResponse
 //	@Router		/api/mplus/keys [get]
 func (m MPlus) Saved(c *gin.Context) {
-	c.JSON(http.StatusOK, m.Keys.Saved())
+	if character, ok := characterParam(c); ok {
+		c.JSON(http.StatusOK, m.Keys.Saved(character))
+	}
 }
 
 // SavedKey godoc

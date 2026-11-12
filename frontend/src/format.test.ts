@@ -11,6 +11,8 @@ import {
   periodLabel,
   progressText,
   resultText,
+  versus,
+  withRealm,
 } from './format'
 
 describe('clock', () => {
@@ -148,5 +150,22 @@ describe('coverText', () => {
     expect(coverText({ defensive: 'Pain Suppression', ready: [] })).toBe('had Pain Suppression')
     expect(coverText({ defensive: '', ready: ['Barkskin', 'Renewal'] })).toBe('still had Barkskin, Renewal')
     expect(coverText({ defensive: '' })).toBe('nothing ready')
+  })
+})
+
+describe('withRealm', () => {
+  it('spaces out the realm and leaves out an unknown one', () => {
+    expect(withRealm('Testmage', 'MoonGuard')).toBe('Testmage · Moon Guard')
+    expect(withRealm('Testmage', 'Area52')).toBe('Testmage · Area 52')
+    expect(withRealm('Testmage', "Zul'jin")).toBe("Testmage · Zul'jin")
+    expect(withRealm('Testmage', '')).toBe('Testmage')
+  })
+})
+
+describe('versus', () => {
+  it('signs the difference', () => {
+    expect(versus(90_000, 30_000)).toBe('+1:00')
+    expect(versus(30_000, 60_000)).toBe('-0:30')
+    expect(versus(30_000, 30_000)).toBe('0:00')
   })
 })
