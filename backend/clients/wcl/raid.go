@@ -21,27 +21,32 @@ func (c *Client) RaidBosses(ctx context.Context, names []string) (map[string]mod
 		return nil, err
 	}
 	bosses := map[string]models.RaidBoss{}
-	for _, z := range slices.Backward(zones) {
-		if !slices.ContainsFunc(z.Encounters, func(e encounter) bool { return slices.Contains(names, e.Name) }) {
-			continue
+	z, ok := newestZone(zones, hasEncounter(names))
+	if !ok {
+		return bosses, nil
+	}
+	for _, e := range z.Encounters {
+		code, fight, err := c.topKill(ctx, e.ID)
+		if err != nil {
+			return nil, fmt.Errorf("top kill of %s: %w", e.Name, err)
 		}
-		for _, e := range z.Encounters {
-			code, fight, err := c.topKill(ctx, e.ID)
-			if err != nil {
-				return nil, fmt.Errorf("top kill of %s: %w", e.Name, err)
+		boss := models.RaidBoss{Name: e.Name}
+		if code != "" {
+			if boss, err = c.bossFight(ctx, code, fight); err != nil {
+				return nil, fmt.Errorf("the top kill of %s: %w", e.Name, err)
 			}
-			boss := models.RaidBoss{Name: e.Name}
-			if code != "" {
-				if boss, err = c.bossFight(ctx, code, fight); err != nil {
-					return nil, fmt.Errorf("the top kill of %s: %w", e.Name, err)
-				}
-				boss.Name = e.Name
-			}
-			bosses[e.Name] = boss
+			boss.Name = e.Name
 		}
-		break
+		bosses[e.Name] = boss
 	}
 	return bosses, nil
+}
+
+// hasEncounter matches the zones with an encounter named in names: the raid the rules know.
+func hasEncounter(names []string) func(zone) bool {
+	return func(z zone) bool {
+		return slices.ContainsFunc(z.Encounters, func(e encounter) bool { return slices.Contains(names, e.Name) })
+	}
 }
 
 // topKill is the report and fight of an encounter's top-ranked kill, on the hardest difficulty that has one; "" when

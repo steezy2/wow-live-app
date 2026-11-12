@@ -47,6 +47,7 @@ type Options struct {
 	Pages     fs.FS                       // the built page
 	Hosts     []string                    // the names the page reaches the site by, for the router's host check
 	Settings  *controller.SettingsAPI     // the desktop app's settings and keys; nil in cmd/site
+	Realms    service.RealmSource         // Warcraft Logs' realms, to check the settings' character
 	Now       func() time.Time            // the clock keys are read at
 }
 
@@ -83,7 +84,7 @@ func Start(ctx context.Context, opts Options) (*Site, error) {
 	}
 	s := &Site{Keys: keys, Changes: &service.Changes{Every: pushEvery}, opts: opts, newKeys: newKeys}
 	if opts.Settings != nil {
-		opts.Settings.Logs = s
+		opts.Settings.Logs, opts.Settings.Characters = s, service.Characters{Realms: opts.Realms, Keys: store}
 	}
 	if opts.Baselines != nil {
 		reviewer := service.Reviewer{Keys: keys, Baselines: opts.Baselines, Store: store}

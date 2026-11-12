@@ -173,6 +173,10 @@ type RaidGuideLine struct {
 // RaidPull is one raid pull as the overview shows it: the boss, difficulty and pull number tonight, how far it got,
 // the deaths, what went wrong by kind of mechanic, the meters and the cooldowns, and the pulls it's compared with.
 type RaidPull struct {
+	// Report is the Warcraft Logs fight this pull is, when one is known (imported, or matched to a report).
+	Report *ReportLink `json:"report,omitempty"`
+	// Imported marks a pull built from a Warcraft Logs report instead of a local combat log.
+	Imported   bool        `json:"imported,omitempty"`
 	Start      int64       `json:"start"`
 	End        int64       `json:"end"`
 	Night      string      `json:"night" example:"2026-11-03"` // the raid night: the start's date, before 6 am counting as the day before

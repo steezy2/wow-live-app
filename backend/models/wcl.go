@@ -2,7 +2,9 @@ package models
 
 import (
 	"errors"
+	"strings"
 	"time"
+	"unicode"
 )
 
 // ReportURL is where a report is on Warcraft Logs; add the code (and "#fight=N" for one pull).
@@ -105,6 +107,71 @@ type KeyStatus struct {
 	PointsLeft   float64 `json:"pointsLeft"`
 	LimitPerHour float64 `json:"limitPerHour"`
 	Problem      string  `json:"problem"`
+}
+
+// ReportLink is a fight of a Warcraft Logs report: its code and the fight's ID in it.
+type ReportLink struct {
+	Code    string `json:"code"`
+	FightID int    `json:"fightID"`
+}
+
+// CharacterReport is one of a character's recent Warcraft Logs reports: when it ran (ms since the epoch), its zone
+// and its fights.
+type CharacterReport struct {
+	Code      string        `json:"code"`
+	StartTime int64         `json:"startTime"`
+	EndTime   int64         `json:"endTime"`
+	ZoneID    int           `json:"zoneID"`
+	Fights    []ReportFight `json:"fights"`
+}
+
+// ReportFight is one fight of a CharacterReport: a Mythic+ key (KeystoneLevel above 0), a boss pull (EncounterID
+// above 0) or trash. Times are ms since the report's start; Difficulty is Warcraft Logs' number (5 Mythic, 4 Heroic,
+// 3 Normal, 1 LFR); Players are the friendly players' names without their realms.
+type ReportFight struct {
+	ID            int      `json:"id"`
+	EncounterID   int      `json:"encounterID"`
+	KeystoneLevel int      `json:"keystoneLevel"`
+	Difficulty    int      `json:"difficulty"`
+	Kill          bool     `json:"kill"`
+	StartTime     int64    `json:"startTime"`
+	EndTime       int64    `json:"endTime"`
+	Players       []string `json:"players"`
+}
+
+// WCLZones are the Warcraft Logs zones an import reads: the newest Mythic+ zone and the newest raid zone, with their
+// dungeons' and bosses' encounter IDs by name.
+type WCLZones struct {
+	MPlusID    int            `json:"mplusID"`
+	RaidID     int            `json:"raidID"`
+	Encounters map[string]int `json:"encounters"`
+}
+
+// FightKind says whether an imported fight is a Mythic+ key or a raid boss pull.
+type FightKind string
+
+// The kinds of fight an import reads.
+const (
+	FightMPlus FightKind = "mplus"
+	FightRaid  FightKind = "raid"
+)
+
+// FightRef is one report fight to import: its report and ID, when it started (ms since the epoch) and its kind.
+type FightRef struct {
+	ReportLink
+	StartMS int64     `json:"startMS"`
+	Kind    FightKind `json:"kind" enums:"mplus,raid"`
+}
+
+// NormalizeRealm is a realm's name in lower case with only its letters and digits, so "Area 52", "area-52" and
+// "Area52" are one realm.
+func NormalizeRealm(realm string) string {
+	return strings.Map(func(r rune) rune {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) {
+			return unicode.ToLower(r)
+		}
+		return -1
+	}, realm)
 }
 
 // SecretStore keeps one secret per name (in the desktop app, Windows Credential Manager); Get is "" when none is

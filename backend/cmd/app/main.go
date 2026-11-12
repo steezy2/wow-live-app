@@ -86,8 +86,8 @@ func run() error {
 	if err := keys.Load(); err != nil {
 		log.Printf("no key reviews until the Warcraft Logs keys are saved again: %v", err)
 	}
-	opts.Cache, opts.DelayLog, opts.Baselines, opts.Now = logs.CacheDir, filepath.Join(data, "live-delay.log"), logs,
-		time.Now
+	opts.Cache, opts.DelayLog, opts.Baselines, opts.Realms, opts.Now = logs.CacheDir,
+		filepath.Join(data, "live-delay.log"), logs, logs, time.Now
 	opts.Settings = &controller.SettingsAPI{Settings: settings, Keys: keys}
 	opts.LogsDir = func() string { return settings.Current().LogsDir }
 	opts.Region, opts.Hosts = settings.Current().Region, []string{"wails.localhost"}

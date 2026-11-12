@@ -49,11 +49,19 @@ type LogFolder interface {
 	DeleteArchivedLogs(names []string) ([]models.LogFile, error)
 }
 
+// Characters checks the character setting and guesses it from the saved keys (service.Characters); Resolve's errors
+// wrap service.ErrBadCharacter for a character that doesn't fit, models.ErrNoCredentials without Warcraft Logs keys.
+type Characters interface {
+	Resolve(ctx context.Context, region, character string) (name, slug string, err error)
+	Guess() string
+}
+
 // SettingsAPI serves the desktop app's settings and Warcraft Logs keys, and the log folder's old logs.
 type SettingsAPI struct {
-	Settings Settings
-	Keys     WCLKeys
-	Logs     LogFolder // set by app.Start
+	Settings   Settings
+	Keys       WCLKeys
+	Logs       LogFolder  // set by app.Start
+	Characters Characters // set by app.Start
 }
 
 // LogNames names the logs to archive or delete, as LogFiles lists them.
@@ -195,14 +203,17 @@ func (s SettingsAPI) Get(c *gin.Context) {
 //
 //	@Summary		Save the desktop app's settings
 //	@Description	The log folder and the overlay change right away; a new region's affix names show from the next
-//	@Description	start.
+//	@Description	start. A character ("Name-Realm", empty for none) needs a name of 2 to 12 letters and a realm Warcraft
+//	@Description	Logs lists in the region, which takes the saved Warcraft Logs keys.
 //	@Tags			settings
 //	@Accept			json
 //	@Produce		json
 //	@Param			settings	body		models.Settings	true	"the settings"
 //	@Success		200			{object}	models.SettingsView
 //	@Failure		400			{object}	ErrorResponse
+//	@Failure		404			{object}	ErrorResponse	"A character needs saved Warcraft Logs keys"
 //	@Failure		500			{object}	ErrorResponse
+//	@Failure		502			{object}	ErrorResponse	"Warcraft Logs couldn't be reached to check the character"
 //	@Router			/api/settings [put]
 func (s SettingsAPI) Put(c *gin.Context) {
 	var next models.Settings
@@ -215,6 +226,9 @@ func (s SettingsAPI) Put(c *gin.Context) {
 			strings.Join(overlayShows, ", "), minOpacity)})
 		return
 	}
+	if next.Character = strings.TrimSpace(next.Character); next.Character != "" && !s.characterFits(c, next) {
+		return
+	}
 	if err := s.Settings.Save(next); err != nil {
 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "couldn't save the settings"})
 		return
@@ -222,10 +236,29 @@ func (s SettingsAPI) Put(c *gin.Context) {
 	c.JSON(http.StatusOK, s.view())
 }
 
+// characterFits says whether next's character is valid in its region, answering why not when it isn't.
+func (s SettingsAPI) characterFits(c *gin.Context, next models.Settings) bool {
+	_, _, err := s.Characters.Resolve(c.Request.Context(), next.Region, next.Character)
+	switch {
+	case err == nil:
+		return true
+	case errors.Is(err, service.ErrBadCharacter):
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "send the character as Name-Realm: a name of 2 to 12 " +
+			"letters and a realm in the region"})
+	case errors.Is(err, models.ErrNoCredentials):
+		c.JSON(http.StatusNotFound, ErrorResponse{Error: "save the Warcraft Logs keys first: they check the realm"})
+	default:
+		log.Printf("checking the character: %v", err)
+		c.JSON(http.StatusBadGateway, ErrorResponse{Error: "couldn't reach Warcraft Logs to check the realm"})
+	}
+	return false
+}
+
 // view is the settings with the choices to pick from.
 func (s SettingsAPI) view() models.SettingsView {
 	view := s.Settings.Get()
 	view.Regions, view.OverlayShows, view.MinOpacity = regions, overlayShows, minOpacity
+	view.CharacterGuess = s.Characters.Guess()
 	return view
 }
 

@@ -43,6 +43,10 @@ type Key struct {
 	Taken     []KeyHit     `json:"taken,omitempty"`
 	// Logger is the party member whose game wrote the log ("" in keys saved before Nov 11).
 	Logger string `json:"logger,omitempty"`
+	// Report is the Warcraft Logs fight this key is, when one is known (imported, or matched to a report).
+	Report *ReportLink `json:"report,omitempty"`
+	// Imported marks a key built from a Warcraft Logs report instead of a local combat log.
+	Imported bool `json:"imported,omitempty"`
 	// Lanes is the key's timeline for the replay (see keyLanes), and Suggestions what to fix next key, worked out when
 	// the key is read (see keySuggestions); both empty in keys saved before Nov 11.
 	Lanes       []RaidLane `json:"lanes,omitempty"`
@@ -553,6 +557,9 @@ type Settings struct {
 	LogsDir string          `json:"logsDir"`
 	Region  string          `json:"region" enums:"us,eu,kr,tw"`
 	Overlay OverlaySettings `json:"overlay"`
+	// Character is the player's own character as "Name-Realm" (the realm as the player writes it), whose Warcraft
+	// Logs reports can be imported; empty for none.
+	Character string `json:"character"`
 }
 
 // OverlaySettings are when the overlay shows (during keys, always or never) and its background's opacity (in %; the
@@ -574,6 +581,9 @@ type SettingsView struct {
 	Regions      []string `json:"regions"`
 	OverlayShows []string `json:"overlayShows"`
 	MinOpacity   int      `json:"minOpacity"`
+	// CharacterGuess is the name of the character that wrote most saved keys' logs, to prefill Character with ("" for
+	// none); the logs don't name its realm.
+	CharacterGuess string `json:"characterGuess"`
 }
 
 // LogFile is one combat log in the game's log folder, or one archived as a zip in its WoW Live archive folder, as
