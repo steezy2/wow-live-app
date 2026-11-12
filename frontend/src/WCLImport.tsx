@@ -72,7 +72,6 @@ export function WCLImport({ view, onSaved }: { view: SettingsView; onSaved: (vie
     )
   if (!status) return null
   const saved = view.character !== '' && view.character === character.trim()
-  const listed = saved && status.listedFor === view.character
   return (
     <section className="panel settings">
       <h2>Import from Warcraft Logs</h2>
@@ -104,16 +103,10 @@ export function WCLImport({ view, onSaved }: { view: SettingsView; onSaved: (vie
             <button
               type="button"
               disabled={busy || !saved}
-              title={
-                !saved
-                  ? 'Save the character first'
-                  : listed
-                    ? 'Lists only the reports added since the last search: about 2 points each'
-                    : "Lists the character's reports: about 2 points a report"
-              }
+              title={saved ? "Lists the character's reports: about 2 points a new report" : 'Save the character first'}
               onClick={() => void find()}
             >
-              {listed ? 'Find new fights' : 'Find fights'}
+              Find fights
             </button>
           )}
           {status.imported > 0 && !removing && (

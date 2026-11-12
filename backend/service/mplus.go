@@ -578,7 +578,8 @@ func (k *LogTracker) event(at int64, event string, f []string) {
 			}
 			// the death rules' kit is the player's own survival buttons; a raid cooldown covers by its buff
 			if kind != "cc" && kind != "combat potion" && kind != "raid cooldown" {
-				run.casts = append(run.casts, models.Cast{Fight: run.pull, At: at, Player: src, Ability: ability})
+				run.casts = append(run.casts, models.Cast{Fight: run.pull, At: at, Player: src, Ability: ability,
+					OnOther: f[4] != f[0] && slices.Contains(k.rules.Defensives.Externals, f[9])})
 			}
 			run.key.Casts = append(run.key.Casts, models.KeyCast{Player: src, Ability: ability, Kind: kind,
 				ClockMS: k.clockAt(at)})

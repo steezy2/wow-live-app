@@ -19,21 +19,14 @@ import (
 type fakeReports struct {
 	mu      sync.Mutex
 	budgets []models.RateLimit
-	pages   []int // the pages asked for: the first has the reports and says another follows, which is empty
 }
 
 func (f *fakeReports) CurrentZones(context.Context, []string) (models.WCLZones, error) {
 	return models.WCLZones{MPlusID: 55, RaidID: 53}, nil
 }
 
-func (f *fakeReports) RecentReports(_ context.Context, _, _, _ string, page int) ([]models.CharacterReport, bool,
+func (f *fakeReports) RecentReports(context.Context, string, string, string, int) ([]models.CharacterReport, bool,
 	error) {
-	f.mu.Lock()
-	f.pages = append(f.pages, page)
-	f.mu.Unlock()
-	if page > 1 {
-		return nil, false, nil
-	}
 	party := []string{"Testmage", "Testrogue", "Testpriest", "Testhunter", "Testwarrior"}
 	raid := append(slices.Clone(party), make([]string, 15)...)
 	fight := func(id, level int, kill bool, start, length int64, players []string) models.ReportFight {
@@ -46,7 +39,7 @@ func (f *fakeReports) RecentReports(_ context.Context, _, _, _ string, page int)
 		{Code: "raid", ZoneID: 53, StartTime: -3_600_000, Fights: []models.ReportFight{
 			fight(1, 0, true, 0, 5*60_000, raid), fight(2, 0, false, 600_000, 2*60_000, raid),
 			fight(3, 0, false, 900_000, 3*60_000, []string{"Testrogue"})}},
-	}, true, nil
+	}, false, nil
 }
 
 func (f *fakeReports) RateLimit(context.Context) (models.RateLimit, error) {
@@ -236,7 +229,7 @@ func TestFindCountsEachKindInTheBackground(t *testing.T) {
 	}
 }
 
-func TestFindKeepsWhatItFoundAndThenLooksOnlyForNewReports(t *testing.T) {
+func TestFindKeepsWhatItFoundUntilAnImportStarts(t *testing.T) {
 	ti := newTestImporter(t, []models.RateLimit{plenty})
 	if err := ti.Find(context.Background(), "us", "Testmage-Area52"); err != nil {
 		t.Fatal(err)
@@ -247,8 +240,8 @@ func TestFindKeepsWhatItFoundAndThenLooksOnlyForNewReports(t *testing.T) {
 	if err := restarted.Resume(); err != nil {
 		t.Fatal(err)
 	}
-	if s := restarted.Status(); s.Plan == nil || s.Plan.Kinds[0].Fights != 2 || s.ListedFor != "Testmage-Area52" {
-		t.Fatalf("after a restart: %+v, want the plan found and the character listed", s)
+	if s := restarted.Status(); s.Plan == nil || s.Plan.Kinds[0].Fights != 2 {
+		t.Fatalf("after a restart: %+v, want the plan found", s)
 	}
 	if err := restarted.Start(context.Background(), "us", "Testmage-Area52", keysOnly); err != nil {
 		t.Fatal(err)
@@ -257,10 +250,6 @@ func TestFindKeepsWhatItFoundAndThenLooksOnlyForNewReports(t *testing.T) {
 	if s := restarted.Status(); s.Plan != nil || len(restarted.read) != 2 {
 		t.Errorf("plan %+v and %d fights read, want no plan once the import started and both keys", s.Plan,
 			len(restarted.read))
-	}
-	pages := restarted.Source.(*fakeReports).pages
-	if !slices.Equal(pages, []int{1}) { // the first Find also read page 2
-		t.Errorf("listing again asked for pages %v, want only the first, which has the reports listed before", pages)
 	}
 }
 

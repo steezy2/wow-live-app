@@ -528,6 +528,7 @@ type Cast struct {
 	At      int64
 	Player  string
 	Ability string
+	OnOther bool // an external put on someone else: it doesn't cover the caster
 }
 
 // BuffUp is a defensive buff on a player from Start to End (ms) in a fight.

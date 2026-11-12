@@ -1424,9 +1424,6 @@ const docTemplate = `{
                 "imported": {
                     "type": "integer"
                 },
-                "listedFor": {
-                    "type": "string"
-                },
                 "plan": {
                     "$ref": "#/definitions/models.ImportPlan"
                 },

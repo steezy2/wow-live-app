@@ -90,7 +90,6 @@ describe('importProgress', () => {
     resumeAtMS: 0,
     problem: 'boom',
     imported: 11,
-    listedFor: '',
   }
   it('counts the fights and what they saved, with the points and the failures', () => {
     expect(importProgress(status, 0)).toBe(

@@ -70,8 +70,8 @@ const maxReportPages = 5
 
 // RecentReports is one page (30) of the reports a character appears in, newest first, and whether another page
 // follows (never after maxReportPages). Players are named from each report's player list. The page's list is cached
-// for models.ReportListMaxAge and each report's fights and players for good (by its end, which a report still being
-// logged moves), since they cost most of the points: so listing again only spends points on new reports.
+// for models.ReportListMaxAge and each report's fights and players until its end moves (a report still being logged),
+// since they cost most of the points: so listing again only spends points on new or grown reports.
 func (c *Client) RecentReports(ctx context.Context, region, slug, name string, page int) (
 	[]models.CharacterReport, bool, error) {
 	var data struct {
@@ -117,9 +117,10 @@ func (c *Client) RecentReports(ctx context.Context, region, slug, name string, p
 	return reports, character.RecentReports.HasMore && page < maxReportPages, nil
 }
 
-// reportFights is a report's fights and players, as Warcraft Logs answers them.
+// reportFights is a report's fights and players, as Warcraft Logs answers them, cached with the report's end.
 type reportFights struct {
-	Fights []struct {
+	EndTime int64 `json:"endTime"`
+	Fights  []struct {
 		models.ReportFight
 		FriendlyPlayers []int `json:"friendlyPlayers"`
 	} `json:"fights"`
@@ -131,17 +132,17 @@ type reportFights struct {
 	} `json:"masterData"`
 }
 
-// addFights fills in reports' fights with their players' names, from the cache or, for those not in it, from one
-// query.
+// addFights fills in reports' fights with their players' names, from the cache (one file per report) or, for those
+// not in it or grown since, from one query.
 func (c *Client) addFights(ctx context.Context, reports []models.CharacterReport) error {
 	path := func(r models.CharacterReport) string {
-		return filepath.Join(c.CacheDir, "wcl-mplus", "reports", fmt.Sprintf("%s-%d.json", r.Code, r.EndTime))
+		return filepath.Join(c.CacheDir, "wcl-mplus", "reports", r.Code+".json")
 	}
 	found := make([]reportFights, len(reports))
 	var params, fields []string
 	vars := map[string]any{}
 	for i, r := range reports {
-		if !readCached(path(r), 0, &found[i]) {
+		if !readCached(path(r), 0, &found[i]) || found[i].EndTime != r.EndTime {
 			params = append(params, fmt.Sprintf("$c%d: String!", i))
 			fields = append(fields, fmt.Sprintf(`r%d: report(code: $c%d) { fights { id encounterID keystoneLevel
 				difficulty kill startTime endTime friendlyPlayers } masterData { actors(type: "Player") { id name } } }`,
@@ -159,6 +160,7 @@ func (c *Client) addFights(ctx context.Context, reports []models.CharacterReport
 		}
 		for i, r := range reports {
 			if got, ok := data.ReportData[fmt.Sprintf("r%d", i)]; ok {
+				got.EndTime = r.EndTime
 				found[i] = got
 				if err := cachefile.WriteJSON(path(r), got); err != nil {
 					return err

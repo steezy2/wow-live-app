@@ -44,17 +44,19 @@ func TestRecentReportsNamePlayersAndMarkAnotherPage(t *testing.T) {
 	}
 }
 
-func TestRecentReportsAskOnlyForTheFightsOfReportsNotCached(t *testing.T) {
+func TestRecentReportsAskOnlyForTheFightsOfReportsNewOrGrown(t *testing.T) {
 	list := func(reports string) func(w http.ResponseWriter, body, auth string) {
 		return data(`{"characterData": {"character": {"recentReports": {"data": [` + reports + `]}}}}`)
 	}
 	old := `{"code": "old", "startTime": 1000, "endTime": 5000}`
 	f := newFake(t, list(old), data(`{"reportData": {"r0": {"fights": [{"id": 1}]}}}`),
 		list(`{"code": "new", "startTime": 9000, "endTime": 9500}, `+old),
-		data(`{"reportData": {"r0": {"fights": [{"id": 2}]}}}`))
+		data(`{"reportData": {"r0": {"fights": [{"id": 2}]}}}`),
+		list(`{"code": "new", "startTime": 9000, "endTime": 9900}, `+old),
+		data(`{"reportData": {"r0": {"fights": [{"id": 2}, {"id": 3}]}}}`))
 	c := f.client(t)
 	listFile := filepath.Join(c.CacheDir, "wcl-mplus", "reportlist-us-somerealm-Testmage-1.json")
-	for range 2 {
+	for range 3 {
 		if _, _, err := c.RecentReports(context.Background(), "us", "somerealm", "Testmage", 1); err != nil {
 			t.Fatal(err)
 		}
@@ -62,6 +64,12 @@ func TestRecentReportsAskOnlyForTheFightsOfReportsNotCached(t *testing.T) {
 	}
 	if q := f.queries[3]; !strings.Contains(q, `"c0":"new"`) || strings.Contains(q, "old") {
 		t.Errorf("second fights query %s, want only the new report's", q)
+	}
+	if q := f.queries[5]; !strings.Contains(q, `"c0":"new"`) || strings.Contains(q, "old") {
+		t.Errorf("third fights query %s, want only the report that grew", q)
+	}
+	if files, _ := os.ReadDir(filepath.Join(c.CacheDir, "wcl-mplus", "reports")); len(files) != 2 {
+		t.Errorf("%d cached reports, want one file a report", len(files))
 	}
 }
 
