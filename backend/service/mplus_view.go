@@ -117,12 +117,15 @@ func saveQueued[T any](mu *sync.RWMutex, queue *[]T, save func(T) error) error {
 	return nil
 }
 
-// Saved is every saved key, newest first.
-func (k *LogTracker) Saved() []models.KeySummary {
+// Saved is every saved key character played ("" for every character, see loggedBy), newest first.
+func (k *LogTracker) Saved(character string) []models.KeySummary {
 	k.mu.RLock()
 	defer k.mu.RUnlock()
 	saved := []models.KeySummary{}
 	for _, key := range k.history {
+		if !loggedBy(key.Logger, key.Realms, character) {
+			continue
+		}
 		summary := models.KeySummary{Start: key.Start, Dungeon: key.Dungeon, Level: key.Level, Status: key.Status,
 			FinalMS: key.FinalMS, Report: key.Report, Imported: key.Imported}
 		if key.Status == "timed" {
@@ -189,10 +192,16 @@ func (k *LogTracker) details(run *keyRun, at int64) models.Key {
 		d := deaths[i]
 		key.Deaths[i].Defensive, key.Deaths[i].Used, key.Deaths[i].Ready = d.Defensive, d.Used, list(d.Ready)
 	}
-	key.Players, key.Specs = []string{}, map[string]int{}
+	key.Players, key.Specs, key.Realms = []string{}, map[string]int{}, map[string]string{}
 	for _, guid := range run.party {
 		key.Players = append(key.Players, k.names[guid])
 		key.Specs[k.names[guid]] = k.specs[guid]
+		if realm := k.realms[guid]; realm != "" {
+			key.Realms[k.names[guid]] = realm
+		}
+	}
+	if slices.Contains(run.party, k.logger) {
+		key.Logger = k.names[k.logger]
 	}
 	key.AvoidableHits = []models.KeyHit{}
 	for _, hit := range run.avoidable {

@@ -623,7 +623,7 @@ func (k *LogTracker) raidPull(run *keyRun, key models.Key, at int64, kill bool) 
 	r, rules := run.raid, k.raid.rules
 	p := models.RaidPull{Start: key.Start, End: at, Night: night(key.Start), Boss: key.Dungeon,
 		Difficulty: r.difficulty, DurationMS: at - key.Start, Kill: kill, BossPct: r.bossPct(kill), Phase: r.phase,
-		Players: key.Players, Meter: key.Overall, Lusts: key.Lusts, Dispels: list(key.Debuffs),
+		Players: key.Players, Logger: key.Logger, Realms: key.Realms, Meter: key.Overall, Lusts: key.Lusts, Dispels: list(key.Debuffs),
 		WentOff: []models.KeyStop{}}
 	for i, d := range key.Deaths {
 		early := i < rules.Deaths.First || p.DurationMS-d.ClockMS > int64(rules.Deaths.BeforeWipeSeconds*1000)

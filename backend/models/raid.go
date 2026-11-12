@@ -178,21 +178,25 @@ type RaidPull struct {
 	// Report is the Warcraft Logs fight this pull is, when one is known (imported, or matched to a report).
 	Report *ReportLink `json:"report,omitempty"`
 	// Imported marks a pull built from a Warcraft Logs report instead of a local combat log.
-	Imported   bool        `json:"imported,omitempty"`
-	Start      int64       `json:"start"`
-	End        int64       `json:"end"`
-	Night      string      `json:"night" example:"2026-11-03"` // the raid night: the start's date, before 6 am counting as the day before
-	Boss       string      `json:"boss"`
-	Difficulty string      `json:"difficulty" enums:"LFR,Normal,Heroic,Mythic"`
-	Number     int         `json:"number"` // the pull's number on this boss and difficulty tonight, from the pulls known when it's read
-	DurationMS int64       `json:"durationMS"`
-	Kill       bool        `json:"kill"`
-	BossPct    float64     `json:"bossPct"` // the boss's health left, 0-100; -1 without advanced logging
-	Phase      string      `json:"phase"`   // the last phase reached ("P2"); empty for a boss without phase triggers
-	Players    []string    `json:"players"`
-	Deaths     []RaidDeath `json:"deaths"`
-	MassKills  []MassKill  `json:"massKills"`
-	Avoidable  []RaidHits  `json:"avoidable"`
+	Imported   bool     `json:"imported,omitempty"`
+	Start      int64    `json:"start"`
+	End        int64    `json:"end"`
+	Night      string   `json:"night" example:"2026-11-03"` // the raid night: the start's date, before 6 am counting as the day before
+	Boss       string   `json:"boss"`
+	Difficulty string   `json:"difficulty" enums:"LFR,Normal,Heroic,Mythic"`
+	Number     int      `json:"number"` // the pull's number on this boss and difficulty tonight, from the pulls known when it's read
+	DurationMS int64    `json:"durationMS"`
+	Kill       bool     `json:"kill"`
+	BossPct    float64  `json:"bossPct"` // the boss's health left, 0-100; -1 without advanced logging
+	Phase      string   `json:"phase"`   // the last phase reached ("P2"); empty for a boss without phase triggers
+	Players    []string `json:"players"`
+	// Logger is the raider whose game wrote the log, and Realms each raider's realm; both missing in pulls saved
+	// before Nov 12.
+	Logger    string            `json:"logger,omitempty"`
+	Realms    map[string]string `json:"realms,omitempty"`
+	Deaths    []RaidDeath       `json:"deaths"`
+	MassKills []MassKill        `json:"massKills"`
+	Avoidable []RaidHits        `json:"avoidable"`
 	// AvoidableHits is each raider's avoidable damage by ability, most first; missing in pulls saved before Nov 11.
 	AvoidableHits []KeyHit       `json:"avoidableHits,omitempty"`
 	Soaks         []RaidSoak     `json:"soaks"`

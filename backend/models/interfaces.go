@@ -11,7 +11,8 @@ import (
 // abandoned (false when none is running).
 type KeySource interface {
 	Latest(now int64) (KeyView, bool)
-	Saved() []KeySummary
+	Saved(character string) []KeySummary
+	Played(preferred string) []Character
 	SavedKey(start int64) (KeyView, error)
 	DeleteSaved(start int64) error
 	Track(start int64) (KeyTrack, error)
@@ -50,7 +51,7 @@ type ReviewStore interface {
 // and its replay track by its start time.
 type RaidSource interface {
 	RaidLive(now int64) RaidLive
-	RaidNights() []RaidNight
+	RaidNights(character string) []RaidNight
 	RaidPull(start int64) (RaidPull, error)
 	RaidTrack(start int64) (KeyTrack, error)
 }

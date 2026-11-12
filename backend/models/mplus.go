@@ -43,6 +43,8 @@ type Key struct {
 	Taken     []KeyHit     `json:"taken,omitempty"`
 	// Logger is the party member whose game wrote the log ("" in keys saved before Nov 11).
 	Logger string `json:"logger,omitempty"`
+	// Realms is each player's realm as the log names it ("MoonGuard"); missing in keys saved before Nov 12.
+	Realms map[string]string `json:"realms,omitempty"`
 	// Report is the Warcraft Logs fight this key is, when one is known (imported, or matched to a report).
 	Report *ReportLink `json:"report,omitempty"`
 	// Imported marks a key built from a Warcraft Logs report instead of a local combat log.

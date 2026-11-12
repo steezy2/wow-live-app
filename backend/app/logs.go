@@ -40,10 +40,10 @@ func (s *Site) LogFiles() ([]models.LogFile, error) {
 			WrittenMS: z.Written.UnixMilli(), FirstMS: combatlog.FirstMS(z.Path), Archived: true})
 	}
 	var keyStarts, pullStarts []int64
-	for _, k := range s.Keys.Saved() {
+	for _, k := range s.Keys.Saved("") {
 		keyStarts = append(keyStarts, k.Start)
 	}
-	for _, night := range s.Keys.RaidNights() {
+	for _, night := range s.Keys.RaidNights("") {
 		for _, p := range night.Pulls {
 			pullStarts = append(pullStarts, p.Start)
 		}
