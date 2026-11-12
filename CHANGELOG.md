@@ -4,6 +4,9 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 
 ## [Unreleased]
 
+### Changed
+- The side panels group saved keys and raid nights into dropdowns: one per day for the last 7 days ("Today", "Yesterday", "Mon, Nov 9"), then one per week ("Week of Nov 2"), each with its count. The newest group and the one holding the open key or pull start open.
+
 ## [0.2.3] - 2026-11-11
 
 ### Removed

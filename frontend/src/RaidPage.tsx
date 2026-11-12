@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { fetchRaidNights, fetchRaidPull, type RaidNight, type RaidPull, type RaidPullSummary } from './api'
-import { clock, counted, progressText } from './format'
+import { clock, counted, groupBy, progressText } from './format'
 import { defense, raidOffense } from './meterColumns'
 import { MeterCard } from './MeterCards'
 import { eventsOf } from './events'
@@ -9,6 +9,7 @@ import { PlayerTable } from './PlayerTable'
 import { BuffGaps, EarlyDeaths, Mechanics } from './RaidCards'
 import { FightMeters, NoAbilities } from './FightMeters'
 import { Name, type Seeker } from './Seek'
+import { SideGroups } from './SideGroups'
 import { RaidReplay } from './RaidReplay'
 import { topMeter, useRaidTrack, useReplay } from './replay'
 import { Tabs } from './Tabs'
@@ -25,8 +26,8 @@ function pullName(p: RaidPullSummary): string {
   return `${p.boss} ${p.difficulty} · pull ${p.number}`
 }
 
-/** The Raid tab: tonight's and earlier nights' pulls on the side, newest first by boss, and the last pull (or the one
- * picked) as the overview, read again as pulls end. */
+/** The Raid tab: tonight's and earlier nights' pulls on the side by night (by week past the last 7 days), newest first
+ * by boss, and the last pull (or the one picked) as the overview, read again as pulls end. */
 export function RaidPage() {
   const live = useRaidLive()
   const [selected, setSelected] = useState<number | null>(null)
@@ -43,30 +44,39 @@ export function RaidPage() {
         <button className={selected === null ? 'item active' : 'item'} onClick={() => setSelected(null)}>
           Last pull
         </button>
-        {nights.map((n) => (
-          <section key={n.night}>
-            <h2>{new Date(`${n.night}T12:00`).toLocaleDateString()}</h2>
-            {byBoss(n.pulls).map(([boss, pulls]) => (
-              <div key={boss} className="boss-pulls">
-                <h3 className="muted small">{boss}</h3>
-                {pulls.map((p) => (
-                  <button
-                    key={p.start}
-                    className={selected === p.start ? 'item pull-row active' : 'item pull-row'}
-                    onClick={() => setSelected(p.start)}
-                  >
-                    <span>#{p.number}</span>
-                    <span className="muted">{clock(p.durationMS)}</span>
-                    <span className={p.kill ? 'good' : ''}>{progressText(p)}</span>
-                    <span className="muted small">
-                      {new Date(p.start).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
-                    </span>
-                  </button>
+        <SideGroups
+          items={nights}
+          time={nightTime}
+          count={(g) => counted(g.reduce((sum, n) => sum + n.pulls.length, 0), 'pull')}
+          isSelected={(n) => n.pulls.some((p) => p.start === selected)}
+        >
+          {(group, label) =>
+            group.map((n) => (
+              <section key={n.night}>
+                {label.startsWith('Week of') && <h2>{new Date(nightTime(n)).toLocaleDateString()}</h2>}
+                {[...groupBy(n.pulls, (p) => `${p.boss} ${p.difficulty}`)].map(([boss, pulls]) => (
+                  <div key={boss} className="boss-pulls">
+                    <h3 className="muted small">{boss}</h3>
+                    {pulls.map((p) => (
+                      <button
+                        key={p.start}
+                        className={selected === p.start ? 'item pull-row active' : 'item pull-row'}
+                        onClick={() => setSelected(p.start)}
+                      >
+                        <span>#{p.number}</span>
+                        <span className="muted">{clock(p.durationMS)}</span>
+                        <span className={p.kill ? 'good' : ''}>{progressText(p)}</span>
+                        <span className="muted small">
+                          {new Date(p.start).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
                 ))}
-              </div>
-            ))}
-          </section>
-        ))}
+              </section>
+            ))
+          }
+        </SideGroups>
         {nights.length === 0 && <p className="muted small">No raid pulls yet: each one is saved here as it ends.</p>}
       </aside>
       <main className="page">
@@ -92,14 +102,9 @@ export function RaidPage() {
   )
 }
 
-/** A night's pulls by boss and difficulty, in the order the list gives them (the boss pulled last first). */
-function byBoss(pulls: RaidPullSummary[]): [string, RaidPullSummary[]][] {
-  const groups = new Map<string, RaidPullSummary[]>()
-  for (const p of pulls) {
-    const name = `${p.boss} ${p.difficulty}`
-    groups.set(name, [...(groups.get(name) ?? []), p])
-  }
-  return [...groups]
+/** Midday of a raid night ("2026-11-10"), so a night is grouped by its date whatever the time zone. */
+function nightTime(n: RaidNight): number {
+  return new Date(`${n.night}T12:00`).getTime()
 }
 
 /** A saved pull, read once. */
