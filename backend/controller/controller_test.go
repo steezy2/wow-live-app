@@ -46,7 +46,6 @@ func (f *fakeKeys) Track(int64) (models.KeyTrack, error) {
 }
 
 func (f *fakeKeys) DungeonMap(int) (models.DungeonMap, error) { return models.DungeonMap{}, nil }
-func (f *fakeKeys) Ready() (models.ReadyCheck, bool)          { return models.ReadyCheck{}, false }
 func (f *fakeKeys) Abandon() bool                             { return f.ok }
 
 func (f *fakeKeys) DeleteSaved(start int64) error {

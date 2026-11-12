@@ -452,24 +452,6 @@ type KeyGhost struct {
 	NeedByMS int64  `json:"needByMS"`
 }
 
-// ReadyCheck is the party's buffs before the next key, from what the log showed since they zoned into the dungeon
-// (SinceMS, ms since the epoch): per member, what they're missing and what wasn't seen at all (buffs from before
-// logging started there never are).
-type ReadyCheck struct {
-	SinceMS int64         `json:"sinceMS"`
-	Dungeon string        `json:"dungeon"`
-	Players []ReadyPlayer `json:"players"`
-}
-
-// ReadyPlayer is one member's ready check: their class (empty until a COMBATANT_INFO names their spec), and the flask,
-// food and party buffs ("flask", "Arcane Intellect") missing, and those not seen.
-type ReadyPlayer struct {
-	Player  string   `json:"player"`
-	Class   string   `json:"class,omitempty"`
-	Missing []string `json:"missing"`
-	NotSeen []string `json:"notSeen"`
-}
-
 // KeyForces is a key's enemy forces: the count killed of the dungeon's total, and its share (it can pass 100; 100 once
 // a key is finished, since the game needs it), each counted kill's share (saved with the key), the pace against
 // your best run at the level (running keys only, when there is one), whether a finished key's kills fell short enough that the dungeon file

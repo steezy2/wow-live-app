@@ -75,10 +75,9 @@ type LogTracker struct {
 	left         *keyRun          // a key Abandon closed, taken up again if the log goes on in it for resumeMS
 	held         []models.LogLine // the lines read since left closed, which it takes in if it runs again
 	last         *models.Key
-	ready        *readyWatch        // the party's buffs before the next key, while in a Mythic dungeon
 	top          map[[2]int][]int64 // (map ID, level) -> top Warcraft Logs run times, for a first run's estimate
 	asked        map[[2]int]bool    // (map ID, level) -> top runs asked for already
-	version      int64              // goes up with every line read in a key or pull, as one starts, and as the ready check changes
+	version      int64              // goes up with every line read in a key or pull, and as one starts
 	lastAt       int64              // the time of the last line read before the one being read
 	raid         *raidSetup         // nil until EnableRaid: raid pulls aren't read
 	pulls        []models.RaidPull  // finished raid pulls, newest first
@@ -245,12 +244,6 @@ func (k *LogTracker) add(line models.LogLine) {
 		return
 	}
 	if run == nil {
-		if line.Event == "ZONE_CHANGE" {
-			k.watchReady(line.Time, f)
-			k.version++
-		} else if k.ready != nil && k.readyLine(line.Event, f) {
-			k.version++
-		}
 		return
 	}
 	switch line.Event {
@@ -402,7 +395,6 @@ func advancedAt(event string) int {
 func (k *LogTracker) start(line models.LogLine) {
 	f := line.Fields
 	k.closeCurrent(k.lastAt, "abandoned", 0)
-	k.ready = nil // COMBATANT_INFO at the start has everyone's buffs
 	mapID := atoi(f[2])
 	run := newRun(models.Key{Dungeon: f[0], MapID: mapID, Level: atoi(f[3]), Start: line.Time, Status: "running",
 		TimerMS: k.timers[mapID]}, f[1])

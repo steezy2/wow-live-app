@@ -477,20 +477,6 @@ export async function abandonLiveKey(): Promise<void> {
   await call('/api/mplus/live/abandon', { method: 'POST' })
 }
 
-/** The ready check before the next key (models.ReadyCheck): each member's class (once known), missing flask, food and
- * party buffs, and those not seen since the party zoned in. */
-export interface ReadyCheck {
-  sinceMS: number
-  dungeon: string
-  players: { player: string; class?: string; missing: string[]; notSeen: string[] }[]
-}
-
-/** The ready check, or null outside a Mythic dungeon between keys. */
-export async function fetchReady(signal?: AbortSignal): Promise<ReadyCheck | null> {
-  const response = await call('/api/mplus/ready', { signal })
-  return response.status === 204 ? null : ((await response.json()) as ReadyCheck)
-}
-
 /** The saved keys, newest first. */
 export async function fetchSavedKeys(signal?: AbortSignal): Promise<KeySummary[]> {
   return (await (await call('/api/mplus/keys', { signal })).json()) as KeySummary[]

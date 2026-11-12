@@ -3,7 +3,7 @@ import type { KeyForces, KeyGhost, KeyReview as Review, KeyTrack, KeyView } from
 import { chestLabel, clock, oddsText, pullTitle, resultText, share } from './format'
 import { DamageGraph } from './DamageGraph'
 import { BossList, PriorityLedger } from './KeyLedgers'
-import { eventsOf, lanesOf } from './events'
+import { lanesOf } from './events'
 import { fightTabs } from './KeyTabs'
 import { KeyMap } from './KeyMap'
 import { KeyReview } from './KeyReview'
@@ -13,7 +13,7 @@ import { useReplay, useTrack } from './replay'
 import { RaidLanes } from './RaidReplay'
 import { ReportLinks } from './ReportLinks'
 import { Tabs } from './Tabs'
-import type { Seeker } from './Seek'
+import { Who, type Seeker } from './Seek'
 
 /** The result's icon, so it doesn't rest on colour alone. */
 const resultIcon: Record<KeyView['status'], string> = {
@@ -54,19 +54,12 @@ export function KeyDetails({
       key.status === 'running' ? undefined : { onSeek: show, classes: track?.classes ?? {}, onFocus: setFocus },
     [key.status, show, track],
   )
-  const player = focus || key.logger || key.players[0]
-  const moments = {
-    player,
-    events: player
-      ? eventsOf({ deaths: key.deaths, lanes: key.lanes ?? [], dispels: key.debuffs, cooldowns: key.casts }, player)
-      : [],
-  }
   const fight = fightTabs(
     { ...key, lanes: key.lanes ?? [] },
     `Deaths ${key.deaths.length} (+${clock(key.penaltyMS)})`,
     'party',
     seek,
-    moments,
+    track,
   )
   const [review, setReview] = useState<Review | null>(null)
   return (
@@ -180,17 +173,6 @@ export function KeyDetails({
         />
       )}
 
-      {key.buffs.length > 0 && (
-        <section className="panel attention">
-          <h2>Missing at the start</h2>
-          {key.buffs.map((b) => (
-            <p key={b.player}>
-              <b>{b.player}</b> <span className="muted">{b.missing.join(', ')}</span>
-            </p>
-          ))}
-        </section>
-      )}
-
       {key.status !== 'running' && key.lanes && key.lanes.length > 0 && (
         <section className="panel">
           <h2>Timeline</h2>
@@ -223,8 +205,24 @@ export function KeyDetails({
       <Tabs
         tabs={[
           {
-            name: `Minibosses ${key.pulls.filter((p) => p.late).length}/${key.pulls.length}`,
+            name: `Priority targets ${key.pulls.filter((p) => p.late).length}/${key.pulls.length}`,
             body: <PriorityLedger keyView={key} />,
+          },
+          {
+            name: `Buffs ${key.buffs.length}`,
+            body: (
+              <ul className="list scroll">
+                {key.buffs.map((b) => (
+                  <li key={b.player} className="stack">
+                    <Who player={b.player} seek={seek} />
+                    <span className="muted">{b.missing.join(', ')}</span>
+                  </li>
+                ))}
+                {key.buffs.length === 0 && (
+                  <li className="muted">Everyone had their flask, food, rune and party buffs</li>
+                )}
+              </ul>
+            ),
           },
           {
             name: 'Bosses',

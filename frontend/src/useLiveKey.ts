@@ -2,11 +2,9 @@ import { useEffect, useState } from 'react'
 import {
   fetchLiveKey,
   fetchRaidLive,
-  fetchReady,
   moveOverlay,
   onAppEvent,
   type RaidLive,
-  type ReadyCheck,
   subscribe,
   type KeyView,
 } from './api'
@@ -72,12 +70,6 @@ export function useNow(tickMS: number): number {
     return () => clearInterval(timer)
   }, [tickMS])
   return now
-}
-
-/** The ready check before the next key, read again on each change the site pushes; null outside a Mythic dungeon
- * between keys. */
-export function useReady(): ReadyCheck | null {
-  return usePushed(fetchReady)
 }
 
 /** The raid now, read again on each change the site pushes while enabled (no raid pull runs during a key, so the

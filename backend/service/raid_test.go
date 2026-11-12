@@ -570,9 +570,6 @@ func TestRaidBuffGapsAtThePull(t *testing.T) {
 		"{Testshaman Vantus Rune 0 50000} {Testshaman food 0 50000}]" {
 		t.Errorf("missing at the pull = %s; want the shaman's food, Vantus Rune and Skyfury the whole pull", got)
 	}
-	if _, ok := keys.Ready(); ok {
-		t.Error("a ready check in a raid; want none (it's M+ only)")
-	}
 }
 
 func TestMissingWindows(t *testing.T) {
