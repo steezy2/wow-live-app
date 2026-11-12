@@ -12,6 +12,64 @@ import (
 // lustBuffMS is how long a Bloodlust's buff lasts, for the stretch the lanes draw (a key keeps only when it landed).
 const lustBuffMS = 40_000
 
+const (
+	// lowPriorityPct: a DPS puts less than this share of their damage into priority targets, or...
+	lowPriorityPct = 20.0
+	// lowPriorityOfAverage: ...less than this fraction of the party's average share, and is told so.
+	lowPriorityOfAverage = 0.5
+)
+
+// lateText says how many of a key's priority pulls had a target die after most of its pack, and when one died last
+// how long after the rest of it (the worst, and its pull); "" when none was late.
+func lateText(pulls []models.KeyPull) string {
+	late := countFunc(pulls, func(p models.KeyPull) bool { return p.Late })
+	if late == 0 {
+		return ""
+	}
+	var worst models.KeyMiniboss
+	var worstPull int
+	for _, p := range pulls {
+		for _, m := range p.Minibosses {
+			if m.AfterMS > worst.AfterMS {
+				worst, worstPull = m, p.Pull
+			}
+		}
+	}
+	if worst.AfterMS == 0 {
+		return fmt.Sprintf("Priority target died after most of its pack in %d of %d pulls", late, len(pulls))
+	}
+	return fmt.Sprintf("Priority target died late in %d of %d pulls, last up to %.0f s after the rest of its pack (pull %d)",
+		late, len(pulls), float64(worst.AfterMS)/1000, worstPull)
+}
+
+// lowPriorityText names the DPS (not a healer) with the smallest share of their damage into priority targets when it
+// is under lowPriorityPct or lowPriorityOfAverage of the party's average; "" when none is, the key has no priority
+// pull, or no one hit a priority target.
+func lowPriorityText(key models.Key) string {
+	if len(key.Pulls) == 0 {
+		return ""
+	}
+	var lowest models.KeyMeterRow
+	lowestPct, total, n := 100.0, 0.0, 0
+	for _, r := range key.Overall.Rows {
+		if r.Damage == 0 || mainMetric(specs[key.Specs[r.Player]]) != dpsMetric.name {
+			continue
+		}
+		pct := share(r.PriorityDamage, r.Damage)
+		if total, n = total+pct, n+1; pct <= lowestPct {
+			lowest, lowestPct = r, pct
+		}
+	}
+	if n == 0 || total == 0 {
+		return ""
+	}
+	average := total / float64(n)
+	if lowestPct >= lowPriorityPct && lowestPct >= lowPriorityOfAverage*average {
+		return ""
+	}
+	return fmt.Sprintf("%s put %.0f%% of their damage into priority targets (party %.0f%%)", lowest.Player, lowestPct, average)
+}
+
 // keyLanes is a key's timeline for the replay's lanes, from its facts: its pulls (red when a miniboss died after most
 // of its pack) and bosses (red for a wipe) as stretches, deaths, Bloodlust (red when no one drank a combat potion
 // with it) and combat potions, defensives and raid cooldowns, the worst damage spikes (red without party cover),
@@ -78,7 +136,7 @@ func pullsLane(key models.Key) []models.RaidMark {
 // defensive could have covered, the slowest pull against the same pull in the best timed run of the dungeon at the level
 // (best, nil without one; only when both runs have the same number of pulls), must-stop casts that went off, a
 // Bloodlust few took a combat potion with, damage spikes with no party cooldown, the longest wait between pulls, and
-// minibosses that died after most of their pack. Each line names a time on the key's clock where it has one.
+// priority targets that died after most of their pack, and a DPS who put little damage into priority targets. Each line names a time on the key's clock where it has one.
 func keySuggestions(key models.Key, best *models.Key, rules models.KeySuggestionRules) []string {
 	out := []string{}
 	byAbility := map[string]int{}
@@ -150,8 +208,11 @@ func keySuggestions(key models.Key, best *models.Key, rules models.KeySuggestion
 				slices.Index(key.BetweenPulls, gap)+2))
 		}
 	}
-	if late := countFunc(key.Pulls, func(p models.KeyPull) bool { return p.Late }); late > 0 {
-		out = append(out, fmt.Sprintf("A miniboss died after most of its pack in %s", counted(late, "pull")))
+	if late := lateText(key.Pulls); late != "" {
+		out = append(out, late)
+	}
+	if low := lowPriorityText(key); low != "" {
+		out = append(out, low)
 	}
 	return out[:min(len(out), rules.Most)]
 }

@@ -95,3 +95,58 @@ func TestKeySuggestions(t *testing.T) {
 		})
 	}
 }
+
+func TestLowPriorityDamage(t *testing.T) {
+	row := func(name string, damage, priority int64) models.KeyMeterRow {
+		return models.KeyMeterRow{Player: name, Damage: damage, PriorityDamage: priority}
+	}
+	pulls := []models.KeyPull{{Pull: 1}}
+	specsOf := map[string]int{"Mage": 62, "Rogue": 259, "Priest": 256} // 256 is Discipline: a healer
+	tests := []struct {
+		name  string
+		pulls []models.KeyPull
+		rows  []models.KeyMeterRow
+		want  string
+	}{
+		{"under 20%", pulls, []models.KeyMeterRow{row("Mage", 100, 8), row("Rogue", 100, 40)},
+			"Mage put 8% of their damage into priority targets (party 24%)"},
+		{"under half the average", pulls, []models.KeyMeterRow{row("Mage", 100, 25), row("Rogue", 100, 90)},
+			"Mage put 25% of their damage into priority targets (party 58%)"},
+		{"close to the average", pulls, []models.KeyMeterRow{row("Mage", 100, 40), row("Rogue", 100, 50)}, ""},
+		{"a healer is skipped", pulls, []models.KeyMeterRow{row("Mage", 100, 50), row("Rogue", 100, 50),
+			row("Priest", 100, 0)}, ""},
+		{"no priority pulls", nil, []models.KeyMeterRow{row("Mage", 100, 1), row("Rogue", 100, 40)}, ""},
+		{"no one hit a priority target", pulls, []models.KeyMeterRow{row("Mage", 100, 0), row("Rogue", 100, 0)}, ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			key := models.Key{Pulls: tt.pulls, Specs: specsOf, Overall: models.KeyMeter{Rows: tt.rows}}
+			if got := lowPriorityText(key); got != tt.want {
+				t.Errorf("got %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestLateText(t *testing.T) {
+	last := models.KeyMiniboss{Order: 3, Of: 3, AfterMS: 6_000}
+	tests := []struct {
+		name  string
+		pulls []models.KeyPull
+		want  string
+	}{
+		{"none late", []models.KeyPull{{Pull: 1}}, ""},
+		{"one died last", []models.KeyPull{{Pull: 2}, {Pull: 5, Late: true, Minibosses: []models.KeyMiniboss{last}},
+			{Pull: 6, Late: true, Minibosses: []models.KeyMiniboss{{Order: 2, Of: 3, AfterMS: 0}}}, {Pull: 7}},
+			"Priority target died late in 2 of 4 pulls, last up to 6 s after the rest of its pack (pull 5)"},
+		{"none died last", []models.KeyPull{{Pull: 1, Late: true, Minibosses: []models.KeyMiniboss{{Order: 2, Of: 3}}},
+			{Pull: 2}}, "Priority target died after most of its pack in 1 of 2 pulls"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := lateText(tt.pulls); got != tt.want {
+				t.Errorf("got %q, want %q", got, tt.want)
+			}
+		})
+	}
+}

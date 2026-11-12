@@ -373,9 +373,8 @@ func partyNotes(key models.Key) []string {
 		notes = append(notes, fmt.Sprintf("%s; %s had room for %d", counted(len(key.Lusts), "Bloodlust"),
 			clockText(lengthMS(key)), room))
 	}
-	if late := countFunc(key.Pulls, func(p models.KeyPull) bool { return p.Late }); late > 0 {
-		notes = append(notes, fmt.Sprintf("A miniboss died after most of its pack in %d of %d pulls with one", late,
-			len(key.Pulls)))
+	if late := lateText(key.Pulls); late != "" {
+		notes = append(notes, late)
 	}
 	if ranOut := countFunc(key.Debuffs, func(d models.KeyDispel) bool { return d.By == "" }); ranOut >= lateDebuffs {
 		notes = append(notes, fmt.Sprintf("%d of %d dispellable debuffs ran their full time", ranOut, len(key.Debuffs)))
