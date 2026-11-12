@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { fetchRaidNights, fetchRaidPull, type RaidNight, type RaidPull, type RaidPullSummary } from './api'
-import { clock, counted, progressText } from './format'
+import { clock, counted, groupBy, progressText } from './format'
 import { defense, raidOffense } from './meterColumns'
 import { MeterCard } from './MeterCards'
 import { eventsOf } from './events'
@@ -54,7 +54,7 @@ export function RaidPage() {
             group.map((n) => (
               <section key={n.night}>
                 {label.startsWith('Week of') && <h2>{new Date(nightTime(n)).toLocaleDateString()}</h2>}
-                {byBoss(n.pulls).map(([boss, pulls]) => (
+                {[...groupBy(n.pulls, (p) => `${p.boss} ${p.difficulty}`)].map(([boss, pulls]) => (
                   <div key={boss} className="boss-pulls">
                     <h3 className="muted small">{boss}</h3>
                     {pulls.map((p) => (
@@ -105,16 +105,6 @@ export function RaidPage() {
 /** Midday of a raid night ("2026-11-10"), so a night is grouped by its date whatever the time zone. */
 function nightTime(n: RaidNight): number {
   return new Date(`${n.night}T12:00`).getTime()
-}
-
-/** A night's pulls by boss and difficulty, in the order the list gives them (the boss pulled last first). */
-function byBoss(pulls: RaidPullSummary[]): [string, RaidPullSummary[]][] {
-  const groups = new Map<string, RaidPullSummary[]>()
-  for (const p of pulls) {
-    const name = `${p.boss} ${p.difficulty}`
-    groups.set(name, [...(groups.get(name) ?? []), p])
-  }
-  return [...groups]
 }
 
 /** A saved pull, read once. */
