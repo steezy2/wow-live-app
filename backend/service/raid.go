@@ -592,6 +592,7 @@ func (k *LogTracker) finishPull(kill bool) {
 	run.sample.at = -run.sample.every // closes the last stretch, however short
 	k.sampleAbilities(at)
 	pull := k.raidPull(run, k.details(run, at), at, kill)
+	pull.Report, pull.Imported = k.source, k.source != nil
 	k.current = nil
 	k.version++
 	if !fought(pull) {

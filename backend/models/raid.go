@@ -373,6 +373,8 @@ type RaidPullSummary struct {
 	Kill       bool    `json:"kill"`
 	BossPct    float64 `json:"bossPct"`
 	Phase      string  `json:"phase"`
+	// Imported is the Warcraft Logs page of the fight an imported pull came from; "" for one read from a local log.
+	Imported string `json:"imported,omitempty"`
 }
 
 // RaidLive is the raid as the overview shows it now: whether a pull is on (its boss and start), the last pull that

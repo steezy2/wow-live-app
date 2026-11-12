@@ -437,3 +437,36 @@ func TestSecurityHeaders(t *testing.T) {
 		}
 	}
 }
+
+// fakeImport is an import whose Start fails with err.
+type fakeImport struct{ err error }
+
+func (f fakeImport) Start(context.Context, string, string) error { return f.err }
+func (f fakeImport) Stop()                                       {}
+func (f fakeImport) Status() models.ImportStatus                 { return models.ImportStatus{State: "listing"} }
+func (f fakeImport) Remove() error                               { return f.err }
+
+func TestStartImportNeedsACharacterAndOneImportAtATime(t *testing.T) {
+	for _, tc := range []struct {
+		character string
+		err       error
+		code      int
+	}{
+		{"Testmage-Somerealm", nil, http.StatusAccepted},
+		{"", nil, http.StatusBadRequest},
+		{"Testmage-Somerealm", service.ErrBusy, http.StatusConflict},
+		{"Testmage-Somerealm", service.ErrBadCharacter, http.StatusBadRequest},
+		{"Testmage-Somerealm", models.ErrNoCredentials, http.StatusNotFound},
+	} {
+		saved := models.Settings{Region: "us", Character: tc.character}
+		router := Router(MPlus{Keys: &fakeKeys{}, Now: time.Now}, nil, &SettingsAPI{Settings: fakeSettings{&saved},
+			Import: fakeImport{tc.err}}, os.DirFS(t.TempDir()), LocalHosts(port)...)
+		r := httptest.NewRequest(http.MethodPost, "/api/settings/warcraftlogs/import", nil)
+		r.Host = "localhost:8080"
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, r)
+		if w.Code != tc.code {
+			t.Errorf("%q (%v): %d %s, want %d", tc.character, tc.err, w.Code, w.Body, tc.code)
+		}
+	}
+}

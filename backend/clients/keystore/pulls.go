@@ -34,6 +34,11 @@ func (s Pulls) SavePull(pull models.RaidPull) error {
 	return cachefile.WriteJSON(filepath.Join(s.Dir, strconv.FormatInt(pull.Start, 10)+".json"), pull)
 }
 
+// DeletePull removes one saved pull and its track.
+func (s Pulls) DeletePull(start int64) error {
+	return Store(s).Delete(start)
+}
+
 // ListPulls is every saved pull, newest first; a missing folder is no pulls.
 func (s Pulls) ListPulls() ([]models.RaidPull, error) {
 	pulls, err := readAll[models.RaidPull](s.Dir)

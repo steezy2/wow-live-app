@@ -74,7 +74,12 @@ func (k *LogTracker) SetTopRuns(mapID, level int, ms []int64) {
 func (k *LogTracker) SaveFinished() ([]int64, error) {
 	var saved []int64
 	err := saveQueued(&k.mu, &k.unsaved, func(run savedRun) error {
-		err := k.store.Save(run.key)
+		skip, err := keepLocal(&k.mu, &k.history, run.key, sameKey, func(key models.Key) bool { return key.Imported },
+			func(key models.Key) int64 { return key.Start }, k.store.Delete)
+		if skip || err != nil {
+			return err
+		}
+		err = k.store.Save(run.key)
 		if err == nil {
 			err = k.store.SaveTrack(run.key.Start, run.track)
 		}
@@ -120,6 +125,9 @@ func (k *LogTracker) Saved() []models.KeySummary {
 	for _, key := range k.history {
 		summary := models.KeySummary{Start: key.Start, Dungeon: key.Dungeon, Level: key.Level, Status: key.Status,
 			FinalMS: key.FinalMS}
+		if key.Imported {
+			summary.Imported = key.Report.URL()
+		}
 		if key.Status == "timed" {
 			summary.Chests = chests(key.FinalMS, key.TimerMS)
 		}

@@ -2,6 +2,7 @@ package models
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 	"unicode"
@@ -94,7 +95,29 @@ type Credentials struct {
 var (
 	ErrNoCredentials  = errors.New("no Warcraft Logs keys: add them in Settings")
 	ErrBadCredentials = errors.New("Warcraft Logs turned down the client ID and secret")
+	// ErrRateLimited means the account's hourly points are used up until the hour resets.
+	ErrRateLimited = errors.New("Warcraft Logs rate limit reached (the API allows so many points per hour); " +
+		"try again later")
 )
+
+// ImportStatus is how an import of a character's Warcraft Logs reports stands: listing the reports, fetching fights,
+// waiting for the hour's points (until ResumeAtMS), done, or failed (Problem says why; a failed fight leaves it
+// running, with the fight's error in Problem). PointsPerFight is the average so far; Imported is how many saved keys
+// and pulls came from Warcraft Logs, whichever import saved them.
+type ImportStatus struct {
+	State          string  `json:"state" enums:"idle,listing,running,waiting,done,failed"`
+	Character      string  `json:"character"`
+	Fights         int     `json:"fights"`
+	FightsDone     int     `json:"fightsDone"`
+	FightsFailed   int     `json:"fightsFailed"`
+	KeysSaved      int     `json:"keysSaved"`
+	PullsSaved     int     `json:"pullsSaved"`
+	PointsSpent    float64 `json:"pointsSpent"`
+	PointsPerFight float64 `json:"pointsPerFight"`
+	ResumeAtMS     int64   `json:"resumeAtMS"`
+	Problem        string  `json:"problem"`
+	Imported       int     `json:"imported"`
+}
 
 // KeyStatus is what the page shows about the saved Warcraft Logs keys, never the secret: whether they're set, the
 // client ID's last 4 characters, and the last test (when, whether it worked, the points left of the hour's limit or
@@ -113,6 +136,11 @@ type KeyStatus struct {
 type ReportLink struct {
 	Code    string `json:"code"`
 	FightID int    `json:"fightID"`
+}
+
+// URL is the fight's page on Warcraft Logs.
+func (l ReportLink) URL() string {
+	return fmt.Sprintf("%s%s#fight=%d", ReportURL, l.Code, l.FightID)
 }
 
 // CharacterReport is one of a character's recent Warcraft Logs reports: when it ran (ms since the epoch), its zone

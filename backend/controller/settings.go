@@ -56,12 +56,22 @@ type Characters interface {
 	Guess() string
 }
 
+// Import imports a character's Warcraft Logs fights in the background (service.Importer); Start's errors wrap
+// service.ErrBusy while one runs and as Characters.Resolve's do.
+type Import interface {
+	Start(ctx context.Context, region, character string) error
+	Stop()
+	Status() models.ImportStatus
+	Remove() error
+}
+
 // SettingsAPI serves the desktop app's settings and Warcraft Logs keys, and the log folder's old logs.
 type SettingsAPI struct {
 	Settings   Settings
 	Keys       WCLKeys
 	Logs       LogFolder  // set by app.Start
 	Characters Characters // set by app.Start
+	Import     Import     // set by app.Start
 }
 
 // LogNames names the logs to archive or delete, as LogFiles lists them.
@@ -229,9 +239,13 @@ func (s SettingsAPI) Put(c *gin.Context) {
 	if next.Character = strings.TrimSpace(next.Character); next.Character != "" && !s.characterFits(c, next) {
 		return
 	}
+	before := s.Settings.Get().Character
 	if err := s.Settings.Save(next); err != nil {
 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "couldn't save the settings"})
 		return
+	}
+	if s.Import != nil && next.Character != before {
+		s.Import.Stop() // its fights are the old character's
 	}
 	c.JSON(http.StatusOK, s.view())
 }
@@ -239,9 +253,14 @@ func (s SettingsAPI) Put(c *gin.Context) {
 // characterFits says whether next's character is valid in its region, answering why not when it isn't.
 func (s SettingsAPI) characterFits(c *gin.Context, next models.Settings) bool {
 	_, _, err := s.Characters.Resolve(c.Request.Context(), next.Region, next.Character)
+	return !characterFailed(c, err)
+}
+
+// characterFailed answers a character check's error, if any.
+func characterFailed(c *gin.Context, err error) bool {
 	switch {
 	case err == nil:
-		return true
+		return false
 	case errors.Is(err, service.ErrBadCharacter):
 		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "send the character as Name-Realm: a name of 2 to 12 " +
 			"letters and a realm in the region"})
@@ -251,7 +270,7 @@ func (s SettingsAPI) characterFits(c *gin.Context, next models.Settings) bool {
 		log.Printf("checking the character: %v", err)
 		c.JSON(http.StatusBadGateway, ErrorResponse{Error: "couldn't reach Warcraft Logs to check the realm"})
 	}
-	return false
+	return true
 }
 
 // view is the settings with the choices to pick from.
@@ -328,6 +347,79 @@ func (s SettingsAPI) TestKeys(c *gin.Context) {
 func (s SettingsAPI) RemoveKeys(c *gin.Context) {
 	if err := s.Keys.Remove(); err != nil {
 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "couldn't remove the keys"})
+		return
+	}
+	c.Status(http.StatusNoContent)
+}
+
+// ImportStatus godoc
+//
+//	@Summary	How the import of the character's Warcraft Logs reports stands
+//	@Tags		settings
+//	@Produce	json
+//	@Success	200	{object}	models.ImportStatus
+//	@Router		/api/settings/warcraftlogs/import [get]
+func (s SettingsAPI) ImportStatus(c *gin.Context) {
+	c.JSON(http.StatusOK, s.Import.Status())
+}
+
+// StartImport godoc
+//
+//	@Summary		Import the character's Warcraft Logs reports of this season
+//	@Description	Lists the reports the settings' character is in, then in the background fetches each Mythic+ key and
+//	@Description	raid boss pull of the current season and raid not saved yet (a key or pull read from a local log
+//	@Description	is skipped) and saves it, tagged with its report. It waits for the hour's points when they run
+//	@Description	low, and goes on after a restart.
+//	@Tags			settings
+//	@Produce		json
+//	@Success		202	{object}	models.ImportStatus
+//	@Failure		400	{object}	ErrorResponse	"No character, or one that doesn't fit"
+//	@Failure		404	{object}	ErrorResponse	"No Warcraft Logs keys saved"
+//	@Failure		409	{object}	ErrorResponse	"An import is running"
+//	@Failure		502	{object}	ErrorResponse	"Warcraft Logs couldn't be reached"
+//	@Router			/api/settings/warcraftlogs/import [post]
+func (s SettingsAPI) StartImport(c *gin.Context) {
+	settings := s.Settings.Get()
+	if settings.Character == "" {
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "save your character (Name-Realm) first"})
+		return
+	}
+	err := s.Import.Start(c.Request.Context(), settings.Region, settings.Character)
+	if errors.Is(err, service.ErrBusy) {
+		c.JSON(http.StatusConflict, ErrorResponse{Error: "an import is already running"})
+		return
+	}
+	if characterFailed(c, err) {
+		return
+	}
+	c.JSON(http.StatusAccepted, s.Import.Status())
+}
+
+// StopImport godoc
+//
+//	@Summary		Stop the import of Warcraft Logs reports
+//	@Description	What it fetched stays, so the next import goes on from there.
+//	@Tags			settings
+//	@Produce		json
+//	@Success		200	{object}	models.ImportStatus
+//	@Router			/api/settings/warcraftlogs/import [delete]
+func (s SettingsAPI) StopImport(c *gin.Context) {
+	s.Import.Stop()
+	c.JSON(http.StatusOK, s.Import.Status())
+}
+
+// RemoveImported godoc
+//
+//	@Summary		Remove every key and raid pull imported from Warcraft Logs
+//	@Description	Stops the import and deletes what it fetched; importing them again spends the points again.
+//	@Tags			settings
+//	@Success		204
+//	@Failure		500	{object}	ErrorResponse
+//	@Router			/api/settings/warcraftlogs/imported [delete]
+func (s SettingsAPI) RemoveImported(c *gin.Context) {
+	if err := s.Import.Remove(); err != nil {
+		log.Printf("removing imported keys and pulls: %v", err)
+		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "couldn't remove the imported keys and pulls"})
 		return
 	}
 	c.Status(http.StatusNoContent)

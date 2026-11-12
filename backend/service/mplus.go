@@ -83,7 +83,8 @@ type LogTracker struct {
 	raid         *raidSetup         // nil until EnableRaid: raid pulls aren't read
 	pulls        []models.RaidPull  // finished raid pulls, newest first
 	unsavedPulls []savedPull
-	renames      int // goes up whenever a player GUID's name changes, so keepPull marks the new name
+	source       *models.ReportLink // the Warcraft Logs fight the lines come from (SetSource), nil for the game's log
+	renames      int                // goes up whenever a player GUID's name changes, so keepPull marks the new name
 }
 
 // keyRun is the running key and what it takes to show it.
@@ -461,6 +462,7 @@ func (k *LogTracker) closeCurrent(at int64, status string, final int64) {
 	if slices.Contains(run.party, k.logger) {
 		key.Logger = k.names[k.logger]
 	}
+	key.Report, key.Imported = k.source, k.source != nil
 	track := k.trackOf(run)
 	k.last, k.lastTrack, k.current = &key, &track, nil
 	if at-key.Start < minSavedMS {

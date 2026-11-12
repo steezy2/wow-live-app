@@ -76,6 +76,8 @@ type KeySummary struct {
 	Status  string `json:"status"`
 	FinalMS int64  `json:"finalMS"`
 	Chests  int    `json:"chests"`
+	// Imported is the Warcraft Logs page of the fight an imported key came from; "" for one read from a local log.
+	Imported string `json:"imported,omitempty"`
 }
 
 // Affix is a keystone affix: its ID and name ("" when unknown).

@@ -86,8 +86,8 @@ func run() error {
 	if err := keys.Load(); err != nil {
 		log.Printf("no key reviews until the Warcraft Logs keys are saved again: %v", err)
 	}
-	opts.Cache, opts.DelayLog, opts.Baselines, opts.Realms, opts.Now = logs.CacheDir,
-		filepath.Join(data, "live-delay.log"), logs, logs, time.Now
+	opts.Cache, opts.DelayLog, opts.Baselines, opts.Realms, opts.WCL, opts.Now = logs.CacheDir,
+		filepath.Join(data, "live-delay.log"), logs, logs, logs, time.Now
 	opts.Settings = &controller.SettingsAPI{Settings: settings, Keys: keys}
 	opts.LogsDir = func() string { return settings.Current().LogsDir }
 	opts.Region, opts.Hosts = settings.Current().Region, []string{"wails.localhost"}
@@ -95,6 +95,9 @@ func run() error {
 	site, err := app.Start(ctx, opts)
 	if err != nil {
 		return err
+	}
+	if err := site.Import.Resume(); err != nil {
+		log.Printf("going on with the Warcraft Logs import: %v", err)
 	}
 	if len(site.Keys.Saved()) == 0 { // a first run: the estimate needs earlier runs, and the log folder has them
 		go func() {

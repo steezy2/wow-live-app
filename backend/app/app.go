@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io/fs"
 	"log"
+	"maps"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -48,7 +49,14 @@ type Options struct {
 	Hosts     []string                    // the names the page reaches the site by, for the router's host check
 	Settings  *controller.SettingsAPI     // the desktop app's settings and keys; nil in cmd/site
 	Realms    service.RealmSource         // Warcraft Logs' realms, to check the settings' character
+	WCL       FightImporter               // Warcraft Logs, to import a character's fights; nil: no import
 	Now       func() time.Time            // the clock keys are read at
+}
+
+// FightImporter is Warcraft Logs as an import reads it (wcl.Client).
+type FightImporter interface {
+	service.ReportSource
+	ImportFight(ctx context.Context, code string, fightID int, opts wcl.FightOptions) (string, error)
 }
 
 // Site is a started site: its keys and change notices, and the page and API.
@@ -56,6 +64,7 @@ type Site struct {
 	Keys    *service.LogTracker
 	Changes *service.Changes
 	Handler http.Handler
+	Import  *service.Importer // nil without Settings and Warcraft Logs
 	opts    Options
 	reviews controller.Reviews
 	topRuns func(ctx context.Context, key models.Key) ([]int64, error) // nil without Warcraft Logs
@@ -84,7 +93,12 @@ func Start(ctx context.Context, opts Options) (*Site, error) {
 	}
 	s := &Site{Keys: keys, Changes: &service.Changes{Every: pushEvery}, opts: opts, newKeys: newKeys}
 	if opts.Settings != nil {
-		opts.Settings.Logs, opts.Settings.Characters = s, service.Characters{Realms: opts.Realms, Keys: store}
+		characters := service.Characters{Realms: opts.Realms, Keys: store}
+		opts.Settings.Logs, opts.Settings.Characters = s, characters
+		if opts.WCL != nil {
+			s.Import = s.importer(characters, store, pulls)
+			opts.Settings.Import = s.Import
+		}
 	}
 	if opts.Baselines != nil {
 		reviewer := service.Reviewer{Keys: keys, Baselines: opts.Baselines, Store: store}
@@ -98,6 +112,63 @@ func Start(ctx context.Context, opts Options) (*Site, error) {
 		Now: opts.Now, Tiles: tiles}, &controller.Raid{Pulls: keys, Maps: raidMaps, Now: opts.Now}, opts.Settings,
 		opts.Pages, opts.Hosts...)
 	return s, nil
+}
+
+// importer is the import of a character's Warcraft Logs fights into the saved keys and pulls.
+func (s *Site) importer(characters service.Characters, store keystore.Store, pulls keystore.Pulls) *service.Importer {
+	return &service.Importer{Source: s.opts.WCL, Characters: characters,
+		Fetch: func(ctx context.Context, ref models.FightRef, character string) (string, error) {
+			return s.opts.WCL.ImportFight(ctx, ref.Code, ref.FightID,
+				wcl.FightOptions{Logger: character, Dungeons: s.opts.Dungeons})
+		},
+		Read: s.readImported,
+		Saved: func() ([]models.Key, []models.RaidPull, error) {
+			keys, err := store.List()
+			if err != nil {
+				return nil, nil, err
+			}
+			saved, err := pulls.ListPulls()
+			return keys, saved, err
+		},
+		Prepare: func() error { _, _, err := s.Learn(false); return err },
+		Count:   s.Keys.ImportedCount,
+		RemoveImported: func() error {
+			if err := s.Keys.RemoveImported(); err != nil {
+				return err
+			}
+			s.Changes.Publish(s.Keys.Version())
+			return nil
+		},
+		Bosses: slices.Sorted(maps.Keys(s.opts.Bosses)),
+		Dir:    filepath.Join(s.opts.Cache, wcl.ImportDir),
+		Now:    s.opts.Now,
+		Wait:   service.WaitFor,
+	}
+}
+
+// readImported saves the key or raid pull in an imported fight's log, tagged with its report, for the lists.
+func (s *Site) readImported(path string, link models.ReportLink) error {
+	s.logJob.Lock()
+	defer s.logJob.Unlock()
+	keys, err := s.newKeys()
+	if err != nil {
+		return err
+	}
+	if err := s.readZip(keys, path, link); err != nil {
+		return err
+	}
+	if err := s.Keys.Reload(); err != nil {
+		return err
+	}
+	s.Changes.Publish(s.Keys.Version())
+	return nil
+}
+
+// readZip reads an imported fight's log into keys, a tracker apart from the local logs' so no local key is open
+// around it; each zip holds a whole fight, so one tracker reads them all.
+func (s *Site) readZip(keys *service.LogTracker, path string, link models.ReportLink) error {
+	keys.SetSource(&link)
+	return s.readInto(keys, path, combatlog.EachZippedLine)
 }
 
 // dungeonData is the season's dungeon timers and this week's affix names from Raider.IO; without them the page
@@ -124,7 +195,7 @@ func add(keys *service.LogTracker, lines []string) {
 
 // readerVersion is the version of what Learn saves from a log. Bump it with any change that saves new key or raid pull
 // fields, so the next Learn reads every log again.
-const readerVersion = 6
+const readerVersion = 7
 
 // learned is learned.json: the logs Learn has read and the reader that read them, so it reads only new or changed
 // logs next time.
@@ -208,6 +279,13 @@ func (s *Site) learn(all bool) (read, saved int, err error) {
 			}
 		}
 	}
+	if before.ReaderVersion != readerVersion { // a new reader: the imported fights again too
+		n, err := s.readImportedZips()
+		if err != nil {
+			return read, 0, err
+		}
+		read += n
+	}
 	if err := cachefile.WriteJSON(path, now); err != nil {
 		return read, 0, err
 	}
@@ -218,6 +296,28 @@ func (s *Site) learn(all bool) (read, saved int, err error) {
 	saved = len(s.Keys.Saved())
 	log.Printf("%d logs read, %d keys saved", read, saved)
 	return read, saved, nil
+}
+
+// readImportedZips reads every imported fight's log again, returning how many.
+func (s *Site) readImportedZips() (int, error) {
+	zips, err := filepath.Glob(filepath.Join(s.opts.Cache, wcl.ImportDir, "*.zip"))
+	if err != nil {
+		return 0, err
+	}
+	keys, err := s.newKeys()
+	if err != nil {
+		return 0, err
+	}
+	read := 0
+	for _, path := range zips {
+		if link, ok := wcl.ImportedFight(path); ok {
+			if err := s.readZip(keys, path, link); err != nil {
+				return read, err
+			}
+			read++
+		}
+	}
+	return read, nil
 }
 
 // readInto reads one log (each reads it, a log or a zip) into keys and saves what ended in it.

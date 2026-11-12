@@ -54,6 +54,17 @@ func (c *Client) ImportFight(ctx context.Context, code string, fightID int, opts
 	return path, c.removePages(code, fightID)
 }
 
+// ImportedFight is the report fight in a zip ImportFight wrote, read from its name; false for another file.
+func ImportedFight(path string) (models.ReportLink, bool) {
+	name := strings.TrimSuffix(filepath.Base(path), ".zip")
+	i := strings.LastIndexByte(name, '-')
+	if i <= 0 {
+		return models.ReportLink{}, false
+	}
+	id, err := strconv.Atoi(name[i+1:])
+	return models.ReportLink{Code: name[:i], FightID: id}, err == nil
+}
+
 // WriteFightLog writes a report fight to w as the game's combat log, which combatlog and the tracker read as if the
 // game had written it: a key's or raid pull's start and end lines from the fight, then its events (fetched page by
 // page, see fightEvents) as the lines they came from. Line times are UTC, so they parse to the same instants.

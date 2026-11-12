@@ -656,7 +656,7 @@ const docTemplate = `{
                 }
             },
             "put": {
-                "description": "The log folder and the overlay change right away; a new region's affix names show from the next\nstart.",
+                "description": "The log folder and the overlay change right away; a new region's affix names show from the next\nstart. A character (\"Name-Realm\", empty for none) needs a name of 2 to 12 letters and a realm Warcraft\nLogs lists in the region, which takes the saved Warcraft Logs keys.",
                 "consumes": [
                     "application/json"
                 ],
@@ -691,8 +691,20 @@ const docTemplate = `{
                             "$ref": "#/definitions/controller.ErrorResponse"
                         }
                     },
+                    "404": {
+                        "description": "A character needs saved Warcraft Logs keys",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
                     "500": {
                         "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "502": {
+                        "description": "Warcraft Logs couldn't be reached to check the character",
                         "schema": {
                             "$ref": "#/definitions/controller.ErrorResponse"
                         }
@@ -981,6 +993,105 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/settings/warcraftlogs/import": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "How the import of the character's Warcraft Logs reports stands",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.ImportStatus"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Lists the reports the settings' character is in, then in the background fetches each Mythic+ key and\nraid boss pull of the current season and raid not saved yet (a key or pull read from a local log\nis skipped) and saves it, tagged with its report. It waits for the hour's points when they run\nlow, and goes on after a restart.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "Import the character's Warcraft Logs reports of this season",
+                "responses": {
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "$ref": "#/definitions/models.ImportStatus"
+                        }
+                    },
+                    "400": {
+                        "description": "No character, or one that doesn't fit",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "No Warcraft Logs keys saved",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "An import is running",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "502": {
+                        "description": "Warcraft Logs couldn't be reached",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "What it fetched stays, so the next import goes on from there.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "Stop the import of Warcraft Logs reports",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.ImportStatus"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/settings/warcraftlogs/imported": {
+            "delete": {
+                "description": "Stops the import and deletes what it fetched; importing them again spends the points again.",
+                "tags": [
+                    "settings"
+                ],
+                "summary": "Remove every key and raid pull imported from Warcraft Logs",
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/settings/warcraftlogs/test": {
             "post": {
                 "produces": [
@@ -1162,6 +1273,55 @@ const docTemplate = `{
                 },
                 "pct": {
                     "type": "number"
+                }
+            }
+        },
+        "models.ImportStatus": {
+            "type": "object",
+            "properties": {
+                "character": {
+                    "type": "string"
+                },
+                "fights": {
+                    "type": "integer"
+                },
+                "fightsDone": {
+                    "type": "integer"
+                },
+                "fightsFailed": {
+                    "type": "integer"
+                },
+                "imported": {
+                    "type": "integer"
+                },
+                "keysSaved": {
+                    "type": "integer"
+                },
+                "pointsPerFight": {
+                    "type": "number"
+                },
+                "pointsSpent": {
+                    "type": "number"
+                },
+                "problem": {
+                    "type": "string"
+                },
+                "pullsSaved": {
+                    "type": "integer"
+                },
+                "resumeAtMS": {
+                    "type": "integer"
+                },
+                "state": {
+                    "type": "string",
+                    "enum": [
+                        "idle",
+                        "listing",
+                        "running",
+                        "waiting",
+                        "done",
+                        "failed"
+                    ]
                 }
             }
         },
@@ -1697,6 +1857,10 @@ const docTemplate = `{
                 "finalMS": {
                     "type": "integer"
                 },
+                "imported": {
+                    "description": "Imported is the Warcraft Logs page of the fight an imported key came from; \"\" for one read from a local log.",
+                    "type": "string"
+                },
                 "level": {
                     "type": "integer"
                 },
@@ -1915,6 +2079,10 @@ const docTemplate = `{
                         }
                     ]
                 },
+                "imported": {
+                    "description": "Imported marks a key built from a Warcraft Logs report instead of a local combat log.",
+                    "type": "boolean"
+                },
                 "interrupts": {
                     "type": "array",
                     "items": {
@@ -1979,6 +2147,14 @@ const docTemplate = `{
                 "reference": {
                     "description": "reference/mplus-dungeons.json has the dungeon (avoidable list, forces)",
                     "type": "boolean"
+                },
+                "report": {
+                    "description": "Report is the Warcraft Logs fight this key is, when one is known (imported, or matched to a report).",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.ReportLink"
+                        }
+                    ]
                 },
                 "silentMS": {
                     "description": "SilentMS is how long ago the last line of a running key was logged (0 once it's over). The game writes its log\nin batches as fights start and end, so a long silence is a long fight, or a party that left.",
@@ -2609,6 +2785,10 @@ const docTemplate = `{
                 "end": {
                     "type": "integer"
                 },
+                "imported": {
+                    "description": "Imported marks a pull built from a Warcraft Logs report instead of a local combat log.",
+                    "type": "boolean"
+                },
                 "interrupts": {
                     "description": "The fight's lists as a key has them, for the tabs both pages show: every interrupt, must-stop cast, kick that\nstopped nothing, dispellable debuff, damage spike and survival, potion or crowd-control button pressed, and each\nraider's active time (%); missing in pulls saved before Nov 11.",
                     "type": "array",
@@ -2679,6 +2859,14 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/models.RaidPriority"
                     }
+                },
+                "report": {
+                    "description": "Report is the Warcraft Logs fight this pull is, when one is known (imported, or matched to a report).",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.ReportLink"
+                        }
+                    ]
                 },
                 "soaks": {
                     "type": "array",
@@ -2755,6 +2943,10 @@ const docTemplate = `{
                 },
                 "durationMS": {
                     "type": "integer"
+                },
+                "imported": {
+                    "description": "Imported is the Warcraft Logs page of the fight an imported pull came from; \"\" for one read from a local log.",
+                    "type": "string"
                 },
                 "kill": {
                     "type": "boolean"
@@ -2914,6 +3106,17 @@ const docTemplate = `{
                 }
             }
         },
+        "models.ReportLink": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "fightID": {
+                    "type": "integer"
+                }
+            }
+        },
         "models.ReviewMetric": {
             "type": "object",
             "properties": {
@@ -2957,6 +3160,10 @@ const docTemplate = `{
         "models.Settings": {
             "type": "object",
             "properties": {
+                "character": {
+                    "description": "Character is the player's own character as \"Name-Realm\" (the realm as the player writes it), whose Warcraft\nLogs reports can be imported; empty for none.",
+                    "type": "string"
+                },
                 "logsDir": {
                     "type": "string"
                 },
@@ -2977,6 +3184,14 @@ const docTemplate = `{
         "models.SettingsView": {
             "type": "object",
             "properties": {
+                "character": {
+                    "description": "Character is the player's own character as \"Name-Realm\" (the realm as the player writes it), whose Warcraft\nLogs reports can be imported; empty for none.",
+                    "type": "string"
+                },
+                "characterGuess": {
+                    "description": "CharacterGuess is the name of the character that wrote most saved keys' logs, to prefill Character with (\"\" for\nnone); the logs don't name its realm.",
+                    "type": "string"
+                },
                 "lastLogMS": {
                     "type": "integer"
                 },

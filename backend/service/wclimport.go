@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"sync"
 	"unicode"
 
 	"wow-live/backend/models"
@@ -204,4 +205,96 @@ func PickFights(reports []models.CharacterReport, zones models.WCLZones, charact
 		return cmp.Or(cmp.Compare(a.StartMS, b.StartMS), cmp.Compare(a.Code, b.Code), cmp.Compare(a.FightID, b.FightID))
 	})
 	return picked
+}
+
+// SetSource marks the keys and raid pulls that end from now on as imported from link's Warcraft Logs fight; nil
+// goes back to the game's own log.
+func (k *LogTracker) SetSource(link *models.ReportLink) {
+	k.mu.Lock()
+	defer k.mu.Unlock()
+	k.source = link
+}
+
+// ImportedCount is how many saved keys and raid pulls came from Warcraft Logs.
+func (k *LogTracker) ImportedCount() int {
+	k.mu.RLock()
+	defer k.mu.RUnlock()
+	n := 0
+	for _, key := range k.history {
+		if key.Imported {
+			n++
+		}
+	}
+	for _, p := range k.pulls {
+		if p.Imported {
+			n++
+		}
+	}
+	return n
+}
+
+// RemoveImported deletes every saved key and raid pull that came from Warcraft Logs.
+func (k *LogTracker) RemoveImported() error {
+	k.mu.Lock()
+	defer k.mu.Unlock()
+	for _, key := range k.history {
+		if key.Imported {
+			if err := k.store.Delete(key.Start); err != nil {
+				return fmt.Errorf("removing imported keys: %w", err)
+			}
+		}
+	}
+	k.history = slices.DeleteFunc(k.history, func(key models.Key) bool { return key.Imported })
+	k.version++
+	if k.raid == nil {
+		return nil
+	}
+	for _, p := range k.pulls {
+		if p.Imported {
+			if err := k.raid.store.DeletePull(p.Start); err != nil {
+				return fmt.Errorf("removing imported raid pulls: %w", err)
+			}
+		}
+	}
+	k.pulls = slices.DeleteFunc(k.pulls, func(p models.RaidPull) bool { return p.Imported })
+	return nil
+}
+
+// sameKey is whether a and b are one key read twice, from a local log and from Warcraft Logs, whose uploader's
+// clock can be a minute off.
+func sameKey(a, b models.Key) bool {
+	return a.Imported != b.Imported && a.Dungeon == b.Dungeon && a.Level == b.Level &&
+		abs(a.Start-b.Start) <= matchSlackMS
+}
+
+// samePull is sameKey for raid pulls.
+func samePull(a, b models.RaidPull) bool {
+	return a.Imported != b.Imported && a.Boss == b.Boss && a.Difficulty == b.Difficulty && a.Kill == b.Kill &&
+		abs(a.Start-b.Start) <= matchSlackMS
+}
+
+// keepLocal settles an item read both from a local log and from Warcraft Logs, before item is saved: the local copy
+// wins. An imported item with a local twin in list is taken off it and not saved (true); a local one's imported
+// twins are deleted (del) and taken off. mu is the tracker's lock.
+func keepLocal[T any](mu *sync.RWMutex, list *[]T, item T, same func(a, b T) bool, imported func(T) bool,
+	start func(T) int64, del func(int64) error) (bool, error) {
+	mu.Lock()
+	defer mu.Unlock()
+	twin := func(other T) bool { return same(item, other) }
+	if imported(item) {
+		if !slices.ContainsFunc(*list, twin) {
+			return false, nil
+		}
+		*list = slices.DeleteFunc(*list, func(other T) bool { return start(other) == start(item) && imported(other) })
+		return true, nil
+	}
+	for _, other := range *list {
+		if twin(other) {
+			if err := del(start(other)); err != nil {
+				return false, fmt.Errorf("deleting an imported copy: %w", err)
+			}
+		}
+	}
+	*list = slices.DeleteFunc(*list, twin)
+	return false, nil
 }
