@@ -11,6 +11,7 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 - The side panels group saved keys and raid nights into dropdowns: one per day for the last 7 days ("Today", "Yesterday", "Mon, Nov 9"), then one per week ("Week of Nov 2"), each with its count. The newest group and the one holding the open key or pull start open.
 
 ### Fixed
+- *Import from Warcraft Logs* fetched fights you already had from your own log, and the same fight once per report it's in (two raiders uploading the same night): a local key or pull now skips every report's copy of it, and a fight in several reports is fetched once. On the owner's season that's 489 fights instead of 1,297.
 - *Import from Warcraft Logs* failed fights whose events had an amount with a fraction ("cannot unmarshal number 75801.453125"): amounts, resources and stats are read as any number, rounded. Press *Import* again to retry the failed ones; their fetched pages are kept.
 - *Import from Warcraft Logs* stopped with "The page argument must be a value between 1 and 5" for a character with more than 150 reports: Warcraft Logs serves only 5 pages of a character's recent reports, so the import now lists the newest 150 and goes on.
 
