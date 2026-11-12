@@ -19,6 +19,7 @@ func TestLoggedBy(t *testing.T) {
 		{"every character", "Testmage", realms, "", true},
 		{"name and realm", "Testmage", realms, "Testmage-MoonGuard", true},
 		{"Settings' spelling of the realm", "Testmage", realms, "Testmage-Moon Guard", true},
+		{"Settings' case of the name", "Testmage", realms, "testmage-MoonGuard", true},
 		{"another realm", "Testmage", realms, "Testmage-Sargeras", false},
 		{"another name", "Testmage", realms, "Testrogue-MoonGuard", false},
 		{"a run saved before realms", "Testmage", nil, "Testmage-Sargeras", true},

@@ -3,11 +3,12 @@ package service
 import (
 	"cmp"
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"maps"
 	"slices"
-	"strings"
+	"sync"
 	"time"
 
 	"wow-live/backend/models"
@@ -36,7 +37,8 @@ type Recaps struct {
 }
 
 // TopTimes is, for each dungeon character ran from from to to (as Recap), the median time of its top speed-ranked
-// Warcraft Logs runs at the highest level they ran it, in the recap's order; models.ErrNoCredentials without Logs.
+// Warcraft Logs runs at the highest level they ran it, in the recap's order, all asked for at once. A dungeon Warcraft
+// Logs fails on is left out (and logged); models.ErrNoCredentials or ErrBadCredentials without working Logs.
 func (r Recaps) TopTimes(ctx context.Context, from, to int64, character string) ([]models.RecapTopTime, error) {
 	if r.Logs == nil {
 		return nil, models.ErrNoCredentials
@@ -45,21 +47,35 @@ func (r Recaps) TopTimes(ctx context.Context, from, to int64, character string) 
 	if err != nil {
 		return nil, fmt.Errorf("reading the season's dungeons: %w", err)
 	}
+	dungeons := slices.DeleteFunc(r.Recap(from, to, character).MPlus.Dungeons, func(d models.RecapDungeon) bool {
+		return encounters[d.Dungeon] == 0
+	})
+	tops, errs := make([]models.RecapTopTime, len(dungeons)), make([]error, len(dungeons))
+	var wg sync.WaitGroup
+	for i, d := range dungeons {
+		wg.Go(func() {
+			times, err := r.Logs.MPlusTopTimes(ctx, encounters[d.Dungeon], d.TopLevel)
+			if err != nil {
+				errs[i] = fmt.Errorf("reading %s +%d's top runs: %w", d.Dungeon, d.TopLevel, err)
+				return
+			}
+			tops[i] = models.RecapTopTime{Dungeon: d.Dungeon, Level: d.TopLevel, Runs: len(times)}
+			if len(times) >= recapTopRuns {
+				tops[i].MedianMS = median(times)
+			}
+		})
+	}
+	wg.Wait()
 	out := []models.RecapTopTime{}
-	for _, d := range r.Recap(from, to, character).MPlus.Dungeons {
-		encounter, ok := encounters[d.Dungeon]
-		if !ok {
-			continue
+	for i, err := range errs {
+		switch {
+		case errors.Is(err, models.ErrNoCredentials) || errors.Is(err, models.ErrBadCredentials):
+			return nil, err
+		case err != nil:
+			log.Print(err)
+		default:
+			out = append(out, tops[i])
 		}
-		times, err := r.Logs.MPlusTopTimes(ctx, encounter, d.TopLevel)
-		if err != nil {
-			return nil, fmt.Errorf("reading %s +%d's top runs: %w", d.Dungeon, d.TopLevel, err)
-		}
-		top := models.RecapTopTime{Dungeon: d.Dungeon, Level: d.TopLevel, Runs: len(times)}
-		if len(times) >= recapTopRuns {
-			top.MedianMS = median(times)
-		}
-		out = append(out, top)
 	}
 	return out, nil
 }
@@ -110,8 +126,8 @@ func buildRecap(keys []models.Key, pulls []models.RaidPull, from, to int64, char
 		return out(p.Start) || !loggedBy(p.Logger, p.Realms, character)
 	})
 	slices.SortFunc(pulls, func(a, b models.RaidPull) int { return cmp.Compare(a.Start, b.Start) })
-	you, _, _ := strings.Cut(character, "-")
-	if played := playedCharacters(keys, pulls, ""); you == "" && len(played) > 0 {
+	you := "" // the character picked (the only one left in keys and pulls), else the one who played most
+	if played := playedCharacters(keys, pulls, ""); len(played) > 0 {
 		you = played[0].Name
 	}
 	return models.Recap{From: from, To: to, MPlus: recapMPlus(keys, you), Raid: recapRaid(pulls, you)}
@@ -129,7 +145,7 @@ func recapMPlus(keys []models.Key, you string) models.RecapMPlus {
 		}
 		dungeons[k.Dungeon] = append(dungeons[k.Dungeon], k)
 	}
-	rc.SuccessPct = pct(rc.Timed, rc.Keys)
+	rc.SuccessPct = share(int64(rc.Timed), int64(rc.Keys))
 	for name, runs := range dungeons {
 		rc.Dungeons = append(rc.Dungeons, recapDungeon(name, runs))
 	}
@@ -137,14 +153,6 @@ func recapMPlus(keys []models.Key, you string) models.RecapMPlus {
 		return cmp.Or(cmp.Compare(b.Runs, a.Runs), cmp.Compare(a.Dungeon, b.Dungeon))
 	})
 	return rc
-}
-
-// pct is part's share of all in %, 0 for none.
-func pct(part, all int) float64 {
-	if all == 0 {
-		return 0
-	}
-	return 100 * float64(part) / float64(all)
 }
 
 // recapDungeon is one dungeon's runs in a recap: counts, the best timed run, and the times at the highest level run.
@@ -160,7 +168,7 @@ func recapDungeon(name string, runs []models.Key) models.RecapDungeon {
 			d.BestLevel, d.BestMS = k.Level, k.FinalMS
 		}
 	}
-	d.SuccessPct = pct(d.Timed, d.Runs)
+	d.SuccessPct = share(int64(d.Timed), int64(d.Runs))
 	var times []int64
 	for _, k := range runs {
 		if k.Level != d.TopLevel {
@@ -204,10 +212,11 @@ func recapAverages(keys []models.Key, you string) models.RecapAverages {
 				t.cc++
 			}
 		}
+		kept := slices.ContainsFunc(k.Overall.Rows, func(r models.KeyMeterRow) bool { return r.PriorityDamage > 0 })
 		for _, row := range k.Overall.Rows {
 			if player == "" || row.Player == player {
 				t.dispels += row.Dispels
-				if row.PriorityDamage > 0 { // 0 in keys saved before it was kept
+				if kept { // no row has any in keys saved before it was kept
 					t.priority, t.damage = t.priority+float64(row.PriorityDamage), t.damage+float64(row.Damage)
 				}
 			}
@@ -307,6 +316,7 @@ func recapYou(keys []models.Key, you string) *models.RecapYou {
 		if !slices.Contains(k.Players, you) {
 			continue
 		}
+		r.Keys++
 		spec, known := specs[k.Specs[you]]
 		if known {
 			specCount[spec.label()]++
@@ -450,7 +460,7 @@ func recapFacts(keys []models.Key) []models.RecapFact {
 // the order first pulled with its pulls, kills, first kill, best wipe, your deaths and the ability that hit the raid
 // hardest.
 func recapRaid(pulls []models.RaidPull, you string) models.RecapRaid {
-	rc := models.RecapRaid{Bosses: []models.RecapBoss{}, Facts: []models.RecapFact{}}
+	rc := models.RecapRaid{Bosses: []models.RecapBoss{}}
 	bosses := []*models.RecapBoss{}
 	taken := map[*models.RecapBoss]map[string]int64{}
 	for _, p := range pulls {
@@ -471,9 +481,13 @@ func recapRaid(pulls []models.RaidPull, you string) models.RecapRaid {
 		case p.BossPct >= 0 && (b.BestWipePct < 0 || p.BossPct < b.BestWipePct):
 			b.BestWipePct = p.BossPct
 		}
+		if you != "" && slices.Contains(p.Players, you) {
+			rc.YourPulls++
+		}
 		for _, d := range p.Deaths {
 			if d.Player == you && you != "" {
 				b.YourDeaths++
+				rc.YourDeaths++
 			}
 		}
 		if taken[b] == nil {

@@ -751,6 +751,8 @@ export interface RecapMPlus {
     character: string
     specs: string[]
     dungeons: { dungeon: string; metric: 'dps' | 'hps'; median: number }[]
+    /** The keys they played, which deaths is over. */
+    keys: number
     deaths: number
     killers: { name: string; count: number }[]
   }
@@ -782,13 +784,16 @@ export interface RecapFact {
   start: number
 }
 
-/** A recap's raid pulls (models.RecapRaid); killed counts bosses (by difficulty) killed. */
+/** A recap's raid pulls (models.RecapRaid); killed counts bosses (by difficulty) killed, yourPulls the pulls the
+ * character was in and yourDeaths their deaths in them. */
 export interface RecapRaid {
   pulls: number
   kills: number
   killed: number
   timeMS: number
   deaths: number
+  yourPulls: number
+  yourDeaths: number
   /** By boss and difficulty; firstKill 0 for none, bestWipePct -1 for no wipe with advanced logging. */
   bosses: {
     boss: string
@@ -801,7 +806,6 @@ export interface RecapRaid {
     yourDeaths: number
     mostHit: string
   }[]
-  facts: RecapFact[]
 }
 
 /** The median time of a dungeon's top Warcraft Logs runs at a level; medianMS 0 under the runs it needs. */

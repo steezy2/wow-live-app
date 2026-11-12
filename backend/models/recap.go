@@ -52,15 +52,16 @@ type RecapPerKey struct {
 }
 
 // RecapRaid is a recap's raid pulls: pulls, kills, the bosses killed (by boss and difficulty), the time spent in
-// pulls and the raid's deaths; each boss; and the facts (none yet).
+// pulls and the raid's deaths, the pulls the character was in and their deaths in them; and each boss.
 type RecapRaid struct {
-	Pulls  int         `json:"pulls"`
-	Kills  int         `json:"kills"`
-	Killed int         `json:"killed"`
-	TimeMS int64       `json:"timeMS"`
-	Deaths int         `json:"deaths"`
-	Bosses []RecapBoss `json:"bosses"` // in the order first pulled
-	Facts  []RecapFact `json:"facts"`
+	Pulls      int         `json:"pulls"`
+	Kills      int         `json:"kills"`
+	Killed     int         `json:"killed"`
+	TimeMS     int64       `json:"timeMS"`
+	Deaths     int         `json:"deaths"`
+	YourPulls  int         `json:"yourPulls"`
+	YourDeaths int         `json:"yourDeaths"`
+	Bosses     []RecapBoss `json:"bosses"` // in the order first pulled
 }
 
 // RecapDungeon is one dungeon in a recap: its runs, how many were timed and their share; the highest level timed and
@@ -87,6 +88,7 @@ type RecapYou struct {
 	Character string       `json:"character"`
 	Specs     []string     `json:"specs"`
 	Dungeons  []RecapRate  `json:"dungeons"`
+	Keys      int          `json:"keys"` // the keys they played, which Deaths is over
 	Deaths    int          `json:"deaths"`
 	Killers   []RecapCount `json:"killers"`
 }

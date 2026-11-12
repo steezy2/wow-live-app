@@ -3867,12 +3867,6 @@ const docTemplate = `{
                 "deaths": {
                     "type": "integer"
                 },
-                "facts": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/models.RecapFact"
-                    }
-                },
                 "killed": {
                     "type": "integer"
                 },
@@ -3883,6 +3877,12 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "timeMS": {
+                    "type": "integer"
+                },
+                "yourDeaths": {
+                    "type": "integer"
+                },
+                "yourPulls": {
                     "type": "integer"
                 }
             }
@@ -3936,6 +3936,10 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/models.RecapRate"
                     }
+                },
+                "keys": {
+                    "description": "the keys they played, which Deaths is over",
+                    "type": "integer"
                 },
                 "killers": {
                     "type": "array",

@@ -37,7 +37,7 @@ export default function App() {
     const controller = new AbortController()
     fetchCharacters(preferred, controller.signal).then(setCharacters, () => undefined)
     return () => controller.abort()
-  }, [preferred, refresh])
+  }, [preferred, refresh, section]) // a section opened again may follow a raid pull or Read old logs
   useEffect(() => {
     const controller = new AbortController()
     fetchSettings(controller.signal).then((view) => {

@@ -16,7 +16,7 @@ func loggedBy(logger string, realms map[string]string, character string) bool {
 		return true
 	}
 	name, realm, _ := strings.Cut(character, "-")
-	if logger == "" || logger != name {
+	if logger == "" || !strings.EqualFold(logger, name) {
 		return false
 	}
 	got := realms[logger]

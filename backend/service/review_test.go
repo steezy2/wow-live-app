@@ -140,6 +140,7 @@ type fakeBaselines struct {
 	left     float64
 	asks     int
 	topTimes []int64
+	topErr   error
 }
 
 func (f *fakeBaselines) MPlusEncounters(context.Context) (map[string]int, error) {
@@ -150,7 +151,7 @@ func (f *fakeBaselines) MPlusRankings(context.Context, int, int, string, string,
 	return []models.MPlusRanking{{Amount: 1, DurationMS: 1_500_000, Code: "x", FightID: 1}}, nil
 }
 func (f *fakeBaselines) MPlusTopTimes(context.Context, int, int) ([]int64, error) {
-	return f.topTimes, nil
+	return f.topTimes, f.topErr
 }
 func (f *fakeBaselines) Run(context.Context, string, int) (models.RunSummary, error) {
 	return models.RunSummary{DamageTaken: 1, BossMS: map[string]int64{"Boss": 90_000}}, nil

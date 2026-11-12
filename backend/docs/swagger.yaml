@@ -1709,10 +1709,6 @@ definitions:
         type: array
       deaths:
         type: integer
-      facts:
-        items:
-          $ref: '#/definitions/models.RecapFact'
-        type: array
       killed:
         type: integer
       kills:
@@ -1720,6 +1716,10 @@ definitions:
       pulls:
         type: integer
       timeMS:
+        type: integer
+      yourDeaths:
+        type: integer
+      yourPulls:
         type: integer
     type: object
   models.RecapRate:
@@ -1755,6 +1755,9 @@ definitions:
         items:
           $ref: '#/definitions/models.RecapRate'
         type: array
+      keys:
+        description: the keys they played, which Deaths is over
+        type: integer
       killers:
         items:
           $ref: '#/definitions/models.RecapCount'

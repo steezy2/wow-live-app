@@ -6,7 +6,6 @@ import {
   type Character,
   type Recap as RecapData,
   type RecapDungeon,
-  type RecapFact,
   type RecapMPlus,
   type RecapPerKey,
   type RecapPeriod,
@@ -121,25 +120,6 @@ function Tiles({ tiles }: { tiles: [string, string][] }) {
   )
 }
 
-/** A recap's facts, each a link to its key or pull. */
-function Facts({ facts, onOpen }: { facts: RecapFact[]; onOpen: Open }) {
-  if (facts.length === 0) return null
-  return (
-    <section className="panel">
-      <h2>Facts</h2>
-      <ul className="list">
-        {facts.map((f) => (
-          <li key={f.text}>
-            <button className="link" onClick={() => onOpen(f.kind, f.start)}>
-              {f.text}
-            </button>
-          </li>
-        ))}
-      </ul>
-    </section>
-  )
-}
-
 /** The per-key averages the Mythic+ tab shows: label, field, decimals. */
 const AVERAGES: [string, keyof RecapPerKey, number][] = [
   ['Kicks', 'kicks', 1],
@@ -154,7 +134,7 @@ function perKey(n: number, digits: number): string {
 }
 
 /** The Mythic+ tab: tiles, a card per dungeon (top: Warcraft Logs' top runs, undefined while loading, null without
- * Warcraft Logs keys), the averages per key, the character, who they ran with, and the facts. */
+ * Warcraft Logs keys), the averages per key, the character, who they ran with, and facts that open their key. */
 function MPlusRecap({ r, top, onOpen }: { r: RecapMPlus; top?: RecapTopTime[] | null; onOpen: Open }) {
   if (r.keys === 0) return <p className="muted">No keys in this period</p>
   const you = r.you
@@ -165,7 +145,7 @@ function MPlusRecap({ r, top, onOpen }: { r: RecapMPlus; top?: RecapTopTime[] | 
     [`${(r.timeMS / 3_600_000).toFixed(1)} h`, 'in keys'],
     [(r.deaths / r.keys).toFixed(1), 'party deaths a key'],
   ]
-  if (you) tiles.push([(you.deaths / r.keys).toFixed(1), 'your deaths a key'])
+  if (you?.keys) tiles.push([(you.deaths / you.keys).toFixed(1), 'your deaths a key'])
   return (
     <>
       <Tiles tiles={tiles} />
@@ -228,7 +208,20 @@ function MPlusRecap({ r, top, onOpen }: { r: RecapMPlus; top?: RecapTopTime[] | 
           </section>
         )}
       </div>
-      <Facts facts={r.facts} onOpen={onOpen} />
+      {r.facts.length > 0 && (
+        <section className="panel">
+          <h2>Facts</h2>
+          <ul className="list">
+            {r.facts.map((f) => (
+              <li key={f.text}>
+                <button className="link" onClick={() => onOpen(f.kind, f.start)}>
+                  {f.text}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </>
   )
 }
@@ -290,10 +283,9 @@ function DungeonCard({ d, top }: { d: RecapDungeon; top?: RecapTopTime }) {
   )
 }
 
-/** The Raid tab: tiles, a card per boss, and the facts. */
+/** The Raid tab: tiles and a card per boss, its first kill opening the pull (onOpen). */
 function RaidRecap({ r, onOpen }: { r: RecapRaid; onOpen: Open }) {
   if (r.pulls === 0) return <p className="muted">No raid pulls in this period</p>
-  const yourDeaths = r.bosses.reduce((sum, b) => sum + b.yourDeaths, 0)
   return (
     <>
       <Tiles
@@ -303,7 +295,7 @@ function RaidRecap({ r, onOpen }: { r: RecapRaid; onOpen: Open }) {
           [String(r.killed), 'bosses killed'],
           [`${(r.timeMS / 3_600_000).toFixed(1)} h`, 'in pulls'],
           [(r.deaths / r.pulls).toFixed(1), 'raid deaths a pull'],
-          [(yourDeaths / r.pulls).toFixed(2), 'your deaths a pull'],
+          [r.yourPulls ? (r.yourDeaths / r.yourPulls).toFixed(2) : '–', 'your deaths a pull'],
         ]}
       />
       <div className="cards compact">
@@ -327,7 +319,6 @@ function RaidRecap({ r, onOpen }: { r: RecapRaid; onOpen: Open }) {
           </section>
         ))}
       </div>
-      <Facts facts={r.facts} onOpen={onOpen} />
     </>
   )
 }

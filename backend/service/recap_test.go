@@ -67,8 +67,9 @@ func TestRecapKeepsMPlusAndRaidApart(t *testing.T) {
 		t.Errorf("mplus = %d keys, %d deaths, %d ms; want the key only", got.MPlus.Keys, got.MPlus.Deaths,
 			got.MPlus.TimeMS)
 	}
-	if r := got.Raid; r.Pulls != 1 || r.Kills != 1 || r.Killed != 1 || r.Deaths != 2 || r.TimeMS != 5*minute {
-		t.Errorf("raid = %+v; want the pull only", r)
+	if r := got.Raid; r.Pulls != 1 || r.Kills != 1 || r.Killed != 1 || r.Deaths != 2 || r.TimeMS != 5*minute ||
+		r.YourPulls != 0 {
+		t.Errorf("raid = %+v; want the pull only, without the mage in it", r)
 	}
 }
 
@@ -83,14 +84,18 @@ func TestRecapIsOneCharactersRuns(t *testing.T) {
 }
 
 func TestRecapAverages(t *testing.T) {
-	keys := []models.Key{recapKey("Skyreach", 10, 0, 25*minute, "Testpriest"), recapKey("Skyreach", 11, 50, 25*minute)}
-	keys[0].Interrupts = []models.KeyInterrupt{{Player: "Testmage"}, {Player: "Testpriest"}, {Player: "Testpriest"}}
+	keys := []models.Key{recapKey("Skyreach", 10, 0, 25*minute, "Testpriest"), recapKey("Skyreach", 11, 50, 25*minute),
+		recapKey("Skyreach", 12, 100, 25*minute, "Testpriest")}
+	keys[0].Interrupts = []models.KeyInterrupt{{Player: "Testmage"}, {Player: "Testpriest"}, {Player: "Testpriest"},
+		{Player: "Testpriest"}}
 	keys[0].Casts = []models.KeyCast{{Player: "Testmage", Kind: "cc"}, {Player: "Testmage", Kind: "defensive"}}
 	keys[0].Overall.Rows = []models.KeyMeterRow{{Player: "Testmage", Damage: 100, PriorityDamage: 40, Dispels: 2},
-		{Player: "Testpriest", Damage: 100, PriorityDamage: 20, Dispels: 4}}
+		{Player: "Testpriest", Damage: 100, PriorityDamage: 20, Dispels: 1}}
+	keys[2].Overall.Rows = []models.KeyMeterRow{{Player: "Testmage", Damage: 100}, // no priority target this key
+		{Player: "Testpriest", Damage: 100, PriorityDamage: 20}}
 	got := recapAverages(keys, "Testmage") // the second key was saved before priority damage was kept
-	want := models.RecapAverages{Party: models.RecapPerKey{Kicks: 1.5, CC: 0.5, Dispels: 3, PriorityPct: 30},
-		You: models.RecapPerKey{Kicks: 0.5, CC: 0.5, Dispels: 1, PriorityPct: 40}}
+	want := models.RecapAverages{Party: models.RecapPerKey{Kicks: 4.0 / 3, CC: 1.0 / 3, Dispels: 1, PriorityPct: 20},
+		You: models.RecapPerKey{Kicks: 1.0 / 3, CC: 1.0 / 3, Dispels: 2.0 / 3, PriorityPct: 20}}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("averages = %+v; want %+v", got, want)
 	}
@@ -193,6 +198,11 @@ func TestRecapTopTimes(t *testing.T) {
 	few, _ := Recaps{Saved: saved, Logs: &fakeBaselines{topTimes: times[:3]}}.TopTimes(context.Background(), 0, 999*minute, "")
 	if len(few) != 1 || few[0].MedianMS != 0 || few[0].Runs != 3 {
 		t.Errorf("top times over 3 runs = %+v; want no median", few)
+	}
+	failed, err := Recaps{Saved: saved, Logs: &fakeBaselines{topErr: errors.New("down")}}.TopTimes(context.Background(),
+		0, 999*minute, "")
+	if err != nil || len(failed) != 0 {
+		t.Errorf("top times when Warcraft Logs fails = %+v, %v; want the dungeon left out", failed, err)
 	}
 	if _, err := (Recaps{Saved: saved}).TopTimes(context.Background(), 0, 1, ""); !errors.Is(err, models.ErrNoCredentials) {
 		t.Errorf("without Logs: %v; want ErrNoCredentials", err)

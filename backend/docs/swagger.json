@@ -3860,12 +3860,6 @@
                 "deaths": {
                     "type": "integer"
                 },
-                "facts": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/models.RecapFact"
-                    }
-                },
                 "killed": {
                     "type": "integer"
                 },
@@ -3876,6 +3870,12 @@
                     "type": "integer"
                 },
                 "timeMS": {
+                    "type": "integer"
+                },
+                "yourDeaths": {
+                    "type": "integer"
+                },
+                "yourPulls": {
                     "type": "integer"
                 }
             }
@@ -3929,6 +3929,10 @@
                     "items": {
                         "$ref": "#/definitions/models.RecapRate"
                     }
+                },
+                "keys": {
+                    "description": "the keys they played, which Deaths is over",
+                    "type": "integer"
                 },
                 "killers": {
                     "type": "array",

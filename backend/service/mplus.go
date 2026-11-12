@@ -360,10 +360,9 @@ func (k *LogTracker) learn(at int64, event string, f []string) {
 		if strings.HasPrefix(f[i], "Player-") && f[i+1] != "nil" {
 			name, realm := splitName(f[i+1])
 			if k.names[f[i]] != name {
-				k.names[f[i]] = name
+				k.names[f[i]], k.realms[f[i]] = name, realm
 				k.renames++
 			}
-			k.realms[f[i]] = realm
 			if hasFlag(f[i+2], mineFlag) {
 				k.logger = f[i]
 			}
