@@ -4,6 +4,8 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-12
+
 ### Changed
 - *Find fights* lists the reports in the background: leaving Settings and coming back no longer loses it, a bar slides while it runs and *Stop* ends it. `POST /api/settings/warcraftlogs/import/plan` now answers 202 with the import's status at once, whose `plan` holds the result once its state leaves `listing`. What it found is saved (`plan.json` in the import's folder), so it's still there after a restart, until an import starts.
 - Listing a character's reports caches each report's fights and players (one file a report, fetched again only when its end moves), so *Find fights* or an import after the 10-minute list cache spends points only on new or grown reports, not all 150 again.
