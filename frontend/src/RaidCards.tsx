@@ -174,7 +174,7 @@ export const Mechanics = memo(function Mechanics({ pull, classes, onSeek, onFocu
           detail: s.cause ? (
             <>
               from {s.cause}
-              {s.players.length > 0 && <> ({names(s.players)})</>}
+              {s.players?.length ? <> ({names(s.players)})</> : null}
             </>
           ) : (
             'cause not seen'

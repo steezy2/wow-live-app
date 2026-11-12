@@ -523,6 +523,11 @@ func TestRaidPullPickupsBreaksAndSpawns(t *testing.T) {
 		t.Errorf("spawns = %v; want the first Viper from the splash, the second from nothing, the Warden from the cast",
 			spawns)
 	}
+	// An enemy's cast lands on nobody, and the page reads the spawn's players as a list.
+	warden := p.Adds[slices.IndexFunc(p.Adds, func(a models.RaidAdd) bool { return a.Name == "Warden" })]
+	if got, _ := json.Marshal(warden.Spawns); string(got) != `[{"clockMS":100000,"cause":"Hatching Doom","players":[]}]` {
+		t.Errorf("Warden spawns = %s; want its players an empty list, not null", got)
+	}
 }
 
 func TestRaidReadyCheckAtThePullAndBetweenPulls(t *testing.T) {

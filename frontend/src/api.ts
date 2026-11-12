@@ -712,7 +712,8 @@ export interface RaidPull extends RaidPullSummary {
     killed: number
     aliveEnd: number
     longestMS: number
-    spawns?: { clockMS: number; cause?: string; players: string[] }[]
+    /** players is null for a spawn from an enemy's cast in pulls saved before Nov 12. */
+    spawns?: { clockMS: number; cause?: string; players: string[] | null }[]
   }[]
   priority: { target: string; damage: number }[]
   meter: KeyMeter

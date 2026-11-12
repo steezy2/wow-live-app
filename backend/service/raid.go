@@ -472,7 +472,8 @@ func (r *raidRun) spawnOf(name string, at, clockMS int64, spells map[int]string)
 			continue
 		}
 		if c := r.causes[rule.Cause]; c != nil && at-c.at <= rule.WithinMS && c.at >= when {
-			seen.Cause, seen.Players, when = spells[rule.Cause], slices.Clone(c.players), c.at
+			// Never nil, which the page would get as null: an enemy's cast lands on nobody.
+			seen.Cause, seen.Players, when = spells[rule.Cause], append([]string{}, c.players...), c.at
 		}
 	}
 	return seen
