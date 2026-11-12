@@ -189,7 +189,8 @@ func (k *LogTracker) details(run *keyRun, at int64) models.Key {
 	ClassifyDeaths(deaths, run.casts, buffs, kit, int64(k.rules.Defensives.WindowSeconds*1000))
 	key.Deaths = list(run.key.Deaths)
 	for i := range key.Deaths {
-		key.Deaths[i].Defensive, key.Deaths[i].Ready = deaths[i].Defensive, list(deaths[i].Ready)
+		d := deaths[i]
+		key.Deaths[i].Defensive, key.Deaths[i].Used, key.Deaths[i].Ready = d.Defensive, d.Used, list(d.Ready)
 	}
 	key.Players, key.Specs = []string{}, map[string]int{}
 	for _, guid := range run.party {

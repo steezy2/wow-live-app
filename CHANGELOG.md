@@ -9,6 +9,16 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 - Listing a character's reports caches each report's fights and players for good (by the report's end), so *Find fights* or an import after the 10-minute list cache spends points only on new reports, not all 150 again.
 - A key's meter cards leave out the Avoidable column: a key's avoidable damage is in its Avoidable tab at the bottom. Raid pulls keep the column.
 - A raid pull's Mechanics card folds lines with the same name (a soak's hits, an add's spawns, the same cast going off) into one small card with their count; a click lists each time and who.
+- Settings shows a sliding bar beside every action while it runs (saving, testing keys, *Find fights*, *Read old logs*, archiving, deleting, listing the logs), and an action left running when you leave Settings keeps going and shows again, then its result, when you come back.
+- Deaths and damage spikes say *used Ice Cold* when the player pressed the defensive themselves, and keep *had* for one someone put on them (an external, a raid cooldown); `used` on a death and a spike member.
+- Spirit Link Totem and the other `raid_cooldowns` (Zephyr too) count as raid cooldowns, not defensives: the Defensives tab marks them *(raid cooldown)*, and a death's or spike's "still had" no longer names them.
+- Ula'tek's *Fix next pull* starts with the Blightscale Vipers that spawned: who spawned each (the egg carrier, with the cause and time) and how many nobody picked up, since a Viper all but wipes the raid (`spawner` on a spawn).
+- Ula'tek's adds leave out Blightscale Spawn, the eggs the raid hits that never die: `not_adds` in `reference/raid-mechanics.toml` lists a boss's NPCs that aren't adds (`notAdds` in `raid-bosses.json`).
+- A key's review leaves out the avoidable damage column (it's in the key's Avoidable tab); the advice still names who took the most. Reviews already made drop the column when shown.
+- `readerVersion` 9, so *Read old logs* reads every log again.
+
+### Fixed
+- *Import from Warcraft Logs* failed a key Warcraft Logs names by its bosses and gives no zone ("no challenge map ID for "Adderis / Merektha / ... ""), as it does in a dungeon it hasn't mapped (Temple of Sethraliss): the dungeon is found by its instance ID, the end of the fight's encounter ID (61877 is instance 1877). The dungeon facts keep each dungeon's `instanceID` from Keystone.guru.
 
 ## [0.3.0] - 2026-11-12
 

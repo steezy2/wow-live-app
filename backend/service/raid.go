@@ -455,7 +455,8 @@ func (r *raidRun) spawnOf(name string, at, clockMS int64, spells map[int]string)
 	for i := range r.spawners { // in order, so the first that fits is the oldest
 		if s := &r.spawners[i]; !s.used && s.rule.Add == name && at >= s.at && at-s.at <= s.rule.WithinMS {
 			s.used = true
-			return &models.RaidSpawn{ClockMS: clockMS, Cause: spells[s.rule.Cause], Players: []string{s.player}}
+			return &models.RaidSpawn{ClockMS: clockMS, Cause: spells[s.rule.Cause], Players: []string{s.player},
+				Spawner: true}
 		}
 	}
 	var seen *models.RaidSpawn
@@ -775,7 +776,8 @@ func (r *raidRun) bossUnits() map[string]*raidUnit {
 	return boss
 }
 
-// adds is each kind of hostile unit the raid hit that isn't one of the boss's NPCs (nor a soak circle or a lure):
+// adds is each kind of hostile unit the raid hit that isn't one of the boss's NPCs nor its NotAdds (nor a soak circle
+// or a lure):
 // how many showed up, died and were up at the end, the longest one lived, and each one's spawn where the reference
 // says how they spawn; those still up first, at most shownAdds plus those with spawns.
 func (r *raidRun) adds(end int64) []models.RaidAdd {
@@ -783,7 +785,8 @@ func (r *raidRun) adds(end int64) []models.RaidAdd {
 	byName := map[string]*models.RaidAdd{}
 	for _, guid := range slices.Sorted(maps.Keys(r.units)) { // GUID order: spawns at one moment keep one order
 		u := r.units[guid]
-		if !u.hit || boss[guid] != nil || slices.Contains(r.boss.NPCs, npcOf(guid)) {
+		if npc := npcOf(guid); !u.hit || boss[guid] != nil || slices.Contains(r.boss.NPCs, npc) ||
+			slices.Contains(r.boss.NotAdds, npc) {
 			continue
 		}
 		a := byName[u.name]

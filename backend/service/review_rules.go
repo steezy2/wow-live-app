@@ -50,8 +50,6 @@ var (
 			false, false},
 		{"damage taken", func(_ models.Key, r models.KeyMeterRow) float64 { return float64(r.DamageTaken) }, false,
 			true, false},
-		{"avoidable damage", func(_ models.Key, r models.KeyMeterRow) float64 { return float64(r.Avoidable) }, false,
-			true, false},
 		{"deaths", func(k models.Key, r models.KeyMeterRow) float64 {
 			return float64(countFunc(k.Deaths, func(d models.KeyDeath) bool { return d.Player == r.Player }))
 		}, false, false, false},
@@ -188,11 +186,11 @@ func advice(key models.Key, player string, spec specInfo, metrics []models.Revie
 			out = append(out, fmt.Sprintf("Died to %s %s", ability, counted(n, "time")))
 		}
 	}
-	if a := byName["avoidable damage"]; a.Value > 0 && a.PartyRank == party && party > 1 {
+	if most, ok := mostAvoidable(key); ok && most.Player == player && party > 1 {
 		i := slices.IndexFunc(key.AvoidableHits, func(h models.KeyHit) bool { return h.Player == player })
 		if i >= 0 {
 			out = append(out, fmt.Sprintf("Took %s avoidable damage, the most in the group, most of it from %s",
-				short(a.Value), key.AvoidableHits[i].Ability))
+				short(float64(most.Avoidable)), key.AvoidableHits[i].Ability))
 		}
 	}
 	wentOff := countFunc(key.Stops, func(s models.KeyStop) bool { return s.Outcome == "went off" })
@@ -257,25 +255,42 @@ func mainMetric(spec specInfo) string {
 	return dpsMetric.name
 }
 
+// mostAvoidable is the party member who alone took the most avoidable damage, if anyone took some (the review's
+// table leaves avoidable damage to the key's Avoidable tab, but its advice still names the worst).
+func mostAvoidable(key models.Key) (models.KeyMeterRow, bool) {
+	var most models.KeyMeterRow
+	tied := false
+	for _, r := range key.Overall.Rows {
+		if !slices.Contains(key.Players, r.Player) {
+			continue
+		}
+		if r.Avoidable > most.Avoidable {
+			most, tied = r, false
+		} else if r.Avoidable == most.Avoidable {
+			tied = true
+		}
+	}
+	return most, most.Avoidable > 0 && !tied
+}
+
 // groupStarts are the metrics that start a new group of columns in the review table.
 var groupStarts = map[string]bool{"kicks": true, "damage taken": true, "combat potions": true, "deaths": true}
 
 // metricHelp says what each reviewed metric counts.
 var metricHelp = map[string]string{
-	"DPS":              "damage per second over the key",
-	"HPS":              "healing per second over the key, absorbs included",
-	"kicks":            "every interrupt, must-stop or not",
-	"dispels":          "debuffs dispelled off the party, and buffs purged off enemies",
-	"damage taken":     "all damage taken",
-	"avoidable damage": "damage from the dungeon's avoidable abilities (reference/mplus-dungeons.json)",
-	"deaths":           "times died",
-	"wasted kicks":     "interrupts cast that stopped nothing: the cast was already stopped, or the target couldn't be",
-	"priority %":       "share of damage into trash pulls' minibosses and into bosses",
-	"active %":         "share of time alive in pulls with a cast or hit of theirs going",
-	"combat potions":   "combat potions drunk over the key, a pre-pot included",
-	"health potions":   "health potions drunk over the key",
-	"healthstones":     "healthstones used over the key",
-	"crowd control":    "stuns, incapacitates, fears, roots, knocks (up or back) and grips cast ([cc] in mplus.toml; an area stun counts once)",
+	"DPS":            "damage per second over the key",
+	"HPS":            "healing per second over the key, absorbs included",
+	"kicks":          "every interrupt, must-stop or not",
+	"dispels":        "debuffs dispelled off the party, and buffs purged off enemies",
+	"damage taken":   "all damage taken",
+	"deaths":         "times died",
+	"wasted kicks":   "interrupts cast that stopped nothing: the cast was already stopped, or the target couldn't be",
+	"priority %":     "share of damage into trash pulls' minibosses and into bosses",
+	"active %":       "share of time alive in pulls with a cast or hit of theirs going",
+	"combat potions": "combat potions drunk over the key, a pre-pot included",
+	"health potions": "health potions drunk over the key",
+	"healthstones":   "healthstones used over the key",
+	"crowd control":  "stuns, incapacitates, fears, roots, knocks (up or back) and grips cast ([cc] in mplus.toml; an area stun counts once)",
 }
 
 // since reads a metric only from keys saved with it (Nov 8 on; older keys have no activity): NaN for older ones, so a

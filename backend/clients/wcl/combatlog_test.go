@@ -147,3 +147,23 @@ func TestEventsReadAmountsSentWithAFraction(t *testing.T) {
 		t.Fatalf("amount %d, absorbed %d, hit points %d (%v); want 75801, 13, 3", e.Amount, e.Absorbed, e.HitPoints, err)
 	}
 }
+
+func TestDungeonOfFallsBackToTheInstanceForAKeyNamedByItsBosses(t *testing.T) {
+	dungeons := map[int]models.DungeonFacts{776: {Name: "Facts Without Instance"}, 777: {Name: "Test Hollow", InstanceID: 999},
+		778: {Name: "Other Hollow", InstanceID: 1877}}
+	for _, tc := range []struct {
+		name  string
+		fight fightInfo
+		want  int
+	}{
+		{"by name", fightInfo{Name: "Test Hollow", EncounterID: 61877}, 777},
+		{"by zone", fightInfo{Name: "Boss One / Boss Two / ... ", GameZone: idName{ID: 1877}}, 778},
+		{"by the encounter ID when the zone is missing", fightInfo{Name: "Boss One / Boss Two / ... ", EncounterID: 61877}, 778},
+		{"none", fightInfo{Name: "Boss One / Boss Two", EncounterID: 12813}, 0},
+		{"no instance", fightInfo{Name: "Boss One / Boss Two", EncounterID: 10000}, 0},
+	} {
+		if got, _ := dungeonOf(dungeons, tc.fight); got != tc.want {
+			t.Errorf("%s: map ID %d, want %d", tc.name, got, tc.want)
+		}
+	}
+}

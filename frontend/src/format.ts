@@ -64,10 +64,11 @@ export function resultText(status: string, chests: number, clockMS: number, time
   return `${head} · ${clock(clockMS)} / ${clock(timerMS)} · ${clock(Math.abs(left))} ${left >= 0 ? 'under' : 'over'}`
 }
 
-/** What covered a death or a hit: "had Ice Block", "still had Barkskin, Renewal", or "nothing ready". */
-export function coverText(defensive: string, ready: string[]): string {
-  if (defensive) return `had ${defensive}`
-  return ready.length ? `still had ${ready.join(', ')}` : 'nothing ready'
+/** What covered a death or a hit: "used Ice Cold" (pressed it), "had Pain Suppression" (put on them), "still had
+ * Barkskin, Renewal", or "nothing ready"; ready is missing in raid pulls saved before it was kept. */
+export function coverText(c: { defensive: string; used?: boolean; ready?: string[] }): string {
+  if (c.defensive) return `${c.used ? 'used' : 'had'} ${c.defensive}`
+  return c.ready?.length ? `still had ${c.ready.join(', ')}` : 'nothing ready'
 }
 
 /** The pull meter's title: always "Last pull", with how long ago once it's over during a key. */

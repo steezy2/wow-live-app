@@ -257,7 +257,7 @@ func (k *LogTracker) spike(run *keyRun, second, damage, span int64, casts []mode
 	ClassifyDeaths(hit, run.casts, buffs, kit, window)
 	for i, h := range hit {
 		sp.Members = append(sp.Members, models.KeySpikeMember{Player: h.Player, Taken: amounts[i],
-			Defensive: h.Defensive, Ready: list(h.Ready)})
+			Defensive: h.Defensive, Used: h.Used, Ready: list(h.Ready)})
 	}
 	slices.SortFunc(sp.Members, func(a, b models.KeySpikeMember) int { return cmp.Compare(b.Taken, a.Taken) })
 	sp.Unused = unusedDefensive(sp)

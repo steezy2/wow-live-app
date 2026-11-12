@@ -44,9 +44,10 @@ type Client struct {
 	Assets   string
 }
 
-// Dungeon is what Keystone.guru has for a dungeon: its floors with in-game bounds (overview floors without bounds left
-// out) and the enemy forces a key needs, from its newest mapping.
+// Dungeon is what Keystone.guru has for a dungeon: its instance ID, its floors with in-game bounds (overview floors
+// without bounds left out) and the enemy forces a key needs, from its newest mapping.
 type Dungeon struct {
+	InstanceID  int
 	Floors      []models.DungeonFloor
 	ForcesTotal int
 }
@@ -56,6 +57,7 @@ func (c Client) Dungeons(ctx context.Context) (map[int]Dungeon, error) {
 	var dungeons []struct {
 		ID              int    `json:"id"`
 		ChallengeModeID *int   `json:"challenge_mode_id"`
+		MapID           int    `json:"map_id"` // the game's instance ID
 		Key             string `json:"key"`
 		Name            string `json:"name"` // "dungeons.midnight.altar_of_fangs.name": the expansion's tile folder
 		Floors          []struct {
@@ -90,7 +92,7 @@ func (c Client) Dungeons(ctx context.Context) (map[int]Dungeon, error) {
 		if d.ChallengeModeID == nil || len(parts) < 2 {
 			continue
 		}
-		dungeon := Dungeon{ForcesTotal: newest[d.ID][1]}
+		dungeon := Dungeon{InstanceID: d.MapID, ForcesTotal: newest[d.ID][1]}
 		for _, f := range d.Floors {
 			tiles := fmt.Sprintf("%s/%s/%d", parts[1], d.Key, f.Index)
 			if f.UIMapID == 0 || f.MinX == f.MaxX || f.MinY == f.MaxY || !tileFolder.MatchString(tiles) {

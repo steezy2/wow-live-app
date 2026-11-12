@@ -1,20 +1,17 @@
 import { useEffect, useState } from 'react'
 import { fetchReview, makeReview, type KeyReview as Review, type KeyView, type ReviewMetric } from './api'
-import { amount, median } from './format'
+import { amount } from './format'
 
-/** The cell's tone: deaths red, avoidable damage over the party's median amber, a combat potion green. */
-function tone(m: ReviewMetric, party: ReviewMetric[]): string {
+/** The cell's tone: deaths red, a combat potion green. */
+function tone(m: ReviewMetric): string {
   if (m.name === 'deaths' && m.value > 0) return 'bad'
   if (m.name === 'combat potions' && m.value >= 1) return 'good'
-  if (m.name === 'avoidable damage') {
-    if (m.value > median(party.map((p) => p.value))) return 'warn'
-  }
   return ''
 }
 
 /** A metric cell's classes: its group rule and tone. */
-function metricClass(m: ReviewMetric, party: ReviewMetric[]): string | undefined {
-  return [m.group && 'group', tone(m, party)].filter(Boolean).join(' ') || undefined
+function metricClass(m: ReviewMetric): string | undefined {
+  return [m.group && 'group', tone(m)].filter(Boolean).join(' ') || undefined
 }
 
 /** How often, and how long, a key that just ended is asked for the review the site makes on its own. */
@@ -80,7 +77,6 @@ export function KeyReview(props: { keyView: KeyView; justEnded: boolean; onRevie
     )
   }
   const columns = review.players[0]?.metrics ?? []
-  const party = (name: string) => review.players.flatMap((p) => p.metrics.filter((m) => m.name === name))
   return (
     <section className="panel review">
       <h2>Key review</h2>
@@ -115,7 +111,7 @@ export function KeyReview(props: { keyView: KeyView; justEnded: boolean; onRevie
                   return (
                     <td
                       key={m.name}
-                      className={metricClass(m, party(m.name))}
+                      className={metricClass(m)}
                       title={m.partyRank > 0 ? `#${m.partyRank} in the party` : undefined}
                     >
                       {show(m.value)}

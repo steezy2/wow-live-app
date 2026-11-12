@@ -84,7 +84,7 @@ func generate(ctx context.Context, cache, path string) error {
 		if err != nil {
 			return err
 		}
-		facts.Floors = append([]models.DungeonFloor{}, kg[d.MapID].Floors...)
+		facts.InstanceID, facts.Floors = kg[d.MapID].InstanceID, append([]models.DungeonFloor{}, kg[d.MapID].Floors...)
 		ref.Dungeons[d.MapID] = facts
 		log.Printf("%s: %d NPCs (forces total %d, Keystone.guru %d), %d must-stop, %d avoidable, %d dispel, %d to review",
 			d.Name, len(facts.Forces.NPCs), facts.Forces.Total, src.KeystoneGuruTotal, len(facts.MustStop),

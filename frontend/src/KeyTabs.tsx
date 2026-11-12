@@ -48,7 +48,7 @@ export function fightTabs(
                 <span className="muted">from {d.killer || 'unknown'}</span>
               </span>
               <span className="muted">
-                <When ms={d.clockMS} seek={seek} /> · {coverText(d.defensive, d.ready)}
+                <When ms={d.clockMS} seek={seek} /> · {coverText(d)}
               </span>
             </li>
           ))}
@@ -135,10 +135,11 @@ export function fightTabs(
   ]
 }
 
-/** How a pressed button is counted: a defensive by its name, a potion drunk before the pull as a pre-pot, the rest
- * by kind. */
+/** How a pressed button is counted: a defensive by its name, a raid cooldown by its name marked as one, a potion drunk
+ * before the pull as a pre-pot, the rest by kind. */
 function castName(c: KeyCast): string {
   if (c.kind === 'defensive') return c.ability
+  if (c.kind === 'raid cooldown') return `${c.ability} (raid cooldown)`
   return c.prepot ? 'pre-pot' : c.kind
 }
 

@@ -73,7 +73,8 @@ type RaidBoss struct {
 	Name      string           `json:"name"`
 	Guide     string           `json:"guide"`
 	NPCs      []int            `json:"npcs"`
-	Health    []int            `json:"health,omitempty"` // the NPCs whose health is the boss's; empty: see service bossUnits
+	Health    []int            `json:"health,omitempty"`  // the NPCs whose health is the boss's; empty: see service bossUnits
+	NotAdds   []int            `json:"notAdds,omitempty"` // NPCs the raid hits that never die (eggs): not listed as adds
 	Avoidable []int            `json:"avoidable"`
 	Soak      []int            `json:"soak"`
 	Soakers   map[int]int      `json:"soakers,omitempty"` // soak spell ID -> raiders wanted in each (0 or missing: everyone)
@@ -101,6 +102,7 @@ type CuratedBoss struct {
 	Checked   string           `toml:"checked"`
 	Sources   []string         `toml:"sources"`
 	Health    []int            `toml:"health"`
+	NotAdds   []int            `toml:"not_adds"`
 	Avoidable []int            `toml:"avoidable"`
 	Dispel    []int            `toml:"dispel"`
 	MustStop  []int            `toml:"must_stop"`
@@ -326,6 +328,8 @@ type RaidSpawn struct {
 	ClockMS int64    `json:"clockMS"`
 	Cause   string   `json:"cause,omitempty"`
 	Players []string `json:"players"`
+	// Spawner: Players spawned it (a carrier who lost what they carried), not just who the cause landed on.
+	Spawner bool `json:"spawner,omitempty"`
 }
 
 // RaidStacks is a debuff whose stacks matter: the stacks that are too many (0 when unknown) and each player's most,

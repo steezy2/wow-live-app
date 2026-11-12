@@ -11,8 +11,9 @@
 #
 # Per boss: health (NPC IDs whose health is the boss's; leave out for "the NPC named as the encounter, else all"),
 # avoidable, dispel, must_stop, stacks (aura ID = the stacks that are too many, 0 when no number), priority (add
-# names to burst), [[soaks]] (spell, soakers wanted per cast, 0 = everyone), [[pickups]] (with expect, the enemy cast
-# every living raider should have picked one up by), [[breaks]] and [[spawns]].
+# names to burst), not_adds (NPC IDs the raid hits that never die, so aren't listed as adds), [[soaks]] (spell,
+# soakers wanted per cast, 0 = everyone), [[pickups]] (with expect, the enemy cast every living raider should have
+# picked one up by), [[breaks]] and [[spawns]].
 
 raid = "venomous-abyss"
 
@@ -143,6 +144,7 @@ checked = "log 2026-11-10 Mythic; wcl JL3bgnz1xpBh4HjT#17"
 sources = ["https://www.mythictrap.com/en/venomous-abyss/ulatek/mythic",
            "https://www.method.gg/guides/the-venomous-abyss/ulatek"]
 health = [257758]                               # Ula'tek, not the Gore Rattle tails or the Venomous Heart
+not_adds = [265644, 268121]                     # Blightscale Spawn: eggs the raid hits, never killed (log Nov 11)
 avoidable = [1292403, 1302982, 1301510]         # Caustic Waves, Virulent Spit, Circling Prey
 dispel = []
 must_stop = [1290779, 1305650, 1310764]         # Malice, Anguished Cry, Vicious Echoes

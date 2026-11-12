@@ -47,8 +47,11 @@ func addKit(kit, other models.Kit) {
 	}
 }
 
+// castToBuffMS is how long after a player's cast its buff can land and still be theirs.
+const castToBuffMS = 1000
+
 // ClassifyDeaths sets each death's Defensive (the latest tracked cast in the window before it, or else a defensive
-// buff up at the death) or else its Ready list (what the player carries and could still have used). casts cover the whole run, so an item used in one fight can still be on
+// buff up at the death, Used when the player cast it) or else its Ready list (what the player carries and could still have used). casts cover the whole run, so an item used in one fight can still be on
 // cooldown in the next.
 func ClassifyDeaths(deaths []models.Death, casts []models.Cast, buffs []models.BuffUp, kit models.Kit, windowMS int64) {
 	for i := range deaths {
@@ -64,14 +67,17 @@ func ClassifyDeaths(deaths []models.Death, casts []models.Cast, buffs []models.B
 				recent = &c
 			}
 		}
-		d.Defensive, d.Ready = "", nil
+		d.Defensive, d.Used, d.Ready = "", false, nil
 		if recent != nil {
-			d.Defensive = recent.Ability
+			d.Defensive, d.Used = recent.Ability, true
 			continue
 		}
 		for _, b := range buffs {
 			if b.Fight == d.Fight && b.Player == d.Player && b.Start <= d.At && d.At <= b.End {
 				d.Defensive = b.Ability
+				d.Used = slices.ContainsFunc(mine, func(c models.Cast) bool {
+					return c.Ability == b.Ability && c.At <= b.Start && b.Start-c.At <= castToBuffMS
+				})
 			}
 		}
 		if d.Defensive != "" {

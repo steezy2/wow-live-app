@@ -13,6 +13,8 @@ export interface KeyDeath {
   killer: string
   ability: string
   defensive: string
+  /** They pressed the defensive themselves (missing for an external or a raid cooldown someone put on them). */
+  used?: boolean
   ready: string[]
 }
 
@@ -74,7 +76,7 @@ export interface KeySpike {
   damage: number
   partyCDs: string[]
   overlap: boolean
-  members: { player: string; taken: number; defensive: string; ready: string[] }[]
+  members: { player: string; taken: number; defensive: string; used?: boolean; ready: string[] }[]
   /** The defensive the member hit hardest had ready and didn't use; missing when they used one or had none ready, and
    * in keys saved before Nov 11. */
   unused?: string

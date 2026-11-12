@@ -180,7 +180,7 @@ func TestKeyStep2(t *testing.T) {
 		t.Fatalf("meter = %+v; want 5000, the pet's 1000 to the shaman, 2000 healing, an interrupt and a dispel, "+
 			"9000 avoidable taken, and classes", got.Overall.Rows)
 	}
-	if d := got.Deaths[0]; d.Killer != "Radiant Spellsower" || d.Ability != "Light Bolt" || d.Defensive != "Ice Block" ||
+	if d := got.Deaths[0]; d.Killer != "Radiant Spellsower" || d.Ability != "Light Bolt" || d.Defensive != "Ice Block" || !d.Used ||
 		!slices.ContainsFunc(got.Casts, func(c models.KeyCast) bool { return c.Kind == "defensive" }) ||
 		!slices.ContainsFunc(got.Casts, func(c models.KeyCast) bool { return c.Kind == "cc" && c.Player == "Testshaman" }) {
 		t.Fatalf("death = %+v, casts %+v; want killed by Light Bolt with Ice Block just before", d, got.Casts)

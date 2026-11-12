@@ -1,6 +1,6 @@
 import { type FormEvent, useEffect, useState } from 'react'
 import { fetchKeyStatus, removeKeys, saveKeys, testKeys, type KeyStatus } from './api'
-import { type Note, track } from './note'
+import { track, useNote } from './note'
 import { NoteLine } from './NoteLine'
 
 const CLIENTS_URL = 'https://www.warcraftlogs.com/api/clients'
@@ -18,10 +18,11 @@ export function WCLKeys() {
   const [id, setId] = useState('')
   const [secret, setSecret] = useState('')
   const [showSecret, setShowSecret] = useState(false)
-  const [note, setNote] = useState<Note>(null)
+  const [note, setNote] = useNote('warcraft logs keys')
+  const busy = !!note?.busy
   useEffect(() => {
-    fetchKeyStatus().then(setStatus, () => undefined)
-  }, [])
+    if (!busy) fetchKeyStatus().then(setStatus, () => undefined) // again once a call left running ends
+  }, [busy])
   const run = (call: Promise<KeyStatus | void>, busy: string, done: string) =>
     track(call, setNote, busy, () => done).then(
       (next) => {
@@ -37,7 +38,6 @@ export function WCLKeys() {
     void run(saveKeys(id.trim(), secret.trim(), force), 'Testing with Warcraft Logs…', 'Saved')
   }
   if (!status) return null
-  const busy = !!note?.busy
   const tested = status.testedMS ? ` · tested ${new Date(status.testedMS).toLocaleTimeString()}` : ''
   return (
     <section className="panel settings">

@@ -94,6 +94,7 @@ type KeyDeath struct {
 	Killer    string   `json:"killer"`
 	Ability   string   `json:"ability"`
 	Defensive string   `json:"defensive"`
+	Used      bool     `json:"used,omitempty"` // they pressed Defensive themselves
 	Ready     []string `json:"ready"`
 }
 
@@ -326,6 +327,7 @@ type KeySpikeMember struct {
 	Player    string   `json:"player"`
 	Taken     int64    `json:"taken"`
 	Defensive string   `json:"defensive"`
+	Used      bool     `json:"used,omitempty"` // they pressed Defensive themselves
 	Ready     []string `json:"ready"`
 }
 
@@ -544,6 +546,7 @@ type Death struct {
 	Player    string
 	Ability   string
 	Defensive string
+	Used      bool // the player pressed Defensive (it isn't an external or raid cooldown someone else put up)
 	Ready     []string
 }
 

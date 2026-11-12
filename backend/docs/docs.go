@@ -1569,6 +1569,10 @@ const docTemplate = `{
                     "items": {
                         "type": "string"
                     }
+                },
+                "used": {
+                    "description": "they pressed Defensive themselves",
+                    "type": "boolean"
                 }
             }
         },
@@ -1914,6 +1918,10 @@ const docTemplate = `{
                 },
                 "taken": {
                     "type": "integer"
+                },
+                "used": {
+                    "description": "they pressed Defensive themselves",
+                    "type": "boolean"
                 }
             }
         },
@@ -2618,6 +2626,10 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/models.RaidHit"
                     }
+                },
+                "used": {
+                    "description": "they pressed Defensive themselves",
+                    "type": "boolean"
                 }
             }
         },
@@ -3156,6 +3168,10 @@ const docTemplate = `{
                     "items": {
                         "type": "string"
                     }
+                },
+                "spawner": {
+                    "description": "Spawner: Players spawned it (a carrier who lost what they carried), not just who the cause landed on.",
+                    "type": "boolean"
                 }
             }
         },

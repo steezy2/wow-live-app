@@ -11,6 +11,7 @@ type MPlusReference struct {
 // DungeonFacts is one dungeon's forces table, spell lists (spell IDs) and map floors.
 type DungeonFacts struct {
 	Name       string         `json:"name"`
+	InstanceID int            `json:"instanceID"` // the game's instance (zone) ID, from Keystone.guru
 	Guide      string         `json:"guide"`
 	Floors     []DungeonFloor `json:"floors"` // the map's floors from Keystone.guru, for the replay
 	Forces     Forces         `json:"forces"`

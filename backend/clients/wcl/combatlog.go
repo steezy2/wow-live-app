@@ -288,13 +288,17 @@ func newLogWriter(meta fightMeta, opts FightOptions, w io.Writer) (*logWriter, e
 		lw.spells[a.GameID] = a
 	}
 	lw.addUnits(meta, opts.Logger)
-	zone := fmt.Sprintf(`ZONE_CHANGE,%d,%q,`, fight.GameZone.ID, fight.GameZone.Name)
-	start, end := fight.StartTime, fight.EndTime
+	gameZone, start, end := fight.GameZone, fight.StartTime, fight.EndTime
 	if fight.KeystoneLevel > 0 {
-		mapID := mapIDOf(opts.Dungeons, fight.Name)
+		mapID, dungeon := dungeonOf(opts.Dungeons, fight)
 		if mapID == 0 {
-			return nil, fmt.Errorf("no challenge map ID for %q in the dungeon facts", fight.Name)
+			return nil, fmt.Errorf("no challenge map ID for %q (encounter %d) in the dungeon facts", fight.Name,
+				fight.EncounterID)
 		}
+		if gameZone.ID == 0 {
+			gameZone = idName{ID: dungeon.InstanceID, Name: dungeon.Name}
+		}
+		zone := fmt.Sprintf(`ZONE_CHANGE,%d,%q,`, gameZone.ID, gameZone.Name)
 		affixes := make([]string, len(fight.KeystoneAffixes))
 		for i, a := range fight.KeystoneAffixes {
 			affixes[i] = strconv.Itoa(a)
@@ -304,23 +308,23 @@ func newLogWriter(meta fightMeta, opts FightOptions, w io.Writer) (*logWriter, e
 			timed = 1
 		}
 		lw.mark(start, true, zone+strconv.Itoa(mplusDifficulty))
-		lw.mark(start, true, fmt.Sprintf(`CHALLENGE_MODE_START,%q,%d,%d,%d,[%s]`, fight.Name, fight.GameZone.ID, mapID,
+		lw.mark(start, true, fmt.Sprintf(`CHALLENGE_MODE_START,%q,%d,%d,%d,[%s]`, dungeon.Name, gameZone.ID, mapID,
 			fight.KeystoneLevel, strings.Join(affixes, ",")))
 		for _, p := range fight.DungeonPulls {
 			if p.EncounterID != 0 {
-				lw.encounter(p, mplusDifficulty, fight.Size, fight.GameZone.ID)
+				lw.encounter(p, mplusDifficulty, fight.Size, gameZone.ID)
 			}
 		}
-		lw.mark(end, false, fmt.Sprintf(`CHALLENGE_MODE_END,%d,%d,%d,%d,0.000000,0.000000`, fight.GameZone.ID, timed,
+		lw.mark(end, false, fmt.Sprintf(`CHALLENGE_MODE_END,%d,%d,%d,%d,0.000000,0.000000`, gameZone.ID, timed,
 			fight.KeystoneLevel, fight.KeystoneTime))
 	} else {
 		difficulty, ok := logDifficulties[fight.Difficulty]
 		if fight.EncounterID == 0 || !ok {
 			return nil, fmt.Errorf("fight %d is neither a key nor a raid boss pull", fight.ID)
 		}
-		lw.mark(start, true, zone+strconv.Itoa(difficulty))
+		lw.mark(start, true, fmt.Sprintf(`ZONE_CHANGE,%d,%q,%d`, gameZone.ID, gameZone.Name, difficulty))
 		lw.encounter(pull{EncounterID: fight.EncounterID, Name: fight.Name, StartTime: start, EndTime: end,
-			Kill: fight.Kill}, difficulty, fight.Size, fight.GameZone.ID)
+			Kill: fight.Kill}, difficulty, fight.Size, gameZone.ID)
 	}
 	slices.SortStableFunc(lw.marks, func(a, b mark) int { return cmp.Compare(a.at, b.at) })
 	lw.out.WriteString(lw.stamp(start) + "  COMBAT_LOG_VERSION,22,ADVANCED_LOG_ENABLED,1,BUILD_VERSION,12.1.5," +
@@ -380,14 +384,26 @@ func (lw *logWriter) addUnits(meta fightMeta, logger string) {
 	}
 }
 
-// mapIDOf is the challenge map ID of the dungeon named name, 0 for none.
-func mapIDOf(dungeons map[int]models.DungeonFacts, name string) int {
-	for id, d := range dungeons {
-		if d.Name == name {
-			return id
+// dungeonOf is the challenge map ID (0 for none) and facts of the dungeon a key's fight is in: by the fight's name,
+// else by its instance. Warcraft Logs names a key by its bosses ("Adderis / Merektha / ...") and leaves out its zone
+// in a dungeon it hasn't mapped, but its encounter ID still ends in the instance ID (61877 for instance 1877, as
+// 12813 is Murder Row's 2813).
+func dungeonOf(dungeons map[int]models.DungeonFacts, f fightInfo) (int, models.DungeonFacts) {
+	instance := f.GameZone.ID
+	if instance == 0 {
+		instance = f.EncounterID % 10000
+	}
+	for _, match := range []func(models.DungeonFacts) bool{
+		func(d models.DungeonFacts) bool { return d.Name == f.Name },
+		func(d models.DungeonFacts) bool { return instance != 0 && d.InstanceID == instance },
+	} {
+		for id, d := range dungeons {
+			if match(d) {
+				return id, d
+			}
 		}
 	}
-	return 0
+	return 0, models.DungeonFacts{}
 }
 
 // sameCharacter is whether two "Name-Realm"s are one character, ignoring case, spaces and apostrophes in the realm.
