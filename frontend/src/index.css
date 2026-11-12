@@ -889,15 +889,29 @@ html:has(.overlay) body {
   --wails-draggable: drag; /* the app moves the window by any part of it while it takes clicks */
   --t-clock: 1.5rem;
   box-sizing: border-box;
-  min-height: 100vh;
-  align-content: start;
-  display: grid;
-  gap: 2px;
-  padding: 4px;
   border-radius: 8px;
   font-size: 0.78rem;
   line-height: 1.25;
   background: color-mix(in srgb, var(--bg) var(--overlay-bg, 75%), transparent); /* the opacity setting */
+}
+
+/* The content is as wide as it wants (the overlay's zoom scales it to the window, see useFitZoom); a text line
+ * doesn't set that width, it wraps to it. */
+.overlay-fit {
+  box-sizing: border-box;
+  width: max-content;
+  align-content: start;
+  display: grid;
+  gap: 2px;
+  padding: 4px;
+}
+
+.overlay-wrap {
+  contain: inline-size;
+}
+
+.overlay .card-scroll {
+  overflow: visible;
 }
 
 /* The opacity setting reaches the cards and bars too, so at 0% only the text and the bars' colours are left. */

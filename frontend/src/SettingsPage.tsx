@@ -11,6 +11,7 @@ import {
 } from './api'
 import { track, useNote } from './note'
 import { NoteLine } from './NoteLine'
+import { overlayColumnLabel } from './meterColumns'
 import { useNow, useOverlayMoving } from './useLiveKey'
 import { CombatLogs } from './CombatLogs'
 import { WCLImport } from './WCLImport'
@@ -42,7 +43,9 @@ export function SettingsPage({ view, onSaved }: { view: SettingsView; onSaved: (
     if (
       overlay.show === view.overlay.show &&
       overlay.opacity === view.overlay.opacity &&
-      overlay.split === view.overlay.split
+      overlay.oneCard === view.overlay.oneCard &&
+      overlay.rows === view.overlay.rows &&
+      overlay.columns.join() === view.overlay.columns.join()
     )
       return
     const timer = setTimeout(() => {
@@ -125,11 +128,38 @@ export function SettingsPage({ view, onSaved }: { view: SettingsView; onSaved: (
         <label className="inline">
           <input
             type="checkbox"
-            checked={overlay.split}
-            onChange={(e) => setOverlay({ ...overlay, split: e.target.checked })}
+            checked={overlay.oneCard}
+            onChange={(e) => setOverlay({ ...overlay, oneCard: e.target.checked })}
           />{' '}
-          The pull and the whole key as two cards (taller)
+          One card for the pull and the whole key
         </label>
+        <label>
+          Players per card (0 for everyone)
+          <input
+            type="number"
+            min={0}
+            value={overlay.rows}
+            onChange={(e) => setOverlay({ ...overlay, rows: Math.max(0, Math.floor(Number(e.target.value))) })}
+          />
+        </label>
+        <fieldset>
+          <legend>Columns (none for DPS, HPS and kicks)</legend>
+          {view.overlayColumns.map((id) => (
+            <label key={id} className="inline">
+              <input
+                type="checkbox"
+                checked={overlay.columns.includes(id)}
+                onChange={({ target: { checked } }) =>
+                  setOverlay({
+                    ...overlay,
+                    columns: view.overlayColumns.filter((c) => (c === id ? checked : overlay.columns.includes(c))),
+                  })
+                }
+              />{' '}
+              {overlayColumnLabel(id)}
+            </label>
+          ))}
+        </fieldset>
         <label className="inline">
           <input
             type="checkbox"

@@ -11,23 +11,28 @@ const GAP_PX = 8 // --s2
 const ZEBRA_ROWS = 8
 
 /** One card: a row per player, sorted by the first column (with sortable, by the column whose heading was clicked),
- * with a class-coloured bar across the row against the top value. With onPick, a click on a row picks its player. */
+ * with a class-coloured bar across the row against the top value. With onPick, a click on a row picks its player; with
+ * rows, only that many players show. */
 export function MeterCard({
   title,
   meter,
   columns,
   onPick,
   sortable = false,
+  rows: limit = 0,
 }: {
   title: string
   meter: KeyMeter
   columns: Column[]
   onPick?: (player: string) => void
   sortable?: boolean
+  /** Players to show, the top ones; 0 or missing for everyone. */
+  rows?: number
 }) {
   const [by, setBy] = useState(columns[0].label)
   const first = columns.find((c) => c.label === by) ?? columns[0]
-  const rows = [...meter.rows].sort((a, b) => first.value(b) - first.value(a))
+  const sorted = [...meter.rows].sort((a, b) => first.value(b) - first.value(a))
+  const rows = limit > 0 ? sorted.slice(0, limit) : sorted
   const top = Math.max(1, ...rows.map(first.value))
   const grid = { gridTemplateColumns: `minmax(${NAME_PX}px, 1fr) repeat(${columns.length}, ${NUMBER_PX}px)` }
   const minWidth = NAME_PX + columns.length * (NUMBER_PX + GAP_PX)
