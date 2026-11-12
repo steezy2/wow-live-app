@@ -132,6 +132,7 @@ type keyRun struct {
 	abilities map[[2]string]*models.KeyAbility // (player, ability) -> what it did
 	takenBy   map[[2]string]int64              // (player, ability) -> damage taken from it
 	sample    abilitySampler                   // what the replay's focus bars keep
+	lastDealt [2]string                        // unit GUID and ability of the last hit on an enemy (support)
 }
 
 // NewLogTracker tracks keys with each dungeon's time limit (map ID -> ms), affix names (ID -> name), the page's
@@ -597,6 +598,8 @@ func (k *LogTracker) event(at int64, event string, f []string) {
 	case "SPELL_DAMAGE", "SPELL_PERIODIC_DAMAGE", "RANGE_DAMAGE", "SWING_DAMAGE", "SPELL_MISSED",
 		"SPELL_PERIODIC_MISSED", "SWING_MISSED", "RANGE_MISSED":
 		k.damage(at, event, f, src, dst)
+	case "SPELL_DAMAGE_SUPPORT", "SPELL_PERIODIC_DAMAGE_SUPPORT", "RANGE_DAMAGE_SUPPORT", "SWING_DAMAGE_LANDED_SUPPORT":
+		k.support(at, f, src)
 	case "SPELL_HEAL", "SPELL_PERIODIC_HEAL":
 		if src != "" && len(f) > 32 {
 			k.heal(src, f[9], int64(atoi(f[30])-atoi(f[32])))
@@ -630,10 +633,8 @@ func (k *LogTracker) damage(at int64, event string, f []string, src, dst string)
 		k.keepPull(at)
 	}
 	if dealt {
-		k.tally(src, func(r *models.KeyMeterRow) { r.Damage += amount })
-		a := run.ability(src, ability)
-		a.Damage, a.Hits = a.Damage+amount, a.Hits+1
-		k.hitMob(at, f[4], f[5], src, amount)
+		k.deal(at, f, src, ability, amount).Hits++
+		run.lastDealt = [2]string{f[0], ability}
 	}
 	if hasFlag(f[6], friendlyFlag) && slices.Contains(run.party, f[4]) {
 		avoidable := event == "SPELL_DAMAGE" && run.facts != nil && slices.Contains(run.facts.Avoidable, atoi(f[8]))
@@ -659,6 +660,30 @@ func (k *LogTracker) damage(at int64, event string, f []string, src, dst string)
 			hit.Damage, hit.Hits = hit.Damage+amount, hit.Hits+1
 		}
 	}
+}
+
+// deal counts a player's damage with an ability into the enemy a line hit, to the meters, the ability's row (which
+// it returns) and the pull's priority mobs.
+func (k *LogTracker) deal(at int64, f []string, player, ability string, amount int64) *models.KeyAbility {
+	k.tally(player, func(r *models.KeyMeterRow) { r.Damage += amount })
+	a := k.current.ability(player, ability)
+	a.Damage += amount
+	k.hitMob(at, f[4], f[5], player, amount)
+	return a
+}
+
+// support moves an Augmentation Evoker's share of a party member's hit on an enemy from that member (src, the
+// line's source or its owner) to the Evoker (the line's last field), as Warcraft Logs and Details credit it: the
+// game logs it right after the hit, with the buff (Ebon Might, Prescience...) as the spell, which names the Evoker's
+// row. The enemy's damage taken stays as the hit counted it. An Evoker outside the group changes nothing.
+func (k *LogTracker) support(at int64, f []string, src string) {
+	run, evoker := k.current, f[len(f)-1]
+	if src == "" || !hasFlag(f[6], hostileFlag) || !slices.Contains(run.party, evoker) || run.lastDealt[0] != f[0] {
+		return
+	}
+	amount := hitAmount("SPELL_DAMAGE", f) // every support line has a spell's fields, a swing's too
+	k.deal(at, f, src, run.lastDealt[1], -amount)
+	k.deal(at, f, k.names[evoker], f[9], amount).Hits++
 }
 
 // heal counts a player's healing with an ability, to the meters and to the ability.
