@@ -108,19 +108,33 @@ func (im *Importer) Start(ctx context.Context, region, character string, kinds [
 	return im.run(state, func(ctx context.Context, st *importState) error { return im.list(ctx, st, name, slug) })
 }
 
-// Plan is what Start would import for character, by kind, with an estimate of the points; it lists the reports as
-// Start does, which caches them for a Start soon after. Its errors are Start's, and Warcraft Logs'.
-func (im *Importer) Plan(ctx context.Context, region, character string) (models.ImportPlan, error) {
-	im.mu.Lock()
-	busy := im.cancel != nil
-	im.mu.Unlock()
-	if busy {
-		return models.ImportPlan{}, ErrBusy
-	}
+// Find checks character and, in the background, lists its reports for what Start would import (the status's Plan,
+// once its state leaves listing), answering at once; Stop ends it. Its errors are Start's.
+func (im *Importer) Find(ctx context.Context, region, character string) error {
 	name, slug, err := im.Characters.Resolve(ctx, region, character)
 	if err != nil {
-		return models.ImportPlan{}, err
+		return err
 	}
+	status := models.ImportStatus{State: importListing, Character: character}
+	return im.begin(status, func(ctx context.Context) {
+		plan, err := im.plan(ctx, region, character, name, slug)
+		im.mu.Lock()
+		defer im.mu.Unlock()
+		switch {
+		case ctx.Err() != nil:
+			im.status.State = importIdle
+		case err != nil:
+			log.Printf("finding fights on Warcraft Logs: %v", err)
+			im.status.State, im.status.Problem = importFailed, err.Error()
+		default:
+			im.status.State, im.status.Plan = importIdle, &plan
+		}
+	})
+}
+
+// plan is what Start would import for character, by kind, with an estimate of the points; it lists the reports as
+// Start does, which caches them for a Start soon after.
+func (im *Importer) plan(ctx context.Context, region, character, name, slug string) (models.ImportPlan, error) {
 	before, err := im.Source.RateLimit(ctx)
 	if err != nil {
 		return models.ImportPlan{}, err
@@ -216,20 +230,16 @@ func (im *Importer) Status() models.ImportStatus {
 	return status
 }
 
-// run starts the import of state in the background: first (when set) fills in its fights, then each is fetched.
-func (im *Importer) run(state importState, first func(context.Context, *importState) error) error {
+// begin runs job in the background as the one import or Find at a time, from status; ErrBusy while one runs. Stop
+// cancels job's context.
+func (im *Importer) begin(status models.ImportStatus, job func(ctx context.Context)) error {
 	im.mu.Lock()
 	defer im.mu.Unlock()
 	if im.cancel != nil {
 		return ErrBusy
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	im.cancel, im.done = cancel, make(chan struct{})
-	im.status = models.ImportStatus{State: importRunning, Character: state.Character}
-	if first != nil {
-		im.status.State = importListing
-	}
-	im.show(&state)
+	im.cancel, im.done, im.status = cancel, make(chan struct{}), status
 	go func() {
 		defer func() {
 			im.mu.Lock()
@@ -238,6 +248,19 @@ func (im *Importer) run(state importState, first func(context.Context, *importSt
 			close(im.done)
 			im.cancel = nil
 		}()
+		job(ctx)
+	}()
+	return nil
+}
+
+// run starts the import of state in the background: first (when set) fills in its fights, then each is fetched.
+func (im *Importer) run(state importState, first func(context.Context, *importState) error) error {
+	status := models.ImportStatus{State: importRunning}
+	if first != nil {
+		status.State = importListing
+	}
+	state.show(&status)
+	return im.begin(status, func(ctx context.Context) {
 		err := error(nil)
 		if first != nil {
 			err = first(ctx, &state)
@@ -260,8 +283,7 @@ func (im *Importer) run(state importState, first func(context.Context, *importSt
 		default:
 			im.status.State = importDone
 		}
-	}()
-	return nil
+	})
 }
 
 // list fills st's fights from the character's reports.
@@ -272,7 +294,7 @@ func (im *Importer) list(ctx context.Context, st *importState, name, slug string
 	}
 	st.Fights = fights
 	im.mu.Lock()
-	im.show(st)
+	st.show(&im.status)
 	im.mu.Unlock()
 	return im.writeState(*st)
 }
@@ -352,7 +374,7 @@ func (im *Importer) fetchAll(ctx context.Context, st *importState) error {
 			st.Done = append(st.Done, ref.ReportLink)
 		}
 		im.mu.Lock()
-		im.show(st)
+		st.show(&im.status)
 		if fetchErr != nil {
 			im.status.Problem = fetchErr.Error()
 		}
@@ -410,12 +432,12 @@ func (st importState) left() []models.FightRef {
 	})
 }
 
-// show copies st's counts into the status; im.mu is held.
-func (im *Importer) show(st *importState) {
+// show copies st's counts into status (im.status with im.mu held).
+func (st *importState) show(status *models.ImportStatus) {
 	picked, left := st.picked(), st.left() // Done also holds earlier imports' fights, which aren't picked
-	im.status.Character, im.status.Fights = st.Character, len(picked)
-	im.status.FightsDone, im.status.FightsFailed = len(picked)-len(left)-len(st.Failed), len(st.Failed)
-	im.status.PointsSpent = st.PointsSpent
+	status.Character, status.Fights = st.Character, len(picked)
+	status.FightsDone, status.FightsFailed = len(picked)-len(left)-len(st.Failed), len(st.Failed)
+	status.PointsSpent = st.PointsSpent
 }
 
 func (im *Importer) setState(state string, resumeAt int64) {

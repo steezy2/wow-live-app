@@ -203,12 +203,17 @@ func TestImportResumesFromItsState(t *testing.T) {
 	}
 }
 
-func TestPlanCountsEachKind(t *testing.T) {
+func TestFindCountsEachKindInTheBackground(t *testing.T) {
 	ti := newTestImporter(t, []models.RateLimit{plenty, {LimitPerHour: 3600, PointsSpentThisHour: 104}})
-	plan, err := ti.Plan(context.Background(), "us", "Testmage-Area52")
-	if err != nil {
+	if err := ti.Find(context.Background(), "us", "Testmage-Area52"); err != nil {
 		t.Fatal(err)
 	}
+	ti.finish()
+	s := ti.Status()
+	if s.State != importIdle || s.Plan == nil {
+		t.Fatalf("status %+v, want idle with a plan", s)
+	}
+	plan := *s.Plan
 	if plan.Character != "Testmage-Area52" || plan.PointsPerHour != 3400 || plan.ListedPoints != 4 {
 		t.Errorf("plan %+v, want Testmage's, 3,400 points an hour and 4 spent listing", plan)
 	}
@@ -222,18 +227,30 @@ func TestPlanCountsEachKind(t *testing.T) {
 	}
 }
 
-func TestPlanIsBusyWhileAnImportRuns(t *testing.T) {
+func TestStopEndsAFindWithoutAPlan(t *testing.T) {
+	ti := newTestImporter(t, []models.RateLimit{plenty})
+	ti.Prepare = func() error { ti.Stop(); return nil }
+	if err := ti.Find(context.Background(), "us", "Testmage-Area52"); err != nil {
+		t.Fatal(err)
+	}
+	ti.finish()
+	if s := ti.Status(); s.State != importIdle || s.Plan != nil {
+		t.Errorf("status %+v, want idle without a plan", s)
+	}
+}
+
+func TestFindIsBusyWhileAnImportRuns(t *testing.T) {
 	ti := newTestImporter(t, []models.RateLimit{plenty})
 	release := make(chan struct{})
 	ti.Prepare = func() error { <-release; return nil }
 	if err := ti.Start(context.Background(), "us", "Testmage-Area52", keysOnly); err != nil {
 		t.Fatal(err)
 	}
-	_, err := ti.Plan(context.Background(), "us", "Testmage-Area52")
+	err := ti.Find(context.Background(), "us", "Testmage-Area52")
 	close(release)
 	ti.finish()
 	if !errors.Is(err, ErrBusy) {
-		t.Errorf("planned during an import: %v, want ErrBusy", err)
+		t.Errorf("found fights during an import: %v, want ErrBusy", err)
 	}
 }
 

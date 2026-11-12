@@ -100,21 +100,23 @@ var (
 		"try again later")
 )
 
-// ImportStatus is how an import of a character's Warcraft Logs reports stands: listing the reports, fetching fights,
-// waiting for the hour's points (until ResumeAtMS), done, or failed (Problem says why; a failed fight leaves it
-// running, with the fight's error in Problem). PointsPerFight is the average so far; Imported is how many saved keys
-// and pulls came from Warcraft Logs, whichever import saved them.
+// ImportStatus is how an import of a character's Warcraft Logs reports, or a Find fights, stands: listing the
+// reports, fetching fights, waiting for the hour's points (until ResumeAtMS), done, or failed (Problem says why; a
+// failed fight leaves it running, with the fight's error in Problem). PointsPerFight is the average so far; Imported
+// is how many saved keys and pulls came from Warcraft Logs, whichever import saved them; Plan is what the last Find
+// fights found, until an import starts.
 type ImportStatus struct {
-	State          string  `json:"state" enums:"idle,listing,running,waiting,done,failed"`
-	Character      string  `json:"character"`
-	Fights         int     `json:"fights"`
-	FightsDone     int     `json:"fightsDone"`
-	FightsFailed   int     `json:"fightsFailed"`
-	PointsSpent    float64 `json:"pointsSpent"`
-	PointsPerFight float64 `json:"pointsPerFight"`
-	ResumeAtMS     int64   `json:"resumeAtMS"`
-	Problem        string  `json:"problem"`
-	Imported       int     `json:"imported"`
+	State          string      `json:"state" enums:"idle,listing,running,waiting,done,failed"`
+	Character      string      `json:"character"`
+	Fights         int         `json:"fights"`
+	FightsDone     int         `json:"fightsDone"`
+	FightsFailed   int         `json:"fightsFailed"`
+	PointsSpent    float64     `json:"pointsSpent"`
+	PointsPerFight float64     `json:"pointsPerFight"`
+	ResumeAtMS     int64       `json:"resumeAtMS"`
+	Problem        string      `json:"problem"`
+	Imported       int         `json:"imported"`
+	Plan           *ImportPlan `json:"plan,omitempty"`
 }
 
 // KeyStatus is what the page shows about the saved Warcraft Logs keys, never the secret: whether they're set, the

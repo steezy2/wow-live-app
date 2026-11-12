@@ -1,9 +1,8 @@
 import { type FormEvent, useEffect, useState } from 'react'
 import {
-  fetchImportPlan,
   fetchImportStatus,
+  findFights,
   type ImportKind,
-  type ImportPlan,
   type ImportStatus,
   removeImported,
   savedSettings,
@@ -23,17 +22,17 @@ const POLL_MS = 2000
 const going = (s: ImportStatus) => s.state === 'listing' || s.state === 'running' || s.state === 'waiting'
 
 /** Import from Warcraft Logs: the character (saved with the settings), Find fights (what an import would fetch, by
- * kind, with its points), the kinds to tick and Import, the progress while it runs, Stop, and Remove imported (which
- * asks first). */
+ * kind, with its points, listed in the background so leaving the page doesn't lose it), the kinds to tick and Import,
+ * the progress while it runs, Stop, and Remove imported (which asks first). */
 export function WCLImport({ view, onSaved }: { view: SettingsView; onSaved: (view: SettingsView) => void }) {
   const [character, setCharacter] = useState(view.character)
   const [status, setStatus] = useState<ImportStatus | null>(null)
-  const [found, setFound] = useState<ImportPlan | null>(null)
-  const [kinds, setKinds] = useState<ImportKind[]>([])
+  const [picked, setPicked] = useState<ImportKind[] | null>(null)
   const [removing, setRemoving] = useState(false)
   const [note, setNote] = useState<Note>(null)
   const running = status !== null && going(status)
-  const plan = !running && found?.character === view.character ? found : null
+  const plan = !running && status?.plan?.character === view.character ? status.plan : null
+  const kinds = picked ?? plan?.kinds.filter((k) => k.default).map((k) => k.kind) ?? []
   useEffect(() => {
     const controller = new AbortController()
     const read = () => fetchImportStatus(controller.signal).then(setStatus, () => undefined)
@@ -49,23 +48,21 @@ export function WCLImport({ view, onSaved }: { view: SettingsView; onSaved: (vie
     const call = saveSettings({ ...savedSettings(view), character: character.trim() })
     track(call, setNote, 'Checking the realm with Warcraft Logs…', () => 'Saved').then(onSaved, () => undefined)
   }
-  const findFights = () =>
-    track(fetchImportPlan(), setNote, "Listing the character's reports…", (p) =>
-      `Listing them took ${Math.round(p.listedPoints)} points`,
-    ).then(
-      (p) => {
-        setFound(p)
-        setKinds(p.kinds.filter((k) => k.default).map((k) => k.kind))
+  const find = () =>
+    track(findFights(), setNote, 'Checking the character…', () => '').then(
+      (s) => {
+        setNote(null)
+        setPicked(null)
+        setStatus(s)
       },
       () => undefined,
     )
   const toggle = (kind: ImportKind) =>
-    setKinds(kinds.includes(kind) ? kinds.filter((k) => k !== kind) : [...kinds, kind])
+    setPicked(kinds.includes(kind) ? kinds.filter((k) => k !== kind) : [...kinds, kind])
   const act = (call: Promise<ImportStatus | void>, busy: string, done: string) =>
     track(call, setNote, busy, () => done).then(
       () => {
         setRemoving(false)
-        setFound(null)
         return fetchImportStatus().then(setStatus)
       },
       () => undefined,
@@ -104,8 +101,8 @@ export function WCLImport({ view, onSaved }: { view: SettingsView; onSaved: (vie
             <button
               type="button"
               disabled={busy || !saved}
-              title={saved ? "Lists the character's reports: about 2 points a report" : 'Save the character first'}
-              onClick={() => void findFights()}
+              title={saved ? "Lists the character's reports: about 2 points a new report" : 'Save the character first'}
+              onClick={() => void find()}
             >
               Find fights
             </button>
@@ -127,6 +124,7 @@ export function WCLImport({ view, onSaved }: { view: SettingsView; onSaved: (vie
           ))}
           <div className="actions">
             <span>{importTotal(plan, kinds)}</span>
+            <span className="muted">Listing took {Math.round(plan.listedPoints)} points</span>
             <button
               type="button"
               disabled={busy || !plan.kinds.some((k) => kinds.includes(k.kind) && k.fights > 0)}
@@ -153,6 +151,7 @@ export function WCLImport({ view, onSaved }: { view: SettingsView; onSaved: (vie
           </button>
         </div>
       )}
+      {status.state === 'listing' && <div className="busy-bar" role="progressbar" aria-label="Listing the reports" />}
       <p className={status.state === 'failed' ? 'warning' : 'muted'}>{importProgress(status, Date.now())}</p>
       <NoteLine note={note} />
     </section>
