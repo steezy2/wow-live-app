@@ -11,7 +11,7 @@ import {
 } from './api'
 import { type Note, track } from './note'
 import { NoteLine } from './NoteLine'
-import { useOverlayMoving } from './useLiveKey'
+import { useNow, useOverlayMoving } from './useLiveKey'
 import { CombatLogs } from './CombatLogs'
 import { WCLImport } from './WCLImport'
 import { WCLKeys } from './WCLKeys'
@@ -38,6 +38,7 @@ export function SettingsPage({ view, onSaved }: { view: SettingsView; onSaved: (
   const [oldKeys, setOldKeys] = useState<Note>(null)
   const [logsRead, setLogsRead] = useState(0) // remounts the log list after a read, which marks logs read
   const moving = useOverlayMoving()
+  const now = useNow(60_000)
   useEffect(() => {
     if (
       overlay.show === view.overlay.show &&
@@ -63,7 +64,7 @@ export function SettingsPage({ view, onSaved }: { view: SettingsView; onSaved: (
       'Reading the log folder…',
       ({ read, saved }) => `${read} logs read · ${saved} keys saved`,
     ).then(() => setLogsRead((n) => n + 1), () => undefined)
-  const minutes = view.lastLogMS ? Math.round((Date.now() - view.lastLogMS) / 60_000) : null
+  const minutes = view.lastLogMS ? Math.round((now - view.lastLogMS) / 60_000) : null
   return (
     <div className="settings-page">
       <form className="panel settings" onSubmit={save}>

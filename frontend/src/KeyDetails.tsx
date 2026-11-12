@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import type { KeyForces, KeyGhost, KeyReview as Review, KeyTrack, KeyView } from './api'
 import { chestLabel, clock, oddsText, pullTitle, resultText, share } from './format'
 import { DamageGraph } from './DamageGraph'
@@ -39,14 +39,14 @@ export function KeyDetails({
   const track = useTrack(key.start, key.status === 'running')
   const replay = useReplay(clockMS, clockMS)
   const [focus, setFocus] = useState('')
-  const replayBox = useRef<HTMLElement>(null)
+  const [replayBox, setReplayBox] = useState<HTMLElement | null>(null)
   const setAt = replay.setAt
   const show = useCallback(
     (ms: number) => {
       setAt(ms)
-      replayBox.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      replayBox?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     },
-    [setAt],
+    [setAt, replayBox],
   )
   const seek = useMemo<Seeker | undefined>(
     () =>
@@ -213,7 +213,7 @@ export function KeyDetails({
         onFocus={key.status === 'running' ? undefined : setFocus}
       />
 
-      <section ref={replayBox} className="panel map-panel">
+      <section ref={setReplayBox} className="panel map-panel">
         <h2>Replay</h2>
         <KeyMap keyView={key} clockMS={clockMS} track={track} replay={replay} focus={focus} onFocus={setFocus} />
       </section>
