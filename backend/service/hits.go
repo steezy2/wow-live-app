@@ -29,13 +29,15 @@ type recapLine struct {
 }
 
 // bigHit is a big hit running or finished: whose, the second of the log its stretch starts (as a spike's), its start
-// on the run's clock and the max HP its bar came from; once finished, what it was and its recap.
+// on the run's clock and the max HP its bar came from; once finished, what it was, the player's lowest health in it
+// (%, 0 when unknown) and its recap.
 type bigHit struct {
 	player  string
 	second  int64
 	clockMS int64
 	maxHP   int64
 	done    bool
+	lowHP   float64
 	hit     models.KeyBigHit
 	recap   models.HitRecap
 }
@@ -201,6 +203,7 @@ func (k *LogTracker) finishBigHits(run *keyRun, at int64, closing bool) {
 		}
 		h.hit, h.done = k.measure(run, h), true
 		h.recap = w.recap(h.player, end, run.clock(end), k.recapMS())
+		h.lowHP = w.lowest(h.player, h.second*1000, end)
 		w.open = w.open[1:]
 	}
 }
@@ -225,12 +228,15 @@ func (k *LogTracker) diedAfter(run *keyRun, h *bigHit) bool {
 	})
 }
 
-// bigHits is the run's big hits by clock (then player), running ones as they stand, each with the player's cover by
-// the death rules at its end (as a spike's) and whether they died within the recap's length.
+// bigHits is the run's kept big hits by clock (then player), running ones as they stand, each with the player's cover
+// by the death rules at its end (as a spike's) and whether they died within the recap's length.
 func (k *LogTracker) bigHits(run *keyRun, buffs []models.BuffUp, kit models.Kit) []models.KeyBigHit {
 	var hits []models.KeyBigHit
 	var cover []models.Death
 	for _, h := range run.hits.all {
+		if !k.kept(run, h) {
+			continue
+		}
 		hit := h.hit
 		if !h.done {
 			hit = k.measure(run, h)
@@ -258,12 +264,12 @@ func (k *LogTracker) deathRecap(run *keyRun, at int64, player string, clockMS in
 	}
 }
 
-// recaps is a run's recaps by clock, then player: each death's, and each finished big hit's whose player didn't die
+// recaps is a run's recaps by clock, then player: each death's, and each finished big hit kept whose player didn't die
 // within the recap's length (that hit's recap is the death's).
 func (k *LogTracker) recaps(run *keyRun) []models.HitRecap {
 	out := list(run.track.Recaps)
 	for _, h := range run.hits.all {
-		if h.done && !k.diedAfter(run, h) {
+		if h.done && k.kept(run, h) && !k.diedAfter(run, h) {
 			out = append(out, h.recap)
 		}
 	}
@@ -271,4 +277,35 @@ func (k *LogTracker) recaps(run *keyRun) []models.HitRecap {
 		return cmp.Or(cmp.Compare(a.ClockMS, b.ClockMS), cmp.Compare(a.Player, b.Player))
 	})
 	return out
+}
+
+// lowest is a player's lowest health (%) in their buffer from..to (log time), 0 when no event in it says.
+func (w *hitWatch) lowest(player string, from, to int64) float64 {
+	low := 0.0
+	for i := len(w.last[player]) - 1; i >= 0 && w.last[player][i].at >= from; i-- {
+		if l := w.last[player][i]; l.at <= to && l.event.HPPct > 0 && (low == 0 || l.event.HPPct < low) {
+			low = l.event.HPPct
+		}
+	}
+	return low
+}
+
+// kept says whether a big hit counts: with [big_hits] low_hp_pct set, only when the player's health fell under it
+// during the hit (a death in it counts as 0); a running hit is judged on what it has so far.
+func (k *LogTracker) kept(run *keyRun, h *bigHit) bool {
+	bar := k.rules.BigHits.LowHPPct
+	if bar == 0 {
+		return true
+	}
+	from, to := h.second*1000, k.bigHitEnd(h)
+	if slices.ContainsFunc(run.deaths, func(d models.Death) bool {
+		return d.Player == h.player && d.At >= from && d.At <= to
+	}) {
+		return true
+	}
+	low := h.lowHP
+	if !h.done {
+		low = run.hits.lowest(h.player, from, to)
+	}
+	return low > 0 && low < bar
 }
