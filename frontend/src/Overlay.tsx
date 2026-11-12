@@ -16,20 +16,15 @@ import { HitRecapView, recapOf } from './HitRecap'
 import { ForcesBar, TimerBar } from './KeyDetails'
 import { overlayColumn } from './meterColumns'
 import { MeterCard } from './MeterCards'
-import { ReadyPanel } from './ReadyPanel'
 import { RaidOverlayCard } from './RaidPage'
 import { abilitiesBetween, useTrack } from './replay'
-import { useLiveKey, useOverlayMoving, useRaidLive, useReady } from './useLiveKey'
+import { useLiveKey, useOverlayMoving, useRaidLive } from './useLiveKey'
 
 /** How many of a player's abilities (and enemies) the overlay's breakdown lists. */
 const OVERLAY_SPELLS = 8
 
 /** How many rows of a death's recap the overlay shows (the newest). */
 const OVERLAY_RECAP_ROWS = 12
-
-/** How long into a key the overlay shows who started without a flask, food, rune or party buff (the countdown and
- * a little after, while there's still time to fix it). */
-const START_CHECK_MS = 30_000
 
 /** The columns the overlay shows when none are chosen in the settings. */
 const DEFAULT_COLUMNS: OverlayColumn[] = ['dps', 'hps', 'kicks']
@@ -94,7 +89,6 @@ export function Overlay() {
   const { key, clockMS } = useLiveKey()
   const moving = useOverlayMoving()
   const settings = useOverlaySettings()
-  const ready = useReady()
   const raid = useRaidLive(key?.status !== 'running')
   const { root, content } = useFitZoom()
   return (
@@ -107,8 +101,6 @@ export function Overlay() {
         {moving && <p className="small">Drag to move, drag an edge to resize; Ctrl+Alt+O or Settings when done.</p>}
         {raid?.betweenPulls && raid.last ? (
           <RaidOverlayCard pull={raid.last} rows={settings.rows} />
-        ) : ready && key?.status !== 'running' ? (
-          <ReadyPanel ready={ready} compact />
         ) : key ? (
           <OverlayKey keyView={key} clockMS={clockMS} settings={settings} />
         ) : (
@@ -163,11 +155,6 @@ function OverlayKey(props: { keyView: KeyView; clockMS: number; settings: Overla
       </div>
       {timer > 0 && <TimerBar clockMS={clockMS} timerMS={timer} keyView={key} best={projection?.best ?? []} />}
       {key.forces && <ForcesBar forces={key.forces} level={key.level} />}
-      {key.status === 'running' && clockMS < START_CHECK_MS && key.buffs.length > 0 && (
-        <p className="warning small overlay-extra overlay-wrap">
-          Missing: {key.buffs.map((b) => `${b.player} ${b.missing.join(', ')}`).join(' · ')}
-        </p>
-      )}
       <button
         className="row-button small overlay-wrap"
         disabled={key.deaths.length === 0}

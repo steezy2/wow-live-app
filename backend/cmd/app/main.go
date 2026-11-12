@@ -136,15 +136,10 @@ func run() error {
 	// Moving: the overlay takes clicks so it can be dragged and resized, and shows whatever the settings say so it
 	// can be placed.
 	var moving atomic.Bool
-	// During keys counts the time in the key's dungeon before it starts too, for the ready check.
-	readyCheck := func() bool {
-		_, ok := site.Keys.Ready()
-		return ok
-	}
-	// ...and between raid pulls, the last pull for service.RaidLinger.
+	// Between raid pulls the overlay shows the last pull for service.RaidLinger.
 	betweenPulls := func() bool { return site.Keys.BetweenPulls(time.Now().UnixMilli()) }
 	up := func(show string) bool {
-		return moving.Load() || show == "always" || show == "keys" && (running() || readyCheck() || betweenPulls())
+		return moving.Load() || show == "always" || show == "keys" && (running() || betweenPulls())
 	}
 	showOrHide := func(show string) {
 		if up(show) {
