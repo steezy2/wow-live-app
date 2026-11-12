@@ -56,6 +56,15 @@ func (c *Client) ImportFight(ctx context.Context, code string, fightID int, opts
 	return path, c.removePages(code, fightID)
 }
 
+// support is an Augmentation support event's buffed unit (the hit's or heal's own source) and the Evoker's GUID, which
+// ends the game's *_SUPPORT line; ok is false for any other event.
+func (lw *logWriter) support(e *event) (buffed, evoker string, ok bool) {
+	if e.SupportID == 0 || !e.SubtractsFromSupportedActor {
+		return "", "", false
+	}
+	return lw.unit(e.SupportID, e.SupportInstance), lw.guid(lw.units[e.SourceID], e.SourceInstance), true
+}
+
 // ImportedFight is the report fight in a zip ImportFight wrote, read from its name; false for another file.
 func ImportedFight(path string) (models.ReportLink, bool) {
 	name := strings.TrimSuffix(filepath.Base(path), ".zip")
@@ -440,16 +449,22 @@ func (lw *logWriter) text(e *event) string {
 	case "damage":
 		return lw.damage(e, src, dst)
 	case "heal":
-		amount := e.Amount + e.Overheal
-		return fmt.Sprintf("%s,%s,%s,%s,%d,%d,%d,%d,%s", spellPrefix(e)+"HEAL", units, spell,
-			lw.advanced(e, 2), amount, amount, e.Overheal, e.Absorbed, crit(e.HitType))
+		amount, event, end := e.Amount+e.Overheal, spellPrefix(e)+"HEAL", ""
+		if buffed, evoker, ok := lw.support(e); ok {
+			event, units, end = event+"_SUPPORT", buffed+","+dst, ","+evoker
+		}
+		return fmt.Sprintf("%s,%s,%s,%s,%d,%d,%d,%d,%s%s", event, units, spell,
+			lw.advanced(e, 2), amount, amount, e.Overheal, e.Absorbed, crit(e.HitType), end)
 	case "absorbed":
-		attack := ""
+		attack, event, end := "", "SPELL_ABSORBED", ""
 		if e.ExtraAbilityGameID != meleeAbility {
 			attack = lw.spell(e.ExtraAbilityGameID) + ","
 		}
-		return fmt.Sprintf("SPELL_ABSORBED,%s,%s,%s%s,%s,%d,0,nil", lw.unit(e.AttackerID, e.AttackerInstance), dst,
-			attack, src, spell, e.Amount)
+		if buffed, evoker, ok := lw.support(e); ok {
+			event, src, end = event+"_SUPPORT", buffed, ","+evoker
+		}
+		return fmt.Sprintf("%s,%s,%s,%s%s,%s,%d,0,nil%s", event, lw.unit(e.AttackerID, e.AttackerInstance), dst,
+			attack, src, spell, e.Amount, end)
 	case "applybuff", "applydebuff":
 		return "SPELL_AURA_APPLIED," + units + "," + spell + "," + auraKind(e.Type)
 	case "removebuff", "removedebuff":
@@ -516,11 +531,11 @@ func (lw *logWriter) damage(e *event, src, dst string) string {
 	if e.IsAoE {
 		reach = "AOE"
 	}
+	buffed, evoker, support := lw.support(e)
 	switch {
-	case e.SupportID != 0 && e.SubtractsFromSupportedActor:
-		return spellPrefix(e) + "DAMAGE_SUPPORT," + lw.unit(e.SupportID, e.SupportInstance) + "," + dst + "," +
-			lw.spell(e.AbilityGameID) + "," + lw.advanced(e, 2) + "," + hit + "," +
-			lw.guid(lw.units[e.SourceID], e.SourceInstance)
+	case support:
+		return spellPrefix(e) + "DAMAGE_SUPPORT," + buffed + "," + dst + "," + lw.spell(e.AbilityGameID) + "," +
+			lw.advanced(e, 2) + "," + hit + "," + evoker
 	case splitAbilities[e.AbilityGameID]:
 		return "DAMAGE_SPLIT," + src + "," + dst + "," + lw.spell(e.AbilityGameID) + "," + lw.advanced(e, 2) + "," + hit +
 			"," + reach

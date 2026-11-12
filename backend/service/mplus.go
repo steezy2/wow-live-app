@@ -89,50 +89,51 @@ type LogTracker struct {
 
 // keyRun is the running key and what it takes to show it.
 type keyRun struct {
-	key       models.Key
-	instance  string
-	deaths    []models.Death
-	casts     []models.Cast
-	buffs     []models.BuffUp
-	recent    map[string][]hitAt           // player GUID -> their last hits (absorbed ones too), newest last
-	dead      map[string]bool              // mobs whose death was handled, so its second death line does nothing
-	uncounted map[int]*models.UncountedNPC // enemies that died without being in the dungeon file, by NPC ID
-	down      map[string]bool              // party members dead in this pull, by name
-	fighting  map[string]map[int64]bool    // player -> seconds of the log they were alive in a pull
-	acting    map[string]map[int64]bool    // player -> seconds of the log with a cast or hit of theirs
-	casting   map[string]*openCast         // caster GUID -> its must-stop cast in progress
-	kick      *pendingKick                 // a kick waiting for its interrupt
-	lastKick  map[string]int64             // player -> when they last interrupted
-	debuffs   map[[2]string]int64          // (party GUID, debuff) -> when a dispellable debuff landed
-	removed   map[[2]string][2]int64       // a dispellable debuff just removed: when it landed and came off
-	track     models.KeyTrack              // where the party went and mobs died
-	sampled   map[string]int64             // party GUID -> when its position was last kept
-	mobAt     map[string]models.TrackPoint // mob GUID -> where it was last seen
-	taken     map[string]map[int64]int64   // player -> second of the log -> damage taken
-	pullOf    map[int64]int                // second of the log -> the pull damage was taken in
-	avoidable map[[2]string]*models.KeyHit // (player, ability) -> avoidable damage taken and direct hits
-	pulls     map[int]*pullStat            // pull -> what it did to the priority mobs
-	mobHP     map[string]int64             // mob GUID -> max health, from advanced logging
-	bossPull  map[int]bool                 // pulls that are boss fights
-	mobPull   map[string]int               // mob GUID -> the pull it was first hit in
-	meterAt   int64                        // when the meters were last sampled for the replay
-	party     []string                     // player GUIDs, from COMBATANT_INFO at the start
-	auras     map[string][]int             // player GUID -> aura IDs at the start
-	gear      map[string][]int             // player GUID -> equipped item IDs at the start
-	pull      int
-	pullFrom  int64
-	pullAt    int64 // the pull's start on the key's clock
-	pullLast  int64
-	marked    markedSpan           // the seconds keepPull already marked in fighting
-	facts     *models.DungeonFacts // nil when the reference file doesn't have the dungeon
-	total     map[string]*models.KeyMeterRow
-	inPull    map[string]*models.KeyMeterRow
-	lastPull  models.KeyMeter
-	raid      *raidRun                         // nil for a key
-	abilities map[[2]string]*models.KeyAbility // (player, ability) -> what it did
-	takenBy   map[[2]string]int64              // (player, ability) -> damage taken from it
-	sample    abilitySampler                   // what the replay's focus bars keep
-	lastDealt [2]string                        // unit GUID and ability of the last hit on an enemy (support)
+	key        models.Key
+	instance   string
+	deaths     []models.Death
+	casts      []models.Cast
+	buffs      []models.BuffUp
+	recent     map[string][]hitAt           // player GUID -> their last hits (absorbed ones too), newest last
+	dead       map[string]bool              // mobs whose death was handled, so its second death line does nothing
+	uncounted  map[int]*models.UncountedNPC // enemies that died without being in the dungeon file, by NPC ID
+	down       map[string]bool              // party members dead in this pull, by name
+	fighting   map[string]map[int64]bool    // player -> seconds of the log they were alive in a pull
+	acting     map[string]map[int64]bool    // player -> seconds of the log with a cast or hit of theirs
+	casting    map[string]*openCast         // caster GUID -> its must-stop cast in progress
+	kick       *pendingKick                 // a kick waiting for its interrupt
+	lastKick   map[string]int64             // player -> when they last interrupted
+	debuffs    map[[2]string]int64          // (party GUID, debuff) -> when a dispellable debuff landed
+	removed    map[[2]string][2]int64       // a dispellable debuff just removed: when it landed and came off
+	track      models.KeyTrack              // where the party went and mobs died
+	sampled    map[string]int64             // party GUID -> when its position was last kept
+	mobAt      map[string]models.TrackPoint // mob GUID -> where it was last seen
+	taken      map[string]map[int64]int64   // player -> second of the log -> damage taken
+	pullOf     map[int64]int                // second of the log -> the pull damage was taken in
+	avoidable  map[[2]string]*models.KeyHit // (player, ability) -> avoidable damage taken and direct hits
+	pulls      map[int]*pullStat            // pull -> what it did to the priority mobs
+	mobHP      map[string]int64             // mob GUID -> max health, from advanced logging
+	bossPull   map[int]bool                 // pulls that are boss fights
+	mobPull    map[string]int               // mob GUID -> the pull it was first hit in
+	meterAt    int64                        // when the meters were last sampled for the replay
+	party      []string                     // player GUIDs, from COMBATANT_INFO at the start
+	auras      map[string][]int             // player GUID -> aura IDs at the start
+	gear       map[string][]int             // player GUID -> equipped item IDs at the start
+	pull       int
+	pullFrom   int64
+	pullAt     int64 // the pull's start on the key's clock
+	pullLast   int64
+	marked     markedSpan           // the seconds keepPull already marked in fighting
+	facts      *models.DungeonFacts // nil when the reference file doesn't have the dungeon
+	total      map[string]*models.KeyMeterRow
+	inPull     map[string]*models.KeyMeterRow
+	lastPull   models.KeyMeter
+	raid       *raidRun                         // nil for a key
+	abilities  map[[2]string]*models.KeyAbility // (player, ability) -> what it did
+	takenBy    map[[2]string]int64              // (player, ability) -> damage taken from it
+	sample     abilitySampler                   // what the replay's focus bars keep
+	lastDealt  [2]string                        // unit GUID and ability of the last hit on an enemy (support)
+	lastHealed [2]string                        // player and ability of the last heal or absorb (support)
 }
 
 // NewLogTracker tracks keys with each dungeon's time limit (map ID -> ms), affix names (ID -> name), the page's
@@ -602,13 +603,26 @@ func (k *LogTracker) event(at int64, event string, f []string) {
 		k.support(at, f, src)
 	case "SPELL_HEAL", "SPELL_PERIODIC_HEAL":
 		if src != "" && len(f) > 32 {
-			k.heal(src, f[9], int64(atoi(f[30])-atoi(f[32])))
+			k.heal(src, f[9], int64(atoi(f[30])-atoi(f[32]))).Hits++
 		}
-	case "SPELL_ABSORBED":
-		if n := len(f); n >= 18 {
-			if caster := k.player(f[n-10], f[n-8]); caster != "" {
-				k.heal(caster, f[n-5], int64(atoi(f[n-3])))
-			}
+	case "SPELL_HEAL_SUPPORT", "SPELL_PERIODIC_HEAL_SUPPORT":
+		if src != "" && len(f) > 33 {
+			k.supportHeal(src, f[len(f)-1], f[9], int64(atoi(f[30])-atoi(f[32])))
+		}
+	case "SPELL_ABSORBED", "SPELL_ABSORBED_SUPPORT":
+		n, support := len(f), event == "SPELL_ABSORBED_SUPPORT"
+		if support {
+			n-- // the Evoker's GUID follows the absorb's fields
+		}
+		if n < 18 {
+			break
+		}
+		switch caster, amount := k.player(f[n-10], f[n-8]), int64(atoi(f[n-3])); {
+		case caster == "":
+		case support:
+			k.supportHeal(caster, f[n], f[n-5], amount)
+		default:
+			k.heal(caster, f[n-5], amount).Hits++
 		}
 	}
 	k.stopEvent(at, event, f, src, dst)
@@ -686,11 +700,28 @@ func (k *LogTracker) support(at int64, f []string, src string) {
 	k.deal(at, f, k.names[evoker], f[9], amount).Hits++
 }
 
-// heal counts a player's healing with an ability, to the meters and to the ability.
-func (k *LogTracker) heal(player, ability string, amount int64) {
+// heal counts a player's healing with an ability, to the meters and to the ability's row, which it returns; it is
+// the last heal a support line can add to.
+func (k *LogTracker) heal(player, ability string, amount int64) *models.KeyAbility {
 	k.tally(player, func(r *models.KeyMeterRow) { r.Healing += amount })
 	a := k.current.ability(player, ability)
-	a.Healing, a.Hits = a.Healing+amount, a.Hits+1
+	a.Healing += amount
+	if amount > 0 {
+		k.current.lastHealed = [2]string{player, ability}
+	}
+	return a
+}
+
+// supportHeal moves an Augmentation Evoker's share (amount, overheal left out) of a party member's last heal or
+// absorb from that member's row for it to the Evoker's (evoker's GUID), named after the buff, as Warcraft Logs
+// credits it; like support damage, the game logs it right after that heal.
+func (k *LogTracker) supportHeal(healer, evoker, buff string, amount int64) {
+	run := k.current
+	if !slices.Contains(run.party, evoker) || run.lastHealed[0] != healer {
+		return
+	}
+	k.heal(healer, run.lastHealed[1], -amount)
+	k.heal(k.names[evoker], buff, amount).Hits++
 }
 
 // ability is a player's row for an ability, made on its first use.

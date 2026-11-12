@@ -1,6 +1,7 @@
 package service
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 
@@ -49,5 +50,42 @@ func TestSupportDamageMovesToTheEvoker(t *testing.T) {
 		if !reflect.DeepEqual(rows, tc.want) || !reflect.DeepEqual(got.Abilities, tc.abilities) {
 			t.Errorf("%s: damage %v, abilities %+v; want %v, %+v", tc.name, rows, got.Abilities, tc.want, tc.abilities)
 		}
+	}
+}
+
+// TestSupportHealingMovesToTheEvoker: the Evoker's share of a party member's heal (overheal left out) and of their
+// shield's absorb moves to the Evoker, named after the buff.
+func TestSupportHealingMovesToTheEvoker(t *testing.T) {
+	const evoker = "Player-76-0000BBBB"
+	heal := func(event string, amount, overheal int, spell, tail string) string {
+		return fmt.Sprintf(`%s,%s,%s,%s,%s,%d,%d,%d,0,nil%s`, event, testPlayer, testPlayer, spell,
+			advancedOf("Player-76-0000AAAA", "0000000000000000"), amount, amount, overheal, tail)
+	}
+	absorb := func(event string, amount int, spell, tail string) string {
+		return fmt.Sprintf(`%s,%s,%s,1238725,"Feast of Misery",0x20,%s,%s,%d,%d,nil%s`, event, mobUnit(3),
+			testPlayer, testPlayer, spell, amount, amount, tail)
+	}
+	keys := newTracker(t, nil)
+	feed(t, keys, append(partyOfTwo(at(0, `CHALLENGE_MODE_START,"Den of Nalorakk",2825,586,10,[9]`)),
+		at(0.8, `SPELL_AURA_APPLIED,`+evoker+`,"Testevoker-Sargeras-US",0x512,0x80000000,`+evoker+
+			`,"Testevoker-Sargeras-US",0x512,0x80000000,395296,"Ebon Might",0xc,BUFF`),
+		at(1, heal("SPELL_HEAL", 1000, 100, `2061,"Flash Heal",0x2`, "")),
+		at(1, heal("SPELL_HEAL_SUPPORT", 300, 100, `413786,"Fate Mirror",0x40`, ","+evoker)),
+		at(2, absorb("SPELL_ABSORBED", 500, `17,"Power Word: Shield",0x2`, "")),
+		at(2, absorb("SPELL_ABSORBED_SUPPORT", 50, `413984,"Shifting Sands",0x40`, ","+evoker)),
+		at(9, `CHALLENGE_MODE_END,2825,1,10,9000,100.0,3000.0`))...)
+	got, _ := keys.Latest(0)
+	healing := map[string]int64{}
+	for _, r := range got.Overall.Rows {
+		healing[r.Player] = r.Healing
+	}
+	byAbility := map[string]int64{}
+	for _, a := range got.Abilities {
+		byAbility[a.Player+" "+a.Ability] = a.Healing
+	}
+	want := map[string]int64{"Testmage Flash Heal": 700, "Testevoker Fate Mirror": 200,
+		"Testmage Power Word: Shield": 450, "Testevoker Shifting Sands": 50}
+	if healing["Testmage"] != 1150 || healing["Testevoker"] != 250 || !reflect.DeepEqual(byAbility, want) {
+		t.Errorf("healing %v, abilities %v; want Testmage 1150, Testevoker 250, %v", healing, byAbility, want)
 	}
 }
