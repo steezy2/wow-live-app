@@ -4,6 +4,8 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-11-12
+
 ### Added
 - Each damage spike names what hit the party in it: the three abilities that did the most, with the enemy that cast each and its share ("Crushing Slam (Bonebreaker) 58%"), on keys and raid pulls alike (`causes` on a spike). `readerVersion` 11, so *Read old logs* fills them in.
 - A **Recap** tab: this month, last month, this season (Raider.IO's dates), this year or all time, on a Mythic+ tab and a Raid tab that never count keys and pulls together. Mythic+: boxed tiles (keys, timed %, highest timed, hours, deaths a key), facts that open their key (fastest and closest timed, most deaths in a timed key, deadliest ability, most kicks, longest, most improved), your character (specs, median DPS or HPS per dungeon, what killed you), who you ran with (class colour and realm). Raid: pulls, kills and a card per boss (first kill, best wipe, your deaths, what hit hardest). Both: your Warcraft Logs parses. `GET /api/recap/periods`, `GET /api/recap?from=&to=` (`mplus` and `raid`); read from the saved keys only, no points.
