@@ -3,6 +3,7 @@ package app
 import (
 	"os"
 	"path/filepath"
+	"reflect"
 	"testing"
 
 	"wow-live/backend/models"
@@ -18,7 +19,7 @@ func TestSettingsFromAnOlderFileKeepDefaultsAndPlacesSurviveASave(t *testing.T) 
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := s.Current(); got.Region != "eu" || got.Overlay != overlay {
+	if got := s.Current(); got.Region != "eu" || !reflect.DeepEqual(got.Overlay, overlay) {
 		t.Fatalf("loaded %+v, want region eu and the default overlay", got)
 	}
 	place := Place{X: 10, Y: 20, W: 420, H: 340}
