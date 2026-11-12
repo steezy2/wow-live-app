@@ -15,7 +15,7 @@ import {
 } from './api'
 import { CharacterParses } from './CharacterParses'
 import { classColors } from './classColors'
-import { amount, clock, counted, versus, withRealm } from './format'
+import { amount, clock, counted, realmName, versus, withRealm } from './format'
 import { Tabs } from './Tabs'
 
 type Open = (kind: 'mplus' | 'raid', start: number) => void
@@ -175,7 +175,7 @@ function MPlusRecap({ r, top, onOpen }: { r: RecapMPlus; top?: RecapTopTime[] | 
         ))}
       </div>
       <div className="cards compact">
-        <section className="card small">
+        <section className="card small per-key">
           <h3>Per key</h3>
           <div className="card-row card-head muted">
             <span />
@@ -192,7 +192,7 @@ function MPlusRecap({ r, top, onOpen }: { r: RecapMPlus; top?: RecapTopTime[] | 
         </section>
         {you && (
           <section className="card small">
-            <h3>You</h3>
+            <h3>{you.character}</h3>
             <p className="muted small">{you.specs.join(', ') || 'Spec not recorded'}</p>
             {you.dungeons.map((d) => (
               <div key={d.dungeon + d.metric} className="card-row">
@@ -215,8 +215,9 @@ function MPlusRecap({ r, top, onOpen }: { r: RecapMPlus; top?: RecapTopTime[] | 
             <h3>Who you ran with</h3>
             {r.party.map((m) => (
               <div key={m.player + m.realm} className="card-row">
-                <span className="name" style={{ color: classColors[m.class] }}>
-                  {withRealm(m.player, m.realm)}
+                <span className="name">
+                  <span style={{ color: classColors[m.class] }}>{m.player}</span>
+                  {m.realm && <span className="muted small"> {realmName(m.realm)}</span>}
                 </span>
                 <span>
                   {counted(m.keys, 'key')}{' '}
@@ -233,7 +234,8 @@ function MPlusRecap({ r, top, onOpen }: { r: RecapMPlus; top?: RecapTopTime[] | 
 }
 
 /** One dungeon: runs and success, the best timed run, and the times at the highest level run against Warcraft Logs'
- * top runs there (top; missing while loading or without Warcraft Logs keys). */
+ * top runs there (top; missing while loading or without Warcraft Logs keys). One time when all finished runs there took
+ * the same (one finished). */
 function DungeonCard({ d, top }: { d: RecapDungeon; top?: RecapTopTime }) {
   return (
     <section className="card small">
@@ -252,7 +254,7 @@ function DungeonCard({ d, top }: { d: RecapDungeon; top?: RecapTopTime }) {
       </p>
       {d.medianMS > 0 && (
         <dl className="recap-times">
-          {d.topRuns > 1 ? (
+          {d.avgMS !== d.fastestMS ? (
             <>
               <dt>Average</dt>
               <dd>{clock(d.avgMS)}</dd>

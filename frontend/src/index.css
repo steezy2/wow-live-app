@@ -1489,6 +1489,10 @@ button.link {
 .bar.thin {
   height: 6px;
   margin-bottom: var(--s2);
+  background: var(--panel-2);
+}
+.card.small.per-key .card-row {
+  grid-template-columns: 1fr 4em 4em;
 }
 .recap-times {
   display: grid;

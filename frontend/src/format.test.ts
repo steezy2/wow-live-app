@@ -157,6 +157,7 @@ describe('withRealm', () => {
   it('spaces out the realm and leaves out an unknown one', () => {
     expect(withRealm('Testmage', 'MoonGuard')).toBe('Testmage · Moon Guard')
     expect(withRealm('Testmage', 'Area52')).toBe('Testmage · Area 52')
+    expect(withRealm('Testmage', "Zul'jin")).toBe("Testmage · Zul'jin")
     expect(withRealm('Testmage', '')).toBe('Testmage')
   })
 })
