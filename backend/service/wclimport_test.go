@@ -155,18 +155,38 @@ func TestReportLinks(t *testing.T) {
 }
 
 func TestLinkedReportSurvivesReadingTheLogAgain(t *testing.T) {
-	keys := newTracker(t, nil)
-	lines := []string{at(0, `CHALLENGE_MODE_START,"Voidscar Arena",2923,585,10,[9]`),
-		"11/4/2026 20:03:00.000-7  CHALLENGE_MODE_END,2923,1,10,180000,100.0,3000.0"}
-	fed := feed(t, keys, lines...)
-	start := fed[0].Time
-	if n, err := keys.LinkReports(map[int64]models.ReportLink{start: link("A", 3)}, nil); n != 1 || err != nil {
-		t.Fatalf("linked %d, %v; want the key", n, err)
-	}
-	feed(t, keys, lines...)
-	if got := keys.history; len(got) != 1 || got[0].Report == nil || *got[0].Report != link("A", 3) {
-		t.Fatalf("saved %+v; want the one key, still linked to A#3", got)
-	}
+	t.Run("a key", func(t *testing.T) {
+		keys := newTracker(t, nil)
+		lines := []string{at(0, `CHALLENGE_MODE_START,"Voidscar Arena",2923,585,10,[9]`),
+			"11/4/2026 20:03:00.000-7  CHALLENGE_MODE_END,2923,1,10,180000,100.0,3000.0"}
+		start := feed(t, keys, lines...)[0].Time
+		if n, err := keys.LinkReports(map[int64]models.ReportLink{start: link("A", 3)}, nil); n != 1 || err != nil {
+			t.Fatalf("linked %d, %v; want the key", n, err)
+		}
+		feed(t, keys, lines...)
+		if got := keys.history; len(got) != 1 || got[0].Report == nil || *got[0].Report != link("A", 3) {
+			t.Fatalf("saved %+v; want the one key, still linked to A#3", got)
+		}
+	})
+	t.Run("a raid pull", func(t *testing.T) {
+		keys, _ := newRaidTracker(t)
+		lines := pullLines(3, 60, 60, 50, false)
+		read := func() {
+			feed(t, keys, lines...)
+			if _, err := keys.SaveFinished(); err != nil {
+				t.Fatal(err)
+			}
+		}
+		read()
+		start := keys.pulls[0].Start
+		if n, err := keys.LinkReports(nil, map[int64]models.ReportLink{start: link("R", 5)}); n != 1 || err != nil {
+			t.Fatalf("linked %d, %v; want the pull", n, err)
+		}
+		read()
+		if got := keys.pulls; len(got) != 1 || got[0].Report == nil || *got[0].Report != link("R", 5) {
+			t.Fatalf("saved %+v; want the one pull, still linked to R#5", got)
+		}
+	})
 }
 
 func TestPickFights(t *testing.T) {

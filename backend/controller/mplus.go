@@ -22,7 +22,7 @@ type MPlus struct {
 	Tiles   Tiles
 	Reviews Reviews // nil without Warcraft Logs credentials
 	Changes Changes
-	Recaps  Recaps // nil: no recap
+	Recaps  Recaps
 	Now     func() time.Time
 }
 

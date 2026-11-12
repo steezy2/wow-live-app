@@ -6,7 +6,7 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 
 ### Added
 - Each damage spike names what hit the party in it: the three abilities that did the most, with the enemy that cast each and its share ("Crushing Slam (Bonebreaker) 58%"), on keys and raid pulls alike (`causes` on a spike). `readerVersion` 11, so *Read old logs* fills them in.
-- A **Recap** tab: this month, last month, this season (Raider.IO's dates), this year or all time as tiles (keys, timed %, highest timed, hours, deaths a key), facts that open their key (fastest and closest timed, most deaths, deadliest ability, most kicks, longest, most improved), the dungeons run most, your character (specs, median DPS or HPS per dungeon, what killed you, your Warcraft Logs parses), who you ran with, and the raid by boss (first kill, best wipe, your deaths, what hit hardest). `GET /api/recap/periods`, `GET /api/recap?from=&to=`; read from the saved keys only, no points.
+- A **Recap** tab: this month, last month, this season (Raider.IO's dates), this year or all time, on a Mythic+ tab and a Raid tab that never count keys and pulls together. Mythic+: boxed tiles (keys, timed %, highest timed, hours, deaths a key), facts that open their key (fastest and closest timed, most deaths in a timed key, deadliest ability, most kicks, longest, most improved), your character (specs, median DPS or HPS per dungeon, what killed you), who you ran with (class colour and realm). Raid: pulls, kills and a card per boss (first kill, best wipe, your deaths, what hit hardest). Both: your Warcraft Logs parses. `GET /api/recap/periods`, `GET /api/recap?from=&to=` (`mplus` and `raid`); read from the saved keys only, no points.
 - Keys and raid pulls from your own logs that are in your Warcraft Logs reports get linked to them whenever the import lists the reports (*Find fights*, or **Find my report** under a finished key or pull): their header links to the fight on Warcraft Logs and WoWAnalyzer, the lists tag them, and reading the log again keeps the link. Until then the header offers **Find my report**. `linked` in the import's status.
 - Your character's Warcraft Logs parses this season (best and median per dungeon and boss, runs, spec) in the Recap tab: `GET /api/settings/warcraftlogs/parses`, read once a day.
 - A character picker in the top bar: All characters or one of yours (every character whose game wrote a saved key or pull, named with its realm in its class colour, Settings' character picked at first). The saved keys, raid nights and the Recap show that character's runs. `GET /api/characters`, and `character` on `GET /api/mplus/keys`, `/api/raid/nights` and `/api/recap`.
@@ -16,12 +16,16 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 - The overlay takes clicks by default: a click on a player's row shows their top 8 spells and their damage into each enemy over that card's span, the last pull or the whole key so far (the one-card meter: the whole key); Esc, a right click, the title or a new pull goes back. **Ctrl+Alt+K**, a tray item and a Settings switch let clicks through to the game instead (`clickThrough` in the overlay settings).
 
 ### Changed
-- The Recap has a Mythic+ tab and a Raid tab, each with its own tiles, cards, facts and parses: `GET /api/recap` answers `mplus` and `raid` apart, and nothing counts keys and pulls together. Its numbers, dungeons, boss lines and who you ran with (now in class colour, with realms) are boxed cards. The fact *Most deaths in a key* is now *Most deaths in a timed key*.
+- A new app icon: a purple keystone gem crossed by a live pulse line, in a gold-framed tile, without the red dot. `docs/store-listing.md` holds the Microsoft Store text and the screenshot plan for the next listing update.
 - The key and raid pull lists group anything older than 8 weeks by month instead of by week.
 - A saved key's and pull's list entry carries its `report` (code and fight) and `imported`, instead of the imported fight's URL; the page makes the links.
 - An M+ key's damage spikes are the worst 5 s instead of 3 s, and each spike says how long it is (`seconds`; a raid's is still `spike_seconds`, 6 s).
 - Replays start at 1× with no trail.
 - Settings says an import from Warcraft Logs always leaves the hour's last 200 points for key reviews and parses, waiting for the hour below them (`reservePoints` in the import status).
+
+### Fixed
+- Starting WoW Live while it already runs opens the running copy's window instead of a second copy (with its own tray icon, overlay and log reading).
+- *Quit* in the tray closes the main window and stops following the log, instead of the window's hide-to-tray cancelling its close. The window's X still hides it to the tray.
 
 ## [0.4.0] - 2026-11-12
 

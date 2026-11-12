@@ -94,10 +94,8 @@ func Start(ctx context.Context, opts Options) (*Site, error) {
 	}
 	s := &Site{Keys: keys, Changes: &service.Changes{Every: pushEvery}, opts: opts, newKeys: newKeys}
 	if opts.Settings != nil {
-		characters := service.Characters{Realms: opts.Realms, Keys: store, Bosses: slices.Sorted(maps.Keys(opts.Bosses))}
-		if opts.WCL != nil {
-			characters.Logs = opts.WCL
-		}
+		characters := service.Characters{Realms: opts.Realms, Keys: store, Logs: opts.WCL,
+			Bosses: slices.Sorted(maps.Keys(opts.Bosses))}
 		opts.Settings.Logs, opts.Settings.Characters = s, characters
 		if opts.WCL != nil {
 			s.Import = s.importer(characters, store, pulls)
@@ -137,6 +135,8 @@ func (s *Site) importer(characters service.Characters, store keystore.Store, pul
 			return keys, saved, err
 		},
 		Link: func(keyLinks, pullLinks map[int64]models.ReportLink) (int, error) {
+			s.logJob.Lock() // a log read now would save these keys again from its own copy, without the link
+			defer s.logJob.Unlock()
 			n, err := s.Keys.LinkReports(keyLinks, pullLinks)
 			if n > 0 {
 				s.Changes.Publish(s.Keys.Version())

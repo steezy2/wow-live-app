@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"io/fs"
 	"log"
+	"net/http"
 	"os"
 	"path/filepath"
 	"sync/atomic"
@@ -75,6 +76,17 @@ func run() error {
 	}
 	defer logFile.Close()
 	log.SetOutput(logFile)
+	// Made first, so a second copy hands over to the running one and exits before it reads a log or resumes an
+	// import. The page is served once Run starts, by then from site.
+	var site *app.Site
+	var show func()
+	wails := application.New(application.Options{Name: name,
+		Assets: application.AssetOptions{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			site.Handler.ServeHTTP(w, r)
+		})},
+		Windows: application.WindowsOptions{WebviewUserDataPath: filepath.Join(data, "webview")},
+		SingleInstance: &application.SingleInstanceOptions{UniqueID: "wow-live.app",
+			OnSecondInstanceLaunch: func(application.SecondInstanceData) { show() }}})
 	opts, err := carried()
 	if err != nil {
 		return err
@@ -94,8 +106,8 @@ func run() error {
 	opts.Settings = &controller.SettingsAPI{Settings: settings, Keys: keys}
 	opts.LogsDir = func() string { return settings.Current().LogsDir }
 	opts.Region, opts.Hosts = settings.Current().Region, []string{"wails.localhost"}
-	ctx := context.Background()
-	site, err := app.Start(ctx, opts)
+	ctx := wails.Context() // canceled on Quit, which stops following the log
+	site, err = app.Start(ctx, opts)
 	if err != nil {
 		return err
 	}
@@ -109,15 +121,16 @@ func run() error {
 			}
 		}()
 	}
-	wails := application.New(application.Options{Name: name, Assets: application.AssetOptions{Handler: site.Handler},
-		Windows: application.WindowsOptions{WebviewUserDataPath: filepath.Join(data, "webview")}})
 	window := wails.Window.NewWithOptions(application.WebviewWindowOptions{Name: "main", Title: name, Width: 1400,
 		Height: 900, URL: "/"})
+	// Closing the window hides it to the tray, except on Quit (its context already canceled), which closes it for good.
 	window.RegisterHook(events.Common.WindowClosing, func(e *application.WindowEvent) {
-		window.Hide()
-		e.Cancel()
+		if ctx.Err() == nil {
+			window.Hide()
+			e.Cancel()
+		}
 	})
-	show := func() {
+	show = func() {
 		window.Show()
 		window.Focus()
 	}
