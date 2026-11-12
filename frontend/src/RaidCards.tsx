@@ -51,7 +51,7 @@ export const EarlyDeaths = memo(function EarlyDeaths({ pull, classes, onSeek, on
               {d.killer && <span className="muted"> from {d.killer}</span>}
             </span>
             <span className="muted small">
-              {coverText(d.defensive, d.ready ?? [])}
+              {coverText(d)}
               {d.recap.length > 0 && ` · before: ${d.recap.map((h) => `${h.ability} ${amount(h.amount)}`).join(', ')}`}
             </span>
           </li>

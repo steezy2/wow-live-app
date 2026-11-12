@@ -47,6 +47,10 @@ func (r Reviewer) Cached(start int64) (models.KeyReview, error) {
 	if key, _, kerr := r.Keys.finished(start); err == nil && kerr == nil && review.End != 0 && review.End != key.End {
 		return review, ErrNoSuchKey
 	}
+	for i := range review.Players { // reviews made before Nov 12 had an avoidable damage column, now the Avoidable tab's
+		review.Players[i].Metrics = slices.DeleteFunc(review.Players[i].Metrics,
+			func(m models.ReviewMetric) bool { return m.Name == "avoidable damage" })
+	}
 	return review, err
 }
 

@@ -254,6 +254,9 @@ definitions:
         items:
           type: string
         type: array
+      used:
+        description: they pressed Defensive themselves
+        type: boolean
     type: object
   models.KeyDispel:
     properties:
@@ -489,6 +492,9 @@ definitions:
         type: array
       taken:
         type: integer
+      used:
+        description: they pressed Defensive themselves
+        type: boolean
     type: object
   models.KeyStatus:
     properties:
@@ -999,6 +1005,9 @@ definitions:
         items:
           $ref: '#/definitions/models.RaidHit'
         type: array
+      used:
+        description: they pressed Defensive themselves
+        type: boolean
     type: object
   models.RaidHit:
     properties:
@@ -1380,6 +1389,10 @@ definitions:
         items:
           type: string
         type: array
+      spawner:
+        description: 'Spawner: Players spawned it (a carrier who lost what they carried),
+          not just who the cause landed on.'
+        type: boolean
     type: object
   models.RaidStacks:
     properties:

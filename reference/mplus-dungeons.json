@@ -1,14 +1,15 @@
 {
   "season": "season-mn-2",
   "sources": {
-    "forces": "github.com/Nnoggie/MythicDungeonTools@bbfbd5817b72d90f8f0e5d1b53ce49d657ebbe42 (GPL-2.0), totals checked against Keystone.guru's",
+    "forces": "github.com/Nnoggie/MythicDungeonTools@4009a240114089052d8a0ee5921b0331f3e450d3 (GPL-2.0), totals checked against Keystone.guru's",
     "maps": "github.com/Wotuu/keystone.guru dungeon data: floor bounds and forces totals only; the site fetches the tiles",
     "spells": "Wowhead dungeon overviews (each dungeon's guide), interrupts checked against Mythic Dungeon Tools",
-    "written": "2026-11-10"
+    "written": "2026-11-12"
   },
   "dungeons": {
     "249": {
       "name": "Kings' Rest",
+      "instanceID": 1762,
       "guide": "https://www.wowhead.com/guide/midnight/kings-rest-dungeon-overview-mythic-plus",
       "floors": [
         {
@@ -106,6 +107,7 @@
     },
     "250": {
       "name": "Temple of Sethraliss",
+      "instanceID": 1877,
       "guide": "https://www.wowhead.com/guide/midnight/temple-of-sethraliss-dungeon-overview-mythic-plus",
       "floors": [
         {
@@ -219,6 +221,7 @@
     },
     "399": {
       "name": "Ruby Life Pools",
+      "instanceID": 2521,
       "guide": "https://www.wowhead.com/guide/midnight/ruby-life-pools-dungeon-overview-mythic-plus",
       "floors": [
         {
@@ -304,6 +307,7 @@
     },
     "584": {
       "name": "The Blinding Vale",
+      "instanceID": 2859,
       "guide": "https://www.wowhead.com/guide/midnight/the-blinding-vale-dungeon-overview-location-rewards",
       "floors": [
         {
@@ -385,6 +389,7 @@
     },
     "585": {
       "name": "Voidscar Arena",
+      "instanceID": 2923,
       "guide": "https://www.wowhead.com/guide/midnight/voidscar-arena-dungeon-overview-location-rewards",
       "floors": [
         {
@@ -492,6 +497,7 @@
     },
     "586": {
       "name": "Den of Nalorakk",
+      "instanceID": 2825,
       "guide": "https://www.wowhead.com/guide/midnight/den-of-nalorakk-dungeon-overview-location-rewards",
       "floors": [
         {
@@ -595,6 +601,7 @@
     },
     "587": {
       "name": "Murder Row",
+      "instanceID": 2813,
       "guide": "https://www.wowhead.com/guide/midnight/murder-row-dungeon-overview-location-rewards",
       "floors": [
         {
@@ -713,6 +720,7 @@
     },
     "588": {
       "name": "Altar of Fangs",
+      "instanceID": 2993,
       "guide": "https://www.wowhead.com/guide/midnight/altar-of-fangs-dungeon-overview-location-rewards",
       "floors": [
         {

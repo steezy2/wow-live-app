@@ -12,7 +12,7 @@ import {
   stopImport,
 } from './api'
 import { importKindText, importProgress, importTotal } from './format'
-import { type Note, track } from './note'
+import { track, useNote } from './note'
 import { NoteLine } from './NoteLine'
 import { useNow } from './useLiveKey'
 
@@ -30,7 +30,8 @@ export function WCLImport({ view, onSaved }: { view: SettingsView; onSaved: (vie
   const [status, setStatus] = useState<ImportStatus | null>(null)
   const [picked, setPicked] = useState<ImportKind[] | null>(null)
   const [removing, setRemoving] = useState(false)
-  const [note, setNote] = useState<Note>(null)
+  const [note, setNote] = useNote('warcraft logs import')
+  const busy = !!note?.busy
   const now = useNow(60_000)
   const running = status !== null && going(status)
   const plan = !running && status?.plan?.character === view.character ? status.plan : null
@@ -44,7 +45,7 @@ export function WCLImport({ view, onSaved }: { view: SettingsView; onSaved: (vie
       controller.abort()
       clearInterval(timer)
     }
-  }, [running])
+  }, [running, busy]) // read again once a call left running ends
   const saveCharacter = (e: FormEvent) => {
     e.preventDefault()
     const call = saveSettings({ ...savedSettings(view), character: character.trim() })
@@ -70,7 +71,6 @@ export function WCLImport({ view, onSaved }: { view: SettingsView; onSaved: (vie
       () => undefined,
     )
   if (!status) return null
-  const busy = !!note?.busy
   const saved = view.character !== '' && view.character === character.trim()
   const listed = saved && status.listedFor === view.character
   return (

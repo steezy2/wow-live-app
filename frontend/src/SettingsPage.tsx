@@ -9,7 +9,7 @@ import {
   type Settings,
   type SettingsView,
 } from './api'
-import { type Note, track } from './note'
+import { track, useNote } from './note'
 import { NoteLine } from './NoteLine'
 import { useNow, useOverlayMoving } from './useLiveKey'
 import { CombatLogs } from './CombatLogs'
@@ -33,10 +33,9 @@ export function SettingsPage({ view, onSaved }: { view: SettingsView; onSaved: (
   const [logsDir, setLogsDir] = useState(view.logsDir)
   const [region, setRegion] = useState(view.region)
   const [overlay, setOverlay] = useState(view.overlay)
-  const [game, setGame] = useState<Note>(null)
-  const [overlayNote, setOverlayNote] = useState<Note>(null)
-  const [oldKeys, setOldKeys] = useState<Note>(null)
-  const [logsRead, setLogsRead] = useState(0) // remounts the log list after a read, which marks logs read
+  const [game, setGame] = useNote('game')
+  const [overlayNote, setOverlayNote] = useNote('overlay')
+  const [oldKeys, setOldKeys] = useNote('read logs')
   const moving = useOverlayMoving()
   const now = useNow(60_000)
   useEffect(() => {
@@ -51,7 +50,7 @@ export function SettingsPage({ view, onSaved }: { view: SettingsView; onSaved: (
       track(call, setOverlayNote, 'Saving…', () => 'Saved').then(onSaved, () => undefined)
     }, OVERLAY_SAVE_MS)
     return () => clearTimeout(timer)
-  }, [overlay, view, onSaved])
+  }, [overlay, view, onSaved, setOverlayNote])
   const save = (e: FormEvent) => {
     e.preventDefault()
     const call = saveSettings({ ...savedSettings(view), logsDir: logsDir.trim(), region, overlay })
@@ -63,7 +62,7 @@ export function SettingsPage({ view, onSaved }: { view: SettingsView; onSaved: (
       setOldKeys,
       'Reading the log folder…',
       ({ read, saved }) => `${read} logs read · ${saved} keys saved`,
-    ).then(() => setLogsRead((n) => n + 1), () => undefined)
+    ).catch(() => undefined)
   const minutes = view.lastLogMS ? Math.round((now - view.lastLogMS) / 60_000) : null
   return (
     <div className="settings-page">
@@ -168,7 +167,7 @@ export function SettingsPage({ view, onSaved }: { view: SettingsView; onSaved: (
           Archiving zips a log into the log folder's WoW Live archive folder: it stops loading, takes about a tenth of
           the space, and Read everything again still reads it. Delete removes archived logs for good.
         </p>
-        <CombatLogs key={`${view.logsDir}|${logsRead}`} />
+        <CombatLogs key={view.logsDir} reading={!!oldKeys?.busy} />
       </section>
     </div>
   )

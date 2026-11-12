@@ -145,12 +145,17 @@ func NewLogTracker(timers map[int]int64, affixes map[int]string, rules models.MP
 		return nil, fmt.Errorf("reading saved keys: %w", err)
 	}
 	kinds := map[string]string{}
-	for kind, names := range map[string][]string{"defensive": slices.Concat(rules.Defensives.Names,
-		rules.Defensives.Externals, rules.Defensives.RaidCooldowns), "healthstone": rules.Defensives.Healthstones,
-		"health potion": rules.Defensives.HealthPotions, "combat potion": rules.Consumables.CombatPotions,
-		"cc": rules.CC.Names} {
-		for _, name := range names {
-			kinds[name] = kind
+	for _, list := range []struct {
+		kind  string
+		names []string
+	}{ // in order, so a raid cooldown that is also someone's defensive (Zephyr) is a raid cooldown
+		{"defensive", slices.Concat(rules.Defensives.Names, rules.Defensives.Externals)},
+		{"raid cooldown", rules.Defensives.RaidCooldowns}, {"healthstone", rules.Defensives.Healthstones},
+		{"health potion", rules.Defensives.HealthPotions}, {"combat potion", rules.Consumables.CombatPotions},
+		{"cc", rules.CC.Names},
+	} {
+		for _, name := range list.names {
+			kinds[name] = list.kind
 		}
 	}
 	c := rules.Consumables
@@ -367,7 +372,7 @@ func (k *LogTracker) learn(at int64, event string, f []string) {
 		k.owners[f[4]] = f[0]
 	}
 	if (event == "SPELL_AURA_APPLIED" || event == "SPELL_AURA_REMOVED") && len(f) > 11 && f[11] == "BUFF" &&
-		strings.HasPrefix(f[4], "Player-") && k.kinds[f[9]] == "defensive" {
+		strings.HasPrefix(f[4], "Player-") && (k.kinds[f[9]] == "defensive" || k.kinds[f[9]] == "raid cooldown") {
 		k.defensiveBuff(at, event == "SPELL_AURA_APPLIED", f[4], f[9])
 	}
 	if at := advancedAt(event); at > 0 && len(f) > at+1 && f[at] == f[0] && f[at+1] != "0000000000000000" {
@@ -571,7 +576,8 @@ func (k *LogTracker) event(at int64, event string, f []string) {
 			if kind == "health potion" {
 				ability = healthPotion
 			}
-			if kind != "cc" && kind != "combat potion" { // the death rules' kit is survival buttons
+			// the death rules' kit is the player's own survival buttons; a raid cooldown covers by its buff
+			if kind != "cc" && kind != "combat potion" && kind != "raid cooldown" {
 				run.casts = append(run.casts, models.Cast{Fight: run.pull, At: at, Player: src, Ability: ability})
 			}
 			run.key.Casts = append(run.key.Casts, models.KeyCast{Player: src, Ability: ability, Kind: kind,

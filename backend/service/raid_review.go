@@ -115,7 +115,9 @@ func spikeRate(s models.KeySpike, rules models.SuggestionRules) string {
 	return short(float64(s.Damage) / rules.SpikeSeconds)
 }
 
-// suggestions is what to fix on the next pull, most important first, at most rules.Most: deaths to what can be dodged
+// suggestions is what to fix on the next pull, most important first, at most rules.Most: adds that come from a carrier
+// (a Viper from an egg, close to a wipe) with who spawned them or how many weren't picked up, deaths to what can be
+// dodged
 // or soaked, raiders who didn't pick up what everyone should, early deaths with a defensive ready, mass kills,
 // several early deaths to one other ability, an uncovered damage spike, stacks past the limit, casts that went off, slow dispels, adds that lived longer than
 // in the best pull, the most avoidable hits, less damage into the target to burst than the best pull, and in a pull long enough
@@ -134,6 +136,24 @@ func suggestions(p models.RaidPull, best *models.RaidPull, rules models.Suggesti
 	}
 	for _, m := range p.MassKills {
 		said[m.Ability] = true
+	}
+	for _, a := range p.Adds {
+		var who []string
+		var loose []int64 // when the ones nobody picked up spawned, in order
+		for _, s := range a.Spawns {
+			if s.Spawner {
+				who = append(who, fmt.Sprintf("%s (%s at %s)", strings.Join(s.Players, ", "), s.Cause, clockText(s.ClockMS)))
+			} else if s.Cause == notPickedUp {
+				loose = append(loose, s.ClockMS)
+			}
+		}
+		if n := len(who) + len(loose); n > 0 {
+			if len(loose) > 0 {
+				who = append(who, fmt.Sprintf("%d %s (first at %s)", len(loose), strings.ToLower(notPickedUp),
+					clockText(loose[0])))
+			}
+			say("%s spawned: %s", counted(n, a.Name), nameList(who))
+		}
 	}
 	byAbility := map[string][]string{}
 	var abilities, ready []string

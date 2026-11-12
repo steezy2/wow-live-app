@@ -192,7 +192,7 @@ export function SpikeLedger(props: { data: FightData; group: 'party' | 'raid'; s
             </span>
             {s.members.map((m) => (
               <span key={m.player} className="muted">
-                {m.player} {amount(m.taken)}: {coverText(m.defensive, m.ready)}
+                {m.player} {amount(m.taken)}: {coverText(m)}
               </span>
             ))}
           </li>

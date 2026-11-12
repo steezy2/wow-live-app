@@ -228,13 +228,16 @@ func TestSuggestionsPutWhatToFixFirst(t *testing.T) {
 		Spikes:    []models.KeySpike{{ClockMS: 90_000, Damage: 7_200_000, PartyCDs: []string{}}},
 		Stacks: []models.RaidStacks{{Ability: "Eternal Venom", Limit: 5, Players: []models.PlayerCount{{Player: "F", Count: 6}, {Player: "G", Count: 5}},
 			Over: []string{"F"}}},
-		WentOff:  []models.KeyStop{{Spell: "Anguished Cry"}, {Spell: "Anguished Cry"}},
-		Adds:     []models.RaidAdd{{Name: "Blightscale Clutch", LongestMS: 30_000}},
+		WentOff: []models.KeyStop{{Spell: "Anguished Cry"}, {Spell: "Anguished Cry"}},
+		Adds: []models.RaidAdd{{Name: "Blightscale Clutch", LongestMS: 30_000}, {Name: "Blightscale Viper",
+			Spawns: []models.RaidSpawn{{ClockMS: 75_000, Cause: "Caustic Waves", Players: []string{"H"}, Spawner: true},
+				{ClockMS: 80_000, Cause: "Not picked up", Players: []string{}}}}},
 		Priority: []models.RaidPriority{{Target: "Ula'tek's Heart", Damage: 1_000_000}},
 	}
 	best := &models.RaidPull{Number: 4, Adds: []models.RaidAdd{{Name: "Blightscale Clutch", LongestMS: 12_000}},
 		Priority: []models.RaidPriority{{Target: "Ula'tek's Heart", Damage: 3_000_000}}}
 	want := []string{
+		"2 Blightscale Vipers spawned: H (Caustic Waves at 1:15), 1 not picked up (first at 1:20)",
 		"2 deaths to Caustic Waves, which can be dodged: A, B",
 		"1 death soaking Spectral Coils: E",
 		"1 early death with a defensive ready: B (Ice Block)",
@@ -521,9 +524,9 @@ func TestRaidPullPickupsBreaksAndSpawns(t *testing.T) {
 	for _, a := range p.Adds {
 		spawns[a.Name] = fmt.Sprint(a.Spawns)
 	}
-	if spawns["Viper"] != "[{60000 Noxious Splash [Testpriest Testshaman]} {90000  []} "+
-		"{95000 Noxious Splash [Testmage]}]" ||
-		spawns["Warden"] != "[{100000 Hatching Doom []}]" {
+	if spawns["Viper"] != "[{60000 Noxious Splash [Testpriest Testshaman] false} {90000  [] false} "+
+		"{95000 Noxious Splash [Testmage] false}]" ||
+		spawns["Warden"] != "[{100000 Hatching Doom [] false}]" {
 		t.Errorf("spawns = %v; want the first Viper from the splash, the second from nothing, the Warden from the cast",
 			spawns)
 	}
@@ -932,11 +935,11 @@ func TestViperSpawnerIsEggCarrier(t *testing.T) {
 	var got []string
 	for _, a := range store.pulls[0].Adds {
 		for _, s := range a.Spawns {
-			got = append(got, fmt.Sprintf("%.1f %s %v", float64(s.ClockMS)/1000, s.Cause, s.Players))
+			got = append(got, fmt.Sprintf("%.1f %s %v %v", float64(s.ClockMS)/1000, s.Cause, s.Players, s.Spawner))
 		}
 	}
-	want := []string{"11.5 Not picked up []", "18.9 Caustic Waves [Egg1]", "20.9 Caustic Waves [Egg2]", "29.9 Caustic Waves [Egg3]",
-		"31.4 Noxious Splash [Egg4]", "31.4 Noxious Splash [Egg5]"}
+	want := []string{"11.5 Not picked up [] false", "18.9 Caustic Waves [Egg1] true", "20.9 Caustic Waves [Egg2] true",
+		"29.9 Caustic Waves [Egg3] true", "31.4 Noxious Splash [Egg4] true", "31.4 Noxious Splash [Egg5] true"}
 	if fmt.Sprint(got) != fmt.Sprint(want) {
 		t.Fatalf("vipers =\n%q\nwant\n%q", got, want)
 	}

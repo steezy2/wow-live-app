@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   clock,
+  coverText,
   importKindText,
   importProgress,
   importTotal,
@@ -124,5 +125,14 @@ describe('import plan', () => {
   it('totals the kinds ticked, with the hours the points take', () => {
     expect(importTotal(plan, ['keys', 'raidKills'])).toBe('Import 112 fights: ~3,300 points, about 1 h')
     expect(importTotal(plan, ['raidWipes'])).toBe('Nothing to import')
+  })
+})
+
+describe('coverText', () => {
+  it('says used for a defensive the player pressed, had for one put on them, else what was still ready', () => {
+    expect(coverText({ defensive: 'Ice Cold', used: true, ready: [] })).toBe('used Ice Cold')
+    expect(coverText({ defensive: 'Pain Suppression', ready: [] })).toBe('had Pain Suppression')
+    expect(coverText({ defensive: '', ready: ['Barkskin', 'Renewal'] })).toBe('still had Barkskin, Renewal')
+    expect(coverText({ defensive: '' })).toBe('nothing ready')
   })
 })

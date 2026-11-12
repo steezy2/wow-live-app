@@ -41,7 +41,7 @@ export function eventsOf(src: EventSource, player: string): PlayerEvent[] {
       .filter((d) => d.player === player)
       .map((d) => ({
         clockMS: d.clockMS,
-        text: `Died to ${d.ability || 'unknown'} · ${coverText(d.defensive, d.ready ?? [])}`,
+        text: `Died to ${d.ability || 'unknown'} · ${coverText(d)}`,
         bad: true,
       })),
     ...marked('avoidable', (text) => text === player, (lane) => `Hit by ${lane}`),
