@@ -49,7 +49,7 @@ func (k *LogTracker) position(at int64, event string, f []string) {
 			name := k.names[guid]
 			run.track.Players[name] = append(run.track.Players[name], p)
 		}
-	case strings.HasPrefix(guid, "Creature-") || strings.HasPrefix(guid, "Vehicle-"):
+	case creature(guid):
 		run.mobHP[guid] = int64(atoi(f[i+3]))
 		p.Name = f[1]
 		if guid == f[4] {
@@ -170,28 +170,46 @@ func targetDamage(run *keyRun) map[[2]string]int64 {
 	return damage
 }
 
-// trackCast keeps a raider's cast for the replay: a cast's start, then its end (SPELL_CAST_SUCCESS of the same spell,
-// or SPELL_CAST_FAILED with "Interrupted", not a key pressed again mid-cast), or an instant.
+// trackCast keeps a raider's or a hostile creature's cast for the replay (a raider's by name, a creature's in MobCasts
+// by GUID): a cast's start, then its end (SPELL_CAST_SUCCESS of the same spell, or SPELL_CAST_FAILED with
+// "Interrupted", not a key pressed again mid-cast), or an instant.
 func (k *LogTracker) trackCast(at int64, event string, f []string) {
 	run := k.current
-	if len(f) < 10 || !slices.Contains(run.party, f[0]) {
+	if len(f) < 10 {
 		return
 	}
-	player, casts := k.names[f[0]], run.track.Casts
+	var casts map[string][]models.TrackCast
+	who := f[0]
+	switch {
+	case slices.Contains(run.party, f[0]):
+		casts, who = run.track.Casts, k.names[f[0]]
+	case creature(f[0]) && hasFlag(f[2], hostileFlag):
+		if run.track.MobCasts == nil {
+			run.track.MobCasts = map[string][]models.TrackCast{}
+		}
+		casts = run.track.MobCasts
+	default:
+		return
+	}
 	clockMS := k.clockAt(at)
 	open, casting := run.sample.casting[f[0]]
 	switch {
 	case event == "SPELL_CAST_START":
-		casts[player] = append(casts[player], models.TrackCast{ClockMS: clockMS, Spell: f[9], Cut: true})
-		run.sample.casting[f[0]] = len(casts[player]) - 1
-	case casting && casts[player][open].Spell == f[9] &&
+		casts[who] = append(casts[who], models.TrackCast{ClockMS: clockMS, Spell: f[9], Cut: true})
+		run.sample.casting[f[0]] = len(casts[who]) - 1
+	case casting && casts[who][open].Spell == f[9] &&
 		(event == "SPELL_CAST_SUCCESS" || len(f) > 11 && f[11] == "Interrupted"):
-		c := &casts[player][open]
+		c := &casts[who][open]
 		c.EndMS, c.Cut = max(clockMS, c.ClockMS+1), event != "SPELL_CAST_SUCCESS"
 		delete(run.sample.casting, f[0])
 	case event == "SPELL_CAST_SUCCESS":
-		casts[player] = append(casts[player], models.TrackCast{ClockMS: clockMS, Spell: f[9]})
+		casts[who] = append(casts[who], models.TrackCast{ClockMS: clockMS, Spell: f[9]})
 	}
+}
+
+// creature is whether a GUID is an NPC's: a mob's, a boss's, a vehicle's or a summoned pet's, not a player's.
+func creature(guid string) bool {
+	return strings.HasPrefix(guid, "Creature-") || strings.HasPrefix(guid, "Vehicle-")
 }
 
 // hostileActor is whether the advanced-logging block's actor is the line's hostile source or target.
@@ -245,6 +263,12 @@ func (k *LogTracker) trackOf(run *keyRun) models.KeyTrack {
 		t.Casts = map[string][]models.TrackCast{}
 		for name, casts := range run.track.Casts {
 			t.Casts[name] = list(casts)
+		}
+		if len(run.track.MobCasts) > 0 {
+			t.MobCasts = map[string][]models.TrackCast{}
+			for guid, casts := range run.track.MobCasts {
+				t.MobCasts[guid] = list(casts)
+			}
 		}
 		t.Abilities, t.TargetSeries = copySeries(run.track.Abilities), copySeries(run.track.TargetSeries)
 	}
