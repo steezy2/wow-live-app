@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"slices"
 	"sync"
 	"testing"
@@ -17,14 +19,21 @@ import (
 type fakeReports struct {
 	mu      sync.Mutex
 	budgets []models.RateLimit
+	pages   []int // the pages asked for: the first has the reports and says another follows, which is empty
 }
 
 func (f *fakeReports) CurrentZones(context.Context, []string) (models.WCLZones, error) {
 	return models.WCLZones{MPlusID: 55, RaidID: 53}, nil
 }
 
-func (f *fakeReports) RecentReports(context.Context, string, string, string, int) ([]models.CharacterReport, bool,
+func (f *fakeReports) RecentReports(_ context.Context, _, _, _ string, page int) ([]models.CharacterReport, bool,
 	error) {
+	f.mu.Lock()
+	f.pages = append(f.pages, page)
+	f.mu.Unlock()
+	if page > 1 {
+		return nil, false, nil
+	}
 	party := []string{"Testmage", "Testrogue", "Testpriest", "Testhunter", "Testwarrior"}
 	raid := append(slices.Clone(party), make([]string, 15)...)
 	fight := func(id, level int, kill bool, start, length int64, players []string) models.ReportFight {
@@ -37,7 +46,7 @@ func (f *fakeReports) RecentReports(context.Context, string, string, string, int
 		{Code: "raid", ZoneID: 53, StartTime: -3_600_000, Fights: []models.ReportFight{
 			fight(1, 0, true, 0, 5*60_000, raid), fight(2, 0, false, 600_000, 2*60_000, raid),
 			fight(3, 0, false, 900_000, 3*60_000, []string{"Testrogue"})}},
-	}, false, nil
+	}, true, nil
 }
 
 func (f *fakeReports) RateLimit(context.Context) (models.RateLimit, error) {
@@ -190,7 +199,7 @@ func TestImportResumesFromItsState(t *testing.T) {
 		ti := newTestImporter(t, []models.RateLimit{plenty})
 		st := importState{Region: "us", Character: "Testmage-Area52", Kinds: tc.kinds,
 			Done: []models.ReportLink{key(1).ReportLink}, Fights: []models.FightRef{key(1), key(2), kill}}
-		if err := ti.writeState(st); err != nil {
+		if err := ti.writeFile(importStateFile, st); err != nil {
 			t.Fatal(err)
 		}
 		if err := ti.Resume(); err != nil {
@@ -203,12 +212,17 @@ func TestImportResumesFromItsState(t *testing.T) {
 	}
 }
 
-func TestPlanCountsEachKind(t *testing.T) {
+func TestFindCountsEachKindInTheBackground(t *testing.T) {
 	ti := newTestImporter(t, []models.RateLimit{plenty, {LimitPerHour: 3600, PointsSpentThisHour: 104}})
-	plan, err := ti.Plan(context.Background(), "us", "Testmage-Area52")
-	if err != nil {
+	if err := ti.Find(context.Background(), "us", "Testmage-Area52"); err != nil {
 		t.Fatal(err)
 	}
+	ti.finish()
+	s := ti.Status()
+	if s.State != importIdle || s.Plan == nil {
+		t.Fatalf("status %+v, want idle with a plan", s)
+	}
+	plan := *s.Plan
 	if plan.Character != "Testmage-Area52" || plan.PointsPerHour != 3400 || plan.ListedPoints != 4 {
 		t.Errorf("plan %+v, want Testmage's, 3,400 points an hour and 4 spent listing", plan)
 	}
@@ -222,18 +236,77 @@ func TestPlanCountsEachKind(t *testing.T) {
 	}
 }
 
-func TestPlanIsBusyWhileAnImportRuns(t *testing.T) {
+func TestFindKeepsWhatItFoundAndThenLooksOnlyForNewReports(t *testing.T) {
+	ti := newTestImporter(t, []models.RateLimit{plenty})
+	if err := ti.Find(context.Background(), "us", "Testmage-Area52"); err != nil {
+		t.Fatal(err)
+	}
+	ti.finish()
+	restarted := newTestImporter(t, []models.RateLimit{plenty})
+	restarted.Dir = ti.Dir
+	if err := restarted.Resume(); err != nil {
+		t.Fatal(err)
+	}
+	if s := restarted.Status(); s.Plan == nil || s.Plan.Kinds[0].Fights != 2 || s.ListedFor != "Testmage-Area52" {
+		t.Fatalf("after a restart: %+v, want the plan found and the character listed", s)
+	}
+	if err := restarted.Start(context.Background(), "us", "Testmage-Area52", keysOnly); err != nil {
+		t.Fatal(err)
+	}
+	restarted.finish()
+	if s := restarted.Status(); s.Plan != nil || len(restarted.read) != 2 {
+		t.Errorf("plan %+v and %d fights read, want no plan once the import started and both keys", s.Plan,
+			len(restarted.read))
+	}
+	pages := restarted.Source.(*fakeReports).pages
+	if !slices.Equal(pages, []int{1}) { // the first Find also read page 2
+		t.Errorf("listing again asked for pages %v, want only the first, which has the reports listed before", pages)
+	}
+}
+
+func TestStopEndsAFindWithoutAPlan(t *testing.T) {
+	ti := newTestImporter(t, []models.RateLimit{plenty})
+	ti.Prepare = func() error { ti.Stop(); return nil }
+	if err := ti.Find(context.Background(), "us", "Testmage-Area52"); err != nil {
+		t.Fatal(err)
+	}
+	ti.finish()
+	if s := ti.Status(); s.State != importIdle || s.Plan != nil {
+		t.Errorf("status %+v, want idle without a plan", s)
+	}
+}
+
+func TestFindIsBusyWhileAnImportRuns(t *testing.T) {
 	ti := newTestImporter(t, []models.RateLimit{plenty})
 	release := make(chan struct{})
 	ti.Prepare = func() error { <-release; return nil }
 	if err := ti.Start(context.Background(), "us", "Testmage-Area52", keysOnly); err != nil {
 		t.Fatal(err)
 	}
-	_, err := ti.Plan(context.Background(), "us", "Testmage-Area52")
+	err := ti.Find(context.Background(), "us", "Testmage-Area52")
 	close(release)
 	ti.finish()
 	if !errors.Is(err, ErrBusy) {
-		t.Errorf("planned during an import: %v, want ErrBusy", err)
+		t.Errorf("found fights during an import: %v, want ErrBusy", err)
+	}
+}
+
+func TestABusyStartKeepsTheFightsFound(t *testing.T) {
+	ti := newTestImporter(t, []models.RateLimit{plenty})
+	if err := ti.writeFile(importPlanFile, models.ImportPlan{Character: "Testmage-Area52"}); err != nil {
+		t.Fatal(err)
+	}
+	release := make(chan struct{})
+	ti.Prepare = func() error { <-release; return nil }
+	if err := ti.Find(context.Background(), "us", "Testmage-Area52"); err != nil {
+		t.Fatal(err)
+	}
+	err := ti.Start(context.Background(), "us", "Testmage-Area52", keysOnly)
+	_, statErr := os.Stat(filepath.Join(ti.Dir, importPlanFile))
+	close(release)
+	ti.finish()
+	if !errors.Is(err, ErrBusy) || statErr != nil {
+		t.Errorf("start during a Find: %v, plan file: %v; want ErrBusy and the plan kept", err, statErr)
 	}
 }
 
@@ -334,7 +407,8 @@ func TestAStoppedImportDoesntResumeAfterARestart(t *testing.T) {
 		t.Fatal(err)
 	}
 	ti.finish()
-	if st, err := ti.readState(); err != nil || len(st.left()) != 0 {
+	var st importState
+	if err := ti.readFile(importStateFile, &st); err != nil || len(st.left()) != 0 {
 		t.Errorf("state %+v (%v): want no fights left to resume", st, err)
 	}
 }

@@ -624,6 +624,10 @@ export interface ImportStatus {
   problem: string
   /** How many saved keys and pulls came from Warcraft Logs. */
   imported: number
+  /** What the last Find fights found, until an import starts. */
+  plan?: ImportPlan
+  /** The character whose reports were listed, so Find fights only looks for new ones. */
+  listedFor: string
 }
 
 export async function fetchImportStatus(signal?: AbortSignal): Promise<ImportStatus> {
@@ -652,9 +656,10 @@ export interface ImportPlan {
   listedPoints: number
 }
 
-/** Lists the saved character's reports (spending points) and counts what an import would fetch. */
-export async function fetchImportPlan(): Promise<ImportPlan> {
-  return (await (await call('/api/settings/warcraftlogs/import/plan', { method: 'POST' })).json()) as ImportPlan
+/** Starts listing the saved character's reports (spending points) in the background, to count what an import would
+ * fetch: the status's plan once it's done. */
+export async function findFights(): Promise<ImportStatus> {
+  return (await (await call('/api/settings/warcraftlogs/import/plan', { method: 'POST' })).json()) as ImportStatus
 }
 
 /** Starts importing the saved character's fights of this season of kinds in the background. */

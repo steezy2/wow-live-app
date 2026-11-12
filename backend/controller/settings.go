@@ -56,11 +56,11 @@ type Characters interface {
 	Guess() string
 }
 
-// Import imports a character's Warcraft Logs fights in the background (service.Importer); Start's and Plan's errors
+// Import imports a character's Warcraft Logs fights in the background (service.Importer); Start's and Find's errors
 // wrap service.ErrBusy while one runs and as Characters.Resolve's do.
 type Import interface {
 	Start(ctx context.Context, region, character string, kinds []models.ImportKind) error
-	Plan(ctx context.Context, region, character string) (models.ImportPlan, error)
+	Find(ctx context.Context, region, character string) error
 	Stop()
 	Status() models.ImportStatus
 	Remove() error
@@ -366,31 +366,31 @@ func (s SettingsAPI) ImportStatus(c *gin.Context) {
 	c.JSON(http.StatusOK, s.Import.Status())
 }
 
-// ImportPlan godoc
+// FindFights godoc
 //
-//	@Summary		What an import of the character's Warcraft Logs reports would fetch
-//	@Description	Lists the reports the settings' character is in (about 2 points a report, reused for 10 minutes) and
-//	@Description	counts the fights an import would fetch by kind (Mythic+ keys, raid kills, raid wipes), with their
-//	@Description	minutes and an estimate of their points, and the points an import spends an hour. A POST, since
-//	@Description	listing spends points.
+//	@Summary		List the fights an import of the character's Warcraft Logs reports would fetch
+//	@Description	In the background, lists the reports the settings' character is in (about 2 points a report the
+//	@Description	first time, then only new reports; the list is reused for 10 minutes) and counts the fights an
+//	@Description	import would fetch by kind (Mythic+ keys, raid kills, raid wipes), with their minutes and an
+//	@Description	estimate of their points: the status's plan once its state leaves listing. DELETE on the import
+//	@Description	stops it. A POST, since listing spends points.
 //	@Tags			settings
 //	@Produce		json
-//	@Success		200	{object}	models.ImportPlan
+//	@Success		202	{object}	models.ImportStatus
 //	@Failure		400	{object}	ErrorResponse	"No character, or one that doesn't fit"
 //	@Failure		404	{object}	ErrorResponse	"No Warcraft Logs keys saved"
-//	@Failure		409	{object}	ErrorResponse	"An import is running"
+//	@Failure		409	{object}	ErrorResponse	"An import or a search is running"
 //	@Failure		502	{object}	ErrorResponse	"Warcraft Logs couldn't be reached"
 //	@Router			/api/settings/warcraftlogs/import/plan [post]
-func (s SettingsAPI) ImportPlan(c *gin.Context) {
+func (s SettingsAPI) FindFights(c *gin.Context) {
 	settings, ok := s.importCharacter(c)
 	if !ok {
 		return
 	}
-	plan, err := s.Import.Plan(c.Request.Context(), settings.Region, settings.Character)
-	if importFailed(c, err) {
+	if importFailed(c, s.Import.Find(c.Request.Context(), settings.Region, settings.Character)) {
 		return
 	}
-	c.JSON(http.StatusOK, plan)
+	c.JSON(http.StatusAccepted, s.Import.Status())
 }
 
 // StartImport godoc
@@ -442,7 +442,7 @@ func (s SettingsAPI) importCharacter(c *gin.Context) (models.Settings, bool) {
 // importFailed answers an import's or plan's error, if any: 409 while one runs, else as characterFailed.
 func importFailed(c *gin.Context, err error) bool {
 	if errors.Is(err, service.ErrBusy) {
-		c.JSON(http.StatusConflict, ErrorResponse{Error: "an import is already running"})
+		c.JSON(http.StatusConflict, ErrorResponse{Error: "an import or a search is already running"})
 		return true
 	}
 	return characterFailed(c, err)

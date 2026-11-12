@@ -438,16 +438,14 @@ func TestSecurityHeaders(t *testing.T) {
 	}
 }
 
-// fakeImport is an import whose Start and Plan fail with err.
+// fakeImport is an import whose Start and Find fail with err.
 type fakeImport struct{ err error }
 
 func (f fakeImport) Start(context.Context, string, string, []models.ImportKind) error { return f.err }
-func (f fakeImport) Plan(context.Context, string, string) (models.ImportPlan, error) {
-	return models.ImportPlan{}, f.err
-}
-func (f fakeImport) Stop()                       {}
-func (f fakeImport) Status() models.ImportStatus { return models.ImportStatus{State: "listing"} }
-func (f fakeImport) Remove() error               { return f.err }
+func (f fakeImport) Find(context.Context, string, string) error                       { return f.err }
+func (f fakeImport) Stop()                                                            {}
+func (f fakeImport) Status() models.ImportStatus                                      { return models.ImportStatus{State: "listing"} }
+func (f fakeImport) Remove() error                                                    { return f.err }
 
 func TestImportNeedsACharacterKindsAndOneImportAtATime(t *testing.T) {
 	const keys = `{"kinds": ["keys", "raidKills"]}`
@@ -465,7 +463,7 @@ func TestImportNeedsACharacterKindsAndOneImportAtATime(t *testing.T) {
 		{"", `{"kinds": []}`, "Testmage-Somerealm", nil, http.StatusBadRequest},
 		{"", `{"kinds": ["keys", "trash"]}`, "Testmage-Somerealm", nil, http.StatusBadRequest},
 		{"", `{"kinds": ["keys", "keys"]}`, "Testmage-Somerealm", nil, http.StatusBadRequest},
-		{"/plan", "", "Testmage-Somerealm", nil, http.StatusOK},
+		{"/plan", "", "Testmage-Somerealm", nil, http.StatusAccepted},
 		{"/plan", "", "", nil, http.StatusBadRequest},
 		{"/plan", "", "Testmage-Somerealm", service.ErrBusy, http.StatusConflict},
 		{"/plan", "", "Testmage-Somerealm", errors.New("down"), http.StatusBadGateway},

@@ -177,13 +177,21 @@ func (c *Client) PointsLeft(ctx context.Context) (float64, error) {
 func (c *Client) cachedQuery(ctx context.Context, file string, maxAge time.Duration, gql string,
 	variables map[string]any, out any) error {
 	path := filepath.Join(c.CacheDir, "wcl-mplus", file)
-	if info, err := os.Stat(path); err == nil && (maxAge == 0 || time.Since(info.ModTime()) < maxAge) {
-		if data, err := os.ReadFile(path); err == nil && json.Unmarshal(data, out) == nil {
-			return nil
-		}
+	if readCached(path, maxAge, out) {
+		return nil
 	}
 	if err := c.Query(ctx, gql, variables, out); err != nil {
 		return err
 	}
 	return cachefile.WriteJSON(path, out)
+}
+
+// readCached decodes the file at path into out when it's younger than maxAge (0: any age), and says whether it did.
+func readCached(path string, maxAge time.Duration, out any) bool {
+	info, err := os.Stat(path)
+	if err != nil || maxAge > 0 && time.Since(info.ModTime()) >= maxAge {
+		return false
+	}
+	data, err := os.ReadFile(path)
+	return err == nil && json.Unmarshal(data, out) == nil
 }

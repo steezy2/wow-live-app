@@ -1088,19 +1088,19 @@ const docTemplate = `{
         },
         "/api/settings/warcraftlogs/import/plan": {
             "post": {
-                "description": "Lists the reports the settings' character is in (about 2 points a report, reused for 10 minutes) and\ncounts the fights an import would fetch by kind (Mythic+ keys, raid kills, raid wipes), with their\nminutes and an estimate of their points, and the points an import spends an hour. A POST, since\nlisting spends points.",
+                "description": "In the background, lists the reports the settings' character is in (about 2 points a report the\nfirst time, then only new reports; the list is reused for 10 minutes) and counts the fights an\nimport would fetch by kind (Mythic+ keys, raid kills, raid wipes), with their minutes and an\nestimate of their points: the status's plan once its state leaves listing. DELETE on the import\nstops it. A POST, since listing spends points.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "settings"
                 ],
-                "summary": "What an import of the character's Warcraft Logs reports would fetch",
+                "summary": "List the fights an import of the character's Warcraft Logs reports would fetch",
                 "responses": {
-                    "200": {
-                        "description": "OK",
+                    "202": {
+                        "description": "Accepted",
                         "schema": {
-                            "$ref": "#/definitions/models.ImportPlan"
+                            "$ref": "#/definitions/models.ImportStatus"
                         }
                     },
                     "400": {
@@ -1116,7 +1116,7 @@ const docTemplate = `{
                         }
                     },
                     "409": {
-                        "description": "An import is running",
+                        "description": "An import or a search is running",
                         "schema": {
                             "$ref": "#/definitions/controller.ErrorResponse"
                         }
@@ -1423,6 +1423,12 @@ const docTemplate = `{
                 },
                 "imported": {
                     "type": "integer"
+                },
+                "listedFor": {
+                    "type": "string"
+                },
+                "plan": {
+                    "$ref": "#/definitions/models.ImportPlan"
                 },
                 "pointsPerFight": {
                     "type": "number"

@@ -26,6 +26,10 @@ const (
 	importTries = 2
 	// importStateFile is the import's state in its folder, which a restart resumes from.
 	importStateFile = "state.json"
+	// importReportsFile holds the reports listed last (listedReports), so the next listing only looks for new ones.
+	importReportsFile = "reports.json"
+	// importPlanFile is what the last Find found (models.ImportPlan), shown until an import starts.
+	importPlanFile = "plan.json"
 	// pointsPerPlayerMinute is what importing a fight costs per player and minute, measured on keys and Mythic pulls
 	// alike (a 28-minute key 36 points, a 2:20 pull of 20 raiders 14).
 	pointsPerPlayerMinute = 0.27
@@ -72,10 +76,17 @@ type Importer struct {
 	// Wait sleeps for d or until ctx ends (replaceable in tests).
 	Wait func(ctx context.Context, d time.Duration) error
 
-	mu     sync.Mutex
-	status models.ImportStatus
-	cancel context.CancelFunc
-	done   chan struct{}
+	mu        sync.Mutex
+	status    models.ImportStatus
+	listedFor string // the character reports.json lists
+	cancel    context.CancelFunc
+	done      chan struct{}
+}
+
+// listedReports is reports.json: the character's reports of this season listed so far.
+type listedReports struct {
+	Character string                   `json:"character"`
+	Reports   []models.CharacterReport `json:"reports"`
 }
 
 // importState is the import's state.json: the character, the kinds picked (none, in a state from before them: all),
@@ -97,8 +108,8 @@ func (im *Importer) Start(ctx context.Context, region, character string, kinds [
 	if err != nil {
 		return err
 	}
-	old, err := im.readState()
-	if err != nil {
+	var old importState
+	if err := im.readFile(importStateFile, &old); err != nil {
 		log.Print(err) // a new import replaces it
 	}
 	state := importState{Region: region, Character: character, Kinds: kinds}
@@ -108,25 +119,43 @@ func (im *Importer) Start(ctx context.Context, region, character string, kinds [
 	return im.run(state, func(ctx context.Context, st *importState) error { return im.list(ctx, st, name, slug) })
 }
 
-// Plan is what Start would import for character, by kind, with an estimate of the points; it lists the reports as
-// Start does, which caches them for a Start soon after. Its errors are Start's, and Warcraft Logs'.
-func (im *Importer) Plan(ctx context.Context, region, character string) (models.ImportPlan, error) {
-	im.mu.Lock()
-	busy := im.cancel != nil
-	im.mu.Unlock()
-	if busy {
-		return models.ImportPlan{}, ErrBusy
-	}
+// Find checks character and, in the background, lists its reports for what Start would import (the status's Plan,
+// once its state leaves listing, saved until an import starts), answering at once; Stop ends it. Once a character's
+// reports are listed, it only looks for new ones (fights). Its errors are Start's.
+func (im *Importer) Find(ctx context.Context, region, character string) error {
 	name, slug, err := im.Characters.Resolve(ctx, region, character)
 	if err != nil {
-		return models.ImportPlan{}, err
+		return err
 	}
+	status := models.ImportStatus{State: importListing, Character: character}
+	return im.begin(status, func(ctx context.Context) {
+		plan, err := im.plan(ctx, region, character, name, slug)
+		if err == nil {
+			err = im.writeFile(importPlanFile, plan)
+		}
+		im.mu.Lock()
+		defer im.mu.Unlock()
+		switch {
+		case ctx.Err() != nil:
+			im.status.State = importIdle
+		case err != nil:
+			log.Printf("finding fights on Warcraft Logs: %v", err)
+			im.status.State, im.status.Problem = importFailed, err.Error()
+		default:
+			im.status.State, im.status.Plan = importIdle, &plan
+		}
+	})
+}
+
+// plan is what Start would import for character, by kind, with an estimate of the points; it lists the reports as
+// Start does, which caches them for a Start soon after.
+func (im *Importer) plan(ctx context.Context, region, character, name, slug string) (models.ImportPlan, error) {
 	before, err := im.Source.RateLimit(ctx)
 	if err != nil {
 		return models.ImportPlan{}, err
 	}
 	var done []models.ReportLink
-	if old, err := im.readState(); err == nil && old.Character == character {
+	if old := (importState{}); im.readFile(importStateFile, &old) == nil && old.Character == character {
 		done = old.Done
 	}
 	fights, err := im.fights(ctx, region, character, name, slug, done)
@@ -157,11 +186,23 @@ func (im *Importer) Plan(ctx context.Context, region, character string) (models.
 	return plan, nil
 }
 
-// Resume goes on with an import a restart stopped, if one has fights left.
+// Resume goes on with an import a restart stopped, if one has fights left, else shows the fights the last Find found.
 func (im *Importer) Resume() error {
-	state, err := im.readState()
-	if err != nil || state.Character == "" || len(state.left()) == 0 {
+	var listed listedReports
+	var plan models.ImportPlan
+	var state importState
+	if err := errors.Join(im.readFile(importReportsFile, &listed), im.readFile(importPlanFile, &plan),
+		im.readFile(importStateFile, &state)); err != nil {
 		return err
+	}
+	im.mu.Lock()
+	im.listedFor = listed.Character
+	if plan.Character != "" {
+		im.status.Plan = &plan
+	}
+	im.mu.Unlock()
+	if state.Character == "" || len(state.left()) == 0 {
+		return nil
 	}
 	return im.run(state, nil)
 }
@@ -197,7 +238,7 @@ func (im *Importer) Remove() error {
 	if err := os.RemoveAll(im.Dir); err != nil {
 		return fmt.Errorf("removing the imported fights: %w", err)
 	}
-	im.status = models.ImportStatus{State: importIdle}
+	im.status, im.listedFor = models.ImportStatus{State: importIdle}, ""
 	return nil
 }
 
@@ -205,6 +246,7 @@ func (im *Importer) Remove() error {
 func (im *Importer) Status() models.ImportStatus {
 	im.mu.Lock()
 	status := im.status
+	status.ListedFor = im.listedFor
 	im.mu.Unlock()
 	if status.State == "" {
 		status.State = importIdle
@@ -216,20 +258,16 @@ func (im *Importer) Status() models.ImportStatus {
 	return status
 }
 
-// run starts the import of state in the background: first (when set) fills in its fights, then each is fetched.
-func (im *Importer) run(state importState, first func(context.Context, *importState) error) error {
+// begin runs job in the background as the one import or Find at a time, from status; ErrBusy while one runs. Stop
+// cancels job's context.
+func (im *Importer) begin(status models.ImportStatus, job func(ctx context.Context)) error {
 	im.mu.Lock()
 	defer im.mu.Unlock()
 	if im.cancel != nil {
 		return ErrBusy
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	im.cancel, im.done = cancel, make(chan struct{})
-	im.status = models.ImportStatus{State: importRunning, Character: state.Character}
-	if first != nil {
-		im.status.State = importListing
-	}
-	im.show(&state)
+	im.cancel, im.done, im.status = cancel, make(chan struct{}), status
 	go func() {
 		defer func() {
 			im.mu.Lock()
@@ -238,6 +276,19 @@ func (im *Importer) run(state importState, first func(context.Context, *importSt
 			close(im.done)
 			im.cancel = nil
 		}()
+		job(ctx)
+	}()
+	return nil
+}
+
+// run starts the import of state in the background: first (when set) fills in its fights, then each is fetched.
+func (im *Importer) run(state importState, first func(context.Context, *importState) error) error {
+	status := models.ImportStatus{State: importRunning}
+	if first != nil {
+		status.State = importListing
+	}
+	state.show(&status)
+	return im.begin(status, func(ctx context.Context) {
 		err := error(nil)
 		if first != nil {
 			err = first(ctx, &state)
@@ -250,7 +301,7 @@ func (im *Importer) run(state importState, first func(context.Context, *importSt
 		switch {
 		case ctx.Err() != nil:
 			state.Fights = nil // stopped: a restart doesn't resume it (Done stays, for the next Start)
-			if err := im.writeState(state); err != nil {
+			if err := im.writeFile(importStateFile, state); err != nil {
 				log.Print(err)
 			}
 			im.status.State, im.status.ResumeAtMS = importIdle, 0
@@ -260,25 +311,28 @@ func (im *Importer) run(state importState, first func(context.Context, *importSt
 		default:
 			im.status.State = importDone
 		}
-	}()
-	return nil
+	})
 }
 
-// list fills st's fights from the character's reports.
+// list drops the fights the last Find found and fills st's fights from the character's reports.
 func (im *Importer) list(ctx context.Context, st *importState, name, slug string) error {
+	if err := os.Remove(filepath.Join(im.Dir, importPlanFile)); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return fmt.Errorf("removing the found fights: %w", err)
+	}
 	fights, err := im.fights(ctx, st.Region, st.Character, name, slug, st.Done)
 	if err != nil {
 		return err
 	}
 	st.Fights = fights
 	im.mu.Lock()
-	im.show(st)
+	st.show(&im.status)
 	im.mu.Unlock()
-	return im.writeState(*st)
+	return im.writeFile(importStateFile, *st)
 }
 
-// fights are the character's fights to import (PickFights), from its reports back to the first page with none of
-// this season's, once new local logs are read, but those done (fetched before, and saved nothing).
+// fights are the character's fights to import (PickFights), once new local logs are read, but those done (fetched
+// before, and saved nothing). Its reports are listed back to the first page with none of this season's or one listed
+// before, and saved with those listed before (reports.json), keeping this season's.
 func (im *Importer) fights(ctx context.Context, region, character, name, slug string, done []models.ReportLink) (
 	[]models.FightRef, error) {
 	if err := im.Prepare(); err != nil && !errors.Is(err, ErrBusy) {
@@ -288,6 +342,14 @@ func (im *Importer) fights(ctx context.Context, region, character, name, slug st
 	if err != nil {
 		return nil, err
 	}
+	var listed listedReports
+	if err := im.readFile(importReportsFile, &listed); err != nil || listed.Character != character {
+		listed = listedReports{Character: character}
+	}
+	known := func(r models.CharacterReport) bool {
+		return slices.ContainsFunc(listed.Reports, func(o models.CharacterReport) bool { return o.Code == r.Code })
+	}
+	thisSeason := func(r models.CharacterReport) bool { return r.ZoneID == zones.MPlusID || r.ZoneID == zones.RaidID }
 	var reports []models.CharacterReport
 	for page := 1; ; page++ {
 		got, more, err := im.Source.RecentReports(ctx, region, slug, name, page)
@@ -295,12 +357,23 @@ func (im *Importer) fights(ctx context.Context, region, character, name, slug st
 			return nil, err
 		}
 		reports = append(reports, got...)
-		if !more || !slices.ContainsFunc(got, func(r models.CharacterReport) bool {
-			return r.ZoneID == zones.MPlusID || r.ZoneID == zones.RaidID
-		}) {
+		if !more || !slices.ContainsFunc(got, thisSeason) || slices.ContainsFunc(got, known) {
 			break
 		}
 	}
+	for _, r := range listed.Reports { // a report listed again is newer: it may have grown
+		if !slices.ContainsFunc(reports, func(o models.CharacterReport) bool { return o.Code == r.Code }) {
+			reports = append(reports, r)
+		}
+	}
+	listed.Reports = slices.DeleteFunc(reports, func(r models.CharacterReport) bool { return !thisSeason(r) })
+	if err := im.writeFile(importReportsFile, listed); err != nil {
+		return nil, err
+	}
+	im.mu.Lock()
+	im.listedFor = character
+	im.mu.Unlock()
+	reports = listed.Reports
 	keys, pulls, err := im.Saved()
 	if err != nil {
 		return nil, err
@@ -352,12 +425,12 @@ func (im *Importer) fetchAll(ctx context.Context, st *importState) error {
 			st.Done = append(st.Done, ref.ReportLink)
 		}
 		im.mu.Lock()
-		im.show(st)
+		st.show(&im.status)
 		if fetchErr != nil {
 			im.status.Problem = fetchErr.Error()
 		}
 		im.mu.Unlock()
-		if err := im.writeState(*st); err != nil {
+		if err := im.writeFile(importStateFile, *st); err != nil {
 			return err
 		}
 	}
@@ -410,12 +483,12 @@ func (st importState) left() []models.FightRef {
 	})
 }
 
-// show copies st's counts into the status; im.mu is held.
-func (im *Importer) show(st *importState) {
+// show copies st's counts into status (im.status with im.mu held).
+func (st *importState) show(status *models.ImportStatus) {
 	picked, left := st.picked(), st.left() // Done also holds earlier imports' fights, which aren't picked
-	im.status.Character, im.status.Fights = st.Character, len(picked)
-	im.status.FightsDone, im.status.FightsFailed = len(picked)-len(left)-len(st.Failed), len(st.Failed)
-	im.status.PointsSpent = st.PointsSpent
+	status.Character, status.Fights = st.Character, len(picked)
+	status.FightsDone, status.FightsFailed = len(picked)-len(left)-len(st.Failed), len(st.Failed)
+	status.PointsSpent = st.PointsSpent
 }
 
 func (im *Importer) setState(state string, resumeAt int64) {
@@ -424,28 +497,29 @@ func (im *Importer) setState(state string, resumeAt int64) {
 	im.status.State, im.status.ResumeAtMS = state, resumeAt
 }
 
-func (im *Importer) readState() (importState, error) {
-	var st importState
-	data, err := os.ReadFile(filepath.Join(im.Dir, importStateFile))
+// readFile decodes the file name in the import's folder into out, leaving out as it is when there's none.
+func (im *Importer) readFile(name string, out any) error {
+	data, err := os.ReadFile(filepath.Join(im.Dir, name))
 	if errors.Is(err, os.ErrNotExist) {
-		return st, nil
+		return nil
 	}
 	if err == nil {
-		err = json.Unmarshal(data, &st)
+		err = json.Unmarshal(data, out)
 	}
 	if err != nil {
-		return st, fmt.Errorf("reading the import's state: %w", err)
+		return fmt.Errorf("reading the import's %s: %w", name, err)
 	}
-	return st, nil
+	return nil
 }
 
-// writeState saves st beside as .tmp, then over the old state, so a crash never leaves half a file.
-func (im *Importer) writeState(st importState) error {
-	data, err := json.Marshal(st)
+// writeFile saves v as the file name in the import's folder, beside as .tmp first, then over the old one, so a crash
+// never leaves half a file.
+func (im *Importer) writeFile(name string, v any) error {
+	data, err := json.Marshal(v)
 	if err != nil {
-		return fmt.Errorf("saving the import's state: %w", err)
+		return fmt.Errorf("saving the import's %s: %w", name, err)
 	}
-	path := filepath.Join(im.Dir, importStateFile)
+	path := filepath.Join(im.Dir, name)
 	if err = os.MkdirAll(im.Dir, 0o755); err == nil {
 		err = os.WriteFile(path+".tmp", data, 0o644)
 	}
@@ -453,7 +527,7 @@ func (im *Importer) writeState(st importState) error {
 		err = os.Rename(path+".tmp", path)
 	}
 	if err != nil {
-		return fmt.Errorf("saving the import's state: %w", err)
+		return fmt.Errorf("saving the import's %s: %w", name, err)
 	}
 	return nil
 }
