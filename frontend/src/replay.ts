@@ -122,16 +122,10 @@ export function floorsOf(track: KeyTrack | null): number[] {
     .map(([m]) => m)
 }
 
-/** An enemy's name by its GUID: a boss's from its points; a mob's (its trail is unnamed) from its death, which is
- * where its trail ends (the nearest, when several died that moment); 'Enemy' for a mob that never died. */
+/** An enemy's name by its GUID: a boss's from its points, a mob's from its trail; 'Enemy' when the track has none
+ * (tracks saved before Nov 12). */
 export function enemyName(track: KeyTrack, guid: string): string {
-  const boss = track.bosses?.[guid]?.[0]?.name
-  const mob = track.mobs?.[guid]
-  const end = mob?.p[mob.p.length - 1]
-  if (boss || !mob?.died || !end) return boss || 'Enemy'
-  const near = (d: TrackPoint) => Math.hypot(d.x - end.x, d.y - end.y)
-  const [death] = track.deaths.filter((d) => d.t === mob.died).sort((a, b) => near(a) - near(b))
-  return death?.name ?? 'Enemy'
+  return track.bosses?.[guid]?.[0]?.name || track.mobs?.[guid]?.n || 'Enemy'
 }
 
 /** A meter row with nothing in it, for the fields the replay's track doesn't keep. */

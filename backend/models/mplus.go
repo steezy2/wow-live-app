@@ -243,8 +243,10 @@ type KeyTrack struct {
 	MobCasts map[string][]TrackCast `json:"mobCasts,omitempty"`
 }
 
-// MobTrail is where a mob went (its points unnamed) and when it died on the clock (0 while alive).
+// MobTrail is a mob's name, where it went (its points unnamed) and when it died on the clock (0 while alive); the
+// name is missing in tracks saved before Nov 12.
 type MobTrail struct {
+	Name   string       `json:"n,omitempty"`
 	Points []TrackPoint `json:"p"`
 	Died   int64        `json:"died,omitempty"`
 }

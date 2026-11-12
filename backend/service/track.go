@@ -71,6 +71,7 @@ func (k *LogTracker) position(at int64, event string, f []string) {
 		case !watched && run.track.Bosses[guid] == nil && hostileActor(guid, f) && at-run.sampled[guid] >= mobEveryMS:
 			run.sampled[guid] = at
 			m := run.track.Mobs[guid]
+			m.Name = p.Name
 			m.Points = append(m.Points, models.TrackPoint{ClockMS: p.ClockMS, X: x, Y: y, Map: p.Map})
 			run.track.Mobs[guid] = m
 		}

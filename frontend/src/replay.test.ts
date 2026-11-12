@@ -152,16 +152,12 @@ describe('floorsOf', () => {
 describe('enemyName', () => {
   const track = {
     bosses: { boss: [{ ...at(0, 0), name: 'Boss' }] },
-    mobs: { near: { p: [at(0, 5)], died: 9 }, alive: { p: [at(0, 0)] } },
-    deaths: [
-      { ...at(9, 50), name: 'Far Brawler' },
-      { ...at(9, 6), name: 'Lost Sethrak' },
-    ],
+    mobs: { named: { n: 'Lost Sethrak', p: [at(0, 5)] }, old: { p: [at(0, 0)] } },
   } as unknown as KeyTrack
   it.each([
     ['a boss, from its points', 'boss', 'Boss'],
-    ['a mob, from the nearest death when it died', 'near', 'Lost Sethrak'],
-    ['a mob that never died', 'alive', 'Enemy'],
+    ['a mob, from its trail', 'named', 'Lost Sethrak'],
+    ['a mob saved before names were kept', 'old', 'Enemy'],
   ])('%s', (_, guid, name) => {
     expect(enemyName(track, guid)).toBe(name)
   })

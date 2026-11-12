@@ -343,7 +343,7 @@ export interface KeyTrack {
   /** The bosses GUIDs the health box shows: the boss's own units, then the adds to burst. */
   health?: string[]
   /** Every other hostile mob's trail (unnamed points, about every 2 s) and when it died; none in older tracks. */
-  mobs?: Record<string, { p: TrackPoint[]; died?: number }>
+  mobs?: Record<string, { n?: string; p: TrackPoint[]; died?: number }>
   /** Each raider's casts (e: when one with a cast time ended; x: it never finished), what each ability did and what
    * they took damage from in each stretch ([end, damage, healing, damage taken]), and when the stretches ended (each
    * starts where the one before it ended); none in pulls saved before Nov 11. */
