@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { deleteSavedKeys, fetchSavedKeys, type KeySummary } from './api'
 import { chestLabel, clock, counted } from './format'
 import { ReportTag } from './ReportLinks'
@@ -6,19 +6,23 @@ import { SideGroups } from './SideGroups'
 
 /** The side panel: the live key, then every saved key by day, or by week past the last 7 days (pick one to open it,
  * × to delete it, or clear them all).
- * refresh changes when the list should be read again (a key ended). */
-export function SavedKeys({ selected, onSelect, refresh }: {
+ * refresh changes when the list should be read again (a key ended); character is the top bar's pick ('' for all). */
+export function SavedKeys({ selected, onSelect, refresh, character }: {
   selected: number | null
   onSelect: (start: number | null) => void
   refresh: number
+  character: string
 }) {
   const [keys, setKeys] = useState<KeySummary[]>([])
   const [error, setError] = useState<string | null>(null)
-  const load = () =>
-    fetchSavedKeys()
-      .then(setKeys)
-      .catch((err: unknown) => setError(err instanceof Error ? err.message : String(err)))
-  useEffect(() => void load(), [refresh])
+  const load = useCallback(
+    () =>
+      fetchSavedKeys(character)
+        .then(setKeys)
+        .catch((err: unknown) => setError(err instanceof Error ? err.message : String(err))),
+    [character],
+  )
+  useEffect(() => void load(), [refresh, load])
 
   const remove = (start?: number) => {
     if (!start && !window.confirm('Delete every saved key?')) return

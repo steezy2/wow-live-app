@@ -48,6 +48,17 @@ export function oddsText(odds: number[]): string {
     .join(' · ')
 }
 
+/** A player with their realm, the log's run-together realm spaced out: "Testmage · Moon Guard"; the name alone
+ * when the realm isn't known. */
+export function withRealm(name: string, realm: string): string {
+  return realm ? `${name} · ${realm.replace(/([a-z])([A-Z0-9])/g, '$1 $2')}` : name
+}
+
+/** A time against another as a signed clock: "+1:05" slower, "-0:30" faster. */
+export function versus(ms: number, other: number): string {
+  return `${ms > other ? '+' : ''}${clock(ms - other)}`
+}
+
 /** A count with its word: "1 death", "3 deaths". */
 export function counted(n: number, word: string): string {
   return `${n} ${word}${n === 1 ? '' : 's'}`
