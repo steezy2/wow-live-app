@@ -9,6 +9,7 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 - Listing a character's reports caches each report's fights and players for good (by the report's end), so *Find fights* or an import after the 10-minute list cache spends points only on new reports, not all 150 again.
 - A key's meter cards leave out the Avoidable column: a key's avoidable damage is in its Avoidable tab at the bottom. Raid pulls keep the column.
 - A raid pull's Mechanics card folds lines with the same name (a soak's hits, an add's spawns, the same cast going off) into one small card with their count; a click lists each time and who.
+- Build tooling: the Store release step uses `microsoft-store-apppublisher@v1.4` (Node 24, so no Node 20 warning), and the frontend lints with ESLint 10 and eslint-plugin-react-hooks 7 with its React Compiler rules on. The minutes since the last log in Settings and an import's "waiting N min" now update each minute instead of only when the page redraws.
 
 ## [0.3.0] - 2026-11-12
 

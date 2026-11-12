@@ -25,7 +25,7 @@ interface Reading {
 export function useLiveKey(onEnded?: () => void) {
   const [reading, setReading] = useState<Reading | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [now, setNow] = useState(() => Date.now())
+  const now = useNow(TICK_MS)
   const [endedHere, setEndedHere] = useState<number | null>(null)
 
   useEffect(() => {
@@ -52,11 +52,6 @@ export function useLiveKey(onEnded?: () => void) {
     }
   }, [onEnded])
 
-  useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), TICK_MS)
-    return () => clearInterval(timer)
-  }, [])
-
   const key = reading?.key ?? null
   const since = key?.status === 'running' && reading ? Math.max(0, now - reading.at) : 0
   return {
@@ -67,6 +62,16 @@ export function useLiveKey(onEnded?: () => void) {
     error,
     endedHere,
   }
+}
+
+/** The time now, read again every tickMS. */
+export function useNow(tickMS: number): number {
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), tickMS)
+    return () => clearInterval(timer)
+  }, [tickMS])
+  return now
 }
 
 /** The ready check before the next key, read again on each change the site pushes; null outside a Mythic dungeon
@@ -85,15 +90,13 @@ export function useRaidLive(enabled = true): RaidLive | null {
 function usePushed<T>(read: (signal: AbortSignal) => Promise<T | null>, enabled = true): T | null {
   const [value, setValue] = useState<T | null>(null)
   useEffect(() => {
-    if (!enabled) {
-      setValue(null)
-      return
-    }
+    if (!enabled) return
     const controller = new AbortController()
     const unsubscribe = subscribe(() => void read(controller.signal).then(setValue, () => undefined))
     return () => {
       controller.abort()
       unsubscribe()
+      setValue(null)
     }
   }, [read, enabled])
   return value

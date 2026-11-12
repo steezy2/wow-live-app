@@ -14,6 +14,7 @@ import {
 import { importKindText, importProgress, importTotal } from './format'
 import { type Note, track } from './note'
 import { NoteLine } from './NoteLine'
+import { useNow } from './useLiveKey'
 
 /** How often the status is read while an import runs. */
 const POLL_MS = 2000
@@ -30,6 +31,7 @@ export function WCLImport({ view, onSaved }: { view: SettingsView; onSaved: (vie
   const [picked, setPicked] = useState<ImportKind[] | null>(null)
   const [removing, setRemoving] = useState(false)
   const [note, setNote] = useState<Note>(null)
+  const now = useNow(60_000)
   const running = status !== null && going(status)
   const plan = !running && status?.plan?.character === view.character ? status.plan : null
   const kinds = picked ?? plan?.kinds.filter((k) => k.default).map((k) => k.kind) ?? []
@@ -159,7 +161,7 @@ export function WCLImport({ view, onSaved }: { view: SettingsView; onSaved: (vie
         </div>
       )}
       {status.state === 'listing' && <div className="busy-bar" role="progressbar" aria-label="Listing the reports" />}
-      <p className={status.state === 'failed' ? 'warning' : 'muted'}>{importProgress(status, Date.now())}</p>
+      <p className={status.state === 'failed' ? 'warning' : 'muted'}>{importProgress(status, now)}</p>
       <NoteLine note={note} />
     </section>
   )
