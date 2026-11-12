@@ -603,6 +603,7 @@ func (k *LogTracker) finishPull(kill bool) {
 	if i := slices.IndexFunc(k.pulls, func(p models.RaidPull) bool {
 		return p.Start == pull.Start && p.Imported == pull.Imported
 	}); i >= 0 {
+		pull.Report = cmp.Or(pull.Report, k.pulls[i].Report) // a report linked since stays
 		k.pulls[i] = pull
 	} else {
 		k.pulls = append([]models.RaidPull{pull}, k.pulls...)

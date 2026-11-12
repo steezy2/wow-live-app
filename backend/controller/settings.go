@@ -54,6 +54,7 @@ type LogFolder interface {
 type Characters interface {
 	Resolve(ctx context.Context, region, character string) (name, slug string, err error)
 	Guess() string
+	Parses(ctx context.Context, region, character string) (models.CharacterParses, error)
 }
 
 // Import imports a character's Warcraft Logs fights in the background (service.Importer); Start's and Find's errors
@@ -391,6 +392,31 @@ func (s SettingsAPI) FindFights(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusAccepted, s.Import.Status())
+}
+
+// CharacterParses godoc
+//
+//	@Summary		The character's Warcraft Logs parses this season
+//	@Description	The settings' character's best and median parse in each Mythic+ dungeon of the season and each boss
+//	@Description	of the current raid it has a ranked run or kill in, with its Warcraft Logs page (found false when
+//	@Description	Warcraft Logs doesn't know the character). Read once a day; a read costs a few points.
+//	@Tags			settings
+//	@Produce		json
+//	@Success		200	{object}	models.CharacterParses
+//	@Failure		400	{object}	ErrorResponse	"No character, or one that doesn't fit"
+//	@Failure		404	{object}	ErrorResponse	"No Warcraft Logs keys saved"
+//	@Failure		502	{object}	ErrorResponse	"Warcraft Logs couldn't be reached"
+//	@Router			/api/settings/warcraftlogs/parses [get]
+func (s SettingsAPI) CharacterParses(c *gin.Context) {
+	settings, ok := s.importCharacter(c)
+	if !ok {
+		return
+	}
+	parses, err := s.Characters.Parses(c.Request.Context(), settings.Region, settings.Character)
+	if characterFailed(c, err) {
+		return
+	}
+	c.JSON(http.StatusOK, parses)
 }
 
 // StartImport godoc

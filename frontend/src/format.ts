@@ -1,4 +1,13 @@
-import type { ImportKind, ImportKindPlan, ImportPlan, ImportStatus, KeyView, MeterPoint, RaidPullSummary } from './api'
+import type {
+  ImportKind,
+  ImportKindPlan,
+  ImportPlan,
+  ImportStatus,
+  KeySpike,
+  KeyView,
+  MeterPoint,
+  RaidPullSummary,
+} from './api'
 
 /** A duration as the game shows it: "18:42", "1:05:09" past an hour, "-0:12" when negative. */
 export function clock(ms: number): string {
@@ -71,6 +80,13 @@ export function coverText(c: { defensive: string; used?: boolean; ready?: string
   return c.ready?.length ? `still had ${c.ready.join(', ')}` : 'nothing ready'
 }
 
+/** What hit the party in a spike, with each one's share of it: "Crushing Slam (Bonebreaker) 58%, Volley 22%". */
+export function causesText(s: Pick<KeySpike, 'damage' | 'causes'>): string {
+  return (s.causes ?? [])
+    .map((c) => `${c.ability}${c.source ? ` (${c.source})` : ''} ${Math.round((100 * c.damage) / s.damage)}%`)
+    .join(', ')
+}
+
 /** The pull meter's title: always "Last pull", with how long ago once it's over during a key. */
 export function pullTitle(key: KeyView, clockMS: number): string {
   const pull = key.lastPull
@@ -110,9 +126,11 @@ export function groupBy<T>(items: T[], key: (item: T) => string): Map<string, T[
 }
 
 const DAY_MS = 86_400_000
+/** Past this many days the side panel groups by month instead of by week, so a season's lists stay short. */
+const MONTH_LABEL_DAYS = 56
 
-/** The side panel's group for a time: its day ("Today", "Yesterday", "Mon, Nov 9") within the last week, else the
- * week it fell in ("Week of Nov 2", weeks starting Monday). */
+/** The side panel's group for a time: its day ("Today", "Yesterday", "Mon, Nov 9") within the last week, the week it
+ * fell in ("Week of Nov 2", weeks starting Monday) within the last 8, else its month ("September 2026"). */
 export function periodLabel(ms: number, now = Date.now()): string {
   const day = new Date(ms)
   day.setHours(0, 0, 0, 0)
@@ -122,6 +140,7 @@ export function periodLabel(ms: number, now = Date.now()): string {
   if (ago <= 0) return 'Today'
   if (ago === 1) return 'Yesterday'
   if (ago < 7) return day.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })
+  if (ago >= MONTH_LABEL_DAYS) return day.toLocaleDateString([], { month: 'long', year: 'numeric' })
   day.setDate(day.getDate() - ((day.getDay() + 6) % 7))
   return `Week of ${day.toLocaleDateString([], { month: 'short', day: 'numeric' })}`
 }

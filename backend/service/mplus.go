@@ -134,6 +134,8 @@ type keyRun struct {
 	sample     abilitySampler                   // what the replay's focus bars keep
 	lastDealt  [2]string                        // unit GUID and ability of the last hit on an enemy (support)
 	lastHealed [2]string                        // player and ability of the last heal or absorb (support)
+	// takenAt is the party's damage taken by second of the log, ability and source, for spikeCauses.
+	takenAt map[int64]map[[2]string]*models.SpikeCause
 }
 
 // NewLogTracker tracks keys with each dungeon's time limit (map ID -> ms), affix names (ID -> name), the page's
@@ -428,6 +430,7 @@ func newRun(key models.Key, instance string) *keyRun {
 			Mobs: map[string]models.MobTrail{}},
 		auras: map[string][]int{}, gear: map[string][]int{}, total: map[string]*models.KeyMeterRow{}, inPull: map[string]*models.KeyMeterRow{},
 		abilities: map[[2]string]*models.KeyAbility{}, takenBy: map[[2]string]int64{},
+		takenAt: map[int64]map[[2]string]*models.SpikeCause{},
 		sample: abilitySampler{every: mplusAbilityEveryMS, abilitiesWere: map[[2]string]models.KeyAbility{},
 			takenWere: map[[2]string]int64{}, targetsWere: map[[2]string]int64{}, casting: map[string]int{}}}
 	run.track.Casts, run.track.Abilities = map[string][]models.TrackCast{}, map[string][]models.AbilitySeries{}
@@ -479,6 +482,7 @@ func (k *LogTracker) closeCurrent(at int64, status string, final int64) {
 	if i := slices.IndexFunc(k.history, func(h models.Key) bool {
 		return h.Start == key.Start && h.Imported == key.Imported
 	}); i >= 0 {
+		key.Report = cmp.Or(key.Report, k.history[i].Report) // a report linked since stays
 		k.history[i] = key
 	} else {
 		k.history = append([]models.Key{key}, k.history...)
@@ -674,6 +678,7 @@ func (k *LogTracker) damage(at int64, event string, f []string, src, dst string)
 		}
 		run.taken[name][at/1000] += amount
 		run.takenBy[[2]string{name, ability}] += amount
+		run.tookFrom(at/1000, ability, unitName(f[1]), amount)
 		run.pullOf[at/1000] = run.pull
 		k.tally(name, func(r *models.KeyMeterRow) {
 			r.DamageTaken += amount

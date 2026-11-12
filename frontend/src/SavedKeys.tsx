@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { deleteSavedKeys, fetchSavedKeys, type KeySummary } from './api'
 import { chestLabel, clock, counted } from './format'
-import { ImportedTag } from './ImportedTag'
+import { ReportTag } from './ReportLinks'
 import { SideGroups } from './SideGroups'
 
 /** The side panel: the live key, then every saved key by day, or by week past the last 7 days (pick one to open it,
@@ -56,7 +56,7 @@ export function SavedKeys({ selected, onSelect, refresh }: {
                   {k.status === 'abandoned' ? 'abandoned' : `${clock(k.finalMS)} ${chestLabel(k.chests)}`}
                 </span>
               </button>
-              {k.imported && <ImportedTag url={k.imported} />}
+              {k.report && <ReportTag link={k.report} imported={k.imported} />}
               <button className="delete" title="Delete this key" onClick={() => remove(k.start)}>
                 ×
               </button>

@@ -130,20 +130,22 @@ export function NoAbilities() {
   )
 }
 
-/** Abilities (or whatever label names) as bars, biggest first, each in its spell school's colour (color without one):
- * the number, its share of the total, and casts and hits where the rows have them; an avoidable one marked ⚠. Counts
- * show whole; everything else shortened. */
-function AbilityBars({
+/** Abilities (or whatever label names) as bars, biggest first (the first limit of them), each in its spell school's
+ * colour (color without one): the number, its share of the total, and casts and hits where the rows have them; an
+ * avoidable one marked ⚠. Counts show whole; everything else shortened. */
+export function AbilityBars({
   rows,
   color,
   label = 'Ability',
+  limit,
 }: {
   rows: AbilityRow[]
   color: string
   label?: string
+  limit?: number
 }) {
-  const sorted = [...rows].sort((a, b) => b.value - a.value)
-  const total = sorted.reduce((sum, r) => sum + r.value, 0)
+  const total = rows.reduce((sum, r) => sum + r.value, 0)
+  const sorted = [...rows].sort((a, b) => b.value - a.value).slice(0, limit)
   const withCasts = sorted.some((r) => r.casts !== undefined)
   const withHits = sorted.some((r) => r.hits) // none up to a replay's moment, which keeps no hits
   const columns = 2 + Number(withCasts) + Number(withHits)

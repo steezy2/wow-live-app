@@ -58,6 +58,36 @@ definitions:
       name:
         type: string
     type: object
+  models.CharacterParse:
+    properties:
+      best:
+        type: number
+      encounter:
+        type: string
+      kind:
+        allOf:
+        - $ref: '#/definitions/models.FightKind'
+        enum:
+        - mplus
+        - raid
+      median:
+        type: number
+      runs:
+        type: integer
+      spec:
+        type: string
+    type: object
+  models.CharacterParses:
+    properties:
+      found:
+        type: boolean
+      parses:
+        items:
+          $ref: '#/definitions/models.CharacterParse'
+        type: array
+      url:
+        type: string
+    type: object
   models.Credentials:
     properties:
       id:
@@ -91,6 +121,14 @@ definitions:
           $ref: '#/definitions/models.TrackPoint'
         type: array
     type: object
+  models.FightKind:
+    enum:
+    - mplus
+    - raid
+    type: string
+    x-enum-varnames:
+    - FightMPlus
+    - FightRaid
   models.ForcesPace:
     properties:
       bestPct:
@@ -153,6 +191,10 @@ definitions:
         type: integer
       imported:
         type: integer
+      linked:
+        description: Linked is how many saved keys and pulls read from local logs
+          the last listing linked to their report.
+        type: integer
       plan:
         $ref: '#/definitions/models.ImportPlan'
       pointsPerFight:
@@ -161,6 +203,11 @@ definitions:
         type: number
       problem:
         type: string
+      reservePoints:
+        description: |-
+          ReservePoints are the hour's points an import leaves for key reviews and parses: with fewer left, it waits
+          for the hour to reset.
+        type: number
       resumeAtMS:
         type: integer
       state:
@@ -458,6 +505,13 @@ definitions:
     type: object
   models.KeySpike:
     properties:
+      causes:
+        description: |-
+          Causes is what hit the party hardest in it, most damage first (at most three); missing in keys saved
+          before Nov 12.
+        items:
+          $ref: '#/definitions/models.SpikeCause'
+        type: array
       clockMS:
         type: integer
       damage:
@@ -472,6 +526,8 @@ definitions:
         items:
           type: string
         type: array
+      seconds:
+        type: integer
       unused:
         description: |-
           Unused is the defensive the member hit hardest had ready and didn't use ("" when they used one or had none
@@ -542,11 +598,15 @@ definitions:
       finalMS:
         type: integer
       imported:
-        description: Imported is the Warcraft Logs page of the fight an imported key
-          came from; "" for one read from a local log.
-        type: string
+        type: boolean
       level:
         type: integer
+      report:
+        allOf:
+        - $ref: '#/definitions/models.ReportLink'
+        description: |-
+          Report is the Warcraft Logs fight the key is, when one is known (imported, or matched to a report), and
+          Imported marks a key built from it instead of a local combat log.
       start:
         type: integer
       status:
@@ -888,6 +948,11 @@ definitions:
     type: object
   models.OverlaySettings:
     properties:
+      clickThrough:
+        description: |-
+          ClickThrough lets clicks on the overlay through to the game; off (the default), a click on a player's row
+          shows their abilities in the pull.
+        type: boolean
       opacity:
         maximum: 100
         minimum: 0
@@ -1332,9 +1397,7 @@ definitions:
       durationMS:
         type: integer
       imported:
-        description: Imported is the Warcraft Logs page of the fight an imported pull
-          came from; "" for one read from a local log.
-        type: string
+        type: boolean
       kill:
         type: boolean
       night:
@@ -1343,6 +1406,12 @@ definitions:
         type: integer
       phase:
         type: string
+      report:
+        allOf:
+        - $ref: '#/definitions/models.ReportLink'
+        description: |-
+          Report is the Warcraft Logs fight the pull is, when one is known (imported, or matched to a report), and
+          Imported marks a pull built from it instead of a local combat log.
       start:
         type: integer
     type: object
@@ -1442,6 +1511,148 @@ definitions:
       player:
         type: string
     type: object
+  models.Recap:
+    properties:
+      deaths:
+        type: integer
+      dungeons:
+        description: most run first
+        items:
+          $ref: '#/definitions/models.RecapDungeon'
+        type: array
+      facts:
+        items:
+          $ref: '#/definitions/models.RecapFact'
+        type: array
+      from:
+        type: integer
+      highestTimed:
+        description: 0 when none was timed
+        type: integer
+      keys:
+        type: integer
+      party:
+        description: most keys together first
+        items:
+          $ref: '#/definitions/models.RecapMate'
+        type: array
+      raid:
+        items:
+          $ref: '#/definitions/models.RecapBoss'
+        type: array
+      timeMS:
+        type: integer
+      timed:
+        type: integer
+      to:
+        type: integer
+      you:
+        $ref: '#/definitions/models.RecapYou'
+    type: object
+  models.RecapBoss:
+    properties:
+      bestWipePct:
+        type: number
+      boss:
+        type: string
+      difficulty:
+        type: string
+      firstKill:
+        type: integer
+      firstKillPull:
+        type: integer
+      kills:
+        type: integer
+      mostHit:
+        type: string
+      pulls:
+        type: integer
+      yourDeaths:
+        type: integer
+    type: object
+  models.RecapCount:
+    properties:
+      count:
+        type: integer
+      name:
+        type: string
+    type: object
+  models.RecapDungeon:
+    properties:
+      bestLevel:
+        type: integer
+      bestMS:
+        type: integer
+      dungeon:
+        type: string
+      runs:
+        type: integer
+      timed:
+        type: integer
+    type: object
+  models.RecapFact:
+    properties:
+      kind:
+        allOf:
+        - $ref: '#/definitions/models.FightKind'
+        enum:
+        - mplus
+        - raid
+      start:
+        type: integer
+      text:
+        type: string
+    type: object
+  models.RecapMate:
+    properties:
+      keys:
+        type: integer
+      player:
+        type: string
+      timed:
+        type: integer
+    type: object
+  models.RecapPeriod:
+    properties:
+      from:
+        type: integer
+      label:
+        example: This month
+        type: string
+      to:
+        type: integer
+    type: object
+  models.RecapRate:
+    properties:
+      dungeon:
+        type: string
+      median:
+        type: number
+      metric:
+        enum:
+        - dps
+        - hps
+        type: string
+    type: object
+  models.RecapYou:
+    properties:
+      character:
+        type: string
+      deaths:
+        type: integer
+      dungeons:
+        items:
+          $ref: '#/definitions/models.RecapRate'
+        type: array
+      killers:
+        items:
+          $ref: '#/definitions/models.RecapCount'
+        type: array
+      specs:
+        items:
+          type: string
+        type: array
+    type: object
   models.ReportLink:
     properties:
       code:
@@ -1536,6 +1747,17 @@ definitions:
         items:
           type: string
         type: array
+    type: object
+  models.SpikeCause:
+    properties:
+      ability:
+        type: string
+      damage:
+        type: integer
+      hits:
+        type: integer
+      source:
+        type: string
     type: object
   models.TrackCast:
     properties:
@@ -2012,6 +2234,55 @@ paths:
       summary: One raid pull's replay track
       tags:
       - raid
+  /api/recap:
+    get:
+      description: |-
+        The keys run and timed, the highest timed level, the time in keys and the deaths; each dungeon's
+        runs; your character (whose game wrote most of the logs): specs, median DPS or HPS per dungeon and
+        what killed you; who you ran with most; a few facts, each opening its key; and the raid by boss.
+        Read from the saved keys and pulls only: no Warcraft Logs points.
+      parameters:
+      - description: the period's start, ms since the epoch
+        in: query
+        name: from
+        required: true
+        type: integer
+      - description: the period's end, ms since the epoch (excluded); after from
+        in: query
+        name: to
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Recap'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+      summary: A period's keys and raid pulls as a story
+      tags:
+      - recap
+  /api/recap/periods:
+    get:
+      description: |-
+        This month, last month, this Mythic+ season (from Raider.IO; left out when it can't be reached),
+        this year and all time, each with its span to pass to /api/recap.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.RecapPeriod'
+            type: array
+      summary: The periods a recap covers
+      tags:
+      - recap
   /api/settings:
     get:
       produces:
@@ -2376,6 +2647,34 @@ paths:
           schema:
             $ref: '#/definitions/controller.ErrorResponse'
       summary: Remove every key and raid pull imported from Warcraft Logs
+      tags:
+      - settings
+  /api/settings/warcraftlogs/parses:
+    get:
+      description: |-
+        The settings' character's best and median parse in each Mythic+ dungeon of the season and each boss
+        of the current raid it has a ranked run or kill in, with its Warcraft Logs page (found false when
+        Warcraft Logs doesn't know the character). Read once a day; a read costs a few points.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.CharacterParses'
+        "400":
+          description: No character, or one that doesn't fit
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+        "404":
+          description: No Warcraft Logs keys saved
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+        "502":
+          description: Warcraft Logs couldn't be reached
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+      summary: The character's Warcraft Logs parses this season
       tags:
       - settings
   /api/settings/warcraftlogs/test:

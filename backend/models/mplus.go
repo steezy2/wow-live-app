@@ -76,8 +76,10 @@ type KeySummary struct {
 	Status  string `json:"status"`
 	FinalMS int64  `json:"finalMS"`
 	Chests  int    `json:"chests"`
-	// Imported is the Warcraft Logs page of the fight an imported key came from; "" for one read from a local log.
-	Imported string `json:"imported,omitempty"`
+	// Report is the Warcraft Logs fight the key is, when one is known (imported, or matched to a report), and
+	// Imported marks a key built from it instead of a local combat log.
+	Report   *ReportLink `json:"report,omitempty"`
+	Imported bool        `json:"imported,omitempty"`
 }
 
 // Affix is a keystone affix: its ID and name ("" when unknown).
@@ -307,11 +309,12 @@ type KeyDispel struct {
 	ClockMS int64  `json:"clockMS"`
 }
 
-// KeySpike is a burst of party damage taken over 3 s (a raid pull's: raid-rules.toml's spike_seconds): when, how
-// much, the party cooldowns used for it (Overlap when two came within 5 s of each other), and each member hit with
+// KeySpike is a burst of party damage taken over Seconds (5 s; a raid pull's: raid-rules.toml's spike_seconds): when,
+// how much, the party cooldowns used for it (Overlap when two came within 5 s of each other), and each member hit with
 // their cover.
 type KeySpike struct {
 	ClockMS  int64            `json:"clockMS"`
+	Seconds  int64            `json:"seconds"`
 	Damage   int64            `json:"damage"`
 	PartyCDs []string         `json:"partyCDs"`
 	Overlap  bool             `json:"overlap"`
@@ -319,6 +322,18 @@ type KeySpike struct {
 	// Unused is the defensive the member hit hardest had ready and didn't use ("" when they used one or had none
 	// ready); missing in keys saved before Nov 11.
 	Unused string `json:"unused,omitempty"`
+	// Causes is what hit the party hardest in it, most damage first (at most three); missing in keys saved
+	// before Nov 12.
+	Causes []SpikeCause `json:"causes,omitempty"`
+}
+
+// SpikeCause is an ability that hit the party during a spike: who cast it ("" when the log names no one), its damage
+// to the party and its hits.
+type SpikeCause struct {
+	Ability string `json:"ability"`
+	Source  string `json:"source"`
+	Damage  int64  `json:"damage"`
+	Hits    int    `json:"hits"`
 }
 
 // KeySpikeMember is a party member hit in a spike: what they took and, by the death rules, the defensive they used or
@@ -575,6 +590,9 @@ type OverlaySettings struct {
 	Opacity int    `json:"opacity" minimum:"0" maximum:"100"`
 	// Split shows the pull and the whole key as two cards, one above the other, instead of one card.
 	Split bool `json:"split"`
+	// ClickThrough lets clicks on the overlay through to the game; off (the default), a click on a player's row
+	// shows their abilities in the pull.
+	ClickThrough bool `json:"clickThrough"`
 }
 
 // SettingsView is the settings with what the page shows beside them: whether the log folder exists, when the game

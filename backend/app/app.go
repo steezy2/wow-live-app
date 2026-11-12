@@ -56,6 +56,7 @@ type Options struct {
 // FightImporter is Warcraft Logs as an import reads it (wcl.Client).
 type FightImporter interface {
 	service.ReportSource
+	service.ParseSource
 	ImportFight(ctx context.Context, code string, fightID int, opts wcl.FightOptions) (string, error)
 }
 
@@ -93,7 +94,8 @@ func Start(ctx context.Context, opts Options) (*Site, error) {
 	}
 	s := &Site{Keys: keys, Changes: &service.Changes{Every: pushEvery}, opts: opts, newKeys: newKeys}
 	if opts.Settings != nil {
-		characters := service.Characters{Realms: opts.Realms, Keys: store}
+		characters := service.Characters{Realms: opts.Realms, Keys: store, Logs: opts.WCL,
+			Bosses: slices.Sorted(maps.Keys(opts.Bosses))}
 		opts.Settings.Logs, opts.Settings.Characters = s, characters
 		if opts.WCL != nil {
 			s.Import = s.importer(characters, store, pulls)
@@ -108,8 +110,10 @@ func Start(ctx context.Context, opts Options) (*Site, error) {
 		Source: keystoneguru.Client{CacheDir: filepath.Join(opts.Cache, "keystone-guru")}}
 	raidMaps := service.RaidMaps{Bosses: opts.Bosses,
 		Source: wcl.MapImages{CacheDir: filepath.Join(opts.Cache, "raid-maps")}}
+	recaps := service.Recaps{Saved: keys.History, Region: opts.Region, Now: opts.Now,
+		Season: raiderio.Client{CacheDir: filepath.Join(opts.Cache, "raiderio")}}
 	s.Handler = controller.Router(controller.MPlus{Keys: keys, Reviews: s.reviews, Changes: s.Changes,
-		Now: opts.Now, Tiles: tiles}, &controller.Raid{Pulls: keys, Maps: raidMaps, Now: opts.Now}, opts.Settings,
+		Now: opts.Now, Tiles: tiles, Recaps: recaps}, &controller.Raid{Pulls: keys, Maps: raidMaps, Now: opts.Now}, opts.Settings,
 		opts.Pages, opts.Hosts...)
 	return s, nil
 }
@@ -130,6 +134,15 @@ func (s *Site) importer(characters service.Characters, store keystore.Store, pul
 			saved, err := pulls.ListPulls()
 			return keys, saved, err
 		},
+		Link: func(keyLinks, pullLinks map[int64]models.ReportLink) (int, error) {
+			s.logJob.Lock() // a log read now would save these keys again from its own copy, without the link
+			defer s.logJob.Unlock()
+			n, err := s.Keys.LinkReports(keyLinks, pullLinks)
+			if n > 0 {
+				s.Changes.Publish(s.Keys.Version())
+			}
+			return n, err
+		},
 		Prepare: func() error { _, _, err := s.Learn(false); return err },
 		Count:   s.Keys.ImportedCount,
 		RemoveImported: func() error {
@@ -139,7 +152,7 @@ func (s *Site) importer(characters service.Characters, store keystore.Store, pul
 			s.Changes.Publish(s.Keys.Version())
 			return nil
 		},
-		Bosses: slices.Sorted(maps.Keys(s.opts.Bosses)),
+		Bosses: characters.Bosses,
 		Dir:    filepath.Join(s.opts.Cache, wcl.ImportDir),
 		Now:    s.opts.Now,
 		Wait:   service.WaitFor,
@@ -195,7 +208,7 @@ func add(keys *service.LogTracker, lines []string) {
 
 // readerVersion is the version of what Learn saves from a log. Bump it with any change that saves new key or raid pull
 // fields, so the next Learn reads every log again.
-const readerVersion = 10
+const readerVersion = 11
 
 // learned is learned.json: the logs Learn has read and the reader that read them, so it reads only new or changed
 // logs next time.

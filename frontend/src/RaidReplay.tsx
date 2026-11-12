@@ -21,7 +21,7 @@ export function RaidReplay(props: {
 }) {
   const { pull, track, error, replay, focus, onFocus } = props
   const end = pull.durationMS
-  const [trail, setTrail] = useState(10_000)
+  const [trail, setTrail] = useState(0)
   const [floor, setFloor] = useState<number | null>(null)
   const floors = useMemo(() => floorsOf(track ?? null), [track])
   const current = floor ?? floors[0]

@@ -2,14 +2,13 @@ package models
 
 import (
 	"errors"
-	"fmt"
 	"strings"
 	"time"
 	"unicode"
 )
 
-// ReportURL is where a report is on Warcraft Logs; add the code (and "#fight=N" for one pull).
-const ReportURL = "https://www.warcraftlogs.com/reports/"
+// CharacterURL is where characters are on Warcraft Logs; add "region/realm-slug/name".
+const CharacterURL = "https://www.warcraftlogs.com/character/"
 
 // ReportListMaxAge is how long a fetched report list is reused, so the tools in one run share one search.
 const ReportListMaxAge = 10 * time.Minute
@@ -117,6 +116,11 @@ type ImportStatus struct {
 	Problem        string      `json:"problem"`
 	Imported       int         `json:"imported"`
 	Plan           *ImportPlan `json:"plan,omitempty"`
+	// Linked is how many saved keys and pulls read from local logs the last listing linked to their report.
+	Linked int `json:"linked"`
+	// ReservePoints are the hour's points an import leaves for key reviews and parses: with fewer left, it waits
+	// for the hour to reset.
+	ReservePoints float64 `json:"reservePoints"`
 }
 
 // KeyStatus is what the page shows about the saved Warcraft Logs keys, never the secret: whether they're set, the
@@ -132,15 +136,29 @@ type KeyStatus struct {
 	Problem      string  `json:"problem"`
 }
 
+// CharacterParses is the owner's character's Warcraft Logs parses this season (Parses), its page there, and whether
+// Warcraft Logs knows it.
+type CharacterParses struct {
+	URL    string           `json:"url"`
+	Found  bool             `json:"found"`
+	Parses []CharacterParse `json:"parses"`
+}
+
+// CharacterParse is a character's Warcraft Logs rankings in one Mythic+ dungeon or raid boss: its best and median
+// parse (percentiles, 0-100) over its ranked runs or kills, and the spec of the best.
+type CharacterParse struct {
+	Kind      FightKind `json:"kind" enums:"mplus,raid"`
+	Encounter string    `json:"encounter"`
+	Best      float64   `json:"best"`
+	Median    float64   `json:"median"`
+	Runs      int       `json:"runs"`
+	Spec      string    `json:"spec"`
+}
+
 // ReportLink is a fight of a Warcraft Logs report: its code and the fight's ID in it.
 type ReportLink struct {
 	Code    string `json:"code"`
 	FightID int    `json:"fightID"`
-}
-
-// URL is the fight's page on Warcraft Logs.
-func (l ReportLink) URL() string {
-	return fmt.Sprintf("%s%s#fight=%d", ReportURL, l.Code, l.FightID)
 }
 
 // CharacterReport is one of a character's recent Warcraft Logs reports: when it ran (ms since the epoch), its zone

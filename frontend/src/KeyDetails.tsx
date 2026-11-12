@@ -11,6 +11,7 @@ import { FightMeters, type MeterWindow } from './FightMeters'
 import { offense } from './meterColumns'
 import { useReplay, useTrack } from './replay'
 import { RaidLanes } from './RaidReplay'
+import { ReportLinks } from './ReportLinks'
 import { Tabs } from './Tabs'
 import type { Seeker } from './Seek'
 
@@ -77,6 +78,7 @@ export function KeyDetails({
         <span className={`status ${key.status}`}>{key.status}</span>
       </header>
       <p className="muted">{key.affixes.map((a) => a.name || `affix ${a.id}`).join(' · ')}</p>
+      {key.status !== 'running' && <ReportLinks fight={key.start} link={key.report} />}
 
       {key.status === 'running' ? (
         <section className="clock">

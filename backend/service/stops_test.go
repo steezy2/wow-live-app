@@ -96,9 +96,13 @@ func TestSpikesFindTheWorstBurst(t *testing.T) {
 	}
 	fed := feed(t, keys, lines...)
 	got, _ := keys.Latest(fed[len(fed)-1].Time + 1000)
-	if len(got.Spikes) != 1 || got.Spikes[0].Damage != 150_000 || got.Spikes[0].Members[0].Player != "Testmage" ||
-		got.Spikes[0].Members[0].Taken != 150_000 {
-		t.Fatalf("spikes = %+v; want one, the 150,000 from 40 to 42 s, all on the mage", got.Spikes)
+	// The worst 5 s: the burst's 150,000 and two 1,000 hits around it.
+	if len(got.Spikes) != 1 || got.Spikes[0].Damage != 152_000 || got.Spikes[0].Seconds != 5 ||
+		got.Spikes[0].Members[0].Player != "Testmage" || got.Spikes[0].Members[0].Taken != 152_000 {
+		t.Fatalf("spikes = %+v; want one 5 s spike of 152,000 around 40 to 42 s, all on the mage", got.Spikes)
+	}
+	if c := got.Spikes[0].Causes; len(c) != 1 || c[0].Ability != "Light Bolt" || c[0].Damage != 152_000 || c[0].Hits != 5 {
+		t.Fatalf("causes = %+v; want the five Light Bolts", c)
 	}
 	if cds := got.Spikes[0].PartyCDs; len(cds) != 0 {
 		t.Fatalf("party cooldowns = %v; want none, the Pain Suppression came 35 s before", cds)
@@ -132,5 +136,23 @@ func TestStopsAndDebuffsEndingTogetherKeepOneOrder(t *testing.T) {
 		if again := read(); again != first {
 			t.Fatalf("the same lines gave another order:\n%s\n%s", first, again)
 		}
+	}
+}
+
+func TestSpikeCausesKeepTheHardestThree(t *testing.T) {
+	hit := func(ability, source string, damage int64) *models.SpikeCause {
+		return &models.SpikeCause{Ability: ability, Source: source, Damage: damage, Hits: 1}
+	}
+	takenAt := map[int64]map[[2]string]*models.SpikeCause{
+		9:  {{"Slam", "Brute"}: hit("Slam", "Brute", 900_000)}, // before the spike
+		10: {{"Slam", "Brute"}: hit("Slam", "Brute", 300), {"Bolt", "Acolyte"}: hit("Bolt", "Acolyte", 200)},
+		11: {{"Slam", "Brute"}: hit("Slam", "Brute", 300), {"Volley", ""}: hit("Volley", "", 100),
+			{"Bolt", "Caster"}: hit("Bolt", "Caster", 200), {"Ember", "Brute"}: hit("Ember", "Brute", 50)},
+	}
+	got := spikeCauses(takenAt, 10, 3000)
+	want := []models.SpikeCause{{Ability: "Slam", Source: "Brute", Damage: 600, Hits: 2},
+		{Ability: "Bolt", Source: "Acolyte", Damage: 200, Hits: 1}, {Ability: "Bolt", Source: "Caster", Damage: 200, Hits: 1}}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("causes = %+v; want %+v", got, want)
 	}
 }

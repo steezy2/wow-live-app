@@ -280,6 +280,9 @@ func (f fakeCharacters) Resolve(_ context.Context, _, character string) (string,
 	return "Testmage", "some-realm", f.err
 }
 func (fakeCharacters) Guess() string { return "Testrogue" }
+func (f fakeCharacters) Parses(context.Context, string, string) (models.CharacterParses, error) {
+	return models.CharacterParses{}, f.err
+}
 
 func TestCharacterIsSavedOnlyWhenWarcraftLogsKnowsItsRealm(t *testing.T) {
 	for _, tc := range []struct {
@@ -493,5 +496,34 @@ func TestAnUnchangedCharacterIsntCheckedAgain(t *testing.T) {
 	router.ServeHTTP(w, r)
 	if w.Code != http.StatusOK || saved.Overlay.Opacity != 50 {
 		t.Errorf("%d %s: want the overlay saved without asking Warcraft Logs", w.Code, w.Body)
+	}
+}
+
+// fakeRecaps answers a recap of the span it was asked for.
+type fakeRecaps struct{}
+
+func (fakeRecaps) Periods(context.Context) []models.RecapPeriod { return []models.RecapPeriod{} }
+func (fakeRecaps) Recap(from, to int64) models.Recap            { return models.Recap{From: from, To: to} }
+
+func TestRecapNeedsASpan(t *testing.T) {
+	for _, tc := range []struct {
+		url  string
+		code int
+	}{
+		{"/api/recap?from=0&to=100", http.StatusOK},
+		{"/api/recap?from=100&to=100", http.StatusBadRequest},
+		{"/api/recap?from=5", http.StatusBadRequest},
+		{"/api/recap?from=-1&to=100", http.StatusBadRequest},
+		{"/api/recap?from=x&to=100", http.StatusBadRequest},
+	} {
+		router := Router(MPlus{Keys: &fakeKeys{}, Now: time.Now, Recaps: fakeRecaps{}}, nil, nil,
+			os.DirFS(t.TempDir()), LocalHosts(port)...)
+		r := httptest.NewRequest(http.MethodGet, tc.url, nil)
+		r.Host = "localhost:8080"
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, r)
+		if w.Code != tc.code {
+			t.Errorf("%s: %d %s; want %d", tc.url, w.Code, w.Body, tc.code)
+		}
 	}
 }

@@ -70,9 +70,11 @@ export interface KeyDispel {
   clockMS: number
 }
 
-/** A 3 s burst of party damage: the party cooldowns used (overlap: two within 5 s) and each member's cover. */
+/** A burst of party damage over seconds (0 in keys saved before Nov 12): the party cooldowns used (overlap: two
+ * within 5 s) and each member's cover. */
 export interface KeySpike {
   clockMS: number
+  seconds: number
   damage: number
   partyCDs: string[]
   overlap: boolean
@@ -80,6 +82,16 @@ export interface KeySpike {
   /** The defensive the member hit hardest had ready and didn't use; missing when they used one or had none ready, and
    * in keys saved before Nov 11. */
   unused?: string
+  /** What hit the party hardest in it, most first (at most three); missing in keys saved before Nov 12. */
+  causes?: SpikeCause[]
+}
+
+/** An ability that hit the party during a spike (models.SpikeCause): who cast it ('' when the log names no one). */
+export interface SpikeCause {
+  ability: string
+  source: string
+  damage: number
+  hits: number
 }
 
 /** Damage a player took from one ability (models.KeyHit): with its direct hits for an avoidable one. */
@@ -230,6 +242,8 @@ export interface KeyView {
   avoidableHits?: KeyHit[]
   /** The party member whose game wrote the log; missing in keys saved before Nov 11. */
   logger?: string
+  /** The Warcraft Logs fight the key is, once known (imported, or matched to a report). */
+  report?: ReportLink
   /** The key's timeline for the replay's lanes; missing in keys saved before Nov 11. */
   lanes?: RaidLane[]
   /** What to fix next key, most important first; missing in keys saved before Nov 11. */
@@ -367,8 +381,24 @@ export interface KeySummary {
   finalMS: number
   /** The upgrade it gave: 3, 2, 1; 0 when depleted or abandoned. */
   chests: number
-  /** The Warcraft Logs page of the fight an imported key came from; absent for a key from a local log. */
-  imported?: string
+  /** The Warcraft Logs fight the key is, once known (imported, or matched to a report). */
+  report?: ReportLink
+  /** Built from that fight instead of a local combat log. */
+  imported?: boolean
+}
+
+/** A fight of a Warcraft Logs report (models.ReportLink). */
+export interface ReportLink {
+  code: string
+  fightID: number
+}
+
+/** A report fight's pages on Warcraft Logs and WoWAnalyzer. */
+export function reportPages(link: ReportLink): { warcraftLogs: string; wowAnalyzer: string } {
+  return {
+    warcraftLogs: `https://www.warcraftlogs.com/reports/${link.code}#fight=${link.fightID}`,
+    wowAnalyzer: `https://wowanalyzer.com/report/${link.code}/${link.fightID}`,
+  }
 }
 
 async function call(path: string, init?: RequestInit): Promise<Response> {
@@ -556,6 +586,8 @@ export interface OverlaySettings {
   opacity: number
   /** The pull and the whole key as two cards, one above the other, instead of one. */
   split: boolean
+  /** Clicks go through the overlay to the game; off, a click on a player shows their abilities in the pull. */
+  clickThrough: boolean
 }
 export interface SettingsView extends Settings {
   logsDirFound: boolean
@@ -628,6 +660,10 @@ export interface ImportStatus {
   imported: number
   /** What the last Find fights found, until an import starts. */
   plan?: ImportPlan
+  /** How many saved keys and pulls from local logs the last listing linked to their report. */
+  linked: number
+  /** The hour's points an import leaves for key reviews and parses: with fewer left, it waits for the hour. */
+  reservePoints: number
 }
 
 export async function fetchImportStatus(signal?: AbortSignal): Promise<ImportStatus> {
@@ -670,6 +706,84 @@ export async function startImport(kinds: ImportKind[]): Promise<ImportStatus> {
 /** Stops the import; what it fetched stays for the next one. */
 export async function stopImport(): Promise<ImportStatus> {
   return (await (await call('/api/settings/warcraftlogs/import', { method: 'DELETE' })).json()) as ImportStatus
+}
+
+/** A period the Recap tab offers, with its span in ms since the epoch (models.RecapPeriod). */
+export interface RecapPeriod {
+  label: string
+  from: number
+  to: number
+}
+
+/** A period's keys and raid pulls read as a story (models.Recap). */
+export interface Recap {
+  from: number
+  to: number
+  keys: number
+  timed: number
+  /** 0 when none was timed. */
+  highestTimed: number
+  timeMS: number
+  deaths: number
+  /** Most run first; bestLevel and bestMS 0 when none was timed. */
+  dungeons: { dungeon: string; runs: number; timed: number; bestLevel: number; bestMS: number }[]
+  /** The character whose game wrote most of the period's logs; missing when no key says. */
+  you?: {
+    character: string
+    specs: string[]
+    dungeons: { dungeon: string; metric: 'dps' | 'hps'; median: number }[]
+    deaths: number
+    killers: { name: string; count: number }[]
+  }
+  /** Who you ran with most. */
+  party: { player: string; keys: number; timed: number }[]
+  /** Each opens its key (mplus) or pull (raid) by its start. */
+  facts: { text: string; kind: 'mplus' | 'raid'; start: number }[]
+  /** By boss and difficulty; firstKill 0 for none, bestWipePct -1 for no wipe with advanced logging. */
+  raid: {
+    boss: string
+    difficulty: string
+    pulls: number
+    kills: number
+    firstKill: number
+    firstKillPull: number
+    bestWipePct: number
+    yourDeaths: number
+    mostHit: string
+  }[]
+}
+
+/** The periods a recap covers (this month, last month, this season when Raider.IO says, this year, all time). */
+export async function fetchRecapPeriods(signal?: AbortSignal): Promise<RecapPeriod[]> {
+  return (await (await call('/api/recap/periods', { signal })).json()) as RecapPeriod[]
+}
+
+/** The recap of the keys and pulls that started in a period. */
+export async function fetchRecap(period: RecapPeriod, signal?: AbortSignal): Promise<Recap> {
+  return (await (await call(`/api/recap?from=${period.from}&to=${period.to}`, { signal })).json()) as Recap
+}
+
+/** The owner's character's Warcraft Logs parses this season (models.CharacterParses). */
+export interface CharacterParses {
+  url: string
+  /** Warcraft Logs knows the character. */
+  found: boolean
+  parses: CharacterParse[]
+}
+
+/** The character's best and median parse (0-100) in a dungeon or raid boss (models.CharacterParse). */
+export interface CharacterParse {
+  kind: 'mplus' | 'raid'
+  encounter: string
+  best: number
+  median: number
+  runs: number
+  spec: string
+}
+
+/** The settings' character's parses (read from Warcraft Logs once a day). */
+export async function fetchCharacterParses(signal?: AbortSignal): Promise<CharacterParses> {
+  return (await (await call('/api/settings/warcraftlogs/parses', { signal })).json()) as CharacterParses
 }
 
 /** Deletes every imported key and pull, and what the import fetched. */
@@ -732,8 +846,10 @@ export interface RaidPullSummary {
   kill: boolean
   bossPct: number
   phase: string
-  /** The Warcraft Logs page of the fight an imported pull came from; absent for a pull from a local log. */
-  imported?: string
+  /** The Warcraft Logs fight the pull is, once known (imported, or matched to a report). */
+  report?: ReportLink
+  /** Built from that fight instead of a local combat log. */
+  imported?: boolean
 }
 
 /** A raider's death in a raid pull: the M+ death with whether it was early (before the wipe) and their last hits. */

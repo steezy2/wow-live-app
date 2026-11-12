@@ -3,8 +3,11 @@ package wcl
 import (
 	"context"
 	"fmt"
+	"maps"
 	"path/filepath"
+	"slices"
 	"strings"
+	"time"
 
 	"wow-live/backend/clients/cachefile"
 	"wow-live/backend/models"
@@ -205,4 +208,60 @@ func (c *Client) CurrentZones(ctx context.Context, raidBosses []string) (models.
 		}
 	}
 	return current, nil
+}
+
+// parsesMaxAge is how long a character's parses are reused: they change only when one of its runs is ranked.
+const parsesMaxAge = 24 * time.Hour
+
+// zoneRankings is a zone's rankings of a character, as Warcraft Logs answers zoneRankings (a JSON scalar).
+type zoneRankings struct {
+	Rankings []struct {
+		Encounter struct {
+			Name string `json:"name"`
+		} `json:"encounter"`
+		RankPercent   float64 `json:"rankPercent"`
+		MedianPercent float64 `json:"medianPercent"`
+		TotalKills    int     `json:"totalKills"`
+		Spec          string  `json:"spec"`
+	} `json:"rankings"`
+}
+
+// CharacterParses is a character's parses (name and realm slug in region) in zones' Mythic+ dungeons and raid
+// bosses, each one it has a ranked run or kill in, cached for parsesMaxAge; Found is false when Warcraft Logs doesn't
+// know the character.
+func (c *Client) CharacterParses(ctx context.Context, region, slug, name string, zones models.WCLZones) (
+	models.CharacterParses, error) {
+	parses := models.CharacterParses{URL: fmt.Sprintf("%s%s/%s/%s", models.CharacterURL, strings.ToLower(region), slug,
+		strings.ToLower(name)), Parses: []models.CharacterParse{}}
+	kinds := map[string]models.FightKind{}
+	var fields []string
+	vars := map[string]any{"n": name, "s": slug, "r": region}
+	for alias, zone := range map[string]int{string(models.FightMPlus): zones.MPlusID, string(models.FightRaid): zones.RaidID} {
+		if zone != 0 {
+			fields = append(fields, fmt.Sprintf("%s: zoneRankings(zoneID: %d)", alias, zone))
+			kinds[alias] = models.FightKind(alias)
+		}
+	}
+	slices.Sort(fields)
+	var data struct {
+		CharacterData struct {
+			Character map[string]zoneRankings `json:"character"`
+		} `json:"characterData"`
+	}
+	gql := `query($n: String!, $s: String!, $r: String!) { characterData { character(name: $n, serverSlug: $s,
+		serverRegion: $r) { ` + strings.Join(fields, " ") + ` } } }`
+	file := fmt.Sprintf("parses-%s-%s-%s-%d-%d.json", region, slug, strings.ToLower(name), zones.MPlusID, zones.RaidID)
+	if err := c.cachedQuery(ctx, file, parsesMaxAge, gql, vars, &data); err != nil {
+		return parses, fmt.Errorf("reading %s's parses: %w", name, err)
+	}
+	parses.Found = data.CharacterData.Character != nil
+	for _, alias := range slices.Sorted(maps.Keys(data.CharacterData.Character)) {
+		for _, r := range data.CharacterData.Character[alias].Rankings {
+			if r.TotalKills > 0 {
+				parses.Parses = append(parses.Parses, models.CharacterParse{Kind: kinds[alias], Encounter: r.Encounter.Name,
+					Best: r.RankPercent, Median: r.MedianPercent, Runs: r.TotalKills, Spec: r.Spec})
+			}
+		}
+	}
+	return parses, nil
 }
