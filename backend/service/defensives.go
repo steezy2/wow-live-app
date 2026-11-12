@@ -63,7 +63,7 @@ func ClassifyDeaths(deaths []models.Death, casts []models.Cast, buffs []models.B
 				continue
 			}
 			mine = append(mine, c)
-			if c.Fight == d.Fight && d.At-windowMS <= c.At && (recent == nil || c.At > recent.At) {
+			if !c.OnOther && c.Fight == d.Fight && d.At-windowMS <= c.At && (recent == nil || c.At > recent.At) {
 				recent = &c
 			}
 		}

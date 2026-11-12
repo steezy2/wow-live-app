@@ -26,12 +26,16 @@ export function setNote(section: string, n: Note) {
   listeners.forEach((l) => l())
 }
 
-/** Marks a section on screen: a finished note it has already shown is cleared, and returns its close. */
+/** Marks a section on screen: a finished note it has already shown is cleared, and returns its close. The note
+ * counts as shown a tick later, so StrictMode's second mount still shows it. */
 export function openSection(section: string): () => void {
   open.add(section)
   if (!notes.get(section)?.busy && seen.has(section)) setNote(section, null)
-  seen.add(section)
-  return () => open.delete(section)
+  const shown = setTimeout(() => seen.add(section))
+  return () => {
+    clearTimeout(shown)
+    open.delete(section)
+  }
 }
 
 /** A section's note by its name, and a setter: like useState, but a call still running outlives the page, and a

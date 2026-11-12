@@ -122,9 +122,7 @@ func advancedOf(guid, owner string) string {
 	return guid + "," + owner + ",9,9,0,0,1470,0,0,0,3,0,100,0,1599.81,-1.23,2610,3.1461,93"
 }
 
-// TestKeyStep2 reads one short key: an interrupt, a pet's hit counted to its owner, a heal, a dispel, an avoidable
-// hit taken, a defensive just before a death, the buffs each player lacked at the start, and the key saved when it
-// ends.
+// TestADeathsDefensiveIsOnlyTheirOwn: a raid cooldown, or an external put on someone else, isn't a death's defensive.
 func TestADeathsDefensiveIsOnlyTheirOwn(t *testing.T) {
 	rules := models.MPlusRules{Defensives: models.Defensives{WindowSeconds: 10, Names: []string{"Zephyr"},
 		Externals: []string{"Pain Suppression"}, RaidCooldowns: []string{"Zephyr"}}} // Zephyr is both, as in mplus.toml
@@ -150,7 +148,10 @@ func TestADeathsDefensiveIsOnlyTheirOwn(t *testing.T) {
 			`11/4/2026 19:01:25.100-7  UNIT_DIED,`+none+`,nil,0x80000000,0x80000000,`+testPlayer+`,0`,
 			`11/4/2026 19:03:00.000-7  CHALLENGE_MODE_END,2923,1,10,111000,100.0,3000.0`,
 		)
-		got, _ := keys.Latest(0)
+		got, ok := keys.Latest(0)
+		if !ok {
+			t.Fatal("no key saved")
+		}
 		if len(got.Casts) != 1 || got.Casts[0].Kind != tc.kind || len(got.Deaths) != 1 || got.Deaths[0].Defensive != "" {
 			t.Errorf("%s: casts %+v, deaths %+v; want a %s, not the death's defensive", tc.cast, got.Casts, got.Deaths,
 				tc.kind)
@@ -158,6 +159,9 @@ func TestADeathsDefensiveIsOnlyTheirOwn(t *testing.T) {
 	}
 }
 
+// TestKeyStep2 reads one short key: an interrupt, a pet's hit counted to its owner, a heal, a dispel, an avoidable
+// hit taken, a defensive just before a death, the buffs each player lacked at the start, and the key saved when it
+// ends.
 func TestKeyStep2(t *testing.T) {
 	keys := newTracker(t, nil)
 	const shaman = `Player-76-0000BBBB,"Testshaman-Sargeras-US",0x512,0x80000000`
