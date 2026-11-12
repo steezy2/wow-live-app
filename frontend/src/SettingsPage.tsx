@@ -11,7 +11,7 @@ import {
 } from './api'
 import { track, useNote } from './note'
 import { NoteLine } from './NoteLine'
-import { useOverlayMoving } from './useLiveKey'
+import { useNow, useOverlayMoving } from './useLiveKey'
 import { CombatLogs } from './CombatLogs'
 import { WCLImport } from './WCLImport'
 import { WCLKeys } from './WCLKeys'
@@ -37,6 +37,7 @@ export function SettingsPage({ view, onSaved }: { view: SettingsView; onSaved: (
   const [overlayNote, setOverlayNote] = useNote('overlay')
   const [oldKeys, setOldKeys] = useNote('read logs')
   const moving = useOverlayMoving()
+  const now = useNow(60_000)
   useEffect(() => {
     if (
       overlay.show === view.overlay.show &&
@@ -62,7 +63,7 @@ export function SettingsPage({ view, onSaved }: { view: SettingsView; onSaved: (
       'Reading the log folder…',
       ({ read, saved }) => `${read} logs read · ${saved} keys saved`,
     ).catch(() => undefined)
-  const minutes = view.lastLogMS ? Math.round((Date.now() - view.lastLogMS) / 60_000) : null
+  const minutes = view.lastLogMS ? Math.round((now - view.lastLogMS) / 60_000) : null
   return (
     <div className="settings-page">
       <form className="panel settings" onSubmit={save}>

@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"slices"
 	"sync"
 	"testing"
@@ -286,6 +288,25 @@ func TestFindIsBusyWhileAnImportRuns(t *testing.T) {
 	ti.finish()
 	if !errors.Is(err, ErrBusy) {
 		t.Errorf("found fights during an import: %v, want ErrBusy", err)
+	}
+}
+
+func TestABusyStartKeepsTheFightsFound(t *testing.T) {
+	ti := newTestImporter(t, []models.RateLimit{plenty})
+	if err := ti.writeFile(importPlanFile, models.ImportPlan{Character: "Testmage-Area52"}); err != nil {
+		t.Fatal(err)
+	}
+	release := make(chan struct{})
+	ti.Prepare = func() error { <-release; return nil }
+	if err := ti.Find(context.Background(), "us", "Testmage-Area52"); err != nil {
+		t.Fatal(err)
+	}
+	err := ti.Start(context.Background(), "us", "Testmage-Area52", keysOnly)
+	_, statErr := os.Stat(filepath.Join(ti.Dir, importPlanFile))
+	close(release)
+	ti.finish()
+	if !errors.Is(err, ErrBusy) || statErr != nil {
+		t.Errorf("start during a Find: %v, plan file: %v; want ErrBusy and the plan kept", err, statErr)
 	}
 }
 
