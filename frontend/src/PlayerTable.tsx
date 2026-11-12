@@ -10,10 +10,9 @@ export function PlayerTable(props: {
   casts: KeyCast[]
   activity?: Record<string, number>
   deaths: KeyDeath[]
-  avoidableListed: boolean
   onPick?: (player: string) => void
 }) {
-  const { title, meter, casts, activity, deaths, avoidableListed, onPick } = props
+  const { title, meter, casts, activity, deaths, onPick } = props
   const used = (kind: KeyCast['kind'], player: string) =>
     casts.filter((c) => c.kind === kind && c.player === player).length
   const prepot = (player: string) => casts.some((c) => c.player === player && c.prepot)
@@ -24,7 +23,7 @@ export function PlayerTable(props: {
   })
   const columns: Column[] = [
     ...raidOffense.slice(0, 2),
-    ...defense(avoidableListed),
+    ...defense(true),
     {
       label: 'Active',
       value: (r) => activity?.[r.player] ?? 0,

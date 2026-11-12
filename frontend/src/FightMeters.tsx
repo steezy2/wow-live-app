@@ -33,14 +33,14 @@ export function FightMeters(props: {
   atEnd: boolean
   fight: FightAbilities
   offense: Column[]
-  /** The dungeon or boss has an avoidable list. */
-  listed: boolean
+  /** Show an Avoidable column (a raid pull's; a key's avoidable damage is in its Avoidable tab). */
+  avoidableColumn?: boolean
   group: 'party' | 'raid'
   classes: Classes
   focus: string
   onFocus?: (player: string) => void
 }) {
-  const { windows, track, atEnd, fight, offense, listed, group, classes, focus, onFocus } = props
+  const { windows, track, atEnd, fight, offense, avoidableColumn = false, group, classes, focus, onFocus } = props
   const fromTrack = !atEnd && track !== null ? track : null
   if (!focus || !onFocus) {
     const full = !fromTrack || hasCounts(fromTrack)
@@ -60,7 +60,7 @@ export function FightMeters(props: {
     return (
       <section className="cards">
         {cards(offense)}
-        {cards(defense(listed))}
+        {cards(defense(avoidableColumn))}
       </section>
     )
   }

@@ -218,7 +218,7 @@ export function RaidPullView({ pull }: { pull: RaidPull }) {
         atEnd={replay.at >= pull.durationMS}
         fight={pull}
         offense={raidOffense}
-        listed
+        avoidableColumn
         group="raid"
         classes={classes}
         focus={focus}
@@ -313,7 +313,6 @@ function PullTabs({ pull, seek, focus }: { pull: RaidPull; seek: Seeker; focus: 
         casts={pull.casts}
         activity={pull.activity}
         deaths={pull.deaths}
-        avoidableListed
         onPick={seek.onFocus}
       />
       <Tabs tabs={fightTabs(data, `Deaths ${pull.deaths.length}`, 'raid', seek, moments)} />
