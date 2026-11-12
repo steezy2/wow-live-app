@@ -36,8 +36,8 @@ type Recaps struct {
 	Logs   models.MPlusBaselines // nil without Warcraft Logs
 }
 
-// TopTimes is, for each dungeon character ran from from to to (as Recap), the median time of its top speed-ranked
-// Warcraft Logs runs at the highest level they ran it, in the recap's order, all asked for at once. A dungeon Warcraft
+// TopTimes is, for each dungeon character timed from from to to (as Recap), the median time of its top speed-ranked
+// Warcraft Logs runs at the highest level they timed it, in the recap's order, all asked for at once. A dungeon Warcraft
 // Logs fails on is left out (and logged); models.ErrNoCredentials or ErrBadCredentials without working Logs.
 func (r Recaps) TopTimes(ctx context.Context, from, to int64, character string) ([]models.RecapTopTime, error) {
 	if r.Logs == nil {
@@ -48,18 +48,18 @@ func (r Recaps) TopTimes(ctx context.Context, from, to int64, character string) 
 		return nil, fmt.Errorf("reading the season's dungeons: %w", err)
 	}
 	dungeons := slices.DeleteFunc(r.Recap(from, to, character).MPlus.Dungeons, func(d models.RecapDungeon) bool {
-		return encounters[d.Dungeon] == 0
+		return encounters[d.Dungeon] == 0 || d.BestLevel == 0
 	})
 	tops, errs := make([]models.RecapTopTime, len(dungeons)), make([]error, len(dungeons))
 	var wg sync.WaitGroup
 	for i, d := range dungeons {
 		wg.Go(func() {
-			times, err := r.Logs.MPlusTopTimes(ctx, encounters[d.Dungeon], d.TopLevel)
+			times, err := r.Logs.MPlusTopTimes(ctx, encounters[d.Dungeon], d.BestLevel)
 			if err != nil {
-				errs[i] = fmt.Errorf("reading %s +%d's top runs: %w", d.Dungeon, d.TopLevel, err)
+				errs[i] = fmt.Errorf("reading %s +%d's top runs: %w", d.Dungeon, d.BestLevel, err)
 				return
 			}
-			tops[i] = models.RecapTopTime{Dungeon: d.Dungeon, Level: d.TopLevel, Runs: len(times)}
+			tops[i] = models.RecapTopTime{Dungeon: d.Dungeon, Level: d.BestLevel, Runs: len(times)}
 			if len(times) >= recapTopRuns {
 				tops[i].MedianMS = median(times)
 			}
@@ -155,39 +155,29 @@ func recapMPlus(keys []models.Key, you string) models.RecapMPlus {
 	return rc
 }
 
-// recapDungeon is one dungeon's runs in a recap: counts, the best timed run, and the times at the highest level run.
+// recapDungeon is one dungeon's runs in a recap: counts, and the times of the timed runs at the highest level timed.
 func recapDungeon(name string, runs []models.Key) models.RecapDungeon {
 	d := models.RecapDungeon{Dungeon: name, Runs: len(runs)}
+	var times []int64 // the timed runs' at d.BestLevel
 	for _, k := range runs {
-		d.TopLevel = max(d.TopLevel, k.Level)
 		if k.Status != "timed" {
 			continue
 		}
 		d.Timed++
-		if k.Level > d.BestLevel || k.Level == d.BestLevel && k.FinalMS < d.BestMS {
-			d.BestLevel, d.BestMS = k.Level, k.FinalMS
+		if k.Level > d.BestLevel {
+			d.BestLevel, times = k.Level, nil
 		}
-	}
-	d.SuccessPct = share(int64(d.Timed), int64(d.Runs))
-	var times []int64
-	for _, k := range runs {
-		if k.Level != d.TopLevel {
-			continue
-		}
-		d.TopRuns++
-		if k.Status == "timed" {
-			d.TopTimed++
-		}
-		if k.FinalMS > 0 {
+		if k.Level == d.BestLevel {
 			times = append(times, k.FinalMS)
 		}
 	}
+	d.SuccessPct = share(int64(d.Timed), int64(d.Runs))
 	if len(times) > 0 {
 		var sum int64
 		for _, t := range times {
 			sum += t
 		}
-		d.AvgMS, d.MedianMS, d.FastestMS = sum/int64(len(times)), median(times), slices.Min(times)
+		d.BestRuns, d.AvgMS, d.MedianMS, d.BestMS = len(times), sum/int64(len(times)), median(times), slices.Min(times)
 	}
 	return d
 }

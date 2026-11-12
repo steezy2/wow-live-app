@@ -39,11 +39,10 @@ func TestRecapCountsKeysDungeonsAndParty(t *testing.T) {
 		t.Errorf("tiles = %d keys, %d timed (%v%%), +%d, %d ms, %d deaths; want 4, 3 (75%%), +12, 115 min, 2",
 			got.Keys, got.Timed, got.SuccessPct, got.HighestTimed, got.TimeMS, got.Deaths)
 	}
-	wantDungeons := []models.RecapDungeon{
-		{Dungeon: "Skyreach", Runs: 3, Timed: 3, SuccessPct: 100, BestLevel: 12, BestMS: 27 * minute, TopLevel: 12,
-			TopRuns: 2, TopTimed: 2, AvgMS: 27*minute + 30_000, MedianMS: 27*minute + 30_000, FastestMS: 27 * minute},
-		{Dungeon: "Ara-Kara", Runs: 1, TopLevel: 14, TopRuns: 1, AvgMS: 35 * minute, MedianMS: 35 * minute,
-			FastestMS: 35 * minute}}
+	wantDungeons := []models.RecapDungeon{ // the depleted Ara-Kara +14 sets no level and no time
+		{Dungeon: "Skyreach", Runs: 3, Timed: 3, SuccessPct: 100, BestLevel: 12, BestRuns: 2,
+			AvgMS: 27*minute + 30_000, MedianMS: 27*minute + 30_000, BestMS: 27 * minute},
+		{Dungeon: "Ara-Kara", Runs: 1}}
 	if !reflect.DeepEqual(got.Dungeons, wantDungeons) {
 		t.Errorf("dungeons = %+v\nwant %+v", got.Dungeons, wantDungeons)
 	}
@@ -184,14 +183,17 @@ func TestRecapPeriods(t *testing.T) {
 
 func TestRecapTopTimes(t *testing.T) {
 	keys := []models.Key{recapKey("Voidscar Arena", 12, 0, 25*minute), recapKey("Voidscar Arena", 14, 50, 32*minute),
-		recapKey("Skyreach", 10, 100, 20*minute)} // Skyreach isn't a Warcraft Logs dungeon in the fake
+		recapKey("Skyreach", 10, 100, 20*minute), // Skyreach isn't a Warcraft Logs dungeon in the fake
+		recapKey("Voidscar Arena", 16, 150, 0)}
+	keys[3].Status = "abandoned"
 	saved := func() ([]models.Key, []models.RaidPull) { return keys, nil }
 	times := make([]int64, recapTopRuns)
 	for i := range times {
 		times[i] = int64(20+i) * minute
 	}
 	got, err := Recaps{Saved: saved, Logs: &fakeBaselines{topTimes: times}}.TopTimes(context.Background(), 0, 999*minute, "")
-	want := []models.RecapTopTime{{Dungeon: "Voidscar Arena", Level: 14, MedianMS: 24*minute + 30_000, Runs: 10}}
+	// At +12, the highest level timed: the depleted +14 and the abandoned +16 don't count.
+	want := []models.RecapTopTime{{Dungeon: "Voidscar Arena", Level: 12, MedianMS: 24*minute + 30_000, Runs: 10}}
 	if err != nil || !reflect.DeepEqual(got, want) {
 		t.Errorf("top times = %+v, %v; want %+v", got, err, want)
 	}

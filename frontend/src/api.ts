@@ -761,20 +761,19 @@ export interface RecapMPlus {
   facts: RecapFact[]
 }
 
-/** A dungeon in a recap: bestLevel and bestMS 0 when none was timed; the times are at topLevel, 0 when none finished. */
+/** A dungeon in a recap: the level is the highest you timed, with your timed runs there and their times (all 0 when
+ * none was timed; untimed and abandoned keys never count). */
 export interface RecapDungeon {
   dungeon: string
   runs: number
   timed: number
   successPct: number
   bestLevel: number
-  bestMS: number
-  topLevel: number
-  topRuns: number
-  topTimed: number
+  bestRuns: number
   avgMS: number
   medianMS: number
-  fastestMS: number
+  /** The fastest. */
+  bestMS: number
 }
 
 /** A recap line that opens its key (mplus) or pull (raid) by its start. */

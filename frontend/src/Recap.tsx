@@ -226,35 +226,34 @@ function MPlusRecap({ r, top, onOpen }: { r: RecapMPlus; top?: RecapTopTime[] | 
   )
 }
 
-/** One dungeon: runs and success, the best timed run, and the times at the highest level run against Warcraft Logs'
- * top runs there (top; missing while loading or without Warcraft Logs keys). One time when all finished runs there took
- * the same (one finished). */
+/** One dungeon: runs and success, then your timed runs at the highest level you timed and their times against
+ * Warcraft Logs' top runs there (top; missing while loading or without Warcraft Logs keys). One time when they all
+ * took the same (timed once). */
 function DungeonCard({ d, top }: { d: RecapDungeon; top?: RecapTopTime }) {
   return (
     <section className="card small">
       <h3>
-        {d.dungeon} <span className="muted">+{d.topLevel}</span>
+        {d.dungeon} {d.bestLevel > 0 && <span className="muted">+{d.bestLevel}</span>}
       </h3>
       <div className="bar thin" role="img" aria-label={`${Math.round(d.successPct)}% timed`}>
         <div className="fill ahead" style={{ width: `${d.successPct}%` }} />
       </div>
       <p className="small">
         {counted(d.runs, 'run')}, {Math.round(d.successPct)}% timed
-        <span className="muted"> · {d.bestLevel ? `best +${d.bestLevel} in ${clock(d.bestMS)}` : 'none timed'}</span>
       </p>
       <p className="muted small">
-        At +{d.topLevel}: {d.topRuns === 1 ? 'only once' : `${d.topRuns} runs, ${d.topTimed} timed`}
+        {d.bestLevel ? `Timed at +${d.bestLevel}: ${d.bestRuns === 1 ? 'only once' : `${d.bestRuns} times`}` : 'None timed'}
       </p>
-      {d.medianMS > 0 && (
+      {d.bestLevel > 0 && (
         <dl className="recap-times">
-          {d.avgMS !== d.fastestMS ? (
+          {d.avgMS !== d.bestMS ? (
             <>
               <dt>Average</dt>
               <dd>{clock(d.avgMS)}</dd>
               <dt>Median</dt>
               <dd>{clock(d.medianMS)}</dd>
               <dt>Fastest</dt>
-              <dd>{clock(d.fastestMS)}</dd>
+              <dd>{clock(d.bestMS)}</dd>
             </>
           ) : (
             <>

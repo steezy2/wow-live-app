@@ -64,22 +64,19 @@ type RecapRaid struct {
 	Bosses     []RecapBoss `json:"bosses"` // in the order first pulled
 }
 
-// RecapDungeon is one dungeon in a recap: its runs, how many were timed and their share; the highest level timed and
-// the fastest time at that level (0 for both when none was); and the highest level run, its runs and timed runs, and
-// the average, median and fastest time of its finished runs (0 when none finished).
+// RecapDungeon is one dungeon in a recap: its runs, how many were timed and their share; and the highest level timed
+// with its timed runs and their average, median and fastest time (all 0 when none was timed). Untimed and abandoned
+// keys never count toward the level or the times.
 type RecapDungeon struct {
 	Dungeon    string  `json:"dungeon"`
 	Runs       int     `json:"runs"`
 	Timed      int     `json:"timed"`
 	SuccessPct float64 `json:"successPct"`
 	BestLevel  int     `json:"bestLevel"`
-	BestMS     int64   `json:"bestMS"`
-	TopLevel   int     `json:"topLevel"`
-	TopRuns    int     `json:"topRuns"`
-	TopTimed   int     `json:"topTimed"`
+	BestRuns   int     `json:"bestRuns"`
 	AvgMS      int64   `json:"avgMS"`
 	MedianMS   int64   `json:"medianMS"`
-	FastestMS  int64   `json:"fastestMS"`
+	BestMS     int64   `json:"bestMS"` // the fastest
 }
 
 // RecapYou is the character a recap is for (the one picked, or the one whose game wrote most of the period's logs): the specs played,
@@ -107,7 +104,7 @@ type RecapCount struct {
 }
 
 // RecapTopTime is the median time of a dungeon's top speed-ranked Warcraft Logs runs at a level (the highest the
-// recap's character ran there) and how many ranked runs it's over; MedianMS is 0 when fewer than the recap needs.
+// recap's character timed there) and how many ranked runs it's over; MedianMS is 0 when fewer than the recap needs.
 type RecapTopTime struct {
 	Dungeon  string `json:"dungeon"`
 	Level    int    `json:"level"`

@@ -3698,13 +3698,14 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "bestMS": {
+                    "description": "the fastest",
+                    "type": "integer"
+                },
+                "bestRuns": {
                     "type": "integer"
                 },
                 "dungeon": {
                     "type": "string"
-                },
-                "fastestMS": {
-                    "type": "integer"
                 },
                 "medianMS": {
                     "type": "integer"
@@ -3716,15 +3717,6 @@ const docTemplate = `{
                     "type": "number"
                 },
                 "timed": {
-                    "type": "integer"
-                },
-                "topLevel": {
-                    "type": "integer"
-                },
-                "topRuns": {
-                    "type": "integer"
-                },
-                "topTimed": {
                     "type": "integer"
                 }
             }
