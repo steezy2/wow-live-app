@@ -1,5 +1,5 @@
 import type { KeyMeterRow } from './api'
-import { amount, median } from './format'
+import { median } from './format'
 
 /** A card column: its heading, the value it sorts and draws by, and how it shows. */
 export interface Column {
@@ -47,17 +47,12 @@ export const offense: Column[] = [
   },
 ]
 
-/** The defense columns; avoidable damage shows "–" when the dungeon has no avoidable list. */
-export function defense(listed: boolean): Column[] {
-  return [
+/** The defense columns, with avoidable damage for a raid (a key's is in its Avoidable tab instead). */
+export function defense(avoidable: boolean): Column[] {
+  const columns: Column[] = [
     { label: 'HPS', value: (r) => r.hps },
     { label: 'Healing', value: (r) => r.healing },
     { label: 'Taken', value: (r) => r.damageTaken, group: true },
-    {
-      label: 'Avoidable',
-      value: (r) => r.avoidable,
-      show: (r) => (listed ? amount(r.avoidable) : '–'),
-      tone: listed ? aboveMedian : undefined,
-    },
   ]
+  return avoidable ? [...columns, { label: 'Avoidable', value: (r) => r.avoidable, tone: aboveMedian }] : columns
 }

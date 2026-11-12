@@ -1092,6 +1092,15 @@ span.graph-taken {
   overflow-y: auto;
 }
 
+/* Mechanic lines with the same name, folded: a click lists each time. */
+.mechanic-times summary {
+  cursor: pointer;
+}
+
+.mechanic-times[open] > summary {
+  margin-bottom: 4px;
+}
+
 .mechanic-group h3,
 .drill h3 {
   margin: var(--s2) 0 var(--s1);

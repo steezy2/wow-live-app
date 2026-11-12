@@ -207,7 +207,6 @@ export function KeyDetails({
         atEnd={key.status === 'running' || replay.at >= clockMS}
         fight={key}
         offense={offense}
-        listed={key.reference}
         group="party"
         classes={track?.classes ?? {}}
         focus={focus}
