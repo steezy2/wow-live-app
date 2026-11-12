@@ -1465,12 +1465,61 @@ button.link {
   border-color: var(--accent);
 }
 
-/* The recap's numbers in a wrapped row. */
+/* The recap's numbers, each in a box: the number big, its label under it. */
 .recap-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: var(--s3);
+  margin-bottom: var(--s4);
+}
+.recap-tiles .card {
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--s4);
+  flex-direction: column;
+  gap: var(--s1);
 }
 .recap-tiles b {
   font-size: var(--t-h2);
+}
+
+/* A recap card's title, and its times against the top runs as label and value rows. */
+.cards.compact h3 {
+  margin: 0 0 var(--s2);
+  font-size: 1rem;
+}
+.bar.thin {
+  height: 6px;
+  margin-bottom: var(--s2);
+  background: var(--panel-2);
+}
+.card.small.per-key .card-row {
+  grid-template-columns: 1fr 4em 4em;
+}
+.recap-times {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--s1) var(--s3);
+  margin: var(--s2) 0 0;
+  font-size: var(--t-small);
+}
+.recap-times dt {
+  color: var(--muted);
+}
+.recap-times dd {
+  margin: 0;
+  text-align: right;
+}
+
+/* The top bar's character picker, at its right end. */
+.character-picker {
+  align-self: center;
+  margin-left: auto;
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: var(--s1) var(--s2);
+  font: inherit;
+}
+.character-picker option {
+  background: var(--panel);
 }

@@ -67,6 +67,7 @@ type LogTracker struct {
 	specs        map[string]int              // player GUID -> spec, from COMBATANT_INFO
 	owners       map[string]string           // pet GUID -> owner GUID
 	names        map[string]string           // player GUID -> name
+	realms       map[string]string           // player GUID -> realm
 	up           map[[2]string]int64         // (player GUID, defensive) -> when the buff went up, in a key or not
 	history      []models.Key                // saved keys, newest first
 	unsaved      []savedRun
@@ -164,7 +165,7 @@ func NewLogTracker(timers map[int]int64, affixes map[int]string, rules models.MP
 	return &LogTracker{timers: timers, affixes: affixes, rules: rules, kinds: kinds, facts: facts, store: store,
 		history: history, everyday: map[string]consumable{"flask": {patterns: c.Flask}, "food": {patterns: c.Food}},
 		spells: map[int]string{}, schools: map[string]int{"Melee": physicalSchool}, specs: map[string]int{},
-		owners: map[string]string{}, names: map[string]string{},
+		owners: map[string]string{}, names: map[string]string{}, realms: map[string]string{},
 		up: map[[2]string]int64{}, top: map[[2]int][]int64{}, asked: map[[2]int]bool{}}, nil
 }
 
@@ -357,8 +358,9 @@ func (k *LogTracker) learn(at int64, event string, f []string) {
 	}
 	for _, i := range []int{0, 4} {
 		if strings.HasPrefix(f[i], "Player-") && f[i+1] != "nil" {
-			if name, _ := splitName(f[i+1]); k.names[f[i]] != name {
-				k.names[f[i]] = name
+			name, realm := splitName(f[i+1])
+			if k.names[f[i]] != name {
+				k.names[f[i]], k.realms[f[i]] = name, realm
 				k.renames++
 			}
 			if hasFlag(f[i+2], mineFlag) {
@@ -469,9 +471,6 @@ func (k *LogTracker) closeCurrent(at int64, status string, final int64) {
 	k.sampleAbilities(at)
 	key := k.details(run, at)
 	key.Abilities, key.Taken = abilities(run, k.schools)
-	if slices.Contains(run.party, k.logger) {
-		key.Logger = k.names[k.logger]
-	}
 	key.Report, key.Imported = k.source, k.source != nil
 	track := k.trackOf(run)
 	k.last, k.lastTrack, k.current = &key, &track, nil

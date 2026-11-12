@@ -40,10 +40,14 @@ func (r Raid) Live(c *gin.Context) {
 //	@Summary	Every raid night's pulls
 //	@Tags		raid
 //	@Produce	json
-//	@Success	200	{array}	models.RaidNight	"newest night first, each night's pulls newest first"
+//	@Param		character	query		string			false	"only this character's pulls (an id from /api/characters)"
+//	@Success	200			{array}		models.RaidNight	"newest night first, each night's pulls newest first"
+//	@Failure	400			{object}	ErrorResponse
 //	@Router		/api/raid/nights [get]
 func (r Raid) Nights(c *gin.Context) {
-	c.JSON(http.StatusOK, r.Pulls.RaidNights())
+	if character, ok := characterParam(c); ok {
+		c.JSON(http.StatusOK, r.Pulls.RaidNights(character))
+	}
 }
 
 // Pull godoc

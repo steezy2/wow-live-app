@@ -110,7 +110,7 @@ func Start(ctx context.Context, opts Options) (*Site, error) {
 		Source: keystoneguru.Client{CacheDir: filepath.Join(opts.Cache, "keystone-guru")}}
 	raidMaps := service.RaidMaps{Bosses: opts.Bosses,
 		Source: wcl.MapImages{CacheDir: filepath.Join(opts.Cache, "raid-maps")}}
-	recaps := service.Recaps{Saved: keys.History, Region: opts.Region, Now: opts.Now,
+	recaps := service.Recaps{Saved: keys.History, Region: opts.Region, Now: opts.Now, Logs: opts.Baselines,
 		Season: raiderio.Client{CacheDir: filepath.Join(opts.Cache, "raiderio")}}
 	s.Handler = controller.Router(controller.MPlus{Keys: keys, Reviews: s.reviews, Changes: s.Changes,
 		Now: opts.Now, Tiles: tiles, Recaps: recaps}, &controller.Raid{Pulls: keys, Maps: raidMaps, Now: opts.Now}, opts.Settings,
@@ -208,7 +208,7 @@ func add(keys *service.LogTracker, lines []string) {
 
 // readerVersion is the version of what Learn saves from a log. Bump it with any change that saves new key or raid pull
 // fields, so the next Learn reads every log again.
-const readerVersion = 11
+const readerVersion = 12
 
 // learned is learned.json: the logs Learn has read and the reader that read them, so it reads only new or changed
 // logs next time.
@@ -306,7 +306,7 @@ func (s *Site) learn(all bool) (read, saved int, err error) {
 		return read, 0, err
 	}
 	s.Changes.Publish(s.Keys.Version())
-	saved = len(s.Keys.Saved())
+	saved = len(s.Keys.Saved(""))
 	log.Printf("%d logs read, %d keys saved", read, saved)
 	return read, saved, nil
 }

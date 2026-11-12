@@ -118,6 +118,38 @@ func (c *Client) MPlusRankings(ctx context.Context, encounter, level int, class,
 	return runs, nil
 }
 
+// topTimesMaxAge is how long a dungeon's top speed-ranked times are kept before they're asked for again.
+const topTimesMaxAge = 7 * 24 * time.Hour
+
+// MPlusTopTimes is the times (in ms) of a dungeon's top speed-ranked runs at a keystone level, fastest first (one
+// page: up to 100).
+func (c *Client) MPlusTopTimes(ctx context.Context, encounter, level int) ([]int64, error) {
+	var data struct {
+		WorldData struct {
+			Encounter struct {
+				Rankings struct {
+					Rankings []struct {
+						Duration int64 `json:"duration"`
+					} `json:"rankings"`
+				} `json:"fightRankings"`
+			} `json:"encounter"`
+		} `json:"worldData"`
+	}
+	gql := `query($e: Int!, $b: Int!) { worldData { encounter(id: $e) { fightRankings(bracket: $b, metric: speed) } } }`
+	file := fmt.Sprintf("top-times-%d-%d.json", encounter, level)
+	if err := c.cachedQuery(ctx, file, topTimesMaxAge, gql, map[string]any{"e": encounter, "b": level - 1},
+		&data); err != nil {
+		return nil, err
+	}
+	times := []int64{}
+	for _, r := range data.WorldData.Encounter.Rankings.Rankings {
+		if r.Duration > 0 {
+			times = append(times, r.Duration)
+		}
+	}
+	return times, nil
+}
+
 // Run is a ranked run's party damage taken (from its fight's summary table) and how long each boss it killed took
 // (its dungeon pulls with an encounter), in one query.
 func (c *Client) Run(ctx context.Context, code string, fightID int) (models.RunSummary, error) {

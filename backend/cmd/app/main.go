@@ -114,7 +114,7 @@ func run() error {
 	if err := site.Import.Resume(); err != nil {
 		log.Printf("going on with the Warcraft Logs import: %v", err)
 	}
-	if len(site.Keys.Saved()) == 0 { // a first run: the estimate needs earlier runs, and the log folder has them
+	if len(site.Keys.Saved("")) == 0 { // a first run: the estimate needs earlier runs, and the log folder has them
 		go func() {
 			if _, _, err := site.Learn(false); err != nil {
 				log.Printf("reading old logs: %v", err)

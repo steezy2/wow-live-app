@@ -30,9 +30,11 @@ func (f *fakeKeys) Latest(now int64) (models.KeyView, bool) {
 	return f.key, f.ok
 }
 
-func (f *fakeKeys) Saved() []models.KeySummary {
+func (f *fakeKeys) Saved(string) []models.KeySummary {
 	return []models.KeySummary{{Start: 7, Dungeon: "Voidscar Arena"}}
 }
+
+func (f *fakeKeys) Played(string) []models.Character { return []models.Character{} }
 
 func (f *fakeKeys) SavedKey(start int64) (models.KeyView, error) {
 	if start != 7 {
@@ -59,8 +61,8 @@ func (f *fakeKeys) DeleteSaved(start int64) error {
 // fakeRaid has one raid pull, starting at 1.
 type fakeRaid struct{}
 
-func (fakeRaid) RaidLive(int64) models.RaidLive { return models.RaidLive{} }
-func (fakeRaid) RaidNights() []models.RaidNight { return []models.RaidNight{} }
+func (fakeRaid) RaidLive(int64) models.RaidLive       { return models.RaidLive{} }
+func (fakeRaid) RaidNights(string) []models.RaidNight { return []models.RaidNight{} }
 func (fakeRaid) RaidPull(start int64) (models.RaidPull, error) {
 	if start != 1 {
 		return models.RaidPull{}, service.ErrNoSuchPull
@@ -502,8 +504,13 @@ func TestAnUnchangedCharacterIsntCheckedAgain(t *testing.T) {
 // fakeRecaps answers a recap of the span it was asked for.
 type fakeRecaps struct{}
 
+func (fakeRecaps) TopTimes(context.Context, int64, int64, string) ([]models.RecapTopTime, error) {
+	return nil, models.ErrNoCredentials
+}
 func (fakeRecaps) Periods(context.Context) []models.RecapPeriod { return []models.RecapPeriod{} }
-func (fakeRecaps) Recap(from, to int64) models.Recap            { return models.Recap{From: from, To: to} }
+func (fakeRecaps) Recap(from, to int64, _ string) models.Recap {
+	return models.Recap{From: from, To: to}
+}
 
 func TestRecapNeedsASpan(t *testing.T) {
 	for _, tc := range []struct {

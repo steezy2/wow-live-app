@@ -11,7 +11,8 @@ import (
 // abandoned (false when none is running).
 type KeySource interface {
 	Latest(now int64) (KeyView, bool)
-	Saved() []KeySummary
+	Saved(character string) []KeySummary
+	Played(preferred string) []Character
 	SavedKey(start int64) (KeyView, error)
 	DeleteSaved(start int64) error
 	Track(start int64) (KeyTrack, error)
@@ -20,12 +21,14 @@ type KeySource interface {
 	Abandon() bool
 }
 
-// MPlusBaselines gives what a key review compares against from Warcraft Logs: the season's dungeons by name
-// (encounter IDs), a spec's top runs in a dungeon at a keystone level by "dps" or "hps", a ranked run's party
+// MPlusBaselines gives what a key review and the recap compare against from Warcraft Logs: the season's dungeons by
+// name (encounter IDs), a spec's top runs in a dungeon at a keystone level by "dps" or "hps", the times of a dungeon's
+// top speed-ranked runs at a level, a ranked run's party
 // damage taken, and the points left this hour.
 type MPlusBaselines interface {
 	MPlusEncounters(ctx context.Context) (map[string]int, error)
 	MPlusRankings(ctx context.Context, encounter, level int, class, spec, metric string) ([]MPlusRanking, error)
+	MPlusTopTimes(ctx context.Context, encounter, level int) ([]int64, error)
 	Run(ctx context.Context, code string, fightID int) (RunSummary, error)
 	PointsLeft(ctx context.Context) (float64, error)
 }
@@ -50,7 +53,7 @@ type ReviewStore interface {
 // and its replay track by its start time.
 type RaidSource interface {
 	RaidLive(now int64) RaidLive
-	RaidNights() []RaidNight
+	RaidNights(character string) []RaidNight
 	RaidPull(start int64) (RaidPull, error)
 	RaidTrack(start int64) (KeyTrack, error)
 }

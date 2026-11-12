@@ -1,13 +1,16 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
+  fetchCharacters,
   fetchSavedKey,
   fetchSettings,
   onAppEvent,
   subscribe,
+  type Character,
   type KeyView,
   type Settings,
   type SettingsView,
 } from './api'
+import { CharacterPicker } from './CharacterPicker'
 import { KeyDetails } from './KeyDetails'
 import { MPlusLive } from './MPlusLive'
 import { RaidPage } from './RaidPage'
@@ -15,9 +18,10 @@ import { Recap } from './Recap'
 import { SavedKeys } from './SavedKeys'
 import { SettingsPage } from './SettingsPage'
 
-/** The site: its sections along the top (M+ Live, Raid, Recap, and Settings in the desktop app); M+ Live has the saved
- * keys on the side and the live key or the one picked from them. The app opens on Settings when it can't find the log
- * folder. */
+/** The site: its sections along the top (M+ Live, Raid, Recap, and Settings in the desktop app) and the character
+ * picker, whose pick (Settings' character at first, else all) the saved keys, raid nights and recap show; M+ Live has
+ * the saved keys on the side and the live key or the one picked from them. The app opens on Settings when it can't find
+ * the log folder. */
 export default function App() {
   const [selected, setSelected] = useState<number | null>(null)
   const [refresh, setRefresh] = useState(0)
@@ -25,6 +29,15 @@ export default function App() {
   const [settings, setSettings] = useState<SettingsView | null>(null)
   const [section, setSection] = useState<'mplus' | 'raid' | 'recap' | 'settings'>('mplus')
   const [raidPull, setRaidPull] = useState<number | null>(null)
+  const [characters, setCharacters] = useState<Character[]>([])
+  const [picked, setPicked] = useState<string | null>(null)
+  const character = picked ?? characters.find((c) => c.preferred)?.id ?? ''
+  const preferred = settings?.character ?? ''
+  useEffect(() => {
+    const controller = new AbortController()
+    fetchCharacters(preferred, controller.signal).then(setCharacters, () => undefined)
+    return () => controller.abort()
+  }, [preferred, refresh, section]) // a section opened again may follow a raid pull or Read old logs
   useEffect(() => {
     const controller = new AbortController()
     fetchSettings(controller.signal).then((view) => {
@@ -58,20 +71,21 @@ export default function App() {
         <button {...tab('raid')}>Raid</button>
         <button {...tab('recap')}>Recap</button>
         {settings && <button {...tab('settings')}>Settings</button>}
+        <CharacterPicker characters={characters} value={character} onChange={setPicked} />
       </nav>
       {settings && section === 'settings' ? (
         <main className="page">
           <SettingsPage view={settings} onSaved={setSettings} />
         </main>
       ) : section === 'raid' ? (
-        <RaidPage key={raidPull} initial={raidPull} />
+        <RaidPage key={raidPull} initial={raidPull} character={character} />
       ) : section === 'recap' ? (
         <main className="page">
-          <Recap character={settings?.character ?? ''} onOpen={open} />
+          <Recap character={characters.find((c) => c.id === character)} parsesFor={preferred} onOpen={open} />
         </main>
       ) : (
         <div className="layout">
-          <SavedKeys selected={selected} onSelect={setSelected} refresh={refresh} />
+          <SavedKeys selected={selected} onSelect={setSelected} refresh={refresh} character={character} />
           <main className="page">
             {selected === null ? <MPlusLive onEnded={keyEnded} /> : <SavedKey start={selected} />}
           </main>

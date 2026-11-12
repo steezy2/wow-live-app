@@ -28,17 +28,18 @@ function pullName(p: RaidPullSummary): string {
 }
 
 /** The Raid tab: tonight's and earlier nights' pulls on the side by night (by week past the last 7 days), newest first
- * by boss, and the last pull (or the one picked, first initial) as the overview, read again as pulls end. */
-export function RaidPage({ initial = null }: { initial?: number | null }) {
+ * by boss (the top bar's character's, '' for all), and the last pull (or the one picked, first initial) as the
+ * overview, read again as pulls end. */
+export function RaidPage({ initial = null, character }: { initial?: number | null; character: string }) {
   const live = useRaidLive()
   const [selected, setSelected] = useState<number | null>(initial)
   const [nights, setNights] = useState<RaidNight[]>([])
   const lastStart = live?.last?.start
   useEffect(() => {
     const controller = new AbortController()
-    fetchRaidNights(controller.signal).then(setNights, () => undefined)
+    fetchRaidNights(character, controller.signal).then(setNights, () => undefined)
     return () => controller.abort()
-  }, [lastStart])
+  }, [lastStart, character])
   return (
     <div className="layout">
       <aside className="side">

@@ -2,6 +2,8 @@ package controller
 
 import (
 	"context"
+	"errors"
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -12,13 +14,18 @@ import (
 // Recaps builds the Recap tab (service.Recaps): the periods to pick from, and a period's recap.
 type Recaps interface {
 	Periods(ctx context.Context) []models.RecapPeriod
-	Recap(from, to int64) models.Recap
+	Recap(from, to int64, character string) models.Recap
+	TopTimes(ctx context.Context, from, to int64, character string) ([]models.RecapTopTime, error)
 }
 
-// RecapSpan is the period a recap covers, in ms since the epoch (to excluded).
+// recapQueryError answers a recap query that doesn't fit RecapSpan.
+const recapQueryError = "send from and to (ms since the epoch), to after from, and a character of at most 64 characters"
+
+// RecapSpan is the period a recap covers, in ms since the epoch (to excluded), and whose runs.
 type RecapSpan struct {
 	From int64 `form:"from" binding:"min=0"`
 	To   int64 `form:"to" binding:"required,gtfield=From"`
+	CharacterQuery
 }
 
 // RecapPeriods godoc
@@ -36,23 +43,60 @@ func (m MPlus) RecapPeriods(c *gin.Context) {
 
 // Recap godoc
 //
-//	@Summary		A period's keys and raid pulls as a story
-//	@Description	The keys run and timed, the highest timed level, the time in keys and the deaths; each dungeon's
-//	@Description	runs; your character (whose game wrote most of the logs): specs, median DPS or HPS per dungeon and
-//	@Description	what killed you; who you ran with most; a few facts, each opening its key; and the raid by boss.
-//	@Description	Read from the saved keys and pulls only: no Warcraft Logs points.
+//	@Summary		A period's keys and raid pulls as a story, Mythic+ and raid apart
+//	@Description	Mythic+: the keys run and timed, the highest timed level, the time in keys, the party's deaths,
+//	@Description	kicks, CC, dispels and priority damage per key (the party's and yours); each dungeon's runs and its
+//	@Description	times at the highest level run; your specs, median DPS or HPS per dungeon and what killed you; who you
+//	@Description	ran with most; a few facts, each opening its key. Raid: pulls, kills, time and deaths, and each boss.
+//	@Description	One character's runs, or everyone's with the character who played most as "you". Read from the
+//	@Description	saved keys and pulls only: no Warcraft Logs points.
 //	@Tags			recap
 //	@Produce		json
 //	@Param			from	query		int	true	"the period's start, ms since the epoch"
 //	@Param			to		query		int	true	"the period's end, ms since the epoch (excluded); after from"
+//	@Param			character	query	string	false	"only this character's runs (an id from /api/characters)"
 //	@Success		200		{object}	models.Recap
 //	@Failure		400		{object}	ErrorResponse
 //	@Router			/api/recap [get]
 func (m MPlus) Recap(c *gin.Context) {
 	var span RecapSpan
 	if err := c.ShouldBindQuery(&span); err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "send from and to (ms since the epoch), to after from"})
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: recapQueryError})
 		return
 	}
-	c.JSON(http.StatusOK, m.Recaps.Recap(span.From, span.To))
+	c.JSON(http.StatusOK, m.Recaps.Recap(span.From, span.To, span.Character))
+}
+
+// RecapTopTimes godoc
+//
+//	@Summary		Warcraft Logs' top runs per dungeon of a recap
+//	@Description	For each dungeon of the recap (same query as /api/recap), the median time of Warcraft Logs' top
+//	@Description	speed-ranked runs at the highest level run there; no median under 10 ranked runs. Each dungeon and
+//	@Description	level is asked for at most once a week (about a point each).
+//	@Tags			recap
+//	@Produce		json
+//	@Param			from		query		int		true	"the period's start, ms since the epoch"
+//	@Param			to			query		int		true	"the period's end, ms since the epoch (excluded); after from"
+//	@Param			character	query		string	false	"only this character's runs (an id from /api/characters)"
+//	@Success		200			{array}		models.RecapTopTime
+//	@Success		204			"No Warcraft Logs keys, or keys Warcraft Logs refuses"
+//	@Failure		400			{object}	ErrorResponse
+//	@Failure		502			{object}	ErrorResponse
+//	@Router			/api/recap/top-times [get]
+func (m MPlus) RecapTopTimes(c *gin.Context) {
+	var span RecapSpan
+	if err := c.ShouldBindQuery(&span); err != nil {
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: recapQueryError})
+		return
+	}
+	times, err := m.Recaps.TopTimes(c.Request.Context(), span.From, span.To, span.Character)
+	switch {
+	case err == nil:
+		c.JSON(http.StatusOK, times)
+	case errors.Is(err, models.ErrNoCredentials), errors.Is(err, models.ErrBadCredentials):
+		c.Status(http.StatusNoContent)
+	default:
+		log.Printf("recap top times: %v", err)
+		c.JSON(http.StatusBadGateway, ErrorResponse{Error: "Warcraft Logs failed; try again later"})
+	}
 }

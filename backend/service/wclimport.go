@@ -96,14 +96,17 @@ func (c Characters) Resolve(ctx context.Context, region, character string) (name
 	return name, slug, nil
 }
 
-// Guess is the name of the character whose game wrote most saved keys' logs ("" for none). The logs don't keep its
-// realm, so the owner adds that.
+// Guess is the character ("Name-Realm", or a bare name for keys saved before realms were kept) whose game wrote most
+// saved keys' logs ("" for none).
 func (c Characters) Guess() string {
 	keys, err := c.Keys.List()
 	if err != nil {
 		return ""
 	}
-	return mostLogged(keys)
+	if played := playedCharacters(keys, nil, ""); len(played) > 0 {
+		return played[0].ID
+	}
+	return ""
 }
 
 // matchReports is the report fights that are saved keys and raid pulls. A fight is a candidate for a key when it has
