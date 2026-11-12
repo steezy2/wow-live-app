@@ -10,6 +10,21 @@ definitions:
       error:
         type: string
     type: object
+  controller.ImportKinds:
+    properties:
+      kinds:
+        items:
+          $ref: '#/definitions/models.ImportKind'
+          enum:
+          - keys
+          - raidKills
+          - raidWipes
+        minItems: 1
+        type: array
+        uniqueItems: true
+    required:
+    - kinds
+    type: object
   controller.LogNames:
     properties:
       names:
@@ -92,6 +107,47 @@ definitions:
       clockMS:
         type: integer
       pct:
+        type: number
+    type: object
+  models.ImportKind:
+    enum:
+    - keys
+    - raidKills
+    - raidWipes
+    type: string
+    x-enum-varnames:
+    - ImportKeys
+    - ImportRaidKills
+    - ImportRaidWipes
+  models.ImportKindPlan:
+    properties:
+      default:
+        type: boolean
+      fights:
+        type: integer
+      kind:
+        allOf:
+        - $ref: '#/definitions/models.ImportKind'
+        enum:
+        - keys
+        - raidKills
+        - raidWipes
+      minutes:
+        type: integer
+      points:
+        type: number
+    type: object
+  models.ImportPlan:
+    properties:
+      character:
+        type: string
+      kinds:
+        items:
+          $ref: '#/definitions/models.ImportKindPlan'
+        type: array
+      listedPoints:
+        type: number
+      pointsPerHour:
         type: number
     type: object
   models.ImportStatus:
@@ -2225,11 +2281,20 @@ paths:
       tags:
       - settings
     post:
+      consumes:
+      - application/json
       description: |-
         Lists the reports the settings' character is in, then in the background fetches each Mythic+ key and
-        raid boss pull of the current season and raid not saved yet (a key or pull read from a local log
-        is skipped) and saves it, tagged with its report. It waits for the hour's points when they run
-        low, and goes on after a restart.
+        raid boss pull of the kinds sent, of the current season and raid, not saved yet (a key or pull read
+        from a local log is skipped) and saves it, tagged with its report. It waits for the hour's points
+        when they run low, and goes on after a restart.
+      parameters:
+      - description: the kinds of fight to import
+        in: body
+        name: kinds
+        required: true
+        schema:
+          $ref: '#/definitions/controller.ImportKinds'
       produces:
       - application/json
       responses:
@@ -2237,6 +2302,38 @@ paths:
           description: Accepted
           schema:
             $ref: '#/definitions/models.ImportStatus'
+        "400":
+          description: No character, one that doesn't fit, or no or unknown kinds
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+        "404":
+          description: No Warcraft Logs keys saved
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+        "409":
+          description: An import is running
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+        "502":
+          description: Warcraft Logs couldn't be reached
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+      summary: Import the character's Warcraft Logs reports of this season
+      tags:
+      - settings
+  /api/settings/warcraftlogs/import/plan:
+    get:
+      description: |-
+        Lists the reports the settings' character is in (about 2 points a report, reused for 10 minutes) and
+        counts the fights an import would fetch by kind (Mythic+ keys, raid kills, raid wipes), with their
+        minutes and an estimate of their points, and the points an import spends an hour.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.ImportPlan'
         "400":
           description: No character, or one that doesn't fit
           schema:
@@ -2253,7 +2350,7 @@ paths:
           description: Warcraft Logs couldn't be reached
           schema:
             $ref: '#/definitions/controller.ErrorResponse'
-      summary: Import the character's Warcraft Logs reports of this season
+      summary: What an import of the character's Warcraft Logs reports would fetch
       tags:
       - settings
   /api/settings/warcraftlogs/imported:
