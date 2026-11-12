@@ -1,14 +1,6 @@
 import { type ReactNode, useState } from 'react'
-import type { HitRecap, KeyTrack, RecapEvent } from './api'
+import type { HitRecap, RecapEvent } from './api'
 import { amount, seconds } from './format'
-
-/** The player's first recap at or after fromMS on the key's clock: a death's (its clockMS) or a big hit's (the start of
- * its stretch, since its recap ends about 3 s later). Undefined when the track has none. */
-// The recap and its lookup live together; a function here doesn't break fast refresh in practice.
-// eslint-disable-next-line react-refresh/only-export-components
-export function recapOf(track: KeyTrack | null | undefined, player: string, fromMS: number): HitRecap | undefined {
-  return track?.recaps?.find((r) => r.player === player && r.clockMS >= fromMS)
-}
 
 /** How long a recap covers: from its first event to its end (the backend's recap_seconds at most). */
 const spanOf = (recap: HitRecap) => (recap.events.length > 0 ? recap.clockMS - recap.events[0].t : 0)

@@ -143,7 +143,7 @@ export function SettingsPage({ view, onSaved }: { view: SettingsView; onSaved: (
           />
         </label>
         <fieldset>
-          <legend>Columns (none for DPS, HPS and kicks)</legend>
+          <legend>Columns</legend>
           {view.overlayColumns.map((id) => (
             <label key={id} className="inline">
               <input

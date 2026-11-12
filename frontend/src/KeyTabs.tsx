@@ -1,8 +1,9 @@
 import { type ReactNode, useState } from 'react'
 import type { KeyBigHit, KeyCast, KeyDeath, KeyHit, KeyTrack, KeyView, RaidLane } from './api'
 import { coverText } from './format'
-import { RecapRow, recapOf } from './HitRecap'
+import { RecapRow } from './HitRecap'
 import { Avoidable, BigHits, KickLedger, SpikeLedger } from './KeyLedgers'
+import { recapOf } from './replay'
 import { When, Who, type Seeker } from './Seek'
 
 /** What a fight's tabs read: a key's view, or a raid pull's lists; avoidableHits missing in pulls saved before Nov

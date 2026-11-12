@@ -137,7 +137,8 @@ func pullsLane(key models.Key) []models.RaidMark {
 // defensive could have covered, the slowest pull against the same pull in the best timed run of the dungeon at the level
 // (best, nil without one; only when both runs have the same number of pulls), must-stop casts that went off, a
 // Bloodlust few took a combat potion with, damage spikes with no party cooldown, the longest wait between pulls, and
-// priority targets that died after most of their pack, and a DPS who put little damage into priority targets. Each line names a time on the key's clock where it has one.
+// priority targets that died after most of their pack, and a DPS who put little damage into priority targets. Each
+// line names a time on the key's clock where it has one.
 func keySuggestions(key models.Key, best *models.Key, rules models.KeySuggestionRules) []string {
 	out := []string{}
 	byAbility := map[string]int{}
@@ -185,7 +186,7 @@ func keySuggestions(key models.Key, best *models.Key, rules models.KeySuggestion
 	for _, lust := range key.Lusts {
 		var dps, potions int
 		for _, p := range key.Players {
-			if specs[key.Specs[p]].Healer {
+			if specs[key.Specs[p]].Role == "healer" {
 				continue
 			}
 			dps++

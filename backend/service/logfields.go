@@ -60,10 +60,10 @@ func abs(v int64) int64 {
 	return v
 }
 
-// specInfo is a specialization as Warcraft Logs names it, and whether it heals (ranked by healing, not damage).
+// specInfo is a specialization as Warcraft Logs names it, and its role: "healer" (ranked by healing, not damage),
+// "tank" or "" for damage.
 type specInfo struct {
-	Class, Name string
-	Healer      bool
+	Class, Name, Role string
 }
 
 // label is the spec and class with spaces, as players say them: "Beast Mastery Hunter", "Blood Death Knight".
@@ -76,21 +76,21 @@ var spaced = regexp.MustCompile(`([a-z])([A-Z])`)
 
 // specs is each specialization ID's class and name.
 var specs = map[int]specInfo{
-	250: {"DeathKnight", "Blood", false}, 251: {"DeathKnight", "Frost", false}, 252: {"DeathKnight", "Unholy", false},
-	577: {"DemonHunter", "Havoc", false}, 581: {"DemonHunter", "Vengeance", false},
-	1480: {"DemonHunter", "Devourer", false},
-	102:  {"Druid", "Balance", false}, 103: {"Druid", "Feral", false}, 104: {"Druid", "Guardian", false},
-	105:  {"Druid", "Restoration", true},
-	1467: {"Evoker", "Devastation", false}, 1468: {"Evoker", "Preservation", true},
-	1473: {"Evoker", "Augmentation", false},
-	253:  {"Hunter", "BeastMastery", false}, 254: {"Hunter", "Marksmanship", false}, 255: {"Hunter", "Survival", false},
-	62: {"Mage", "Arcane", false}, 63: {"Mage", "Fire", false}, 64: {"Mage", "Frost", false},
-	268: {"Monk", "Brewmaster", false}, 269: {"Monk", "Windwalker", false}, 270: {"Monk", "Mistweaver", true},
-	65: {"Paladin", "Holy", true}, 66: {"Paladin", "Protection", false}, 70: {"Paladin", "Retribution", false},
-	256: {"Priest", "Discipline", true}, 257: {"Priest", "Holy", true}, 258: {"Priest", "Shadow", false},
-	259: {"Rogue", "Assassination", false}, 260: {"Rogue", "Outlaw", false}, 261: {"Rogue", "Subtlety", false},
-	262: {"Shaman", "Elemental", false}, 263: {"Shaman", "Enhancement", false}, 264: {"Shaman", "Restoration", true},
-	265: {"Warlock", "Affliction", false}, 266: {"Warlock", "Demonology", false},
-	267: {"Warlock", "Destruction", false},
-	71:  {"Warrior", "Arms", false}, 72: {"Warrior", "Fury", false}, 73: {"Warrior", "Protection", false},
+	250: {"DeathKnight", "Blood", "tank"}, 251: {"DeathKnight", "Frost", ""}, 252: {"DeathKnight", "Unholy", ""},
+	577: {"DemonHunter", "Havoc", ""}, 581: {"DemonHunter", "Vengeance", "tank"},
+	1480: {"DemonHunter", "Devourer", ""},
+	102:  {"Druid", "Balance", ""}, 103: {"Druid", "Feral", ""}, 104: {"Druid", "Guardian", "tank"},
+	105:  {"Druid", "Restoration", "healer"},
+	1467: {"Evoker", "Devastation", ""}, 1468: {"Evoker", "Preservation", "healer"},
+	1473: {"Evoker", "Augmentation", ""},
+	253:  {"Hunter", "BeastMastery", ""}, 254: {"Hunter", "Marksmanship", ""}, 255: {"Hunter", "Survival", ""},
+	62: {"Mage", "Arcane", ""}, 63: {"Mage", "Fire", ""}, 64: {"Mage", "Frost", ""},
+	268: {"Monk", "Brewmaster", "tank"}, 269: {"Monk", "Windwalker", ""}, 270: {"Monk", "Mistweaver", "healer"},
+	65: {"Paladin", "Holy", "healer"}, 66: {"Paladin", "Protection", "tank"}, 70: {"Paladin", "Retribution", ""},
+	256: {"Priest", "Discipline", "healer"}, 257: {"Priest", "Holy", "healer"}, 258: {"Priest", "Shadow", ""},
+	259: {"Rogue", "Assassination", ""}, 260: {"Rogue", "Outlaw", ""}, 261: {"Rogue", "Subtlety", ""},
+	262: {"Shaman", "Elemental", ""}, 263: {"Shaman", "Enhancement", ""}, 264: {"Shaman", "Restoration", "healer"},
+	265: {"Warlock", "Affliction", ""}, 266: {"Warlock", "Demonology", ""},
+	267: {"Warlock", "Destruction", ""},
+	71:  {"Warrior", "Arms", ""}, 72: {"Warrior", "Fury", ""}, 73: {"Warrior", "Protection", "tank"},
 }

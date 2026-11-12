@@ -122,6 +122,7 @@ func TestBigHitsByRole(t *testing.T) {
 		{"a mage left above 40% health", 62, []int{205, 205}, 500, false, 0},
 		{"a burst staying over the bar", 62, []int{250, 250, 250, 250}, 300, false, 500},
 		{"a mage dying", 62, []int{450}, 500, true, 450},
+		{"a second burst overlapping the first", 62, []int{300, 200, 50, 300}, 300, false, 500},
 	} {
 		keys, lines := hitsTracker(t, tc.spec)
 		lines = append(lines, at(15, `SPELL_HEAL,`+hitsShaman+`,`+testPlayer+`,2061,"Flash Heal",0x2,`+
@@ -157,6 +158,9 @@ func TestBigHitsByRole(t *testing.T) {
 		}
 		if tc.death && recap.ClockMS != key.Deaths[0].ClockMS || !tc.death && recap.ClockMS != hit.ClockMS+3000 {
 			t.Errorf("%s: recap at %d; want the death's or the hit's end", tc.name, recap.ClockMS)
+		}
+		if hit.RecapMS != recap.ClockMS {
+			t.Errorf("%s: the hit links the recap at %d; want %d", tc.name, hit.RecapMS, recap.ClockMS)
 		}
 	}
 }

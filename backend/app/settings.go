@@ -42,8 +42,8 @@ func LoadSettings(path string, defaults models.Settings) (*Settings, error) {
 // filled is settings with the overlay's columns as an empty list rather than null (files saved before Nov 12 have
 // none), so the page can read them as a list.
 func filled(s models.Settings) models.Settings {
-	if s.Overlay.Columns == nil {
-		s.Overlay.Columns = []string{}
+	if len(s.Overlay.Columns) == 0 {
+		s.Overlay.Columns = []string{"dps", "hps", "kicks"}
 	}
 	return s
 }

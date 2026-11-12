@@ -124,16 +124,15 @@ type KeyCast struct {
 }
 
 // KeyPull is a trash pull with minibosses (the dungeon file's miniboss NPCs): the share of the party's damage that went
-// into them in the pull's first 10 s and in all, their share of the pull's health, where each fell in its own pack's
+// into them in the pull's first 10 s, their share of the pull's health, where each fell in its own pack's
 // kill order, and whether one died after most of its pack (Late).
 type KeyPull struct {
-	Pull        int           `json:"pull"`
-	ClockMS     int64         `json:"clockMS"`
-	OpeningPct  float64       `json:"openingPct"`
-	PriorityPct float64       `json:"priorityPct"`
-	HealthPct   float64       `json:"healthPct"`
-	Minibosses  []KeyMiniboss `json:"minibosses"`
-	Late        bool          `json:"late"`
+	Pull       int           `json:"pull"`
+	ClockMS    int64         `json:"clockMS"`
+	OpeningPct float64       `json:"openingPct"`
+	HealthPct  float64       `json:"healthPct"`
+	Minibosses []KeyMiniboss `json:"minibosses"`
+	Late       bool          `json:"late"`
 }
 
 // KeyMiniboss is a miniboss in a pull: when it died on the key's clock, and its place among its pack's regular mobs
@@ -353,6 +352,7 @@ type KeyBigHit struct {
 	Used      bool         `json:"used,omitempty"`
 	Ready     []string     `json:"ready"`
 	Died      bool         `json:"died,omitempty"`
+	RecapMS   int64        `json:"recapMS,omitempty"`
 }
 
 // HitRecap is a player's last seconds ([big_hits] recap_seconds) before a death or a big hit ended (ClockMS): what
@@ -634,7 +634,7 @@ type OverlaySettings struct {
 	// OneCard shows the pull and the whole key in one card instead of two, one above the other (the default).
 	OneCard bool `json:"oneCard"`
 	// Rows is how many players each card shows, the top ones (0 for everyone); Columns the cards' columns in order
-	// (empty for DPS, HPS and kicks).
+	// (saving none sets DPS, HPS and kicks).
 	Rows    int      `json:"rows" minimum:"0"`
 	Columns []string `json:"columns" enums:"dps,hps,kicks,pullDps,taken,avoidable,priority,dispels,deaths"`
 	// ClickThrough lets clicks on the overlay through to the game; off (the default), a click on a player's row

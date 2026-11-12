@@ -170,7 +170,7 @@ func recapYou(keys []models.Key, you string) *models.RecapYou {
 			if row.Player != you {
 				continue
 			}
-			if known && spec.Healer {
+			if known && spec.Role == "healer" {
 				rates[[2]string{k.Dungeon, "hps"}] = append(rates[[2]string{k.Dungeon, "hps"}], row.HPS)
 			} else {
 				rates[[2]string{k.Dungeon, "dps"}] = append(rates[[2]string{k.Dungeon, "dps"}], row.DPS)

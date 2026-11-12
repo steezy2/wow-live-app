@@ -3,9 +3,9 @@ import type { KeyHit, KeyTrack, KeyView } from './api'
 import type { FightData } from './KeyTabs'
 import { amount, causesText, clock, coverText, groupBy } from './format'
 import { defense, offense } from './meterColumns'
-import { RecapRow, recapOf } from './HitRecap'
+import { RecapRow } from './HitRecap'
 import { MeterCard } from './MeterCards'
-import { meterBetween } from './replay'
+import { meterBetween, recapOf } from './replay'
 import { When, Who, type Seeker } from './Seek'
 
 /** The key's boss fights; a click moves the replay to one and opens its details: its length against your best run at
@@ -219,7 +219,7 @@ export function BigHits({ data, seek, track }: { data: FightData; seek?: Seeker;
       {hits.map((h) => (
         <RecapRow
           key={`${h.player}-${h.clockMS}`}
-          recap={recapOf(track, h.player, h.clockMS)}
+          recap={recapOf(track, h.player, h.recapMS)}
           ready={h.ready}
           died={h.died}
         >

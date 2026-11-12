@@ -140,26 +140,23 @@ func priorityDamage(run *keyRun, pulls ...int) map[string]int64 {
 	return out
 }
 
-// priorityPulls is each trash pull with minibosses: the share of damage into them in its opening and in all, their
+// priorityPulls is each trash pull with minibosses: the share of damage into them in its opening, their
 // share of the pack's health, and where each fell in the pull's kill order. A miniboss is fine as long as it dies
 // before most of the pack; Late says one didn't.
 func priorityPulls(run *keyRun) []models.KeyPull {
 	pulls := []models.KeyPull{}
 	for n, s := range run.pulls {
 		minis := minibossesOf(s, run)
-		var into, opening, health, packHealth int64
+		var opening, health, packHealth int64
 		for guid, mob := range s.mobs {
 			packHealth += run.mobHP[guid]
 			if minis[guid] {
 				health += run.mobHP[guid]
 				opening += mob.opening
-				for _, d := range mob.byPlayer {
-					into += d
-				}
 			}
 		}
-		p := models.KeyPull{Pull: n, ClockMS: s.clockMS, PriorityPct: share(into, s.damage),
-			OpeningPct: share(opening, s.openDamage), HealthPct: share(health, packHealth), Minibosses: []models.KeyMiniboss{}}
+		p := models.KeyPull{Pull: n, ClockMS: s.clockMS, OpeningPct: share(opening, s.openDamage),
+			HealthPct: share(health, packHealth), Minibosses: []models.KeyMiniboss{}}
 		for _, guid := range slices.Sorted(maps.Keys(s.mobs)) { // GUID order, so a tie in the sort below is always the same
 			if mob := s.mobs[guid]; minis[guid] {
 				m := packOrder(s, minis, mob)

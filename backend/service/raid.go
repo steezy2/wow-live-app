@@ -318,7 +318,7 @@ func (k *LogTracker) raidLine(line models.LogLine) bool {
 // raidCooldown says whether a raider's (by GUID) spell is a raid cooldown: one of healer_only's only from a healer.
 func (k *LogTracker) raidCooldown(guid, spell string) bool {
 	return k.raid.cooldowns[spell] &&
-		(!slices.Contains(k.raid.rules.Cooldowns.HealerOnly, spell) || specs[k.specs[guid]].Healer)
+		(!slices.Contains(k.raid.rules.Cooldowns.HealerOnly, spell) || specs[k.specs[guid]].Role == "healer")
 }
 
 // auraOn notes an aura landing on a raider at at (clockMS on the pull's clock): a pickup, the effect of the last

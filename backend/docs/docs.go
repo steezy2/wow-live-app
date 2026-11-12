@@ -1675,6 +1675,9 @@ const docTemplate = `{
                         "type": "string"
                     }
                 },
+                "recapMS": {
+                    "type": "integer"
+                },
                 "taken": {
                     "type": "integer"
                 },
@@ -2028,9 +2031,6 @@ const docTemplate = `{
                     }
                 },
                 "openingPct": {
-                    "type": "number"
-                },
-                "priorityPct": {
                     "type": "number"
                 },
                 "pull": {
@@ -2742,7 +2742,7 @@ const docTemplate = `{
                     "minimum": 0
                 },
                 "rows": {
-                    "description": "Rows is how many players each card shows, the top ones (0 for everyone); Columns the cards' columns in order\n(empty for DPS, HPS and kicks).",
+                    "description": "Rows is how many players each card shows, the top ones (0 for everyone); Columns the cards' columns in order\n(saving none sets DPS, HPS and kicks).",
                     "type": "integer",
                     "minimum": 0
                 },

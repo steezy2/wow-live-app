@@ -194,7 +194,7 @@ func advice(key models.Key, player string, spec specInfo, metrics []models.Revie
 		}
 	}
 	wentOff := countFunc(key.Stops, func(s models.KeyStop) bool { return s.Outcome == "went off" })
-	if k := byName["kicks"]; wentOff > 0 && k.PartyRank > (party+1)/2 && !spec.Healer {
+	if k := byName["kicks"]; wentOff > 0 && k.PartyRank > (party+1)/2 && spec.Role != "healer" {
 		out = append(out, fmt.Sprintf("%d must-stop casts went off; you kicked %.0f", wentOff, k.Value))
 	}
 	switch main := byName[mainMetric(spec)]; {
@@ -209,7 +209,7 @@ func advice(key models.Key, player string, spec specInfo, metrics []models.Revie
 	if readyIn, ready := unusedDefensives(key, player); readyIn >= 2 {
 		out = append(out, fmt.Sprintf("Took big hits with %s ready in %d damage spikes", ready, readyIn))
 	}
-	if p, ok := byName["combat potions"]; ok && !spec.Healer && lustsWithoutPotion(key, player) > 0 {
+	if p, ok := byName["combat potions"]; ok && spec.Role != "healer" && lustsWithoutPotion(key, player) > 0 {
 		out = append(out, fmt.Sprintf("Used %s in a key with %s", counted(int(p.Value), "combat potion"),
 			counted(len(key.Lusts), "Bloodlust")))
 	}
@@ -249,7 +249,7 @@ var reviewed = append([]reviewMetric{dpsMetric, hpsMetric}, otherMetrics...)
 
 // mainMetric is the metric a spec is ranked and advised by: HPS for healers, DPS for everyone else (tanks too, in M+).
 func mainMetric(spec specInfo) string {
-	if spec.Healer {
+	if spec.Role == "healer" {
 		return hpsMetric.name
 	}
 	return dpsMetric.name

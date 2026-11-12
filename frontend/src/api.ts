@@ -98,6 +98,8 @@ export interface KeyBigHit {
   used?: boolean
   ready: string[]
   died?: boolean
+  /** The clock of the recap it opens: the death's when it died, else its own (none while it runs). */
+  recapMS?: number
 }
 
 /** A player's last seconds before a death or a big hit ended at clockMS (models.HitRecap), oldest event first. */
@@ -156,13 +158,12 @@ export interface KeyMeterRow {
 }
 
 /** A trash pull with minibosses (twice the pull's median health, or its one big mob): the share of damage into them
- * in its first 10 s and in all, their share of the pack's health, where each fell in the kill order (order of of; 0 if
+ * in its first 10 s, their share of the pack's health, where each fell in the kill order (order of of; 0 if
  * it didn't die), and whether one died after most of the pack. */
 export interface KeyPull {
   pull: number
   clockMS: number
   openingPct: number
-  priorityPct: number
   healthPct: number
   /** afterMS: how long after the rest of its pack it died (missing when it wasn't last); damagePct: the share of the
    * pull's damage into it (0 in keys saved before Nov 12). */
@@ -615,7 +616,7 @@ export interface OverlaySettings {
   opacity: number
   /** The pull and the whole key in one card instead of two, one above the other. */
   oneCard: boolean
-  /** Players each card shows, the top ones (0 for everyone), and its columns in order (empty for DPS, HPS, kicks). */
+  /** Players each card shows, the top ones (0 for everyone), and its columns in order (none saved: DPS, HPS, kicks). */
   rows: number
   columns: OverlayColumn[]
   /** Clicks go through the overlay to the game; off, a click on a player shows their abilities in the pull. */

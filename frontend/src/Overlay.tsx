@@ -12,12 +12,12 @@ import {
 import { classColors } from './classColors'
 import { AbilityBars } from './FightMeters'
 import { chestLabel, clock, pullTitle, resultText } from './format'
-import { HitRecapView, recapOf } from './HitRecap'
+import { HitRecapView } from './HitRecap'
 import { ForcesBar, TimerBar } from './KeyDetails'
 import { overlayColumn } from './meterColumns'
 import { MeterCard } from './MeterCards'
 import { RaidOverlayCard } from './RaidPage'
-import { abilitiesBetween, useTrack } from './replay'
+import { abilitiesBetween, recapOf, useTrack } from './replay'
 import { useLiveKey, useOverlayMoving, useRaidLive } from './useLiveKey'
 
 /** How many of a player's abilities (and enemies) the overlay's breakdown lists. */
@@ -26,8 +26,6 @@ const OVERLAY_SPELLS = 8
 /** How many rows of a death's recap the overlay shows (the newest). */
 const OVERLAY_RECAP_ROWS = 12
 
-/** The columns the overlay shows when none are chosen in the settings. */
-const DEFAULT_COLUMNS: OverlayColumn[] = ['dps', 'hps', 'kicks']
 
 /** The window's scale limits: the overlay scales to fill its window, but never below half or above double size. */
 const FIT_MIN = 0.5
@@ -59,16 +57,10 @@ function useFitZoom() {
   return { root, content }
 }
 
-/** The overlay's settings (opacity, one card or two, players and columns), from the app's settings and each save. */
-function useOverlaySettings(): OverlaySettings {
-  const [settings, setSettings] = useState<OverlaySettings>({
-    show: 'keys',
-    opacity: 90,
-    oneCard: false,
-    rows: 0,
-    columns: [],
-    clickThrough: false,
-  })
+/** The overlay's settings (opacity, one card or two, players and columns), from the app's settings and each save;
+ * null until read. */
+function useOverlaySettings(): OverlaySettings | null {
+  const [settings, setSettings] = useState<OverlaySettings | null>(null)
   useEffect(() => {
     const controller = new AbortController()
     fetchSettings(controller.signal).then((view) => view && setSettings(view.overlay), () => undefined)
@@ -95,11 +87,11 @@ export function Overlay() {
     <div
       ref={root}
       className={moving ? 'overlay moving' : 'overlay'}
-      style={{ '--overlay-bg': `${settings.opacity}%` } as CSSProperties}
+      style={{ '--overlay-bg': `${settings?.opacity ?? 0}%` } as CSSProperties}
     >
       <div ref={content} className="overlay-fit">
         {moving && <p className="small">Drag to move, drag an edge to resize; Ctrl+Alt+O or Settings when done.</p>}
-        {raid?.betweenPulls && raid.last ? (
+        {!settings ? null : raid?.betweenPulls && raid.last ? (
           <RaidOverlayCard pull={raid.last} rows={settings.rows} />
         ) : key ? (
           <OverlayKey keyView={key} clockMS={clockMS} settings={settings} />
@@ -127,7 +119,7 @@ function OverlayKey(props: { keyView: KeyView; clockMS: number; settings: Overla
   const timer = key.timerMS ?? 0
   const projection = key.status === 'running' ? key.projection : undefined
   const latest = key.deaths.length > 0 ? key.deaths[key.deaths.length - 1] : undefined
-  const chosen = settings.columns.length > 0 ? settings.columns : DEFAULT_COLUMNS
+  const chosen = settings.columns
   const last = key.lastPull
   const pullDeaths = key.deaths.filter((d) => d.clockMS >= last.startMS && d.clockMS <= last.endMS)
   const columns = (ids: OverlayColumn[], deaths: KeyDeath[]) => ids.map((id) => overlayColumn(id, last, deaths))

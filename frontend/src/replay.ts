@@ -128,6 +128,11 @@ export function enemyName(track: KeyTrack, guid: string): string {
   return track.bosses?.[guid]?.[0]?.name || track.mobs?.[guid]?.n || 'Enemy'
 }
 
+/** The player's recap ending at clockMS on the key's clock (a death's clockMS, a big hit's recapMS), if there is one. */
+export function recapOf(track: KeyTrack | null | undefined, player: string, clockMS: number | undefined) {
+  return track?.recaps?.find((r) => r.player === player && r.clockMS === clockMS)
+}
+
 /** A meter row with nothing in it, for the fields the replay's track doesn't keep. */
 const EMPTY_ROW: KeyMeterRow = {
   player: '',

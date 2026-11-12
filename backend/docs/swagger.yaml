@@ -270,6 +270,8 @@ definitions:
         items:
           type: string
         type: array
+      recapMS:
+        type: integer
       taken:
         type: integer
       used:
@@ -508,8 +510,6 @@ definitions:
           $ref: '#/definitions/models.KeyMiniboss'
         type: array
       openingPct:
-        type: number
-      priorityPct:
         type: number
       pull:
         type: integer
@@ -1042,7 +1042,7 @@ definitions:
       rows:
         description: |-
           Rows is how many players each card shows, the top ones (0 for everyone); Columns the cards' columns in order
-          (empty for DPS, HPS and kicks).
+          (saving none sets DPS, HPS and kicks).
         minimum: 0
         type: integer
       show:

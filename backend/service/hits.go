@@ -18,9 +18,6 @@ import (
 // recapEvents is the most events a recap keeps, newest kept.
 const recapEvents = 80
 
-// tankSpecs are the tank specializations (by spec ID), whose big hits have a higher bar.
-var tankSpecs = map[int]bool{250: true, 581: true, 104: true, 268: true, 66: true, 73: true}
-
 // recapLine is a recap event at its log time: a recap's events are put on its clock counting back from its end in
 // real time, since a key's clock jumps at every death.
 type recapLine struct {
@@ -48,13 +45,15 @@ type hitWatch struct {
 	maxHP   map[string]int64                                      // the player's max HP, as last seen
 	takenAt map[string]map[int64]map[[2]string]*models.SpikeCause // the player's own takenAt, their last seconds only
 	over    map[string]bool                                       // the player's damage over the last seconds is at their bar
+	next    map[string]int64                                      // the first second the player's next big hit can start
 	all     []*bigHit                                             // the run's big hits, in order
 	open    []*bigHit                                             // those still running, in order
 }
 
 func newHitWatch() hitWatch {
 	return hitWatch{last: map[string][]recapLine{}, maxHP: map[string]int64{},
-		takenAt: map[string]map[int64]map[[2]string]*models.SpikeCause{}, over: map[string]bool{}}
+		takenAt: map[string]map[int64]map[[2]string]*models.SpikeCause{}, over: map[string]bool{},
+		next: map[string]int64{}}
 }
 
 // add keeps an event in a player's buffer. A full buffer first drops what no recap needs (older than keepMS before
@@ -136,7 +135,8 @@ func (k *LogTracker) recapCast(run *keyRun, at int64, event string, f []string, 
 
 // tookHit keeps a hit on a party member (f[4]) in their recap, and starts a big hit when their damage taken over the
 // last [big_hits] seconds (run.taken, this hit counted) first reaches their bar: the start is that stretch's first
-// second. Their next big hit waits until the sum before a hit is back under the bar.
+// second. Their next big hit waits until the sum before a hit is back under the bar, and starts after their last one
+// ended, so no damage counts twice.
 func (k *LogTracker) tookHit(run *keyRun, at int64, event string, f []string, player, ability, source string,
 	amount int64) {
 	if amount <= 0 {
@@ -167,7 +167,7 @@ func (k *LogTracker) tookHit(run *keyRun, at int64, event string, f []string, pl
 		return
 	}
 	pct := k.rules.BigHits.OtherPct
-	if tankSpecs[k.specs[f[4]]] {
+	if specs[k.specs[f[4]]].Role == "tank" {
 		pct = k.rules.BigHits.TankPct
 	}
 	bar, sum := int64(pct/100*float64(maxHP)), int64(0)
@@ -179,6 +179,10 @@ func (k *LogTracker) tookHit(run *keyRun, at int64, event string, f []string, pl
 	}
 	if sum >= bar && !w.over[player] {
 		w.over[player] = true
+		if from, ok := w.next[player]; ok && s-n+1 < from {
+			return
+		}
+		w.next[player] = s + 1
 		h := &bigHit{player: player, second: s - n + 1, clockMS: run.clock((s - n + 1) * 1000), maxHP: maxHP}
 		w.all, w.open = append(w.all, h), append(w.open, h)
 	}
@@ -242,6 +246,16 @@ func (k *LogTracker) bigHits(run *keyRun, buffs []models.BuffUp, kit models.Kit)
 			hit = k.measure(run, h)
 		}
 		hit.Died = k.diedAfter(run, h)
+		switch {
+		case hit.Died: // the death's recap, the player's first from the hit's start
+			if i := slices.IndexFunc(run.track.Recaps, func(r models.HitRecap) bool {
+				return r.Player == h.player && r.ClockMS >= hit.ClockMS
+			}); i >= 0 {
+				hit.RecapMS = run.track.Recaps[i].ClockMS
+			}
+		case h.done:
+			hit.RecapMS = h.recap.ClockMS
+		}
 		hits = append(hits, hit)
 		cover = append(cover, models.Death{Fight: run.pullOf[h.second], At: k.bigHitEnd(h), Player: h.player})
 	}
