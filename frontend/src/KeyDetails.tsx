@@ -3,7 +3,7 @@ import type { KeyForces, KeyGhost, KeyReview as Review, KeyTrack, KeyView } from
 import { chestLabel, clock, oddsText, pullTitle, resultText, share } from './format'
 import { DamageGraph } from './DamageGraph'
 import { BossList, PriorityLedger } from './KeyLedgers'
-import { eventsOf } from './events'
+import { eventsOf, lanesOf } from './events'
 import { fightTabs } from './KeyTabs'
 import { KeyMap } from './KeyMap'
 import { KeyReview } from './KeyReview'
@@ -192,7 +192,12 @@ export function KeyDetails({
       {key.status !== 'running' && key.lanes && key.lanes.length > 0 && (
         <section className="panel">
           <h2>Timeline</h2>
-          <RaidLanes lanes={key.lanes} end={clockMS} now={replay.at} onSeek={replay.setAt} />
+          <RaidLanes
+            lanes={focus ? lanesOf(key.lanes, focus) : key.lanes}
+            end={clockMS}
+            now={replay.at}
+            onSeek={replay.setAt}
+          />
         </section>
       )}
 
