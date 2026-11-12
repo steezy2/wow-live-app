@@ -176,3 +176,25 @@ func TestRecapPeriods(t *testing.T) {
 		t.Errorf("periods without Raider.IO = %v; want no season", got)
 	}
 }
+
+func TestRecapTopTimes(t *testing.T) {
+	keys := []models.Key{recapKey("Voidscar Arena", 12, 0, 25*minute), recapKey("Voidscar Arena", 14, 50, 32*minute),
+		recapKey("Skyreach", 10, 100, 20*minute)} // Skyreach isn't a Warcraft Logs dungeon in the fake
+	saved := func() ([]models.Key, []models.RaidPull) { return keys, nil }
+	times := make([]int64, recapTopRuns)
+	for i := range times {
+		times[i] = int64(20+i) * minute
+	}
+	got, err := Recaps{Saved: saved, Logs: &fakeBaselines{topTimes: times}}.TopTimes(context.Background(), 0, 999*minute, "")
+	want := []models.RecapTopTime{{Dungeon: "Voidscar Arena", Level: 14, MedianMS: 24*minute + 30_000, Runs: 10}}
+	if err != nil || !reflect.DeepEqual(got, want) {
+		t.Errorf("top times = %+v, %v; want %+v", got, err, want)
+	}
+	few, _ := Recaps{Saved: saved, Logs: &fakeBaselines{topTimes: times[:3]}}.TopTimes(context.Background(), 0, 999*minute, "")
+	if len(few) != 1 || few[0].MedianMS != 0 || few[0].Runs != 3 {
+		t.Errorf("top times over 3 runs = %+v; want no median", few)
+	}
+	if _, err := (Recaps{Saved: saved}).TopTimes(context.Background(), 0, 1, ""); !errors.Is(err, models.ErrNoCredentials) {
+		t.Errorf("without Logs: %v; want ErrNoCredentials", err)
+	}
+}

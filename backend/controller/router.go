@@ -51,6 +51,7 @@ func Router(mplus MPlus, raid *Raid, settings *SettingsAPI, pages fs.FS, hosts .
 	if mplus.Recaps != nil {
 		api.GET("/recap/periods", mplus.RecapPeriods)
 		api.GET("/recap", mplus.Recap)
+		api.GET("/recap/top-times", mplus.RecapTopTimes)
 	}
 	api.POST("/mplus/keys/:start/review", mplus.MakeReview)
 	api.GET("/mplus/dungeons/:mapID/map", mplus.DungeonMap)

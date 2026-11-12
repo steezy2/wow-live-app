@@ -112,7 +112,7 @@ func Start(ctx context.Context, opts Options) (*Site, error) {
 		Source: keystoneguru.Client{CacheDir: filepath.Join(opts.Cache, "keystone-guru")}}
 	raidMaps := service.RaidMaps{Bosses: opts.Bosses,
 		Source: wcl.MapImages{CacheDir: filepath.Join(opts.Cache, "raid-maps")}}
-	recaps := service.Recaps{Saved: keys.History, Region: opts.Region, Now: opts.Now,
+	recaps := service.Recaps{Saved: keys.History, Region: opts.Region, Now: opts.Now, Logs: opts.Baselines,
 		Season: raiderio.Client{CacheDir: filepath.Join(opts.Cache, "raiderio")}}
 	s.Handler = controller.Router(controller.MPlus{Keys: keys, Reviews: s.reviews, Changes: s.Changes,
 		Now: opts.Now, Tiles: tiles, Recaps: recaps}, &controller.Raid{Pulls: keys, Maps: raidMaps, Now: opts.Now}, opts.Settings,

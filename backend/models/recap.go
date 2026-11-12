@@ -104,6 +104,15 @@ type RecapCount struct {
 	Count int    `json:"count"`
 }
 
+// RecapTopTime is the median time of a dungeon's top speed-ranked Warcraft Logs runs at a level (the highest the
+// recap's character ran there) and how many ranked runs it's over; MedianMS is 0 when fewer than the recap needs.
+type RecapTopTime struct {
+	Dungeon  string `json:"dungeon"`
+	Level    int    `json:"level"`
+	MedianMS int64  `json:"medianMS"`
+	Runs     int    `json:"runs"`
+}
+
 // RecapMate is a player the owner ran keys with: their realm and class ("" when unknown), the keys together and how
 // many of them were timed.
 type RecapMate struct {

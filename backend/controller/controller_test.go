@@ -504,6 +504,9 @@ func TestAnUnchangedCharacterIsntCheckedAgain(t *testing.T) {
 // fakeRecaps answers a recap of the span it was asked for.
 type fakeRecaps struct{}
 
+func (fakeRecaps) TopTimes(context.Context, int64, int64, string) ([]models.RecapTopTime, error) {
+	return nil, models.ErrNoCredentials
+}
 func (fakeRecaps) Periods(context.Context) []models.RecapPeriod { return []models.RecapPeriod{} }
 func (fakeRecaps) Recap(from, to int64, _ string) models.Recap {
 	return models.Recap{From: from, To: to}

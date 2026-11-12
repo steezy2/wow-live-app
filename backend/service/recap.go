@@ -13,6 +13,9 @@ import (
 	"wow-live/backend/models"
 )
 
+// recapTopRuns is the fewest ranked Warcraft Logs runs a top-runs median is worth showing over.
+const recapTopRuns = 10
+
 // recapMates is how many of the players the owner ran with most a recap names, and recapKillers how many of what
 // killed them.
 const recapMates, recapKillers = 8, 5
@@ -29,6 +32,36 @@ type Recaps struct {
 	Season SeasonSource
 	Region string
 	Now    func() time.Time
+	Logs   models.MPlusBaselines // nil without Warcraft Logs
+}
+
+// TopTimes is, for each dungeon character ran from from to to (as Recap), the median time of its top speed-ranked
+// Warcraft Logs runs at the highest level they ran it, in the recap's order; models.ErrNoCredentials without Logs.
+func (r Recaps) TopTimes(ctx context.Context, from, to int64, character string) ([]models.RecapTopTime, error) {
+	if r.Logs == nil {
+		return nil, models.ErrNoCredentials
+	}
+	encounters, err := r.Logs.MPlusEncounters(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("reading the season's dungeons: %w", err)
+	}
+	out := []models.RecapTopTime{}
+	for _, d := range r.Recap(from, to, character).MPlus.Dungeons {
+		encounter, ok := encounters[d.Dungeon]
+		if !ok {
+			continue
+		}
+		times, err := r.Logs.MPlusTopTimes(ctx, encounter, d.TopLevel)
+		if err != nil {
+			return nil, fmt.Errorf("reading %s +%d's top runs: %w", d.Dungeon, d.TopLevel, err)
+		}
+		top := models.RecapTopTime{Dungeon: d.Dungeon, Level: d.TopLevel, Runs: len(times)}
+		if len(times) >= recapTopRuns {
+			top.MedianMS = median(times)
+		}
+		out = append(out, top)
+	}
+	return out, nil
 }
 
 // History is every saved key and raid pull as the tracker holds them, newest first.

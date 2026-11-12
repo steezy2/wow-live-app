@@ -8,6 +8,37 @@
     },
     "basePath": "/",
     "paths": {
+        "/api/characters": {
+            "get": {
+                "description": "The characters whose game wrote the saved keys' and raid pulls' logs, most runs first, with their\nclass and realm; the one matching preferred (Settings' character) is marked.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "mplus"
+                ],
+                "summary": "The owner's characters",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Settings' character, Name-Realm",
+                        "name": "preferred",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.Character"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/mplus/dungeons/{mapID}/floors/{uiMapID}/tiles/{x}/{y}": {
             "get": {
                 "produces": [
@@ -141,6 +172,14 @@
                     "mplus"
                 ],
                 "summary": "The saved Mythic+ keys, newest first",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "only this character's keys (an id from /api/characters)",
+                        "name": "character",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -149,6 +188,12 @@
                             "items": {
                                 "$ref": "#/definitions/models.KeySummary"
                             }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
                         }
                     }
                 }
@@ -536,6 +581,14 @@
                     "raid"
                 ],
                 "summary": "Every raid night's pulls",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "only this character's pulls (an id from /api/characters)",
+                        "name": "character",
+                        "in": "query"
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "newest night first, each night's pulls newest first",
@@ -544,6 +597,12 @@
                             "items": {
                                 "$ref": "#/definitions/models.RaidNight"
                             }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
                         }
                     }
                 }
@@ -632,14 +691,14 @@
         },
         "/api/recap": {
             "get": {
-                "description": "The keys run and timed, the highest timed level, the time in keys and the deaths; each dungeon's\nruns; your character (whose game wrote most of the logs): specs, median DPS or HPS per dungeon and\nwhat killed you; who you ran with most; a few facts, each opening its key; and the raid by boss.\nRead from the saved keys and pulls only: no Warcraft Logs points.",
+                "description": "Mythic+: the keys run and timed, the highest timed level, the time in keys, the party's deaths,\nkicks, CC, dispels and priority damage per key (the party's and yours); each dungeon's runs and its\ntimes at the highest level run; your specs, median DPS or HPS per dungeon and what killed you; who you\nran with most; a few facts, each opening its key. Raid: pulls, kills, time and deaths, and each boss.\nOne character's runs, or everyone's with the character who played most as \"you\". Read from the\nsaved keys and pulls only: no Warcraft Logs points.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "recap"
                 ],
-                "summary": "A period's keys and raid pulls as a story",
+                "summary": "A period's keys and raid pulls as a story, Mythic+ and raid apart",
                 "parameters": [
                     {
                         "type": "integer",
@@ -654,6 +713,12 @@
                         "name": "to",
                         "in": "query",
                         "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "only this character's runs (an id from /api/characters)",
+                        "name": "character",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -690,6 +755,66 @@
                             "items": {
                                 "$ref": "#/definitions/models.RecapPeriod"
                             }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/recap/top-times": {
+            "get": {
+                "description": "For each dungeon of the recap (same query as /api/recap), the median time of Warcraft Logs' top\nspeed-ranked runs at the highest level run there; no median under 10 ranked runs. Each dungeon and\nlevel is asked for at most once a week (about a point each).",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "recap"
+                ],
+                "summary": "Warcraft Logs' top runs per dungeon of a recap",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "the period's start, ms since the epoch",
+                        "name": "from",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "the period's end, ms since the epoch (excluded); after from",
+                        "name": "to",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "only this character's runs (an id from /api/characters)",
+                        "name": "character",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.RecapTopTime"
+                            }
+                        }
+                    },
+                    "204": {
+                        "description": "No Warcraft Logs keys"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "502": {
+                        "description": "Bad Gateway",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
                         }
                     }
                 }
@@ -1372,6 +1497,34 @@
                     "type": "integer"
                 },
                 "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.Character": {
+            "type": "object",
+            "properties": {
+                "class": {
+                    "type": "string",
+                    "example": "Mage"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "Steezy-MoonGuard"
+                },
+                "keys": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "preferred": {
+                    "type": "boolean"
+                },
+                "pulls": {
+                    "type": "integer"
+                },
+                "realm": {
                     "type": "string"
                 }
             }
@@ -2459,6 +2612,13 @@
                         "$ref": "#/definitions/models.KeyPull"
                     }
                 },
+                "realms": {
+                    "description": "Realms is each player's realm as the log names it (\"MoonGuard\"); missing in keys saved before Nov 12.",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
                 "reference": {
                     "description": "reference/mplus-dungeons.json has the dungeon (avoidable list, forces)",
                     "type": "boolean"
@@ -3128,6 +3288,10 @@
                         "$ref": "#/definitions/models.RaidLane"
                     }
                 },
+                "logger": {
+                    "description": "Logger is the raider whose game wrote the log, and Realms each raider's realm; both missing in pulls saved\nbefore Nov 12.",
+                    "type": "string"
+                },
                 "lusts": {
                     "description": "when Bloodlust landed, ms into the pull",
                     "type": "array",
@@ -3181,6 +3345,12 @@
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/models.RaidPriority"
+                    }
+                },
+                "realms": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
                     }
                 },
                 "report": {
@@ -3443,56 +3613,28 @@
         "models.Recap": {
             "type": "object",
             "properties": {
-                "deaths": {
-                    "type": "integer"
-                },
-                "dungeons": {
-                    "description": "most run first",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/models.RecapDungeon"
-                    }
-                },
-                "facts": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/models.RecapFact"
-                    }
-                },
                 "from": {
                     "type": "integer"
                 },
-                "highestTimed": {
-                    "description": "0 when none was timed",
-                    "type": "integer"
-                },
-                "keys": {
-                    "type": "integer"
-                },
-                "party": {
-                    "description": "most keys together first",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/models.RecapMate"
-                    }
+                "mplus": {
+                    "$ref": "#/definitions/models.RecapMPlus"
                 },
                 "raid": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/models.RecapBoss"
-                    }
-                },
-                "timeMS": {
-                    "type": "integer"
-                },
-                "timed": {
-                    "type": "integer"
+                    "$ref": "#/definitions/models.RecapRaid"
                 },
                 "to": {
                     "type": "integer"
+                }
+            }
+        },
+        "models.RecapAverages": {
+            "type": "object",
+            "properties": {
+                "party": {
+                    "$ref": "#/definitions/models.RecapPerKey"
                 },
                 "you": {
-                    "$ref": "#/definitions/models.RecapYou"
+                    "$ref": "#/definitions/models.RecapPerKey"
                 }
             }
         },
@@ -3542,6 +3684,9 @@
         "models.RecapDungeon": {
             "type": "object",
             "properties": {
+                "avgMS": {
+                    "type": "integer"
+                },
                 "bestLevel": {
                     "type": "integer"
                 },
@@ -3551,10 +3696,28 @@
                 "dungeon": {
                     "type": "string"
                 },
+                "fastestMS": {
+                    "type": "integer"
+                },
+                "medianMS": {
+                    "type": "integer"
+                },
                 "runs": {
                     "type": "integer"
                 },
+                "successPct": {
+                    "type": "number"
+                },
                 "timed": {
+                    "type": "integer"
+                },
+                "topLevel": {
+                    "type": "integer"
+                },
+                "topRuns": {
+                    "type": "integer"
+                },
+                "topTimed": {
                     "type": "integer"
                 }
             }
@@ -3581,17 +3744,91 @@
                 }
             }
         },
+        "models.RecapMPlus": {
+            "type": "object",
+            "properties": {
+                "averages": {
+                    "$ref": "#/definitions/models.RecapAverages"
+                },
+                "deaths": {
+                    "description": "the party's",
+                    "type": "integer"
+                },
+                "dungeons": {
+                    "description": "most run first",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.RecapDungeon"
+                    }
+                },
+                "facts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.RecapFact"
+                    }
+                },
+                "highestTimed": {
+                    "description": "0 when none was timed",
+                    "type": "integer"
+                },
+                "keys": {
+                    "type": "integer"
+                },
+                "party": {
+                    "description": "most keys together first",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.RecapMate"
+                    }
+                },
+                "successPct": {
+                    "type": "number"
+                },
+                "timeMS": {
+                    "type": "integer"
+                },
+                "timed": {
+                    "type": "integer"
+                },
+                "you": {
+                    "$ref": "#/definitions/models.RecapYou"
+                }
+            }
+        },
         "models.RecapMate": {
             "type": "object",
             "properties": {
+                "class": {
+                    "type": "string"
+                },
                 "keys": {
                     "type": "integer"
                 },
                 "player": {
                     "type": "string"
                 },
+                "realm": {
+                    "type": "string"
+                },
                 "timed": {
                     "type": "integer"
+                }
+            }
+        },
+        "models.RecapPerKey": {
+            "type": "object",
+            "properties": {
+                "cc": {
+                    "type": "number"
+                },
+                "dispels": {
+                    "type": "number"
+                },
+                "kicks": {
+                    "type": "number"
+                },
+                "priorityPct": {
+                    "type": "number"
                 }
             }
         },
@@ -3606,6 +3843,39 @@
                     "example": "This month"
                 },
                 "to": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.RecapRaid": {
+            "type": "object",
+            "properties": {
+                "bosses": {
+                    "description": "in the order first pulled",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.RecapBoss"
+                    }
+                },
+                "deaths": {
+                    "type": "integer"
+                },
+                "facts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.RecapFact"
+                    }
+                },
+                "killed": {
+                    "type": "integer"
+                },
+                "kills": {
+                    "type": "integer"
+                },
+                "pulls": {
+                    "type": "integer"
+                },
+                "timeMS": {
                     "type": "integer"
                 }
             }
@@ -3625,6 +3895,23 @@
                         "dps",
                         "hps"
                     ]
+                }
+            }
+        },
+        "models.RecapTopTime": {
+            "type": "object",
+            "properties": {
+                "dungeon": {
+                    "type": "string"
+                },
+                "level": {
+                    "type": "integer"
+                },
+                "medianMS": {
+                    "type": "integer"
+                },
+                "runs": {
+                    "type": "integer"
                 }
             }
         },

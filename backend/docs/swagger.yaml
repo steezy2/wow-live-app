@@ -58,6 +58,25 @@ definitions:
       name:
         type: string
     type: object
+  models.Character:
+    properties:
+      class:
+        example: Mage
+        type: string
+      id:
+        example: Steezy-MoonGuard
+        type: string
+      keys:
+        type: integer
+      name:
+        type: string
+      preferred:
+        type: boolean
+      pulls:
+        type: integer
+      realm:
+        type: string
+    type: object
   models.CharacterParse:
     properties:
       best:
@@ -821,6 +840,12 @@ definitions:
         items:
           $ref: '#/definitions/models.KeyPull'
         type: array
+      realms:
+        additionalProperties:
+          type: string
+        description: Realms is each player's realm as the log names it ("MoonGuard");
+          missing in keys saved before Nov 12.
+        type: object
       reference:
         description: reference/mplus-dungeons.json has the dungeon (avoidable list,
           forces)
@@ -1296,6 +1321,11 @@ definitions:
         items:
           $ref: '#/definitions/models.RaidLane'
         type: array
+      logger:
+        description: |-
+          Logger is the raider whose game wrote the log, and Realms each raider's realm; both missing in pulls saved
+          before Nov 12.
+        type: string
       lusts:
         description: when Bloodlust landed, ms into the pull
         items:
@@ -1338,6 +1368,10 @@ definitions:
         items:
           $ref: '#/definitions/models.RaidPriority'
         type: array
+      realms:
+        additionalProperties:
+          type: string
+        type: object
       report:
         allOf:
         - $ref: '#/definitions/models.ReportLink'
@@ -1513,41 +1547,21 @@ definitions:
     type: object
   models.Recap:
     properties:
-      deaths:
-        type: integer
-      dungeons:
-        description: most run first
-        items:
-          $ref: '#/definitions/models.RecapDungeon'
-        type: array
-      facts:
-        items:
-          $ref: '#/definitions/models.RecapFact'
-        type: array
       from:
         type: integer
-      highestTimed:
-        description: 0 when none was timed
-        type: integer
-      keys:
-        type: integer
-      party:
-        description: most keys together first
-        items:
-          $ref: '#/definitions/models.RecapMate'
-        type: array
+      mplus:
+        $ref: '#/definitions/models.RecapMPlus'
       raid:
-        items:
-          $ref: '#/definitions/models.RecapBoss'
-        type: array
-      timeMS:
-        type: integer
-      timed:
-        type: integer
+        $ref: '#/definitions/models.RecapRaid'
       to:
         type: integer
+    type: object
+  models.RecapAverages:
+    properties:
+      party:
+        $ref: '#/definitions/models.RecapPerKey'
       you:
-        $ref: '#/definitions/models.RecapYou'
+        $ref: '#/definitions/models.RecapPerKey'
     type: object
   models.RecapBoss:
     properties:
@@ -1579,15 +1593,29 @@ definitions:
     type: object
   models.RecapDungeon:
     properties:
+      avgMS:
+        type: integer
       bestLevel:
         type: integer
       bestMS:
         type: integer
       dungeon:
         type: string
+      fastestMS:
+        type: integer
+      medianMS:
+        type: integer
       runs:
         type: integer
+      successPct:
+        type: number
       timed:
+        type: integer
+      topLevel:
+        type: integer
+      topRuns:
+        type: integer
+      topTimed:
         type: integer
     type: object
   models.RecapFact:
@@ -1603,14 +1631,64 @@ definitions:
       text:
         type: string
     type: object
+  models.RecapMPlus:
+    properties:
+      averages:
+        $ref: '#/definitions/models.RecapAverages'
+      deaths:
+        description: the party's
+        type: integer
+      dungeons:
+        description: most run first
+        items:
+          $ref: '#/definitions/models.RecapDungeon'
+        type: array
+      facts:
+        items:
+          $ref: '#/definitions/models.RecapFact'
+        type: array
+      highestTimed:
+        description: 0 when none was timed
+        type: integer
+      keys:
+        type: integer
+      party:
+        description: most keys together first
+        items:
+          $ref: '#/definitions/models.RecapMate'
+        type: array
+      successPct:
+        type: number
+      timeMS:
+        type: integer
+      timed:
+        type: integer
+      you:
+        $ref: '#/definitions/models.RecapYou'
+    type: object
   models.RecapMate:
     properties:
+      class:
+        type: string
       keys:
         type: integer
       player:
         type: string
+      realm:
+        type: string
       timed:
         type: integer
+    type: object
+  models.RecapPerKey:
+    properties:
+      cc:
+        type: number
+      dispels:
+        type: number
+      kicks:
+        type: number
+      priorityPct:
+        type: number
     type: object
   models.RecapPeriod:
     properties:
@@ -1620,6 +1698,28 @@ definitions:
         example: This month
         type: string
       to:
+        type: integer
+    type: object
+  models.RecapRaid:
+    properties:
+      bosses:
+        description: in the order first pulled
+        items:
+          $ref: '#/definitions/models.RecapBoss'
+        type: array
+      deaths:
+        type: integer
+      facts:
+        items:
+          $ref: '#/definitions/models.RecapFact'
+        type: array
+      killed:
+        type: integer
+      kills:
+        type: integer
+      pulls:
+        type: integer
+      timeMS:
         type: integer
     type: object
   models.RecapRate:
@@ -1633,6 +1733,17 @@ definitions:
         - dps
         - hps
         type: string
+    type: object
+  models.RecapTopTime:
+    properties:
+      dungeon:
+        type: string
+      level:
+        type: integer
+      medianMS:
+        type: integer
+      runs:
+        type: integer
     type: object
   models.RecapYou:
     properties:
@@ -1801,6 +1912,28 @@ info:
   title: WoW Live API
   version: "1"
 paths:
+  /api/characters:
+    get:
+      description: |-
+        The characters whose game wrote the saved keys' and raid pulls' logs, most runs first, with their
+        class and realm; the one matching preferred (Settings' character) is marked.
+      parameters:
+      - description: Settings' character, Name-Realm
+        in: query
+        name: preferred
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.Character'
+            type: array
+      summary: The owner's characters
+      tags:
+      - mplus
   /api/mplus/dungeons/{mapID}/floors/{uiMapID}/tiles/{x}/{y}:
     get:
       parameters:
@@ -1901,6 +2034,11 @@ paths:
       tags:
       - mplus
     get:
+      parameters:
+      - description: only this character's keys (an id from /api/characters)
+        in: query
+        name: character
+        type: string
       produces:
       - application/json
       responses:
@@ -1910,6 +2048,10 @@ paths:
             items:
               $ref: '#/definitions/models.KeySummary'
             type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
       summary: The saved Mythic+ keys, newest first
       tags:
       - mplus
@@ -2165,6 +2307,11 @@ paths:
       - raid
   /api/raid/nights:
     get:
+      parameters:
+      - description: only this character's pulls (an id from /api/characters)
+        in: query
+        name: character
+        type: string
       produces:
       - application/json
       responses:
@@ -2174,6 +2321,10 @@ paths:
             items:
               $ref: '#/definitions/models.RaidNight'
             type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
       summary: Every raid night's pulls
       tags:
       - raid
@@ -2237,10 +2388,12 @@ paths:
   /api/recap:
     get:
       description: |-
-        The keys run and timed, the highest timed level, the time in keys and the deaths; each dungeon's
-        runs; your character (whose game wrote most of the logs): specs, median DPS or HPS per dungeon and
-        what killed you; who you ran with most; a few facts, each opening its key; and the raid by boss.
-        Read from the saved keys and pulls only: no Warcraft Logs points.
+        Mythic+: the keys run and timed, the highest timed level, the time in keys, the party's deaths,
+        kicks, CC, dispels and priority damage per key (the party's and yours); each dungeon's runs and its
+        times at the highest level run; your specs, median DPS or HPS per dungeon and what killed you; who you
+        ran with most; a few facts, each opening its key. Raid: pulls, kills, time and deaths, and each boss.
+        One character's runs, or everyone's with the character who played most as "you". Read from the
+        saved keys and pulls only: no Warcraft Logs points.
       parameters:
       - description: the period's start, ms since the epoch
         in: query
@@ -2252,6 +2405,10 @@ paths:
         name: to
         required: true
         type: integer
+      - description: only this character's runs (an id from /api/characters)
+        in: query
+        name: character
+        type: string
       produces:
       - application/json
       responses:
@@ -2263,7 +2420,7 @@ paths:
           description: Bad Request
           schema:
             $ref: '#/definitions/controller.ErrorResponse'
-      summary: A period's keys and raid pulls as a story
+      summary: A period's keys and raid pulls as a story, Mythic+ and raid apart
       tags:
       - recap
   /api/recap/periods:
@@ -2281,6 +2438,49 @@ paths:
               $ref: '#/definitions/models.RecapPeriod'
             type: array
       summary: The periods a recap covers
+      tags:
+      - recap
+  /api/recap/top-times:
+    get:
+      description: |-
+        For each dungeon of the recap (same query as /api/recap), the median time of Warcraft Logs' top
+        speed-ranked runs at the highest level run there; no median under 10 ranked runs. Each dungeon and
+        level is asked for at most once a week (about a point each).
+      parameters:
+      - description: the period's start, ms since the epoch
+        in: query
+        name: from
+        required: true
+        type: integer
+      - description: the period's end, ms since the epoch (excluded); after from
+        in: query
+        name: to
+        required: true
+        type: integer
+      - description: only this character's runs (an id from /api/characters)
+        in: query
+        name: character
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.RecapTopTime'
+            type: array
+        "204":
+          description: No Warcraft Logs keys
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+        "502":
+          description: Bad Gateway
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+      summary: Warcraft Logs' top runs per dungeon of a recap
       tags:
       - recap
   /api/settings:

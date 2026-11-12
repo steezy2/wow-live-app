@@ -134,10 +134,12 @@ func TestAnAbandonedKeyIsReviewedOverItsOwnTime(t *testing.T) {
 	}
 }
 
-// fakeBaselines is Warcraft Logs for the reviewer: a fixed number of points left, and counting its rankings asks.
+// fakeBaselines is Warcraft Logs for the reviewer and the recap: a fixed number of points left, counting its rankings
+// asks, and the same top times for every dungeon and level.
 type fakeBaselines struct {
-	left float64
-	asks int
+	left     float64
+	asks     int
+	topTimes []int64
 }
 
 func (f *fakeBaselines) MPlusEncounters(context.Context) (map[string]int, error) {
@@ -146,6 +148,9 @@ func (f *fakeBaselines) MPlusEncounters(context.Context) (map[string]int, error)
 func (f *fakeBaselines) MPlusRankings(context.Context, int, int, string, string, string) ([]models.MPlusRanking, error) {
 	f.asks++
 	return []models.MPlusRanking{{Amount: 1, DurationMS: 1_500_000, Code: "x", FightID: 1}}, nil
+}
+func (f *fakeBaselines) MPlusTopTimes(context.Context, int, int) ([]int64, error) {
+	return f.topTimes, nil
 }
 func (f *fakeBaselines) Run(context.Context, string, int) (models.RunSummary, error) {
 	return models.RunSummary{DamageTaken: 1, BossMS: map[string]int64{"Boss": 90_000}}, nil
