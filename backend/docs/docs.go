@@ -1716,6 +1716,10 @@ const docTemplate = `{
                         "$ref": "#/definitions/models.DungeonFloor"
                     }
                 },
+                "tilesPerSide": {
+                    "description": "tiles a floor is wide and tall",
+                    "type": "integer"
+                },
                 "walked": {
                     "type": "array",
                     "items": {
@@ -3195,33 +3199,9 @@ const docTemplate = `{
                         "type": "string"
                     }
                 },
-                "recap": {
-                    "description": "the last hits before the death, oldest first",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/models.RaidHit"
-                    }
-                },
                 "used": {
                     "description": "they pressed Defensive themselves",
                     "type": "boolean"
-                }
-            }
-        },
-        "models.RaidHit": {
-            "type": "object",
-            "properties": {
-                "ability": {
-                    "type": "string"
-                },
-                "amount": {
-                    "type": "integer"
-                },
-                "beforeMS": {
-                    "type": "integer"
-                },
-                "source": {
-                    "type": "string"
                 }
             }
         },

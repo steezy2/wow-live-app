@@ -162,6 +162,9 @@ definitions:
         items:
           $ref: '#/definitions/models.DungeonFloor'
         type: array
+      tilesPerSide:
+        description: tiles a floor is wide and tall
+        type: integer
       walked:
         items:
           $ref: '#/definitions/models.TrackPoint'
@@ -1218,25 +1221,9 @@ definitions:
         items:
           type: string
         type: array
-      recap:
-        description: the last hits before the death, oldest first
-        items:
-          $ref: '#/definitions/models.RaidHit'
-        type: array
       used:
         description: they pressed Defensive themselves
         type: boolean
-    type: object
-  models.RaidHit:
-    properties:
-      ability:
-        type: string
-      amount:
-        type: integer
-      beforeMS:
-        type: integer
-      source:
-        type: string
     type: object
   models.RaidHits:
     properties:

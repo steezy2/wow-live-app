@@ -135,7 +135,7 @@ export function RaidLanes(props: { lanes: RaidLane[]; end: number; now: number; 
     >
       {lanes.map((l) => (
         <div key={`${l.kind}-${l.name}`} className="lane" role="listitem">
-          <span className="lane-name" title={l.name}>
+          <span className="lane-name" {...tip(l.name)}>
             {l.name} <span className="muted">{l.kind === 'phases' ? '' : l.marks.length}</span>
           </span>
           <div className={`lane-track lane-${l.kind}`}>

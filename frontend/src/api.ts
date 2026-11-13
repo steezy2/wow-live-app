@@ -416,6 +416,8 @@ export type DungeonFloor = RaidMap
 /** What the replay draws a dungeon on. */
 export interface DungeonMap {
   floors: DungeonFloor[]
+  /** How many tiles a floor is wide and tall. */
+  tilesPerSide: number
   walked: TrackPoint[]
 }
 
@@ -454,10 +456,22 @@ async function call(path: string, init?: RequestInit): Promise<Response> {
   return response
 }
 
+/** Reads the JSON answer of a request (a GET unless init says otherwise). */
+async function json<T>(path: string, init?: RequestInit): Promise<T> {
+  return (await (await call(path, init)).json()) as T
+}
+
+/** Like json, with null for a 404. */
+async function jsonOrNull<T>(path: string, signal?: AbortSignal): Promise<T | null> {
+  const response = await fetch(path, { signal })
+  if (response.status === 404) return null
+  if (!response.ok) throw await failure(response)
+  return (await response.json()) as T
+}
+
 /** Sends body as JSON with method and reads the JSON answer. */
 async function sendJSON<T>(path: string, method: string, body: unknown): Promise<T> {
-  const init = { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
-  return (await (await call(path, init)).json()) as T
+  return json(path, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
 }
 
 /** The site's own error message for a failed answer, or its status. */
@@ -481,41 +495,37 @@ export async function abandonLiveKey(): Promise<void> {
 /** The saved keys one character played ('' for every character), newest first. */
 export async function fetchSavedKeys(character: string, signal?: AbortSignal): Promise<KeySummary[]> {
   const query = new URLSearchParams({ character }).toString()
-  return (await (await call(`/api/mplus/keys?${query}`, { signal })).json()) as KeySummary[]
+  return json<KeySummary[]>(`/api/mplus/keys?${query}`, { signal })
 }
 
 /** One saved key. */
 export async function fetchSavedKey(start: number, signal?: AbortSignal): Promise<KeyView> {
-  return (await (await call(`/api/mplus/keys/${start}`, { signal })).json()) as KeyView
+  return json<KeyView>(`/api/mplus/keys/${start}`, { signal })
 }
 
 /** Where a key's party went and its mobs died: the running key's, the last one's or a saved one's. */
 export async function fetchTrack(start: number, signal?: AbortSignal): Promise<KeyTrack> {
-  return (await (await call(`/api/mplus/keys/${start}/track`, { signal })).json()) as KeyTrack
+  return json<KeyTrack>(`/api/mplus/keys/${start}/track`, { signal })
 }
 
 /** A dungeon's map: its floors with Keystone.guru tiles, and where parties have walked in its saved runs. */
 export async function fetchDungeonMap(mapID: number, signal?: AbortSignal): Promise<DungeonMap> {
-  return (await (await call(`/api/mplus/dungeons/${mapID}/map`, { signal })).json()) as DungeonMap
+  return json<DungeonMap>(`/api/mplus/dungeons/${mapID}/map`, { signal })
 }
 
-/** One 384 by 256 map tile of a dungeon floor; a floor is TILES_PER_SIDE tiles wide and tall. */
+/** One 384 by 256 map tile of a dungeon floor; a floor is DungeonMap.tilesPerSide tiles wide and tall. */
 export function tileURL(mapID: number, uiMapID: number, x: number, y: number): string {
   return `/api/mplus/dungeons/${mapID}/floors/${uiMapID}/tiles/${x}/${y}`
 }
-export const TILES_PER_SIDE = 4
 
 /** A finished key's review, or null when none was made yet. */
 export async function fetchReview(start: number, signal?: AbortSignal): Promise<KeyReview | null> {
-  const response = await fetch(`/api/mplus/keys/${start}/review`, { signal })
-  if (response.status === 404) return null
-  if (!response.ok) throw await failure(response)
-  return (await response.json()) as KeyReview
+  return jsonOrNull<KeyReview>(`/api/mplus/keys/${start}/review`, signal)
 }
 
 /** Reviews a finished key against Warcraft Logs (spends points); the kept review when there is one. */
 export async function makeReview(start: number): Promise<KeyReview> {
-  return (await (await call(`/api/mplus/keys/${start}/review`, { method: 'POST' })).json()) as KeyReview
+  return json<KeyReview>(`/api/mplus/keys/${start}/review`, { method: 'POST' })
 }
 
 /** Deletes one saved key, or every saved key without a start. */
@@ -646,10 +656,7 @@ export interface SettingsView extends Settings {
 }
 
 export async function fetchSettings(signal?: AbortSignal): Promise<SettingsView | null> {
-  const response = await fetch('/api/settings', { signal })
-  if (response.status === 404) return null
-  if (!response.ok) throw await failure(response)
-  return (await response.json()) as SettingsView
+  return jsonOrNull<SettingsView>('/api/settings', signal)
 }
 
 /** The saved settings in view, without what the page shows beside them, to save them with one change. */
@@ -681,7 +688,7 @@ export interface KeyStatus {
 }
 
 export async function fetchKeyStatus(signal?: AbortSignal): Promise<KeyStatus> {
-  return (await (await call('/api/settings/warcraftlogs', { signal })).json()) as KeyStatus
+  return json<KeyStatus>('/api/settings/warcraftlogs', { signal })
 }
 
 /** Tests and saves a Warcraft Logs client ID and secret; with force, saves them even when the test fails. */
@@ -690,7 +697,7 @@ export async function saveKeys(id: string, secret: string, force: boolean): Prom
 }
 
 export async function testKeys(): Promise<KeyStatus> {
-  return (await (await call('/api/settings/warcraftlogs/test', { method: 'POST' })).json()) as KeyStatus
+  return json<KeyStatus>('/api/settings/warcraftlogs/test', { method: 'POST' })
 }
 
 export async function removeKeys(): Promise<void> {
@@ -720,7 +727,7 @@ export interface ImportStatus {
 }
 
 export async function fetchImportStatus(signal?: AbortSignal): Promise<ImportStatus> {
-  return (await (await call('/api/settings/warcraftlogs/import', { signal })).json()) as ImportStatus
+  return json<ImportStatus>('/api/settings/warcraftlogs/import', { signal })
 }
 
 /** What the owner picks to import (models.ImportKind). */
@@ -748,7 +755,7 @@ export interface ImportPlan {
 /** Starts listing the saved character's reports (spending points) in the background, to count what an import would
  * fetch: the status's plan once it's done. */
 export async function findFights(): Promise<ImportStatus> {
-  return (await (await call('/api/settings/warcraftlogs/import/plan', { method: 'POST' })).json()) as ImportStatus
+  return json<ImportStatus>('/api/settings/warcraftlogs/import/plan', { method: 'POST' })
 }
 
 /** Starts importing the saved character's fights of this season of kinds in the background. */
@@ -758,7 +765,7 @@ export async function startImport(kinds: ImportKind[]): Promise<ImportStatus> {
 
 /** Stops the import; what it fetched stays for the next one. */
 export async function stopImport(): Promise<ImportStatus> {
-  return (await (await call('/api/settings/warcraftlogs/import', { method: 'DELETE' })).json()) as ImportStatus
+  return json<ImportStatus>('/api/settings/warcraftlogs/import', { method: 'DELETE' })
 }
 
 /** A period the Recap tab offers, with its span in ms since the epoch (models.RecapPeriod). */
@@ -892,7 +899,7 @@ export interface Character {
 
 /** The periods a recap covers (this month, last month, this season when Raider.IO says, this year, all time). */
 export async function fetchRecapPeriods(signal?: AbortSignal): Promise<RecapPeriod[]> {
-  return (await (await call('/api/recap/periods', { signal })).json()) as RecapPeriod[]
+  return json<RecapPeriod[]>('/api/recap/periods', { signal })
 }
 
 /** The query of a recap of a period, one character's ('' for all). */
@@ -902,7 +909,7 @@ function recapQuery(period: RecapPeriod, character: string): string {
 
 /** The recap of the keys and pulls that started in a period, one character's ('' for all). */
 export async function fetchRecap(period: RecapPeriod, character: string, signal?: AbortSignal): Promise<Recap> {
-  return (await (await call(`/api/recap?${recapQuery(period, character)}`, { signal })).json()) as Recap
+  return json<Recap>(`/api/recap?${recapQuery(period, character)}`, { signal })
 }
 
 /** Warcraft Logs' top-runs median per dungeon of a recap; null without Warcraft Logs keys. */
@@ -949,7 +956,7 @@ export function fetchSpell(name: string): Promise<SpellInfo | null> {
 /** The owner's characters, most runs first, the one Settings names (preferred) marked. */
 export async function fetchCharacters(preferred: string, signal?: AbortSignal): Promise<Character[]> {
   const query = new URLSearchParams({ preferred }).toString()
-  return (await (await call(`/api/characters?${query}`, { signal })).json()) as Character[]
+  return json<Character[]>(`/api/characters?${query}`, { signal })
 }
 
 /** The owner's character's Warcraft Logs parses this season (models.CharacterParses). */
@@ -972,7 +979,7 @@ export interface CharacterParse {
 
 /** The settings' character's parses (read from Warcraft Logs once a day). */
 export async function fetchCharacterParses(signal?: AbortSignal): Promise<CharacterParses> {
-  return (await (await call('/api/settings/warcraftlogs/parses', { signal })).json()) as CharacterParses
+  return json<CharacterParses>('/api/settings/warcraftlogs/parses', { signal })
 }
 
 /** Deletes every imported key and pull, and what the import fetched. */
@@ -988,7 +995,7 @@ export interface OldKeys {
 
 /** Reads the log folder's new or changed logs (all: every log again) and saves each finished key and raid pull. */
 export async function readOldKeys(all = false): Promise<OldKeys> {
-  return (await (await call(`/api/settings/read-keys${all ? '?all=true' : ''}`, { method: 'POST' })).json()) as OldKeys
+  return json<OldKeys>(`/api/settings/read-keys${all ? '?all=true' : ''}`, { method: 'POST' })
 }
 /** Where a log came from: the game's log folder, or a Warcraft Logs import. */
 export type LogSource = 'game' | 'wcl'
@@ -1014,7 +1021,7 @@ export interface LogFile {
 }
 
 export async function fetchLogFiles(signal?: AbortSignal): Promise<LogFile[]> {
-  return (await (await call('/api/settings/logs', { signal })).json()) as LogFile[]
+  return json<LogFile[]>('/api/settings/logs', { signal })
 }
 
 /** Zips the named logs into the archive folder (reading any not read yet first); answers the new list. */
@@ -1033,9 +1040,7 @@ export interface Storage {
 }
 
 export async function fetchStorage(signal?: AbortSignal): Promise<Storage> {
-  const response = await fetch('/api/storage', { signal })
-  if (!response.ok) throw await failure(response)
-  return response.json()
+  return json<Storage>('/api/storage', { signal })
 }
 
 
@@ -1057,10 +1062,9 @@ export interface RaidPullSummary {
   imported?: boolean
 }
 
-/** A raider's death in a raid pull: the M+ death with whether it was early (before the wipe) and their last hits. */
+/** A raider's death in a raid pull: the M+ death with whether it was early (before the wipe). */
 export interface RaidDeath extends KeyDeath {
   early: boolean
-  recap: { ability: string; source: string; amount: number; beforeMS: number }[]
 }
 
 /** A number for one raider. */
@@ -1193,26 +1197,23 @@ export interface RaidNight {
 
 /** The raid now. */
 export async function fetchRaidLive(signal?: AbortSignal): Promise<RaidLive> {
-  return (await (await call('/api/raid/live', { signal })).json()) as RaidLive
+  return json<RaidLive>('/api/raid/live', { signal })
 }
 
 /** Every raid night's pulls one character played ('' for every character), newest first. */
 export async function fetchRaidNights(character: string, signal?: AbortSignal): Promise<RaidNight[]> {
   const query = new URLSearchParams({ character }).toString()
-  return (await (await call(`/api/raid/nights?${query}`, { signal })).json()) as RaidNight[]
+  return json<RaidNight[]>(`/api/raid/nights?${query}`, { signal })
 }
 
 /** One raid pull. */
 export async function fetchRaidPull(start: number, signal?: AbortSignal): Promise<RaidPull> {
-  return (await (await call(`/api/raid/pulls/${start}`, { signal })).json()) as RaidPull
+  return json<RaidPull>(`/api/raid/pulls/${start}`, { signal })
 }
 
 /** One raid pull's replay track; null for a pull saved before replays were kept. */
 export async function fetchRaidTrack(start: number, signal?: AbortSignal): Promise<KeyTrack | null> {
-  const response = await fetch(`/api/raid/pulls/${start}/track`, { signal })
-  if (response.status === 404) return null
-  if (!response.ok) throw await failure(response)
-  return (await response.json()) as KeyTrack
+  return jsonOrNull<KeyTrack>(`/api/raid/pulls/${start}/track`, signal)
 }
 
 /** A raid room's map image. */

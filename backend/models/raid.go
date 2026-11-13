@@ -256,19 +256,10 @@ type RaidTarget struct {
 }
 
 // RaidDeath is a raider's death: what killed them and what was ready (the M+ death rules), whether it was early
-// (before the wipe), and the last hits they took.
+// (before the wipe).
 type RaidDeath struct {
 	KeyDeath
-	Early bool      `json:"early"`
-	Recap []RaidHit `json:"recap"` // the last hits before the death, oldest first
-}
-
-// RaidHit is one hit a raider took: the ability, who dealt it, the amount and how long before the death.
-type RaidHit struct {
-	Ability  string `json:"ability"`
-	Source   string `json:"source"`
-	Amount   int64  `json:"amount"`
-	BeforeMS int64  `json:"beforeMS"`
+	Early bool `json:"early"`
 }
 
 // MassKill is one ability killing several raiders within the mass-kill window.
