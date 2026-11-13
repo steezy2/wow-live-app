@@ -130,7 +130,7 @@ type KeyCast struct {
 
 // KeyPull is a trash pull with minibosses (the dungeon file's miniboss NPCs): the share of the party's damage that went
 // into them in the pull's first 10 s, their share of the pull's health, where each fell in its own pack's
-// kill order, and whether one died after most of its pack (Late).
+// kill order, and whether one died last of a pack with regular mobs (Late).
 type KeyPull struct {
 	Pull       int           `json:"pull"`
 	ClockMS    int64         `json:"clockMS"`
@@ -142,7 +142,7 @@ type KeyPull struct {
 
 // KeyMiniboss is a miniboss in a pull: when it died on the key's clock, and its place among its pack's regular mobs
 // (first hit within 10 s of it) that died: Of is itself plus those, Order is 1 plus those that died before it (0 if it
-// didn't die). It's late when more than half of them died first. AfterMS is how long after the last of those it died
+// didn't die). It's late when it died after all of them. AfterMS is how long after the last of those it died
 // (0 when it wasn't last), DamagePct the share of the pull's damage that went into it; both 0 in keys saved before
 // Nov 12.
 type KeyMiniboss struct {

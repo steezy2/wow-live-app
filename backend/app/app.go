@@ -215,7 +215,7 @@ func add(keys *service.LogTracker, lines []string) {
 
 // readerVersion is the version of what Learn saves from a log. Bump it with any change that saves new key or raid pull
 // fields, so the next Learn reads every log again.
-const readerVersion = 15
+const readerVersion = 16
 
 // learned is learned.json: the logs Learn has read and the reader that read them, so it reads only new or changed
 // logs next time.

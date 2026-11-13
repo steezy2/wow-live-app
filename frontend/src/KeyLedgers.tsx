@@ -133,7 +133,7 @@ export function KickLedger({ data: key, seek }: { data: FightData; seek?: Seeker
 }
 
 /** Each trash pull with priority targets (minibosses): when each died against the regular mobs of its pack (the ones
- * first hit within 10 s of it; red when it died after more than half of them), the share of the pull's damage into it
+ * first hit within 10 s of it; red when it died after all of them), the share of the pull's damage into it
  * (and of its health when it's the only one), and the pull's share of damage in the first 10 s. */
 export function PriorityLedger({ keyView: key }: { keyView: KeyView }) {
   return (
@@ -141,7 +141,7 @@ export function PriorityLedger({ keyView: key }: { keyView: KeyView }) {
       {key.pulls.map((p) => (
         <li key={p.pull} className="stack">
           {p.minibosses.map((m, i) => (
-            <span key={i} className={m.order - 1 > (m.of - 1) / 2 ? 'bad' : undefined}>
+            <span key={i} className={m.of > 1 && m.order === m.of ? 'bad' : undefined}>
               Pull {p.pull} <span className="muted">· {clock(p.clockMS)}</span> {m.name}{' '}
               {!m.order
                 ? "didn't die"

@@ -12,6 +12,9 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 - Every hover is the timeline's box (`Tip.tsx`, shown at once, above what the mouse is on) instead of the browser's slow plain tooltip: meter cells, key bar marks, the damage graph's point (its player, time and rate), the lanes. A new hover is one `tip(text, head)` or `spellTip(name)` on the element.
 - An M+ key's **Buffs** tab reads like a raid pull's: a line per buff, "Missing Arcane Intellect", with who lacked it the whole key (or "everyone") and each gap as a player with its start and end on the key's clock (a click moves the replay). It now also catches a flask, food or party buff that came off mid-key (`buffGaps` on a key; `BuffGap` replaces `RaidMissing`), shown by the shared `BuffGaps.tsx`. `readerVersion` 14, so *Read old logs* fills it in.
 
+### Fixed
+- A priority target is red (and counts as late in the review) only when it died last of its pack, not after more than half of it; a miniboss alone in its pack is never late. `readerVersion` 16, so *Read old logs* fills it in.
+
 ## [0.4.2] - 2026-11-12
 
 ### Fixed
