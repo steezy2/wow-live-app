@@ -88,11 +88,11 @@ export function resultText(status: string, chests: number, clockMS: number, time
   return `${head} · ${clock(clockMS)} / ${clock(timerMS)} · ${clock(Math.abs(left))} ${left >= 0 ? 'under' : 'over'}`
 }
 
-/** What covered a death or a hit: "used Ice Cold" (pressed it), "had Pain Suppression" (put on them), "still had
- * Barkskin, Renewal", or "nothing ready"; ready is missing in raid pulls saved before it was kept. */
-export function coverText(c: { defensive: string; used?: boolean; ready?: string[] }): string {
-  if (c.defensive) return `${c.used ? 'used' : 'had'} ${c.defensive}`
-  return c.ready?.length ? `still had ${c.ready.join(', ')}` : 'nothing ready'
+/** What covered a death or a hit: "used" Ice Cold (pressed it), "had" Pain Suppression (put on them), "still had"
+ * Barkskin and Renewal, or "nothing ready"; ready is missing in raid pulls saved before it was kept. */
+export function coverOf(c: { defensive: string; used?: boolean; ready?: string[] }): { lead: string; spells: string[] } {
+  if (c.defensive) return { lead: c.used ? 'used' : 'had', spells: [c.defensive] }
+  return c.ready?.length ? { lead: 'still had', spells: c.ready } : { lead: 'nothing ready', spells: [] }
 }
 
 /** What hit the party in a spike, with each one's share of it: "Crushing Slam (Bonebreaker) 58%, Volley 22%". */

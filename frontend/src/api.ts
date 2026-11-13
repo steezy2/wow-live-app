@@ -906,6 +906,37 @@ export async function fetchRecapTopTimes(
   return response.status === 204 ? null : ((await response.json()) as RecapTopTime[])
 }
 
+/** What an ability does (models.SpellInfo). */
+export interface SpellInfo {
+  id: number
+  name: string
+  /** "2 min cooldown", empty for none. */
+  cooldown?: string
+  description: string
+}
+
+const spellAnswers = new Map<string, Promise<SpellInfo | null>>()
+
+/** What the ability the combat log calls name does, or null when it can't be told. Answers are kept, so a hover asks
+ * once; the log not knowing the ability (404) is kept too, but a failed lookup is asked again next time. */
+export function fetchSpell(name: string): Promise<SpellInfo | null> {
+  let answer = spellAnswers.get(name)
+  if (!answer) {
+    answer = fetch(`/api/spells?${new URLSearchParams({ name })}`)
+      .then((r) => {
+        if (r.ok) return r.json() as Promise<SpellInfo>
+        if (r.status !== 404) spellAnswers.delete(name)
+        return null
+      })
+      .catch(() => {
+        spellAnswers.delete(name)
+        return null
+      })
+    spellAnswers.set(name, answer)
+  }
+  return answer
+}
+
 /** The owner's characters, most runs first, the one Settings names (preferred) marked. */
 export async function fetchCharacters(preferred: string, signal?: AbortSignal): Promise<Character[]> {
   const query = new URLSearchParams({ preferred }).toString()

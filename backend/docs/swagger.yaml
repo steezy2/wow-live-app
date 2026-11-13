@@ -1954,6 +1954,17 @@ definitions:
           type: string
         type: array
     type: object
+  models.SpellInfo:
+    properties:
+      cooldown:
+        type: string
+      description:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+    type: object
   models.SpikeCause:
     properties:
       ability:
@@ -2977,4 +2988,38 @@ paths:
       summary: Test the saved Warcraft Logs keys again
       tags:
       - settings
+  /api/spells:
+    get:
+      description: |-
+        The ability's description and cooldown, from Wowhead's tooltip for the spell ID the combat log gave
+        its name (cached a week). 404 for an ability the log hasn't shown since the app started, 502 when
+        Wowhead can't be reached.
+      parameters:
+      - description: the ability's name as the combat log shows it
+        in: query
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.SpellInfo'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+        "502":
+          description: Bad Gateway
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+      summary: What an ability does
+      tags:
+      - spells
 swagger: "2.0"

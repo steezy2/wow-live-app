@@ -5,6 +5,7 @@ import { MapCanvas, ReplayControls, type Backdrop } from './KeyMap'
 import { abilitiesUpTo, floorsOf, tickStep, type SliderMark, type useReplay } from './replay'
 import { MeterGraph } from './DamageGraph'
 import { BossBox, FocusBoxes } from './ReplayBoxes'
+import { tip } from './tipAttrs'
 
 /** A raid pull's replay: the mechanics' lanes and the DPS and HPS graph, the play bar, then the raid and the boss on
  * the room's map, all on the page's one clock: a click on the lanes or the graph moves the map there. A click on a
@@ -109,13 +110,11 @@ export function RaidReplay(props: {
 
 /** The pull's timeline: a lane per mechanic with its marks (a stretch for a phase, an add's life or how long a buff
  * lasted), the ones that went wrong in red, over a ruler with a tick every tickStep. One line through every lane is
- * the replay's moment, with its time on the ruler. A mouse over a mark shows its lane, time and text in a box at once;
+ * the replay's moment, with its time on the ruler. A mouse over a mark shows its lane, time and text in a hover box;
  * a click or a drag anywhere on the lanes moves the replay there, and a click on a mark to its start. */
 export function RaidLanes(props: { lanes: RaidLane[]; end: number; now: number; onSeek: (clockMS: number) => void }) {
   const { lanes, end, now, onSeek } = props
   const ruler = useRef<HTMLDivElement>(null)
-  const root = useRef<HTMLDivElement>(null)
-  const [tip, setTip] = useState<{ x: number; y: number; lane: string; when: string; text: string } | null>(null)
   const share = (t: number) => Math.min(t, end) / Math.max(1, end)
   const at = (t: number) => `${share(t) * 100}%`
   if (lanes.length === 0) return null
@@ -129,12 +128,10 @@ export function RaidLanes(props: { lanes: RaidLane[]; end: number; now: number; 
   return (
     <div
       className="lanes"
-      ref={root}
       role="list"
       aria-label="the pull's mechanics over time"
       onMouseDown={(e) => e.button === 0 && seek(e)}
       onMouseMove={(e) => e.buttons === 1 && seek(e)}
-      onMouseLeave={() => setTip(null)}
     >
       {lanes.map((l) => (
         <div key={`${l.kind}-${l.name}`} className="lane" role="listitem">
@@ -150,14 +147,7 @@ export function RaidLanes(props: { lanes: RaidLane[]; end: number; now: number; 
                   className={`${m.endMS ? 'lane-span' : 'lane-mark'}${m.bad ? ' bad-mark' : ''}`}
                   style={m.endMS ? { left: at(m.clockMS), width: at(m.endMS - m.clockMS) } : { left: at(m.clockMS) }}
                   aria-label={`${when} ${m.text}`}
-                  onMouseEnter={(e) => {
-                    const mark = e.currentTarget.getBoundingClientRect()
-                    const box = root.current?.getBoundingClientRect()
-                    if (!box) return
-                    const x = mark.left + mark.width / 2 - box.left
-                    setTip({ x, y: mark.top - box.top, lane: l.name, when, text: m.text })
-                  }}
-                  onMouseLeave={() => setTip(null)}
+                  {...tip(m.text, `${l.name} · ${when}`)}
                   onMouseDown={(e) => e.stopPropagation()}
                   onClick={() => onSeek(m.clockMS)}
                 >
@@ -181,14 +171,6 @@ export function RaidLanes(props: { lanes: RaidLane[]; end: number; now: number; 
       <div className="lanes-now" style={{ '--at': share(now) } as CSSProperties}>
         <span>{clock(now)}</span>
       </div>
-      {tip && (
-        <div className="lane-tip" style={{ left: tip.x, top: tip.y }} role="tooltip">
-          <span className="muted">
-            {tip.lane} · {tip.when}
-          </span>
-          {tip.text}
-        </div>
-      )}
     </div>
   )
 }

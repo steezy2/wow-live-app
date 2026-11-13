@@ -8,6 +8,7 @@ import { BarRow, MeterCard } from './MeterCards'
 import { abilitiesBetween, hasCounts, meterBetween } from './replay'
 import { schoolBar, schoolName } from './schoolColors'
 import { Name, type Classes } from './Seek'
+import { spellTip, tip } from './tipAttrs'
 
 /** A stretch the cards show: its title, when it runs on the fight's clock (to: the replay's moment), and its saved
  * meter, shown at the fight's end or without a track. */
@@ -162,7 +163,7 @@ export function AbilityBars({
       </div>
       {sorted.map((r) => (
         <BarRow key={r.name} share={r.value / sorted[0].value} {...schoolBar(r.school, color)} grid={grid}>
-          <span className="name" title={r.avoidable ? 'avoidable' : schoolName(r.school)}>
+          <span className="name" {...spellTip(r.name)} {...tip(r.avoidable ? 'avoidable' : schoolName(r.school))}>
             {r.avoidable && <span className="warning">⚠ </span>}
             {r.name}
           </span>

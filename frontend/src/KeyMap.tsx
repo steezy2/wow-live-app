@@ -27,6 +27,7 @@ import {
   type useReplay,
 } from './replay'
 import { BossBox, FocusBoxes } from './ReplayBoxes'
+import { tip } from './tipAttrs'
 
 /** The trail the live map draws. */
 const LIVE_TRAIL_MS = 30_000
@@ -93,7 +94,7 @@ export function ReplayControls(props: {
         />
         <div className="map-marks">
           {marks.map((m, i) => (
-            <span key={i} className={m.className} title={m.title} style={{ left: `${(m.clockMS / end) * 100}%` }} />
+            <span key={i} className={m.className} {...tip(m.title)} style={{ left: `${(m.clockMS / end) * 100}%` }} />
           ))}
         </div>
       </div>

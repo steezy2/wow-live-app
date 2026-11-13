@@ -15,6 +15,7 @@ import { RaidReplay } from './RaidReplay'
 import { topMeter, useRaidTrack, useReplay } from './replay'
 import { Tabs } from './Tabs'
 import { useRaidLive } from './useLiveKey'
+import { tip } from './tipAttrs'
 
 /** How many deaths, things to fix, and top damage and healing rows the overlay's card shows. */
 const OVERLAY_DEATHS = 3
@@ -258,7 +259,7 @@ export function RaidOverlayCard({ pull, rows = 0 }: { pull: RaidPull; rows?: num
         <div className="bar" role="img" aria-label={`the boss at ${Math.round(pull.bossPct)}%`}>
           <div className={pull.kill ? 'fill ahead' : 'fill'} style={{ width: `${100 - pull.bossPct}%` }} />
           {best && best.bossPct >= 0 && (
-            <div className="mark" style={{ left: `${100 - best.bossPct}%` }} title="tonight's best pull" />
+            <div className="mark" style={{ left: `${100 - best.bossPct}%` }} {...tip("tonight's best pull")} />
           )}
         </div>
       )}

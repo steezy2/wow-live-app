@@ -3,6 +3,7 @@ import type { KeyMeter, KeyMeterRow } from './api'
 import type { Column } from './meterColumns'
 import { classColors } from './classColors'
 import { amount, clock } from './format'
+import { tip } from './tipAttrs'
 
 const NAME_PX = 96
 const NUMBER_PX = 64
@@ -81,7 +82,7 @@ export function MeterCard({
                   {r.player}
                 </span>
                 {columns.map((c) => (
-                  <span key={c.label} className={cellClass(c, r, rows)} title={c.title?.(r)}>
+                  <span key={c.label} className={cellClass(c, r, rows)} {...tip(c.title?.(r))}>
                     {c.show ? c.show(r) : amount(c.value(r))}
                   </span>
                 ))}
