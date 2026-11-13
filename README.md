@@ -4,14 +4,20 @@ A Windows app for World of Warcraft Mythic+ keys and raid pulls. It reads the ga
 
 It's not an addon and doesn't touch the game: it only reads the combat log file the game writes when Advanced Combat Logging is on. Nothing is uploaded, and nothing listens on the network.
 
-![A +15 mid-key: the clock against the timer, forces, the must-stop casts that went off, and DPS for the last pull and the whole key](docs/screenshots/live.png)
+![A +19 mid-key: the clock against the timer, forces and meters, with the overlay over it](docs/store/1-live.png)
 
 <details>
-<summary>After the key: the review and the damage graph</summary>
+<summary>After the key and the pull: Fix next key, the raid's Fix next pull, death recaps, the map replay and the Recap</summary>
 
-![Each player against their spec's top runs on Warcraft Logs, with what to work on and what went well](docs/screenshots/review.png)
+![A key's Fix next key list and its timeline of pulls, deaths, kicks and cooldowns](docs/store/2-key.png)
 
-![Damage per second over the key, a line per player, with boss kills marked](docs/screenshots/graph.png)
+![A raid pull: what to fix, the early deaths and the mechanics](docs/store/3-raid.png)
+
+![A death's last 10 seconds: each hit, each heal and the defensive still ready](docs/store/4-death.png)
+
+![The key replayed on the dungeon's map](docs/store/5-replay.png)
+
+![The Recap: keys timed, each dungeon's best time and who you ran with](docs/store/6-recap.png)
 
 </details>
 
