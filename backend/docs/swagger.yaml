@@ -2442,6 +2442,10 @@ paths:
           description: the key is still running
           schema:
             $ref: '#/definitions/controller.ErrorResponse'
+        "422":
+          description: no top log could be read to compare with
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
         "429":
           description: too few Warcraft Logs points left this hour
           schema:
@@ -2748,6 +2752,10 @@ paths:
             $ref: '#/definitions/controller.ErrorResponse'
         "404":
           description: Not Found
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+        "422":
+          description: no top log could be read to compare with
           schema:
             $ref: '#/definitions/controller.ErrorResponse'
         "429":

@@ -55,7 +55,7 @@ func (c *Client) RankedRuns(ctx context.Context, q models.RankQuery, page int) (
 	gql := `query($e: Int!, $c: String!, $s: String!, $b: Int!, $p: Int!) { worldData { encounter(id: $e) {
 		characterRankings(className: $c, specName: $s, metric: ` + q.Metric + `, ` + bracket + `, page: $p) } } }`
 	file := fmt.Sprintf("ranked-%d-%s-%s-%s-%s-%d.json", q.Encounter, which, q.Class, q.Spec, q.Metric, page)
-	if err := c.cachedQuery(ctx, file, 0, gql, vars, &data); err != nil {
+	if err := c.cachedQuery(ctx, file, topTimesMaxAge, gql, vars, &data); err != nil {
 		return nil, false, err
 	}
 	rankings := data.WorldData.Encounter.Rankings
@@ -65,6 +65,33 @@ func (c *Client) RankedRuns(ctx context.Context, q models.RankQuery, page int) (
 			FightID: r.Report.FightID, Name: r.Name, Server: r.Server.Name})
 	}
 	return runs, rankings.HasMorePages, nil
+}
+
+// playerActor is a player of a report.
+type playerActor struct {
+	ID     int    `json:"id"`
+	Name   string `json:"name"`
+	Server string `json:"server"`
+}
+
+// findActor is the report's player called name on server, or the only one called name (the report may spell the
+// server another way); false when there's none, or several and none of server.
+func findActor(actors []playerActor, name, server string) (int, bool) {
+	var named []playerActor
+	for _, a := range actors {
+		if a.Name == name {
+			named = append(named, a)
+		}
+	}
+	for _, a := range named {
+		if a.Server == server {
+			return a.ID, true
+		}
+	}
+	if len(named) == 1 {
+		return named[0].ID, true
+	}
+	return 0, false
 }
 
 // table is a report table: its entries (abilities), auras (buffs) and the time it covers.
@@ -99,11 +126,7 @@ func (c *Client) RunPlayer(ctx context.Context, code string, fightID int, name, 
 					EndTime   int64 `json:"endTime"`
 				} `json:"fights"`
 				MasterData struct {
-					Actors []struct {
-						ID     int    `json:"id"`
-						Name   string `json:"name"`
-						Server string `json:"server"`
-					} `json:"actors"`
+					Actors []playerActor `json:"actors"`
 				} `json:"masterData"`
 			} `json:"report"`
 		} `json:"reportData"`
@@ -118,14 +141,9 @@ func (c *Client) RunPlayer(ctx context.Context, code string, fightID int, name, 
 	if len(report.Fights) == 0 {
 		return models.RankedPlayer{}, fmt.Errorf("report %s has no fight %d", code, fightID)
 	}
-	actor := -1
-	for _, a := range report.MasterData.Actors {
-		if a.Name == name && (a.Server == server || actor < 0) {
-			actor = a.ID
-		}
-	}
-	if actor < 0 {
-		return models.RankedPlayer{}, fmt.Errorf("%s isn't in report %s", name, code)
+	actor, ok := findActor(report.MasterData.Actors, name, server)
+	if !ok {
+		return models.RankedPlayer{}, fmt.Errorf("%s of %s isn't in report %s", name, server, code)
 	}
 	from, to := report.Fights[0].StartTime, report.Fights[0].EndTime
 	if windowMS > 0 {
