@@ -35,6 +35,11 @@ body {
   margin: 0;
 }
 
+/* Keep the scrollbar's space, so a taller or shorter tab never shifts the page or the left bar sideways. */
+html {
+  scrollbar-gutter: stable;
+}
+
 .page {
   max-width: 1400px;
   margin: 0 auto;
@@ -219,6 +224,7 @@ h2 {
   display: grid;
   grid-template-columns: 260px 1fr;
   min-height: calc(100vh - var(--nav));
+  align-items: start;
 }
 
 .side {
@@ -481,6 +487,16 @@ button {
 
 .tabs {
   margin-top: var(--s5);
+}
+
+/* A key being read: hidden until its track is in, then faded in, so parts never pop in one by one. */
+.key-loading {
+  opacity: 0;
+}
+
+.key-ready {
+  opacity: 1;
+  transition: opacity 0.15s ease-out;
 }
 
 .tabs [role='tablist'] {

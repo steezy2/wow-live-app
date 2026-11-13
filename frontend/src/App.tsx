@@ -97,7 +97,8 @@ export default function App() {
 
 /** A saved key, read again when the saved keys change (a report linked to it, say). */
 function SavedKey({ start }: { start: number }) {
-  const [key, setKey] = useState<KeyView | null>(null)
+  const [saved, setKey] = useState<KeyView | null>(null)
+  const key = saved?.start === start ? saved : null // never the previous key while this one is read
   const [error, setError] = useState<string | null>(null)
   useEffect(() => {
     const controller = new AbortController()

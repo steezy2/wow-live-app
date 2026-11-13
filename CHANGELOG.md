@@ -4,6 +4,9 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 
 ## [Unreleased]
 
+### Fixed
+- Switching quickly between the bottom tabs or between saved keys no longer shifts the page: the scrollbar's space is kept, the left bar stays put, and a saved key fades in once its track is read instead of showing the previous key and then popping in piece by piece.
+
 ## [0.4.1] - 2026-11-12
 
 ### Added
