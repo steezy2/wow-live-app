@@ -1218,6 +1218,12 @@ definitions:
       points:
         description: Points is what the review spent of Warcraft Logs' hourly points.
         type: number
+      rules:
+        description: Rules are the spec's rules the player fell short of, checked
+          on their own log; none for a spec without rules.
+        items:
+          $ref: '#/definitions/models.RuleResult'
+        type: array
       spec:
         type: string
       start:
@@ -2049,6 +2055,17 @@ definitions:
         type: number
       value:
         type: number
+    type: object
+  models.RuleResult:
+    properties:
+      atLeast:
+        type: number
+      share:
+        type: number
+      text:
+        type: string
+      why:
+        type: string
     type: object
   models.Settings:
     properties:

@@ -46,6 +46,7 @@ type Options struct {
 	Rules     models.MPlusRules           // from mplus.toml
 	Dungeons  map[int]models.DungeonFacts // from reference/mplus-dungeons.json
 	RaidRules models.RaidRules            // from raid-rules.toml
+	SpecRules models.SpecRules            // from spec-rules.toml
 	Bosses    map[string]models.RaidBoss  // from reference/raid-bosses.json
 	Tier      map[string][]int            // each class's tier items, from reference/raid-bosses.json
 	Baselines models.MPlusBaselines       // Warcraft Logs; nil means no key reviews
@@ -113,7 +114,7 @@ func Start(ctx context.Context, opts Options) (*Site, error) {
 		if baselines, ok := opts.Baselines.(models.CompareBaselines); ok {
 			s.compares = service.Comparer{Keys: keys, Baselines: baselines, Store: store,
 				Characters: service.Characters{Realms: opts.Realms, Keys: store, Logs: opts.WCL,
-					Bosses: slices.Sorted(maps.Keys(opts.Bosses))}, Region: opts.Region}
+					Bosses: slices.Sorted(maps.Keys(opts.Bosses))}, Region: opts.Region, Rules: opts.SpecRules}
 		}
 	}
 	tiles := service.MapTiles{Facts: opts.Dungeons,

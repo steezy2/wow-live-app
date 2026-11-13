@@ -3391,6 +3391,13 @@
                     "description": "Points is what the review spent of Warcraft Logs' hourly points.",
                     "type": "number"
                 },
+                "rules": {
+                    "description": "Rules are the spec's rules the player fell short of, checked on their own log; none for a spec without rules.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.RuleResult"
+                    }
+                },
                 "spec": {
                     "type": "string"
                 },
@@ -4589,6 +4596,23 @@
                 },
                 "value": {
                     "type": "number"
+                }
+            }
+        },
+        "models.RuleResult": {
+            "type": "object",
+            "properties": {
+                "atLeast": {
+                    "type": "number"
+                },
+                "share": {
+                    "type": "number"
+                },
+                "text": {
+                    "type": "string"
+                },
+                "why": {
+                    "type": "string"
                 }
             }
         },

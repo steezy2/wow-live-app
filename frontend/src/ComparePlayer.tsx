@@ -81,6 +81,21 @@ export function ComparePlayer({ kind, start, player }: { kind: 'mplus' | 'raid';
           </ol>
         </section>
       )}
+      {compare.rules.length > 0 && (
+        <section className="panel">
+          <h2>Spec rules</h2>
+          <ul className="list">
+            {compare.rules.map((r) => (
+              <li key={r.text}>
+                <span>
+                  {r.text}: {Math.round(100 * r.share)}%, wanted {Math.round(100 * r.atLeast)}%
+                  {r.why && <span className="muted"> · {r.why}</span>}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       <Rows title="Key stats" rows={compare.stats} />
       <Rows title="Abilities" rows={compare.abilities} spells />
       <Rows title="Buffs on themselves" rows={compare.buffs} spells />

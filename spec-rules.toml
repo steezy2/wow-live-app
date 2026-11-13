@@ -1,0 +1,24 @@
+# Per-spec rules a player review checks on the player's own log (a Compare tab's "Run review"), one table per spec as
+# the review names it ("Arcane Mage"). A rule that fails is a line under the advice with its share and its why.
+# Nothing is checked until a spec has rules here; spell and buff names are the combat log's. Three kinds:
+#
+# [["Arcane Mage".rules]]
+# kind = "with"       # the share of `cast`s made while `buff` was up
+# cast = "Arcane Barrage"
+# buff = "Arcane Soul"
+# at_least = 0.9
+# why = "Barrage is free damage during Arcane Soul"
+#
+# [["Arcane Mage".rules]]
+# kind = "together"   # the share of `cast`s within `seconds` of a cast of `other`
+# cast = "Arcane Surge"
+# other = "Touch of the Magi"
+# seconds = 3
+# at_least = 1.0
+# why = "Line the two cooldowns up"
+#
+# [["Arcane Mage".rules]]
+# kind = "uptime"     # the share of the fight `buff` was up on the player
+# buff = "Arcane Tempo"
+# at_least = 0.95
+# why = "Keep Arcane Tempo rolling"
