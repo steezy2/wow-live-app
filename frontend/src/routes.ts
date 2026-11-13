@@ -156,12 +156,6 @@ export function edit(s: Editor, e: Edit): Editor {
   }
 }
 
-/** The dungeon's forces total as the site counts it, from any route pull with forces; undefined before one has. */
-export function forcesTotal(routes: RouteView[]): number | undefined {
-  const pull = routes.flatMap((r) => r.pulls).find((p) => p.forces > 0 && p.pct > 0)
-  return pull && Math.round((pull.forces * 100) / pull.pct)
-}
-
 /** A draft's pulls with the forces their enemies give, summed from the map's enemies while the route isn't saved (the
  * site's view is the source of truth once it is); the percents are NaN without a forces total. */
 export function pullForces(pulls: Draft['pulls'], enemies: RouteEnemy[], total?: number) {

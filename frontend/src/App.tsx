@@ -29,6 +29,8 @@ export default function App() {
   const keyEnded = useCallback(() => setRefresh((n) => n + 1), [])
   const [settings, setSettings] = useState<SettingsView | null>(null)
   const [section, setSection] = useState<'mplus' | 'routes' | 'raid' | 'recap' | 'settings'>('mplus')
+  const [routesSeen, setRoutesSeen] = useState(false) // the Routes page stays mounted so unsaved edits survive a tab switch
+  if (section === 'routes' && !routesSeen) setRoutesSeen(true)
   const [raidPull, setRaidPull] = useState<number | null>(null)
   const [characters, setCharacters] = useState<Character[]>([])
   const [picked, setPicked] = useState<string | null>(null)
@@ -75,13 +77,16 @@ export default function App() {
         {settings && <button {...tab('settings')}>Settings</button>}
         <CharacterPicker characters={characters} value={character} onChange={setPicked} />
       </nav>
+      {routesSeen && (
+        <div hidden={section !== 'routes'}>
+          <RoutesPage />
+        </div>
+      )}
       {settings && section === 'settings' ? (
         <main className="page">
           <SettingsPage view={settings} onSaved={setSettings} />
         </main>
-      ) : section === 'routes' ? (
-        <RoutesPage />
-      ) : section === 'raid' ? (
+      ) : section === 'routes' ? null : section === 'raid' ? (
         <RaidPage key={raidPull} initial={raidPull} character={character} />
       ) : section === 'recap' ? (
         <main className="page">

@@ -4573,6 +4573,9 @@ const docTemplate = `{
         "models.RouteDungeon": {
             "type": "object",
             "properties": {
+                "forcesTotal": {
+                    "type": "integer"
+                },
                 "mapID": {
                     "type": "integer"
                 },

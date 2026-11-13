@@ -651,6 +651,7 @@ export async function fetchKeyRoute(start: number, id?: string, signal?: AbortSi
 export interface RouteDungeon {
   mapID: number
   name: string
+  forcesTotal: number
 }
 
 /** The season's dungeons that have enemies on the map. */

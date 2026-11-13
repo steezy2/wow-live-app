@@ -1958,6 +1958,8 @@ definitions:
     type: object
   models.RouteDungeon:
     properties:
+      forcesTotal:
+        type: integer
       mapID:
         type: integer
       name:

@@ -17,7 +17,7 @@ import {
 } from './api'
 import { counted } from './format'
 import { RouteMap } from './RouteMap'
-import { draftOf, edit, editorOf, forcesTotal, packOf, pullForces, useDungeonMap } from './routes'
+import { draftOf, edit, editorOf, packOf, pullForces, useDungeonMap } from './routes'
 
 /** The share of the dungeon's forces a route needs. */
 const FULL_PCT = 100
@@ -95,7 +95,7 @@ export function RoutesPage() {
       .then((text) => navigator.clipboard.writeText(text))
       .then(() => setCopied(id))
       .catch(fail)
-  const total = forcesTotal(route ? [route, ...here] : here)
+  const total = dungeons.find((d) => d.mapID === dungeon)?.forcesTotal
   const rows = dirty ? pullForces(draft.pulls, map?.enemies ?? [], total) : route?.pulls
 
   return (

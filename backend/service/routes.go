@@ -132,7 +132,7 @@ func (r *Routes) Dungeons() []models.RouteDungeon {
 	out := []models.RouteDungeon{}
 	for mapID, f := range r.Facts {
 		if len(f.Enemies) > 0 {
-			out = append(out, models.RouteDungeon{MapID: mapID, Name: f.Name})
+			out = append(out, models.RouteDungeon{MapID: mapID, Name: f.Name, ForcesTotal: f.Forces.Total})
 		}
 	}
 	slices.SortFunc(out, func(a, b models.RouteDungeon) int { return cmp.Compare(a.Name, b.Name) })
