@@ -54,6 +54,7 @@ func Router(mplus MPlus, raid *Raid, settings *SettingsAPI, pages fs.FS, hosts .
 	api.POST("/mplus/keys/:start/review", mplus.MakeReview)
 	api.GET("/mplus/routes", mplus.Routes)
 	api.POST("/mplus/routes", mplus.AddRoute)
+	api.GET("/mplus/route-dungeons", mplus.RouteDungeons)
 	api.GET("/mplus/routes/mdt-saves", mplus.MDTSaves)
 	api.GET("/mplus/routes/:id", mplus.Route)
 	api.PUT("/mplus/routes/:id", mplus.UpdateRoute)

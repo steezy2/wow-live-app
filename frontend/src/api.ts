@@ -226,6 +226,8 @@ export interface KeyForces {
 
 /** A Mythic+ key as the page shows it (models.KeyView in the Go). */
 export interface KeyView {
+  /** The running key's place on its dungeon's starred route. */
+  route?: RouteLive
   dungeon: string
   mapID: number
   level: number
@@ -587,6 +589,70 @@ export async function fetchRoute(id: string, signal?: AbortSignal): Promise<Rout
 /** Imports a Mythic Dungeon Tools export string; importing its route again replaces it. */
 export async function importRoute(code: string): Promise<RouteView> {
   return sendJSON('/api/mplus/routes', 'POST', { code })
+}
+
+/** One route pull's progress in a key: how many of its enemies died, and the key pull that killed most of them. */
+export interface RoutePullProgress {
+  killed: number
+  of: number
+  done: boolean
+  /** Index into the key's pulls, -1 for none. */
+  keyPull: number
+  clockMS: number
+}
+
+/** Kills that were in no route pull, grouped by the key pull they died in (-1 before the first pull). */
+export interface RouteOff {
+  keyPull: number
+  clockMS: number
+  enemies: EnemyRef[]
+  /** Kills with no enemy on the map within reach. */
+  offMap: number
+  forces: number
+  pct: number
+}
+
+/** A key against a route: what was done, skipped and added. `noMobs` is a key saved before mob positions were kept. */
+export interface RouteCompare {
+  route: RouteView
+  pulls: RoutePullProgress[]
+  current: number
+  next: number
+  off: RouteOff[]
+  skipped: number[]
+  kills: EnemyRef[]
+  noMobs: boolean
+}
+
+/** A route pull with its number (from 1). */
+export interface RouteStep extends RoutePullView {
+  number: number
+}
+
+/** The live key's place on its dungeon's starred route. */
+export interface RouteLive {
+  name: string
+  current: RouteStep | null
+  next: RouteStep | null
+  /** Planned forces % once every pull before `next` is done. */
+  forcesPct: number
+}
+
+/** A key's progress on a route (the dungeon's starred one when no id). */
+export async function fetchKeyRoute(start: number, id?: string, signal?: AbortSignal): Promise<RouteCompare> {
+  const query = id ? `?${new URLSearchParams({ id })}` : ''
+  return (await (await call(`/api/mplus/keys/${start}/route${query}`, { signal })).json()) as RouteCompare
+}
+
+/** A dungeon of the season a route can be planned in. */
+export interface RouteDungeon {
+  mapID: number
+  name: string
+}
+
+/** The season's dungeons that have enemies on the map. */
+export async function fetchRouteDungeons(signal?: AbortSignal): Promise<RouteDungeon[]> {
+  return (await (await call('/api/mplus/route-dungeons', { signal })).json()) as RouteDungeon[]
 }
 
 /** A route in Mythic Dungeon Tools' saved variables; `imported` when the app already keeps it. */

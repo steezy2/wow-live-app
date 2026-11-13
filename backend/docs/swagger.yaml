@@ -1956,6 +1956,13 @@ definitions:
           type: integer
         type: array
     type: object
+  models.RouteDungeon:
+    properties:
+      mapID:
+        type: integer
+      name:
+        type: string
+    type: object
   models.RouteEnemy:
     properties:
       boss:
@@ -2585,6 +2592,20 @@ paths:
           schema:
             $ref: '#/definitions/controller.ErrorResponse'
       summary: End the running key as abandoned
+      tags:
+      - mplus
+  /api/mplus/route-dungeons:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.RouteDungeon'
+            type: array
+      summary: The season's dungeons routes can be planned in
       tags:
       - mplus
   /api/mplus/routes:

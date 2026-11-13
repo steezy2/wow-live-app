@@ -574,6 +574,7 @@ func (f *fakePlanner) ImportSaved(string) (models.RouteView, error) {
 	f.calls++
 	return models.RouteView{}, nil
 }
+func (f *fakePlanner) Dungeons() []models.RouteDungeon     { return nil }
 func (f *fakePlanner) Saved() ([]models.SavedRoute, error) { f.calls++; return nil, nil }
 func (f *fakePlanner) Star(id string) error                { return f.known(id) }
 func (f *fakePlanner) Delete(id string) error              { return f.known(id) }

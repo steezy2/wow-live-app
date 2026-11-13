@@ -34,6 +34,7 @@ type Planner interface {
 	Import(code string) (models.RouteView, error)
 	ImportSaved(uid string) (models.RouteView, error)
 	Saved() ([]models.SavedRoute, error)
+	Dungeons() []models.RouteDungeon
 	Create(mapID int, name string) (models.RouteView, error)
 	Update(id, name string, pulls []models.RoutePull) (models.RouteView, error)
 	Star(id string) error
@@ -452,6 +453,17 @@ type RouteUpdate struct {
 // RouteCode is a route as a Mythic Dungeon Tools export string.
 type RouteCode struct {
 	Code string `json:"code"`
+}
+
+// RouteDungeons godoc
+//
+//	@Summary	The season's dungeons routes can be planned in
+//	@Tags		mplus
+//	@Produce	json
+//	@Success	200	{array}	models.RouteDungeon
+//	@Router		/api/mplus/route-dungeons [get]
+func (m MPlus) RouteDungeons(c *gin.Context) {
+	c.JSON(http.StatusOK, m.Planner.Dungeons())
 }
 
 // MDTSaves godoc

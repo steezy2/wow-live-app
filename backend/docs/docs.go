@@ -539,6 +539,28 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/mplus/route-dungeons": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "mplus"
+                ],
+                "summary": "The season's dungeons routes can be planned in",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.RouteDungeon"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/mplus/routes": {
             "get": {
                 "produces": [
@@ -4545,6 +4567,17 @@ const docTemplate = `{
                     "items": {
                         "type": "integer"
                     }
+                }
+            }
+        },
+        "models.RouteDungeon": {
+            "type": "object",
+            "properties": {
+                "mapID": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
                 }
             }
         },

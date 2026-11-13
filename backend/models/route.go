@@ -126,6 +126,12 @@ type SavedRoute struct {
 	Imported bool   `json:"imported"`
 }
 
+// RouteDungeon is a dungeon of the season a route can be planned in.
+type RouteDungeon struct {
+	MapID int    `json:"mapID"`
+	Name  string `json:"name"`
+}
+
 // RouteStore keeps routes under their ids. Get fails with fs.ErrNotExist for a route that isn't there.
 type RouteStore interface {
 	Save(route Route) error

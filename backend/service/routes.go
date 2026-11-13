@@ -127,6 +127,18 @@ func (r *Routes) ImportPreset(p models.MDTPreset) (models.RouteView, error) {
 	return view, nil
 }
 
+// Dungeons are the season's dungeons that have enemies on the map, by name.
+func (r *Routes) Dungeons() []models.RouteDungeon {
+	out := []models.RouteDungeon{}
+	for mapID, f := range r.Facts {
+		if len(f.Enemies) > 0 {
+			out = append(out, models.RouteDungeon{MapID: mapID, Name: f.Name})
+		}
+	}
+	slices.SortFunc(out, func(a, b models.RouteDungeon) int { return cmp.Compare(a.Name, b.Name) })
+	return out
+}
+
 // Saved lists the routes in Mythic Dungeon Tools' saved variables that can be imported: those of the season's dungeons
 // that have a uid (MDT writes the file on /reload or logout).
 func (r *Routes) Saved() ([]models.SavedRoute, error) {
