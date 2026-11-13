@@ -10,6 +10,8 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 - A death's or big hit's recap fills each event green to the player's health after it, in place of the tiny line graph; a row the log gives no health for (a melee swing, a cast) is worked out from the damage and healing around it and marked `~`. The recap arrow is an accent-coloured button and no longer overlaps the row's text in *Defensives and potions*.
 - A raid pull's bottom tabs are twice as tall, and its missing buffs are a *Buffs* tab among them instead of a card under them.
 - The bottom tabs are as tall as their tallest tab, so switching between them leaves the meters and everything else where they are (blank space under a short tab).
+### Changed
+- The Microsoft Store listing matches 0.4.1 (`docs/store-listing.md`) and has new images in `docs/store/`: six screenshots with headlines, poster, box art, tile icon and hero image, from real keys and pulls with made-up names. The README shows the same screenshots instead of the old ones in `docs/screenshots/`.
 
 ## [0.4.1] - 2026-11-12
 
