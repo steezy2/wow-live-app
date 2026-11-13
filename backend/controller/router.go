@@ -77,7 +77,8 @@ func Router(mplus MPlus, raid *Raid, settings *SettingsAPI, pages fs.FS, hosts .
 		api.POST("/settings/read-keys", settings.ReadKeys)
 		api.GET("/settings/logs", settings.LogFiles)
 		api.POST("/settings/logs/archive", settings.ArchiveLogs)
-		api.DELETE("/settings/logs/archive", settings.DeleteArchivedLogs)
+		api.DELETE("/settings/logs/archive", settings.DeleteLogs)
+		api.GET("/storage", settings.Storage)
 	}
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	r.NoRoute(func(c *gin.Context) {

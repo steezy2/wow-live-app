@@ -12,6 +12,7 @@ import {
   progressText,
   resultText,
   versus,
+  versusBest,
   withRealm,
 } from './format'
 
@@ -170,5 +171,16 @@ describe('versus', () => {
     expect(versus(90_000, 30_000)).toBe('+1:00')
     expect(versus(30_000, 60_000)).toBe('-0:30')
     expect(versus(30_000, 30_000)).toBe('0:00')
+  })
+})
+
+describe('versusBest', () => {
+  it.each([
+    [90_000, 120_000, '0:30 faster than'],
+    [150_000, 120_000, '0:30 slower than'],
+    [120_000, 120_000, 'level with'],
+    [120_000, 0, ''],
+  ])('%i against best %i', (ms, best, want) => {
+    expect(versusBest(ms, best)).toBe(want)
   })
 })

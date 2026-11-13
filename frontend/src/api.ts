@@ -630,6 +630,10 @@ export interface Settings {
   overlay: OverlaySettings
   /** The character Warcraft Logs reports are imported for, "Name-Realm"; "" for none. */
   character: string
+  /** The auto rules, in days (0 for off): archive the game's logs read and this old, delete imports this long after they were imported. */
+  auto: { archiveGameLogsDays: number; deleteImportsDays: number }
+  /** The Home tab's setup guide is done or dismissed. */
+  setupDone: boolean
 }
 export interface OverlaySettings {
   show: 'keys' | 'always' | 'off'
@@ -653,6 +657,8 @@ export interface SettingsView extends Settings {
   minOpacity: number
   /** The name of the character whose game wrote most saved keys, for the character's placeholder; "" for none. */
   characterGuess: string
+  /** The most days an auto rule takes. */
+  maxAutoDays: number
 }
 
 export async function fetchSettings(signal?: AbortSignal): Promise<SettingsView | null> {
@@ -664,7 +670,14 @@ export async function fetchSettings(signal?: AbortSignal): Promise<SettingsView 
 
 /** The saved settings in view, without what the page shows beside them, to save them with one change. */
 export function savedSettings(view: SettingsView): Settings {
-  return { logsDir: view.logsDir, region: view.region, overlay: view.overlay, character: view.character }
+  return {
+    logsDir: view.logsDir,
+    region: view.region,
+    overlay: view.overlay,
+    character: view.character,
+    auto: view.auto,
+    setupDone: view.setupDone,
+  }
 }
 
 /** Saves the settings; the app reads the new log folder and changes the overlay right away. */
@@ -779,13 +792,24 @@ export interface Recap {
   raid: RecapRaid
 }
 
-/** An average per key; each -1 when no key in the period had it (models.RecapPerKey). */
-export interface RecapPerKey {
+/** A key's counts; each -1 when not known (models.RecapKeyCounts). */
+export interface RecapKeyCounts {
   kicks: number
   cc: number
   dispels: number
   /** The share of damage into minibosses and bosses, in %. */
   priorityPct: number
+}
+
+/** One key in a recap, opened by its start: the character's numbers (-1 when not in it) and the party's
+ * (models.RecapKeyRow). */
+export interface RecapKeyRow {
+  start: number
+  dungeon: string
+  level: number
+  status: 'running' | 'timed' | 'depleted' | 'abandoned'
+  you: RecapKeyCounts & { dps: number; hps: number }
+  party: RecapKeyCounts
 }
 
 /** A recap's keys (models.RecapMPlus). */
@@ -798,7 +822,8 @@ export interface RecapMPlus {
   timeMS: number
   /** The party's. */
   deaths: number
-  averages: { party: RecapPerKey; you: RecapPerKey }
+  /** Newest first, the latest few only. */
+  keyRows: RecapKeyRow[]
   /** Most run first (models.RecapDungeon). */
   dungeons: RecapDungeon[]
   /** The character the recap is for; missing when no key says. */
@@ -981,9 +1006,14 @@ export interface OldKeys {
 export async function readOldKeys(all = false): Promise<OldKeys> {
   return (await (await call(`/api/settings/read-keys${all ? '?all=true' : ''}`, { method: 'POST' })).json()) as OldKeys
 }
+/** Where a log came from: the game's log folder, or a Warcraft Logs import. */
+export type LogSource = 'game' | 'wcl'
+
 /** A combat log in the game's log folder, or one archived as a zip in its WoW Live archive folder (models.LogFile). */
 export interface LogFile {
   name: string
+  /** Where it came from: the game's logs folder, or a Warcraft Logs import (which can only be deleted). */
+  source: LogSource
   bytes: number
   writtenMS: number
   keys: number
@@ -1008,9 +1038,20 @@ export async function archiveLogs(names: string[]): Promise<LogFile[]> {
   return sendJSON('/api/settings/logs/archive', 'POST', { names })
 }
 
-/** Deletes the named archived logs for good; answers the new list. */
-export async function deleteArchivedLogs(names: string[]): Promise<LogFile[]> {
-  return sendJSON('/api/settings/logs/archive', 'DELETE', { names })
+/** Deletes the named archived logs, or imports with source 'wcl', for good; answers the new list. */
+export async function deleteLogs(names: string[], source: LogSource = 'game'): Promise<LogFile[]> {
+  return sendJSON('/api/settings/logs/archive', 'DELETE', { names, source })
+}
+
+/** What the app keeps on disk, by folder (models.Storage). */
+export interface Storage {
+  folders: { name: 'localKeys' | 'raidPulls' | 'wclImport' | 'archive' | 'gameLogs'; bytes: number }[]
+}
+
+export async function fetchStorage(signal?: AbortSignal): Promise<Storage> {
+  const response = await fetch('/api/storage', { signal })
+  if (!response.ok) throw await failure(response)
+  return response.json()
 }
 
 
