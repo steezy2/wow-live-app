@@ -409,6 +409,53 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/mplus/keys/{start}/route": {
+            "get": {
+                "description": "Each dead mob is matched to the nearest map enemy of its NPC on its floor within 20 yards, in\ndeath order. A pull is done when all of it died or 80% of its forces. noMobs is a key saved before\nmob positions were kept: only the route can be shown until its log is read again.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "mplus"
+                ],
+                "summary": "A key next to a route of its dungeon: which planned pulls were done, skipped or added",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "the key's start (ms since the epoch): the running key's, the last one's or a saved one's",
+                        "name": "start",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "the route's id; the dungeon's starred route when left out",
+                        "name": "id",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.RouteCompare"
+                        }
+                    },
+                    "400": {
+                        "description": "a bad start or id, or a route of another dungeon",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "no such key, or no such route (the dungeon has none)",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/mplus/keys/{start}/track": {
             "get": {
                 "produces": [
@@ -451,7 +498,7 @@ const docTemplate = `{
         },
         "/api/mplus/live": {
             "get": {
-                "description": "The key being played (its clock read now, death penalty included) or, between keys, the last one\nthat ended. The page reads it again on each notice from /api/mplus/events.",
+                "description": "The key being played (its clock read now, death penalty included) or, between keys, the last one\nthat ended. The page reads it again on each notice from /api/mplus/events. A running key carries\nits dungeon's starred route followed so far (route), when the dungeon has one.",
                 "produces": [
                     "application/json"
                 ],
@@ -3089,6 +3136,14 @@ const docTemplate = `{
                         }
                     ]
                 },
+                "route": {
+                    "description": "Route is the dungeon's starred route followed so far, on the running key only (nil without a route).",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.RouteLive"
+                        }
+                    ]
+                },
                 "silentMS": {
                     "description": "SilentMS is how long ago the last line of a running key was logged (0 once it's over). The game writes its log\nin batches as fights start and end, so a long silence is a long fight, or a party that left.",
                     "type": "integer"
@@ -4452,6 +4507,47 @@ const docTemplate = `{
                 }
             }
         },
+        "models.RouteCompare": {
+            "type": "object",
+            "properties": {
+                "current": {
+                    "type": "integer"
+                },
+                "kills": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.EnemyRef"
+                    }
+                },
+                "next": {
+                    "type": "integer"
+                },
+                "noMobs": {
+                    "type": "boolean"
+                },
+                "off": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.RouteOff"
+                    }
+                },
+                "pulls": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.RoutePullProgress"
+                    }
+                },
+                "route": {
+                    "$ref": "#/definitions/models.RouteView"
+                },
+                "skipped": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                }
+            }
+        },
         "models.RouteEnemy": {
             "type": "object",
             "properties": {
@@ -4486,6 +4582,49 @@ const docTemplate = `{
                 }
             }
         },
+        "models.RouteLive": {
+            "type": "object",
+            "properties": {
+                "current": {
+                    "$ref": "#/definitions/models.RouteStep"
+                },
+                "forcesPct": {
+                    "type": "number"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "next": {
+                    "$ref": "#/definitions/models.RouteStep"
+                }
+            }
+        },
+        "models.RouteOff": {
+            "type": "object",
+            "properties": {
+                "clockMS": {
+                    "type": "integer"
+                },
+                "enemies": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.EnemyRef"
+                    }
+                },
+                "forces": {
+                    "type": "integer"
+                },
+                "keyPull": {
+                    "type": "integer"
+                },
+                "offMap": {
+                    "type": "integer"
+                },
+                "pct": {
+                    "type": "number"
+                }
+            }
+        },
         "models.RoutePull": {
             "type": "object",
             "properties": {
@@ -4498,6 +4637,26 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/models.EnemyRef"
                     }
+                }
+            }
+        },
+        "models.RoutePullProgress": {
+            "type": "object",
+            "properties": {
+                "clockMS": {
+                    "type": "integer"
+                },
+                "done": {
+                    "type": "boolean"
+                },
+                "keyPull": {
+                    "type": "integer"
+                },
+                "killed": {
+                    "type": "integer"
+                },
+                "of": {
+                    "type": "integer"
                 }
             }
         },
@@ -4515,6 +4674,36 @@ const docTemplate = `{
                     }
                 },
                 "forces": {
+                    "type": "integer"
+                },
+                "pct": {
+                    "type": "number"
+                },
+                "total": {
+                    "type": "integer"
+                },
+                "totalPct": {
+                    "type": "number"
+                }
+            }
+        },
+        "models.RouteStep": {
+            "type": "object",
+            "properties": {
+                "color": {
+                    "type": "string"
+                },
+                "enemies": {
+                    "description": "left out of the route list",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.EnemyRef"
+                    }
+                },
+                "forces": {
+                    "type": "integer"
+                },
+                "number": {
                     "type": "integer"
                 },
                 "pct": {

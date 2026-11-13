@@ -320,6 +320,33 @@ func (k *LogTracker) Track(start int64) (models.KeyTrack, error) {
 	return t, err
 }
 
+// RouteTrack is a key's map ID and what comparing it with a route reads of its track (by its start time, as Track):
+// for the running key its mobs with the dead ones (which Track leaves out while it runs), deaths, bosses and pulls; a
+// key saved without a track gets an empty one.
+func (k *LogTracker) RouteTrack(start int64) (int, models.KeyTrack, error) {
+	k.mu.RLock()
+	if run := k.current; run != nil && run.raid == nil && run.key.Start == start {
+		defer k.mu.RUnlock()
+		return run.key.MapID, models.KeyTrack{Mobs: maps.Clone(run.track.Mobs), Deaths: list(run.track.Deaths),
+			Bosses: maps.Clone(run.track.Bosses), Pulls: list(run.track.Pulls)}, nil
+	}
+	mapID := 0
+	if i := slices.IndexFunc(k.history, func(key models.Key) bool { return key.Start == start }); i >= 0 {
+		mapID = k.history[i].MapID
+	} else if k.last != nil && k.last.Start == start {
+		mapID = k.last.MapID
+	}
+	k.mu.RUnlock()
+	if mapID == 0 {
+		return 0, models.KeyTrack{}, ErrNoSuchKey
+	}
+	track, err := k.Track(start)
+	if errors.Is(err, ErrNoSuchKey) {
+		err = nil
+	}
+	return mapID, track, err
+}
+
 // DungeonMap is a dungeon's floors with Keystone.guru tiles (from the dungeon file) and where parties have walked in
 // its saved runs, one point per walkedGrid square (Name and ClockMS empty): the shape drawn for floors without tiles.
 func (k *LogTracker) DungeonMap(mapID int) (models.DungeonMap, error) {

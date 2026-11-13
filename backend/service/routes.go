@@ -375,12 +375,7 @@ func (r *Routes) checkPulls(mapID int, pulls []models.RoutePull) error {
 // view is a route with its pulls' forces.
 func (r *Routes) view(route models.Route) models.RouteView {
 	known, total := r.known(route.MapID), r.Facts[route.MapID].Forces.Total
-	pct := func(n int) float64 {
-		if total == 0 {
-			return 0
-		}
-		return float64(n) / float64(total) * 100
-	}
+	pct := func(n int) float64 { return forcesPct(n, total) }
 	v := models.RouteView{ID: route.ID, Name: route.Name, MapID: route.MapID, Starred: route.Starred,
 		Updated: route.Updated, Pulls: make([]models.RoutePullView, len(route.Pulls))}
 	running := 0
@@ -395,6 +390,14 @@ func (r *Routes) view(route models.Route) models.RouteView {
 	}
 	v.TotalPct = pct(running)
 	return v
+}
+
+// forcesPct is n forces as a percent of a dungeon's total (0 without one).
+func forcesPct(n, total int) float64 {
+	if total == 0 {
+		return 0
+	}
+	return float64(n) / float64(total) * 100
 }
 
 func hasEnemy(known map[models.EnemyRef]models.RouteEnemy, ref models.EnemyRef) bool {

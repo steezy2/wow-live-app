@@ -39,6 +39,8 @@ type Planner interface {
 	Star(id string) error
 	Delete(id string) error
 	Export(id string) (string, error)
+	Compare(mapID int, id string, track models.KeyTrack) (models.RouteCompare, error)
+	Live(mapID int, track models.KeyTrack) (*models.RouteLive, error)
 }
 
 // Changes gives the keys' new versions as they change (service.Changes).
@@ -64,7 +66,8 @@ type Reviews interface {
 //
 //	@Summary		The running Mythic+ key, or the last one
 //	@Description	The key being played (its clock read now, death penalty included) or, between keys, the last one
-//	@Description	that ended. The page reads it again on each notice from /api/mplus/events.
+//	@Description	that ended. The page reads it again on each notice from /api/mplus/events. A running key carries
+//	@Description	its dungeon's starred route followed so far (route), when the dungeon has one.
 //	@Tags			mplus
 //	@Produce		json
 //	@Success		200	{object}	models.KeyView
@@ -76,7 +79,48 @@ func (m MPlus) Live(c *gin.Context) {
 		c.Status(http.StatusNoContent)
 		return
 	}
+	if key.Status == "running" {
+		_, track, err := m.Keys.RouteTrack(key.Start)
+		if err == nil {
+			key.Route, err = m.Planner.Live(key.MapID, track)
+		}
+		if err != nil {
+			log.Printf("live route: %v", err) // the live key is still worth showing without it
+		}
+	}
 	c.JSON(http.StatusOK, key)
+}
+
+// KeyRoute godoc
+//
+//	@Summary		A key next to a route of its dungeon: which planned pulls were done, skipped or added
+//	@Description	Each dead mob is matched to the nearest map enemy of its NPC on its floor within 20 yards, in
+//	@Description	death order. A pull is done when all of it died or 80% of its forces. noMobs is a key saved before
+//	@Description	mob positions were kept: only the route can be shown until its log is read again.
+//	@Tags			mplus
+//	@Produce		json
+//	@Param			start	path		int		true	"the key's start (ms since the epoch): the running key's, the last one's or a saved one's"
+//	@Param			id		query		string	false	"the route's id; the dungeon's starred route when left out"
+//	@Success		200		{object}	models.RouteCompare
+//	@Failure		400		{object}	ErrorResponse	"a bad start or id, or a route of another dungeon"
+//	@Failure		404		{object}	ErrorResponse	"no such key, or no such route (the dungeon has none)"
+//	@Router			/api/mplus/keys/{start}/route [get]
+func (m MPlus) KeyRoute(c *gin.Context) {
+	start, ok := startParam(c)
+	if !ok {
+		return
+	}
+	id := c.Query("id")
+	if id != "" && !checkRouteID(c, id) {
+		return
+	}
+	mapID, track, err := m.Keys.RouteTrack(start)
+	if err != nil {
+		respondError(c, err)
+		return
+	}
+	compare, err := m.Planner.Compare(mapID, id, track)
+	respondRoute(c, http.StatusOK, compare, err)
 }
 
 // Abandon godoc
@@ -567,15 +611,19 @@ func (m MPlus) ExportRoute(c *gin.Context) {
 	}
 }
 
-// routeID reads the :id path parameter, answering 400 when it can't name a route, before anything builds a file path
-// from it.
+// routeID reads the :id path parameter, answering 400 when it can't name a route (checkRouteID).
 func routeID(c *gin.Context) (string, bool) {
 	id := c.Param("id")
-	if !models.ValidRouteID(id) {
+	return id, checkRouteID(c, id)
+}
+
+// checkRouteID is whether id can name a route, answering 400 when it can't, before anything builds a file path from it.
+func checkRouteID(c *gin.Context, id string) bool {
+	ok := models.ValidRouteID(id)
+	if !ok {
 		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "id must be 1 to 32 letters, digits or brackets"})
-		return "", false
 	}
-	return id, true
+	return ok
 }
 
 // respondRoute answers body with status, or the status of the planner's error: 404 for a route that isn't there, 400

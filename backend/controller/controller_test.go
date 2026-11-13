@@ -47,6 +47,11 @@ func (f *fakeKeys) Track(int64) (models.KeyTrack, error) {
 	return models.KeyTrack{}, service.ErrNoSuchKey
 }
 
+func (f *fakeKeys) RouteTrack(start int64) (int, models.KeyTrack, error) {
+	_, err := f.SavedKey(start)
+	return 585, models.KeyTrack{}, err
+}
+
 func (f *fakeKeys) DungeonMap(int) (models.DungeonMap, error) { return models.DungeonMap{}, nil }
 func (f *fakeKeys) Abandon() bool                             { return f.ok }
 
@@ -576,6 +581,12 @@ func (f *fakePlanner) Export(id string) (string, error) {
 	return "!~MDT2~", f.known(id)
 }
 
+// Compare knows no starred route, so only ?id=abc compares.
+func (f *fakePlanner) Compare(_ int, id string, _ models.KeyTrack) (models.RouteCompare, error) {
+	return models.RouteCompare{}, f.known(id)
+}
+func (f *fakePlanner) Live(int, models.KeyTrack) (*models.RouteLive, error) { return nil, nil }
+
 func TestRoutesAnswerBadIDsBeforeTouchingFiles(t *testing.T) {
 	planner := &fakePlanner{}
 	router := Router(MPlus{Keys: &fakeKeys{}, Planner: planner, Now: time.Now}, nil, nil, os.DirFS(t.TempDir()),
@@ -600,6 +611,10 @@ func TestRoutesAnswerBadIDsBeforeTouchingFiles(t *testing.T) {
 		{http.MethodGet, "/api/mplus/routes?mapID=x", "", http.StatusBadRequest, 0},
 		{http.MethodPost, "/api/mplus/routes", `{"code":"hello"}`, http.StatusBadRequest, 1},
 		{http.MethodPost, "/api/mplus/routes", `{"mapID":585,"name":"x"}`, http.StatusCreated, 1},
+		{http.MethodGet, "/api/mplus/keys/7/route", "", http.StatusNotFound, 1},
+		{http.MethodGet, "/api/mplus/keys/7/route?id=abc", "", http.StatusOK, 1},
+		{http.MethodGet, "/api/mplus/keys/7/route?id=a.b", "", http.StatusBadRequest, 0},
+		{http.MethodGet, "/api/mplus/keys/8/route", "", http.StatusNotFound, 0},
 	} {
 		planner.calls = 0
 		r := httptest.NewRequest(tc.method, tc.path, strings.NewReader(tc.body))

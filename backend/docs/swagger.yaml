@@ -972,6 +972,11 @@ definitions:
         - $ref: '#/definitions/models.ReportLink'
         description: Report is the Warcraft Logs fight this key is, when one is known
           (imported, or matched to a report).
+      route:
+        allOf:
+        - $ref: '#/definitions/models.RouteLive'
+        description: Route is the dungeon's starred route followed so far, on the
+          running key only (nil without a route).
       silentMS:
         description: |-
           SilentMS is how long ago the last line of a running key was logged (0 once it's over). The game writes its log
@@ -1924,6 +1929,33 @@ definitions:
       value:
         type: number
     type: object
+  models.RouteCompare:
+    properties:
+      current:
+        type: integer
+      kills:
+        items:
+          $ref: '#/definitions/models.EnemyRef'
+        type: array
+      next:
+        type: integer
+      noMobs:
+        type: boolean
+      "off":
+        items:
+          $ref: '#/definitions/models.RouteOff'
+        type: array
+      pulls:
+        items:
+          $ref: '#/definitions/models.RoutePullProgress'
+        type: array
+      route:
+        $ref: '#/definitions/models.RouteView'
+      skipped:
+        items:
+          type: integer
+        type: array
+    type: object
   models.RouteEnemy:
     properties:
       boss:
@@ -1948,6 +1980,34 @@ definitions:
       "y":
         type: number
     type: object
+  models.RouteLive:
+    properties:
+      current:
+        $ref: '#/definitions/models.RouteStep'
+      forcesPct:
+        type: number
+      name:
+        type: string
+      next:
+        $ref: '#/definitions/models.RouteStep'
+    type: object
+  models.RouteOff:
+    properties:
+      clockMS:
+        type: integer
+      enemies:
+        items:
+          $ref: '#/definitions/models.EnemyRef'
+        type: array
+      forces:
+        type: integer
+      keyPull:
+        type: integer
+      offMap:
+        type: integer
+      pct:
+        type: number
+    type: object
   models.RoutePull:
     properties:
       color:
@@ -1957,6 +2017,19 @@ definitions:
         items:
           $ref: '#/definitions/models.EnemyRef'
         type: array
+    type: object
+  models.RoutePullProgress:
+    properties:
+      clockMS:
+        type: integer
+      done:
+        type: boolean
+      keyPull:
+        type: integer
+      killed:
+        type: integer
+      of:
+        type: integer
     type: object
   models.RoutePullView:
     properties:
@@ -1968,6 +2041,26 @@ definitions:
           $ref: '#/definitions/models.EnemyRef'
         type: array
       forces:
+        type: integer
+      pct:
+        type: number
+      total:
+        type: integer
+      totalPct:
+        type: number
+    type: object
+  models.RouteStep:
+    properties:
+      color:
+        type: string
+      enemies:
+        description: left out of the route list
+        items:
+          $ref: '#/definitions/models.EnemyRef'
+        type: array
+      forces:
+        type: integer
+      number:
         type: integer
       pct:
         type: number
@@ -2397,6 +2490,42 @@ paths:
         earlier runs (spends points)
       tags:
       - mplus
+  /api/mplus/keys/{start}/route:
+    get:
+      description: |-
+        Each dead mob is matched to the nearest map enemy of its NPC on its floor within 20 yards, in
+        death order. A pull is done when all of it died or 80% of its forces. noMobs is a key saved before
+        mob positions were kept: only the route can be shown until its log is read again.
+      parameters:
+      - description: 'the key''s start (ms since the epoch): the running key''s, the
+          last one''s or a saved one''s'
+        in: path
+        name: start
+        required: true
+        type: integer
+      - description: the route's id; the dungeon's starred route when left out
+        in: query
+        name: id
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.RouteCompare'
+        "400":
+          description: a bad start or id, or a route of another dungeon
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+        "404":
+          description: no such key, or no such route (the dungeon has none)
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+      summary: 'A key next to a route of its dungeon: which planned pulls were done,
+        skipped or added'
+      tags:
+      - mplus
   /api/mplus/keys/{start}/track:
     get:
       parameters:
@@ -2428,7 +2557,8 @@ paths:
     get:
       description: |-
         The key being played (its clock read now, death penalty included) or, between keys, the last one
-        that ended. The page reads it again on each notice from /api/mplus/events.
+        that ended. The page reads it again on each notice from /api/mplus/events. A running key carries
+        its dungeon's starred route followed so far (route), when the dungeon has one.
       produces:
       - application/json
       responses:

@@ -583,6 +583,8 @@ type KeyView struct {
 	// SilentMS is how long ago the last line of a running key was logged (0 once it's over). The game writes its log
 	// in batches as fights start and end, so a long silence is a long fight, or a party that left.
 	SilentMS int64 `json:"silentMS"`
+	// Route is the dungeon's starred route followed so far, on the running key only (nil without a route).
+	Route *RouteLive `json:"route,omitempty"`
 }
 
 // Cast is a player pressing a tracked button (a defensive, healthstone or potion) at a time (ms) in a fight.
