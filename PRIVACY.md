@@ -1,6 +1,6 @@
 # WoW Live privacy policy
 
-Last updated: November 11, 2026
+Last updated: November 13, 2026
 
 WoW Live runs on your PC and has no accounts, analytics, ads or tracking. The developer receives no data from it.
 
@@ -12,11 +12,12 @@ WoW Live runs on your PC and has no accounts, analytics, ads or tracking. The de
 
 ## What it requests over the internet
 
-WoW Live downloads public game data. None of these requests include your character names or anything from your combat log.
+WoW Live downloads public game data. None of these requests include anything from your combat log, and only Warcraft Logs gets a character name (below).
 
-- **Warcraft Logs** (warcraftlogs.com): top runs for a dungeon, key level and spec to compare against, when you've entered API keys. See Warcraft Logs' own privacy policy.
+- **Warcraft Logs** (warcraftlogs.com), when you've entered API keys: top runs for a dungeon, key level and spec to compare against, and, when you import or look up your own runs, the name and realm of your character, to list its public reports and download their fights. See Warcraft Logs' own privacy policy.
 - **Raider.IO** (raider.io): the season's dungeon timers and this week's affixes, for your region.
-- **Keystone.guru**, through GitHub (raw.githubusercontent.com): dungeon map images.
+- **Keystone.guru**, through GitHub (raw.githubusercontent.com) and assets.keystone.guru: dungeon map images.
+- **Wowhead** (nether.wowhead.com): the text of a spell, when you hover its name.
 - **Warcraft Logs' image server** (assets.rpglogs.com): raid room map images, for the raid replay.
 
 As with any web request, those sites can see your IP address. Each request names WoW Live and its GitHub page.

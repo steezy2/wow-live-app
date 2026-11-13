@@ -17,22 +17,6 @@ import (
 	"wow-live/backend/service"
 )
 
-var (
-	// regions are the regions the app reads affix names for.
-	regions = []string{"us", "eu", "kr", "tw"}
-	// overlayShows are when the overlay shows: during keys, always, or never.
-	overlayShows = []string{"keys", "always", "off"}
-	// overlayColumns are the columns the overlay's cards can show (the page names them).
-	overlayColumns = []string{"dps", "hps", "kicks", "pullDps", "taken", "avoidable", "priority", "dispels", "deaths"}
-)
-
-const (
-	// minOpacity is the overlay background's least opacity in %: 0 leaves only the text over the game.
-	minOpacity = 0
-	// maxAutoDays is the most days each of the auto rule's fields takes.
-	maxAutoDays = 365
-)
-
 // Settings reads and saves the desktop app's settings (app.Settings); only the app serves them.
 type Settings interface {
 	Get() models.SettingsView
@@ -268,16 +252,13 @@ func (s SettingsAPI) Get(c *gin.Context) {
 //	@Router			/api/settings [put]
 func (s SettingsAPI) Put(c *gin.Context) {
 	var next models.Settings
-	err := c.ShouldBindJSON(&next)
+	if err := c.ShouldBindJSON(&next); err != nil {
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: service.ErrBadSettings.Error()})
+		return
+	}
 	next.LogsDir = filepath.Clean(next.LogsDir)
-	if o := next.Overlay; err != nil || !filepath.IsAbs(next.LogsDir) || !slices.Contains(regions, next.Region) ||
-		!slices.Contains(overlayShows, o.Show) || o.Opacity < minOpacity || o.Opacity > 100 || o.Rows < 0 ||
-		slices.ContainsFunc(o.Columns, func(c string) bool { return !slices.Contains(overlayColumns, c) }) ||
-		!autoDays(next.Auto.ArchiveGameLogsDays) || !autoDays(next.Auto.DeleteImportsDays) {
-		c.JSON(http.StatusBadRequest, ErrorResponse{Error: fmt.Sprintf("send a full log folder path, a region (%s), when "+
-			"overlay shows (%s), its opacity (%d to 100), its rows (0 or more), its columns (%s) and the auto rule's "+
-			"days (0 to %d)", strings.Join(regions, ", "), strings.Join(overlayShows, ", "), minOpacity,
-			strings.Join(overlayColumns, ", "), maxAutoDays)})
+	if err := service.ValidateSettings(next); err != nil {
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 		return
 	}
 	before := s.Settings.Get().Settings
@@ -295,11 +276,6 @@ func (s SettingsAPI) Put(c *gin.Context) {
 		s.Import.Stop() // its fights are the old character's
 	}
 	c.JSON(http.StatusOK, s.view())
-}
-
-// autoDays is whether days fits an auto rule's field: 0 (off) to maxAutoDays.
-func autoDays(days int) bool {
-	return days >= 0 && days <= maxAutoDays
 }
 
 // characterFailed answers a character check's error, if any.
@@ -321,9 +297,7 @@ func characterFailed(c *gin.Context, err error) bool {
 
 // view is the settings with the choices to pick from.
 func (s SettingsAPI) view() models.SettingsView {
-	view := s.Settings.Get()
-	view.Regions, view.OverlayShows, view.MinOpacity = regions, overlayShows, minOpacity
-	view.OverlayColumns, view.MaxAutoDays = overlayColumns, maxAutoDays
+	view := service.SettingsChoices(s.Settings.Get())
 	view.CharacterGuess = s.Characters.Guess()
 	return view
 }

@@ -129,10 +129,8 @@ func TestRaidPullDeathsMechanicsAndProgress(t *testing.T) {
 	for _, d := range p.Deaths {
 		early = append(early, d.Early)
 	}
-	if fmt.Sprint(early) != "[true true false]" || p.Deaths[0].Ability != "Caustic Waves" ||
-		len(p.Deaths[0].Recap) != 2 || p.Deaths[0].Recap[1].BeforeMS != 500 {
-		t.Fatalf("deaths = %+v; want the first, one 105 s before the end, not one 20 s before, each with its last "+
-			"hits (ticks too)", p.Deaths)
+	if fmt.Sprint(early) != "[true true false]" || p.Deaths[0].Ability != "Caustic Waves" {
+		t.Fatalf("deaths = %+v; want the first, one 105 s before the end, not one 20 s before", p.Deaths)
 	}
 	if len(p.MassKills) != 1 || p.MassKills[0] != (models.MassKill{Ability: "Caustic Waves", Killed: 2, ClockMS: 10_000}) {
 		t.Fatalf("mass kills = %+v; want Caustic Waves killing 2 at 10 s", p.MassKills)

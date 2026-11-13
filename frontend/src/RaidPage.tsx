@@ -213,7 +213,7 @@ export function RaidPullView({ pull }: { pull: RaidPull }) {
       )}
 
       <div className="raid-columns">
-        <EarlyDeaths pull={pull} classes={classes} onSeek={show} onFocus={setFocus} />
+        <EarlyDeaths pull={pull} track={track ?? null} classes={classes} onSeek={show} onFocus={setFocus} />
         <Mechanics pull={pull} classes={classes} onSeek={show} onFocus={setFocus} />
       </div>
 

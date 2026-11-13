@@ -1,7 +1,9 @@
 import { Fragment, memo, type ReactNode } from 'react'
-import type { PlayerCount, RaidPull } from './api'
+import type { KeyTrack, PlayerCount, RaidPull } from './api'
 import { amount, clock, coverOf, seconds } from './format'
 import { Cover, Spell } from './Spell'
+import { RecapRow } from './HitRecap'
+import { recapOf } from './replay'
 import { At, Name, type Classes } from './Seek'
 
 /** How many raiders a mechanic's line names before it counts the rest. */
@@ -34,9 +36,9 @@ interface CardProps {
   onFocus: (player: string) => void
 }
 
-/** The deaths before the wipe: when (a click shows it in the replay), who, to what, what covered it and the last hits;
- * then each mass kill. */
-export const EarlyDeaths = memo(function EarlyDeaths({ pull, classes, onSeek, onFocus }: CardProps) {
+/** The deaths before the wipe: when (a click shows it in the replay), who, to what and what covered it, each opening
+ * its recap once the track is read; then each mass kill. */
+export const EarlyDeaths = memo(function EarlyDeaths({ pull, track, classes, onSeek, onFocus }: CardProps & { track: KeyTrack | null }) {
   const early = pull.deaths.filter((d) => d.early)
   return (
     <section className="panel">
@@ -45,7 +47,7 @@ export const EarlyDeaths = memo(function EarlyDeaths({ pull, classes, onSeek, on
       </h2>
       <ul className="list">
         {early.map((d, i) => (
-          <li key={`${d.player}-${d.clockMS}-${i}`} className="stack">
+          <RecapRow key={`${d.player}-${d.clockMS}-${i}`} recap={recapOf(track, d.player, d.clockMS)} ready={d.ready}>
             <span>
               <At ms={d.clockMS} onSeek={onSeek} /> <Name player={d.player} classes={classes} onPick={onFocus} />{' '}
               {d.ability ? <Spell name={d.ability} /> : 'unknown'}
@@ -53,9 +55,8 @@ export const EarlyDeaths = memo(function EarlyDeaths({ pull, classes, onSeek, on
             </span>
             <span className="muted small">
               <Cover {...coverOf(d)} />
-              {d.recap.length > 0 && ` · before: ${d.recap.map((h) => `${h.ability} ${amount(h.amount)}`).join(', ')}`}
             </span>
-          </li>
+          </RecapRow>
         ))}
         {early.length === 0 && <li className="muted">None</li>}
       </ul>

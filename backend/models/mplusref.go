@@ -36,8 +36,9 @@ type DungeonFloor struct {
 // DungeonMap is what the replay draws a dungeon on: its floors with map tiles (none for a dungeon Keystone.guru
 // doesn't map), and where parties have walked in its saved runs.
 type DungeonMap struct {
-	Floors []DungeonFloor `json:"floors"`
-	Walked []TrackPoint   `json:"walked"`
+	Floors       []DungeonFloor `json:"floors"`
+	TilesPerSide int            `json:"tilesPerSide"` // tiles a floor is wide and tall
+	Walked       []TrackPoint   `json:"walked"`
 }
 
 // Forces is a dungeon's enemy forces: the total a key needs and each NPC's count (0 for the mobs Mythic Dungeon Tools

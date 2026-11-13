@@ -95,7 +95,7 @@ type keyRun struct {
 	deaths     []models.Death
 	casts      []models.Cast
 	buffs      []models.BuffUp
-	recent     map[string][]hitAt           // player GUID -> their last hits (absorbed ones too), newest last
+	recent     map[string]hitAt             // player GUID -> the last hit they took (absorbed ones too)
 	dead       map[string]bool              // mobs whose death was handled, so its second death line does nothing
 	uncounted  map[int]*models.UncountedNPC // enemies that died without being in the dungeon file, by NPC ID
 	down       map[string]bool              // party members dead in this pull, by name
@@ -311,7 +311,7 @@ func (k *LogTracker) CloseQuiet(now int64) {
 	k.mu.RLock()
 	quiet := now-k.lastAt > quietMS
 	k.mu.RUnlock()
-	if quiet {
+	if quiet { // a line landing before Abandon locks only makes hold resume the key
 		k.Abandon()
 	}
 }
@@ -422,7 +422,7 @@ func (k *LogTracker) start(line models.LogLine) {
 
 // newRun is a run starting with key in the instance the log names (a key's or a raid pull's), with nothing seen yet.
 func newRun(key models.Key, instance string) *keyRun {
-	run := &keyRun{instance: instance, key: key, recent: map[string][]hitAt{}, dead: map[string]bool{},
+	run := &keyRun{instance: instance, key: key, recent: map[string]hitAt{}, dead: map[string]bool{},
 		casting: map[string]*openCast{}, lastKick: map[string]int64{}, debuffs: map[[2]string]int64{},
 		removed: map[[2]string][2]int64{}, uncounted: map[int]*models.UncountedNPC{},
 		down: map[string]bool{}, fighting: map[string]map[int64]bool{}, acting: map[string]map[int64]bool{},
@@ -497,37 +497,18 @@ func (k *LogTracker) closeCurrent(at int64, status string, final int64) {
 func (k *LogTracker) death(at int64, f []string) {
 	run := k.current
 	name, _ := splitName(f[5])
-	var hit hitAt
-	if hits := run.recent[f[4]]; len(hits) > 0 {
-		hit = hits[len(hits)-1]
-	}
+	hit := run.recent[f[4]]
 	run.deaths = append(run.deaths, models.Death{Fight: run.pull, At: at, Player: name, Ability: hit.ability})
 	run.down[name] = true
 	clockMS := k.clockAt(at)
 	run.key.Deaths = append(run.key.Deaths, models.KeyDeath{Player: name, ClockMS: clockMS, Killer: hit.source,
 		Ability: hit.ability})
 	k.deathRecap(run, at, name, clockMS)
-	if run.raid != nil {
-		run.raid.recaps = append(run.raid.recaps, recap(run.recent[f[4]], at))
-	}
 	delete(run.recent, f[4])
 }
 
-// hitAt is a hit a player took.
-type hitAt struct {
-	ability, source string
-	amount, at      int64
-}
-
-// recentHits is how many of a player's last hits a run keeps: the newest is their killer, all of them a raid
-// death's recap.
-const recentHits = 3
-
-// took keeps a hit a player (by GUID) took, dropping the oldest past recentHits.
-func (r *keyRun) took(guid string, hit hitAt) {
-	hits := append(r.recent[guid], hit)
-	r.recent[guid] = hits[max(0, len(hits)-recentHits):]
-}
+// hitAt is a hit a player took: what a death is blamed on.
+type hitAt struct{ ability, source string }
 
 // kill counts a mob's forces when it dies (Creature-0-3882-2859-27547-245336-00006BE4EA: NPC 245336),
 // or keeps an enemy the dungeon file doesn't have at all (bosses aside), so the file can be fixed.
@@ -628,8 +609,7 @@ func (k *LogTracker) event(at int64, event string, f []string) {
 		}
 	case "ENVIRONMENTAL_DAMAGE":
 		if strings.HasPrefix(f[4], "Player-") && len(f) > 9+advancedFields {
-			run.took(f[4], hitAt{ability: f[8+advancedFields], source: "Environment",
-				amount: int64(atoi(f[9+advancedFields])), at: at})
+			run.recent[f[4]] = hitAt{ability: f[8+advancedFields], source: "Environment"}
 		}
 	case "SPELL_DAMAGE", "SPELL_PERIODIC_DAMAGE", "RANGE_DAMAGE", "SWING_DAMAGE", "SPELL_MISSED",
 		"SPELL_PERIODIC_MISSED", "SWING_MISSED", "RANGE_MISSED":
@@ -694,7 +674,7 @@ func (k *LogTracker) damage(at int64, event string, f []string, src, dst string)
 	}
 	amount, source := hitAmount(event, f), unitName(f[1])
 	if strings.HasPrefix(f[4], "Player-") {
-		run.took(f[4], hitAt{ability: ability, source: source, amount: amount, at: at})
+		run.recent[f[4]] = hitAt{ability: ability, source: source}
 	}
 	dealt := src != "" && hasFlag(f[6], hostileFlag)
 	if dealt || (dst != "" && hasFlag(f[2], hostileFlag)) {

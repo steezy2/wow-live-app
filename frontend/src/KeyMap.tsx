@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react'
 import {
   fetchDungeonMap,
   raidMapURL,
-  TILES_PER_SIDE,
   tileURL,
   type DungeonFloor,
   type DungeonMap,
@@ -131,7 +130,7 @@ export function KeyMap(props: {
 }) {
   const { keyView: key, clockMS, track, replay, focus: follow, onFocus: setFollow } = props
   const live = key.status === 'running'
-  const [dungeon, setDungeon] = useState<DungeonMap>({ floors: [], walked: [] })
+  const [dungeon, setDungeon] = useState<DungeonMap>({ floors: [], tilesPerSide: 0, walked: [] })
   const [trail, setTrail] = useState(0)
   const [floor, setFloor] = useState<number | null>(null)
   const [enemy, setEnemy] = useState('')
@@ -149,8 +148,11 @@ export function KeyMap(props: {
   const current = (followed ? lastAt(followed, now)?.map : floor) ?? floors[0]
   const tiled = dungeon.floors.find((f) => f.uiMapID === current)
   const backdrop = useMemo<Backdrop>(
-    () => (tiled ? { kind: 'tiles', floor: tiled, mapID: key.mapID } : { kind: 'walked', walked: dungeon.walked }),
-    [tiled, key.mapID, dungeon.walked],
+    () =>
+      tiled
+        ? { kind: 'tiles', floor: tiled, mapID: key.mapID, perSide: dungeon.tilesPerSide }
+        : { kind: 'walked', walked: dungeon.walked },
+    [tiled, key.mapID, dungeon.tilesPerSide, dungeon.walked],
   )
   const marks: SliderMark[] = [
     ...key.bosses
@@ -222,7 +224,7 @@ const images = new Map<string, HTMLImageElement>()
 /** What a replay draws under the players: a dungeon floor's Keystone.guru tiles, a raid room's map image, or (with
  * neither) the walked area faintly. */
 export type Backdrop =
-  | { kind: 'tiles'; floor: DungeonFloor; mapID: number }
+  | { kind: 'tiles'; floor: DungeonFloor; mapID: number; perSide: number }
   | { kind: 'image'; map: RaidMap }
   | { kind: 'walked'; walked: TrackPoint[] }
 
@@ -350,9 +352,10 @@ export function MapCanvas(props: {
       shown.current = view
       dots.current = []
       if (backdrop.kind === 'tiles') {
-        const [w, h] = [canvas.width / TILES_PER_SIDE, canvas.height / TILES_PER_SIDE]
-        for (let x = 0; x < TILES_PER_SIDE; x++) {
-          for (let y = 0; y < TILES_PER_SIDE; y++) {
+        const { perSide } = backdrop
+        const [w, h] = [canvas.width / perSide, canvas.height / perSide]
+        for (let x = 0; x < perSide; x++) {
+          for (let y = 0; y < perSide; y++) {
             const img = image(tileURL(backdrop.mapID, floor, x, y))
             if (img) ctx.drawImage(img, x * w, y * h, w, h)
           }
