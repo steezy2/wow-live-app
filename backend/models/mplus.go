@@ -314,6 +314,7 @@ type KeyStop struct {
 	Outcome string `json:"outcome" enums:"interrupted,stopped,went off,died"`
 	By      string `json:"by"`
 	IntoMS  int64  `json:"intoMS,omitempty"`
+	Wipe    bool   `json:"wipe,omitempty"` // a raid boss's must-stop that wipes the raid when it goes off
 }
 
 // KeyDispel is a dispellable debuff (the dungeon file's dispel list) on a party member: who removed it and how long

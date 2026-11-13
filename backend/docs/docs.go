@@ -2368,6 +2368,10 @@ const docTemplate = `{
                 },
                 "spell": {
                     "type": "string"
+                },
+                "wipe": {
+                    "description": "a raid boss's must-stop that wipes the raid when it goes off",
+                    "type": "boolean"
                 }
             }
         },
