@@ -21,6 +21,9 @@ const recapTopRuns = 10
 // killed them.
 const recapMates, recapKillers = 8, 5
 
+// recapKeyRows is how many of the newest keys a recap has a row for.
+const recapKeyRows = 30
+
 // SeasonSource gives when the current Mythic+ season starts and ends in a region, the end zero while it runs
 // (raiderio.Client).
 type SeasonSource interface {
@@ -136,7 +139,7 @@ func buildRecap(keys []models.Key, pulls []models.RaidPull, from, to int64, char
 // recapMPlus is the keys' half of a recap (keys newest first), for you.
 func recapMPlus(keys []models.Key, you string) models.RecapMPlus {
 	rc := models.RecapMPlus{Dungeons: []models.RecapDungeon{}, Facts: recapFacts(keys), You: recapYou(keys, you),
-		Averages: recapAverages(keys, you), Party: recapParty(keys, you)}
+		KeyRows: keyRows(keys, you), Party: recapParty(keys, you)}
 	dungeons := map[string][]models.Key{}
 	for _, k := range keys {
 		rc.Keys, rc.TimeMS, rc.Deaths = rc.Keys+1, rc.TimeMS+keyLength(k), rc.Deaths+len(k.Deaths)
@@ -182,55 +185,51 @@ func recapDungeon(name string, runs []models.Key) models.RecapDungeon {
 	return d
 }
 
-// recapAverages is keys' kicks, crowd control, dispels and priority damage per key, the party's and you's (in the keys
-// you played).
-func recapAverages(keys []models.Key, you string) models.RecapAverages {
-	type tally struct {
-		kicks, cc, dispels, keys int
-		priority, damage         float64
-	}
-	var party, yours tally
-	add := func(t *tally, k models.Key, player string) {
-		t.keys++
-		for _, i := range k.Interrupts {
-			if player == "" || i.Player == player {
-				t.kicks++
-			}
-		}
-		for _, c := range k.Casts {
-			if c.Kind == "cc" && (player == "" || c.Player == player) {
-				t.cc++
-			}
-		}
-		kept := slices.ContainsFunc(k.Overall.Rows, func(r models.KeyMeterRow) bool { return r.PriorityDamage > 0 })
-		for _, row := range k.Overall.Rows {
-			if player == "" || row.Player == player {
-				t.dispels += row.Dispels
-				if kept { // no row has any in keys saved before it was kept
-					t.priority, t.damage = t.priority+float64(row.PriorityDamage), t.damage+float64(row.Damage)
-				}
-			}
-		}
-	}
-	for _, k := range keys {
-		add(&party, k, "")
+// keyRows is a row per key (keys newest first), at most recapKeyRows of them: you's numbers and the party's.
+func keyRows(keys []models.Key, you string) []models.RecapKeyRow {
+	absent := models.RecapKeyYou{DPS: -1, HPS: -1,
+		RecapKeyCounts: models.RecapKeyCounts{Kicks: -1, CC: -1, Dispels: -1, PriorityPct: -1}}
+	rows := []models.RecapKeyRow{}
+	for _, k := range keys[:min(len(keys), recapKeyRows)] {
+		row := models.RecapKeyRow{Start: k.Start, Dungeon: k.Dungeon, Level: k.Level, Status: k.Status,
+			Party: keyCounts(k, ""), You: absent}
 		if you != "" && slices.Contains(k.Players, you) {
-			add(&yours, k, you)
+			row.You.RecapKeyCounts = keyCounts(k, you)
+			if i := slices.IndexFunc(k.Overall.Rows, func(r models.KeyMeterRow) bool { return r.Player == you }); i >= 0 {
+				row.You.DPS, row.You.HPS = k.Overall.Rows[i].DPS, k.Overall.Rows[i].HPS
+			}
+		}
+		rows = append(rows, row)
+	}
+	return rows
+}
+
+// keyCounts is player's kicks, crowd control, dispels and priority damage share in k ("" for the whole party's).
+func keyCounts(k models.Key, player string) models.RecapKeyCounts {
+	c := models.RecapKeyCounts{PriorityPct: -1}
+	for _, i := range k.Interrupts {
+		if player == "" || i.Player == player {
+			c.Kicks++
 		}
 	}
-	per := func(t tally) models.RecapPerKey {
-		if t.keys == 0 {
-			return models.RecapPerKey{Kicks: -1, CC: -1, Dispels: -1, PriorityPct: -1}
+	for _, cast := range k.Casts {
+		if cast.Kind == "cc" && (player == "" || cast.Player == player) {
+			c.CC++
 		}
-		n := float64(t.keys)
-		p := models.RecapPerKey{Kicks: float64(t.kicks) / n, CC: float64(t.cc) / n, Dispels: float64(t.dispels) / n,
-			PriorityPct: -1}
-		if t.damage > 0 {
-			p.PriorityPct = 100 * t.priority / t.damage
-		}
-		return p
 	}
-	return models.RecapAverages{Party: per(party), You: per(yours)}
+	var priority, damage float64
+	for _, row := range k.Overall.Rows {
+		if player == "" || row.Player == player {
+			c.Dispels += row.Dispels
+			priority, damage = priority+float64(row.PriorityDamage), damage+float64(row.Damage)
+		}
+	}
+	// No row has any in keys saved before it was kept.
+	kept := slices.ContainsFunc(k.Overall.Rows, func(r models.KeyMeterRow) bool { return r.PriorityDamage > 0 })
+	if kept && damage > 0 {
+		c.PriorityPct = 100 * priority / damage
+	}
+	return c
 }
 
 // recapParty is who you ran keys (newest first) with most, at most recapMates of them, each by name with their latest

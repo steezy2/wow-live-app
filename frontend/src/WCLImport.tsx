@@ -74,7 +74,7 @@ export function WCLImport({ view, onSaved }: { view: SettingsView; onSaved: (vie
   if (!status) return null
   const saved = view.character !== '' && view.character === character.trim()
   return (
-    <section className="panel settings">
+    <section id="settings-import" className="panel settings">
       <h2>Import from Warcraft Logs</h2>
       <p className="muted">
         Saves the Mythic+ keys and raid boss pulls of this season and raid that a character's Warcraft Logs reports
