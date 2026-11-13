@@ -1485,6 +1485,23 @@ const docTemplate = `{
                 }
             }
         },
+        "models.BuffGap": {
+            "type": "object",
+            "properties": {
+                "buff": {
+                    "type": "string"
+                },
+                "fromMS": {
+                    "type": "integer"
+                },
+                "player": {
+                    "type": "string"
+                },
+                "toMS": {
+                    "type": "integer"
+                }
+            }
+        },
         "models.Character": {
             "type": "object",
             "properties": {
@@ -2569,6 +2586,13 @@ const docTemplate = `{
                         "$ref": "#/definitions/models.KeyBoss"
                     }
                 },
+                "buffGaps": {
+                    "description": "BuffGaps is each player's flask, food or party buff missing at the key's start (from 0) and each that came off them\nfor a while, in order: there from Nov 12, once the log is read again.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.BuffGap"
+                    }
+                },
                 "buffs": {
                     "type": "array",
                     "items": {
@@ -3192,23 +3216,6 @@ const docTemplate = `{
                 }
             }
         },
-        "models.RaidMissing": {
-            "type": "object",
-            "properties": {
-                "buff": {
-                    "type": "string"
-                },
-                "fromMS": {
-                    "type": "integer"
-                },
-                "player": {
-                    "type": "string"
-                },
-                "toMS": {
-                    "type": "integer"
-                }
-            }
-        },
         "models.RaidNight": {
             "type": "object",
             "properties": {
@@ -3317,7 +3324,7 @@ const docTemplate = `{
                     "description": "BuffGaps is each raider's flask, food, Vantus Rune, tier bonus or raid buff missing at the pull's start (from 0)\nand each flask, food or raid buff that came off them in the pull for a while, in order; missing before Nov 12.",
                     "type": "array",
                     "items": {
-                        "$ref": "#/definitions/models.RaidMissing"
+                        "$ref": "#/definitions/models.BuffGap"
                     }
                 },
                 "casts": {

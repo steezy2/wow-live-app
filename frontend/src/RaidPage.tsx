@@ -6,7 +6,8 @@ import { MeterCard } from './MeterCards'
 import { ReportLinks, ReportTag } from './ReportLinks'
 import { fightTabs, type FightData } from './KeyTabs'
 import { PlayerTable } from './PlayerTable'
-import { BuffGaps, EarlyDeaths, Mechanics } from './RaidCards'
+import { BuffGaps } from './BuffGaps'
+import { EarlyDeaths, Mechanics } from './RaidCards'
 import { FightMeters, NoAbilities } from './FightMeters'
 import { Name, type Seeker } from './Seek'
 import { SideGroups } from './SideGroups'
@@ -316,7 +317,7 @@ function PullTabs({ pull, seek, track }: { pull: RaidPull; seek: Seeker; track: 
   if (missing > 0) {
     tabs.push({
       name: `Buffs ${missing}`,
-      body: <BuffGaps pull={pull} classes={seek.classes} onSeek={seek.onSeek} onFocus={seek.onFocus} />,
+      body: <BuffGaps gaps={pull.buffGaps ?? []} endMS={pull.durationMS} players={pull.players.length} seek={seek} />,
     })
   }
   return (

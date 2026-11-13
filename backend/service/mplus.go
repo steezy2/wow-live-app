@@ -129,6 +129,7 @@ type keyRun struct {
 	inPull     map[string]*models.KeyMeterRow
 	lastPull   models.KeyMeter
 	raid       *raidRun                         // nil for a key
+	buffGaps   buffTrack                        // flask, food and party buffs that came off
 	abilities  map[[2]string]*models.KeyAbility // (player, ability) -> what it did
 	takenBy    map[[2]string]int64              // (player, ability) -> damage taken from it
 	sample     abilitySampler                   // what the replay's focus bars keep
@@ -431,6 +432,7 @@ func newRun(key models.Key, instance string) *keyRun {
 		takenAt: map[int64]map[[2]string]*models.SpikeCause{}, hits: newHitWatch(),
 		sample: abilitySampler{every: mplusAbilityEveryMS, abilitiesWere: map[[2]string]models.KeyAbility{},
 			takenWere: map[[2]string]int64{}, targetsWere: map[[2]string]int64{}, casting: map[string]int{}}}
+	run.buffGaps = newBuffTrack()
 	run.track.Casts, run.track.Abilities = map[string][]models.TrackCast{}, map[string][]models.AbilitySeries{}
 	run.track.TargetSeries = map[string][]models.AbilitySeries{}
 	return run
@@ -563,7 +565,19 @@ func (k *LogTracker) event(at int64, event string, f []string) {
 	if src != "" && strings.HasPrefix(f[0], "Player-") && activity[event] {
 		mark(run.acting, src, at/1000, at/1000+1) // a cast or hit covers about a global cooldown
 	}
+	if dst != "" && len(f) > 11 && f[11] == "BUFF" {
+		switch event {
+		case "SPELL_AURA_APPLIED", "SPELL_AURA_REFRESH":
+			k.buffChanged(run, k.clockAt(at), dst, atoi(f[8]), f[9], true)
+		case "SPELL_AURA_REMOVED":
+			k.buffChanged(run, k.clockAt(at), dst, atoi(f[8]), f[9], false)
+		}
+	}
 	switch event {
+	case "SPELL_RESURRECT":
+		if dst != "" {
+			run.buffGaps.rezzed[dst] = append(run.buffGaps.rezzed[dst], k.clockAt(at))
+		}
 	case "SPELL_AURA_APPLIED":
 		if n := len(run.key.Lusts); dst != "" && len(f) > 9 && slices.Contains(k.rules.Lust.Names, f[9]) &&
 			(n == 0 || k.clockAt(at)-run.key.Lusts[n-1] > lustMS) {

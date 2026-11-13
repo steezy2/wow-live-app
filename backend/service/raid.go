@@ -79,15 +79,9 @@ type raidRun struct {
 	pickups   []models.RaidPickup
 	openWaves map[string]int
 	holds     map[spellOn]bool
-	// Raiders dead now and when each was brought back (on the pull's clock), each raider's buff gap open (raider and
-	// kind -> since), when each kind first came up on them, and the gaps closed.
-	dead    map[string]bool
-	rezzed  map[string][]int64
-	gapFrom map[[2]string]int64
-	firstUp map[[2]string]int64
-	gaps    []models.RaidMissing
-	breaks  []breakAt
-	causes  map[int]*causeAt // spawn cause spell ID -> its last landing
+	dead      map[string]bool // raiders dead now
+	breaks    []breakAt
+	causes    map[int]*causeAt // spawn cause spell ID -> its last landing
 	// For spawn rules with a lost aura: when each such aura last came off a raider and each cause last landed on one,
 	// and the raiders who lost one as its cause landed, in order (spawners).
 	lostAt, landedAt map[spellOn]int64
@@ -194,8 +188,7 @@ func (k *LogTracker) startPull(line models.LogLine) {
 		priority: map[string]int64{}, lustEnds: map[int64]int64{}, marks: map[lane][]models.RaidMark{},
 		causes: map[int]*causeAt{}, lostAt: map[spellOn]int64{}, landedAt: map[spellOn]int64{},
 		pickups: []models.RaidPickup{}, openWaves: map[string]int{}, holds: map[spellOn]bool{},
-		dead: map[string]bool{}, rezzed: map[string][]int64{}, gapFrom: map[[2]string]int64{},
-		firstUp: map[[2]string]int64{}}
+		dead: map[string]bool{}}
 	run.sample.every = abilityEveryMS
 	if len(run.raid.phases) > 0 {
 		run.raid.phase = "P1"
@@ -287,7 +280,7 @@ func (k *LogTracker) raidLine(line models.LogLine) bool {
 	case "SPELL_RESURRECT":
 		if victim != "" {
 			delete(r.dead, victim)
-			r.rezzed[victim] = append(r.rezzed[victim], run.clock(at))
+			run.buffGaps.rezzed[victim] = append(run.buffGaps.rezzed[victim], run.clock(at))
 		}
 	case "SPELL_CAST_SUCCESS":
 		if who := k.player(f[0], f[2]); who != "" && len(f) > 9 && k.raidCooldown(f[0], f[9]) &&

@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from 'react'
 import type { KeyForces, KeyGhost, KeyReview as Review, KeyTrack, KeyView } from './api'
 import { chestLabel, clock, oddsText, pullTitle, resultText, share } from './format'
 import { DamageGraph } from './DamageGraph'
+import { BuffGaps } from './BuffGaps'
 import { BossList, PriorityLedger } from './KeyLedgers'
 import { lanesOf } from './events'
 import { fightTabs } from './KeyTabs'
@@ -13,7 +14,7 @@ import { useReplay, useTrack } from './replay'
 import { RaidLanes } from './RaidReplay'
 import { ReportLinks } from './ReportLinks'
 import { Tabs } from './Tabs'
-import { Who, type Seeker } from './Seek'
+import { type Seeker } from './Seek'
 
 /** The result's icon, so it doesn't rest on colour alone. */
 const resultIcon: Record<KeyView['status'], string> = {
@@ -209,20 +210,8 @@ export function KeyDetails({
             body: <PriorityLedger keyView={key} />,
           },
           {
-            name: `Buffs ${key.buffs.length}`,
-            body: (
-              <ul className="list scroll">
-                {key.buffs.map((b) => (
-                  <li key={b.player} className="stack">
-                    <Who player={b.player} seek={seek} />
-                    <span className="muted">{b.missing.join(', ')}</span>
-                  </li>
-                ))}
-                {key.buffs.length === 0 && (
-                  <li className="muted">Everyone had their flask, food, rune and party buffs</li>
-                )}
-              </ul>
-            ),
+            name: `Buffs ${new Set(key.buffGaps?.map((g) => g.buff)).size}`,
+            body: <BuffGaps gaps={key.buffGaps ?? []} endMS={clockMS} players={key.players.length} seek={seek} />,
           },
           {
             name: 'Bosses',

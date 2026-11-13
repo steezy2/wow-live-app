@@ -229,6 +229,7 @@ func (k *LogTracker) details(run *keyRun, at int64) models.Key {
 	if run.raid != nil {
 		return key
 	}
+	key.BuffGaps = k.buffGaps(run, key.Buffs, key.Deaths, run.clock(at))
 	key.Pulls = priorityPulls(run)
 	key.LastPull = run.lastPull
 	if len(run.inPull) > 0 {

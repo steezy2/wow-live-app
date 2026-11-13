@@ -593,7 +593,7 @@ func TestMissingWindows(t *testing.T) {
 	if _, err := keys.SaveFinished(); err != nil {
 		t.Fatal(err)
 	}
-	var got []models.RaidMissing
+	var got []models.BuffGap
 	for _, g := range store.pulls[0].BuffGaps {
 		if g.FromMS > 0 { // the start check's gaps are TestRaidBuffGapsAtThePull's
 			got = append(got, g)

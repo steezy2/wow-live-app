@@ -234,12 +234,12 @@ type RaidPull struct {
 	Activity    map[string]float64 `json:"activity,omitempty"`
 	// BuffGaps is each raider's flask, food, Vantus Rune, tier bonus or raid buff missing at the pull's start (from 0)
 	// and each flask, food or raid buff that came off them in the pull for a while, in order; missing before Nov 12.
-	BuffGaps []RaidMissing `json:"buffGaps,omitempty"`
+	BuffGaps []BuffGap `json:"buffGaps,omitempty"`
 }
 
-// RaidMissing is a raider without a buff ("flask", "Arcane Intellect", "2-set") from FromMS to ToMS on the pull's
-// clock (ToMS is the pull's end when it never came back).
-type RaidMissing struct {
+// BuffGap is a player without a buff ("flask", "Arcane Intellect", "2-set") from FromMS to ToMS on the pull's or key's
+// clock (ToMS is its end when it never came back).
+type BuffGap struct {
 	Player string `json:"player"`
 	Buff   string `json:"buff"`
 	FromMS int64  `json:"fromMS"`

@@ -40,6 +40,9 @@ type Key struct {
 	LastPull  KeyMeter       `json:"lastPull"`
 	Overall   KeyMeter       `json:"overall"`
 	Buffs     []KeyBuffCheck `json:"buffs"`
+	// BuffGaps is each player's flask, food or party buff missing at the key's start (from 0) and each that came off them
+	// for a while, in order: there from Nov 12, once the log is read again.
+	BuffGaps []BuffGap `json:"buffGaps,omitempty"`
 	// Abilities is each player's damage, healing and casts by ability, and Taken their damage taken by ability, most
 	// first: there once the key is over, and missing in keys saved before Nov 10.
 	Abilities []KeyAbility `json:"abilities,omitempty"`

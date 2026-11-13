@@ -256,6 +256,8 @@ export interface KeyView {
   /** Each player's share of their time alive in pulls with a cast going or a hit landing (%). */
   activity?: Record<string, number>
   buffs: KeyBuffCheck[]
+  /** What was missing at the start or came off for a while; missing in keys read before Nov 12. */
+  buffGaps?: BuffGap[]
   clockMS: number
   /** Time the deaths added to the clock. */
   penaltyMS: number
@@ -1024,7 +1026,7 @@ export interface RaidPull extends RaidPullSummary {
   activity?: Record<string, number>
   /** Each raider's flask, food, Vantus Rune, tier bonus or raid buff missing at the pull's start (from 0) and each
    * flask, food or raid buff that came off them for a while, in order (missing before Nov 12). */
-  buffGaps?: RaidMissing[]
+  buffGaps?: BuffGap[]
   /** What raiders picked up (eggs), a wave per line, with the living raiders who missed something everyone should
    * pick up (missed); tethers they broke and the effect each set off. */
   pickups?: { clockMS: number; name: string; players: string[]; missed?: string[] }[]
@@ -1059,9 +1061,9 @@ export interface RaidPull extends RaidPullSummary {
   targets?: { player: string; target: string; damage: number }[]
 }
 
-/** A raider without a buff ("flask", "Arcane Intellect", "2-set") from fromMS to toMS on the pull's clock (toMS is
- * the pull's end when it never came back). */
-export interface RaidMissing {
+/** A player without a buff ("flask", "Arcane Intellect", "2-set") from fromMS to toMS on the key's or pull's clock
+ * (toMS is its end when it never came back). */
+export interface BuffGap {
   player: string
   buff: string
   fromMS: number

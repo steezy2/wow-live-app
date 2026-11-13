@@ -2,6 +2,7 @@ package service
 
 import (
 	"cmp"
+	"fmt"
 	"io/fs"
 	"reflect"
 	"slices"
@@ -545,5 +546,36 @@ func TestKeepPullMarksEveryAliveMemberEachSecond(t *testing.T) {
 	want := map[string]map[int64]bool{"a": {1: true}, "a2": {1: true, 2: true, 3: true}, "b": {2: true, 3: true}}
 	if !reflect.DeepEqual(run.fighting, want) {
 		t.Errorf("fighting = %v, want %v", run.fighting, want)
+	}
+}
+
+func TestAKeysBuffGapsAreWhatCameOffAndWhatWasMissingFromTheStart(t *testing.T) {
+	keys := newTracker(t, nil)
+	const shaman = `Player-76-0000BBBB,"Testshaman-Sargeras-US",0x512,0x80000000`
+	info := func(guid, spec, auras string) string {
+		return `11/4/2026 19:01:00.000-7  COMBATANT_INFO,` + guid + `,1,` + strings.Repeat("0,", 22) + spec +
+			`,[(1,2,1)],(0,0,0),[],[],[` + auras + `]`
+	}
+	aura := func(s int, event, unit string, id int, name string) string {
+		return fmt.Sprintf(`11/4/2026 19:01:%02d.000-7  %s,%s,%s,%d,"%s",0x40,BUFF`, s, event, unit, unit, id, name)
+	}
+	feed(t, keys,
+		`11/4/2026 19:01:00.000-7  CHALLENGE_MODE_START,"Voidscar Arena",2923,585,10,[9]`,
+		info("Player-76-0000AAAA", "62", "Player-76-0000AAAA,1459,1"),
+		info("Player-76-0000BBBB", "262", "Player-76-0000BBBB,462854,1"),
+		aura(30, "SPELL_AURA_APPLIED", shaman, 1459, "Arcane Intellect"), // missing from the start until now
+		aura(20, "SPELL_AURA_REMOVED", testPlayer, 1459, "Arcane Intellect"),
+		aura(40, "SPELL_AURA_APPLIED", testPlayer, 1459, "Arcane Intellect"),
+		`11/4/2026 19:03:00.000-7  CHALLENGE_MODE_END,2923,1,10,111000,100.0,3000.0`,
+	)
+	got, _ := keys.Latest(0)
+	var gaps []models.BuffGap
+	for _, g := range got.BuffGaps {
+		if g.Buff == "Arcane Intellect" {
+			gaps = append(gaps, g)
+		}
+	}
+	if fmt.Sprint(gaps) != "[{Testshaman Arcane Intellect 0 21000} {Testmage Arcane Intellect 11000 31000}]" {
+		t.Errorf("Arcane Intellect gaps = %v; want the shaman's start until it landed, and the mage's 20 s", gaps)
 	}
 }

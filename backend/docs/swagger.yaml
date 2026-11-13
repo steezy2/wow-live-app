@@ -58,6 +58,17 @@ definitions:
       name:
         type: string
     type: object
+  models.BuffGap:
+    properties:
+      buff:
+        type: string
+      fromMS:
+        type: integer
+      player:
+        type: string
+      toMS:
+        type: integer
+    type: object
   models.Character:
     properties:
       class:
@@ -820,6 +831,13 @@ definitions:
         items:
           $ref: '#/definitions/models.KeyBoss'
         type: array
+      buffGaps:
+        description: |-
+          BuffGaps is each player's flask, food or party buff missing at the key's start (from 0) and each that came off them
+          for a while, in order: there from Nov 12, once the log is read again.
+        items:
+          $ref: '#/definitions/models.BuffGap'
+        type: array
       buffs:
         items:
           $ref: '#/definitions/models.KeyBuffCheck'
@@ -1265,17 +1283,6 @@ definitions:
       text:
         type: string
     type: object
-  models.RaidMissing:
-    properties:
-      buff:
-        type: string
-      fromMS:
-        type: integer
-      player:
-        type: string
-      toMS:
-        type: integer
-    type: object
   models.RaidNight:
     properties:
       night:
@@ -1354,7 +1361,7 @@ definitions:
           BuffGaps is each raider's flask, food, Vantus Rune, tier bonus or raid buff missing at the pull's start (from 0)
           and each flask, food or raid buff that came off them in the pull for a while, in order; missing before Nov 12.
         items:
-          $ref: '#/definitions/models.RaidMissing'
+          $ref: '#/definitions/models.BuffGap'
         type: array
       casts:
         items:
