@@ -6,6 +6,8 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 
 ### Fixed
 - Switching quickly between the bottom tabs or between saved keys no longer shifts the page: the scrollbar's space is kept, the left bar stays put, and a saved key fades in once its track is read instead of showing the previous key and then popping in piece by piece.
+- The left list of keys no longer hangs 32 px below the window (its padding was outside its height), so its end shows without scrolling the page, and it stays put when the tabs change.
+- A death's or big hit's recap fills each event green to the player's health after it, in place of the tiny line graph. The recap arrow is an accent-coloured button and no longer overlaps the row's text in *Defensives and potions*.
 
 ## [0.4.1] - 2026-11-12
 

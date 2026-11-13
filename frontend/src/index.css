@@ -235,6 +235,7 @@ h2 {
   flex-direction: column;
   gap: 6px;
   overflow-y: auto;
+  box-sizing: border-box; /* the padding is inside the max-height, or the list's end hangs below the window */
   max-height: calc(100vh - var(--nav));
   position: sticky;
   top: var(--nav);
@@ -1590,19 +1591,23 @@ button.link {
   font-weight: 600;
 }
 
-.recap-hp {
-  width: 100%;
-  height: 24px;
+.recap-rows li[style] {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--good) 30%, transparent) var(--hp), transparent var(--hp));
 }
 
-.recap-row {
+.list li.recap-row {
   position: relative;
-  padding-left: 28px;
+  padding-left: 40px;
   cursor: pointer;
 }
 
 .recap-row > .back {
   position: absolute;
-  left: 0;
-  top: 0;
+  left: 8px;
+  top: 5px;
+  width: 22px;
+  padding: 0;
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--panel-2);
 }
