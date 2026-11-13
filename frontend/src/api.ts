@@ -762,13 +762,24 @@ export interface Recap {
   raid: RecapRaid
 }
 
-/** An average per key; each -1 when no key in the period had it (models.RecapPerKey). */
-export interface RecapPerKey {
+/** A key's counts; each -1 when not known (models.RecapKeyCounts). */
+export interface RecapKeyCounts {
   kicks: number
   cc: number
   dispels: number
   /** The share of damage into minibosses and bosses, in %. */
   priorityPct: number
+}
+
+/** One key in a recap, opened by its start: the character's numbers (-1 when not in it) and the party's
+ * (models.RecapKeyRow). */
+export interface RecapKeyRow {
+  start: number
+  dungeon: string
+  level: number
+  status: 'running' | 'timed' | 'depleted' | 'abandoned'
+  you: RecapKeyCounts & { dps: number; hps: number }
+  party: RecapKeyCounts
 }
 
 /** A recap's keys (models.RecapMPlus). */
@@ -781,7 +792,8 @@ export interface RecapMPlus {
   timeMS: number
   /** The party's. */
   deaths: number
-  averages: { party: RecapPerKey; you: RecapPerKey }
+  /** Newest first, the latest few only. */
+  keyRows: RecapKeyRow[]
   /** Most run first (models.RecapDungeon). */
   dungeons: RecapDungeon[]
   /** The character the recap is for; missing when no key says. */

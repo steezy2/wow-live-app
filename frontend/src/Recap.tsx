@@ -7,7 +7,8 @@ import {
   type Recap as RecapData,
   type RecapDungeon,
   type RecapMPlus,
-  type RecapPerKey,
+  type RecapKeyCounts,
+  type RecapKeyRow,
   type RecapPeriod,
   type RecapRaid,
   type RecapTopTime,
@@ -120,21 +121,24 @@ function Tiles({ tiles }: { tiles: [string, string][] }) {
   )
 }
 
-/** The per-key averages the Mythic+ tab shows: label, field, decimals. */
-const AVERAGES: [string, keyof RecapPerKey, number][] = [
-  ['Kicks', 'kicks', 1],
-  ['CC', 'cc', 1],
-  ['Dispels', 'dispels', 1],
-  ['Priority damage %', 'priorityPct', 0],
+/** A key row's counts, label and field, each showing yours with the party's beside it. */
+const KEY_COUNTS: [string, keyof RecapKeyCounts][] = [
+  ['Kicks', 'kicks'],
+  ['CC', 'cc'],
+  ['Dispels', 'dispels'],
+  ['Priority %', 'priorityPct'],
 ]
 
-/** A per-key average, "–" when no key had it. */
-function perKey(n: number, digits: number): string {
-  return n < 0 ? '–' : n.toFixed(digits)
+/** The key rows' columns: the key, DPS, HPS, then each count with the party's. */
+const KEY_GRID = { gridTemplateColumns: `minmax(140px, 1fr) repeat(2, 56px) repeat(${KEY_COUNTS.length}, 80px)` }
+
+/** A number of a key, "–" when not known (-1). */
+function perKey(n: number, show: (n: number) => string = (n) => n.toFixed(0)): string {
+  return n < 0 ? '–' : show(n)
 }
 
 /** The Mythic+ tab: tiles, a card per dungeon (top: Warcraft Logs' top runs, undefined while loading, null without
- * Warcraft Logs keys), the averages per key, the character, who they ran with, and facts that open their key. */
+ * Warcraft Logs keys), a row per key, the character, who they ran with, and facts that open their key. */
 function MPlusRecap({ r, top, onOpen }: { r: RecapMPlus; top?: RecapTopTime[] | null; onOpen: Open }) {
   if (r.keys === 0) return <p className="muted">No keys in this period</p>
   const you = r.you
@@ -155,21 +159,7 @@ function MPlusRecap({ r, top, onOpen }: { r: RecapMPlus; top?: RecapTopTime[] | 
         ))}
       </div>
       <div className="cards compact">
-        <section className="card small per-key">
-          <h3>Per key</h3>
-          <div className="card-row card-head muted">
-            <span />
-            <span>Party</span>
-            <span>You</span>
-          </div>
-          {AVERAGES.map(([name, field, digits]) => (
-            <div key={field} className="card-row">
-              <span className="name">{name}</span>
-              <span>{perKey(r.averages.party[field], digits)}</span>
-              <span>{perKey(r.averages.you[field], digits)}</span>
-            </div>
-          ))}
-        </section>
+        <KeyRows rows={r.keyRows} onOpen={onOpen} />
         {you && (
           <section className="card small">
             <h3>{you.character}</h3>
@@ -223,6 +213,44 @@ function MPlusRecap({ r, top, onOpen }: { r: RecapMPlus; top?: RecapTopTime[] | 
         </section>
       )}
     </>
+  )
+}
+
+/** A row per key, newest first, each opening its key (onOpen): your DPS and HPS, then your counts with the party's
+ * muted beside them. One card across the whole row that scrolls. */
+function KeyRows({ rows, onOpen }: { rows: RecapKeyRow[]; onOpen: Open }) {
+  return (
+    <section className="card small" style={{ gridColumn: '1 / -1' }}>
+      <h3>Keys</h3>
+      <div className="card-scroll" style={{ maxHeight: 360, overflowY: 'auto' }}>
+        <div className="card-table">
+          <div className="card-row card-head muted" style={KEY_GRID}>
+            <span>Key</span>
+            <span>DPS</span>
+            <span>HPS</span>
+            {KEY_COUNTS.map(([label]) => (
+              <span key={label}>{label}</span>
+            ))}
+          </div>
+          {rows.map((k) => (
+            <div key={k.start} className="card-row" style={KEY_GRID}>
+              <span className="name">
+                <button className="link" onClick={() => onOpen('mplus', k.start)}>
+                  {k.dungeon} <span className={k.status === 'timed' ? 'good' : 'bad'}>+{k.level}</span>
+                </button>
+              </span>
+              <span>{perKey(k.you.dps, amount)}</span>
+              <span>{perKey(k.you.hps, amount)}</span>
+              {KEY_COUNTS.map(([label, field]) => (
+                <span key={label}>
+                  {perKey(k.you[field])} <span className="muted small">{perKey(k.party[field])}</span>
+                </span>
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
   )
 }
 
