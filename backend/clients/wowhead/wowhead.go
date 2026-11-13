@@ -1,6 +1,7 @@
 // Package wowhead reads Wowhead's Mythic+ dungeon overviews for the facts they tag: the important interrupts,
 // dispels and purges table and the boss tips. Only spell IDs, mob names and tags are kept, never the guide's text
-// (CLAUDE.md: store facts and links). Pages are cached in CacheDir.
+// (CLAUDE.md: store facts and links). Pages are cached in CacheDir. Spell tooltips (Spell) are the one text served: a
+// hovered ability's description, cached locally and never written to reference/.
 package wowhead
 
 import (

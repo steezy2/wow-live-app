@@ -552,3 +552,33 @@ func TestRecapNeedsASpan(t *testing.T) {
 		}
 	}
 }
+
+type fakeSpells struct{}
+
+func (fakeSpells) Info(_ context.Context, name string) (models.SpellInfo, error) {
+	if name == "Icebound Fortitude" {
+		return models.SpellInfo{ID: 48792, Name: name, Cooldown: "2 min cooldown"}, nil
+	}
+	return models.SpellInfo{}, service.ErrUnknownSpell
+}
+
+func TestSpellAnswersByAbilityName(t *testing.T) {
+	for _, tc := range []struct {
+		url  string
+		code int
+	}{
+		{"/api/spells?name=Icebound+Fortitude", http.StatusOK},
+		{"/api/spells?name=Nothing", http.StatusNotFound},
+		{"/api/spells", http.StatusBadRequest},
+	} {
+		router := Router(MPlus{Keys: &fakeKeys{}, Now: time.Now, Spells: fakeSpells{}}, nil, nil,
+			os.DirFS(t.TempDir()), LocalHosts(port)...)
+		r := httptest.NewRequest(http.MethodGet, tc.url, nil)
+		r.Host = "localhost:8080"
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, r)
+		if w.Code != tc.code {
+			t.Errorf("%s: %d %s; want %d", tc.url, w.Code, w.Body, tc.code)
+		}
+	}
+}

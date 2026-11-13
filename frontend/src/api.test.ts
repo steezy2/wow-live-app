@@ -1,5 +1,5 @@
 import { afterEach, expect, test, vi } from 'vitest'
-import { FALLBACK_POLL_MS, subscribe } from './api'
+import { FALLBACK_POLL_MS, fetchSpell, subscribe } from './api'
 
 class FakeEventSource {
   static last: FakeEventSource
@@ -42,4 +42,23 @@ test('subscribe reads now and on each change, polls while the stream is down and
   expect(onChange).toHaveBeenCalledTimes(6)
   unsubscribe()
   expect(source.closed).toBe(true)
+})
+
+test('fetchSpell asks once for an answer, keeps an unknown ability, and asks again after a failure', async () => {
+  const answers = [
+    new Response(JSON.stringify({ id: 1, name: 'Alter Time', description: 'x' })),
+    new Response('{}', { status: 404 }),
+    new Response('{}', { status: 502 }),
+    new Response(JSON.stringify({ id: 3, name: 'Barkskin', description: 'y' })),
+  ]
+  const fetchMock = vi.fn(async () => answers.shift() as Response)
+  vi.stubGlobal('fetch', fetchMock)
+  expect((await fetchSpell('Alter Time'))?.id).toBe(1)
+  expect((await fetchSpell('Alter Time'))?.id).toBe(1)
+  expect(await fetchSpell('Septic Spatter')).toBeNull()
+  expect(await fetchSpell('Septic Spatter')).toBeNull()
+  expect(fetchMock).toHaveBeenCalledTimes(2)
+  expect(await fetchSpell('Barkskin')).toBeNull()
+  expect((await fetchSpell('Barkskin'))?.id).toBe(3)
+  expect(fetchMock).toHaveBeenCalledTimes(4)
 })

@@ -16,6 +16,7 @@ import { topMeter, useRaidTrack, useReplay } from './replay'
 import { Tabs } from './Tabs'
 import { useNow, useRaidLive } from './useLiveKey'
 import { Skeleton } from './Skeleton'
+import { tip } from './tipAttrs'
 import { WaitingCard } from './WaitingCard'
 import { localDay, raidTonight } from './waiting'
 
@@ -263,7 +264,7 @@ export function RaidOverlayCard({ pull, rows = 0 }: { pull: RaidPull; rows?: num
         <div className="bar" role="img" aria-label={`the boss at ${Math.round(pull.bossPct)}%`}>
           <div className={pull.kill ? 'fill ahead' : 'fill'} style={{ width: `${100 - pull.bossPct}%` }} />
           {best && best.bossPct >= 0 && (
-            <div className="mark" style={{ left: `${100 - best.bossPct}%` }} title="tonight's best pull" />
+            <div className="mark" style={{ left: `${100 - best.bossPct}%` }} {...tip("tonight's best pull")} />
           )}
         </div>
       )}

@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import type { KeyHit, KeyTrack, KeyView } from './api'
 import type { FightData } from './KeyTabs'
-import { amount, causesText, clock, coverText, groupBy } from './format'
+import { amount, causesText, clock, coverOf, groupBy } from './format'
+import { Cover, Spell } from './Spell'
 import { defense, offense } from './meterColumns'
 import { RecapRow } from './HitRecap'
 import { MeterCard } from './MeterCards'
@@ -195,7 +196,7 @@ export function SpikeLedger(props: { data: FightData; group: 'party' | 'raid'; s
             {s.causes?.length ? <span>{causesText(s)}</span> : null}
             {s.members.map((m) => (
               <span key={m.player} className="muted">
-                {m.player} {amount(m.taken)}: {coverText(m)}
+                {m.player} {amount(m.taken)}: <Cover {...coverOf(m)} />
               </span>
             ))}
           </li>
@@ -227,7 +228,7 @@ export function BigHits({ data, seek, track }: { data: FightData; seek?: Seeker;
             {Math.round(h.pct)}%){h.died && <b className="bad"> died</b>}
           </span>
           <span className="muted">
-            {causesText({ damage: h.taken, causes: h.causes })} &middot; {coverText(h)}
+            {causesText({ damage: h.taken, causes: h.causes })} &middot; <Cover {...coverOf(h)} />
           </span>
         </RecapRow>
       ))}
@@ -268,7 +269,9 @@ export function Avoidable({ data, seek }: { data: FightData; seek?: Seeker }) {
                 .sort((a, b) => b.damage - a.damage)
                 .map((h) => (
                   <div key={h.ability} className="card-row">
-                    <span className="name">{h.ability}</span>
+                    <span className="name">
+                      <Spell name={h.ability} />
+                    </span>
                     <span>{amount(h.damage)}</span>
                     <span className="muted">{h.hits > 0 && `(${h.hits})`}</span>
                   </div>

@@ -4,6 +4,7 @@ import { chestLabel, clock, counted } from './format'
 import { ReportTag } from './ReportLinks'
 import { SideGroups } from './SideGroups'
 import { Skeleton } from './Skeleton'
+import { tip } from './tipAttrs'
 
 /** The side panel: the live key, then every saved key by day, or by week past the last 7 days (pick one to open it,
  * × to delete it, or clear them all).
@@ -62,7 +63,12 @@ export function SavedKeys({ selected, onSelect, refresh, character }: {
                 </span>
               </button>
               {k.report && <ReportTag link={k.report} imported={k.imported} />}
-              <button className="delete" title="Delete this key" onClick={() => remove(k.start)}>
+              <button
+                className="delete"
+                aria-label="Delete this key"
+                {...tip('Delete this key')}
+                onClick={() => remove(k.start)}
+              >
                 ×
               </button>
             </div>

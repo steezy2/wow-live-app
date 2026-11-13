@@ -3,6 +3,7 @@ import { archiveLogs, deleteLogs, fetchLogFiles, type LogFile, type LogSource } 
 import { counted, sizeText } from './format'
 import { track, useNote } from './note'
 import { NoteLine } from './NoteLine'
+import { tip } from './tipAttrs'
 
 /** A row's key: an archived log can share its name with one in the folder, and an import with either. */
 const rowKey = (f: LogFile) => `${f.source}:${f.archived ? 'zip' : 'log'}:${f.name}`
@@ -66,7 +67,7 @@ export function CombatLogs({ reading, onChanged }: { reading: boolean; onChanged
     <>
       <ul className="list log-files">
         {files.map((f) => (
-          <li key={rowKey(f)} title={f.error}>
+          <li key={rowKey(f)} {...tip(f.error)}>
             <label className="inline">
               <input
                 type="checkbox"

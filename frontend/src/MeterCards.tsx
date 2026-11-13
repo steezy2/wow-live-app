@@ -3,6 +3,7 @@ import type { KeyMeter, KeyMeterRow } from './api'
 import { cardGrid, type Column } from './meterColumns'
 import { classColors } from './classColors'
 import { amount, clock } from './format'
+import { tip } from './tipAttrs'
 
 /** Rows from which a card is striped. */
 const ZEBRA_ROWS = 8
@@ -79,7 +80,7 @@ export function MeterCard({
                   {r.player}
                 </span>
                 {columns.map((c) => (
-                  <span key={c.label} className={cellClass(c, r, rows)} title={c.title?.(r)}>
+                  <span key={c.label} className={cellClass(c, r, rows)} {...tip(c.title?.(r))}>
                     {c.show ? c.show(r) : amount(c.value(r))}
                   </span>
                 ))}

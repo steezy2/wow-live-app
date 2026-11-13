@@ -1395,6 +1395,53 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/spells": {
+            "get": {
+                "description": "The ability's description and cooldown, from Wowhead's tooltip for the spell ID the combat log gave\nits name (cached a week). 404 for an ability the log hasn't shown since the app started, 502 when\nWowhead can't be reached.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "spells"
+                ],
+                "summary": "What an ability does",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "the ability's name as the combat log shows it",
+                        "name": "name",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.SpellInfo"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "502": {
+                        "description": "Bad Gateway",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/storage": {
             "get": {
                 "description": "The size of the saved keys, the saved raid pulls, the Warcraft Logs imports, the archived combat logs\nand the game's combat logs, measured now.",
@@ -2416,6 +2463,10 @@ const docTemplate = `{
                 },
                 "spell": {
                     "type": "string"
+                },
+                "wipe": {
+                    "description": "a raid boss's must-stop that wipes the raid when it goes off",
+                    "type": "boolean"
                 }
             }
         },
@@ -4301,6 +4352,23 @@ const docTemplate = `{
                 },
                 "setupDone": {
                     "type": "boolean"
+                }
+            }
+        },
+        "models.SpellInfo": {
+            "type": "object",
+            "properties": {
+                "cooldown": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
                 }
             }
         },

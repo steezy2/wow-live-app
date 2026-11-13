@@ -80,6 +80,7 @@ type RaidBoss struct {
 	Soakers   map[int]int      `json:"soakers,omitempty"` // soak spell ID -> raiders wanted in each (0 or missing: everyone)
 	Dispel    []int            `json:"dispel"`
 	MustStop  []int            `json:"mustStop"`
+	WipeStop  []int            `json:"wipeStop,omitempty"` // the MustStop casts that wipe the raid when they go off
 	Stacks    map[int]int      `json:"stacks"`
 	Priority  []string         `json:"priority"`
 	Pickups   []RaidPickupRule `json:"pickups,omitempty"`
@@ -106,6 +107,7 @@ type CuratedBoss struct {
 	Avoidable []int            `toml:"avoidable"`
 	Dispel    []int            `toml:"dispel"`
 	MustStop  []int            `toml:"must_stop"`
+	WipeStop  []int            `toml:"wipe_stop"`
 	Stacks    map[string]int   `toml:"stacks"` // TOML keys are strings: spell ID -> stacks that are too many
 	Priority  []string         `toml:"priority"`
 	Soaks     []CuratedSoak    `toml:"soaks"`

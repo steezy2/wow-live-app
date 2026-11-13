@@ -47,6 +47,7 @@ func Router(mplus MPlus, raid *Raid, settings *SettingsAPI, pages fs.FS, hosts .
 	api.DELETE("/mplus/keys/:start", mplus.DeleteSaved)
 	api.GET("/mplus/keys/:start/track", mplus.Track)
 	api.GET("/mplus/keys/:start/review", mplus.Review)
+	api.GET("/spells", mplus.Spell)
 	api.GET("/recap/periods", mplus.RecapPeriods)
 	api.GET("/recap", mplus.Recap)
 	api.GET("/recap/top-times", mplus.RecapTopTimes)
