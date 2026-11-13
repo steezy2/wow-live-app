@@ -634,7 +634,7 @@ export interface RouteLive {
   name: string
   current: RouteStep | null
   next: RouteStep | null
-  /** Planned forces % once every pull before `next` is done. */
+  /** Forces % the whole route plans. */
   forcesPct: number
 }
 

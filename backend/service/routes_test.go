@@ -2,6 +2,7 @@ package service
 
 import (
 	"errors"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -14,15 +15,15 @@ import (
 
 const voidscar = 585
 
-// newRoutes is Routes on a temp folder over a dungeon with four enemies worth 10, 10, 20 and 5 of 100 forces, and a
-// clock that moves on a second each time it's read.
+// newRoutes is Routes on a temp folder over a dungeon with four enemies of NPC 100, 100 yards apart, worth 10, 10, 20
+// and 5 of 100 forces, and a clock that moves on a second each time it's read.
 func newRoutes(t *testing.T) *Routes {
 	t.Helper()
 	now := time.Unix(1000, 0)
 	facts := map[int]models.DungeonFacts{
 		voidscar: {MDTIndex: 163, Forces: models.Forces{Total: 100}, Enemies: []models.RouteEnemy{
-			{Index: 1, Clone: 1, Count: 10}, {Index: 1, Clone: 2, Count: 10}, {Index: 2, Clone: 1, Count: 20},
-			{Index: 3, Clone: 1, Count: 5}}},
+			{Index: 1, Clone: 1, NPC: 100, Count: 10}, {Index: 1, Clone: 2, NPC: 100, X: 100, Count: 10},
+			{Index: 2, Clone: 1, NPC: 100, X: 200, Count: 20}, {Index: 3, Clone: 1, NPC: 100, X: 300, Count: 5}}},
 		586: {MDTIndex: 161},
 	}
 	return &Routes{Store: routestore.Store{Dir: t.TempDir()}, Facts: facts,
@@ -75,6 +76,53 @@ func TestImportRoute(t *testing.T) {
 		routes, _ := r.List(voidscar)
 		if len(routes) != 2 || !routes[0].Starred || routes[0].Name != "Renamed" || routes[1].Starred {
 			t.Fatalf("routes = %+v; want def replaced, still starred, and abc unstarred", routes)
+		}
+	})
+	t.Run("the same uid in another dungeon doesn't bring its star", func(t *testing.T) {
+		r := newRoutes(t)
+		for _, p := range []models.MDTPreset{preset("abc", 163), preset("def", 161), preset("abc", 161)} {
+			if _, err := r.ImportPreset(p); err != nil {
+				t.Fatal(err)
+			}
+		}
+		routes, _ := r.List(586)
+		if len(routes) != 2 || routes[0].ID != "abc" || routes[0].Starred || !routes[1].Starred {
+			t.Fatalf("routes = %+v; want abc moved in unstarred and def still starred", routes)
+		}
+	})
+	for _, tc := range []struct {
+		name    string
+		pulls   []models.MDTPull
+		want    []models.RoutePull
+		dropped int
+	}{
+		{"a color that isn't 6 hex digits gets the default",
+			[]models.MDTPull{{Color: "fff;background:url(x)", Enemies: map[int][]int{1: {1}}}},
+			[]models.RoutePull{{Color: defaultPullColor, Enemies: []models.EnemyRef{{Index: 1, Clone: 1}}}}, 0},
+		{"an enemy an earlier pull has is dropped",
+			[]models.MDTPull{{Color: "ff3eff", Enemies: map[int][]int{1: {1}}},
+				{Color: "ff3eff", Enemies: map[int][]int{1: {1, 2}}}},
+			[]models.RoutePull{{Color: "ff3eff", Enemies: []models.EnemyRef{{Index: 1, Clone: 1}}},
+				{Color: "ff3eff", Enemies: []models.EnemyRef{{Index: 1, Clone: 2}}}}, 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			view, err := newRoutes(t).ImportPreset(preset("abc", 163, tc.pulls...))
+			if err != nil {
+				t.Fatal(err)
+			}
+			var got []models.RoutePull
+			for _, p := range view.Pulls {
+				got = append(got, p.RoutePull)
+			}
+			if !reflect.DeepEqual(got, tc.want) || view.Dropped != tc.dropped {
+				t.Fatalf("pulls = %+v, %d dropped; want %+v, %d", got, view.Dropped, tc.want, tc.dropped)
+			}
+		})
+	}
+	t.Run("more than MaxPulls pulls are refused", func(t *testing.T) {
+		if _, err := newRoutes(t).ImportPreset(preset("abc", 163, make([]models.MDTPull, MaxPulls+1)...)); !errors.Is(err,
+			ErrInvalidRoute) {
+			t.Fatalf("err = %v, want ErrInvalidRoute", err)
 		}
 	})
 	t.Run("a dungeon outside the season is refused", func(t *testing.T) {
@@ -159,6 +207,7 @@ func TestUpdateRouteValidates(t *testing.T) {
 		{"exactly the most pulls", "Fine", long[:MaxPulls], true},
 		{"bad color", "Fine", []models.RoutePull{{Color: "red"}}, false},
 		{"empty name", "", nil, false},
+		{"name of only spaces", "   ", nil, false},
 		{"name too long", strings.Repeat("x", 61), nil, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

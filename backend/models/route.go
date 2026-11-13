@@ -106,8 +106,7 @@ type RouteStep struct {
 }
 
 // RouteLive is the dungeon's starred route followed by the running key: the pull the last kill on the route was in
-// (nil before any), the first pull not done (nil once all are), and the forces percent the route plans once every
-// pull before Next is done.
+// (nil before any), the first pull not done (nil once all are), and the forces percent the whole route plans.
 type RouteLive struct {
 	Name      string     `json:"name"`
 	Current   *RouteStep `json:"current"`

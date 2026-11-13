@@ -205,11 +205,7 @@ func (r *Routes) Live(mapID int, track models.KeyTrack) (*models.RouteLive, erro
 		}
 		return &models.RouteStep{Number: i + 1, RoutePullView: view.Pulls[i]}
 	}
-	live := &models.RouteLive{Name: view.Name, Current: step(p.Current), Next: step(p.Next), ForcesPct: view.TotalPct}
-	if live.Next != nil {
-		live.ForcesPct = live.Next.TotalPct - live.Next.Pct
-	}
-	return live, nil
+	return &models.RouteLive{Name: view.Name, Current: step(p.Current), Next: step(p.Next), ForcesPct: view.TotalPct}, nil
 }
 
 // starred is a dungeon's starred route; ErrNoSuchRoute when it has none.

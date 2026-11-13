@@ -32,11 +32,13 @@ export function KeyRoute({ keyView: key, track, seek }: { keyView: KeyView; trac
   if (error) return <p className="warning">{error}</p>
   if (compare === undefined) return <p className="muted">Loading…</p>
   if (compare === null) {
-    return <p className="muted">No route for {key.dungeon} yet: import one from Mythic Dungeon Tools on the Routes tab.</p>
+    return (
+      <p className="muted">No route for {key.dungeon} yet: import one from Mythic Dungeon Tools on the Routes tab.</p>
+    )
   }
   const { route, noMobs } = compare
   return (
-    <div className="key-route">
+    <div>
       <p>
         {routes.length > 1 ? (
           <select value={route.id} onChange={(e) => setID(e.target.value)} aria-label="route">
@@ -58,7 +60,12 @@ export function KeyRoute({ keyView: key, track, seek }: { keyView: KeyView; trac
         <p className="warning">This key was saved before mob positions were kept; read its log again to compare.</p>
       )}
       <div className="route-view">
-        <RouteMap mapID={route.mapID} dungeon={dungeon} pulls={route.pulls} killed={noMobs ? undefined : compare.kills} />
+        <RouteMap
+          mapID={route.mapID}
+          dungeon={dungeon}
+          pulls={route.pulls}
+          killed={noMobs ? undefined : compare.kills}
+        />
         <ol className="route-pulls">
           <li className="muted small">
             <span>Pull</span>

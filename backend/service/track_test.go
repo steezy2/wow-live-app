@@ -1,6 +1,7 @@
 package service
 
 import (
+	"errors"
 	"fmt"
 	"testing"
 
@@ -31,5 +32,33 @@ func TestTrackKeepsMobCasts(t *testing.T) {
 	}
 	if got := fmt.Sprint(track.Casts["Testmage"]); got != "[{1500 Frostbolt 0 true}]" {
 		t.Errorf("mage's casts = %s; want the Frostbolt the run cut", got)
+	}
+}
+
+func TestRouteTrack(t *testing.T) {
+	saved := models.KeyTrack{Deaths: []models.TrackPoint{{ClockMS: 9}}}
+	keys, err := NewLogTracker(nil, nil, models.MPlusRules{}, nil,
+		&memStore{keys: []models.Key{{Start: 7, MapID: 586}}, tracks: map[int64]models.KeyTrack{7: saved}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	run := newRun(models.Key{Start: 5, MapID: 585, Status: "running"}, "")
+	keys.current = run
+	run.track.Mobs["dead"] = models.MobTrail{Points: []models.TrackPoint{{X: 1}}, Died: 100}
+	run.track.Mobs["up"] = models.MobTrail{Points: []models.TrackPoint{{X: 2}}}
+
+	mapID, track, err := keys.RouteTrack(5)
+	if err != nil || mapID != 585 || len(track.Mobs) != 2 || track.Mobs["dead"].Died != 100 {
+		t.Fatalf("running key: %d, mobs %+v, %v; want 585 with the dead mob kept", mapID, track.Mobs, err)
+	}
+	track.Mobs["dead"].Points[0].X = 99
+	if run.track.Mobs["dead"].Points[0].X != 1 {
+		t.Fatal("the running key's track shares its mob trails with the tracker")
+	}
+	if mapID, track, err := keys.RouteTrack(7); err != nil || mapID != 586 || len(track.Deaths) != 1 {
+		t.Fatalf("saved key: %d, %+v, %v; want 586 and its saved track", mapID, track, err)
+	}
+	if _, _, err := keys.RouteTrack(8); !errors.Is(err, ErrNoSuchKey) {
+		t.Fatalf("unknown key: %v; want ErrNoSuchKey", err)
 	}
 }

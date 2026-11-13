@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import type { DungeonMap, EnemyRef, KeyTrack, RouteEnemy, RoutePull } from './api'
 import { MapCanvas, type Overlay } from './KeyMap'
 import { enemyKey, pullCentres, pullIndexes } from './routes'
@@ -23,50 +23,57 @@ export function RouteMap(props: {
   const { mapID, dungeon, pulls, selected, onEnemy, killed } = props
   const [floor, setFloor] = useState<number | null>(null)
 
-  const floors = dungeon?.floors.filter((f) => dungeon.enemies.some((e) => e.map === f.uiMapID)) ?? []
+  const floors = useMemo(
+    () => dungeon?.floors.filter((f) => dungeon.enemies.some((e) => e.map === f.uiMapID)) ?? [],
+    [dungeon],
+  )
   const here = floors.find((f) => f.uiMapID === floor) ?? floors[0]
-  const enemies = dungeon?.enemies.filter((e) => e.map === here?.uiMapID) ?? []
-  const overlay: Overlay = (ctx, at, dot, hit) => {
-    const pullOf = pullIndexes(pulls)
-    ctx.lineWidth = dot / 5
-    enemies.forEach((e) => {
-      const pull = pullOf.get(enemyKey(e))
-      const [x, y] = at(e)
-      const r = e.boss ? dot * 1.4 : dot * 0.8
-      hit(enemyKey(e), x, y, r)
-      ctx.fillStyle = pull === undefined ? UNPULLED : `#${pulls[pull].color}`
-      ctx.strokeStyle = pull !== undefined && pull === selected ? '#fff' : '#000'
-      ctx.beginPath()
-      ctx.arc(x, y, r, 0, 2 * Math.PI)
-      ctx.fill()
-      ctx.stroke()
-    })
-    const dead = new Set(killed?.map(enemyKey))
-    ctx.strokeStyle = '#000'
-    ctx.lineWidth = dot / 3
-    enemies
-      .filter((e) => dead.has(enemyKey(e)))
-      .forEach((e) => {
+  const enemies = useMemo(() => dungeon?.enemies.filter((e) => e.map === here?.uiMapID) ?? [], [dungeon, here])
+  // MapCanvas restarts its draw loop when the overlay changes, so it changes only with what it draws
+  const overlay = useCallback<Overlay>(
+    (ctx, at, dot, hit) => {
+      const pullOf = pullIndexes(pulls)
+      ctx.lineWidth = dot / 5
+      enemies.forEach((e) => {
+        const pull = pullOf.get(enemyKey(e))
         const [x, y] = at(e)
-        const s = dot * 0.6
+        const r = e.boss ? dot * 1.4 : dot * 0.8
+        hit(enemyKey(e), x, y, r)
+        ctx.fillStyle = pull === undefined ? UNPULLED : `#${pulls[pull].color}`
+        ctx.strokeStyle = pull !== undefined && pull === selected ? '#fff' : '#000'
         ctx.beginPath()
-        ctx.moveTo(x - s, y)
-        ctx.lineTo(x - s / 3, y + s * 0.7)
-        ctx.lineTo(x + s, y - s * 0.7)
+        ctx.arc(x, y, r, 0, 2 * Math.PI)
+        ctx.fill()
         ctx.stroke()
       })
-    ctx.font =`bold ${dot * 3}px system-ui, sans-serif`
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
-    ctx.strokeStyle = '#000'
-    ctx.lineWidth = dot / 2
-    pullCentres(enemies, pulls).forEach((c) => {
-      const [x, y] = at(c)
-      ctx.strokeText(String(c.pull + 1), x, y)
-      ctx.fillStyle = '#fff'
-      ctx.fillText(String(c.pull + 1), x, y)
-    })
-  }
+      const dead = new Set(killed?.map(enemyKey))
+      ctx.strokeStyle = '#000'
+      ctx.lineWidth = dot / 3
+      enemies
+        .filter((e) => dead.has(enemyKey(e)))
+        .forEach((e) => {
+          const [x, y] = at(e)
+          const s = dot * 0.6
+          ctx.beginPath()
+          ctx.moveTo(x - s, y)
+          ctx.lineTo(x - s / 3, y + s * 0.7)
+          ctx.lineTo(x + s, y - s * 0.7)
+          ctx.stroke()
+        })
+      ctx.font = `bold ${dot * 3}px system-ui, sans-serif`
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.strokeStyle = '#000'
+      ctx.lineWidth = dot / 2
+      pullCentres(enemies, pulls).forEach((c) => {
+        const [x, y] = at(c)
+        ctx.strokeText(String(c.pull + 1), x, y)
+        ctx.fillStyle = '#fff'
+        ctx.fillText(String(c.pull + 1), x, y)
+      })
+    },
+    [enemies, pulls, selected, killed],
+  )
   const pick = (key: string, shift: boolean) => {
     const enemy = enemies.find((e) => enemyKey(e) === key)
     if (enemy) onEnemy?.(enemy, shift)
@@ -96,8 +103,7 @@ export function RouteMap(props: {
       />
       <p className="muted small">
         Scroll to zoom, drag to move, double click for the whole floor
-        {onEnemy && ' · click an enemy to put it in the selected pull or take it out, Shift+click for its pack'} ·
-        map:{' '}
+        {onEnemy && ' · click an enemy to put it in the selected pull or take it out, Shift+click for its pack'} · map:{' '}
         <a href="https://keystone.guru" target="_blank" rel="noreferrer">
           Keystone.guru
         </a>

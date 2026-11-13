@@ -29,7 +29,8 @@ export default function App() {
   const keyEnded = useCallback(() => setRefresh((n) => n + 1), [])
   const [settings, setSettings] = useState<SettingsView | null>(null)
   const [section, setSection] = useState<'mplus' | 'routes' | 'raid' | 'recap' | 'settings'>('mplus')
-  const [routesSeen, setRoutesSeen] = useState(false) // the Routes page stays mounted so unsaved edits survive a tab switch
+  // the Routes page stays mounted so unsaved edits survive a tab switch
+  const [routesSeen, setRoutesSeen] = useState(false)
   if (section === 'routes' && !routesSeen) setRoutesSeen(true)
   const [raidPull, setRaidPull] = useState<number | null>(null)
   const [characters, setCharacters] = useState<Character[]>([])
@@ -79,7 +80,7 @@ export default function App() {
       </nav>
       {routesSeen && (
         <div hidden={section !== 'routes'}>
-          <RoutesPage />
+          <RoutesPage visible={section === 'routes'} />
         </div>
       )}
       {settings && section === 'settings' ? (

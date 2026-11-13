@@ -105,6 +105,7 @@ func (m MPlus) Live(c *gin.Context) {
 //	@Success		200		{object}	models.RouteCompare
 //	@Failure		400		{object}	ErrorResponse	"a bad start or id, or a route of another dungeon"
 //	@Failure		404		{object}	ErrorResponse	"no such key, or no such route (the dungeon has none)"
+//	@Failure		500		{object}	ErrorResponse
 //	@Router			/api/mplus/keys/{start}/route [get]
 func (m MPlus) KeyRoute(c *gin.Context) {
 	start, ok := startParam(c)
@@ -509,6 +510,7 @@ func (m MPlus) Routes(c *gin.Context) {
 //	@Success	200	{object}	models.RouteView
 //	@Failure	400	{object}	ErrorResponse
 //	@Failure	404	{object}	ErrorResponse
+//	@Failure	500	{object}	ErrorResponse
 //	@Router		/api/mplus/routes/{id} [get]
 func (m MPlus) Route(c *gin.Context) {
 	if id, ok := routeID(c); ok {
@@ -528,11 +530,13 @@ func (m MPlus) Route(c *gin.Context) {
 //	@Param			route	body		RouteRequest	true	"code, mdtUID, or mapID and name"
 //	@Success		201		{object}	models.RouteView
 //	@Failure		400		{object}	ErrorResponse	"a bad string (the text says which step failed) or dungeon"
+//	@Failure		404		{object}	ErrorResponse	"no saved MDT route with that uid"
+//	@Failure		500		{object}	ErrorResponse
 //	@Router			/api/mplus/routes [post]
 func (m MPlus) AddRoute(c *gin.Context) {
 	var req RouteRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "send a code, or a mapID and a name"})
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "send a code, an mdtUID, or a mapID and a name"})
 		return
 	}
 	var route models.RouteView
@@ -561,6 +565,7 @@ func (m MPlus) AddRoute(c *gin.Context) {
 //	@Success		200		{object}	models.RouteView
 //	@Failure		400		{object}	ErrorResponse
 //	@Failure		404		{object}	ErrorResponse
+//	@Failure		500		{object}	ErrorResponse
 //	@Router			/api/mplus/routes/{id} [put]
 func (m MPlus) UpdateRoute(c *gin.Context) {
 	id, ok := routeID(c)
@@ -584,6 +589,7 @@ func (m MPlus) UpdateRoute(c *gin.Context) {
 //	@Success	204
 //	@Failure	400	{object}	ErrorResponse
 //	@Failure	404	{object}	ErrorResponse
+//	@Failure	500	{object}	ErrorResponse
 //	@Router		/api/mplus/routes/{id}/star [post]
 func (m MPlus) StarRoute(c *gin.Context) {
 	if id, ok := routeID(c); ok {
@@ -599,6 +605,7 @@ func (m MPlus) StarRoute(c *gin.Context) {
 //	@Success	204
 //	@Failure	400	{object}	ErrorResponse
 //	@Failure	404	{object}	ErrorResponse
+//	@Failure	500	{object}	ErrorResponse
 //	@Router		/api/mplus/routes/{id} [delete]
 func (m MPlus) DeleteRoute(c *gin.Context) {
 	if id, ok := routeID(c); ok {
@@ -615,6 +622,7 @@ func (m MPlus) DeleteRoute(c *gin.Context) {
 //	@Success	200	{object}	RouteCode
 //	@Failure	400	{object}	ErrorResponse
 //	@Failure	404	{object}	ErrorResponse
+//	@Failure	500	{object}	ErrorResponse
 //	@Router		/api/mplus/routes/{id}/export [get]
 func (m MPlus) ExportRoute(c *gin.Context) {
 	if id, ok := routeID(c); ok {

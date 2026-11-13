@@ -452,6 +452,12 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/controller.ErrorResponse"
                         }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
                     }
                 }
             }
@@ -637,6 +643,18 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/controller.ErrorResponse"
                         }
+                    },
+                    "404": {
+                        "description": "no saved MDT route with that uid",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
                     }
                 }
             }
@@ -706,6 +724,12 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/controller.ErrorResponse"
                         }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
                     }
                 }
             },
@@ -757,6 +781,12 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/controller.ErrorResponse"
                         }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
                     }
                 }
             },
@@ -786,6 +816,12 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/controller.ErrorResponse"
                         }
@@ -829,6 +865,12 @@ const docTemplate = `{
                         "schema": {
                             "$ref": "#/definitions/controller.ErrorResponse"
                         }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
                     }
                 }
             }
@@ -860,6 +902,12 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/controller.ErrorResponse"
                         }

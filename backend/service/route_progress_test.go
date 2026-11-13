@@ -1,6 +1,7 @@
 package service
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
 	"slices"
@@ -99,5 +100,77 @@ func TestRouteProgress(t *testing.T) {
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("progress = %+v\nwant       %+v", got, want)
+	}
+}
+
+// routeTrack is a key's track where the enemies of newRoutes at these x died, a second apart.
+func routeTrack(xs ...float64) models.KeyTrack {
+	track := models.KeyTrack{Mobs: map[string]models.MobTrail{}}
+	for i, x := range xs {
+		track.Mobs[mobGUID(100, i)] = died(x, 0, 0, int64(i+1)*1000)
+	}
+	return track
+}
+
+func TestCompareRoute(t *testing.T) {
+	r := newRoutes(t)
+	pull := models.MDTPull{Color: "ff3eff", Enemies: map[int][]int{1: {1}}}
+	for _, p := range []models.MDTPreset{preset("abc", 163, pull), preset("def", 163), preset("other", 161)} {
+		if _, err := r.ImportPreset(p); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, tc := range []struct {
+		name, id   string
+		track      models.KeyTrack
+		wantID     string
+		wantNoMobs bool
+		wantErr    error
+	}{
+		{"the starred route by default", "", routeTrack(0), "abc", false, nil},
+		{"a route by its id", "def", routeTrack(0), "def", false, nil},
+		{"a route of another dungeon", "other", routeTrack(0), "", false, ErrInvalidRoute},
+		{"a key saved without mobs", "", models.KeyTrack{}, "abc", true, nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := r.Compare(voidscar, tc.id, tc.track)
+			if !errors.Is(err, tc.wantErr) || err == nil && (got.Route.ID != tc.wantID || got.NoMobs != tc.wantNoMobs) {
+				t.Fatalf("compare = route %q, noMobs %v, %v; want %q, %v, %v", got.Route.ID, got.NoMobs, err, tc.wantID,
+					tc.wantNoMobs, tc.wantErr)
+			}
+		})
+	}
+}
+
+func TestLiveRoute(t *testing.T) {
+	r := newRoutes(t)
+	if live, err := r.Live(voidscar, routeTrack()); live != nil || err != nil {
+		t.Fatalf("live without a route = %+v, %v; want nil", live, err)
+	}
+	first := models.MDTPull{Color: "ff3eff", Enemies: map[int][]int{1: {1, 2}}}
+	second := models.MDTPull{Color: "ff3eff", Enemies: map[int][]int{2: {1}}}
+	if _, err := r.ImportPreset(preset("abc", 163, first, second)); err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		name          string
+		track         models.KeyTrack
+		current, next int // pull numbers, 0 for none
+	}{
+		{"half the first pull", routeTrack(0), 1, 1},
+		{"every pull", routeTrack(0, 100, 200), 2, 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			live, err := r.Live(voidscar, tc.track)
+			number := func(s *models.RouteStep) int {
+				if s == nil {
+					return 0
+				}
+				return s.Number
+			}
+			if err != nil || number(live.Current) != tc.current || number(live.Next) != tc.next || live.ForcesPct != 40 {
+				t.Fatalf("live = %+v, %v; want current %d, next %d and the route's 40%%", live, err, tc.current, tc.next)
+			}
+		})
 	}
 }

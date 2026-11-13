@@ -74,8 +74,9 @@ function useOverlaySettings(): OverlaySettings | null {
 }
 
 /** The overlay over the game (/overlay, the desktop app's second window): the clock against the timer, forces,
- * the estimate, deaths, the route's next pull and the pull's DPS and HPS during a key, and the last raid pull between raid pulls. Everything
- * else stays in the full window; when it's made very short only the clock, forces and deaths stay (index.css). While
+ * the estimate, deaths, the route's next pull and the pull's DPS and HPS during a key, and the last raid pull between
+ * raid pulls. Everything else stays in the full window; when it's made very short only the clock, forces and deaths
+ * stay (index.css). While
  * the app says it's being moved, it shows a border and how to move and resize it. */
 export function Overlay() {
   const { key, clockMS } = useLiveKey()

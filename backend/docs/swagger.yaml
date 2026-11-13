@@ -2531,6 +2531,10 @@ paths:
           description: no such key, or no such route (the dungeon has none)
           schema:
             $ref: '#/definitions/controller.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
       summary: 'A key next to a route of its dungeon: which planned pulls were done,
         skipped or added'
       tags:
@@ -2661,6 +2665,14 @@ paths:
           description: a bad string (the text says which step failed) or dungeon
           schema:
             $ref: '#/definitions/controller.ErrorResponse'
+        "404":
+          description: no saved MDT route with that uid
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
       summary: 'Add a route: import a Mythic Dungeon Tools export string, or make
         an empty one'
       tags:
@@ -2682,6 +2694,10 @@ paths:
             $ref: '#/definitions/controller.ErrorResponse'
         "404":
           description: Not Found
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+        "500":
+          description: Internal Server Error
           schema:
             $ref: '#/definitions/controller.ErrorResponse'
       summary: Delete a route; if it was starred, its dungeon's newest route is
@@ -2707,6 +2723,10 @@ paths:
             $ref: '#/definitions/controller.ErrorResponse'
         "404":
           description: Not Found
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+        "500":
+          description: Internal Server Error
           schema:
             $ref: '#/definitions/controller.ErrorResponse'
       summary: One planned route with its pulls' forces
@@ -2745,6 +2765,10 @@ paths:
           description: Not Found
           schema:
             $ref: '#/definitions/controller.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
       summary: Replace a route's name and pulls
       tags:
       - mplus
@@ -2771,6 +2795,10 @@ paths:
           description: Not Found
           schema:
             $ref: '#/definitions/controller.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
       summary: A route as a string for Mythic Dungeon Tools' Import
       tags:
       - mplus
@@ -2791,6 +2819,10 @@ paths:
             $ref: '#/definitions/controller.ErrorResponse'
         "404":
           description: Not Found
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+        "500":
+          description: Internal Server Error
           schema:
             $ref: '#/definitions/controller.ErrorResponse'
       summary: Make a route its dungeon's starred one (the live page and key comparison

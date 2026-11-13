@@ -34,6 +34,10 @@ var (
 
 var pullColor = regexp.MustCompile(`^[0-9a-fA-F]{6}$`)
 
+// defaultPullColor is the color an imported pull gets in place of one that isn't 6 hex digits: Mythic Dungeon Tools'
+// first default pull color.
+const defaultPullColor = "3eff3e"
+
 func invalidf(format string, args ...any) error {
 	return fmt.Errorf("%w: %s", ErrInvalidRoute, fmt.Sprintf(format, args...))
 }
@@ -88,8 +92,10 @@ func (r *Routes) Import(code string) (models.RouteView, error) {
 }
 
 // ImportPreset saves a Mythic Dungeon Tools preset as a route and counts in Dropped the enemies it pulls that the
-// dungeon's map doesn't have. Its uid becomes the id, so importing it again replaces the route and keeps its star;
-// a dungeon's first route is starred. A dungeon outside the season's reference is refused.
+// dungeon's map doesn't have or an earlier pull has; a color that isn't 6 hex digits becomes defaultPullColor. Its uid
+// becomes the id, so importing it again replaces the route and keeps its star when it's of the same dungeon; a
+// dungeon's first route is starred. A dungeon outside the season's reference, or more than MaxPulls pulls, is
+// refused.
 func (r *Routes) ImportPreset(p models.MDTPreset) (models.RouteView, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -106,18 +112,26 @@ func (r *Routes) ImportPreset(p models.MDTPreset) (models.RouteView, error) {
 	if route.Name == "" {
 		route.Name = "Imported route"
 	}
-	dropped := 0
+	dropped, used := 0, map[models.EnemyRef]bool{}
 	for i, pull := range p.Pulls {
 		route.Pulls[i] = models.RoutePull{Color: pull.Color, Enemies: []models.EnemyRef{}}
+		if !pullColor.MatchString(pull.Color) {
+			route.Pulls[i].Color = defaultPullColor
+		}
 		for _, index := range slices.Sorted(maps.Keys(pull.Enemies)) {
 			for _, clone := range slices.Sorted(slices.Values(pull.Enemies[index])) {
-				if ref := (models.EnemyRef{Index: index, Clone: clone}); hasEnemy(known, ref) {
-					route.Pulls[i].Enemies = append(route.Pulls[i].Enemies, ref)
-				} else {
+				ref := models.EnemyRef{Index: index, Clone: clone}
+				if _, ok := known[ref]; !ok || used[ref] {
 					dropped++
+					continue
 				}
+				used[ref] = true
+				route.Pulls[i].Enemies = append(route.Pulls[i].Enemies, ref)
 			}
 		}
+	}
+	if err := r.checkPulls(mapID, route.Pulls); err != nil {
+		return models.RouteView{}, err
 	}
 	if err := r.save(&route, true); err != nil {
 		return models.RouteView{}, err
@@ -194,7 +208,8 @@ func (r *Routes) Create(mapID int, name string) (models.RouteView, error) {
 	if _, ok := r.Facts[mapID]; !ok {
 		return models.RouteView{}, invalidf("that dungeon isn't in this season")
 	}
-	if err := checkName(name); err != nil {
+	name, err := checkName(name)
+	if err != nil {
 		return models.RouteView{}, err
 	}
 	route := models.Route{ID: rand.Text()[:routeIDSize], Name: name, MapID: mapID, Pulls: []models.RoutePull{}}
@@ -213,7 +228,7 @@ func (r *Routes) Update(id, name string, pulls []models.RoutePull) (models.Route
 	if err != nil {
 		return models.RouteView{}, err
 	}
-	if err := checkName(name); err != nil {
+	if name, err = checkName(name); err != nil {
 		return models.RouteView{}, err
 	}
 	if err := r.checkPulls(route.MapID, pulls); err != nil {
@@ -290,14 +305,14 @@ func (r *Routes) get(id string) (models.Route, error) {
 }
 
 // save stamps and writes a route. With first, a route that's new takes the star when its dungeon has no other route,
-// and one that replaces another keeps the other's.
+// and one that replaces another of its dungeon keeps the other's.
 func (r *Routes) save(route *models.Route, first bool) error {
 	if first {
 		old, err := r.get(route.ID)
 		switch {
-		case err == nil:
+		case err == nil && old.MapID == route.MapID:
 			route.Starred = old.Starred
-		case errors.Is(err, ErrNoSuchRoute):
+		case err == nil || errors.Is(err, ErrNoSuchRoute):
 			others, err := r.ofDungeon(route.MapID)
 			if err != nil {
 				return err
@@ -372,8 +387,8 @@ func (r *Routes) checkPulls(mapID int, pulls []models.RoutePull) error {
 			return invalidf("pull %d: color must be 6 hex digits", i+1)
 		}
 		for _, ref := range pull.Enemies {
-			switch {
-			case !hasEnemy(known, ref):
+			switch _, ok := known[ref]; {
+			case !ok:
 				return invalidf("pull %d: no enemy %d clone %d on this map", i+1, ref.Index, ref.Clone)
 			case used[ref]:
 				return invalidf("pull %d: enemy %d clone %d is in another pull", i+1, ref.Index, ref.Clone)
@@ -412,16 +427,14 @@ func forcesPct(n, total int) float64 {
 	return float64(n) / float64(total) * 100
 }
 
-func hasEnemy(known map[models.EnemyRef]models.RouteEnemy, ref models.EnemyRef) bool {
-	_, ok := known[ref]
-	return ok
-}
-
-func checkName(name string) error {
+// checkName is a route's name without its outer spaces, refused when that leaves none or more than maxNameLen
+// characters.
+func checkName(name string) (string, error) {
+	name = strings.TrimSpace(name)
 	if n := utf8.RuneCountInString(name); n == 0 || n > maxNameLen {
-		return invalidf("the name must be 1 to %d characters", maxNameLen)
+		return "", invalidf("the name must be 1 to %d characters", maxNameLen)
 	}
-	return nil
+	return name, nil
 }
 
 // clip cuts a name to maxNameLen characters.

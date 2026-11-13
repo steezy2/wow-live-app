@@ -29,8 +29,9 @@ const percent = (n: number) => (Number.isFinite(n) ? `${n.toFixed(1)}%` : '–')
  * the picked route's pulls and their forces, a box to import a Mythic Dungeon Tools string, the routes Mythic Dungeon
  * Tools saved and a new empty route. The picked route is edited in place (pulls picked on the map, added, moved,
  * deleted, renamed, with Undo) and saved; leaving it unsaved asks first. A route copies back as a string for Mythic
- * Dungeon Tools' Import. */
-export function RoutesPage() {
+ * Dungeon Tools' Import. The page stays mounted while hidden, and reads the routes and MDT's saves again each time it
+ * becomes visible. */
+export function RoutesPage({ visible }: { visible: boolean }) {
   const [dungeons, setDungeons] = useState<RouteDungeon[]>([])
   const [routes, setRoutes] = useState<RouteView[]>([])
   const [saves, setSaves] = useState<SavedRoute[]>([])
@@ -48,7 +49,10 @@ export function RoutesPage() {
     () => Promise.all([fetchRoutes(), fetchSavedRoutes()]).then(([r, s]) => (setRoutes(r), setSaves(s))),
     [],
   )
-  useEffect(() => void Promise.all([load(), fetchRouteDungeons().then(setDungeons)]).catch(fail), [load])
+  useEffect(() => void fetchRouteDungeons().then(setDungeons).catch(fail), [])
+  useEffect(() => {
+    if (visible) void load().catch(fail)
+  }, [visible, load])
 
   const dungeon = dungeons.find((d) => d.mapID === mapID)?.mapID ?? dungeons[0]?.mapID ?? null
   const here = routes.filter((r) => r.mapID === dungeon)
@@ -67,7 +71,7 @@ export function RoutesPage() {
   const map = useDungeonMap(dungeon)
 
   const { draft, selected } = editor
-  const dirty = route !== null && JSON.stringify(draft) !== JSON.stringify(draftOf(route))
+  const dirty = route !== null && route.id === shownID && JSON.stringify(draft) !== JSON.stringify(draftOf(route))
   useEffect(() => {
     if (!dirty) return
     const stay = (e: BeforeUnloadEvent) => e.preventDefault()
