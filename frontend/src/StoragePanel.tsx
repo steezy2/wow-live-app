@@ -20,8 +20,16 @@ const SUGGESTED_DAYS = { archiveGameLogsDays: 30, deleteImportsDays: 90 }
 
 /** The auto rules' fields, label and key. */
 const AUTO_FIELDS: [string, keyof SettingsView['auto'], string][] = [
-  ['Archive the game\'s logs once read and this many days old', 'archiveGameLogsDays', 'Archiving keeps them readable by Read everything again.'],
-  ['Delete Warcraft Logs imports this many days after they were imported', 'deleteImportsDays', 'Importing again costs Warcraft Logs points.'],
+  [
+    "Archive the game's logs once read and this many days old",
+    'archiveGameLogsDays',
+    'Archiving keeps them readable by Read everything again.',
+  ],
+  [
+    'Delete Warcraft Logs imports this many days after they were imported',
+    'deleteImportsDays',
+    'Importing again costs Warcraft Logs points.',
+  ],
 ]
 
 /** What the app stores: its size by folder, Read old logs, the combat log list (archive and delete) and the two auto
@@ -48,6 +56,8 @@ export function StoragePanel({ view, onSaved }: { view: SettingsView; onSaved: (
       'Reading the log folder…',
       ({ read, saved }) => `${read} logs read · ${saved} keys saved`,
     ).then(changed, () => undefined)
+  const unchanged =
+    days.archiveGameLogsDays === view.auto.archiveGameLogsDays && days.deleteImportsDays === view.auto.deleteImportsDays
   const saveAuto = (e: FormEvent) => {
     e.preventDefault()
     const call = saveSettings({ ...savedSettings(view), auto: days })
@@ -101,7 +111,10 @@ export function StoragePanel({ view, onSaved }: { view: SettingsView; onSaved: (
               min={0}
               max={view.maxAutoDays}
               value={days[field]}
-              onChange={(e) => setDays({ ...days, [field]: Math.min(view.maxAutoDays, Math.max(0, Math.floor(Number(e.target.value)))) })}
+              onChange={(e) => {
+                const n = Math.min(view.maxAutoDays, Math.max(0, Math.floor(Number(e.target.value))))
+                setDays({ ...days, [field]: n })
+              }}
             />
             <span className="muted small">
               Up to {view.maxAutoDays} days; suggested {SUGGESTED_DAYS[field]}. {note}
@@ -109,7 +122,7 @@ export function StoragePanel({ view, onSaved }: { view: SettingsView; onSaved: (
           </label>
         ))}
         <div className="actions">
-          <button type="submit" disabled={!!autoNote?.busy || (days.archiveGameLogsDays === view.auto.archiveGameLogsDays && days.deleteImportsDays === view.auto.deleteImportsDays)}>
+          <button type="submit" disabled={!!autoNote?.busy || unchanged}>
             Save
           </button>
         </div>
