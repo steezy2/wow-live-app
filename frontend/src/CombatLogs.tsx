@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { archiveLogs, deleteArchivedLogs, fetchLogFiles, type LogFile } from './api'
+import { archiveLogs, deleteLogs, fetchLogFiles, type LogFile } from './api'
 import { counted, sizeText } from './format'
 import { track, useNote } from './note'
 import { NoteLine } from './NoteLine'
@@ -45,7 +45,7 @@ export function CombatLogs({ reading }: { reading: boolean }) {
       `Deletes ${counted(toDelete.length, 'archived log')} (${sizeText(bytes(toDelete))}) for good. ` +
         'Saved keys and pulls stay.',
     )
-    if (ok) run(deleteArchivedLogs(toDelete.map((f) => f.name)), 'Deleting…')
+    if (ok) run(deleteLogs(toDelete.map((f) => f.name)), 'Deleting…')
   }
   const toggle = (key: string) =>
     setPicked((p) => {
