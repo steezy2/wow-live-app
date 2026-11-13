@@ -507,6 +507,19 @@ button {
   border-bottom: 1px solid var(--panel);
 }
 
+.tab-panels {
+  display: grid;
+}
+
+.tab-panels > [role='tabpanel'] {
+  grid-area: 1 / 1;
+  min-width: 0;
+}
+
+.tab-off {
+  visibility: hidden;
+}
+
 .tabs [role='tab'] {
   padding: var(--s2) 0;
   color: var(--muted);
