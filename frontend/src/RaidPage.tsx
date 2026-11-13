@@ -231,7 +231,6 @@ export function RaidPullView({ pull }: { pull: RaidPull }) {
         onFocus={setFocus}
       />
       <PullTabs pull={pull} seek={{ onSeek: show, classes, onFocus: setFocus }} track={track ?? null} />
-      <BuffGaps pull={pull} classes={classes} onSeek={show} onFocus={setFocus} />
     </>
   )
 }
@@ -295,7 +294,7 @@ export function RaidOverlayCard({ pull, rows = 0 }: { pull: RaidPull; rows?: num
 }
 
 /** Under the meters: every raider's pull in one table, and the tabs a key has (deaths, interrupts, must-stops, spikes,
- * big hits, avoidable, defensives and potions, CC); a pull saved before they were kept
+ * big hits, avoidable, defensives and potions, CC) with the buffs missing through the pull; a pull saved before they were kept
  * says how to fill them in. */
 function PullTabs({ pull, seek, track }: { pull: RaidPull; seek: Seeker; track: KeyTrack | null }) {
   if (!pull.casts) return <NoAbilities />
@@ -312,6 +311,14 @@ function PullTabs({ pull, seek, track }: { pull: RaidPull; seek: Seeker; track: 
     bigHits: pull.bigHits,
     lanes: pull.lanes,
   }
+  const tabs = fightTabs(data, `Deaths ${pull.deaths.length}`, 'raid', seek, track)
+  const missing = new Set(pull.buffGaps?.map((g) => g.buff)).size
+  if (missing > 0) {
+    tabs.push({
+      name: `Buffs ${missing}`,
+      body: <BuffGaps pull={pull} classes={seek.classes} onSeek={seek.onSeek} onFocus={seek.onFocus} />,
+    })
+  }
   return (
     <>
       <PlayerTable
@@ -322,7 +329,9 @@ function PullTabs({ pull, seek, track }: { pull: RaidPull; seek: Seeker; track: 
         deaths={pull.deaths}
         onPick={seek.onFocus}
       />
-      <Tabs tabs={fightTabs(data, `Deaths ${pull.deaths.length}`, 'raid', seek, track)} />
+      <div className="tall">
+        <Tabs tabs={tabs} />
+      </div>
     </>
   )
 }

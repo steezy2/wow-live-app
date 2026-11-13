@@ -1148,6 +1148,11 @@ span.graph-taken {
   max-height: 260px;
 }
 
+/* The raid page's bottom tabs, twice as tall as a key's. */
+.tall .scroll {
+  max-height: 640px;
+}
+
 /* Boxes over the replay's map: the boss's health at the top right, the focused raider's casts at the bottom left, and
  * at the bottom right the damage they took over a picked enemy's casts. */
 .map-stage {

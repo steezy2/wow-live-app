@@ -1,6 +1,7 @@
 import { type CSSProperties, type ReactNode, useState } from 'react'
 import type { HitRecap, RecapEvent } from './api'
 import { amount, seconds } from './format'
+import { healthAfter } from './replay'
 
 /** How long a recap covers: from its first event to its end (the backend's recap_seconds at most). */
 const spanOf = (recap: HitRecap) => (recap.events.length > 0 ? recap.clockMS - recap.events[0].t : 0)
@@ -9,10 +10,12 @@ const sum = (events: RecapEvent[], kind: RecapEvent['k']) =>
   events.filter((e) => e.k === kind).reduce((n, e) => n + (e.n ?? 0), 0)
 
 /** One recap: a summary (taken, healed, shielded, buttons used, and what was ready) and the last events, newest at
- * the bottom with the time before the end, each filled green to their health after it; limit keeps the newest ones. */
+ * the bottom with the time before the end, each filled green to their health after it (worked out from the damage and healing where the log gives none); limit keeps the newest ones. */
 export function HitRecapView(props: { recap: HitRecap; ready?: string[]; limit?: number }) {
   const { recap, ready, limit } = props
+  const health = healthAfter(recap)
   const events = limit ? recap.events.slice(-limit) : recap.events
+  const offset = recap.events.length - events.length
   const used = [...new Set(recap.events.filter((e) => e.k === 'cast').map((e) => e.a))]
   const healed = sum(recap.events, 'heal')
   const shields = sum(recap.events, 'absorb')
@@ -28,11 +31,13 @@ export function HitRecapView(props: { recap: HitRecap; ready?: string[]; limit?:
         {ready && ready.length > 0 && ` · ready ${ready.join(', ')}`}
       </p>
       <ul className="recap-rows">
-        {events.map((e, i) => (
+        {events.map((e, i) => {
+          const hp = health[offset + i]
+          return (
           <li
             key={i}
             className={e.k === 'damage' ? 'bad' : e.k === 'cast' ? 'cast' : 'good'}
-            style={e.hp ? ({ '--hp': `${e.hp}%` } as CSSProperties) : undefined}
+            style={hp.pct === undefined ? undefined : ({ '--hp': `${hp.pct}%` } as CSSProperties)}
           >
             <span className="muted">-{seconds(recap.clockMS - e.t)}</span>
             <span>
@@ -40,9 +45,10 @@ export function HitRecapView(props: { recap: HitRecap; ready?: string[]; limit?:
               {e.s && ` (${e.s})`}
             </span>
             <span>{e.n ? `${e.k === 'damage' ? '−' : '+'}${amount(e.n)}` : ''}</span>
-            <span className="muted">{e.hp ? `${Math.round(e.hp)}%` : ''}</span>
+            <span className="muted">{hp.pct === undefined ? '' : `${hp.guess ? '~' : ''}${Math.round(hp.pct)}%`}</span>
           </li>
-        ))}
+          )
+        })}
       </ul>
     </div>
   )
