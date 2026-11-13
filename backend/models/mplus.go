@@ -689,18 +689,19 @@ type LogFile struct {
 	Name   string `json:"name"` // the log's file name (a zipped one without .zip)
 	Source string `json:"source" enums:"game,wcl"`
 	// Report is the Warcraft Logs fight an import is; nil for the game's logs.
-	Report    *ReportLink `json:"report,omitempty"`
-	Path      string      `json:"-"` // where it is: the log, or its zip
-	Bytes     int64       `json:"bytes"`
-	WrittenMS int64       `json:"writtenMS"` // last written (Unix ms; an import: its fight's end)
-	FirstMS   int64       `json:"-"`         // its first line's time, 0 when none parses
-	Keys      int         `json:"keys"`      // saved keys that started in it (an import: that are its fight)
-	Pulls     int         `json:"pulls"`     // saved raid pulls that started in it (or are its fight)
-	Read      bool        `json:"read"`      // read by the current reader (an import: its key or pull is saved)
-	Archived  bool        `json:"archived"`
-	Active    bool        `json:"active"`          // the game may still write it: it can't be archived
-	Suggested bool        `json:"suggested"`       // ticked at first: old, read and not active
-	Error     string      `json:"error,omitempty"` // why the last archive or delete of it failed
+	Report     *ReportLink `json:"report,omitempty"`
+	Path       string      `json:"-"` // where it is: the log, or its zip
+	Bytes      int64       `json:"bytes"`
+	WrittenMS  int64       `json:"writtenMS"` // last written (Unix ms; an import: its fight's end)
+	ImportedMS int64       `json:"-"`         // an import: when its zip was written here (the auto rule's age)
+	FirstMS    int64       `json:"-"`         // its first line's time, 0 when none parses
+	Keys       int         `json:"keys"`      // saved keys that started in it (an import: that are its fight)
+	Pulls      int         `json:"pulls"`     // saved raid pulls that started in it (or are its fight)
+	Read       bool        `json:"read"`      // read by the current reader (an import: its key or pull is saved)
+	Archived   bool        `json:"archived"`
+	Active     bool        `json:"active"`          // the game may still write it: it can't be archived
+	Suggested  bool        `json:"suggested"`       // ticked at first: old, read and not active
+	Error      string      `json:"error,omitempty"` // why the last archive or delete of it failed
 }
 
 // Storage is how much disk the app's data and the game's logs take, folder by folder.

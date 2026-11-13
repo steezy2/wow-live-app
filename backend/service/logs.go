@@ -96,15 +96,15 @@ func PickLogs(files []models.LogFile, source string, names []string, archive boo
 
 // AutoPicks is what the auto rule does to the listed logs now: the game's logs to archive (read, no longer written,
 // last written at least ArchiveGameLogsDays ago) and the imports to delete (whose key or pull is saved, of a fight at
-// least DeleteImportsDays old). A rule of 0 days picks nothing.
+// least DeleteImportsDays since it was imported, so a fight imported today is never removed for its date). A rule of 0 days picks nothing.
 func AutoPicks(files []models.LogFile, auto models.AutoSettings, nowMS int64) (archive, remove []models.LogFile) {
-	old := func(f models.LogFile, days int) bool { return days > 0 && nowMS-f.WrittenMS >= int64(days)*dayMS }
+	old := func(since int64, days int) bool { return days > 0 && nowMS-since >= int64(days)*dayMS }
 	for _, f := range files {
 		switch {
 		case !f.Read:
-		case canArchive(f) && old(f, auto.ArchiveGameLogsDays):
+		case canArchive(f) && old(f.WrittenMS, auto.ArchiveGameLogsDays):
 			archive = append(archive, f)
-		case f.Source == models.LogSourceWCL && old(f, auto.DeleteImportsDays):
+		case f.Source == models.LogSourceWCL && old(f.ImportedMS, auto.DeleteImportsDays):
 			remove = append(remove, f)
 		}
 	}

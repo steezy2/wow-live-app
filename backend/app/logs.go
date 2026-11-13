@@ -72,8 +72,12 @@ func (s *Site) imports() ([]models.LogFile, error) {
 			log.Printf("leaving out an imported fight: %v", err)
 			continue
 		}
+		info, err := os.Stat(path)
+		if err != nil {
+			continue
+		}
 		files = append(files, models.LogFile{Name: z.Name, Source: models.LogSourceWCL, Report: &link, Path: path,
-			Bytes: z.Bytes, WrittenMS: z.Written.UnixMilli()})
+			Bytes: z.Bytes, WrittenMS: z.Written.UnixMilli(), ImportedMS: info.ModTime().UnixMilli()})
 	}
 	return files, nil
 }

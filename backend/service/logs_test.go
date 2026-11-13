@@ -89,8 +89,8 @@ func TestAutoPicks(t *testing.T) {
 		{Name: "young", Source: game, WrittenMS: now - 10*dayMS, Read: true},
 		{Name: "zipped", Source: game, WrittenMS: now - 40*dayMS, Read: true, Archived: true},
 		{Name: "import-unsaved", Source: wcl, WrittenMS: now - 40*dayMS},
-		{Name: "import-old", Source: wcl, WrittenMS: now - 40*dayMS, Read: true},
-		{Name: "import-young", Source: wcl, WrittenMS: now - 10*dayMS, Read: true},
+		{Name: "import-old", Source: wcl, WrittenMS: now, ImportedMS: now - 40*dayMS, Read: true},
+		{Name: "import-young", Source: wcl, WrittenMS: now - 90*dayMS, ImportedMS: now - 10*dayMS, Read: true},
 	}
 	names := func(files []models.LogFile) []string {
 		var got []string
