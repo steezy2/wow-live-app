@@ -21,10 +21,12 @@ type MPlus struct {
 	Keys    models.KeySource
 	Tiles   Tiles
 	Reviews Reviews // nil without Warcraft Logs credentials
-	Changes Changes
-	Recaps  Recaps
-	Spells  Spells
-	Now     func() time.Time
+	// Compares is the players' reviews against top logs; nil without Warcraft Logs credentials.
+	Compares Compares
+	Changes  Changes
+	Recaps   Recaps
+	Spells   Spells
+	Now      func() time.Time
 }
 
 // Changes gives the keys' new versions as they change (service.Changes).
