@@ -35,6 +35,11 @@ body {
   margin: 0;
 }
 
+/* Keep the scrollbar's space, so a taller or shorter tab never shifts the page or the left bar sideways. */
+html {
+  scrollbar-gutter: stable;
+}
+
 .page {
   max-width: 1400px;
   margin: 0 auto;
@@ -219,6 +224,7 @@ h2 {
   display: grid;
   grid-template-columns: 260px 1fr;
   min-height: calc(100vh - var(--nav));
+  align-items: start;
 }
 
 .side {
@@ -229,6 +235,7 @@ h2 {
   flex-direction: column;
   gap: 6px;
   overflow-y: auto;
+  box-sizing: border-box; /* the padding is inside the max-height, or the list's end hangs below the window */
   max-height: calc(100vh - var(--nav));
   position: sticky;
   top: var(--nav);
@@ -483,11 +490,34 @@ button {
   margin-top: var(--s5);
 }
 
+/* A key being read: hidden until its track is in, then faded in, so parts never pop in one by one. */
+.key-loading {
+  opacity: 0;
+}
+
+.key-ready {
+  opacity: 1;
+  transition: opacity 0.15s ease-out;
+}
+
 .tabs [role='tablist'] {
   display: flex;
   gap: var(--s4);
   margin-bottom: var(--s3);
   border-bottom: 1px solid var(--panel);
+}
+
+.tab-panels {
+  display: grid;
+}
+
+.tab-panels > [role='tabpanel'] {
+  grid-area: 1 / 1;
+  min-width: 0;
+}
+
+.tab-off {
+  visibility: hidden;
 }
 
 .tabs [role='tab'] {
@@ -1131,6 +1161,11 @@ span.graph-taken {
   max-height: 260px;
 }
 
+/* The raid page's bottom tabs, twice as tall as a key's. */
+.tall .scroll {
+  max-height: 640px;
+}
+
 /* Boxes over the replay's map: the boss's health at the top right, the focused raider's casts at the bottom left, and
  * at the bottom right the damage they took over a picked enemy's casts. */
 .map-stage {
@@ -1574,19 +1609,23 @@ button.link {
   font-weight: 600;
 }
 
-.recap-hp {
-  width: 100%;
-  height: 24px;
+.recap-rows li[style] {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--good) 30%, transparent) var(--hp), transparent var(--hp));
 }
 
-.recap-row {
+.list li.recap-row {
   position: relative;
-  padding-left: 28px;
+  padding-left: 40px;
   cursor: pointer;
 }
 
 .recap-row > .back {
   position: absolute;
-  left: 0;
-  top: 0;
+  left: 8px;
+  top: 5px;
+  width: 22px;
+  padding: 0;
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--panel-2);
 }

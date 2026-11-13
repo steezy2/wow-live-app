@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import type { KeyTrack, RaidPull, TrackPoint } from './api'
+import type { HitRecap, KeyTrack, RaidPull, TrackPoint } from './api'
 import {
   abilitiesBetween,
   abilitiesUpTo,
   enemyName,
   floorsOf,
+  healthAfter,
   indexAfter,
   lastAt,
   meterBetween,
@@ -160,5 +161,25 @@ describe('enemyName', () => {
     ['a mob saved before names were kept', 'old', 'Enemy'],
   ])('%s', (_, guid, name) => {
     expect(enemyName(track, guid)).toBe(name)
+  })
+})
+
+describe('healthAfter', () => {
+  const recap = (events: HitRecap['events']): HitRecap => ({ player: 'a', clockMS: 0, maxHP: 1000, events })
+  it('works out a melee swing and an earlier hit from the nearest known health', () => {
+    const got = healthAfter(
+      recap([
+        { t: 1, k: 'damage', a: 'Melee', s: '', n: 100 },
+        { t: 2, k: 'damage', a: 'Bolt', s: '', n: 200, hp: 70 },
+        { t: 3, k: 'damage', a: 'Melee', s: '', n: 100 },
+        { t: 4, k: 'heal', a: 'Heal', s: '', n: 300 },
+        { t: 5, k: 'damage', a: 'Melee', s: '', n: 900 },
+      ]),
+    )
+    expect(got.map((h) => h.pct)).toEqual([90, 70, 60, 90, 0])
+    expect(got.map((h) => h.guess)).toEqual([true, false, true, true, true])
+  })
+  it('knows nothing without a known point or max HP', () => {
+    expect(healthAfter(recap([{ t: 1, k: 'damage', a: 'Melee', s: '', n: 100 }]))[0].pct).toBeUndefined()
   })
 })

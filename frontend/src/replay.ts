@@ -6,6 +6,7 @@ import {
   type KeyAbility,
   type KeyMeter,
   type KeyMeterRow,
+  type HitRecap,
   type KeyTrack,
   type RaidPull,
   type TrackPoint,
@@ -357,4 +358,23 @@ export function abilitiesBetween(
       ?.map((t) => ({ ...t, damage: t.damage - (hit.get(t.target)?.damage ?? 0) }))
       .filter((t) => t.damage > 0),
   }
+}
+
+/** Their health after each recap event, in %: the log's where it has one, else worked out from the nearest known one by
+ * what the event took or healed of their max HP (a melee swing, a cast). Unknown (no pct) when no event, or the max HP,
+ * is known. */
+export function healthAfter({ events, maxHP }: HitRecap): { pct?: number; guess: boolean }[] {
+  const out: { pct?: number; guess: boolean }[] = events.map((e) => ({ pct: e.hp || undefined, guess: false }))
+  const first = events.findIndex((e) => e.hp)
+  if (first < 0 || maxHP <= 0) return out
+  const change = (e: HitRecap['events'][number]) =>
+    (((e.k === 'damage' ? -1 : e.k === 'heal' ? 1 : 0) * (e.n ?? 0)) / maxHP) * 100
+  const clamp = (v: number) => Math.min(100, Math.max(0, v))
+  for (let i = first + 1; i < events.length; i++) {
+    if (!out[i].pct) out[i] = { pct: clamp((out[i - 1].pct ?? 0) + change(events[i])), guess: true }
+  }
+  for (let i = first - 1; i >= 0; i--) {
+    out[i] = { pct: clamp((out[i + 1].pct ?? 0) - change(events[i + 1])), guess: true }
+  }
+  return out
 }

@@ -272,7 +272,7 @@ function DeathsDrill({ keyView: key, onBack }: { keyView: KeyView; onBack: () =>
     <Drill title={picked ? 'Deaths' : 'Key'} heading={picked ? deathText(picked) : 'Deaths'} onBack={back}>
       {picked ? (
         recap ? (
-          <HitRecapView recap={recap} ready={picked.ready} died limit={OVERLAY_RECAP_ROWS} />
+          <HitRecapView recap={recap} ready={picked.ready} limit={OVERLAY_RECAP_ROWS} />
         ) : (
           <p className="muted">{track ? 'No recap for this death' : 'Loading…'}</p>
         )

@@ -221,7 +221,6 @@ export function BigHits({ data, seek, track }: { data: FightData; seek?: Seeker;
           key={`${h.player}-${h.clockMS}`}
           recap={recapOf(track, h.player, h.recapMS)}
           ready={h.ready}
-          died={h.died}
         >
           <span className={!h.used && !h.defensive && h.ready.length > 0 ? 'bad' : ''}>
             <When ms={h.clockMS} seek={seek} /> <Who player={h.player} seek={seek} /> {amount(h.taken)} (

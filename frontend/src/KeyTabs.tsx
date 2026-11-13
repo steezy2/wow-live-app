@@ -37,7 +37,7 @@ export function fightTabs(
       body: (
         <ul className="list scroll">
           {data.deaths.map((d, i) => (
-            <RecapRow key={`${d.player}-${d.clockMS}-${i}`} recap={recapOf(track, d.player, d.clockMS)} ready={d.ready} died>
+            <RecapRow key={`${d.player}-${d.clockMS}-${i}`} recap={recapOf(track, d.player, d.clockMS)} ready={d.ready}>
               <span>
                 <Who player={d.player} seek={seek} /> {d.ability || 'unknown'}{' '}
                 <span className="muted">from {d.killer || 'unknown'}</span>
@@ -101,7 +101,7 @@ export function fightTabs(
                 {data.deaths
                   .filter((d) => d.player === player)
                   .map((d, i) => (
-                    <RecapRow key={i} recap={recapOf(track, d.player, d.clockMS)} ready={d.ready} died>
+                    <RecapRow key={i} recap={recapOf(track, d.player, d.clockMS)} ready={d.ready}>
                       <span className="bad">Died to {d.ability || 'unknown'}</span>
                       <span className="muted">
                         <When ms={d.clockMS} seek={seek} />

@@ -63,7 +63,7 @@ export function KeyDetails({
   )
   const [review, setReview] = useState<Review | null>(null)
   return (
-    <>
+    <div className={key.status === 'running' || track ? 'key-ready' : 'key-loading'}>
       <header className="title">
         <h1>
           {key.dungeon} <span className="level">+{key.level}</span>
@@ -232,7 +232,7 @@ export function KeyDetails({
         ]}
       />
       <p className="muted small">{key.players.join(' · ')}</p>
-    </>
+    </div>
   )
 }
 
