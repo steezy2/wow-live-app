@@ -14,7 +14,9 @@ import { SideGroups } from './SideGroups'
 import { RaidReplay } from './RaidReplay'
 import { topMeter, useRaidTrack, useReplay } from './replay'
 import { Tabs } from './Tabs'
-import { useRaidLive } from './useLiveKey'
+import { useNow, useRaidLive } from './useLiveKey'
+import { WaitingCard } from './WaitingCard'
+import { localDay, raidTonight } from './waiting'
 
 /** How many deaths, things to fix, and top damage and healing rows the overlay's card shows. */
 const OVERLAY_DEATHS = 3
@@ -32,6 +34,7 @@ function pullName(p: RaidPullSummary): string {
  * overview, read again as pulls end. */
 export function RaidPage({ initial = null, character }: { initial?: number | null; character: string }) {
   const live = useRaidLive()
+  const now = useNow(60_000)
   const [selected, setSelected] = useState<number | null>(initial)
   const [nights, setNights] = useState<RaidNight[]>([])
   const lastStart = live?.last?.start
@@ -94,12 +97,11 @@ export function RaidPage({ initial = null, character }: { initial?: number | nul
         ) : live?.last ? (
           <RaidPullView key={live.last.start} pull={live.last} />
         ) : (
-          <section className="waiting">
-            <h1>Waiting for the first raid pull</h1>
-            <p className="muted">
-              Each pull shows here when it ends, with combat logging on (Advanced Combat Logging, then /combatlog).
-            </p>
-          </section>
+          <WaitingCard
+            title="Waiting for the first raid pull"
+            hint="Each pull shows here when it ends."
+            rows={raidTonight(nights, localDay(now), setSelected)}
+          />
         )}
       </main>
     </div>

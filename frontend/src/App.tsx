@@ -87,7 +87,7 @@ export default function App() {
         <div className="layout">
           <SavedKeys selected={selected} onSelect={setSelected} refresh={refresh} character={character} />
           <main className="page">
-            {selected === null ? <MPlusLive onEnded={keyEnded} /> : <SavedKey start={selected} />}
+            {selected === null ? <MPlusLive onEnded={keyEnded} character={character} onOpen={setSelected} /> : <SavedKey start={selected} />}
           </main>
         </div>
       )}

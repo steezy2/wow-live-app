@@ -1650,3 +1650,34 @@ button.link {
   border-color: var(--accent);
   background: var(--panel-2);
 }
+
+.waiting-card {
+  max-width: 560px;
+}
+
+.waiting-steps {
+  margin: var(--s3) 0;
+  padding-left: var(--s5);
+  color: var(--muted);
+}
+
+.waiting-steps .done {
+  color: var(--good);
+}
+
+.waiting-steps .current {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.waiting-tonight {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.waiting-tonight .item {
+  width: 100%;
+  justify-content: space-between;
+  gap: var(--s3);
+}

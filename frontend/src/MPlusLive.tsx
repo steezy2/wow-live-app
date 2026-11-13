@@ -1,17 +1,25 @@
-import { abandonLiveKey, type KeyView } from './api'
+import { useEffect, useState } from 'react'
+import { abandonLiveKey, fetchSavedKeys, type KeySummary, type KeyView } from './api'
 import { clock } from './format'
-import { useLiveKey } from './useLiveKey'
+import { useLiveKey, useNow } from './useLiveKey'
 import { KeyDetails } from './KeyDetails'
+import { WaitingCard } from './WaitingCard'
+import { keysTonight } from './waiting'
 
 /** The live key, read from the combat log as the game writes it: in batches as fights start and end, so a pull's
  * numbers arrive when it's over, and a line says how long ago the last batch came. The game logs no end for a key the
  * party left, and can write the line that shows it minutes late, so that line has a button to end it. onEnded runs
- * when a key ends. */
-export function MPlusLive({ onEnded }: { onEnded: () => void }) {
+ * when a key ends. Between keys, character (the top bar's, '' for all) picks today's keys the waiting card lists, and
+ * onOpen opens one. */
+export function MPlusLive({ onEnded, character, onOpen }: {
+  onEnded: () => void
+  character: string
+  onOpen: (start: number) => void
+}) {
   const { loaded, key, clockMS, silentMS, error, endedHere } = useLiveKey(onEnded)
   if (!loaded) return <p className="muted">{error ?? 'Connecting to the site…'}</p>
   if (key === null || (key.status !== 'running' && key.start !== endedHere)) {
-    return <Waiting last={key} />
+    return <Waiting last={key} character={character} onOpen={onOpen} />
   }
   return (
     <>
@@ -30,19 +38,28 @@ export function MPlusLive({ onEnded }: { onEnded: () => void }) {
   )
 }
 
-/** Between keys: waiting for the next one, with what happened to the last. */
-function Waiting({ last }: { last: KeyView | null }) {
+/** Between keys: the waiting card, with what happened to the last key and today's keys, read again when a key ends. */
+function Waiting({ last, character, onOpen }: { last: KeyView | null; character: string; onOpen: (start: number) => void }) {
+  const [keys, setKeys] = useState<KeySummary[]>([])
+  const lastStart = last?.start
+  useEffect(() => {
+    const controller = new AbortController()
+    fetchSavedKeys(character, controller.signal).then(setKeys, () => undefined)
+    return () => controller.abort()
+  }, [character, lastStart])
+  const now = useNow(60_000)
+  const midnight = new Date(now).setHours(0, 0, 0, 0)
   return (
-    <section className="waiting">
-      <h1>Waiting for the next key</h1>
-      <p className="muted">
-        It shows here when the key starts, with combat logging on (Advanced Combat Logging, then /combatlog in game).
-      </p>
+    <WaitingCard
+      title="Waiting for the next key"
+      hint="It shows here when the key starts."
+      rows={keysTonight(keys, midnight, onOpen)}
+    >
       {last && (
         <p className="muted">
-          Last key: {last.dungeon} +{last.level}, {last.status}. It's in the saved keys on the side.
+          Last key: {last.dungeon} +{last.level}, {last.status}.
         </p>
       )}
-    </section>
+    </WaitingCard>
   )
 }
