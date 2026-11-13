@@ -26,6 +26,9 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 ### Fixed
 - The replay named every enemy "Enemy": the track dropped the names the tracker had.
 
+### Fixed
+- A priority target is red (and counts as late in the review) only when it died last of its pack, not after more than half of it; a miniboss alone in its pack is never late. `readerVersion` 16, so *Read old logs* fills it in.
+
 ## [0.4.2] - 2026-11-12
 
 ### Fixed

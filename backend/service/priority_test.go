@@ -23,6 +23,8 @@ func TestMinibossesAndWhenTheyDied(t *testing.T) {
 			[]models.KeyMiniboss{{Name: "Mob 1", Order: 3, Of: 3}}, true},
 		{"two minibosses, one late", 585, []int{900, 900, 300, 300}, []int{1, 3, 4, 2},
 			[]models.KeyMiniboss{{Name: "Mob 1", Order: 1, Of: 3}, {Name: "Mob 2", Order: 3, Of: 3}}, true},
+		{"the miniboss dies second of three", 585, []int{900, 300, 300}, []int{2, 1, 3},
+			[]models.KeyMiniboss{{Name: "Mob 1", Order: 2, Of: 3}}, false},
 		{"a pack of equals has none", 585, []int{300, 300, 300}, []int{1, 2, 3}, nil, false},
 		// Only minibosses in the pack: no regular mob to die before, so never late.
 		{"a pack of minibosses", 586, []int{900, 900}, []int{2, 1},

@@ -20,8 +20,8 @@ const (
 	lowPriorityOfAverage = 0.5
 )
 
-// lateText says how many of a key's priority pulls had a target die after most of its pack, and when one died last
-// how long after the rest of it (the worst, and its pull); "" when none was late.
+// lateText says how many of a key's priority pulls had a target die last of its pack, and how long after the rest of
+// it (the worst, and its pull); "" when none was late.
 func lateText(pulls []models.KeyPull) string {
 	late := countFunc(pulls, func(p models.KeyPull) bool { return p.Late })
 	if late == 0 {
@@ -37,7 +37,7 @@ func lateText(pulls []models.KeyPull) string {
 		}
 	}
 	if worst.AfterMS == 0 {
-		return fmt.Sprintf("Priority target died after most of its pack in %d of %d pulls", late, len(pulls))
+		return fmt.Sprintf("Priority target died last of its pack in %d of %d pulls", late, len(pulls))
 	}
 	return fmt.Sprintf("Priority target died late in %d of %d pulls, last up to %.0f s after the rest of its pack (pull %d)",
 		late, len(pulls), math.Ceil(float64(worst.AfterMS)/1000), worstPull) // up: under a second still reads as 1 s

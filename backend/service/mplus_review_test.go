@@ -137,10 +137,10 @@ func TestLateText(t *testing.T) {
 	}{
 		{"none late", []models.KeyPull{{Pull: 1}}, ""},
 		{"one died last", []models.KeyPull{{Pull: 2}, {Pull: 5, Late: true, Minibosses: []models.KeyMiniboss{last}},
-			{Pull: 6, Late: true, Minibosses: []models.KeyMiniboss{{Order: 2, Of: 3, AfterMS: 0}}}, {Pull: 7}},
+			{Pull: 6, Late: true, Minibosses: []models.KeyMiniboss{{Order: 3, Of: 3, AfterMS: 0}}}, {Pull: 7}},
 			"Priority target died late in 2 of 4 pulls, last up to 6 s after the rest of its pack (pull 5)"},
-		{"none died last", []models.KeyPull{{Pull: 1, Late: true, Minibosses: []models.KeyMiniboss{{Order: 2, Of: 3}}},
-			{Pull: 2}}, "Priority target died after most of its pack in 1 of 2 pulls"},
+		{"no gap known", []models.KeyPull{{Pull: 1, Late: true, Minibosses: []models.KeyMiniboss{{Order: 3, Of: 3}}},
+			{Pull: 2}}, "Priority target died last of its pack in 1 of 2 pulls"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
