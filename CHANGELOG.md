@@ -5,9 +5,11 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 ## [Unreleased]
 
 ### Added
+- Hovering an ability's name (a death's recap, defensives and what was *still ready*, CC, buffs, the ability rows) says what it does and its cooldown, from Wowhead's tooltip for the spell ID the combat log gave the name (`GET /api/spells?name=`, cached a week in `wowhead/`). Names get a dotted underline; an ability the log hasn't shown since the app started shows just its name.
 - A must-stop cast that wipes the raid when it goes off is the first line of a pull's *Fix next pull* ("Anguished Cry went off 1 time, which wipes the raid"): `wipe_stop` in `raid-mechanics.toml` (Ula'tek's Anguished Cry, the Weakened Doomscale's raid-wide stun), `wipe` on a `KeyStop`. `readerVersion` 15, so *Read old logs* fills it in.
 
 ### Changed
+- Every hover is the timeline's box (`Tip.tsx`, shown at once, above what the mouse is on) instead of the browser's slow plain tooltip: meter cells, key bar marks, the damage graph's point (its player, time and rate), the lanes. A new hover is one `tip(text, head)` or `spellTip(name)` on the element.
 - An M+ key's **Buffs** tab reads like a raid pull's: a line per buff, "Missing Arcane Intellect", with who lacked it the whole key (or "everyone") and each gap as a player with its start and end on the key's clock (a click moves the replay). It now also catches a flask, food or party buff that came off mid-key (`buffGaps` on a key; `BuffGap` replaces `RaidMissing`), shown by the shared `BuffGaps.tsx`. `readerVersion` 14, so *Read old logs* fills it in.
 
 ## [0.4.2] - 2026-11-12

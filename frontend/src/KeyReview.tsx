@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { fetchReview, makeReview, type KeyReview as Review, type KeyView, type ReviewMetric } from './api'
 import { amount } from './format'
+import { tip } from './tipAttrs'
 
 /** The cell's tone: deaths red, a combat potion green. */
 function tone(m: ReviewMetric): string {
@@ -93,7 +94,7 @@ export function KeyReview(props: { keyView: KeyView; justEnded: boolean; onRevie
             <tr>
               <th>Player</th>
               {columns.map((n) => (
-                <th key={n.name} title={n.help} className={n.group ? 'group' : undefined}>
+                <th key={n.name} {...tip(n.help)} className={n.group ? 'group' : undefined}>
                   {n.name}
                   {n.totalName && ` / ${n.totalName}`}
                 </th>
@@ -103,7 +104,7 @@ export function KeyReview(props: { keyView: KeyView; justEnded: boolean; onRevie
           <tbody>
             {review.players.map((p) => (
               <tr key={p.player}>
-                <td title={p.spec}>
+                <td {...tip(p.spec)}>
                   <b>{p.player}</b>
                 </td>
                 {p.metrics.map((m) => {
@@ -112,7 +113,7 @@ export function KeyReview(props: { keyView: KeyView; justEnded: boolean; onRevie
                     <td
                       key={m.name}
                       className={metricClass(m)}
-                      title={m.partyRank > 0 ? `#${m.partyRank} in the party` : undefined}
+                      {...tip(m.partyRank > 0 ? `#${m.partyRank} in the party` : undefined)}
                     >
                       {show(m.value)}
                       {m.total ? ` / ${amount(m.total)}` : ''}

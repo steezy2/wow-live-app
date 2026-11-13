@@ -3,6 +3,8 @@ import { type KeyTrack, type KeyView, type MeterPoint } from './api'
 import { classColors } from './classColors'
 import { amount, clock, valueAt } from './format'
 import type { SliderMark } from './replay'
+import { TipBox } from './Tip'
+import { tip } from './tipAttrs'
 
 /** The graph's drawing size (it scales to the panel) and its margins for the axis labels. */
 const W = 1000
@@ -74,7 +76,7 @@ export function MeterGraph(props: {
   const [kind, setKind] = useState<'d' | 'h'>('d')
   const [own, setOwn] = useState('')
   const [total, setTotal] = useState(false)
-  const [hover, setHover] = useState<{ player: string; i: number } | null>(null)
+  const [hover, setHover] = useState<{ player: string; i: number; sx: number; sy: number } | null>(null)
   const player = onFocus ? (focus ?? '') : own
   const setPlayer = onFocus ?? setOwn
   const only = player || (total ? TOTAL : '')
@@ -119,7 +121,10 @@ export function MeterGraph(props: {
     const i = Math.min(times.length - 1, Math.max(0, Math.round(t / STEP_MS) - 1))
     const far = (l: (typeof lines)[number]) => Math.abs(y(l.rates[i]) - down)
     const [nearest] = lines.filter((l) => far(l) <= HOVER_REACH).sort((a, b) => far(a) - far(b))
-    return nearest ? { player: nearest.player, i } : null
+    if (!nearest) return null
+    const box = e.currentTarget.getBoundingClientRect() // the point's place in the window, for the hover box
+    const sx = box.left + (x(times[i]) * box.width) / W
+    return { player: nearest.player, i, sx, sy: box.top + (y(nearest.rates[i]) * box.height) / H }
   }
   const click = (e: MouseEvent<SVGSVGElement>) => {
     const line = under(e)
@@ -187,9 +192,15 @@ export function MeterGraph(props: {
         ))}
         {marks.map((m, i) =>
           m.className === 'boss' ? (
-            <line key={i} className="graph-boss" x1={x(m.clockMS)} x2={x(m.clockMS)} y1={0} y2={H - BOTTOM}>
-              <title>{m.title}</title>
-            </line>
+            <line
+              key={i}
+              className="graph-boss"
+              x1={x(m.clockMS)}
+              x2={x(m.clockMS)}
+              y1={0}
+              y2={H - BOTTOM}
+              {...tip(m.title)}
+            />
           ) : (
             <line
               key={i}
@@ -198,9 +209,8 @@ export function MeterGraph(props: {
               x2={x(m.clockMS)}
               y1={H - BOTTOM - 10}
               y2={H - BOTTOM}
-            >
-              <title>{m.title}</title>
-            </line>
+              {...tip(m.title)}
+            />
           ),
         )}
         {[...lines]
@@ -222,21 +232,21 @@ export function MeterGraph(props: {
             fill="none"
             strokeWidth={3}
             points={l.rates.map((v, i) => `${x(times[i])},${y(v)}`).join(' ')}
-          >
-            <title>{l.name}</title>
-          </polyline>
+            {...tip(l.name)}
+          />
         ))}
         {now !== undefined && <line className="graph-now" x1={x(now)} x2={x(now)} y1={0} y2={H - BOTTOM} />}
         {hover && hovered && (
           <g className="graph-hover" fill={hovered.color}>
             <circle cx={x(times[hover.i])} cy={y(hovered.rates[hover.i])} r={4} />
-            <text x={W - 4} y={14} textAnchor="end">
-              {hovered.player} · {amount(hovered.rates[hover.i])} {kind === 'd' ? 'DPS' : 'HPS'} at{' '}
-              {clock(times[hover.i])}
-            </text>
           </g>
         )}
       </svg>
+      {hover && hovered && (
+        <TipBox x={hover.sx} y={hover.sy - 6} head={`${hovered.player} · ${clock(times[hover.i])}`}>
+          {amount(hovered.rates[hover.i])} {kind === 'd' ? 'DPS' : 'HPS'}
+        </TipBox>
+      )}
       <p className="small graph-legend">
         {meters.map(([name]) => (
           <button

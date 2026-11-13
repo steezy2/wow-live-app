@@ -2,6 +2,7 @@ import { Fragment } from 'react'
 import { type BuffGap } from './api'
 import { groupBy } from './format'
 import { When, Who, type Seeker } from './Seek'
+import { Spell } from './Spell'
 
 /** What a key or raid pull lacked, a line per buff (the most players first), for a tab: who lacked it the whole fight
  * ("everyone" when all did), then each shorter gap as a player and its start (a time that moves the replay with seek) to
@@ -17,7 +18,9 @@ export function BuffGaps(props: { gaps: BuffGap[]; endMS: number; players: numbe
         const parts = list.filter((g) => !whole(g))
         return (
           <li key={buff}>
-            <span className="muted">Missing</span> <b>{buff}</b>{' '}
+            <span className="muted">Missing</span> <b>
+              <Spell name={buff} />
+            </b>{' '}
             {all.length > 0 && (
               <span>
                 {all.length === players

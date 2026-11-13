@@ -1,5 +1,6 @@
 import { classColors } from './classColors'
 import { clock } from './format'
+import { tip } from './tipAttrs'
 
 /** Each player's class, by name. */
 export type Classes = Record<string, string>
@@ -15,7 +16,7 @@ export interface Seeker {
 export function Name({ player, classes, onPick }: { player: string; classes: Classes; onPick?: (p: string) => void }) {
   const style = { color: classColors[classes[player]] }
   return onPick ? (
-    <button className="name pick" style={style} onClick={() => onPick(player)} title={`Focus ${player}`}>
+    <button className="name pick" style={style} onClick={() => onPick(player)} {...tip(`Focus ${player}`)}>
       {player}
     </button>
   ) : (
@@ -28,7 +29,7 @@ export function Name({ player, classes, onPick }: { player: string; classes: Cla
 /** A time on the replay's clock; a click moves the replay there. */
 export function At({ ms, onSeek }: { ms: number; onSeek: (clockMS: number) => void }) {
   return (
-    <button className="at muted" onClick={() => onSeek(ms)} title="Show this moment in the replay">
+    <button className="at muted" onClick={() => onSeek(ms)} {...tip('Show this moment in the replay')}>
       {clock(ms)}
     </button>
   )
