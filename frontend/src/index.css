@@ -1629,3 +1629,53 @@ button.link {
   border-color: var(--accent);
   background: var(--panel-2);
 }
+
+/* The Routes section (RoutesPage.tsx): the route's map with its pulls beside it, and the side's import box. */
+.side textarea {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: var(--s1) var(--s2);
+  font: inherit;
+  resize: vertical;
+}
+
+.route-star[aria-pressed='true'] {
+  color: var(--warn);
+}
+
+.route-view {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 240px;
+  gap: var(--s4);
+  align-items: start;
+}
+
+.route-pulls {
+  list-style: none;
+  margin: var(--s5) 0 0;
+  padding: 0;
+}
+
+.route-pulls li {
+  display: grid;
+  grid-template-columns: 2rem 1fr 1fr 1fr;
+  gap: var(--s2);
+  align-items: center;
+  padding: 2px 0;
+  text-align: right;
+}
+
+.route-pulls li > :first-child {
+  text-align: left;
+}
+
+.route-swatch {
+  display: inline-block;
+  width: 1.6rem;
+  border-radius: 4px;
+  color: #fff;
+  text-align: center;
+  text-shadow: 0 0 2px #000;
+}

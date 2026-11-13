@@ -239,12 +239,19 @@ function canvasSize(backdrop: Backdrop): [number, number] {
   }
 }
 
+/** A place in the combat log's yards. */
+export type Yards = Pick<TrackPoint, 'x' | 'y'>
+
+/** What a map draws over its backdrop: given where a place lands on the canvas and the size of a dot (the same on
+ * screen at any zoom). */
+export type Overlay = (ctx: CanvasRenderingContext2D, at: (p: Yards) => [number, number], dot: number) => void
+
 /** The map itself: the backdrop, each player's trail and dot in their class colour (a cross where they died), a raid
  * boss's units and minibosses (named), the other mobs alive (small, unnamed), and mob deaths so far. The wheel zooms
  * around the pointer, a drag pans and a double click shows all of it again. With onPick, a click on a player's dot
  * picks them and a right click picks nobody (''); the focused player gets a ring and their name, and the others'
  * trails fade. With onPickEnemy, a click on a mob or a boss picks it (by GUID), the right click lets go of it too, and
- * the picked enemy gets a ring and its name. */
+ * the picked enemy gets a ring and its name. An overlay is drawn on the backdrop, under all of those. */
 export function MapCanvas(props: {
   track: KeyTrack
   backdrop: Backdrop
@@ -258,8 +265,9 @@ export function MapCanvas(props: {
   onPick?: (player: string) => void
   enemy?: string
   onPickEnemy?: (guid: string) => void
+  overlay?: Overlay
 }) {
-  const { track, backdrop, floor, now, clock, trailMS, deaths, focus, onPick, enemy, onPickEnemy } = props
+  const { track, backdrop, floor, now, clock, trailMS, deaths, focus, onPick, enemy, onPickEnemy, overlay } = props
   const ref = useRef<HTMLCanvasElement>(null)
   const [loaded, setLoaded] = useState(0)
   const [view, setView] = useState(WHOLE)
@@ -384,6 +392,7 @@ export function MapCanvas(props: {
         ctx.arc(x, y, r, 0, 2 * Math.PI)
         ctx.stroke()
       }
+      overlay?.(ctx, at, dot)
       ctx.fillStyle = css.bad
       track.deaths
         .filter((d) => d.map === floor && d.t <= now)
@@ -491,7 +500,7 @@ export function MapCanvas(props: {
     }
     tick()
     return () => cancelAnimationFrame(frame)
-  }, [track, backdrop, walkedHere, area, floor, now, clock, trailMS, deaths, loaded, view, focus, enemy])
+  }, [track, backdrop, walkedHere, area, floor, now, clock, trailMS, deaths, loaded, view, focus, enemy, overlay])
   return (
     <canvas
       ref={ref}
@@ -523,7 +532,7 @@ export function MapCanvas(props: {
 /** Where a log position lands on a Keystone.guru floor: its x across is the log's -y within the floor's bounds,
  * its y down the log's x (both as Keystone.guru's CoordinatesService computes them). */
 function onTiles(floor: DungeonFloor, canvas: HTMLCanvasElement) {
-  return (p: TrackPoint): [number, number] => [
+  return (p: Yards): [number, number] => [
     ((floor.maxX + p.y) / (floor.maxX - floor.minX)) * canvas.width,
     ((floor.maxY - p.x) / (floor.maxY - floor.minY)) * canvas.height,
   ]
@@ -531,7 +540,7 @@ function onTiles(floor: DungeonFloor, canvas: HTMLCanvasElement) {
 
 /** Where a log position lands on a raid room's whole image, as shares of its width and height: across from its maxY
  * (west, the left edge), down from its maxX (north, the top), as the game's world map draws it. */
-function onRoom(map: RaidMap, p: TrackPoint): [number, number] {
+function onRoom(map: RaidMap, p: Yards): [number, number] {
   return [(map.maxY - p.y) / (map.maxY - map.minY), (map.maxX - p.x) / (map.maxX - map.minX)]
 }
 
@@ -555,7 +564,7 @@ function fightArea(map: RaidMap, track: KeyTrack, floor: number): [number, numbe
 
 /** Where a log position lands on the canvas showing a part of a raid room's image (fightArea). */
 function onImage(map: RaidMap, [left, top, share]: [number, number, number], canvas: HTMLCanvasElement) {
-  return (p: TrackPoint): [number, number] => {
+  return (p: Yards): [number, number] => {
     const [u, v] = onRoom(map, p)
     return [((u - left) / share) * canvas.width, ((v - top) / share) * canvas.height]
   }
@@ -572,5 +581,5 @@ function onWalked(walked: TrackPoint[], track: KeyTrack, floor: number, canvas: 
   }
   const pad = 12
   const scale = Math.min((canvas.width - 2 * pad) / (maxX - minX || 1), (canvas.height - 2 * pad) / (maxY - minY || 1))
-  return (p: TrackPoint): [number, number] => [pad + (-p.y - minX) * scale, canvas.height - pad - (p.x - minY) * scale]
+  return (p: Yards): [number, number] => [pad + (-p.y - minX) * scale, canvas.height - pad - (p.x - minY) * scale]
 }
