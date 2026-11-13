@@ -18,37 +18,48 @@ type Recap struct {
 }
 
 // RecapMPlus is a recap's keys: run, timed (and their share), the highest level timed, the time spent in them and the
-// party's deaths; the per-key averages; each dungeon's runs; the character; who they ran with; and a few facts that
-// each open a key.
+// party's deaths; a row per key, newest first; each dungeon's runs; the character; who they ran with; and a few facts
+// that each open a key.
 type RecapMPlus struct {
 	Keys         int            `json:"keys"`
 	Timed        int            `json:"timed"`
 	SuccessPct   float64        `json:"successPct"`
 	HighestTimed int            `json:"highestTimed"` // 0 when none was timed
 	TimeMS       int64          `json:"timeMS"`
-	Deaths       int            `json:"deaths"` // the party's
-	Averages     RecapAverages  `json:"averages"`
+	Deaths       int            `json:"deaths"`   // the party's
+	KeyRows      []RecapKeyRow  `json:"keyRows"`  // newest first, the latest few only
 	Dungeons     []RecapDungeon `json:"dungeons"` // most run first
 	You          *RecapYou      `json:"you,omitempty"`
 	Party        []RecapMate    `json:"party"` // most keys together first
 	Facts        []RecapFact    `json:"facts"`
 }
 
-// RecapAverages is a key's kicks, crowd control, dispels and priority damage on average, the party's and the
-// character's own (in the keys they played).
-type RecapAverages struct {
-	Party RecapPerKey `json:"party"`
-	You   RecapPerKey `json:"you"`
+// RecapKeyRow is one key in a recap, opened by its start: the character's own numbers and the whole party's.
+type RecapKeyRow struct {
+	Start   int64          `json:"start"`
+	Dungeon string         `json:"dungeon"`
+	Level   int            `json:"level"`
+	Status  string         `json:"status" enums:"running,timed,depleted,abandoned"`
+	You     RecapKeyYou    `json:"you"`
+	Party   RecapKeyCounts `json:"party"`
 }
 
-// RecapPerKey is an average per key: kicks, crowd control casts (mplus.toml's [cc]), dispels, and the share of
-// damage that went into minibosses and bosses (in %). Each is -1 when no key in the period had it (keys saved before
-// it was kept).
-type RecapPerKey struct {
-	Kicks       float64 `json:"kicks"`
-	CC          float64 `json:"cc"`
-	Dispels     float64 `json:"dispels"`
+// RecapKeyCounts is a key's kicks, crowd control casts (mplus.toml's [cc]) and dispels, and the share of damage that
+// went into minibosses and bosses (in %). Each is -1 when not known: the player wasn't in the key, or (PriorityPct
+// only) the key was saved before priority damage was kept.
+type RecapKeyCounts struct {
+	Kicks       int     `json:"kicks"`
+	CC          int     `json:"cc"`
+	Dispels     int     `json:"dispels"`
 	PriorityPct float64 `json:"priorityPct"`
+}
+
+// RecapKeyYou is the character's own numbers in a key: their DPS and HPS over the key and their counts, each -1 when
+// they weren't in it (DPS and HPS also when the key kept no meter row for them).
+type RecapKeyYou struct {
+	DPS float64 `json:"dps"`
+	HPS float64 `json:"hps"`
+	RecapKeyCounts
 }
 
 // RecapRaid is a recap's raid pulls: pulls, kills, the bosses killed (by boss and difficulty), the time spent in

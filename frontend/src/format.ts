@@ -63,6 +63,14 @@ export function versus(ms: number, other: number): string {
   return `${ms > other ? '+' : ''}${clock(ms - other)}`
 }
 
+/** A time against the best one, as what leads "your best": "2:00 faster than", "0:30 slower than", "level with"; empty
+ * when there is no best. */
+export function versusBest(ms: number, bestMS: number): string {
+  if (bestMS <= 0) return ''
+  if (ms === bestMS) return 'level with'
+  return `${clock(Math.abs(ms - bestMS))} ${ms < bestMS ? 'faster' : 'slower'} than`
+}
+
 /** A count with its word: "1 death", "3 deaths". */
 export function counted(n: number, word: string): string {
   return `${n} ${word}${n === 1 ? '' : 's'}`

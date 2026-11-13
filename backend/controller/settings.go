@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -25,8 +26,12 @@ var (
 	overlayColumns = []string{"dps", "hps", "kicks", "pullDps", "taken", "avoidable", "priority", "dispels", "deaths"}
 )
 
-// minOpacity is the overlay background's least opacity in %: 0 leaves only the text over the game.
-const minOpacity = 0
+const (
+	// minOpacity is the overlay background's least opacity in %: 0 leaves only the text over the game.
+	minOpacity = 0
+	// maxAutoDays is the most days each of the auto rule's fields takes.
+	maxAutoDays = 365
+)
 
 // Settings reads and saves the desktop app's settings (app.Settings); only the app serves them.
 type Settings interface {
@@ -42,13 +47,15 @@ type WCLKeys interface {
 	Remove() error
 }
 
-// LogFolder reads, lists, archives and deletes the game's combat logs (app.Site); the errors wrap service.ErrBusy
-// while another of these runs, and service.ErrBadLog for a log the list doesn't offer.
+// LogFolder reads, lists, archives and deletes the game's combat logs and the Warcraft Logs imports, and measures
+// the app's folders (app.Site); the errors wrap service.ErrBusy while another of these runs, and service.ErrBadLog
+// for a log the list doesn't offer.
 type LogFolder interface {
 	Learn(all bool) (read, saved int, err error)
 	LogFiles() ([]models.LogFile, error)
-	ArchiveLogs(names []string) ([]models.LogFile, error)
-	DeleteArchivedLogs(names []string) ([]models.LogFile, error)
+	ArchiveLogs(source string, names []string) ([]models.LogFile, error)
+	DeleteLogs(source string, names []string) ([]models.LogFile, error)
+	Storage() (models.Storage, error)
 }
 
 // Characters checks the character setting and guesses it from the saved keys (service.Characters); Resolve's errors
@@ -78,9 +85,11 @@ type SettingsAPI struct {
 	Import     Import     // set by app.Start
 }
 
-// LogNames names the logs to archive or delete, as LogFiles lists them.
+// LogNames names the logs to archive or delete, as LogFiles lists them, and their source (the game's, the default, or
+// Warcraft Logs imports).
 type LogNames struct {
-	Names []string `json:"names" binding:"required,min=1"`
+	Names  []string `json:"names" binding:"required,min=1"`
+	Source string   `json:"source" binding:"omitempty,oneof=game wcl" enums:"game,wcl"`
 }
 
 // ImportKinds are the kinds of fight to import, each once.
@@ -122,10 +131,12 @@ func (s SettingsAPI) ReadKeys(c *gin.Context) {
 
 // LogFiles godoc
 //
-//	@Summary		List the combat logs and the archived ones
-//	@Description	The log folder's combat logs, then the ones archived (zipped into its WoW Live archive folder), newest
-//	@Description	first: size, last write, saved keys and pulls from each, whether it's read, whether the game may still
-//	@Description	write it (it can't be archived) and whether to tick it at first (older than 14 days and read).
+//	@Summary		List the combat logs, the archived ones and the Warcraft Logs imports
+//	@Description	The log folder's combat logs, then the ones archived (zipped into its WoW Live archive folder), then
+//	@Description	the Warcraft Logs fights imported (source wcl, dated at the fight's end), each newest first: size,
+//	@Description	last write, saved keys and pulls from each, whether it's read (an import: its key or pull is saved),
+//	@Description	whether the game may still write it (it can't be archived) and whether to tick it at first (older
+//	@Description	than 14 days and read).
 //	@Tags			settings
 //	@Produce		json
 //	@Success		200	{array}		models.LogFile
@@ -144,11 +155,12 @@ func (s SettingsAPI) LogFiles(c *gin.Context) {
 //	@Summary		Archive combat logs
 //	@Description	Zips each named log into the log folder's WoW Live archive folder and removes it (reading the folder
 //	@Description	first when one isn't read yet), so live reading and Read old logs skip it; Read everything again
-//	@Description	still reads it. Answers the new list; a log that couldn't be archived carries its error.
+//	@Description	still reads it. Answers the new list; a log that couldn't be archived carries its error. Only the
+//	@Description	game's logs: Warcraft Logs imports are zips already.
 //	@Tags			settings
 //	@Accept			json
 //	@Produce		json
-//	@Param			logs	body		LogNames	true	"names from the list, not archived and not being written"
+//	@Param			logs	body		LogNames	true	"names of game logs from the list, not archived and not being written"
 //	@Success		200		{array}		models.LogFile
 //	@Failure		400		{object}	ErrorResponse
 //	@Failure		409		{object}	ErrorResponse	"already reading, archiving or deleting logs"
@@ -158,36 +170,55 @@ func (s SettingsAPI) ArchiveLogs(c *gin.Context) {
 	s.onLogs(c, "archiving logs", s.Logs.ArchiveLogs)
 }
 
-// DeleteArchivedLogs godoc
+// DeleteLogs godoc
 //
-//	@Summary		Delete archived combat logs for good
-//	@Description	Removes the named archived logs' zips. Saved keys and pulls stay. Answers the new list; a log that
-//	@Description	couldn't be deleted carries its error.
+//	@Summary		Delete archived combat logs or Warcraft Logs imports for good
+//	@Description	Removes the named archived logs' zips (source game) or imported fights' zips (source wcl). Saved
+//	@Description	keys and pulls stay; importing a fight again costs Warcraft Logs points. Answers the new list; a log
+//	@Description	that couldn't be deleted carries its error.
 //	@Tags			settings
 //	@Accept			json
 //	@Produce		json
-//	@Param			logs	body		LogNames	true	"names of archived logs from the list"
+//	@Param			logs	body		LogNames	true	"names of archived logs or imports from the list"
 //	@Success		200		{array}		models.LogFile
 //	@Failure		400		{object}	ErrorResponse
 //	@Failure		409		{object}	ErrorResponse	"already reading, archiving or deleting logs"
 //	@Failure		500		{object}	ErrorResponse
 //	@Router			/api/settings/logs/archive [delete]
-func (s SettingsAPI) DeleteArchivedLogs(c *gin.Context) {
-	s.onLogs(c, "deleting archived logs", s.Logs.DeleteArchivedLogs)
+func (s SettingsAPI) DeleteLogs(c *gin.Context) {
+	s.onLogs(c, "deleting logs", s.Logs.DeleteLogs)
 }
 
-// onLogs reads the names in the body and answers what do did to them.
-func (s SettingsAPI) onLogs(c *gin.Context, doing string, do func([]string) ([]models.LogFile, error)) {
+// onLogs reads the names and source in the body and answers what do did to them.
+func (s SettingsAPI) onLogs(c *gin.Context, doing string, do func(string, []string) ([]models.LogFile, error)) {
 	var body LogNames
 	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "send the names of the logs"})
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "send the names of the logs and their source (game or wcl)"})
 		return
 	}
-	files, err := do(body.Names)
+	files, err := do(cmp.Or(body.Source, models.LogSourceGame), body.Names)
 	if logFolderFailed(c, doing, err) {
 		return
 	}
 	c.JSON(http.StatusOK, files)
+}
+
+// Storage godoc
+//
+//	@Summary		How much disk the app's data and the game's logs take
+//	@Description	The size of the saved keys, the saved raid pulls, the Warcraft Logs imports, the archived combat logs
+//	@Description	and the game's combat logs, measured now.
+//	@Tags			settings
+//	@Produce		json
+//	@Success		200	{object}	models.Storage
+//	@Failure		500	{object}	ErrorResponse
+//	@Router			/api/storage [get]
+func (s SettingsAPI) Storage(c *gin.Context) {
+	storage, err := s.Logs.Storage()
+	if logFolderFailed(c, "measuring the folders", err) {
+		return
+	}
+	c.JSON(http.StatusOK, storage)
 }
 
 // logFolderFailed answers a log folder job's error, if any: 409 while another runs, 400 for a log the list doesn't
@@ -223,7 +254,8 @@ func (s SettingsAPI) Get(c *gin.Context) {
 //	@Summary		Save the desktop app's settings
 //	@Description	The log folder and the overlay change right away; a new region's affix names show from the next
 //	@Description	start. A character ("Name-Realm", empty for none) needs a name of 2 to 12 letters and a realm Warcraft
-//	@Description	Logs lists in the region, which takes the saved Warcraft Logs keys.
+//	@Description	Logs lists in the region, which takes the saved Warcraft Logs keys. Each of the auto rule's days is 0
+//	@Description	(off) to 365.
 //	@Tags			settings
 //	@Accept			json
 //	@Produce		json
@@ -240,10 +272,12 @@ func (s SettingsAPI) Put(c *gin.Context) {
 	next.LogsDir = filepath.Clean(next.LogsDir)
 	if o := next.Overlay; err != nil || !filepath.IsAbs(next.LogsDir) || !slices.Contains(regions, next.Region) ||
 		!slices.Contains(overlayShows, o.Show) || o.Opacity < minOpacity || o.Opacity > 100 || o.Rows < 0 ||
-		slices.ContainsFunc(o.Columns, func(c string) bool { return !slices.Contains(overlayColumns, c) }) {
+		slices.ContainsFunc(o.Columns, func(c string) bool { return !slices.Contains(overlayColumns, c) }) ||
+		!autoDays(next.Auto.ArchiveGameLogsDays) || !autoDays(next.Auto.DeleteImportsDays) {
 		c.JSON(http.StatusBadRequest, ErrorResponse{Error: fmt.Sprintf("send a full log folder path, a region (%s), when "+
-			"overlay shows (%s), its opacity (%d to 100), its rows (0 or more) and its columns (%s)",
-			strings.Join(regions, ", "), strings.Join(overlayShows, ", "), minOpacity, strings.Join(overlayColumns, ", "))})
+			"overlay shows (%s), its opacity (%d to 100), its rows (0 or more), its columns (%s) and the auto rule's "+
+			"days (0 to %d)", strings.Join(regions, ", "), strings.Join(overlayShows, ", "), minOpacity,
+			strings.Join(overlayColumns, ", "), maxAutoDays)})
 		return
 	}
 	before := s.Settings.Get().Settings
@@ -261,6 +295,11 @@ func (s SettingsAPI) Put(c *gin.Context) {
 		s.Import.Stop() // its fights are the old character's
 	}
 	c.JSON(http.StatusOK, s.view())
+}
+
+// autoDays is whether days fits an auto rule's field: 0 (off) to maxAutoDays.
+func autoDays(days int) bool {
+	return days >= 0 && days <= maxAutoDays
 }
 
 // characterFailed answers a character check's error, if any.
@@ -284,7 +323,7 @@ func characterFailed(c *gin.Context, err error) bool {
 func (s SettingsAPI) view() models.SettingsView {
 	view := s.Settings.Get()
 	view.Regions, view.OverlayShows, view.MinOpacity = regions, overlayShows, minOpacity
-	view.OverlayColumns = overlayColumns
+	view.OverlayColumns, view.MaxAutoDays = overlayColumns, maxAutoDays
 	view.CharacterGuess = s.Characters.Guess()
 	return view
 }

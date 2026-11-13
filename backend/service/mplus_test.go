@@ -277,8 +277,8 @@ func TestKeyStep2(t *testing.T) {
 		t.Fatalf("mobs = %+v; want the Spellsower's trail", track.Mobs)
 	}
 	for _, m := range track.Mobs {
-		if len(m.Points) == 0 || m.Points[0].Name != "" || m.Died != track.Deaths[0].ClockMS {
-			t.Fatalf("mob trail = %+v; want unnamed points ending at its death %d", m, track.Deaths[0].ClockMS)
+		if m.Name != "Radiant Spellsower" || len(m.Points) == 0 || m.Points[0].Name != "" || m.Died != track.Deaths[0].ClockMS {
+			t.Fatalf("mob trail = %+v; want the name and unnamed points ending at its death %d", m, track.Deaths[0].ClockMS)
 		}
 	}
 	for _, r := range got.Overall.Rows { // the replay's cards at the end match the meters
