@@ -826,18 +826,18 @@ button {
   max-width: 640px;
 }
 
-/* The Settings tab: one panel per section, side by side where there's room. */
+/* The Settings tab: one panel per section, in columns so a short panel stacks under another instead of floating
+ * in a grid row as tall as its tallest neighbour. */
 .settings-page {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(420px, 100%), 1fr));
-  align-items: start;
-  gap: var(--s4);
+  columns: 420px;
+  column-gap: var(--s3);
   max-width: 1100px;
 }
 
 .settings-page .panel {
-  margin: 0;
+  margin: 0 0 var(--s3);
   padding: var(--s4);
+  break-inside: avoid;
 }
 
 .settings-page .settings p,
@@ -1207,8 +1207,6 @@ span.graph-taken {
 }
 
 .cast-box {
-  bottom: var(--s2);
-  left: var(--s2);
   min-width: 150px;
 }
 
@@ -1222,6 +1220,12 @@ span.graph-taken {
   gap: var(--s1);
   max-width: 45%;
   pointer-events: none;
+}
+
+.map-stack.left {
+  right: auto;
+  left: var(--s2);
+  align-items: flex-start;
 }
 
 .map-stack .map-box {

@@ -256,7 +256,7 @@ func (k *LogTracker) trackOf(run *keyRun) models.KeyTrack {
 			if live && m.Died > 0 { // the live map shows only the mobs still up
 				continue
 			}
-			t.Mobs[guid] = models.MobTrail{Points: list(m.Points), Died: m.Died}
+			t.Mobs[guid] = models.MobTrail{Name: m.Name, Points: list(m.Points), Died: m.Died}
 		}
 	}
 	if run.key.Status != "running" { // the focus bars and casts are for the replay of a finished run
