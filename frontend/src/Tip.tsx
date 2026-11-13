@@ -45,9 +45,8 @@ export function TipHost() {
       const text = el.getAttribute('data-tip') ?? ''
       const below = box.top < NEAR_TOP // no room above
       const y = below ? box.bottom : box.top
-      const own = { x, y, below, text, head: el.getAttribute('data-tip-head') ?? undefined }
       const spell = el.getAttribute('data-spell')
-      setShown(spell ? { ...own, text: own.text || spell } : own)
+      setShown({ x, y, below, text: text || spell || '', head: el.getAttribute('data-tip-head') ?? undefined })
       if (!spell) return
       void fetchSpell(spell).then((info) => {
         if (info && current === el) {
@@ -60,16 +59,19 @@ export function TipHost() {
       current = null
       setShown(null)
     }
+    const left = (e: MouseEvent) => !e.relatedTarget && hide() // the mouse left the window
     // An element that goes while the mouse is on it (a list drawn again) leaves no mouse event to end its box.
     const gone = new MutationObserver(() => current && !current.isConnected && hide())
     gone.observe(document.body, { childList: true, subtree: true })
     document.addEventListener('mouseover', over)
     document.addEventListener('mousedown', hide)
+    document.addEventListener('mouseout', left)
     document.addEventListener('scroll', hide, true)
     return () => {
       gone.disconnect()
       document.removeEventListener('mouseover', over)
       document.removeEventListener('mousedown', hide)
+      document.removeEventListener('mouseout', left)
       document.removeEventListener('scroll', hide, true)
     }
   }, [])

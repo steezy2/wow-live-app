@@ -232,7 +232,6 @@ export function MeterGraph(props: {
             fill="none"
             strokeWidth={3}
             points={l.rates.map((v, i) => `${x(times[i])},${y(v)}`).join(' ')}
-            {...tip(l.name)}
           />
         ))}
         {now !== undefined && <line className="graph-now" x1={x(now)} x2={x(now)} y1={0} y2={H - BOTTOM} />}
