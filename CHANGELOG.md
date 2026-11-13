@@ -5,11 +5,26 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 ## [Unreleased]
 
 ### Added
+- A **Home** tab, first in the top bar: a setup guide on first run (log folder, a log written, a character, Warcraft Logs keys), then status, quick links, this month's numbers and **Your data**: the space each folder takes, the combat log list (now with Warcraft Logs imports, which can be deleted) and optional auto rules that archive old game logs and delete old imports, both off by default. The guide can be shown again from Settings.
+- A splash while the app starts, so it opens on the right tab without flashing; short loads show nothing and longer ones a placeholder instead of "Loading…", and a saved key, pull or list stays on screen while the next one is read.
+- Between pulls and keys the Raid and M+ pages show what the app is waiting for: the log folder and when the game last wrote, a three-step checklist, and tonight's pulls or today's keys.
+- The timer has an underline up to your fastest timed time at that level (also in the overlay), and a running key says how much faster or slower than it the estimate is.
+- The Recap's M+ tab lists each key with your DPS and HPS and your kicks, CC, dispels and priority damage % beside the party's, in place of the per-key averages.
+
 - Hovering an ability's name (a death's recap, defensives and what was *still ready*, CC, buffs, the ability rows) says what it does and its cooldown, from Wowhead's tooltip for the spell ID the combat log gave the name (`GET /api/spells?name=`, cached a week in `wowhead/`). Names get a dotted underline; an ability the log hasn't shown since the app started shows just its name.
 - A must-stop cast that wipes the raid when it goes off is the first line of a pull's *Fix next pull* ("Anguished Cry went off 1 time, which wipes the raid"): `wipe_stop` in `raid-mechanics.toml` (Ula'tek's Anguished Cry, the Weakened Doomscale's raid-wide stun), `wipe` on a `KeyStop`. `readerVersion` 15, so *Read old logs* fills it in.
 
 ### Changed
 - The repo is public, under the [PolyForm Noncommercial License 1.0.0](LICENSE) (source-available: anyone may use it noncommercially, only the author may sell it) instead of all rights reserved. The privacy policy moved here from steezy2/wow-live (`PRIVACY.md`), and so did the issues link, the Store listing text and the User-Agent. Copies from before 0.1.5 stay MIT.
+- The overlay is compact: columns sit closer (three columns are about 216 px wide instead of 312), no scrollbar shows while clicking or resizing, the dispels column reads "Dispels", and Pull DPS is offered only with the one-card setup.
+- Settings panels stack in columns, so short panels no longer leave gaps.
+- In the replay a focused player's casts and damage taken are on the left and the enemy's casts on the right.
+- *Read old logs* fills in the names of enemies in already saved keys' replays.
+
+### Fixed
+- The replay named every enemy "Enemy": the track dropped the names the tracker had.
+
+### Changed
 - Every hover is the timeline's box (`Tip.tsx`, shown at once, above what the mouse is on) instead of the browser's slow plain tooltip: meter cells, key bar marks, the damage graph's point (its player, time and rate), the lanes. A new hover is one `tip(text, head)` or `spellTip(name)` on the element.
 - An M+ key's **Buffs** tab reads like a raid pull's: a line per buff, "Missing Arcane Intellect", with who lacked it the whole key (or "everyone") and each gap as a player with its start and end on the key's clock (a click moves the replay). It now also catches a flask, food or party buff that came off mid-key (`buffGaps` on a key; `BuffGap` replaces `RaidMissing`), shown by the shared `BuffGaps.tsx`. `readerVersion` 14, so *Read old logs* fills it in.
 

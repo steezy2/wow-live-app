@@ -40,7 +40,7 @@ export function WCLKeys() {
   if (!status) return null
   const tested = status.testedMS ? ` · tested ${new Date(status.testedMS).toLocaleTimeString()}` : ''
   return (
-    <section className="panel settings">
+    <section id="settings-wcl-keys" className="panel settings">
       <h2>Warcraft Logs keys</h2>
       <p className="muted">
         Only the key review and a dungeon's first estimate need them; everything else works without.

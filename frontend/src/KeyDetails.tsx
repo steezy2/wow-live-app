@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
 import type { KeyForces, KeyGhost, KeyReview as Review, KeyTrack, KeyView } from './api'
-import { chestLabel, clock, oddsText, pullTitle, resultText, share } from './format'
+import { chestLabel, clock, oddsText, pullTitle, resultText, share, versusBest } from './format'
 import { DamageGraph } from './DamageGraph'
 import { BuffGaps } from './BuffGaps'
 import { BossList, PriorityLedger } from './KeyLedgers'
@@ -114,6 +114,11 @@ export function KeyDetails({
       )}
       {timer > 0 && <TimerBar clockMS={clockMS} timerMS={timer} keyView={key} best={projection?.best ?? []} />}
       {key.forces && <ForcesBar forces={key.forces} level={key.level} />}
+      {projection && key.bestFinalMS !== undefined && key.bestFinalMS > 0 && (
+        <p className="muted">
+          Projected {versusBest(projection.finalMS, key.bestFinalMS)} your best +{key.level} ({clock(key.bestFinalMS)})
+        </p>
+      )}
       {timer > 0 && key.status === 'running' && (
         <p className="muted">
           {clock(timer - clockMS)} left · +3 by {clock(key.plus3MS)} · +2 by {clock(key.plus2MS)}
@@ -241,7 +246,8 @@ function meterWindows(key: KeyView, track: KeyTrack | null, at: number, end: num
   return [{ title: `Pull ${Math.max(1, started.length)}`, from: pull.startMS, to, saved: last }, whole]
 }
 
-/** The timer as a bar: the clock so far, the +3 and +2 marks, each boss kill, each death, and the best run's kills. */
+/** The timer as a bar: the clock so far, the +3 and +2 marks, each boss kill, each death, the best run's kills, and an
+ * underline up to where the fastest timed run finished. */
 export function TimerBar({
   clockMS,
   timerMS,
@@ -256,6 +262,13 @@ export function TimerBar({
   return (
     <div className="bar" role="img" aria-label={`${clock(clockMS)} of ${clock(timerMS)}`}>
       <div className="fill" style={{ width: `${share(clockMS, timerMS)}%` }} />
+      {keyView.bestFinalMS !== undefined && keyView.bestFinalMS > 0 && (
+        <div
+          className="best"
+          style={{ width: `${share(keyView.bestFinalMS, timerMS)}%` }}
+          {...tip('your fastest at this level')}
+        />
+      )}
       <div className="mark" style={{ left: `${share(keyView.plus3MS, timerMS)}%` }} {...tip('+3')} />
       <div className="mark" style={{ left: `${share(keyView.plus2MS, timerMS)}%` }} {...tip('+2')} />
       {keyView.bosses
