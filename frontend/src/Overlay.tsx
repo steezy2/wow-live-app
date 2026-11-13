@@ -14,7 +14,7 @@ import { AbilityBars } from './FightMeters'
 import { chestLabel, clock, pullTitle, resultText } from './format'
 import { HitRecapView } from './HitRecap'
 import { ForcesBar, TimerBar } from './KeyDetails'
-import { overlayColumn } from './meterColumns'
+import { overlayColumn, overlayIds } from './meterColumns'
 import { MeterCard } from './MeterCards'
 import { RaidOverlayCard } from './RaidPage'
 import { abilitiesBetween, recapOf, useTrack } from './replay'
@@ -119,11 +119,10 @@ function OverlayKey(props: { keyView: KeyView; clockMS: number; settings: Overla
   const timer = key.timerMS ?? 0
   const projection = key.status === 'running' ? key.projection : undefined
   const latest = key.deaths.length > 0 ? key.deaths[key.deaths.length - 1] : undefined
-  const chosen = settings.columns
   const last = key.lastPull
   const pullDeaths = key.deaths.filter((d) => d.clockMS >= last.startMS && d.clockMS <= last.endMS)
   const columns = (ids: OverlayColumn[], deaths: KeyDeath[]) => ids.map((id) => overlayColumn(id, last, deaths))
-  const oneCardIds = ['pullDps' as const, ...chosen.filter((id) => id !== 'pullDps')]
+  const ids = overlayIds(settings.columns, settings.oneCard)
   return (
     <>
       <div className="overlay-clock">
@@ -171,8 +170,9 @@ function OverlayKey(props: { keyView: KeyView; clockMS: number; settings: Overla
           <MeterCard
             title={`${pullTitle(key, clockMS)} · key`}
             meter={key.overall}
-            columns={columns(oneCardIds, key.deaths)}
+            columns={columns(ids, key.deaths)}
             rows={settings.rows}
+            dense
             onPick={pickWhole}
           />
         ) : (
@@ -180,15 +180,17 @@ function OverlayKey(props: { keyView: KeyView; clockMS: number; settings: Overla
             <MeterCard
               title={pullTitle(key, clockMS)}
               meter={last}
-              columns={columns(chosen, pullDeaths)}
+              columns={columns(ids, pullDeaths)}
               rows={settings.rows}
+              dense
               onPick={pickPull}
             />
             <MeterCard
               title="Key"
               meter={key.overall}
-              columns={columns(chosen, key.deaths)}
+              columns={columns(ids, key.deaths)}
               rows={settings.rows}
+              dense
               onPick={pickWhole}
             />
           </>

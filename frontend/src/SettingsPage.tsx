@@ -54,6 +54,7 @@ export function SettingsPage({ view, onSaved }: { view: SettingsView; onSaved: (
     }, OVERLAY_SAVE_MS)
     return () => clearTimeout(timer)
   }, [overlay, view, onSaved, setOverlayNote])
+  const columns = view.overlayColumns.filter((id) => overlay.oneCard || id !== 'pullDps')
   const save = (e: FormEvent) => {
     e.preventDefault()
     const call = saveSettings({ ...savedSettings(view), logsDir: logsDir.trim(), region, overlay })
@@ -144,7 +145,7 @@ export function SettingsPage({ view, onSaved }: { view: SettingsView; onSaved: (
         </label>
         <fieldset>
           <legend>Columns</legend>
-          {view.overlayColumns.map((id) => (
+          {columns.map((id) => (
             <label key={id} className="inline">
               <input
                 type="checkbox"

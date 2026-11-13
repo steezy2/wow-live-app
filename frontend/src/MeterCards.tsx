@@ -1,18 +1,15 @@
 import { useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react'
 import type { KeyMeter, KeyMeterRow } from './api'
-import type { Column } from './meterColumns'
+import { cardGrid, type Column } from './meterColumns'
 import { classColors } from './classColors'
 import { amount, clock } from './format'
 
-const NAME_PX = 96
-const NUMBER_PX = 64
-const GAP_PX = 8 // --s2
 /** Rows from which a card is striped. */
 const ZEBRA_ROWS = 8
 
 /** One card: a row per player, sorted by the first column (with sortable, by the column whose heading was clicked),
  * with a class-coloured bar across the row against the top value. With onPick, a click on a row picks its player; with
- * rows, only that many players show. */
+ * rows, only that many players show; dense (the overlay) packs the columns closer. */
 export function MeterCard({
   title,
   meter,
@@ -20,6 +17,7 @@ export function MeterCard({
   onPick,
   sortable = false,
   rows: limit = 0,
+  dense = false,
 }: {
   title: string
   meter: KeyMeter
@@ -28,14 +26,14 @@ export function MeterCard({
   sortable?: boolean
   /** Players to show, the top ones; 0 or missing for everyone. */
   rows?: number
+  dense?: boolean
 }) {
   const [by, setBy] = useState(columns[0].label)
   const first = columns.find((c) => c.label === by) ?? columns[0]
   const sorted = [...meter.rows].sort((a, b) => first.value(b) - first.value(a))
   const rows = limit > 0 ? sorted.slice(0, limit) : sorted
   const top = Math.max(1, ...rows.map(first.value))
-  const grid = { gridTemplateColumns: `minmax(${NAME_PX}px, 1fr) repeat(${columns.length}, ${NUMBER_PX}px)` }
-  const minWidth = NAME_PX + columns.length * (NUMBER_PX + GAP_PX)
+  const { grid, minWidth } = cardGrid(columns.length, dense)
   return (
     <div className="card">
       <h2>
