@@ -74,14 +74,23 @@ var (
 	totalCount  = regexp.MustCompile(`dungeonTotalCount\[dungeonIndex\] = \{ normal = (\d+)`)
 	field       = regexp.MustCompile(`^\s*\["(\w+)"\] = "?([^",]*)"?,?$`)
 	spellStart  = regexp.MustCompile(`^\s*\[(\d+)\] = \{`)
+	dungeonIdx  = regexp.MustCompile(`\bdungeonIndex = (\d+)`)
+	// The enemies block's indentation tells an enemy (2 spaces), a clone (6) and a clone's own field (8) apart from
+	// the tables nested in them (spells, patrol points).
+	enemyStart = regexp.MustCompile(`^  \[(\d+)\] = \{`)
+	cloneStart = regexp.MustCompile(`^      \[(\d+)\] = \{`)
+	cloneField = regexp.MustCompile(`^        \["(x|y|g|sublevel)"\] = (-?[\d.]+),?$`)
 )
 
-// Parse reads one dungeon file: its name, map ID and forces total, then each mob (name, id, count, isBoss) and the
-// flags of the spells in its "spells" block. A file that isn't a dungeon has MapID 0.
+// Parse reads one dungeon file: its name, index, map ID and forces total, then each mob (name, id, count, isBoss),
+// the flags of the spells in its "spells" block and its clones. A file that isn't a dungeon has MapID 0.
 func Parse(lua string) models.MDTDungeon {
 	d := models.MDTDungeon{Mobs: map[int]models.MDTMob{}, Spells: map[int]models.MDTSpell{}}
 	if m := englishName.FindStringSubmatch(lua); m != nil {
 		d.Name = m[1]
+	}
+	if m := dungeonIdx.FindStringSubmatch(lua); m != nil {
+		d.Index, _ = strconv.Atoi(m[1])
 	}
 	if m := mapID.FindStringSubmatch(lua); m != nil {
 		d.MapID, _ = strconv.Atoi(m[1])
@@ -90,7 +99,7 @@ func Parse(lua string) models.MDTDungeon {
 		d.Total, _ = strconv.Atoi(m[1])
 	}
 	var mob models.MDTMob
-	mobID, spell, inSpells := 0, 0, false
+	mobID, spell, enemy, inSpells, inEnemies, inClones := 0, 0, 0, false, false, false
 	save := func() {
 		if mobID > 0 {
 			d.Mobs[mobID] = mob
@@ -99,10 +108,31 @@ func Parse(lua string) models.MDTDungeon {
 	for _, line := range strings.Split(lua, "\n") {
 		trimmed := strings.TrimSpace(line)
 		switch {
+		case strings.HasPrefix(line, "MDT.dungeonEnemies"):
+			inEnemies = true
+		case inEnemies && enemyStart.MatchString(line):
+			enemy, _ = strconv.Atoi(enemyStart.FindStringSubmatch(line)[1])
+			inClones = false
 		case trimmed == `["spells"] = {`:
 			inSpells = true
 		case trimmed == `["clones"] = {`:
-			inSpells = false
+			inSpells, inClones = false, true
+		case inClones && cloneStart.MatchString(line):
+			clone, _ := strconv.Atoi(cloneStart.FindStringSubmatch(line)[1])
+			d.Clones = append(d.Clones, models.MDTClone{Index: enemy, Clone: clone, NPC: mobID})
+		case inClones && len(d.Clones) > 0 && cloneField.MatchString(line):
+			m, c := cloneField.FindStringSubmatch(line), &d.Clones[len(d.Clones)-1]
+			v, _ := strconv.ParseFloat(m[2], 64)
+			switch m[1] {
+			case "x":
+				c.X = v
+			case "y":
+				c.Y = v
+			case "g":
+				c.Group = int(v)
+			case "sublevel":
+				c.Sublevel = int(v)
+			}
 		case inSpells && spellStart.MatchString(line):
 			spell, _ = strconv.Atoi(spellStart.FindStringSubmatch(line)[1])
 			d.Spells[spell] = d.Spells[spell]

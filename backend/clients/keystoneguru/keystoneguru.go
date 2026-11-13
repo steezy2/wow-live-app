@@ -1,5 +1,5 @@
-// Package keystoneguru reads Keystone.guru's dungeon maps: each floor's in-game bounds and each dungeon's forces total
-// from its repository's dungeon data (github.com/Wotuu/keystone.guru, numbers only), and its map tiles from its asset
+// Package keystoneguru reads Keystone.guru's dungeon maps: each floor's in-game bounds and enemies and each dungeon's
+// forces total from its repository's dungeon data (github.com/Wotuu/keystone.guru, numbers only), and its map tiles from its asset
 // server, each downloaded once and kept in CacheDir (logs/cache/, never committed). The page credits Keystone.guru on
 // the map.
 package keystoneguru
@@ -50,6 +50,7 @@ type Dungeon struct {
 	InstanceID  int
 	Floors      []models.DungeonFloor
 	ForcesTotal int
+	mapping     int // the newest mapping's ID, which Enemies keeps
 }
 
 // Dungeons is each dungeon Keystone.guru maps, by challenge mode ID (the combat log's map ID).
@@ -70,6 +71,7 @@ func (c Client) Dungeons(ctx context.Context) (map[int]Dungeon, error) {
 		} `json:"floors"`
 	}
 	var mappings []struct {
+		ID        int `json:"id"`
 		DungeonID int `json:"dungeon_id"`
 		Version   int `json:"version"`
 		Forces    int `json:"enemy_forces_required"`
@@ -80,10 +82,10 @@ func (c Client) Dungeons(ctx context.Context) (map[int]Dungeon, error) {
 	if err := c.getJSON(ctx, "mapping_versions.json", &mappings); err != nil {
 		return nil, err
 	}
-	newest := map[int][2]int{} // dungeon ID -> version, forces
+	newest := map[int][3]int{} // dungeon ID -> version, forces, mapping ID
 	for _, m := range mappings {
 		if m.Version > newest[m.DungeonID][0] {
-			newest[m.DungeonID] = [2]int{m.Version, m.Forces}
+			newest[m.DungeonID] = [3]int{m.Version, m.Forces, m.ID}
 		}
 	}
 	out := map[int]Dungeon{}
@@ -92,7 +94,7 @@ func (c Client) Dungeons(ctx context.Context) (map[int]Dungeon, error) {
 		if d.ChallengeModeID == nil || len(parts) < 2 {
 			continue
 		}
-		dungeon := Dungeon{InstanceID: d.MapID, ForcesTotal: newest[d.ID][1]}
+		dungeon := Dungeon{InstanceID: d.MapID, ForcesTotal: newest[d.ID][1], mapping: newest[d.ID][2]}
 		for _, f := range d.Floors {
 			tiles := fmt.Sprintf("%s/%s/%d", parts[1], d.Key, f.Index)
 			if f.UIMapID == 0 || f.MinX == f.MaxX || f.MinY == f.MaxY || !tileFolder.MatchString(tiles) {
@@ -148,6 +150,33 @@ func (c Client) withTiles(ctx context.Context, floors []models.DungeonFloor) ([]
 		}
 	}
 	return kept, nil
+}
+
+// Enemies is every enemy of the dungeon's newest mapping on its floors, from each floor's enemies.json (in the
+// dungeon data's folder named like the floor's tiles).
+func (c Client) Enemies(ctx context.Context, d Dungeon) ([]models.KeystoneGuruEnemy, error) {
+	var out []models.KeystoneGuruEnemy
+	for _, f := range d.Floors {
+		var enemies []struct {
+			Mapping int     `json:"mapping_version_id"`
+			NPC     int     `json:"npc_id"`
+			MDTNPC  int     `json:"mdt_npc_id"`
+			MDTID   int     `json:"mdt_id"`
+			Pack    int     `json:"enemy_pack_id"`
+			Lat     float64 `json:"lat"`
+			Lng     float64 `json:"lng"`
+		}
+		if err := c.getJSON(ctx, f.Tiles+"/enemies.json", &enemies); err != nil {
+			return nil, err
+		}
+		for _, e := range enemies {
+			if e.Mapping == d.mapping {
+				out = append(out, models.KeystoneGuruEnemy{NPC: e.NPC, MDTNPC: e.MDTNPC, MDTID: e.MDTID, Pack: e.Pack,
+					Lat: e.Lat, Lng: e.Lng, Map: f.UIMapID})
+			}
+		}
+	}
+	return out, nil
 }
 
 // getJSON decodes one of the repository's dungeon data files, downloaded at most every dataMaxAge.

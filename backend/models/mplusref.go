@@ -23,6 +23,22 @@ type DungeonFacts struct {
 	Dispel     []int          `json:"dispel"`     // the guide's important dispels and Dispel tips (debuffs on players)
 	Purge      []int          `json:"purge"`      // the guide's important purges (buffs on enemies)
 	Review     []int          `json:"review"`     // interrupts the guide names that Mythic Dungeon Tools doesn't mark interruptible
+	MDTIndex   int            `json:"mdtIndex"`   // Mythic Dungeon Tools' dungeonIndex, which its routes name
+	Enemies    []RouteEnemy   `json:"enemies"`    // every enemy a route can pull, by (Index, Clone)
+}
+
+// RouteEnemy is one enemy a Mythic Dungeon Tools route can pull: its enemy and clone index there, its NPC, the forces
+// one kill gives, its pack (clicking a pack takes all of it) and where it stands in log yards on the floor Map.
+type RouteEnemy struct {
+	Index int     `json:"index"`
+	Clone int     `json:"clone"`
+	NPC   int     `json:"npc"`
+	Count int     `json:"count"`
+	Boss  bool    `json:"boss,omitempty"`
+	Pack  int     `json:"pack"` // Keystone.guru's pack, else Mythic Dungeon Tools' group, else 0
+	X     float64 `json:"x"`
+	Y     float64 `json:"y"`
+	Map   int     `json:"map"` // the floor's UIMapID
 }
 
 // DungeonFloor is one floor of a dungeon's map from Keystone.guru: the combat log's map ID for it, its in-game
@@ -47,13 +63,49 @@ type Forces struct {
 	NPCs  map[int]int `json:"npcs"`
 }
 
-// MDTDungeon is one dungeon in Mythic Dungeon Tools' data: its forces, mobs by NPC ID, and each mob spell's flags.
+// MDTDungeon is one dungeon in Mythic Dungeon Tools' data: its index there, forces, mobs by NPC ID, each mob spell's
+// flags and every placed enemy.
 type MDTDungeon struct {
 	Name   string
+	Index  int
 	MapID  int
 	Total  int
 	Mobs   map[int]MDTMob
 	Spells map[int]MDTSpell
+	Clones []MDTClone
+}
+
+// MDTClone is one placed enemy in Mythic Dungeon Tools' data: its enemy and clone index, its NPC, its place on the
+// sublevel's 840 by 555 map (y negative, down) and its group.
+type MDTClone struct {
+	Index, Clone, NPC int
+	X, Y              float64
+	Sublevel, Group   int
+}
+
+// MDTPreset is a Mythic Dungeon Tools route: its name, uid, dungeon index and pulls. Raw is the whole preset as CBOR,
+// so the fields the app doesn't read (drawings, week, difficulty) survive a round trip.
+type MDTPreset struct {
+	Name       string
+	UID        string
+	DungeonIdx int
+	Pulls      []MDTPull
+	Raw        []byte
+}
+
+// MDTPull is one pull of a route: its color ("ff3eff") and its enemies, enemy index to clone indexes.
+type MDTPull struct {
+	Color   string
+	Enemies map[int][]int
+}
+
+// KeystoneGuruEnemy is an enemy on Keystone.guru's newest mapping of a dungeon: the NPC, the NPC Mythic Dungeon
+// Tools lists it as when that differs (else 0), its Mythic Dungeon Tools clone index, its pack (0 for none), its
+// place on the floor's 384 by 256 map (lat negative, down) and that floor's UIMapID.
+type KeystoneGuruEnemy struct {
+	NPC, MDTNPC, MDTID, Pack int
+	Lat, Lng                 float64
+	Map                      int
 }
 
 // MDTMob is a mob in Mythic Dungeon Tools' data.
