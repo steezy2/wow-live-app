@@ -402,6 +402,12 @@ const docTemplate = `{
                             "$ref": "#/definitions/controller.ErrorResponse"
                         }
                     },
+                    "422": {
+                        "description": "no top log could be read to compare with",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
                     "429": {
                         "description": "too few Warcraft Logs points left this hour",
                         "schema": {
@@ -845,6 +851,12 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "no top log could be read to compare with",
                         "schema": {
                             "$ref": "#/definitions/controller.ErrorResponse"
                         }

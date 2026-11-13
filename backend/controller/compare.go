@@ -44,6 +44,7 @@ func (m MPlus) PlayerCompare(c *gin.Context) { compare(c, m.Compares, models.Fig
 //	@Failure	400		{object}	ErrorResponse
 //	@Failure	404		{object}	ErrorResponse
 //	@Failure	409		{object}	ErrorResponse	"the key is still running"
+//	@Failure	422		{object}	ErrorResponse	"no top log could be read to compare with"
 //	@Failure	429		{object}	ErrorResponse	"too few Warcraft Logs points left this hour"
 //	@Failure	502		{object}	ErrorResponse	"Warcraft Logs failed"
 //	@Failure	503		{object}	ErrorResponse	"no Warcraft Logs credentials"
@@ -74,6 +75,7 @@ func (r *Raid) PlayerCompare(c *gin.Context) { compare(c, r.Compares, models.Fig
 //	@Success	200		{object}	models.PlayerCompare
 //	@Failure	400		{object}	ErrorResponse
 //	@Failure	404		{object}	ErrorResponse
+//	@Failure	422		{object}	ErrorResponse	"no top log could be read to compare with"
 //	@Failure	429		{object}	ErrorResponse	"too few Warcraft Logs points left this hour"
 //	@Failure	502		{object}	ErrorResponse	"Warcraft Logs failed"
 //	@Failure	503		{object}	ErrorResponse	"no Warcraft Logs credentials"
@@ -105,6 +107,8 @@ func compare(c *gin.Context, compares Compares, kind models.FightKind, run bool)
 		c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	case errors.Is(err, service.ErrKeyRunning):
 		c.JSON(http.StatusConflict, ErrorResponse{Error: err.Error()})
+	case errors.Is(err, service.ErrNoTopLogs):
+		c.JSON(http.StatusUnprocessableEntity, ErrorResponse{Error: err.Error()})
 	case errors.Is(err, service.ErrNoPoints):
 		c.JSON(http.StatusTooManyRequests, ErrorResponse{Error: err.Error()})
 	case errors.Is(err, models.ErrNoCredentials), errors.Is(err, models.ErrBadCredentials):

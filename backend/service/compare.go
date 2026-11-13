@@ -28,6 +28,9 @@ const (
 // ErrNoSuchPlayer is returned when asked to review a player who wasn't in the fight, or whose spec isn't known.
 var ErrNoSuchPlayer = errors.New("no such player in that fight")
 
+// ErrNoTopLogs is returned when no top log could be read to compare with (none ranked, or each one failed).
+var ErrNoTopLogs = errors.New("no top Warcraft Logs run could be read to compare with")
+
 // raidDifficulty is Warcraft Logs' number for a raid difficulty; LFR isn't ranked.
 var raidDifficulty = map[string]int{"Mythic": 5, "Heroic": 4, "Normal": 3}
 
@@ -64,12 +67,20 @@ func (c Comparer) Cached(kind models.FightKind, start int64, player string) (mod
 	if errors.Is(err, fs.ErrNotExist) {
 		return review, ErrNoSuchKey
 	}
-	if err == nil {
-		if f, ferr := c.load(kind, start, player); ferr == nil && review.End != 0 && review.End != f.end {
-			return review, ErrNoSuchKey
-		}
+	if end, ferr := c.fightEnd(kind, start); err == nil && ferr == nil && review.End != 0 && review.End != end {
+		return review, ErrNoSuchKey
 	}
 	return review, err
+}
+
+// fightEnd is when a saved key or pull ended (a key closed as abandoned can go on after a review was made).
+func (c Comparer) fightEnd(kind models.FightKind, start int64) (int64, error) {
+	if kind == models.FightRaid {
+		pull, err := c.Keys.RaidPull(start)
+		return pull.End, err
+	}
+	key, _, err := c.Keys.finished(start)
+	return key.End, err
 }
 
 // Run is a player's review: the stored one, or a new one, which spends Warcraft Logs points.
@@ -110,9 +121,16 @@ func (c Comparer) Run(ctx context.Context, kind models.FightKind, start int64, p
 			log.Printf("reading %s in %s#%d for a player review: %v", r.Name, r.Code, r.FightID, err)
 			continue
 		}
+		amount := r.Amount
+		if window > 0 { // the ranking's is over the whole fight
+			amount = rateOf(p, mainMetric(f.spec))
+		}
 		top = append(top, p)
 		logs = append(logs, models.CompareLog{Name: r.Name, Server: r.Server, Code: r.Code, FightID: r.FightID,
-			DurationMS: r.DurationMS, Amount: r.Amount})
+			DurationMS: r.DurationMS, Amount: amount})
+	}
+	if len(top) == 0 {
+		return models.PlayerCompare{}, ErrNoTopLogs
 	}
 	in := compareInput{you: f.local, yours: f.yours, top: top, logs: logs, metric: mainMetric(f.spec), spec: f.spec}
 	parses, err := c.Characters.Parses(ctx, c.Region, f.character)
@@ -193,23 +211,29 @@ func character(player string, realms map[string]string) string {
 // spec for that player, this key excluded, and abilities saved (older keys would read as no casts at all).
 func similarKeys(keys []models.Key, key models.Key, player string) []models.Key {
 	return slices.DeleteFunc(slices.Clone(keys), func(k models.Key) bool {
-		return k.Start == key.Start || k.MapID != key.MapID || abs(int64(k.Level-key.Level)) > yourKeysLevels ||
-			k.Specs[player] == 0 || k.Specs[player] != key.Specs[player] || len(k.Abilities) == 0
+		return k.MapID != key.MapID || abs(int64(k.Level-key.Level)) > yourKeysLevels ||
+			!otherRunSameSpec(player, key.Start, k.Start, key.Specs, k.Specs, len(k.Abilities))
 	})
+}
+
+// otherRunSameSpec is whether a saved run (start, specs, abilities saved) is another run than the one reviewed where
+// the player played the same spec; abilities is 0 for runs saved before they were kept, which would read as no casts.
+func otherRunSameSpec(player string, start, otherStart int64, specs, otherSpecs map[string]int, abilities int) bool {
+	return otherStart != start && otherSpecs[player] != 0 && otherSpecs[player] == specs[player] && abilities > 0
 }
 
 // similarPulls are a raider's other pulls of the same boss and difficulty in the same spec, with abilities saved.
 func similarPulls(pulls []models.RaidPull, pull models.RaidPull, player string) []models.RaidPull {
 	return slices.DeleteFunc(slices.Clone(pulls), func(p models.RaidPull) bool {
-		return p.Start == pull.Start || p.Boss != pull.Boss || p.Difficulty != pull.Difficulty ||
-			p.Specs[player] == 0 || p.Specs[player] != pull.Specs[player] || len(p.Abilities) == 0
+		return p.Boss != pull.Boss || p.Difficulty != pull.Difficulty ||
+			!otherRunSameSpec(player, pull.Start, p.Start, pull.Specs, p.Specs, len(p.Abilities))
 	})
 }
 
 // keyPlayer is a player's numbers in a key, and pullPlayer in a raid pull.
 func (c Comparer) keyPlayer(key models.Key, player string) models.RankedPlayer {
 	track, _ := c.Keys.Track(key.Start)
-	return localPlayer(lengthMS(key), key.Overall, key.Abilities, key.Activity, key.Deaths, track, player)
+	return localPlayer(lengthMS(key), key.Overall, key.Abilities, nil, key.Deaths, track, player)
 }
 
 func (c Comparer) pullPlayer(pull models.RaidPull, player string) models.RankedPlayer {
@@ -221,7 +245,9 @@ func (c Comparer) pullPlayer(pull models.RaidPull, player string) models.RankedP
 	return localPlayer(pull.DurationMS, pull.Meter, pull.Abilities, pull.Activity, deaths, track, player)
 }
 
-// localPlayer is a player's numbers in a saved fight in the shape the Warcraft Logs side comes in.
+// localPlayer is a player's numbers in a saved fight in the shape the Warcraft Logs side comes in. activity is each
+// player's share of their time alive acting (a raid pull's, which is the whole fight Warcraft Logs measures); a key's
+// is over its pulls only, not comparable with Warcraft Logs' whole-key active time, so keys pass nil.
 func localPlayer(durationMS int64, meter models.KeyMeter, abilities []models.KeyAbility, activity map[string]float64,
 	deaths []models.KeyDeath, track models.KeyTrack, player string) models.RankedPlayer {
 	p := models.RankedPlayer{DurationMS: durationMS, Abilities: []models.RankedAbility{}, Buffs: []models.RankedBuff{}}

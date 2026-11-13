@@ -28,3 +28,22 @@ func TestRankedPlayerReadsTheTables(t *testing.T) {
 		t.Errorf("rankedPlayer = %+v, want %+v", got, want)
 	}
 }
+
+func TestFindActor(t *testing.T) {
+	actors := []playerActor{{1, "Mage", "Sargeras"}, {2, "Mage", "Area-52"}, {3, "Solo", "Sargeras"}}
+	tests := []struct {
+		name, server string
+		want         int
+		ok           bool
+	}{
+		{"Mage", "Area-52", 2, true},              // the server tells two of a name apart
+		{"Solo", "Spelled Another Way", 3, true},  // the only one of its name
+		{"Mage", "Spelled Another Way", 0, false}, // two of the name and neither on that server
+		{"Nobody", "Sargeras", 0, false},
+	}
+	for _, tc := range tests {
+		if got, ok := findActor(actors, tc.name, tc.server); got != tc.want || ok != tc.ok {
+			t.Errorf("findActor(%s, %s) = %d, %v; want %d, %v", tc.name, tc.server, got, ok, tc.want, tc.ok)
+		}
+	}
+}

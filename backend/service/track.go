@@ -272,7 +272,7 @@ func (k *LogTracker) trackOf(run *keyRun) models.KeyTrack {
 			}
 		}
 		t.Abilities, t.TargetSeries = copySeries(run.track.Abilities), copySeries(run.track.TargetSeries)
-		t.Buffs = run.buffSpans.done(trackEnd(t))
+		t.Buffs = run.buffSpans.done(trackEnd(t), k.names, k.spells)
 	}
 	if r := run.raid; r == nil {
 		t.Health = slices.SortedFunc(maps.Keys(t.Bosses), func(a, b string) int {
@@ -375,6 +375,14 @@ func (r *keyRun) bigUnit(guid, name string) bool {
 type buffSpans struct {
 	spans map[string][]models.BuffSpan
 	open  map[[2]string]int // (player, spell ID) -> index in the player's spans
+	// own is each player's (by GUID) own auras COMBATANT_INFO listed at the start, and off when one of them first came
+	// off with no span open: it was up until then.
+	own map[string][]int
+	off map[[2]string]int64
+}
+
+func newBuffSpans() buffSpans {
+	return buffSpans{open: map[[2]string]int{}, own: map[string][]int{}, off: map[[2]string]int64{}}
 }
 
 // change opens a span when a buff goes up on player at clockMS, and closes it when it comes off.
@@ -391,17 +399,38 @@ func (b *buffSpans) change(clockMS int64, player string, id int, name string, up
 	case !up && open:
 		b.spans[player][i].ToMS = clockMS
 		delete(b.open, key)
+	case !up:
+		if _, seen := b.off[key]; !seen {
+			b.off[key] = clockMS
+		}
 	}
 }
 
-// done is the players' spans with the ones still up ended at endMS.
-func (b *buffSpans) done(endMS int64) map[string][]models.BuffSpan {
+// done is the players' spans with the ones still up ended at endMS, and the auras they started with (names: player
+// names by GUID, spells: spell names by ID) from the start to when one first came off, or to endMS.
+func (b *buffSpans) done(endMS int64, names map[string]string, spells map[int]string) map[string][]models.BuffSpan {
 	out := map[string][]models.BuffSpan{}
 	for player, spans := range b.spans {
 		out[player] = slices.Clone(spans)
 	}
 	for key, i := range b.open {
 		out[key[0]][i].ToMS = endMS
+	}
+	for guid, ids := range b.own {
+		player := names[guid]
+		for _, id := range ids {
+			key := [2]string{player, strconv.Itoa(id)}
+			to, off := b.off[key]
+			if !off && slices.ContainsFunc(out[player], func(s models.BuffSpan) bool { return s.ID == id }) {
+				continue // it came up in the run, so it wasn't up at the start
+			}
+			if !off {
+				to = endMS
+			}
+			if name := spells[id]; player != "" && name != "" {
+				out[player] = append(out[player], models.BuffSpan{ID: id, Name: name, ToMS: to})
+			}
+		}
 	}
 	return out
 }
