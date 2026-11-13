@@ -2,6 +2,7 @@ import { type CSSProperties, type ReactNode, useState } from 'react'
 import type { HitRecap, RecapEvent } from './api'
 import { amount, seconds } from './format'
 import { healthAfter } from './replay'
+import { Spell, Spells } from './Spell'
 
 /** How long a recap covers: from its first event to its end (the backend's recap_seconds at most). */
 const spanOf = (recap: HitRecap) => (recap.events.length > 0 ? recap.clockMS - recap.events[0].t : 0)
@@ -27,8 +28,19 @@ export function HitRecapView(props: { recap: HitRecap; ready?: string[]; limit?:
   return (
     <div className="recap">
       <p className="small">
-        {summary.join(' · ')} in {seconds(spanOf(recap))}{used.length > 0 && ` · used ${used.join(', ')}`}
-        {ready && ready.length > 0 && ` · ready ${ready.join(', ')}`}
+        {summary.join(' · ')} in {seconds(spanOf(recap))}
+        {used.length > 0 && (
+          <>
+            {' · used '}
+            <Spells names={used} />
+          </>
+        )}
+        {ready && ready.length > 0 && (
+          <>
+            {' · ready '}
+            <Spells names={ready} />
+          </>
+        )}
       </p>
       <ul className="recap-rows">
         {events.map((e, i) => {
@@ -41,7 +53,7 @@ export function HitRecapView(props: { recap: HitRecap; ready?: string[]; limit?:
           >
             <span className="muted">-{seconds(recap.clockMS - e.t)}</span>
             <span>
-              {e.a}
+              <Spell name={e.a} />
               {e.s && ` (${e.s})`}
             </span>
             <span>{e.n ? `${e.k === 'damage' ? '−' : '+'}${amount(e.n)}` : ''}</span>

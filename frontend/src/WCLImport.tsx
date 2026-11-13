@@ -15,6 +15,7 @@ import { importKindText, importProgress, importTotal } from './format'
 import { track, useNote } from './note'
 import { NoteLine } from './NoteLine'
 import { useNow } from './useLiveKey'
+import { tip } from './tipAttrs'
 
 /** How often the status is read while an import runs. */
 const POLL_MS = 2000
@@ -105,7 +106,7 @@ export function WCLImport({ view, onSaved }: { view: SettingsView; onSaved: (vie
             <button
               type="button"
               disabled={busy || !saved}
-              title={saved ? "Lists the character's reports: about 2 points a new report" : 'Save the character first'}
+              {...tip(saved ? "Lists the character's reports: about 2 points a new report" : 'Save the character first')}
               onClick={() => void find()}
             >
               Find fights

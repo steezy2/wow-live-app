@@ -1,12 +1,13 @@
 import { findFights, reportPages, type ReportLink } from './api'
 import { NoteLine } from './NoteLine'
 import { track, useNote } from './note'
+import { tip } from './tipAttrs'
 
 /** The tag on a key or raid pull that is a Warcraft Logs fight (imported, or matched to a report): it opens it there. */
 export function ReportTag({ link, imported }: { link: ReportLink; imported?: boolean }) {
   const title = imported ? 'Imported from Warcraft Logs: open the fight' : 'On Warcraft Logs: open the fight'
   return (
-    <a className="tag" href={reportPages(link).warcraftLogs} target="_blank" rel="noreferrer" title={title}>
+    <a className="tag" href={reportPages(link).warcraftLogs} target="_blank" rel="noreferrer" {...tip(title)}>
       Warcraft Logs
     </a>
   )
