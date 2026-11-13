@@ -36,7 +36,7 @@ func TestTrackKeepsMobCasts(t *testing.T) {
 }
 
 func TestBuffSpansEndWhereTheBuffCameOffOrTheRun(t *testing.T) {
-	b := buffSpans{open: map[[2]string]int{}}
+	b := newBuffSpans()
 	b.change(1000, "Mage", 1, "Haste", true)
 	b.change(1500, "Mage", 1, "Haste", true) // a second apply while up changes nothing
 	b.change(2000, "Mage", 1, "Haste", false)
@@ -44,7 +44,20 @@ func TestBuffSpansEndWhereTheBuffCameOffOrTheRun(t *testing.T) {
 	b.change(4000, "Priest", 2, "Shield", false) // coming off with no start seen changes nothing
 	want := map[string][]models.BuffSpan{"Mage": {{ID: 1, Name: "Haste", FromMS: 1000, ToMS: 2000},
 		{ID: 2, Name: "Shield", FromMS: 3000, ToMS: 9000}}}
-	if got := b.done(9000); !reflect.DeepEqual(got, want) {
+	if got := b.done(9000, nil, nil); !reflect.DeepEqual(got, want) {
+		t.Errorf("spans = %+v, want %+v", got, want)
+	}
+}
+
+func TestBuffSpansSeedTheAurasAPlayerStartedWith(t *testing.T) {
+	b := newBuffSpans()
+	b.own["Player-1"] = []int{10, 20, 30}
+	b.change(5000, "Mage", 20, "Food", false) // came off with no span open: it was up from the start
+	b.change(6000, "Mage", 30, "Rune", true)  // came up in the run: not up at the start
+	names, spells := map[string]string{"Player-1": "Mage"}, map[int]string{10: "Flask", 20: "Food", 30: "Rune"}
+	want := map[string][]models.BuffSpan{"Mage": {{ID: 30, Name: "Rune", FromMS: 6000, ToMS: 9000},
+		{ID: 10, Name: "Flask", ToMS: 9000}, {ID: 20, Name: "Food", ToMS: 5000}}}
+	if got := b.done(9000, names, spells); !reflect.DeepEqual(got, want) {
 		t.Errorf("spans = %+v, want %+v", got, want)
 	}
 }
