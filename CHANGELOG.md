@@ -4,6 +4,9 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 
 ## [Unreleased]
 
+### Changed
+- The Microsoft Store listing matches 0.4.1 (`docs/store-listing.md`) and has new images in `docs/store/`: six screenshots with headlines, poster, box art, tile icon and hero image, from real keys and pulls with made-up names. The README shows the same screenshots instead of the old ones in `docs/screenshots/`.
+
 ## [0.4.1] - 2026-11-12
 
 ### Added
