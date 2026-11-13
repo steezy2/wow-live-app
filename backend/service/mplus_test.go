@@ -197,6 +197,7 @@ func TestKeyStep2(t *testing.T) {
 		`11/4/2026 19:01:25.000-7  SPELL_DAMAGE,`+mob+`,`+testPlayer+`,1238063,"Light Bolt",0x2,`+
 			advancedOf("Player-76-0000AAAA", none)+`,9000,9000,100,2,0,0,0,nil,nil,nil,ST`,
 		`11/4/2026 19:01:25.100-7  UNIT_DIED,`+none+`,nil,0x80000000,0x80000000,`+testPlayer+`,0`,
+		`11/4/2026 19:01:26.000-7  SPELL_RESURRECT,`+shaman+`,`+testPlayer+`,20484,"Rebirth",0x8`,
 		`11/4/2026 19:01:30.000-7  UNIT_DIED,`+none+`,nil,0x80000000,0x80000000,`+mob+`,0`,
 		`11/4/2026 19:01:31.000-7  UNIT_DIED,`+none+`,nil,0x80000000,0x80000000,`+mob+`,0`,
 		`11/4/2026 19:01:32.000-7  UNIT_DIED,`+none+`,nil,0x80000000,0x80000000,`+
@@ -251,6 +252,9 @@ func TestKeyStep2(t *testing.T) {
 	if got.Logger != "Testmage" || got.Realms["Testshaman"] != "Sargeras" {
 		t.Fatalf("logger = %q, realms %v; want Testmage, whose unit flags say the log is theirs, and the shaman's realm",
 			got.Logger, got.Realms)
+	}
+	if r := got.Resurrections; len(r) != 1 || r[0].By != "Testshaman" || r[0].Player != "Testmage" || r[0].ClockMS != 32_000 { // 26 s of log, the death's penalty and the countdown
+		t.Fatalf("resurrections = %+v; want the shaman bringing Testmage back at 0:32 on the key clock", r)
 	}
 	if a := got.Activity["Testmage"]; a <= 0 || a > 100 || got.Lusts == nil || got.BetweenPulls == nil {
 		t.Fatalf("activity = %v, lusts %v, between pulls %v; want the mage busy for part of the pull, and lists",
