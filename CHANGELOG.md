@@ -4,6 +4,9 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 
 ## [Unreleased]
 
+### Added
+- **Routes** for Mythic+: import a Mythic Dungeon Tools route (paste its export string, or pick it from MDT's saved routes), see its pulls and forces % on the dungeon's map, edit them (move a pack to another pull, new, delete and reorder pulls, undo) and copy the route back as an MDT string. One route per dungeon is starred: the live page and overlay show its next pull with forces, and a key's **Route** tab shows which planned pulls were done, skipped or added. Enemies on each dungeon's map come from `reference/mplus-dungeons.json` (`go run ./cmd/mplusref`, from MDT's clones joined to Keystone.guru's positions).
+
 ### Changed
 - An M+ key's **Buffs** tab reads like a raid pull's: a line per buff, "Missing Arcane Intellect", with who lacked it the whole key (or "everyone") and each gap as a player with its start and end on the key's clock (a click moves the replay). It now also catches a flask, food or party buff that came off mid-key (`buffGaps` on a key; `BuffGap` replaces `RaidMissing`), shown by the shared `BuffGaps.tsx`. `readerVersion` 14, so *Read old logs* fills it in.
 
