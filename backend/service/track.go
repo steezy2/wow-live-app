@@ -296,7 +296,7 @@ func mobTrails(from map[string]models.MobTrail, skipDead bool) map[string]models
 	out := map[string]models.MobTrail{}
 	for guid, m := range from {
 		if !skipDead || m.Died == 0 {
-			out[guid] = models.MobTrail{Points: list(m.Points), Died: m.Died}
+			out[guid] = models.MobTrail{Name: m.Name, Points: list(m.Points), Died: m.Died}
 		}
 	}
 	return out

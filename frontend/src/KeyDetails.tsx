@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
 import type { KeyForces, KeyGhost, KeyReview as Review, KeyTrack, KeyView } from './api'
-import { chestLabel, clock, oddsText, pullTitle, resultText, routeLine, share } from './format'
+import { chestLabel, clock, oddsText, pullTitle, resultText, routeLine, share, versusBest } from './format'
 import { DamageGraph } from './DamageGraph'
 import { BuffGaps } from './BuffGaps'
 import { BossList, PriorityLedger } from './KeyLedgers'
@@ -16,6 +16,7 @@ import { RaidLanes } from './RaidReplay'
 import { ReportLinks } from './ReportLinks'
 import { Tabs } from './Tabs'
 import { type Seeker } from './Seek'
+import { tip } from './tipAttrs'
 
 /** The result's icon, so it doesn't rest on colour alone. */
 const resultIcon: Record<KeyView['status'], string> = {
@@ -114,6 +115,11 @@ export function KeyDetails({
       )}
       {timer > 0 && <TimerBar clockMS={clockMS} timerMS={timer} keyView={key} best={projection?.best ?? []} />}
       {key.forces && <ForcesBar forces={key.forces} level={key.level} />}
+      {projection && key.bestFinalMS !== undefined && key.bestFinalMS > 0 && (
+        <p className="muted">
+          Projected {versusBest(projection.finalMS, key.bestFinalMS)} your best +{key.level} ({clock(key.bestFinalMS)})
+        </p>
+      )}
       {key.route && <p title={`Route: ${key.route.name}`}>{routeLine(key.route)}</p>}
       {timer > 0 && key.status === 'running' && (
         <p className="muted">
@@ -243,7 +249,8 @@ function meterWindows(key: KeyView, track: KeyTrack | null, at: number, end: num
   return [{ title: `Pull ${Math.max(1, started.length)}`, from: pull.startMS, to, saved: last }, whole]
 }
 
-/** The timer as a bar: the clock so far, the +3 and +2 marks, each boss kill, each death, and the best run's kills. */
+/** The timer as a bar: the clock so far, the +3 and +2 marks, each boss kill, each death, the best run's kills, and an
+ * underline up to where the fastest timed run finished. */
 export function TimerBar({
   clockMS,
   timerMS,
@@ -258,22 +265,29 @@ export function TimerBar({
   return (
     <div className="bar" role="img" aria-label={`${clock(clockMS)} of ${clock(timerMS)}`}>
       <div className="fill" style={{ width: `${share(clockMS, timerMS)}%` }} />
-      <div className="mark" style={{ left: `${share(keyView.plus3MS, timerMS)}%` }} title="+3" />
-      <div className="mark" style={{ left: `${share(keyView.plus2MS, timerMS)}%` }} title="+2" />
+      {keyView.bestFinalMS !== undefined && keyView.bestFinalMS > 0 && (
+        <div
+          className="best"
+          style={{ width: `${share(keyView.bestFinalMS, timerMS)}%` }}
+          {...tip('your fastest at this level')}
+        />
+      )}
+      <div className="mark" style={{ left: `${share(keyView.plus3MS, timerMS)}%` }} {...tip('+3')} />
+      <div className="mark" style={{ left: `${share(keyView.plus2MS, timerMS)}%` }} {...tip('+2')} />
       {keyView.bosses
         .filter((b) => b.kill && b.endMS !== undefined)
         .map((b) => (
-          <div key={b.name} className="boss" style={{ left: `${share(b.endMS ?? 0, timerMS)}%` }} title={b.name} />
+          <div key={b.name} className="boss" style={{ left: `${share(b.endMS ?? 0, timerMS)}%` }} {...tip(b.name)} />
         ))}
       {keyView.deaths.map((d, i) => (
-        <div key={i} className="death" style={{ left: `${share(d.clockMS, timerMS)}%` }} title={d.player} />
+        <div key={i} className="death" style={{ left: `${share(d.clockMS, timerMS)}%` }} {...tip(d.player)} />
       ))}
       {best.map((g) => (
         <div
           key={g.name}
           className="ghost"
           style={{ left: `${share(g.killMS, timerMS)}%` }}
-          title={`${g.name} in your best run`}
+          {...tip(`${g.name} in your best run`)}
         />
       ))}
     </div>
@@ -295,7 +309,7 @@ export function ForcesBar({ forces, level }: { forces: KeyForces; level: number 
           className={`fill ${pace && pace.fasterPct <= -PACE_EVEN_PCT ? 'behind' : 'ahead'}`}
           style={{ width: `${Math.min(100, forces.pct)}%` }}
         />
-        {pace && <div className="mark" style={{ left: `${Math.min(100, pace.bestPct)}%` }} title={best} />}
+        {pace && <div className="mark" style={{ left: `${Math.min(100, pace.bestPct)}%` }} {...tip(best)} />}
       </div>
       <span className="small">
         Forces {forces.pct >= 100 ? `100% (${forces.pct.toFixed(0)}%)` : `${forces.pct.toFixed(1)}%`}

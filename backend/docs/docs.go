@@ -1246,7 +1246,7 @@ const docTemplate = `{
                 }
             },
             "put": {
-                "description": "The log folder and the overlay change right away; a new region's affix names show from the next\nstart. A character (\"Name-Realm\", empty for none) needs a name of 2 to 12 letters and a realm Warcraft\nLogs lists in the region, which takes the saved Warcraft Logs keys.",
+                "description": "The log folder and the overlay change right away; a new region's affix names show from the next\nstart. A character (\"Name-Realm\", empty for none) needs a name of 2 to 12 letters and a realm Warcraft\nLogs lists in the region, which takes the saved Warcraft Logs keys. Each of the auto rule's days is 0\n(off) to 365.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1304,14 +1304,14 @@ const docTemplate = `{
         },
         "/api/settings/logs": {
             "get": {
-                "description": "The log folder's combat logs, then the ones archived (zipped into its WoW Live archive folder), newest\nfirst: size, last write, saved keys and pulls from each, whether it's read, whether the game may still\nwrite it (it can't be archived) and whether to tick it at first (older than 14 days and read).",
+                "description": "The log folder's combat logs, then the ones archived (zipped into its WoW Live archive folder), then\nthe Warcraft Logs fights imported (source wcl, dated at the fight's end), each newest first: size,\nlast write, saved keys and pulls from each, whether it's read (an import: its key or pull is saved),\nwhether the game may still write it (it can't be archived) and whether to tick it at first (older\nthan 14 days and read).",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "settings"
                 ],
-                "summary": "List the combat logs and the archived ones",
+                "summary": "List the combat logs, the archived ones and the Warcraft Logs imports",
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -1333,7 +1333,7 @@ const docTemplate = `{
         },
         "/api/settings/logs/archive": {
             "post": {
-                "description": "Zips each named log into the log folder's WoW Live archive folder and removes it (reading the folder\nfirst when one isn't read yet), so live reading and Read old logs skip it; Read everything again\nstill reads it. Answers the new list; a log that couldn't be archived carries its error.",
+                "description": "Zips each named log into the log folder's WoW Live archive folder and removes it (reading the folder\nfirst when one isn't read yet), so live reading and Read old logs skip it; Read everything again\nstill reads it. Answers the new list; a log that couldn't be archived carries its error. Only the\ngame's logs: Warcraft Logs imports are zips already.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1346,7 +1346,7 @@ const docTemplate = `{
                 "summary": "Archive combat logs",
                 "parameters": [
                     {
-                        "description": "names from the list, not archived and not being written",
+                        "description": "names of game logs from the list, not archived and not being written",
                         "name": "logs",
                         "in": "body",
                         "required": true,
@@ -1386,7 +1386,7 @@ const docTemplate = `{
                 }
             },
             "delete": {
-                "description": "Removes the named archived logs' zips. Saved keys and pulls stay. Answers the new list; a log that\ncouldn't be deleted carries its error.",
+                "description": "Removes the named archived logs' zips (source game) or imported fights' zips (source wcl). Saved\nkeys and pulls stay; importing a fight again costs Warcraft Logs points. Answers the new list; a log\nthat couldn't be deleted carries its error.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1396,10 +1396,10 @@ const docTemplate = `{
                 "tags": [
                     "settings"
                 ],
-                "summary": "Delete archived combat logs for good",
+                "summary": "Delete archived combat logs or Warcraft Logs imports for good",
                 "parameters": [
                     {
-                        "description": "names of archived logs from the list",
+                        "description": "names of archived logs or imports from the list",
                         "name": "logs",
                         "in": "body",
                         "required": true,
@@ -1817,6 +1817,79 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/api/spells": {
+            "get": {
+                "description": "The ability's description and cooldown, from Wowhead's tooltip for the spell ID the combat log gave\nits name (cached a week). 404 for an ability the log hasn't shown since the app started, 502 when\nWowhead can't be reached.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "spells"
+                ],
+                "summary": "What an ability does",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "the ability's name as the combat log shows it",
+                        "name": "name",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.SpellInfo"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "502": {
+                        "description": "Bad Gateway",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/storage": {
+            "get": {
+                "description": "The size of the saved keys, the saved raid pulls, the Warcraft Logs imports, the archived combat logs\nand the game's combat logs, measured now.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "settings"
+                ],
+                "summary": "How much disk the app's data and the game's logs take",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.Storage"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -1864,6 +1937,13 @@ const docTemplate = `{
                     "items": {
                         "type": "string"
                     }
+                },
+                "source": {
+                    "type": "string",
+                    "enum": [
+                        "game",
+                        "wcl"
+                    ]
                 }
             }
         },
@@ -1944,6 +2024,21 @@ const docTemplate = `{
                 },
                 "name": {
                     "type": "string"
+                }
+            }
+        },
+        "models.AutoSettings": {
+            "type": "object",
+            "properties": {
+                "archiveGameLogsDays": {
+                    "type": "integer",
+                    "maximum": 365,
+                    "minimum": 0
+                },
+                "deleteImportsDays": {
+                    "type": "integer",
+                    "maximum": 365,
+                    "minimum": 0
                 }
             }
         },
@@ -2848,6 +2943,10 @@ const docTemplate = `{
                 },
                 "spell": {
                     "type": "string"
+                },
+                "wipe": {
+                    "description": "a raid boss's must-stop that wipes the raid when it goes off",
+                    "type": "boolean"
                 }
             }
         },
@@ -3294,27 +3393,42 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "keys": {
-                    "description": "saved keys that started in it",
+                    "description": "saved keys that started in it (an import: that are its fight)",
                     "type": "integer"
                 },
                 "name": {
-                    "description": "the log's file name (an archived one without .zip)",
+                    "description": "the log's file name (a zipped one without .zip)",
                     "type": "string"
                 },
                 "pulls": {
-                    "description": "saved raid pulls that started in it",
+                    "description": "saved raid pulls that started in it (or are its fight)",
                     "type": "integer"
                 },
                 "read": {
-                    "description": "read by the current reader (Read old logs), so archiving loses nothing",
+                    "description": "read by the current reader (an import: its key or pull is saved)",
                     "type": "boolean"
+                },
+                "report": {
+                    "description": "Report is the Warcraft Logs fight an import is; nil for the game's logs.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.ReportLink"
+                        }
+                    ]
+                },
+                "source": {
+                    "type": "string",
+                    "enum": [
+                        "game",
+                        "wcl"
+                    ]
                 },
                 "suggested": {
                     "description": "ticked at first: old, read and not active",
                     "type": "boolean"
                 },
                 "writtenMS": {
-                    "description": "last written (Unix ms)",
+                    "description": "last written (Unix ms; an import: its fight's end)",
                     "type": "integer"
                 }
             }
@@ -4184,17 +4298,6 @@ const docTemplate = `{
                 }
             }
         },
-        "models.RecapAverages": {
-            "type": "object",
-            "properties": {
-                "party": {
-                    "$ref": "#/definitions/models.RecapPerKey"
-                },
-                "you": {
-                    "$ref": "#/definitions/models.RecapPerKey"
-                }
-            }
-        },
         "models.RecapBoss": {
             "type": "object",
             "properties": {
@@ -4322,12 +4425,78 @@ const docTemplate = `{
                 }
             }
         },
+        "models.RecapKeyCounts": {
+            "type": "object",
+            "properties": {
+                "cc": {
+                    "type": "integer"
+                },
+                "dispels": {
+                    "type": "integer"
+                },
+                "kicks": {
+                    "type": "integer"
+                },
+                "priorityPct": {
+                    "type": "number"
+                }
+            }
+        },
+        "models.RecapKeyRow": {
+            "type": "object",
+            "properties": {
+                "dungeon": {
+                    "type": "string"
+                },
+                "level": {
+                    "type": "integer"
+                },
+                "party": {
+                    "$ref": "#/definitions/models.RecapKeyCounts"
+                },
+                "start": {
+                    "type": "integer"
+                },
+                "status": {
+                    "type": "string",
+                    "enum": [
+                        "running",
+                        "timed",
+                        "depleted",
+                        "abandoned"
+                    ]
+                },
+                "you": {
+                    "$ref": "#/definitions/models.RecapKeyYou"
+                }
+            }
+        },
+        "models.RecapKeyYou": {
+            "type": "object",
+            "properties": {
+                "cc": {
+                    "type": "integer"
+                },
+                "dispels": {
+                    "type": "integer"
+                },
+                "dps": {
+                    "type": "number"
+                },
+                "hps": {
+                    "type": "number"
+                },
+                "kicks": {
+                    "type": "integer"
+                },
+                "priorityPct": {
+                    "type": "number"
+                }
+            }
+        },
         "models.RecapMPlus": {
             "type": "object",
             "properties": {
-                "averages": {
-                    "$ref": "#/definitions/models.RecapAverages"
-                },
                 "deaths": {
                     "description": "the party's",
                     "type": "integer"
@@ -4348,6 +4517,13 @@ const docTemplate = `{
                 "highestTimed": {
                     "description": "0 when none was timed",
                     "type": "integer"
+                },
+                "keyRows": {
+                    "description": "newest first, the latest few only",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.RecapKeyRow"
+                    }
                 },
                 "keys": {
                     "type": "integer"
@@ -4390,23 +4566,6 @@ const docTemplate = `{
                 },
                 "timed": {
                     "type": "integer"
-                }
-            }
-        },
-        "models.RecapPerKey": {
-            "type": "object",
-            "properties": {
-                "cc": {
-                    "type": "number"
-                },
-                "dispels": {
-                    "type": "number"
-                },
-                "kicks": {
-                    "type": "number"
-                },
-                "priorityPct": {
-                    "type": "number"
                 }
             }
         },
@@ -4860,6 +5019,14 @@ const docTemplate = `{
         "models.Settings": {
             "type": "object",
             "properties": {
+                "auto": {
+                    "description": "Auto is what the app tidies by itself; SetupDone hides Home's setup guide (false until the owner finishes it).",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.AutoSettings"
+                        }
+                    ]
+                },
                 "character": {
                     "description": "Character is the player's own character as \"Name-Realm\" (the realm as the player writes it), whose Warcraft\nLogs reports can be imported; empty for none.",
                     "type": "string"
@@ -4878,12 +5045,23 @@ const docTemplate = `{
                         "kr",
                         "tw"
                     ]
+                },
+                "setupDone": {
+                    "type": "boolean"
                 }
             }
         },
         "models.SettingsView": {
             "type": "object",
             "properties": {
+                "auto": {
+                    "description": "Auto is what the app tidies by itself; SetupDone hides Home's setup guide (false until the owner finishes it).",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.AutoSettings"
+                        }
+                    ]
+                },
                 "character": {
                     "description": "Character is the player's own character as \"Name-Realm\" (the realm as the player writes it), whose Warcraft\nLogs reports can be imported; empty for none.",
                     "type": "string"
@@ -4900,6 +5078,10 @@ const docTemplate = `{
                 },
                 "logsDirFound": {
                     "type": "boolean"
+                },
+                "maxAutoDays": {
+                    "description": "MaxAutoDays is the most days each of Auto's fields takes.",
+                    "type": "integer"
                 },
                 "minOpacity": {
                     "type": "integer"
@@ -4935,6 +5117,26 @@ const docTemplate = `{
                     "items": {
                         "type": "string"
                     }
+                },
+                "setupDone": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "models.SpellInfo": {
+            "type": "object",
+            "properties": {
+                "cooldown": {
+                    "type": "string"
+                },
+                "description": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
                 }
             }
         },
@@ -4952,6 +5154,35 @@ const docTemplate = `{
                 },
                 "source": {
                     "type": "string"
+                }
+            }
+        },
+        "models.Storage": {
+            "type": "object",
+            "properties": {
+                "folders": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.StorageFolder"
+                    }
+                }
+            }
+        },
+        "models.StorageFolder": {
+            "type": "object",
+            "properties": {
+                "bytes": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string",
+                    "enum": [
+                        "localKeys",
+                        "raidPulls",
+                        "wclImport",
+                        "archive",
+                        "gameLogs"
+                    ]
                 }
             }
         },

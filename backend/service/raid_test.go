@@ -228,7 +228,7 @@ func TestSuggestionsPutWhatToFixFirst(t *testing.T) {
 		Spikes:    []models.KeySpike{{ClockMS: 90_000, Damage: 7_200_000, PartyCDs: []string{}}},
 		Stacks: []models.RaidStacks{{Ability: "Eternal Venom", Limit: 5, Players: []models.PlayerCount{{Player: "F", Count: 6}, {Player: "G", Count: 5}},
 			Over: []string{"F"}}},
-		WentOff: []models.KeyStop{{Spell: "Anguished Cry"}, {Spell: "Anguished Cry"}},
+		WentOff: []models.KeyStop{{Spell: "Anguished Cry"}, {Spell: "Anguished Cry"}, {Spell: "Vicious Echoes", Wipe: true}},
 		Adds: []models.RaidAdd{{Name: "Blightscale Clutch", LongestMS: 30_000}, {Name: "Blightscale Viper",
 			Spawns: []models.RaidSpawn{{ClockMS: 75_000, Cause: "Caustic Waves", Players: []string{"H"}, Spawner: true},
 				{ClockMS: 80_000, Cause: "Not picked up", Players: []string{}}}}},
@@ -237,6 +237,7 @@ func TestSuggestionsPutWhatToFixFirst(t *testing.T) {
 	best := &models.RaidPull{Number: 4, Adds: []models.RaidAdd{{Name: "Blightscale Clutch", LongestMS: 12_000}},
 		Priority: []models.RaidPriority{{Target: "Ula'tek's Heart", Damage: 3_000_000}}}
 	want := []string{
+		"Vicious Echoes went off 1 time, which wipes the raid",
 		"2 Blightscale Vipers spawned: H (Caustic Waves at 1:15), 1 not picked up (first at 1:20)",
 		"2 deaths to Caustic Waves, which can be dodged: A, B",
 		"1 death soaking Spectral Coils: E",

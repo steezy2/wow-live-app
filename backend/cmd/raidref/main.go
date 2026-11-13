@@ -176,7 +176,7 @@ func tierItems(ctx context.Context, wh wowhead.Client, ids []int) (map[string][]
 func curate(b models.RaidBoss, c models.CuratedBoss) (models.RaidBoss, error) {
 	b.Checked, b.Sources, b.Health, b.Priority = c.Checked, c.Sources, c.Health, append([]string{}, c.Priority...)
 	b.Avoidable, b.Dispel = append([]int{}, c.Avoidable...), append([]int{}, c.Dispel...)
-	b.MustStop, b.NotAdds = append([]int{}, c.MustStop...), c.NotAdds
+	b.MustStop, b.WipeStop, b.NotAdds = append([]int{}, c.MustStop...), c.WipeStop, c.NotAdds
 	b.Pickups, b.Breaks, b.Spawns = c.Pickups, c.Breaks, c.Spawns
 	b.Stacks, b.Soak, b.Soakers = map[int]int{}, []int{}, map[int]int{}
 	for id, n := range c.Stacks {

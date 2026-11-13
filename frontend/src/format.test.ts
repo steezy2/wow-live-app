@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   causesText,
   clock,
-  coverText,
+  coverOf,
   importKindText,
   importProgress,
   importTotal,
@@ -13,6 +13,7 @@ import {
   resultText,
   routeLine,
   versus,
+  versusBest,
   withRealm,
 } from './format'
 
@@ -145,12 +146,15 @@ describe('causesText', () => {
   })
 })
 
-describe('coverText', () => {
+describe('coverOf', () => {
   it('says used for a defensive the player pressed, had for one put on them, else what was still ready', () => {
-    expect(coverText({ defensive: 'Ice Cold', used: true, ready: [] })).toBe('used Ice Cold')
-    expect(coverText({ defensive: 'Pain Suppression', ready: [] })).toBe('had Pain Suppression')
-    expect(coverText({ defensive: '', ready: ['Barkskin', 'Renewal'] })).toBe('still had Barkskin, Renewal')
-    expect(coverText({ defensive: '' })).toBe('nothing ready')
+    expect(coverOf({ defensive: 'Ice Cold', used: true, ready: [] })).toEqual({ lead: 'used', spells: ['Ice Cold'] })
+    expect(coverOf({ defensive: 'Pain Suppression', ready: [] })).toEqual({ lead: 'had', spells: ['Pain Suppression'] })
+    expect(coverOf({ defensive: '', ready: ['Barkskin', 'Renewal'] })).toEqual({
+      lead: 'still had',
+      spells: ['Barkskin', 'Renewal'],
+    })
+    expect(coverOf({ defensive: '' })).toEqual({ lead: 'nothing ready', spells: [] })
   })
 })
 
@@ -180,5 +184,16 @@ describe('routeLine', () => {
     ['every pull done', step(18), null, 'Route done (102.3%)'],
   ])('%s', (_, current, next, want) => {
     expect(routeLine({ name: 'Route', current, next, forcesPct: 102.3 })).toBe(want)
+  })
+})
+
+describe('versusBest', () => {
+  it.each([
+    [90_000, 120_000, '0:30 faster than'],
+    [150_000, 120_000, '0:30 slower than'],
+    [120_000, 120_000, 'level with'],
+    [120_000, 0, ''],
+  ])('%i against best %i', (ms, best, want) => {
+    expect(versusBest(ms, best)).toBe(want)
   })
 })

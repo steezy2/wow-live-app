@@ -1,6 +1,7 @@
 import { type ReactNode, useState } from 'react'
 import type { KeyBigHit, KeyCast, KeyDeath, KeyHit, KeyTrack, KeyView, RaidLane } from './api'
-import { coverText } from './format'
+import { coverOf } from './format'
+import { Cover, Spell } from './Spell'
 import { RecapRow } from './HitRecap'
 import { Avoidable, BigHits, KickLedger, SpikeLedger } from './KeyLedgers'
 import { recapOf } from './replay'
@@ -39,11 +40,11 @@ export function fightTabs(
           {data.deaths.map((d, i) => (
             <RecapRow key={`${d.player}-${d.clockMS}-${i}`} recap={recapOf(track, d.player, d.clockMS)} ready={d.ready}>
               <span>
-                <Who player={d.player} seek={seek} /> {d.ability || 'unknown'}{' '}
+                <Who player={d.player} seek={seek} /> {d.ability ? <Spell name={d.ability} /> : 'unknown'}{' '}
                 <span className="muted">from {d.killer || 'unknown'}</span>
               </span>
               <span className="muted">
-                <When ms={d.clockMS} seek={seek} /> · {coverText(d)}
+                <When ms={d.clockMS} seek={seek} /> · <Cover {...coverOf(d)} />
               </span>
             </RecapRow>
           ))}
@@ -102,7 +103,7 @@ export function fightTabs(
                   .filter((d) => d.player === player)
                   .map((d, i) => (
                     <RecapRow key={i} recap={recapOf(track, d.player, d.clockMS)} ready={d.ready}>
-                      <span className="bad">Died to {d.ability || 'unknown'}</span>
+                      <span className="bad">Died to {d.ability ? <Spell name={d.ability} /> : 'unknown'}</span>
                       <span className="muted">
                         <When ms={d.clockMS} seek={seek} />
                       </span>
@@ -125,7 +126,9 @@ export function fightTabs(
               <PlayerCard key={player} player={player} summary={`${casts.length} uses`} seek={seek}>
                 {casts.map((c, i) => (
                   <div key={i} className="card-row">
-                    <span className="name">{c.ability}</span>
+                    <span className="name">
+                      <Spell name={c.ability} />
+                    </span>
                     <When ms={c.clockMS} seek={seek} />
                   </div>
                 ))}

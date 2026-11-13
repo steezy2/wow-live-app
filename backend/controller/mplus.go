@@ -24,6 +24,7 @@ type MPlus struct {
 	Changes Changes
 	Recaps  Recaps
 	Planner Planner
+	Spells  Spells
 	Now     func() time.Time
 }
 

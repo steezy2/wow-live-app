@@ -666,6 +666,7 @@ func (k *LogTracker) raidPull(run *keyRun, key models.Key, at int64, kill bool) 
 	p.Dispels = p.Dispels[:min(len(p.Dispels), shownDispels)]
 	for _, s := range key.Stops {
 		if s.Outcome == "went off" {
+			s.Wipe = slices.ContainsFunc(r.boss.WipeStop, func(id int) bool { return k.spells[id] == s.Spell })
 			p.WentOff = append(p.WentOff, s)
 		}
 	}

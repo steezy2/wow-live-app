@@ -1,6 +1,7 @@
 import { Fragment, memo, type ReactNode } from 'react'
 import type { PlayerCount, RaidPull } from './api'
-import { amount, clock, coverText, seconds } from './format'
+import { amount, clock, coverOf, seconds } from './format'
+import { Cover, Spell } from './Spell'
 import { At, Name, type Classes } from './Seek'
 
 /** How many raiders a mechanic's line names before it counts the rest. */
@@ -47,11 +48,11 @@ export const EarlyDeaths = memo(function EarlyDeaths({ pull, classes, onSeek, on
           <li key={`${d.player}-${d.clockMS}-${i}`} className="stack">
             <span>
               <At ms={d.clockMS} onSeek={onSeek} /> <Name player={d.player} classes={classes} onPick={onFocus} />{' '}
-              {d.ability || 'unknown'}
+              {d.ability ? <Spell name={d.ability} /> : 'unknown'}
               {d.killer && <span className="muted"> from {d.killer}</span>}
             </span>
             <span className="muted small">
-              {coverText(d)}
+              <Cover {...coverOf(d)} />
               {d.recap.length > 0 && ` · before: ${d.recap.map((h) => `${h.ability} ${amount(h.amount)}`).join(', ')}`}
             </span>
           </li>

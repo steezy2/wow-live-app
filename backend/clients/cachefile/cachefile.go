@@ -132,7 +132,7 @@ func Marshal(value any) ([]byte, error) {
 }
 
 // UserAgent is how the app names itself to the sites it calls.
-const UserAgent = "wow-live (https://github.com/steezy2/wow-live)"
+const UserAgent = "wow-live (https://github.com/steezy2/wow-live-app)"
 
 // downloadTimeout bounds one download when the caller gives no HTTP client.
 const downloadTimeout = 2 * time.Minute

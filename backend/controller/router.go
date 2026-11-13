@@ -48,6 +48,7 @@ func Router(mplus MPlus, raid *Raid, settings *SettingsAPI, pages fs.FS, hosts .
 	api.GET("/mplus/keys/:start/track", mplus.Track)
 	api.GET("/mplus/keys/:start/review", mplus.Review)
 	api.GET("/mplus/keys/:start/route", mplus.KeyRoute)
+	api.GET("/spells", mplus.Spell)
 	api.GET("/recap/periods", mplus.RecapPeriods)
 	api.GET("/recap", mplus.Recap)
 	api.GET("/recap/top-times", mplus.RecapTopTimes)
@@ -86,7 +87,8 @@ func Router(mplus MPlus, raid *Raid, settings *SettingsAPI, pages fs.FS, hosts .
 		api.POST("/settings/read-keys", settings.ReadKeys)
 		api.GET("/settings/logs", settings.LogFiles)
 		api.POST("/settings/logs/archive", settings.ArchiveLogs)
-		api.DELETE("/settings/logs/archive", settings.DeleteArchivedLogs)
+		api.DELETE("/settings/logs/archive", settings.DeleteLogs)
+		api.GET("/storage", settings.Storage)
 	}
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	r.NoRoute(func(c *gin.Context) {

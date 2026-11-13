@@ -64,6 +64,14 @@ export function versus(ms: number, other: number): string {
   return `${ms > other ? '+' : ''}${clock(ms - other)}`
 }
 
+/** A time against the best one, as what leads "your best": "2:00 faster than", "0:30 slower than", "level with"; empty
+ * when there is no best. */
+export function versusBest(ms: number, bestMS: number): string {
+  if (bestMS <= 0) return ''
+  if (ms === bestMS) return 'level with'
+  return `${clock(Math.abs(ms - bestMS))} ${ms < bestMS ? 'faster' : 'slower'} than`
+}
+
 /** A count with its word: "1 death", "3 deaths". */
 export function counted(n: number, word: string): string {
   return `${n} ${word}${n === 1 ? '' : 's'}`
@@ -89,11 +97,11 @@ export function resultText(status: string, chests: number, clockMS: number, time
   return `${head} · ${clock(clockMS)} / ${clock(timerMS)} · ${clock(Math.abs(left))} ${left >= 0 ? 'under' : 'over'}`
 }
 
-/** What covered a death or a hit: "used Ice Cold" (pressed it), "had Pain Suppression" (put on them), "still had
- * Barkskin, Renewal", or "nothing ready"; ready is missing in raid pulls saved before it was kept. */
-export function coverText(c: { defensive: string; used?: boolean; ready?: string[] }): string {
-  if (c.defensive) return `${c.used ? 'used' : 'had'} ${c.defensive}`
-  return c.ready?.length ? `still had ${c.ready.join(', ')}` : 'nothing ready'
+/** What covered a death or a hit: "used" Ice Cold (pressed it), "had" Pain Suppression (put on them), "still had"
+ * Barkskin and Renewal, or "nothing ready"; ready is missing in raid pulls saved before it was kept. */
+export function coverOf(c: { defensive: string; used?: boolean; ready?: string[] }): { lead: string; spells: string[] } {
+  if (c.defensive) return { lead: c.used ? 'used' : 'had', spells: [c.defensive] }
+  return c.ready?.length ? { lead: 'still had', spells: c.ready } : { lead: 'nothing ready', spells: [] }
 }
 
 /** What hit the party in a spike, with each one's share of it: "Crushing Slam (Bonebreaker) 58%, Volley 22%". */
