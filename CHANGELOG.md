@@ -4,6 +4,9 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 
 ## [Unreleased]
 
+### Added
+- A must-stop cast that wipes the raid when it goes off is the first line of a pull's *Fix next pull* ("Anguished Cry went off 1 time, which wipes the raid"): `wipe_stop` in `raid-mechanics.toml` (Ula'tek's Anguished Cry, the Weakened Doomscale's raid-wide stun), `wipe` on a `KeyStop`. `readerVersion` 15, so *Read old logs* fills it in.
+
 ### Changed
 - An M+ key's **Buffs** tab reads like a raid pull's: a line per buff, "Missing Arcane Intellect", with who lacked it the whole key (or "everyone") and each gap as a player with its start and end on the key's clock (a click moves the replay). It now also catches a flask, food or party buff that came off mid-key (`buffGaps` on a key; `BuffGap` replaces `RaidMissing`), shown by the shared `BuffGaps.tsx`. `readerVersion` 14, so *Read old logs* fills it in.
 

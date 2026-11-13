@@ -115,7 +115,8 @@ func spikeRate(s models.KeySpike, rules models.SuggestionRules) string {
 	return short(float64(s.Damage) / rules.SpikeSeconds)
 }
 
-// suggestions is what to fix on the next pull, most important first, at most rules.Most: adds that come from a carrier
+// suggestions is what to fix on the next pull, most important first, at most rules.Most: a must-stop cast that wipes
+// the raid when it goes off; adds that come from a carrier
 // (a Viper from an egg, close to a wipe) with who spawned them or how many weren't picked up, deaths to what can be
 // dodged
 // or soaked, raiders who didn't pick up what everyone should, early deaths with a defensive ready, mass kills,
@@ -129,6 +130,15 @@ func suggestions(p models.RaidPull, best *models.RaidPull, rules models.Suggesti
 	avoidable := map[string]bool{}
 	for _, a := range p.Avoidable {
 		avoidable[a.Ability] = true
+	}
+	wipes := map[string]int{} // wipe-the-raid casts that went off -> how many times
+	for _, s := range p.WentOff {
+		if s.Wipe {
+			wipes[s.Spell]++
+		}
+	}
+	for _, spell := range slices.Sorted(maps.Keys(wipes)) {
+		say("%s went off %s, which wipes the raid", spell, times(wipes[spell]))
 	}
 	said := map[string]bool{} // abilities whose deaths have a line of their own
 	for _, s := range p.Soaks {
@@ -215,7 +225,9 @@ func suggestions(p models.RaidPull, best *models.RaidPull, rules models.Suggesti
 	}
 	wentOff := map[string]int{}
 	for _, s := range p.WentOff {
-		wentOff[s.Spell]++
+		if !s.Wipe {
+			wentOff[s.Spell]++
+		}
 	}
 	for _, spell := range slices.Sorted(maps.Keys(wentOff)) {
 		say("%s went off %s", spell, times(wentOff[spell]))

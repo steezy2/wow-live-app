@@ -148,6 +148,7 @@ not_adds = [265644, 268121]                     # Blightscale Spawn: eggs the ra
 avoidable = [1292403, 1302982, 1301510]         # Caustic Waves, Virulent Spit, Circling Prey
 dispel = []
 must_stop = [1290779, 1305650, 1310764]         # Malice, Anguished Cry, Vicious Echoes
+wipe_stop = [1305650]                           # Anguished Cry: the Weakened Doomscale stuns everyone
 priority = ["Venomous Heart", "Doomscale Warden"]
 [bosses."Ula'tek".stacks]
 [[bosses."Ula'tek".soaks]]

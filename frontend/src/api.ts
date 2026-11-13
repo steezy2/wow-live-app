@@ -59,6 +59,7 @@ export interface KeyStop {
   outcome: 'interrupted' | 'stopped' | 'went off' | 'died'
   by: string
   intoMS?: number
+  wipe?: boolean
 }
 
 /** A dispellable debuff on a party member: who removed it and after how long, or by "" when it ran out. */
