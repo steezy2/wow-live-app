@@ -15,6 +15,7 @@ import { RaidReplay } from './RaidReplay'
 import { topMeter, useRaidTrack, useReplay } from './replay'
 import { Tabs } from './Tabs'
 import { useNow, useRaidLive } from './useLiveKey'
+import { Skeleton } from './Skeleton'
 import { WaitingCard } from './WaitingCard'
 import { localDay, raidTonight } from './waiting'
 
@@ -121,7 +122,7 @@ function nightTime(n: RaidNight): number {
 
 /** A saved pull, read again when the saved keys and pulls change (a report linked to it, say). */
 function SavedPull({ start }: { start: number }) {
-  const [pull, setPull] = useState<RaidPull | null>(null)
+  const [pull, setPull] = useState<RaidPull | null>(null) // the previous pull stays up, dimmed, while this one is read
   const [error, setError] = useState<string | null>(null)
   useEffect(() => {
     const controller = new AbortController()
@@ -138,7 +139,12 @@ function SavedPull({ start }: { start: number }) {
     }
   }, [start])
   if (error) return <p className="warning">{error}</p>
-  return pull?.start === start ? <RaidPullView key={start} pull={pull} /> : <p className="muted">Loading…</p>
+  if (!pull) return <Skeleton height={480} />
+  return (
+    <div className={pull.start === start ? undefined : 'stale'}>
+      <RaidPullView key={pull.start} pull={pull} />
+    </div>
+  )
 }
 
 /** The comparison line: tonight's best and the best ever, the same pull named once. */

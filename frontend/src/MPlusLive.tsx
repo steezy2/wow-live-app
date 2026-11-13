@@ -3,6 +3,7 @@ import { abandonLiveKey, fetchSavedKeys, type KeySummary, type KeyView } from '.
 import { clock } from './format'
 import { useLiveKey, useNow } from './useLiveKey'
 import { KeyDetails } from './KeyDetails'
+import { Skeleton } from './Skeleton'
 import { WaitingCard } from './WaitingCard'
 import { keysTonight } from './waiting'
 
@@ -17,7 +18,7 @@ export function MPlusLive({ onEnded, character, onOpen }: {
   onOpen: (start: number) => void
 }) {
   const { loaded, key, clockMS, silentMS, error, endedHere } = useLiveKey(onEnded)
-  if (!loaded) return <p className="muted">{error ?? 'Connecting to the site…'}</p>
+  if (!loaded) return error ? <p className="muted">{error}</p> : <Skeleton height={320} />
   if (key === null || (key.status !== 'running' && key.start !== endedHere)) {
     return <Waiting last={key} character={character} onOpen={onOpen} />
   }

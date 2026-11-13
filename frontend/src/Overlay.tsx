@@ -11,6 +11,7 @@ import {
 } from './api'
 import { classColors } from './classColors'
 import { AbilityBars } from './FightMeters'
+import { Skeleton } from './Skeleton'
 import { chestLabel, clock, pullTitle, resultText } from './format'
 import { HitRecapView } from './HitRecap'
 import { ForcesBar, TimerBar } from './KeyDetails'
@@ -227,7 +228,7 @@ function Breakdown(props: {
           {targets.length > 0 && <AbilityBars rows={targets} color={color} label="Enemy" limit={OVERLAY_SPELLS} />}
         </>
       ) : (
-        <p className="muted">{track ? 'No ability timeline for this key' : 'Loading…'}</p>
+        track ? <p className="muted">No ability timeline for this key</p> : <Skeleton height={64} />
       )}
     </Drill>
   )
@@ -276,7 +277,7 @@ function DeathsDrill({ keyView: key, onBack }: { keyView: KeyView; onBack: () =>
         recap ? (
           <HitRecapView recap={recap} ready={picked.ready} limit={OVERLAY_RECAP_ROWS} />
         ) : (
-          <p className="muted">{track ? 'No recap for this death' : 'Loading…'}</p>
+          track ? <p className="muted">No recap for this death</p> : <Skeleton height={64} />
         )
       ) : (
         <ul className="list">

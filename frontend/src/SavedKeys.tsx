@@ -3,6 +3,7 @@ import { deleteSavedKeys, fetchSavedKeys, type KeySummary } from './api'
 import { chestLabel, clock, counted } from './format'
 import { ReportTag } from './ReportLinks'
 import { SideGroups } from './SideGroups'
+import { Skeleton } from './Skeleton'
 
 /** The side panel: the live key, then every saved key by day, or by week past the last 7 days (pick one to open it,
  * × to delete it, or clear them all).
@@ -13,7 +14,7 @@ export function SavedKeys({ selected, onSelect, refresh, character }: {
   refresh: number
   character: string
 }) {
-  const [keys, setKeys] = useState<KeySummary[]>([])
+  const [keys, setKeys] = useState<KeySummary[] | null>(null) // null until first read; then the last list stays up while it is read again
   const [error, setError] = useState<string | null>(null)
   const load = useCallback(
     () =>
@@ -42,7 +43,7 @@ export function SavedKeys({ selected, onSelect, refresh, character }: {
       <h2>Saved keys</h2>
       {error && <p className="warning">{error}</p>}
       <SideGroups
-        items={keys}
+        items={keys ?? []}
         time={(k) => k.start}
         count={(g) => counted(g.length, 'key')}
         isSelected={(k) => k.start === selected}
@@ -68,8 +69,9 @@ export function SavedKeys({ selected, onSelect, refresh, character }: {
           ))
         }
       </SideGroups>
-      {keys.length === 0 && <p className="muted small">None yet: finished keys are saved here.</p>}
-      {keys.length > 0 && (
+      {keys === null && !error && <Skeleton height={120} />}
+      {keys?.length === 0 && <p className="muted small">None yet: finished keys are saved here.</p>}
+      {keys && keys.length > 0 && (
         <button className="clear" onClick={() => remove()}>
           Clear all
         </button>

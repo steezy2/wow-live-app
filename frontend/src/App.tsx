@@ -17,40 +17,65 @@ import { RaidPage } from './RaidPage'
 import { Recap } from './Recap'
 import { SavedKeys } from './SavedKeys'
 import { SettingsPage } from './SettingsPage'
+import { Skeleton } from './Skeleton'
+
+/** The longest the splash stays up waiting for the settings and the characters. */
+const SPLASH_MAX_MS = 2000
+
+type Section = 'mplus' | 'raid' | 'recap' | 'settings'
+
+/** The section the app opens on, chosen once the settings are known (null when they never came): Settings when the
+ * log folder is missing, else M+ Live. */
+function firstSection(view: SettingsView | null): Section {
+  return view && !view.logsDirFound ? 'settings' : 'mplus'
+}
+
+/** Shown in place of the page until the settings and characters are read; the same markup as index.html's splash. */
+function Splash() {
+  return <div className="splash" role="status">WoW Live</div>
+}
 
 /** The site: its sections along the top (M+ Live, Raid, Recap, and Settings in the desktop app) and the character
  * picker, whose pick (Settings' character at first, else all) the saved keys, raid nights and recap show; M+ Live has
- * the saved keys on the side and the live key or the one picked from them. The app opens on Settings when it can't find
- * the log folder. */
+ * the saved keys on the side and the live key or the one picked from them. The app shows a splash until the settings and
+ * characters are read (at most SPLASH_MAX_MS), then opens on Settings when it can't find the log folder. */
 export default function App() {
   const [selected, setSelected] = useState<number | null>(null)
   const [refresh, setRefresh] = useState(0)
   const keyEnded = useCallback(() => setRefresh((n) => n + 1), [])
   const [settings, setSettings] = useState<SettingsView | null>(null)
-  const [section, setSection] = useState<'mplus' | 'raid' | 'recap' | 'settings'>('mplus')
+  const [picking, setSection] = useState<Section | null>(null) // null until a tab is clicked or the first one is chosen
+  const [charactersRead, setCharactersRead] = useState(false)
+  const [splashOver, setSplashOver] = useState(false)
   const [raidPull, setRaidPull] = useState<number | null>(null)
   const [characters, setCharacters] = useState<Character[]>([])
   const [picked, setPicked] = useState<string | null>(null)
   const character = picked ?? characters.find((c) => c.preferred)?.id ?? ''
   const preferred = settings?.character ?? ''
+  const ready = (settings !== null && charactersRead) || splashOver
+  const section = picking ?? (ready ? firstSection(settings) : null)
   useEffect(() => {
+    const timer = setTimeout(() => setSplashOver(true), SPLASH_MAX_MS)
+    return () => clearTimeout(timer)
+  }, [])
+  useEffect(() => {
+    if (settings === null && !splashOver) return // the preferred character comes with the settings: one read, no pop-in
     const controller = new AbortController()
-    fetchCharacters(preferred, controller.signal).then(setCharacters, () => undefined)
+    fetchCharacters(preferred, controller.signal)
+      .then(setCharacters, () => undefined)
+      .then(() => setCharactersRead(true))
     return () => controller.abort()
-  }, [preferred, refresh, section]) // a section opened again may follow a raid pull or Read old logs
+  }, [settings, splashOver, preferred, refresh, section]) // a section opened again may follow a raid pull or Read old logs
   useEffect(() => {
     const controller = new AbortController()
-    fetchSettings(controller.signal).then((view) => {
-      setSettings(view)
-      if (view !== null && !view.logsDirFound) setSection('settings')
-    }, () => undefined)
+    fetchSettings(controller.signal).then(setSettings, () => undefined)
     const off = onAppEvent('settings', (s) => setSettings((view) => view && { ...view, ...(s as Settings) }))
     return () => {
       controller.abort()
       off()
     }
   }, [])
-  const tab = (name: typeof section) => ({
+  const tab = (name: Section) => ({
     className: 'section-tab',
     'aria-current': section === name ? ('page' as const) : undefined,
     onClick: () => {
@@ -70,10 +95,14 @@ export default function App() {
         <button {...tab('mplus')}>M+ Live</button>
         <button {...tab('raid')}>Raid</button>
         <button {...tab('recap')}>Recap</button>
-        {settings && <button {...tab('settings')}>Settings</button>}
+        <button {...tab('settings')} disabled={!settings}>
+          Settings
+        </button>
         <CharacterPicker characters={characters} value={character} onChange={setPicked} />
       </nav>
-      {settings && section === 'settings' ? (
+      {section === null ? (
+        <Splash />
+      ) : settings && section === 'settings' ? (
         <main className="page">
           <SettingsPage view={settings} onSaved={setSettings} />
         </main>
@@ -97,8 +126,7 @@ export default function App() {
 
 /** A saved key, read again when the saved keys change (a report linked to it, say). */
 function SavedKey({ start }: { start: number }) {
-  const [saved, setKey] = useState<KeyView | null>(null)
-  const key = saved?.start === start ? saved : null // never the previous key while this one is read
+  const [key, setKey] = useState<KeyView | null>(null) // the previous key stays up, dimmed, while this one is read
   const [error, setError] = useState<string | null>(null)
   useEffect(() => {
     const controller = new AbortController()
@@ -115,5 +143,10 @@ function SavedKey({ start }: { start: number }) {
     }
   }, [start])
   if (error) return <p className="warning">{error}</p>
-  return key ? <KeyDetails key={key.start} keyView={key} clockMS={key.clockMS} /> : <p className="muted">Loading…</p>
+  if (!key) return <Skeleton height={480} />
+  return (
+    <div className={key.start === start ? undefined : 'stale'}>
+      <KeyDetails key={key.start} keyView={key} clockMS={key.clockMS} />
+    </div>
+  )
 }

@@ -15,6 +15,8 @@ import {
 } from './api'
 import { CharacterParses } from './CharacterParses'
 import { classColors } from './classColors'
+import { Skeleton } from './Skeleton'
+import { useDelayed } from './useDelayed'
 import { amount, clock, counted, realmName, versus, withRealm } from './format'
 import { Tabs } from './Tabs'
 
@@ -55,6 +57,7 @@ export function Recap({ character, parsesFor, onOpen }: { character?: Character;
     return () => controller.abort()
   }, [period, id, key])
   const loading = answer.key !== key
+  const slow = useDelayed(loading)
   const showParses = !character || character.preferred
   return (
     <>
@@ -65,7 +68,7 @@ export function Recap({ character, parsesFor, onOpen }: { character?: Character;
             {character ? withRealm(character.name, character.realm) : 'All characters'}
           </span>
         </h1>
-        {loading && answer.recap && <span className="muted small">Loading…</span>}
+        {slow && answer.recap && <span className="muted small">Loading…</span>}
       </header>
       <div className="map-controls" role="group" aria-label="Period">
         {periods.map((p) => (
@@ -101,7 +104,7 @@ export function Recap({ character, parsesFor, onOpen }: { character?: Character;
           ]}
         />
       ) : (
-        <p className="muted">Loading…</p>
+        <Skeleton height={320} lines={5} />
       )}
     </>
   )
