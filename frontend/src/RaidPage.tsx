@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { fetchRaidNights, fetchRaidPull, subscribe, type KeyTrack, type RaidNight, type RaidPull, type RaidPullSummary } from './api'
+import { fetchRaidNights, fetchRaidPull, reviewURL, subscribe, type KeyTrack, type RaidNight, type RaidPull, type RaidPullSummary } from './api'
 import { clock, counted, groupBy, progressText } from './format'
 import { defense, raidOffense } from './meterColumns'
 import { MeterCard } from './MeterCards'
 import { ReportLinks, ReportTag } from './ReportLinks'
-import { fightTabs, type FightData } from './KeyTabs'
+import { fightTabs, pullFightData } from './KeyTabs'
 import { PlayerTable } from './PlayerTable'
 import { BuffGaps } from './BuffGaps'
 import { EarlyDeaths, Mechanics } from './RaidCards'
@@ -190,6 +190,9 @@ export function RaidPullView({ pull }: { pull: RaidPull }) {
         </p>
         <Comparisons pull={pull} />
         <ReportLinks fight={pull.start} link={pull.report} />
+        <p className="links">
+          <a href={reviewURL('raid', pull.start)}>Open full review</a>
+        </p>
       </section>
 
       {pull.suggestions.length > 0 && (
@@ -298,20 +301,8 @@ export function RaidOverlayCard({ pull, rows = 0 }: { pull: RaidPull; rows?: num
  * big hits, avoidable, defensives and potions, CC) with the buffs missing through the pull; a pull saved before they were kept
  * says how to fill them in. */
 function PullTabs({ pull, seek, track }: { pull: RaidPull; seek: Seeker; track: KeyTrack | null }) {
-  if (!pull.casts) return <NoAbilities />
-  const data: FightData = {
-    deaths: pull.deaths,
-    interrupts: pull.interrupts ?? [],
-    casts: pull.casts,
-    stops: pull.stops ?? [],
-    wastedKicks: pull.wastedKicks ?? [],
-    spikes: pull.spikes ?? [],
-    debuffs: pull.debuffs ?? [],
-    reference: true,
-    avoidableHits: pull.avoidableHits,
-    bigHits: pull.bigHits,
-    lanes: pull.lanes,
-  }
+  const data = pullFightData(pull)
+  if (!data) return <NoAbilities />
   const tabs = fightTabs(data, `Deaths ${pull.deaths.length}`, 'raid', seek, track)
   const missing = new Set(pull.buffGaps?.map((g) => g.buff)).size
   if (missing > 0) {
@@ -325,7 +316,7 @@ function PullTabs({ pull, seek, track }: { pull: RaidPull; seek: Seeker; track: 
       <PlayerTable
         title="Raiders"
         meter={pull.meter}
-        casts={pull.casts}
+        casts={data.casts}
         activity={pull.activity}
         deaths={pull.deaths}
         onPick={seek.onFocus}

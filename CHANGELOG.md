@@ -5,6 +5,7 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 ## [Unreleased]
 
 ### Added
+- **Open full review** on a finished key and a raid pull opens its own page (`/review/mplus/{start}`, `/review/raid/{start}`, tab and player in the address): Overview (tiles, what to fix, the review, the meters), Interrupts, Events (a feed of deaths, defensives, potions, interrupts, crowd control and dispels, filtered by kind and player) and Timeline (the replay on one clock). *Pop out* opens the same page in a window of its own (one per page; a new tab in a browser). The tabs are the shared ones (`ReviewPage.tsx`, `EventFeed.tsx`, `fightEvents` in `events.ts`, `pullFightData` in `KeyTabs.tsx`); the Player, Deaths and Compare tabs follow in later PRs.
 - A must-stop cast that wipes the raid when it goes off is the first line of a pull's *Fix next pull* ("Anguished Cry went off 1 time, which wipes the raid"): `wipe_stop` in `raid-mechanics.toml` (Ula'tek's Anguished Cry, the Weakened Doomscale's raid-wide stun), `wipe` on a `KeyStop`. `readerVersion` 15, so *Read old logs* fills it in.
 
 ### Changed

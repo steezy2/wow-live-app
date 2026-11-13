@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react'
-import type { KeyForces, KeyGhost, KeyReview as Review, KeyTrack, KeyView } from './api'
+import { reviewURL, type KeyForces, type KeyGhost, type KeyReview as Review, type KeyTrack, type KeyView } from './api'
 import { chestLabel, clock, oddsText, pullTitle, resultText, share } from './format'
 import { DamageGraph } from './DamageGraph'
 import { BuffGaps } from './BuffGaps'
@@ -73,6 +73,11 @@ export function KeyDetails({
       </header>
       <p className="muted">{key.affixes.map((a) => a.name || `affix ${a.id}`).join(' · ')}</p>
       {key.status !== 'running' && <ReportLinks fight={key.start} link={key.report} />}
+      {key.status !== 'running' && (
+        <p className="links">
+          <a href={reviewURL('mplus', key.start)}>Open full review</a>
+        </p>
+      )}
 
       {key.status === 'running' ? (
         <section className="clock">

@@ -205,6 +205,12 @@ func run() error {
 			Width: overlayW, Height: overlayH})
 	}
 	wails.Event.On("overlay-reset", func(*application.CustomEvent) { defaultPlace() })
+	// A full review page's Pop out button.
+	wails.Event.On("open-review", func(e *application.CustomEvent) {
+		if url, ok := e.Data.(string); ok && isReviewURL(url) {
+			popOut(wails, name, url)
+		}
+	})
 	following := filepath.Clean(opts.LogsDir()) // Settings saves the folder cleaned: compare like with like
 	stopFollowing := follow(ctx, site, following)
 	settings.OnSave = func(next models.Settings) {

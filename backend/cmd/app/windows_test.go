@@ -30,3 +30,18 @@ func TestASavedWindowGoesBackOnlyWhileEnoughOfItIsOnAScreen(t *testing.T) {
 		}
 	}
 }
+
+func TestIsReviewURL(t *testing.T) {
+	for url, want := range map[string]bool{
+		"/review/mplus/1762800000000?tab=events": true,
+		"/review/raid/1762800000000":             true,
+		"/overlay":                               false,
+		"https://example.com/review/x":           false,
+		"/review//evil.example":                  false,
+		"/review/../settings":                    false,
+	} {
+		if got := isReviewURL(url); got != want {
+			t.Errorf("isReviewURL(%q) = %v, want %v", url, got, want)
+		}
+	}
+}

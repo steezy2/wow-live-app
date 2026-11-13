@@ -1,5 +1,5 @@
 import { type ReactNode, useState } from 'react'
-import type { KeyBigHit, KeyCast, KeyDeath, KeyHit, KeyTrack, KeyView, RaidLane } from './api'
+import type { KeyBigHit, KeyCast, KeyDeath, KeyHit, KeyTrack, KeyView, RaidLane, RaidPull } from './api'
 import { coverText } from './format'
 import { RecapRow } from './HitRecap'
 import { Avoidable, BigHits, KickLedger, SpikeLedger } from './KeyLedgers'
@@ -12,6 +12,24 @@ export type FightData = Pick<
   KeyView,
   'deaths' | 'interrupts' | 'casts' | 'stops' | 'wastedKicks' | 'spikes' | 'debuffs' | 'reference'
 > & { avoidableHits?: KeyHit[]; bigHits?: KeyBigHit[]; lanes: RaidLane[] }
+
+/** A raid pull's lists as a key's, or null for a pull saved before they were kept. */
+export function pullFightData(pull: RaidPull): FightData | null {
+  if (!pull.casts) return null
+  return {
+    deaths: pull.deaths,
+    interrupts: pull.interrupts ?? [],
+    casts: pull.casts,
+    stops: pull.stops ?? [],
+    wastedKicks: pull.wastedKicks ?? [],
+    spikes: pull.spikes ?? [],
+    debuffs: pull.debuffs ?? [],
+    reference: true,
+    avoidableHits: pull.avoidableHits,
+    bigHits: pull.bigHits,
+    lanes: pull.lanes,
+  }
+}
 
 /** A tab: its name and what it shows. */
 export interface FightTab {
