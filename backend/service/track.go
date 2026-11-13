@@ -324,7 +324,7 @@ func (k *LogTracker) Track(start int64) (models.KeyTrack, error) {
 // its saved runs, one point per walkedGrid square (Name and ClockMS empty): the shape drawn for floors without tiles.
 func (k *LogTracker) DungeonMap(mapID int) (models.DungeonMap, error) {
 	walked, err := k.walked(mapID)
-	return models.DungeonMap{Floors: list(k.facts[mapID].Floors), Walked: walked}, err
+	return models.DungeonMap{Floors: list(k.facts[mapID].Floors), Walked: walked, Enemies: list(k.facts[mapID].Enemies)}, err
 }
 
 func (k *LogTracker) walked(mapID int) ([]models.TrackPoint, error) {

@@ -412,10 +412,25 @@ export interface KeyReview {
  * log's -y, its y the log's x). */
 export type DungeonFloor = RaidMap
 
+/** An enemy a route can pull: its Mythic Dungeon Tools enemy and clone index, NPC, the forces one kill gives, its pack
+ * (clicking a pack takes all of it) and where it stands in log yards on the floor `map` (a UIMapID). */
+export interface RouteEnemy {
+  index: number
+  clone: number
+  npc: number
+  count: number
+  boss?: boolean
+  pack: number
+  x: number
+  y: number
+  map: number
+}
+
 /** What the replay draws a dungeon on. */
 export interface DungeonMap {
   floors: DungeonFloor[]
   walked: TrackPoint[]
+  enemies: RouteEnemy[]
 }
 
 /** A saved key in the list. */
@@ -522,6 +537,80 @@ export async function deleteSavedKeys(start?: number): Promise<void> {
   await call(start ? `/api/mplus/keys/${start}` : '/api/mplus/keys', {
     method: 'DELETE',
   })
+}
+
+/** One enemy of a route: its Mythic Dungeon Tools enemy and clone index (a RouteEnemy's). */
+export interface EnemyRef {
+  index: number
+  clone: number
+}
+
+/** One pull of a route: its color (6 hex digits, "ff3eff") and its enemies (left out of the route list). */
+export interface RoutePull {
+  color: string
+  enemies?: EnemyRef[]
+}
+
+/** A route's pull with the forces its enemies give, the running total to it, and both as a percent of the total. */
+export interface RoutePullView extends RoutePull {
+  forces: number
+  total: number
+  pct: number
+  totalPct: number
+}
+
+/** A planned route. */
+export interface RouteView {
+  id: string
+  name: string
+  mapID: number
+  /** The dungeon's route the live page and key comparison use. */
+  starred: boolean
+  pulls: RoutePullView[]
+  totalPct: number
+  updated: number
+  /** An import's enemies that Mythic Dungeon Tools knows and the dungeon's map doesn't. */
+  dropped?: number
+}
+
+/** The planned routes, newest first, without their pulls' enemies; one dungeon's with its map ID. */
+export async function fetchRoutes(mapID?: number, signal?: AbortSignal): Promise<RouteView[]> {
+  const query = mapID ? `?${new URLSearchParams({ mapID: String(mapID) })}` : ''
+  return (await (await call(`/api/mplus/routes${query}`, { signal })).json()) as RouteView[]
+}
+
+/** One route with its pulls' enemies and forces. */
+export async function fetchRoute(id: string, signal?: AbortSignal): Promise<RouteView> {
+  return (await (await call(`/api/mplus/routes/${id}`, { signal })).json()) as RouteView
+}
+
+/** Imports a Mythic Dungeon Tools export string; importing its route again replaces it. */
+export async function importRoute(code: string): Promise<RouteView> {
+  return sendJSON('/api/mplus/routes', 'POST', { code })
+}
+
+/** Makes an empty route for a dungeon. */
+export async function createRoute(mapID: number, name: string): Promise<RouteView> {
+  return sendJSON('/api/mplus/routes', 'POST', { mapID, name })
+}
+
+/** Replaces a route's name and pulls; the site checks them and answers with the route's forces. */
+export async function saveRoute(id: string, name: string, pulls: RoutePull[]): Promise<RouteView> {
+  return sendJSON(`/api/mplus/routes/${id}`, 'PUT', { name, pulls })
+}
+
+/** Makes a route its dungeon's starred one. */
+export async function starRoute(id: string): Promise<void> {
+  await call(`/api/mplus/routes/${id}/star`, { method: 'POST' })
+}
+
+export async function deleteRoute(id: string): Promise<void> {
+  await call(`/api/mplus/routes/${id}`, { method: 'DELETE' })
+}
+
+/** A route as a string for Mythic Dungeon Tools' Import. */
+export async function exportRoute(id: string): Promise<string> {
+  return ((await (await call(`/api/mplus/routes/${id}/export`)).json()) as { code: string }).code
 }
 
 /** How often the page reads the keys again while the site's event stream is down. */

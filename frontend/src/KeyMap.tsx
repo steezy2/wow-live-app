@@ -130,7 +130,7 @@ export function KeyMap(props: {
 }) {
   const { keyView: key, clockMS, track, replay, focus: follow, onFocus: setFollow } = props
   const live = key.status === 'running'
-  const [dungeon, setDungeon] = useState<DungeonMap>({ floors: [], walked: [] })
+  const [dungeon, setDungeon] = useState<DungeonMap>({ floors: [], walked: [], enemies: [] })
   const [trail, setTrail] = useState(0)
   const [floor, setFloor] = useState<number | null>(null)
   const [enemy, setEnemy] = useState('')

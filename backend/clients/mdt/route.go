@@ -57,11 +57,17 @@ func DecodeRoute(code string) (models.MDTPreset, error) {
 	return presetOf(tree)
 }
 
-// EncodeRoute writes p as a route string Mythic Dungeon Tools imports: p.Raw with its name and pulls replaced.
+// EncodeRoute writes p as a route string Mythic Dungeon Tools imports: p.Raw with its name and pulls replaced. A p
+// with no Raw (a route made in the app) gets the smallest preset MDT takes, from p.UID and p.DungeonIdx.
 func EncodeRoute(p models.MDTPreset) (string, error) {
-	tree, err := decodeTree(p.Raw)
-	if err != nil {
-		return "", err
+	tree := any(map[any]any{cbor.ByteString("uid"): []byte(p.UID), cbor.ByteString("value"): map[any]any{
+		cbor.ByteString("currentDungeonIdx"): p.DungeonIdx, cbor.ByteString("currentPull"): 1,
+		cbor.ByteString("currentSublevel"): 1}})
+	if len(p.Raw) > 0 {
+		var err error
+		if tree, err = decodeTree(p.Raw); err != nil {
+			return "", err
+		}
 	}
 	top, value, err := preset(tree)
 	if err != nil {

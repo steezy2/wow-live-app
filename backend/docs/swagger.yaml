@@ -38,6 +38,29 @@ definitions:
       saved:
         type: integer
     type: object
+  controller.RouteCode:
+    properties:
+      code:
+        type: string
+    type: object
+  controller.RouteRequest:
+    properties:
+      code:
+        type: string
+      mapID:
+        type: integer
+      name:
+        type: string
+    type: object
+  controller.RouteUpdate:
+    properties:
+      name:
+        type: string
+      pulls:
+        items:
+          $ref: '#/definitions/models.RoutePull'
+        type: array
+    type: object
   models.AbilitySeries:
     properties:
       a:
@@ -142,6 +165,11 @@ definitions:
     type: object
   models.DungeonMap:
     properties:
+      enemies:
+        description: what a route can pull, for the route map
+        items:
+          $ref: '#/definitions/models.RouteEnemy'
+        type: array
       floors:
         items:
           $ref: '#/definitions/models.DungeonFloor'
@@ -150,6 +178,13 @@ definitions:
         items:
           $ref: '#/definitions/models.TrackPoint'
         type: array
+    type: object
+  models.EnemyRef:
+    properties:
+      clone:
+        type: integer
+      index:
+        type: integer
     type: object
   models.FightKind:
     enum:
@@ -1887,6 +1922,81 @@ definitions:
       value:
         type: number
     type: object
+  models.RouteEnemy:
+    properties:
+      boss:
+        type: boolean
+      clone:
+        type: integer
+      count:
+        type: integer
+      index:
+        type: integer
+      map:
+        description: the floor's UIMapID
+        type: integer
+      npc:
+        type: integer
+      pack:
+        description: Keystone.guru's pack, else Mythic Dungeon Tools' group, else
+          0
+        type: integer
+      x:
+        type: number
+      "y":
+        type: number
+    type: object
+  models.RoutePull:
+    properties:
+      color:
+        type: string
+      enemies:
+        description: left out of the route list
+        items:
+          $ref: '#/definitions/models.EnemyRef'
+        type: array
+    type: object
+  models.RoutePullView:
+    properties:
+      color:
+        type: string
+      enemies:
+        description: left out of the route list
+        items:
+          $ref: '#/definitions/models.EnemyRef'
+        type: array
+      forces:
+        type: integer
+      pct:
+        type: number
+      total:
+        type: integer
+      totalPct:
+        type: number
+    type: object
+  models.RouteView:
+    properties:
+      dropped:
+        description: an import's enemies that Mythic Dungeon Tools knows and this
+          map doesn't
+        type: integer
+      id:
+        type: string
+      mapID:
+        type: integer
+      name:
+        type: string
+      pulls:
+        items:
+          $ref: '#/definitions/models.RoutePullView'
+        type: array
+      starred:
+        type: boolean
+      totalPct:
+        type: number
+      updated:
+        type: integer
+    type: object
   models.Settings:
     properties:
       character:
@@ -2328,6 +2438,193 @@ paths:
           schema:
             $ref: '#/definitions/controller.ErrorResponse'
       summary: End the running key as abandoned
+      tags:
+      - mplus
+  /api/mplus/routes:
+    get:
+      parameters:
+      - description: only this dungeon's routes (its map ID)
+        in: query
+        name: mapID
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.RouteView'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+      summary: The planned routes, newest first, without their pulls' enemies
+      tags:
+      - mplus
+    post:
+      consumes:
+      - application/json
+      description: |-
+        The string's uid becomes the route's id, so importing it again replaces that route. The reply's
+        dropped counts the enemies the string pulls that the dungeon's map doesn't have.
+      parameters:
+      - description: code, or mapID and name
+        in: body
+        name: route
+        required: true
+        schema:
+          $ref: '#/definitions/controller.RouteRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.RouteView'
+        "400":
+          description: a bad string (the text says which step failed) or dungeon
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+      summary: 'Add a route: import a Mythic Dungeon Tools export string, or make
+        an empty one'
+      tags:
+      - mplus
+  /api/mplus/routes/{id}:
+    delete:
+      parameters:
+      - description: the route's id
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+      summary: Delete a route; if it was starred, its dungeon's newest route is
+      tags:
+      - mplus
+    get:
+      parameters:
+      - description: the route's id (letters, digits and brackets, up to 32)
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.RouteView'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+      summary: One planned route with its pulls' forces
+      tags:
+      - mplus
+    put:
+      consumes:
+      - application/json
+      description: |-
+        Every enemy must be on the dungeon's map and in one pull at most; a route has at most 60 pulls and
+        a name of up to 60 characters.
+      parameters:
+      - description: the route's id
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: name and pulls
+        in: body
+        name: route
+        required: true
+        schema:
+          $ref: '#/definitions/controller.RouteUpdate'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.RouteView'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+      summary: Replace a route's name and pulls
+      tags:
+      - mplus
+  /api/mplus/routes/{id}/export:
+    get:
+      parameters:
+      - description: the route's id
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/controller.RouteCode'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+      summary: A route as a string for Mythic Dungeon Tools' Import
+      tags:
+      - mplus
+  /api/mplus/routes/{id}/star:
+    post:
+      parameters:
+      - description: the route's id
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+      summary: Make a route its dungeon's starred one (the live page and key comparison
+        use it)
       tags:
       - mplus
   /api/raid/live:

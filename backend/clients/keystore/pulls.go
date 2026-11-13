@@ -2,9 +2,6 @@ package keystore
 
 import (
 	"cmp"
-	"encoding/json"
-	"fmt"
-	"os"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -41,28 +38,7 @@ func (s Pulls) DeletePull(start int64) error {
 
 // ListPulls is every saved pull, newest first; a missing folder is no pulls.
 func (s Pulls) ListPulls() ([]models.RaidPull, error) {
-	pulls, err := readAll[models.RaidPull](s.Dir)
+	pulls, err := cachefile.ReadAll[models.RaidPull](s.Dir)
 	slices.SortFunc(pulls, func(a, b models.RaidPull) int { return cmp.Compare(b.Start, a.Start) })
 	return pulls, err
-}
-
-// readAll reads every JSON file in dir; a missing folder is none.
-func readAll[T any](dir string) ([]T, error) {
-	paths, err := filepath.Glob(filepath.Join(dir, "*.json"))
-	if err != nil {
-		return nil, fmt.Errorf("listing %s: %w", dir, err)
-	}
-	all := []T{}
-	for _, path := range paths {
-		data, err := os.ReadFile(path)
-		if err != nil {
-			return nil, fmt.Errorf("reading %s: %w", path, err)
-		}
-		var v T
-		if err := json.Unmarshal(data, &v); err != nil {
-			return nil, fmt.Errorf("reading %s: %w", path, err)
-		}
-		all = append(all, v)
-	}
-	return all, nil
 }
