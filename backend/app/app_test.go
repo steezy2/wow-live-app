@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -198,8 +199,8 @@ func TestTidyArchivesOldReadLogs(t *testing.T) {
 			archived = append(archived, f.Name)
 		}
 	}
-	if len(archived) != 1 || archived[0] != old {
-		t.Errorf("archived %v, want only %s (not the unread one, nor the newest the game may write)", archived, old)
+	if len(archived) != 2 || !slices.Contains(archived, old) || !slices.Contains(archived, unread) {
+		t.Errorf("archived %v, want %s and %s (read first), not the newest the game may write", archived, old, unread)
 	}
 }
 

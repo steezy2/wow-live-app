@@ -56,25 +56,28 @@ export default function App() {
   const [reopened, setReopened] = useState(false) // the setup guide was reopened from Settings
   const [anchor, setAnchor] = useState<string | undefined>() // the Settings panel to scroll to
   const [splashOver, setSplashOver] = useState(false)
+  const [settingsRead, setSettingsRead] = useState(false) // the settings answered, or there are none (the site without the app)
+  const [first, setFirst] = useState<Section | null>(null) // the section opened on, chosen once
   const [raidPull, setRaidPull] = useState<number | null>(null)
   const [characters, setCharacters] = useState<Character[]>([])
   const [picked, setPicked] = useState<string | null>(null)
   const character = picked ?? characters.find((c) => c.preferred)?.id ?? ''
   const preferred = settings?.character ?? ''
-  const ready = (settings !== null && charactersRead && savedKeys !== null) || splashOver
-  const section = picking ?? (ready ? firstSection(settings, savedKeys) : null)
+  const ready = (settingsRead && charactersRead && savedKeys !== null) || splashOver
+  const section = picking ?? first
+  if (ready && first === null) setFirst(firstSection(settings, savedKeys)) // chosen once, so later changes never move the page
   useEffect(() => {
     const timer = setTimeout(() => setSplashOver(true), SPLASH_MAX_MS)
     return () => clearTimeout(timer)
   }, [])
   useEffect(() => {
-    if (settings === null && !splashOver) return // the preferred character comes with the settings: one read, no pop-in
+    if (!settingsRead && !splashOver) return // the preferred character comes with the settings: one read, no pop-in
     const controller = new AbortController()
     fetchCharacters(preferred, controller.signal)
       .then(setCharacters, () => undefined)
       .then(() => setCharactersRead(true))
     return () => controller.abort()
-  }, [settings, splashOver, preferred, refresh, section]) // a section opened again may follow a raid pull or Read old logs
+  }, [settingsRead, splashOver, preferred, refresh, section]) // a section opened again may follow a raid pull or Read old logs
   useEffect(() => {
     const controller = new AbortController()
     fetchSavedKeys('', controller.signal).then((keys) => setSavedKeys(keys.length), () => undefined)
@@ -85,7 +88,9 @@ export default function App() {
   }, [section, anchor, settings])
   useEffect(() => {
     const controller = new AbortController()
-    fetchSettings(controller.signal).then(setSettings, () => undefined)
+    fetchSettings(controller.signal)
+      .then(setSettings, () => undefined)
+      .then(() => setSettingsRead(true))
     const off = onAppEvent('settings', (s) => setSettings((view) => view && { ...view, ...(s as Settings) }))
     return () => {
       controller.abort()
@@ -120,13 +125,19 @@ export default function App() {
     <>
       <nav className="topnav" aria-label="Sections">
         <span className="brand">WoW Live</span>
-        <button {...tab('home')}>Home</button>
+        {(settings || !settingsRead) && (
+          <button {...tab('home')} disabled={!settings}>
+            Home
+          </button>
+        )}
         <button {...tab('mplus')}>M+ Live</button>
         <button {...tab('raid')}>Raid</button>
         <button {...tab('recap')}>Recap</button>
-        <button {...tab('settings')} disabled={!settings}>
-          Settings
-        </button>
+        {(settings || !settingsRead) && (
+          <button {...tab('settings')} disabled={!settings}>
+            Settings
+          </button>
+        )}
         <CharacterPicker characters={characters} value={character} onChange={setPicked} />
       </nav>
       {section === null ? (

@@ -194,6 +194,11 @@ func (s *Site) Tidy() error {
 		return nil
 	}
 	defer s.logJob.Unlock()
+	if auto.ArchiveGameLogsDays > 0 { // only logs already read are archived, and the game's newest are read here
+		if _, _, err := s.learn(false); err != nil {
+			return err
+		}
+	}
 	files, err := s.LogFiles()
 	if err != nil {
 		return err

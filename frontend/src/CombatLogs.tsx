@@ -33,7 +33,7 @@ export function CombatLogs({ reading, onChanged }: { reading: boolean; onChanged
     return <NoteLine note={note?.busy || note?.error ? note : { busy: waiting }} />
   }
   const chosen = (source: LogSource, archived: boolean) =>
-    files.filter((f) => f.source === source && f.archived === archived && picked.has(rowKey(f)))
+    files.filter((f) => f.source === source && (source === 'wcl' || f.archived === archived) && picked.has(rowKey(f)))
   const bytes = (list: LogFile[]) => list.reduce((n, f) => n + f.bytes, 0)
   const [toArchive, toDelete, toDeleteImports] = [chosen('game', false), chosen('game', true), chosen('wcl', true)]
   const run = (call: Promise<LogFile[]>, doing: string) =>

@@ -16,6 +16,7 @@ import { guideMet, guideSteps, showGuide } from './guide'
 import { Skeleton } from './Skeleton'
 import { StoragePanel } from './StoragePanel'
 import { Tiles } from './Tiles'
+import { stateLine } from './waiting'
 import { useLiveKey, useNow, useRaidLive } from './useLiveKey'
 
 /** Opens a saved key or raid pull, or a Settings panel (an element id; none for the top). */
@@ -116,7 +117,7 @@ function Status({ view }: { view: SettingsView }) {
   const key = useLiveKey().key
   const raid = useRaidLive()
   const now = useNow(60_000)
-  const minutes = view.lastLogMS ? Math.max(0, Math.round((now - view.lastLogMS) / 60_000)) : null
+  const line = stateLine(view, now)
   const live =
     key?.status === 'running'
       ? `${key.dungeon} +${key.level} is running`
@@ -127,13 +128,7 @@ function Status({ view }: { view: SettingsView }) {
     <section className="panel">
       <h2>Status</h2>
       <p>{live}</p>
-      <p className={view.logsDirFound ? 'muted' : 'warning'}>
-        {!view.logsDirFound
-          ? 'The combat log folder is not found.'
-          : minutes !== null
-            ? `The game last wrote a combat log ${minutes} min ago.`
-            : 'No combat log yet: turn on Advanced Combat Logging and type /combatlog in game.'}
-      </p>
+      {line && <p className={line.warn ? 'warning' : 'muted'}>{line.text}</p>}
       <p className="muted">{view.character ? `Character: ${view.character}` : 'No character picked in Settings.'}</p>
     </section>
   )
