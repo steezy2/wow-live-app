@@ -19,6 +19,7 @@ import { Skeleton } from './Skeleton'
 import { useDelayed } from './useDelayed'
 import { amount, clock, counted, realmName, versus, withRealm } from './format'
 import { Tabs } from './Tabs'
+import { Tiles } from './Tiles'
 
 type Open = (kind: 'mplus' | 'raid', start: number) => void
 
@@ -107,20 +108,6 @@ export function Recap({ character, parsesFor, onOpen }: { character?: Character;
         <Skeleton height={320} lines={5} />
       )}
     </>
-  )
-}
-
-/** Big numbers in boxes, each with its label under it. */
-function Tiles({ tiles }: { tiles: [string, string][] }) {
-  return (
-    <div className="recap-tiles">
-      {tiles.map(([value, label]) => (
-        <div key={label} className="card small">
-          <b>{value}</b>
-          <span className="muted small">{label}</span>
-        </div>
-      ))}
-    </div>
   )
 }
 

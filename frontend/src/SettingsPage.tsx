@@ -2,7 +2,6 @@ import { type FormEvent, useEffect, useState } from 'react'
 import {
   moveOverlay,
   type OverlaySettings,
-  readOldKeys,
   resetOverlay,
   savedSettings,
   saveSettings,
@@ -13,7 +12,6 @@ import { track, useNote } from './note'
 import { NoteLine } from './NoteLine'
 import { OVERLAY_LABELS } from './meterColumns'
 import { useNow, useOverlayMoving } from './useLiveKey'
-import { CombatLogs } from './CombatLogs'
 import { WCLImport } from './WCLImport'
 import { WCLKeys } from './WCLKeys'
 
@@ -27,16 +25,24 @@ const SHOW_LABELS: Record<OverlaySettings['show'], string> = {
 /** How long after the last change to the overlay it's saved, so dragging the opacity slider saves once. */
 const OVERLAY_SAVE_MS = 300
 
-/** The desktop app's settings in five sections: the game (combat log folder, with when the game last wrote a log
+/** The desktop app's settings in five panels: the game (combat log folder, with when the game last wrote a log
  * there, and region), the overlay (saved as it changes), the Warcraft Logs keys, importing a character's Warcraft
- * Logs reports, and reading and archiving old logs. Shown first when the log folder isn't found. */
-export function SettingsPage({ view, onSaved }: { view: SettingsView; onSaved: (view: SettingsView) => void }) {
+ * Logs reports, and a pointer to Home, where the stored data and the setup guide (shown again when onHome gets true)
+ * are. */
+export function SettingsPage({
+  view,
+  onSaved,
+  onHome,
+}: {
+  view: SettingsView
+  onSaved: (view: SettingsView) => void
+  onHome: (guide: boolean) => void
+}) {
   const [logsDir, setLogsDir] = useState(view.logsDir)
   const [region, setRegion] = useState(view.region)
   const [overlay, setOverlay] = useState(view.overlay)
   const [game, setGame] = useNote('game')
   const [overlayNote, setOverlayNote] = useNote('overlay')
-  const [oldKeys, setOldKeys] = useNote('read logs')
   const moving = useOverlayMoving()
   const now = useNow(60_000)
   useEffect(() => {
@@ -60,17 +66,10 @@ export function SettingsPage({ view, onSaved }: { view: SettingsView; onSaved: (
     const call = saveSettings({ ...savedSettings(view), logsDir: logsDir.trim(), region, overlay })
     track(call, setGame, 'Saving…', () => 'Saved').then(onSaved, () => undefined)
   }
-  const readLogs = (all: boolean) =>
-    void track(
-      readOldKeys(all),
-      setOldKeys,
-      'Reading the log folder…',
-      ({ read, saved }) => `${read} logs read · ${saved} keys saved`,
-    ).catch(() => undefined)
   const minutes = view.lastLogMS ? Math.round((now - view.lastLogMS) / 60_000) : null
   return (
     <div className="settings-page">
-      <form className="panel settings" onSubmit={save}>
+      <form id="settings-game" className="panel settings" onSubmit={save}>
         <h2>Game</h2>
         <label>
           Combat log folder
@@ -100,7 +99,7 @@ export function SettingsPage({ view, onSaved }: { view: SettingsView; onSaved: (
         </div>
         <NoteLine note={game} />
       </form>
-      <section className="panel settings">
+      <section id="settings-overlay" className="panel settings">
         <h2>Overlay</h2>
         <p className="muted small">Saved as you change it.</p>
         <label>
@@ -192,26 +191,16 @@ export function SettingsPage({ view, onSaved }: { view: SettingsView; onSaved: (
       <WCLKeys />
       <WCLImport view={view} onSaved={onSaved} />
       <section className="panel settings">
-        <h2>Your data</h2>
-        <p className="muted">
-          Saves every finished key and raid pull in the log folder, so the estimate and the best pulls have your
-          earlier runs to go on. Logs already read are skipped unless you read everything again.
-        </p>
+        <h2>Home</h2>
+        <p className="muted">Storage, reading old logs and archiving are on Home.</p>
         <div className="actions">
-          <button type="button" disabled={!!oldKeys?.busy} onClick={() => readLogs(false)}>
-            Read old logs
+          <button type="button" onClick={() => onHome(false)}>
+            Open Home
           </button>
-          <button type="button" disabled={!!oldKeys?.busy} onClick={() => readLogs(true)}>
-            Read everything again
+          <button type="button" onClick={() => onHome(true)}>
+            Show the setup guide again
           </button>
         </div>
-        <NoteLine note={oldKeys} />
-        <h3>Combat logs</h3>
-        <p className="muted">
-          Archiving zips a log into the log folder's WoW Live archive folder: it stops loading, takes about a tenth of
-          the space, and Read everything again still reads it. Delete removes archived logs for good.
-        </p>
-        <CombatLogs key={view.logsDir} reading={!!oldKeys?.busy} />
       </section>
     </div>
   )
