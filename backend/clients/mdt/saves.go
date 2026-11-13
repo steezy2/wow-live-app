@@ -3,6 +3,7 @@ package mdt
 import (
 	"bytes"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"slices"
@@ -41,7 +42,8 @@ func SavedRoutes(logsDir string) ([]models.MDTPreset, error) {
 	for _, path := range paths {
 		presets, err := savedPresets(path)
 		if err != nil {
-			return nil, err
+			log.Printf("skipping MDT's saved routes: %v", err)
+			continue
 		}
 		for _, p := range presets {
 			if p.UID != "" && seen[p.UID] {

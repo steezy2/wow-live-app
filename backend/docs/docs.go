@@ -547,7 +547,7 @@ const docTemplate = `{
                 "summary": "Add a route: import a Mythic Dungeon Tools export string, or make an empty one",
                 "parameters": [
                     {
-                        "description": "code, or mapID and name",
+                        "description": "code, mdtUID, or mapID and name",
                         "name": "route",
                         "in": "body",
                         "required": true,
@@ -565,6 +565,35 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "a bad string (the text says which step failed) or dungeon",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/mplus/routes/mdt-saves": {
+            "get": {
+                "description": "Mythic Dungeon Tools writes them on /reload or logout. An empty list when it has none.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "mplus"
+                ],
+                "summary": "The routes saved in Mythic Dungeon Tools, to import",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.SavedRoute"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/controller.ErrorResponse"
                         }
@@ -1748,6 +1777,9 @@ const docTemplate = `{
                 },
                 "mapID": {
                     "type": "integer"
+                },
+                "mdtUID": {
+                    "type": "string"
                 },
                 "name": {
                     "type": "string"
@@ -4526,6 +4558,29 @@ const docTemplate = `{
                 },
                 "updated": {
                     "type": "integer"
+                }
+            }
+        },
+        "models.SavedRoute": {
+            "type": "object",
+            "properties": {
+                "dungeon": {
+                    "type": "string"
+                },
+                "imported": {
+                    "type": "boolean"
+                },
+                "mapID": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "pulls": {
+                    "type": "integer"
+                },
+                "uid": {
+                    "type": "string"
                 }
             }
         },

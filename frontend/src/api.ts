@@ -589,6 +589,26 @@ export async function importRoute(code: string): Promise<RouteView> {
   return sendJSON('/api/mplus/routes', 'POST', { code })
 }
 
+/** A route in Mythic Dungeon Tools' saved variables; `imported` when the app already keeps it. */
+export interface SavedRoute {
+  uid: string
+  name: string
+  mapID: number
+  dungeon: string
+  pulls: number
+  imported: boolean
+}
+
+/** The routes Mythic Dungeon Tools saved (it writes them on /reload or logout). */
+export async function fetchSavedRoutes(signal?: AbortSignal): Promise<SavedRoute[]> {
+  return (await (await call('/api/mplus/routes/mdt-saves', { signal })).json()) as SavedRoute[]
+}
+
+/** Imports one of Mythic Dungeon Tools' saved routes by its uid. */
+export async function importSavedRoute(mdtUID: string): Promise<RouteView> {
+  return sendJSON('/api/mplus/routes', 'POST', { mdtUID })
+}
+
 /** Makes an empty route for a dungeon. */
 export async function createRoute(mapID: number, name: string): Promise<RouteView> {
   return sendJSON('/api/mplus/routes', 'POST', { mapID, name })

@@ -49,6 +49,8 @@ definitions:
         type: string
       mapID:
         type: integer
+      mdtUID:
+        type: string
       name:
         type: string
     type: object
@@ -1997,6 +1999,21 @@ definitions:
       updated:
         type: integer
     type: object
+  models.SavedRoute:
+    properties:
+      dungeon:
+        type: string
+      imported:
+        type: boolean
+      mapID:
+        type: integer
+      name:
+        type: string
+      pulls:
+        type: integer
+      uid:
+        type: string
+    type: object
   models.Settings:
     properties:
       character:
@@ -2474,7 +2491,7 @@ paths:
         The string's uid becomes the route's id, so importing it again replaces that route. The reply's
         dropped counts the enemies the string pulls that the dungeon's map doesn't have.
       parameters:
-      - description: code, or mapID and name
+      - description: code, mdtUID, or mapID and name
         in: body
         name: route
         required: true
@@ -2625,6 +2642,26 @@ paths:
             $ref: '#/definitions/controller.ErrorResponse'
       summary: Make a route its dungeon's starred one (the live page and key comparison
         use it)
+      tags:
+      - mplus
+  /api/mplus/routes/mdt-saves:
+    get:
+      description: Mythic Dungeon Tools writes them on /reload or logout. An empty
+        list when it has none.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.SavedRoute'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+      summary: The routes saved in Mythic Dungeon Tools, to import
       tags:
       - mplus
   /api/raid/live:

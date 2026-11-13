@@ -32,6 +32,8 @@ type Planner interface {
 	List(mapID int) ([]models.RouteView, error)
 	Get(id string) (models.RouteView, error)
 	Import(code string) (models.RouteView, error)
+	ImportSaved(uid string) (models.RouteView, error)
+	Saved() ([]models.SavedRoute, error)
 	Create(mapID int, name string) (models.RouteView, error)
 	Update(id, name string, pulls []models.RoutePull) (models.RouteView, error)
 	Star(id string) error
@@ -388,12 +390,13 @@ func respondError(c *gin.Context, err error) {
 	c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "couldn't read or change the saved keys"})
 }
 
-// RouteRequest is the body of a new route: a Mythic Dungeon Tools export string, or a dungeon and a name for an empty
-// one.
+// RouteRequest is the body of a new route: a Mythic Dungeon Tools export string, the uid of a route in its saved
+// variables, or a dungeon and a name for an empty one.
 type RouteRequest struct {
-	Code  string `json:"code"`
-	MapID int    `json:"mapID"`
-	Name  string `json:"name"`
+	Code   string `json:"code"`
+	MDTUID string `json:"mdtUID"`
+	MapID  int    `json:"mapID"`
+	Name   string `json:"name"`
 }
 
 // RouteUpdate is the body that replaces a route's name and pulls.
@@ -405,6 +408,20 @@ type RouteUpdate struct {
 // RouteCode is a route as a Mythic Dungeon Tools export string.
 type RouteCode struct {
 	Code string `json:"code"`
+}
+
+// MDTSaves godoc
+//
+//	@Summary		The routes saved in Mythic Dungeon Tools, to import
+//	@Description	Mythic Dungeon Tools writes them on /reload or logout. An empty list when it has none.
+//	@Tags			mplus
+//	@Produce		json
+//	@Success		200	{array}		models.SavedRoute
+//	@Failure		500	{object}	ErrorResponse
+//	@Router			/api/mplus/routes/mdt-saves [get]
+func (m MPlus) MDTSaves(c *gin.Context) {
+	saves, err := m.Planner.Saved()
+	respondRoute(c, http.StatusOK, saves, err)
 }
 
 // Routes godoc
@@ -452,7 +469,7 @@ func (m MPlus) Route(c *gin.Context) {
 //	@Tags			mplus
 //	@Accept			json
 //	@Produce		json
-//	@Param			route	body		RouteRequest	true	"code, or mapID and name"
+//	@Param			route	body		RouteRequest	true	"code, mdtUID, or mapID and name"
 //	@Success		201		{object}	models.RouteView
 //	@Failure		400		{object}	ErrorResponse	"a bad string (the text says which step failed) or dungeon"
 //	@Router			/api/mplus/routes [post]
@@ -464,9 +481,12 @@ func (m MPlus) AddRoute(c *gin.Context) {
 	}
 	var route models.RouteView
 	var err error
-	if req.Code != "" {
+	switch {
+	case req.Code != "":
 		route, err = m.Planner.Import(req.Code)
-	} else {
+	case req.MDTUID != "":
+		route, err = m.Planner.ImportSaved(req.MDTUID)
+	default:
 		route, err = m.Planner.Create(req.MapID, req.Name)
 	}
 	respondRoute(c, http.StatusCreated, route, err)

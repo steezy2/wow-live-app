@@ -23,6 +23,7 @@ import (
 	"wow-live/backend/clients/combatlog"
 	"wow-live/backend/clients/keystoneguru"
 	"wow-live/backend/clients/keystore"
+	"wow-live/backend/clients/mdt"
 	"wow-live/backend/clients/raiderio"
 	"wow-live/backend/clients/routestore"
 	"wow-live/backend/clients/wcl"
@@ -115,6 +116,9 @@ func Start(ctx context.Context, opts Options) (*Site, error) {
 		Season: raiderio.Client{CacheDir: filepath.Join(opts.Cache, "raiderio")}}
 	planner := &service.Routes{Store: routestore.Store{Dir: filepath.Join(opts.Cache, "routes")}, Facts: opts.Dungeons,
 		Now: opts.Now}
+	if opts.LogsDir != nil {
+		planner.Saves = func() ([]models.MDTPreset, error) { return mdt.SavedRoutes(opts.LogsDir()) }
+	}
 	s.Handler = controller.Router(controller.MPlus{Keys: keys, Reviews: s.reviews, Changes: s.Changes,
 		Now: opts.Now, Tiles: tiles, Recaps: recaps, Planner: planner}, &controller.Raid{Pulls: keys, Maps: raidMaps, Now: opts.Now}, opts.Settings,
 		opts.Pages, opts.Hosts...)

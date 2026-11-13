@@ -55,6 +55,17 @@ type RouteView struct {
 	Dropped  int             `json:"dropped,omitempty"` // an import's enemies that Mythic Dungeon Tools knows and this map doesn't
 }
 
+// SavedRoute is a route in Mythic Dungeon Tools' saved variables, listed to import: Imported when a route with its
+// uid is already kept.
+type SavedRoute struct {
+	UID      string `json:"uid"`
+	Name     string `json:"name"`
+	MapID    int    `json:"mapID"`
+	Dungeon  string `json:"dungeon"`
+	Pulls    int    `json:"pulls"`
+	Imported bool   `json:"imported"`
+}
+
 // RouteStore keeps routes under their ids. Get fails with fs.ErrNotExist for a route that isn't there.
 type RouteStore interface {
 	Save(route Route) error

@@ -228,3 +228,28 @@ func TestExportRoute(t *testing.T) {
 		t.Fatalf("decoded export = %+v; want the route's name, uid, dungeon and pull", got)
 	}
 }
+
+func TestSavedRoutes(t *testing.T) {
+	r := newRoutes(t)
+	unnamed := preset("def", 163)
+	unnamed.Name = ""
+	r.Saves = func() ([]models.MDTPreset, error) {
+		return []models.MDTPreset{preset("abc", 163, models.MDTPull{}), unnamed, preset("old", 11), preset("", 163)}, nil
+	}
+	if _, err := r.ImportSaved("abc"); err != nil {
+		t.Fatal(err)
+	}
+	saved, err := r.Saved()
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []models.SavedRoute{{UID: "abc", Name: "Route abc", MapID: voidscar, Pulls: 1, Imported: true},
+		{UID: "def", Name: "Default", MapID: voidscar}}
+	if !slices.Equal(saved, want) {
+		t.Fatalf("saved = %+v; want only the season's routes with a uid, the unnamed one named, abc imported: %+v",
+			saved, want)
+	}
+	if _, err := r.ImportSaved("nope"); !errors.Is(err, ErrNoSuchRoute) {
+		t.Fatalf("ImportSaved(nope) = %v; want ErrNoSuchRoute", err)
+	}
+}

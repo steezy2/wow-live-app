@@ -1,6 +1,7 @@
 package service
 
 import (
+	"cmp"
 	"crypto/rand"
 	"errors"
 	"fmt"
@@ -43,6 +44,8 @@ type Routes struct {
 	Store models.RouteStore
 	Facts map[int]models.DungeonFacts
 	Now   func() time.Time
+	// Saves reads the routes Mythic Dungeon Tools saved (mdt.SavedRoutes on the log folder); nil means none.
+	Saves func() ([]models.MDTPreset, error)
 	mu    sync.Mutex // one change at a time, since starring changes several files
 }
 
@@ -122,6 +125,54 @@ func (r *Routes) ImportPreset(p models.MDTPreset) (models.RouteView, error) {
 	view := r.view(route)
 	view.Dropped = dropped
 	return view, nil
+}
+
+// Saved lists the routes in Mythic Dungeon Tools' saved variables that can be imported: those of the season's dungeons
+// that have a uid (MDT writes the file on /reload or logout).
+func (r *Routes) Saved() ([]models.SavedRoute, error) {
+	presets, err := r.savedPresets()
+	if err != nil {
+		return nil, err
+	}
+	out := []models.SavedRoute{}
+	for _, p := range presets {
+		mapID, _ := r.mapOf(p.DungeonIdx)
+		_, err := r.Store.Get(p.UID)
+		out = append(out, models.SavedRoute{UID: p.UID, Name: p.Name, MapID: mapID, Dungeon: r.Facts[mapID].Name,
+			Pulls: len(p.Pulls), Imported: err == nil})
+	}
+	return out, nil
+}
+
+// ImportSaved saves the route of Mythic Dungeon Tools' saved variables with this uid; see ImportPreset.
+func (r *Routes) ImportSaved(uid string) (models.RouteView, error) {
+	presets, err := r.savedPresets()
+	if err != nil {
+		return models.RouteView{}, err
+	}
+	if i := slices.IndexFunc(presets, func(p models.MDTPreset) bool { return p.UID == uid }); i >= 0 {
+		return r.ImportPreset(presets[i])
+	}
+	return models.RouteView{}, ErrNoSuchRoute
+}
+
+// savedPresets are the saved routes of the season's dungeons that have a uid, MDT's unnamed "Default" named.
+func (r *Routes) savedPresets() ([]models.MDTPreset, error) {
+	if r.Saves == nil {
+		return nil, nil
+	}
+	all, err := r.Saves()
+	if err != nil {
+		return nil, fmt.Errorf("reading MDT's saved routes: %w", err)
+	}
+	var out []models.MDTPreset
+	for _, p := range all {
+		if _, ok := r.mapOf(p.DungeonIdx); ok && p.UID != "" {
+			p.Name = cmp.Or(p.Name, "Default")
+			out = append(out, p)
+		}
+	}
+	return out, nil
 }
 
 // Create saves an empty route for a dungeon of the season.
