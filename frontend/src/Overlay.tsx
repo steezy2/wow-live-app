@@ -11,7 +11,7 @@ import {
 } from './api'
 import { classColors } from './classColors'
 import { AbilityBars } from './FightMeters'
-import { chestLabel, clock, pullTitle, resultText } from './format'
+import { chestLabel, clock, pullTitle, resultText, routeLine } from './format'
 import { HitRecapView } from './HitRecap'
 import { ForcesBar, TimerBar } from './KeyDetails'
 import { overlayColumn } from './meterColumns'
@@ -74,7 +74,7 @@ function useOverlaySettings(): OverlaySettings | null {
 }
 
 /** The overlay over the game (/overlay, the desktop app's second window): the clock against the timer, forces,
- * the estimate, deaths and the pull's DPS and HPS during a key, and the last raid pull between raid pulls. Everything
+ * the estimate, deaths, the route's next pull and the pull's DPS and HPS during a key, and the last raid pull between raid pulls. Everything
  * else stays in the full window; when it's made very short only the clock, forces and deaths stay (index.css). While
  * the app says it's being moved, it shows a border and how to move and resize it. */
 export function Overlay() {
@@ -156,6 +156,7 @@ function OverlayKey(props: { keyView: KeyView; clockMS: number; settings: Overla
         {latest && ` · last ${deathText(latest)}`}
       </button>
       <div className="overlay-extra">
+        {key.route && <p className="small overlay-wrap">{routeLine(key.route)}</p>}
         {deathsOpen ? (
           <DeathsDrill keyView={key} onBack={closeDeaths} />
         ) : focus ? (

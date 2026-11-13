@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
 import type { KeyForces, KeyGhost, KeyReview as Review, KeyTrack, KeyView } from './api'
-import { chestLabel, clock, oddsText, pullTitle, resultText, share } from './format'
+import { chestLabel, clock, oddsText, pullTitle, resultText, routeLine, share } from './format'
 import { DamageGraph } from './DamageGraph'
 import { BuffGaps } from './BuffGaps'
 import { BossList, PriorityLedger } from './KeyLedgers'
@@ -8,6 +8,7 @@ import { lanesOf } from './events'
 import { fightTabs } from './KeyTabs'
 import { KeyMap } from './KeyMap'
 import { KeyReview } from './KeyReview'
+import { KeyRoute } from './KeyRoute'
 import { FightMeters, type MeterWindow } from './FightMeters'
 import { offense } from './meterColumns'
 import { useReplay, useTrack } from './replay'
@@ -113,6 +114,7 @@ export function KeyDetails({
       )}
       {timer > 0 && <TimerBar clockMS={clockMS} timerMS={timer} keyView={key} best={projection?.best ?? []} />}
       {key.forces && <ForcesBar forces={key.forces} level={key.level} />}
+      {key.route && <p title={`Route: ${key.route.name}`}>{routeLine(key.route)}</p>}
       {timer > 0 && key.status === 'running' && (
         <p className="muted">
           {clock(timer - clockMS)} left · +3 by {clock(key.plus3MS)} · +2 by {clock(key.plus2MS)}
@@ -217,6 +219,7 @@ export function KeyDetails({
             name: 'Bosses',
             body: <BossList keyView={key} track={track} topBosses={review?.topBosses} onSeek={show} />,
           },
+          { name: 'Route', body: <KeyRoute keyView={key} track={track} seek={seek} /> },
           ...fight,
         ]}
       />

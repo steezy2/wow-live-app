@@ -1679,3 +1679,32 @@ button.link {
   text-align: center;
   text-shadow: 0 0 2px #000;
 }
+
+/* The route editor (RoutesPage.tsx): the name, the pull buttons and the selected pull's swatch. */
+.route-name {
+  flex: 1;
+  min-width: 0;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: var(--s1) var(--s2);
+  font: inherit;
+  font-size: var(--t-h1);
+  font-weight: 600;
+}
+
+.route-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s1);
+}
+
+button.route-swatch {
+  padding: 0;
+  border: 2px solid transparent;
+}
+
+button.route-swatch[aria-pressed='true'] {
+  border-color: var(--text);
+}

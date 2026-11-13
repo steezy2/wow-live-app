@@ -638,10 +638,13 @@ export interface RouteLive {
   forcesPct: number
 }
 
-/** A key's progress on a route (the dungeon's starred one when no id). */
-export async function fetchKeyRoute(start: number, id?: string, signal?: AbortSignal): Promise<RouteCompare> {
+/** A key's progress on a route (the dungeon's starred one when no id); null when the dungeon has no route. */
+export async function fetchKeyRoute(start: number, id?: string, signal?: AbortSignal): Promise<RouteCompare | null> {
   const query = id ? `?${new URLSearchParams({ id })}` : ''
-  return (await (await call(`/api/mplus/keys/${start}/route${query}`, { signal })).json()) as RouteCompare
+  const response = await fetch(`/api/mplus/keys/${start}/route${query}`, { signal })
+  if (response.status === 404) return null
+  if (!response.ok) throw await failure(response)
+  return (await response.json()) as RouteCompare
 }
 
 /** A dungeon of the season a route can be planned in. */

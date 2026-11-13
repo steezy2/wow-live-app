@@ -243,8 +243,13 @@ function canvasSize(backdrop: Backdrop): [number, number] {
 export type Yards = Pick<TrackPoint, 'x' | 'y'>
 
 /** What a map draws over its backdrop: given where a place lands on the canvas and the size of a dot (the same on
- * screen at any zoom). */
-export type Overlay = (ctx: CanvasRenderingContext2D, at: (p: Yards) => [number, number], dot: number) => void
+ * screen at any zoom). `hit` makes a dot it drew an enemy a click picks (onPickEnemy) by the id given. */
+export type Overlay = (
+  ctx: CanvasRenderingContext2D,
+  at: (p: Yards) => [number, number],
+  dot: number,
+  hit: (id: string, x: number, y: number, r: number) => void,
+) => void
 
 /** The map itself: the backdrop, each player's trail and dot in their class colour (a cross where they died), a raid
  * boss's units and minibosses (named), the other mobs alive (small, unnamed), and mob deaths so far. The wheel zooms
@@ -264,7 +269,8 @@ export function MapCanvas(props: {
   focus?: string
   onPick?: (player: string) => void
   enemy?: string
-  onPickEnemy?: (guid: string) => void
+  /** Called with whether Shift was held. */
+  onPickEnemy?: (guid: string, shift: boolean) => void
   overlay?: Overlay
 }) {
   const { track, backdrop, floor, now, clock, trailMS, deaths, focus, onPick, enemy, onPickEnemy, overlay } = props
@@ -304,14 +310,15 @@ export function MapCanvas(props: {
   const release = (e: PointerEvent<HTMLCanvasElement>) => {
     const from = press.current
     press.current = null
-    if (!from || from.dragged || !onPick) return
+    if (!from || from.dragged || !(onPick || onPickEnemy)) return
     const [x, y] = onCanvas(e, e.currentTarget)
     const [atX, atY] = [view.x + x / view.k, view.y + y / view.k]
     const far = (d: { x: number; y: number; r: number }) => Math.hypot(d.x - atX, d.y - atY) - d.r // from its edge
     const reach = ((e.currentTarget.width / 160) * 1.3) / view.k
     const pick = (d: { enemy: boolean }) => (d.enemy ? onPickEnemy : onPick)
     const [nearest] = dots.current.filter((d) => pick(d) && far(d) <= reach).sort((a, b) => far(a) - far(b))
-    if (nearest) pick(nearest)?.(nearest.id)
+    if (nearest?.enemy) onPickEnemy?.(nearest.id, e.shiftKey)
+    else if (nearest) onPick?.(nearest.id)
   }
   const area = useMemo<[number, number, number]>(
     () => (backdrop.kind === 'image' ? fightArea(backdrop.map, track, floor) : [0, 0, 1]),
@@ -392,7 +399,7 @@ export function MapCanvas(props: {
         ctx.arc(x, y, r, 0, 2 * Math.PI)
         ctx.stroke()
       }
-      overlay?.(ctx, at, dot)
+      overlay?.(ctx, at, dot, (id, x, y, r) => dots.current.push({ id, enemy: true, x, y, r }))
       ctx.fillStyle = css.bad
       track.deaths
         .filter((d) => d.map === floor && d.t <= now)
@@ -522,7 +529,7 @@ export function MapCanvas(props: {
         ((e) => {
           e.preventDefault()
           onPick('')
-          onPickEnemy?.('')
+          onPickEnemy?.('', false)
         })
       }
     />
