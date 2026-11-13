@@ -181,6 +181,7 @@ func TestKeyStep2(t *testing.T) {
 		info("Player-76-0000BBBB", "262", "Player-76-0000BBBB,462854,1"),
 		// The shaman's name shows up only after the key started: still in the party.
 		`11/4/2026 19:01:10.000-7  SPELL_AURA_APPLIED,`+shaman+`,`+shaman+`,462854,"Skyfury",0x8,BUFF`,
+		`11/4/2026 19:01:12.000-7  SPELL_AURA_APPLIED_DOSE,`+shaman+`,`+shaman+`,462854,"Skyfury",0x8,BUFF,2`, // a stack: still up
 		`11/4/2026 19:01:19.000-7  SPELL_CAST_SUCCESS,`+shaman+`,`+none+`,nil,0x80000000,0x80000000,192058,"Capacitor Totem",0x8,`+
 			advancedOf("Player-76-0000BBBB", none),
 		`11/4/2026 19:01:20.000-7  SPELL_INTERRUPT,`+shaman+`,`+mob+`,57994,"Wind Shear",0x8,1238063,"Light Bolt",2`,

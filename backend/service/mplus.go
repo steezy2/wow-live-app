@@ -258,6 +258,7 @@ func (k *LogTracker) add(line models.LogLine) {
 	case "COMBATANT_INFO":
 		if len(f) > 0 && run.auras[f[0]] == nil {
 			run.auras[f[0]], run.gear[f[0]] = auraIDs(f), itemIDs(f)
+			run.buffSpans.own[f[0]] = ownAuraIDs(f)
 			run.party = append(run.party, f[0])
 		}
 	// A party's kill is logged as PARTY_KILL before the killing blow and UNIT_DIED after it, sometimes only one of the
@@ -438,7 +439,7 @@ func newRun(key models.Key, instance string) *keyRun {
 		takenAt: map[int64]map[[2]string]*models.SpikeCause{}, hits: newHitWatch(),
 		sample: abilitySampler{every: mplusAbilityEveryMS, abilitiesWere: map[[2]string]models.KeyAbility{},
 			takenWere: map[[2]string]int64{}, targetsWere: map[[2]string]int64{}, casting: map[string]int{}}}
-	run.buffGaps, run.buffSpans = newBuffTrack(), buffSpans{open: map[[2]string]int{}}
+	run.buffGaps, run.buffSpans = newBuffTrack(), newBuffSpans()
 	run.track.Casts, run.track.Abilities = map[string][]models.TrackCast{}, map[string][]models.AbilitySeries{}
 	run.track.TargetSeries = map[string][]models.AbilitySeries{}
 	return run
@@ -572,14 +573,18 @@ func (k *LogTracker) event(at int64, event string, f []string) {
 		mark(run.acting, src, at/1000, at/1000+1) // a cast or hit covers about a global cooldown
 	}
 	if dst != "" && len(f) > 11 && f[11] == "BUFF" {
+		own := f[0] == f[4] && slices.Contains(run.party, f[4])
 		switch event {
 		case "SPELL_AURA_APPLIED", "SPELL_AURA_REFRESH":
 			k.buffChanged(run, k.clockAt(at), dst, atoi(f[8]), f[9], true)
+			if own && event == "SPELL_AURA_APPLIED" {
+				run.buffSpans.change(k.clockAt(at), dst, atoi(f[8]), f[9], true)
+			}
 		case "SPELL_AURA_REMOVED":
 			k.buffChanged(run, k.clockAt(at), dst, atoi(f[8]), f[9], false)
-		}
-		if f[0] == f[4] && slices.Contains(run.party, f[4]) && event != "SPELL_AURA_REFRESH" {
-			run.buffSpans.change(k.clockAt(at), dst, atoi(f[8]), f[9], event == "SPELL_AURA_APPLIED")
+			if own {
+				run.buffSpans.change(k.clockAt(at), dst, atoi(f[8]), f[9], false)
+			}
 		}
 	}
 	switch event {
@@ -965,6 +970,21 @@ func auraIDs(f []string) []int {
 		parts := strings.Split(strings.Trim(list, "[]"), ",")
 		for j := 1; j < len(parts); j += 3 {
 			ids = append(ids, atoi(parts[j]))
+		}
+	}
+	return ids
+}
+
+// ownAuraIDs is the auras COMBATANT_INFO lists the player cast on themselves (flask, food, a rune): up when the run
+// started, with no line to say so.
+func ownAuraIDs(f []string) []int {
+	var ids []int
+	if list := listField(f, 0); list != "" {
+		parts := strings.Split(strings.Trim(list, "[]"), ",")
+		for j := 0; j+1 < len(parts); j += 3 {
+			if parts[j] == f[0] {
+				ids = append(ids, atoi(parts[j+1]))
+			}
 		}
 	}
 	return ids
