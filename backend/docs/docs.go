@@ -1549,6 +1549,23 @@ const docTemplate = `{
                 }
             }
         },
+        "models.BuffSpan": {
+            "type": "object",
+            "properties": {
+                "f": {
+                    "type": "integer"
+                },
+                "i": {
+                    "type": "integer"
+                },
+                "n": {
+                    "type": "string"
+                },
+                "t": {
+                    "type": "integer"
+                }
+            }
+        },
         "models.Character": {
             "type": "object",
             "properties": {
@@ -1852,6 +1869,10 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "hits": {
+                    "type": "integer"
+                },
+                "id": {
+                    "description": "the spell's ID, as Warcraft Logs has it; 0 in keys saved before Nov 13",
                     "type": "integer"
                 },
                 "player": {
@@ -2485,6 +2506,16 @@ const docTemplate = `{
                         }
                     }
                 },
+                "buffs": {
+                    "description": "Buffs is each player's own buffs (cast on themselves) as stretches on the clock of a finished run; none in\ntracks saved before Nov 13.",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/definitions/models.BuffSpan"
+                        }
+                    }
+                },
                 "casts": {
                     "description": "Casts is each raider's casts in order, and Abilities what each one's abilities did in each abilityEveryMS\nstretch, so the replay shows what a raider was casting and their bars up to its moment; none in pulls saved\nbefore Nov 11.",
                     "type": "object",
@@ -2776,6 +2807,13 @@ const docTemplate = `{
                             "$ref": "#/definitions/models.ReportLink"
                         }
                     ]
+                },
+                "resurrections": {
+                    "description": "Resurrections is each time a player was brought back, in order; missing in keys saved before Nov 13.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Resurrection"
+                    }
                 },
                 "silentMS": {
                     "description": "SilentMS is how long ago the last line of a running key was logged (0 once it's over). The game writes its log\nin batches as fights start and end, so a long silence is a long fight, or a party that left.",
@@ -3521,10 +3559,23 @@ const docTemplate = `{
                         }
                     ]
                 },
+                "resurrections": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Resurrection"
+                    }
+                },
                 "soaks": {
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/models.RaidSoak"
+                    }
+                },
+                "specs": {
+                    "description": "Specs is each raider's specialization ID and Resurrections who was brought back and by whom; both missing in\npulls saved before Nov 13.",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer"
                     }
                 },
                 "spikes": {
@@ -4100,6 +4151,20 @@ const docTemplate = `{
                 }
             }
         },
+        "models.Resurrection": {
+            "type": "object",
+            "properties": {
+                "by": {
+                    "type": "string"
+                },
+                "clockMS": {
+                    "type": "integer"
+                },
+                "player": {
+                    "type": "string"
+                }
+            }
+        },
         "models.ReviewMetric": {
             "type": "object",
             "properties": {
@@ -4259,6 +4324,10 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "e": {
+                    "type": "integer"
+                },
+                "i": {
+                    "description": "the spell's ID; 0 in tracks saved before Nov 13",
                     "type": "integer"
                 },
                 "s": {

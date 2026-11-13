@@ -238,11 +238,11 @@ func TestKeyStep2(t *testing.T) {
 			"table flagged, and the add the table lacks", f)
 	}
 	wantAbilities := []models.KeyAbility{
-		{Player: "Testmage", Ability: "Arcane Barrage", Damage: 5000, Hits: 1, School: 0x40},
-		{Player: "Testshaman", Ability: "Healing Wave", Healing: 2000, Hits: 1, School: 0x8},
+		{Player: "Testmage", Ability: "Arcane Barrage", ID: 44425, Damage: 5000, Hits: 1, School: 0x40},
+		{Player: "Testshaman", Ability: "Healing Wave", ID: 77472, Healing: 2000, Hits: 1, School: 0x8},
 		{Player: "Testshaman", Ability: "Melee", Damage: 1000, Hits: 1, School: 0x1}, // the pet's, under its owner
-		{Player: "Testmage", Ability: "Ice Block", Casts: 1, School: 0x10},
-		{Player: "Testshaman", Ability: "Capacitor Totem", Casts: 1, School: 0x8}}
+		{Player: "Testmage", Ability: "Ice Block", ID: 45438, Casts: 1, School: 0x10},
+		{Player: "Testshaman", Ability: "Capacitor Totem", ID: 192058, Casts: 1, School: 0x8}}
 	wantTaken := []models.KeyHit{{Player: "Testmage", Ability: "Light Bolt", Damage: 9000, School: 0x2}}
 	if !reflect.DeepEqual(got.Abilities, wantAbilities) || !reflect.DeepEqual(got.Taken, wantTaken) {
 		t.Fatalf("abilities = %+v\nwant %+v\ntaken = %+v, want %+v", got.Abilities, wantAbilities, got.Taken, wantTaken)
@@ -259,6 +259,10 @@ func TestKeyStep2(t *testing.T) {
 		t.Fatalf("saved %d keys, %v; want the key saved", len(keys.Saved("")), err)
 	}
 	track, err := keys.Track(got.Start)
+	if sky := track.Buffs["Testshaman"]; err != nil || len(sky) != 1 || sky[0].ID != 462854 || sky[0].Name != "Skyfury" ||
+		sky[0].ToMS <= sky[0].FromMS {
+		t.Fatalf("buffs = %+v, %v; want the shaman's own Skyfury as one stretch to the end", track.Buffs, err)
+	}
 	if me := track.Players["Testmage"]; err != nil || len(me) == 0 || me[0].X != 1599.81 || me[0].Map != 2610 ||
 		len(track.Deaths) != 1 || track.Deaths[0].Name != "Radiant Spellsower" || track.Classes["Testmage"] != "Mage" ||
 		len(track.Meters["Testmage"]) == 0 {

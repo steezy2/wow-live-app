@@ -196,7 +196,7 @@ func (k *LogTracker) trackCast(at int64, event string, f []string) {
 	open, casting := run.sample.casting[f[0]]
 	switch {
 	case event == "SPELL_CAST_START":
-		casts[who] = append(casts[who], models.TrackCast{ClockMS: clockMS, Spell: f[9], Cut: true})
+		casts[who] = append(casts[who], models.TrackCast{ClockMS: clockMS, Spell: f[9], ID: atoi(f[8]), Cut: true})
 		run.sample.casting[f[0]] = len(casts[who]) - 1
 	case casting && casts[who][open].Spell == f[9] &&
 		(event == "SPELL_CAST_SUCCESS" || len(f) > 11 && f[11] == "Interrupted"):
@@ -204,7 +204,7 @@ func (k *LogTracker) trackCast(at int64, event string, f []string) {
 		c.EndMS, c.Cut = max(clockMS, c.ClockMS+1), event != "SPELL_CAST_SUCCESS"
 		delete(run.sample.casting, f[0])
 	case event == "SPELL_CAST_SUCCESS":
-		casts[who] = append(casts[who], models.TrackCast{ClockMS: clockMS, Spell: f[9]})
+		casts[who] = append(casts[who], models.TrackCast{ClockMS: clockMS, Spell: f[9], ID: atoi(f[8])})
 	}
 }
 
@@ -272,6 +272,7 @@ func (k *LogTracker) trackOf(run *keyRun) models.KeyTrack {
 			}
 		}
 		t.Abilities, t.TargetSeries = copySeries(run.track.Abilities), copySeries(run.track.TargetSeries)
+		t.Buffs = run.buffSpans.done(trackEnd(t))
 	}
 	if r := run.raid; r == nil {
 		t.Health = slices.SortedFunc(maps.Keys(t.Bosses), func(a, b string) int {
@@ -367,4 +368,51 @@ func (r *keyRun) bigUnit(guid, name string) bool {
 		return true
 	}
 	return r.facts != nil && slices.Contains(r.facts.Minibosses, npcOf(guid))
+}
+
+// buffSpans collects each player's own buffs as stretches: spans by player name, and which one of a (player, spell
+// ID) is still open.
+type buffSpans struct {
+	spans map[string][]models.BuffSpan
+	open  map[[2]string]int // (player, spell ID) -> index in the player's spans
+}
+
+// change opens a span when a buff goes up on player at clockMS, and closes it when it comes off.
+func (b *buffSpans) change(clockMS int64, player string, id int, name string, up bool) {
+	key := [2]string{player, strconv.Itoa(id)}
+	i, open := b.open[key]
+	switch {
+	case up && !open:
+		if b.spans == nil {
+			b.spans = map[string][]models.BuffSpan{}
+		}
+		b.spans[player] = append(b.spans[player], models.BuffSpan{ID: id, Name: name, FromMS: clockMS})
+		b.open[key] = len(b.spans[player]) - 1
+	case !up && open:
+		b.spans[player][i].ToMS = clockMS
+		delete(b.open, key)
+	}
+}
+
+// done is the players' spans with the ones still up ended at endMS.
+func (b *buffSpans) done(endMS int64) map[string][]models.BuffSpan {
+	out := map[string][]models.BuffSpan{}
+	for player, spans := range b.spans {
+		out[player] = slices.Clone(spans)
+	}
+	for key, i := range b.open {
+		out[key[0]][i].ToMS = endMS
+	}
+	return out
+}
+
+// trackEnd is the last moment a track has a position for.
+func trackEnd(t models.KeyTrack) int64 {
+	var end int64
+	for _, points := range t.Players {
+		if n := len(points); n > 0 {
+			end = max(end, points[n-1].ClockMS)
+		}
+	}
+	return end
 }

@@ -4,7 +4,9 @@ import {
   fetchSavedKey,
   popOutReview,
   reviewURL,
+  type BuffGap,
   type KeyMeter,
+  type Resurrection,
   type KeyTrack,
   type KeyView,
   type RaidPull,
@@ -19,11 +21,12 @@ import { fightTabs, pullFightData, type FightData } from './KeyTabs'
 import { offense, raidOffense } from './meterColumns'
 import { RaidLanes, RaidReplay } from './RaidReplay'
 import { useRaidTrack, useReplay, useTrack } from './replay'
-import { Name, type Seeker } from './Seek'
+import { Name, When, Who, type Seeker } from './Seek'
+import { PlayerReview } from './PlayerReview'
 import { Tabs } from './Tabs'
 
 /** The review page's tabs, by their name in the address (?tab=). */
-const TABS = ['overview', 'interrupts', 'events', 'timeline'] as const
+const TABS = ['overview', 'player', 'deaths', 'interrupts', 'events', 'timeline'] as const
 type TabName = (typeof TABS)[number]
 
 /** The first page of WoWAnalyzer: nothing is uploaded, so there is no report to open there. */
@@ -44,6 +47,9 @@ interface Fight {
   track: KeyTrack | null | undefined
   suggestions: string[]
   suggestionsTitle: string
+  buffGaps: BuffGap[]
+  lusts: number[]
+  resurrections: Resurrection[]
   /** What its meters read: the fight's abilities and its columns. */
   meters: { fight: MeterProps['fight']; offense: MeterProps['offense'] }
   /** Under the overview's tiles (an M+ key's review). */
@@ -89,6 +95,9 @@ function KeyFight({ view: key }: { view: KeyView }) {
         track,
         suggestions: key.suggestions ?? [],
         suggestionsTitle: 'Fix next key',
+        buffGaps: key.buffGaps ?? [],
+        lusts: key.lusts ?? [],
+        resurrections: key.resurrections ?? [],
         meters: { fight: key, offense },
         review: <KeyReview keyView={key} justEnded={false} onReview={noop} />,
         timeline: (replay, focus, onFocus) => (
@@ -130,6 +139,9 @@ function PullFight({ pull }: { pull: RaidPull }) {
         track,
         suggestions: pull.suggestions,
         suggestionsTitle: 'Fix next pull',
+        buffGaps: pull.buffGaps ?? [],
+        lusts: pull.lusts,
+        resurrections: pull.resurrections ?? [],
         meters: { fight: pull, offense: raidOffense },
         timeline: (replay, focus, onFocus) => (
           <RaidReplay pull={pull} track={track} error={error} replay={replay} focus={focus} onFocus={onFocus} />
@@ -177,7 +189,7 @@ function ReviewShell({ fight }: { fight: Fight }) {
   ]
   if (data?.reference) tiles.push([`${stopped}/${data.stops.length}`, 'must-stop casts stopped'])
   const tabsOf = (prefix: string) =>
-    data ? fightTabs(data, '', group, seek, fight.track).filter((t) => t.name.startsWith(prefix)) : []
+    data ? fightTabs(data, 'Deaths', group, seek, fight.track).filter((t) => t.name.startsWith(prefix)) : []
   const bodies: Record<TabName, ReactNode> = {
     overview: (
       <>
@@ -217,6 +229,71 @@ function ReviewShell({ fight }: { fight: Fight }) {
           <NoAbilities />
         )}
       </>
+    ),
+    player: data ? (
+      <>
+        <label>
+          Player{' '}
+          <select value={focus} onChange={(e) => setFocus(e.target.value)}>
+            <option value="">Pick a player</option>
+            {fight.players.map((p) => (
+              <option key={p}>{p}</option>
+            ))}
+          </select>
+        </label>
+        {focus ? (
+          <>
+            <PlayerReview
+              player={focus}
+              row={meter.rows.find((r) => r.player === focus)}
+              data={data}
+              track={fight.track}
+              buffGaps={fight.buffGaps}
+              lusts={fight.lusts}
+              durationMS={fight.durationMS}
+              seek={seek}
+              now={replay.at}
+            />
+            <FightMeters
+              windows={[{ title: 'Whole fight', from: 0, to: fight.durationMS, saved: meter }]}
+              track={fight.track ?? null}
+              atEnd
+              fight={fight.meters.fight}
+              offense={fight.meters.offense}
+              avoidableColumn={group === 'raid'}
+              group={group}
+              classes={classes}
+              focus={focus}
+              onFocus={setFocus}
+            />
+          </>
+        ) : (
+          <p className="muted">Pick a player to see their fight.</p>
+        )}
+      </>
+    ) : (
+      <NoAbilities />
+    ),
+    deaths: data ? (
+      <>
+        {tabsOf('Deaths').map((t) => (
+          <div key={t.name}>{t.body}</div>
+        ))}
+        <h2>Resurrections</h2>
+        <ul className="list">
+          {fight.resurrections.map((r, i) => (
+            <li key={i}>
+              <span>
+                <Who player={r.by} seek={seek} /> brought back <Who player={r.player} seek={seek} />
+              </span>
+              <When ms={r.clockMS} seek={seek} />
+            </li>
+          ))}
+          {fight.resurrections.length === 0 && <li className="muted">None, or not recorded before Nov 13</li>}
+        </ul>
+      </>
+    ) : (
+      <NoAbilities />
     ),
     interrupts: data ? (
       <>

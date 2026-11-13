@@ -27,6 +27,8 @@ type Key struct {
 	BigHits []KeyBigHit `json:"bigHits,omitempty"`
 	// Lusts is when the party got Bloodlust or a copy, on the key's clock.
 	Lusts []int64 `json:"lusts"`
+	// Resurrections is each time a player was brought back, in order; missing in keys saved before Nov 13.
+	Resurrections []Resurrection `json:"resurrections,omitempty"`
 	// BetweenPulls is the time between each pull and the one before it (from the second pull), on the key's clock.
 	BetweenPulls []int64 `json:"betweenPulls"`
 	// Activity is each player's share of their time alive in pulls with a cast going or a hit landing (in %).
@@ -68,6 +70,7 @@ type Key struct {
 type KeyAbility struct {
 	Player  string `json:"player"`
 	Ability string `json:"ability"`
+	ID      int    `json:"id,omitempty"` // the spell's ID, as Warcraft Logs has it; 0 in keys saved before Nov 13
 	Damage  int64  `json:"damage"`
 	Healing int64  `json:"healing"`
 	Casts   int    `json:"casts"`
@@ -245,6 +248,24 @@ type KeyTrack struct {
 	// Bosses). Both missing in tracks saved before Nov 12.
 	Recaps   []HitRecap             `json:"recaps,omitempty"`
 	MobCasts map[string][]TrackCast `json:"mobCasts,omitempty"`
+	// Buffs is each player's own buffs (cast on themselves) as stretches on the clock of a finished run; none in
+	// tracks saved before Nov 13.
+	Buffs map[string][]BuffSpan `json:"buffs,omitempty"`
+}
+
+// BuffSpan is a buff on a player from FromMS to ToMS on the run's clock: its spell ID and name.
+type BuffSpan struct {
+	ID     int    `json:"i"`
+	Name   string `json:"n"`
+	FromMS int64  `json:"f"`
+	ToMS   int64  `json:"t"`
+}
+
+// Resurrection is a player brought back by another's spell (By) at ClockMS.
+type Resurrection struct {
+	ClockMS int64  `json:"clockMS"`
+	By      string `json:"by"`
+	Player  string `json:"player"`
 }
 
 // MobTrail is a mob's name, where it went (its points unnamed) and when it died on the clock (0 while alive); the
@@ -260,6 +281,7 @@ type MobTrail struct {
 type TrackCast struct {
 	ClockMS int64  `json:"t"`
 	Spell   string `json:"s"`
+	ID      int    `json:"i,omitempty"` // the spell's ID; 0 in tracks saved before Nov 13
 	EndMS   int64  `json:"e,omitempty"`
 	Cut     bool   `json:"x,omitempty"`
 }

@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"reflect"
 	"testing"
 
 	"wow-live/backend/models"
@@ -24,12 +25,26 @@ func TestTrackKeepsMobCasts(t *testing.T) {
 	cast(4_001, "SPELL_CAST_SUCCESS", mob, "0x10a48", "Shadow Slash")
 	cast(4_501, "SPELL_CAST_SUCCESS", "Creature-0-3019-3004-1081-95072-00006A951E", "0x1114", "Pulverize") // a pet
 	track := keys.trackOf(run)
-	if got := fmt.Sprint(track.MobCasts); got != "map["+mob+":[{1000 Void Bolt 2000 false} {3000 Void Bolt 3500 true} "+
-		"{4000 Shadow Slash 0 false}]]" {
+	if got := fmt.Sprint(track.MobCasts); got != "map["+mob+":[{1000 Void Bolt 1 2000 false} {3000 Void Bolt 1 3500 true} "+
+		"{4000 Shadow Slash 1 0 false}]]" {
 		t.Errorf("mob casts = %s; want the bolt from 1 to 2 s, one interrupted at 3.5 s and the instant, not the "+
 			"mage's or the pet's", got)
 	}
-	if got := fmt.Sprint(track.Casts["Testmage"]); got != "[{1500 Frostbolt 0 true}]" {
+	if got := fmt.Sprint(track.Casts["Testmage"]); got != "[{1500 Frostbolt 1 0 true}]" {
 		t.Errorf("mage's casts = %s; want the Frostbolt the run cut", got)
+	}
+}
+
+func TestBuffSpansEndWhereTheBuffCameOffOrTheRun(t *testing.T) {
+	b := buffSpans{open: map[[2]string]int{}}
+	b.change(1000, "Mage", 1, "Haste", true)
+	b.change(1500, "Mage", 1, "Haste", true) // a second apply while up changes nothing
+	b.change(2000, "Mage", 1, "Haste", false)
+	b.change(3000, "Mage", 2, "Shield", true)
+	b.change(4000, "Priest", 2, "Shield", false) // coming off with no start seen changes nothing
+	want := map[string][]models.BuffSpan{"Mage": {{ID: 1, Name: "Haste", FromMS: 1000, ToMS: 2000},
+		{ID: 2, Name: "Shield", FromMS: 3000, ToMS: 9000}}}
+	if got := b.done(9000); !reflect.DeepEqual(got, want) {
+		t.Errorf("spans = %+v, want %+v", got, want)
 	}
 }

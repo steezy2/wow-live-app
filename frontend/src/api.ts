@@ -247,6 +247,9 @@ export interface KeyView {
   spikes: KeySpike[]
   /** Missing in keys saved before Nov 12. */
   bigHits?: KeyBigHit[]
+  lusts?: number[]
+  /** Missing in keys saved before Nov 13. */
+  resurrections?: Resurrection[]
   pulls: KeyPull[]
   /** The season's dungeon file has this dungeon (avoidable list, forces). */
   reference: boolean
@@ -302,6 +305,8 @@ export interface KeyAbility {
   hits: number
   /** Its spell school as the combat log gives it, a bit per school (schoolColors.ts); missing before Nov 11. */
   school?: number
+  /** The spell's ID, as Warcraft Logs has it; missing before Nov 13. */
+  id?: number
 }
 
 /** A place at a time on the key's clock: x and y in yards as the combat log gives them (x north, y west), the map
@@ -359,10 +364,22 @@ export interface KeyTrack {
   /** Each death's and big hit's recap, and each enemy's casts by GUID; missing in tracks saved before Nov 12. */
   recaps?: HitRecap[]
   mobCasts?: Record<string, TrackCast[]>
+  /** Each player's own buffs as stretches; missing in tracks saved before Nov 13. */
+  buffs?: Record<string, BuffSpan[]>
 }
 
 /** A cast on the clock (models.TrackCast): e when one with a cast time ended, x when it never finished. */
-export type TrackCast = { t: number; s: string; e?: number; x?: boolean }
+export type TrackCast = { t: number; s: string; i?: number; e?: number; x?: boolean }
+
+/** A buff on a player from f to t on the clock: its spell ID and name (models.BuffSpan). */
+export type BuffSpan = { i: number; n: string; f: number; t: number }
+
+/** A player brought back by another's spell (models.Resurrection). */
+export interface Resurrection {
+  clockMS: number
+  by: string
+  player: string
+}
 
 /** One ability's (or enemy's) numbers in each stretch: [end, damage, healing, damage taken]. */
 interface AbilitySeries {
@@ -1095,6 +1112,9 @@ export interface RaidPull extends RaidPullSummary {
   priority: { target: string; damage: number }[]
   meter: KeyMeter
   lusts: number[]
+  /** Each raider's specialization ID, and who was brought back; missing before Nov 13. */
+  specs?: Record<string, number>
+  resurrections?: Resurrection[]
   cooldowns: KeyCast[]
   comparisons?: { tonight?: RaidPullSummary; ever?: RaidPullSummary }
   /** The boss's rooms for the replay. */
