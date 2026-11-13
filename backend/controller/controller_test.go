@@ -328,6 +328,10 @@ func TestSettingsAreSavedOnlyWithChoicesTheAPIOffers(t *testing.T) {
 		{string(full), `{"show": "keys", "opacity": 90, "rows": 5, "columns": ["dps", "taken"]}`, http.StatusOK},
 		{string(full), `{"show": "keys", "opacity": 90, "columns": ["dps", "mana"]}`, http.StatusBadRequest},
 		{string(full), `{"show": "keys", "opacity": 90, "rows": -1}`, http.StatusBadRequest},
+		{string(full), `{"show": "keys", "opacity": 90}, "auto": {"archiveGameLogsDays": 365, "deleteImportsDays": 0}`,
+			http.StatusOK},
+		{string(full), `{"show": "keys", "opacity": 90}, "auto": {"archiveGameLogsDays": 366}`, http.StatusBadRequest},
+		{string(full), `{"show": "keys", "opacity": 90}, "auto": {"deleteImportsDays": -1}`, http.StatusBadRequest},
 		{string(full), `{}`, http.StatusBadRequest},
 		{`"Logs"`, `{"show": "always", "opacity": 70}`, http.StatusBadRequest},
 		{`""`, `{"show": "always", "opacity": 70}`, http.StatusBadRequest},
@@ -374,9 +378,10 @@ func TestAllAndForceAreBooleans(t *testing.T) {
 
 // fakeLogs is a LogFolder that notes what it was asked and fails with err.
 type fakeLogs struct {
-	all   *bool
-	names []string
-	err   error
+	all    *bool
+	source string
+	names  []string
+	err    error
 }
 
 func (f *fakeLogs) Learn(all bool) (int, int, error) {
@@ -386,29 +391,39 @@ func (f *fakeLogs) Learn(all bool) (int, int, error) {
 	return 0, 0, f.err
 }
 func (f *fakeLogs) LogFiles() ([]models.LogFile, error) { return []models.LogFile{}, f.err }
-func (f *fakeLogs) ArchiveLogs(names []string) ([]models.LogFile, error) {
-	f.names = names
+func (f *fakeLogs) ArchiveLogs(source string, names []string) ([]models.LogFile, error) {
+	f.source, f.names = source, names
 	return []models.LogFile{}, f.err
 }
-func (f *fakeLogs) DeleteArchivedLogs(names []string) ([]models.LogFile, error) {
-	return f.ArchiveLogs(names)
+func (f *fakeLogs) DeleteLogs(source string, names []string) ([]models.LogFile, error) {
+	return f.ArchiveLogs(source, names)
 }
+func (f *fakeLogs) Storage() (models.Storage, error) { return models.Storage{}, f.err }
 
 func TestLogFolderAnswers(t *testing.T) {
 	for _, tc := range []struct {
 		method, url, body string
 		err               error
 		code              int
+		source            string // the source the folder was asked for
 	}{
-		{http.MethodGet, "/api/settings/logs", "", nil, http.StatusOK},
-		{http.MethodPost, "/api/settings/logs/archive", `{"names": ["a.txt"]}`, nil, http.StatusOK},
-		{http.MethodDelete, "/api/settings/logs/archive", `{"names": ["a.txt"]}`, nil, http.StatusOK},
-		{http.MethodPost, "/api/settings/logs/archive", `{"names": []}`, nil, http.StatusBadRequest},
-		{http.MethodPost, "/api/settings/logs/archive", `{}`, nil, http.StatusBadRequest},
-		{http.MethodPost, "/api/settings/logs/archive", `{"names": ["../x"]}`, service.ErrBadLog, http.StatusBadRequest},
-		{http.MethodPost, "/api/settings/logs/archive", `{"names": ["a.txt"]}`, service.ErrBusy, http.StatusConflict},
-		{http.MethodPost, "/api/settings/read-keys", "", service.ErrBusy, http.StatusConflict},
-		{http.MethodGet, "/api/settings/logs", "", errors.New("disk"), http.StatusInternalServerError},
+		{http.MethodGet, "/api/settings/logs", "", nil, http.StatusOK, ""},
+		{http.MethodGet, "/api/storage", "", nil, http.StatusOK, ""},
+		{http.MethodGet, "/api/storage", "", errors.New("disk"), http.StatusInternalServerError, ""},
+		{http.MethodPost, "/api/settings/logs/archive", `{"names": ["a.txt"]}`, nil, http.StatusOK, "game"},
+		{http.MethodDelete, "/api/settings/logs/archive", `{"names": ["a.txt"]}`, nil, http.StatusOK, "game"},
+		{http.MethodDelete, "/api/settings/logs/archive", `{"names": ["a.txt"], "source": "wcl"}`, nil, http.StatusOK,
+			"wcl"},
+		{http.MethodDelete, "/api/settings/logs/archive", `{"names": ["a.txt"], "source": "disk"}`, nil,
+			http.StatusBadRequest, ""},
+		{http.MethodPost, "/api/settings/logs/archive", `{"names": []}`, nil, http.StatusBadRequest, ""},
+		{http.MethodPost, "/api/settings/logs/archive", `{}`, nil, http.StatusBadRequest, ""},
+		{http.MethodPost, "/api/settings/logs/archive", `{"names": ["../x"]}`, service.ErrBadLog,
+			http.StatusBadRequest, "game"},
+		{http.MethodPost, "/api/settings/logs/archive", `{"names": ["a.txt"]}`, service.ErrBusy,
+			http.StatusConflict, "game"},
+		{http.MethodPost, "/api/settings/read-keys", "", service.ErrBusy, http.StatusConflict, ""},
+		{http.MethodGet, "/api/settings/logs", "", errors.New("disk"), http.StatusInternalServerError, ""},
 	} {
 		logs := &fakeLogs{err: tc.err}
 		api := &SettingsAPI{Keys: fakeWCLKeys{}, Logs: logs}
@@ -417,8 +432,9 @@ func TestLogFolderAnswers(t *testing.T) {
 		r.Host = "localhost:8080"
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, r)
-		if w.Code != tc.code {
-			t.Errorf("%s %s %s (%v): %d %s; want %d", tc.method, tc.url, tc.body, tc.err, w.Code, w.Body, tc.code)
+		if w.Code != tc.code || logs.source != tc.source {
+			t.Errorf("%s %s %s (%v): %d %s, source %q; want %d, %q", tc.method, tc.url, tc.body, tc.err, w.Code, w.Body,
+				logs.source, tc.code, tc.source)
 		}
 	}
 }

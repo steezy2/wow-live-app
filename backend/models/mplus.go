@@ -629,6 +629,17 @@ type Settings struct {
 	// Character is the player's own character as "Name-Realm" (the realm as the player writes it), whose Warcraft
 	// Logs reports can be imported; empty for none.
 	Character string `json:"character"`
+	// Auto is what the app tidies by itself; SetupDone hides Home's setup guide (false until the owner finishes it).
+	Auto      AutoSettings `json:"auto"`
+	SetupDone bool         `json:"setupDone"`
+}
+
+// AutoSettings is the app's rule for tidying logs by itself, each in days (0, the default, is off): archive the game's
+// logs last written that long ago (only read ones the game no longer writes), and delete Warcraft Logs imports of
+// fights that old (only ones whose key or pull is saved).
+type AutoSettings struct {
+	ArchiveGameLogsDays int `json:"archiveGameLogsDays" minimum:"0" maximum:"365"`
+	DeleteImportsDays   int `json:"deleteImportsDays" minimum:"0" maximum:"365"`
 }
 
 // OverlaySettings are when the overlay shows (during keys, always or never) and its background's opacity (in %; the
@@ -659,24 +670,47 @@ type SettingsView struct {
 	// OverlayColumns are the columns the overlay's cards can show.
 	OverlayColumns []string `json:"overlayColumns"`
 	MinOpacity     int      `json:"minOpacity"`
+	// MaxAutoDays is the most days each of Auto's fields takes.
+	MaxAutoDays int `json:"maxAutoDays"`
 	// CharacterGuess is the name of the character that wrote most saved keys' logs, to prefill Character with ("" for
 	// none); the logs don't name its realm.
 	CharacterGuess string `json:"characterGuess"`
 }
 
-// LogFile is one combat log in the game's log folder, or one archived as a zip in its WoW Live archive folder, as
-// Settings lists them for archiving.
+// The sources of a LogFile: the game's combat log folder (and its archive), or the Warcraft Logs imports.
+const (
+	LogSourceGame = "game"
+	LogSourceWCL  = "wcl"
+)
+
+// LogFile is one combat log in the game's log folder, one archived as a zip in its WoW Live archive folder, or one
+// Warcraft Logs fight imported as a zip, as Settings lists them for archiving and deleting.
 type LogFile struct {
-	Name      string `json:"name"` // the log's file name (an archived one without .zip)
-	Path      string `json:"-"`    // where it is: the log, or its zip
-	Bytes     int64  `json:"bytes"`
-	WrittenMS int64  `json:"writtenMS"` // last written (Unix ms)
-	FirstMS   int64  `json:"-"`         // its first line's time, 0 when none parses
-	Keys      int    `json:"keys"`      // saved keys that started in it
-	Pulls     int    `json:"pulls"`     // saved raid pulls that started in it
-	Read      bool   `json:"read"`      // read by the current reader (Read old logs), so archiving loses nothing
-	Archived  bool   `json:"archived"`
-	Active    bool   `json:"active"`          // the game may still write it: it can't be archived
-	Suggested bool   `json:"suggested"`       // ticked at first: old, read and not active
-	Error     string `json:"error,omitempty"` // why the last archive or delete of it failed
+	Name   string `json:"name"` // the log's file name (a zipped one without .zip)
+	Source string `json:"source" enums:"game,wcl"`
+	// Report is the Warcraft Logs fight an import is; nil for the game's logs.
+	Report    *ReportLink `json:"report,omitempty"`
+	Path      string      `json:"-"` // where it is: the log, or its zip
+	Bytes     int64       `json:"bytes"`
+	WrittenMS int64       `json:"writtenMS"` // last written (Unix ms; an import: its fight's end)
+	FirstMS   int64       `json:"-"`         // its first line's time, 0 when none parses
+	Keys      int         `json:"keys"`      // saved keys that started in it (an import: that are its fight)
+	Pulls     int         `json:"pulls"`     // saved raid pulls that started in it (or are its fight)
+	Read      bool        `json:"read"`      // read by the current reader (an import: its key or pull is saved)
+	Archived  bool        `json:"archived"`
+	Active    bool        `json:"active"`          // the game may still write it: it can't be archived
+	Suggested bool        `json:"suggested"`       // ticked at first: old, read and not active
+	Error     string      `json:"error,omitempty"` // why the last archive or delete of it failed
+}
+
+// Storage is how much disk the app's data and the game's logs take, folder by folder.
+type Storage struct {
+	Folders []StorageFolder `json:"folders"`
+}
+
+// StorageFolder is one folder's size: the saved keys, the saved raid pulls, the Warcraft Logs imports, the archived
+// combat logs, or the game's combat logs (only WoWCombatLog files).
+type StorageFolder struct {
+	Name  string `json:"name" enums:"localKeys,raidPulls,wclImport,archive,gameLogs"`
+	Bytes int64  `json:"bytes"`
 }

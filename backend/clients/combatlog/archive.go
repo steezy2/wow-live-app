@@ -37,7 +37,7 @@ func Archived(dir string) ([]Zipped, error) {
 	}
 	var found []Zipped
 	for _, path := range paths {
-		z, err := zipped(path)
+		z, err := ReadZip(path)
 		if err != nil {
 			log.Printf("leaving out an archived log: %v", err)
 			continue
@@ -48,8 +48,9 @@ func Archived(dir string) ([]Zipped, error) {
 	return found, nil
 }
 
-// zipped reads an archived log's name and last write from its zip's directory, without unzipping it.
-func zipped(path string) (Zipped, error) {
+// ReadZip reads a zipped log's name and last write from its zip's directory, without unzipping it (an archived log,
+// or an imported fight).
+func ReadZip(path string) (Zipped, error) {
 	r, err := zip.OpenReader(path)
 	if err != nil {
 		return Zipped{}, fmt.Errorf("reading %s: %w", path, err)
