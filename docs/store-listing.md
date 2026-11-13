@@ -56,7 +56,7 @@ GET STARTED IN A MINUTE
 3. Play in Windowed or Windowed (Fullscreen) so the overlay shows over the game.
 Optional: add a free Warcraft Logs API client in Settings for the comparison with top runs.
 
-WoW Live is free. Questions and bugs: github.com/steezy2/wow-live
+WoW Live is free. Questions and bugs: github.com/steezy2/wow-live-app
 
 World of Warcraft is a trademark of Blizzard Entertainment. WoW Live isn't affiliated with or endorsed by Blizzard.
 Dungeon maps are Keystone.guru's and raid maps Warcraft Logs'.

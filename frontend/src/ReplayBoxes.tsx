@@ -34,8 +34,8 @@ export function BossBox({ track, now }: { track: KeyTrack; now: number }) {
   )
 }
 
-/** The boxes over the bottom of the replay's map: the focused player's casts at the left; at the right the damage they
- * took, over a picked enemy's casts. */
+/** The boxes over the bottom of the replay's map: the focused player's casts over the damage they took at
+ * the left, a picked enemy's casts at the right. */
 export function FocusBoxes(props: {
   track: KeyTrack
   player: string
@@ -46,25 +46,27 @@ export function FocusBoxes(props: {
   const { track, player, enemy, taken, now } = props
   return (
     <>
-      {player && (
-        <CastBox
-          title={player}
-          color={classColors[track.classes[player]] ?? 'var(--accent)'}
-          casts={track.casts?.[player]}
-          now={now}
-        />
-      )}
-      <div className="map-stack">
+      <div className="map-stack left">
+        {player && (
+          <CastBox
+            title={player}
+            color={classColors[track.classes[player]] ?? 'var(--accent)'}
+            casts={track.casts?.[player]}
+            now={now}
+          />
+        )}
         {taken && <TakenBox taken={taken} />}
-        {enemy && (
+      </div>
+      {enemy && (
+        <div className="map-stack">
           <CastBox
             title={enemyName(track, enemy)}
             color="var(--bad)"
             casts={track.mobCasts ? (track.mobCasts[enemy] ?? []) : undefined}
             now={now}
           />
-        )}
-      </div>
+        </div>
+      )}
     </>
   )
 }

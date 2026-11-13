@@ -69,6 +69,20 @@ func (k *LogTracker) SetTopRuns(mapID, level int, ms []int64) {
 	k.version++
 }
 
+// LastEnd is when the last key or raid pull read ended (ms since the epoch), 0 before any.
+func (k *LogTracker) LastEnd() int64 {
+	k.mu.RLock()
+	defer k.mu.RUnlock()
+	var end int64
+	if k.last != nil {
+		end = k.last.End
+	}
+	if len(k.pulls) > 0 {
+		end = max(end, k.pulls[0].End)
+	}
+	return end
+}
+
 // SaveFinished saves the keys that ended since the last call (the log follower calls it after each read), and says
 // which (by start time).
 func (k *LogTracker) SaveFinished() ([]int64, error) {

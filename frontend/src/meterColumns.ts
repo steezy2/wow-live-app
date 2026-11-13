@@ -18,6 +18,23 @@ const aboveMedian = (r: KeyMeterRow, rows: KeyMeterRow[]) => {
   return r.avoidable > median(rows.map((x) => x.avoidable)) ? 'warn' : undefined
 }
 
+const NAME_PX = 96
+const NUMBER_PX = 64
+const GAP_PX = 8 // --s2
+/** The overlay's closer columns. */
+const DENSE_NAME_PX = 72
+const DENSE_NUMBER_PX = 44
+const DENSE_GAP_PX = 4 // --s1
+
+/** A card's grid: the name column and a number column each, with the card's least width (dense for the overlay). */
+export function cardGrid(columns: number, dense: boolean) {
+  const [name, number, gap] = dense ? [DENSE_NAME_PX, DENSE_NUMBER_PX, DENSE_GAP_PX] : [NAME_PX, NUMBER_PX, GAP_PX]
+  return {
+    grid: { gridTemplateColumns: `minmax(${name}px, 1fr) repeat(${columns}, ${number}px)` },
+    minWidth: name + columns * (number + gap),
+  }
+}
+
 /** The raid's offense columns: damage, kicks and dispels. */
 export const raidOffense: Column[] = [
   { label: 'DPS', value: (r) => r.dps },
@@ -66,8 +83,15 @@ export const OVERLAY_LABELS: Record<OverlayColumn, string> = {
   taken: 'Taken',
   avoidable: 'Avoid.',
   priority: 'Prio %',
-  dispels: 'Disp.',
+  dispels: 'Dispels',
   deaths: 'Deaths',
+}
+
+/** The columns an overlay card draws, in order: Pull DPS leads the one-card meter and is left out of the two cards,
+ * where it would repeat DPS. The saved choice keeps it, so turning one card back on restores it. */
+export function overlayIds(chosen: OverlayColumn[], oneCard: boolean): OverlayColumn[] {
+  const rest = chosen.filter((id) => id !== 'pullDps')
+  return oneCard ? ['pullDps', ...rest] : rest
 }
 
 /** An overlay card's column by its settings id: pull is the last pull, for the Pull DPS column, and deaths the deaths

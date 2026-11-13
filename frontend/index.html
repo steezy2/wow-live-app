@@ -4,9 +4,41 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>M+ live</title>
+    <script>
+      // The overlay window is transparent: it gets no splash.
+      if (location.pathname === '/overlay') document.documentElement.className = 'is-overlay'
+    </script>
+    <style>
+      /* The splash shows before any script or index.css loads; App's Splash uses the same markup, so React's first
+         render changes nothing. The background is --bg of index.css. */
+      html:not(.is-overlay) {
+        background: #0b0d12;
+      }
+      .is-overlay .splash {
+        display: none;
+      }
+      .splash {
+        display: grid;
+        place-items: center;
+        height: calc(100vh - 48px); /* under the nav's 48px (--nav) */
+        color: #9aa3b5;
+        font: 600 20px system-ui, 'Segoe UI', sans-serif;
+        animation: splash-pulse 1.2s ease-in-out infinite alternate;
+      }
+      @keyframes splash-pulse {
+        from {
+          opacity: 0.35;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .splash {
+          animation: none;
+        }
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root"><div style="height: 48px"></div><div class="splash" role="status">WoW Live</div></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

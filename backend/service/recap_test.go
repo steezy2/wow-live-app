@@ -81,24 +81,35 @@ func TestRecapIsOneCharactersRuns(t *testing.T) {
 	}
 }
 
-func TestRecapAverages(t *testing.T) {
-	keys := []models.Key{recapKey("Skyreach", 10, 0, 25*minute, "Testpriest"), recapKey("Skyreach", 11, 50, 25*minute),
-		recapKey("Skyreach", 12, 100, 25*minute, "Testpriest")}
-	keys[0].Interrupts = []models.KeyInterrupt{{Player: "Testmage"}, {Player: "Testpriest"}, {Player: "Testpriest"},
-		{Player: "Testpriest"}}
+func TestRecapKeyRows(t *testing.T) {
+	keys := []models.Key{recapKey("Skyreach", 10, 0, 25*minute, "Testpriest"), recapKey("Skyreach", 11, 50, 35*minute),
+		recapKey("Ara-Kara", 12, 100, 25*minute, "Testpriest")}
+	keys[0].Interrupts = []models.KeyInterrupt{{Player: "Testmage"}, {Player: "Testpriest"}, {Player: "Testpriest"}}
 	keys[0].Casts = []models.KeyCast{{Player: "Testmage", Kind: "cc"}, {Player: "Testmage", Kind: "defensive"}}
-	keys[0].Overall.Rows = []models.KeyMeterRow{{Player: "Testmage", Damage: 100, PriorityDamage: 40, Dispels: 2},
-		{Player: "Testpriest", Damage: 100, PriorityDamage: 20, Dispels: 1}}
-	keys[2].Overall.Rows = []models.KeyMeterRow{{Player: "Testmage", Damage: 100}, // no priority target this key
-		{Player: "Testpriest", Damage: 100, PriorityDamage: 20}}
-	got := recapAverages(keys, "Testmage") // the second key was saved before priority damage was kept
-	want := models.RecapAverages{Party: models.RecapPerKey{Kicks: 4.0 / 3, CC: 1.0 / 3, Dispels: 1, PriorityPct: 20},
-		You: models.RecapPerKey{Kicks: 1.0 / 3, CC: 1.0 / 3, Dispels: 2.0 / 3, PriorityPct: 20}}
-	if !reflect.DeepEqual(got, want) {
-		t.Errorf("averages = %+v; want %+v", got, want)
+	keys[0].Overall.Rows = []models.KeyMeterRow{
+		{Player: "Testmage", DPS: 900, HPS: 50, Damage: 100, PriorityDamage: 40, Dispels: 2},
+		{Player: "Testpriest", Damage: 300, PriorityDamage: 20, Dispels: 1}}
+	keys[1].Players = []string{"Testpriest"} // the mage logged it but wasn't in it; saved before priority damage
+	keys[1].Overall.Rows = []models.KeyMeterRow{{Player: "Testpriest", Damage: 100, Dispels: 3}}
+	for i := range recapKeyRows {
+		keys = append(keys, recapKey("Old", 2, int64(-1-i), 25*minute))
 	}
-	if none := recapAverages(nil, "Testmage"); none.You.Kicks != -1 || none.Party.PriorityPct != -1 {
-		t.Errorf("averages without keys = %+v; want -1 for each", none)
+	got := buildRecap(keys, nil, -999*minute, 999*minute, "").MPlus.KeyRows
+	if len(got) != recapKeyRows {
+		t.Fatalf("%d rows; want the newest %d", len(got), recapKeyRows)
+	}
+	want := []models.RecapKeyRow{
+		{Start: 100 * minute, Dungeon: "Ara-Kara", Level: 12, Status: "timed",
+			You:   models.RecapKeyYou{DPS: -1, HPS: -1, RecapKeyCounts: models.RecapKeyCounts{PriorityPct: -1}}, // no meter row
+			Party: models.RecapKeyCounts{PriorityPct: -1}},
+		{Start: 50 * minute, Dungeon: "Skyreach", Level: 11, Status: "depleted",
+			You:   models.RecapKeyYou{DPS: -1, HPS: -1, RecapKeyCounts: models.RecapKeyCounts{Kicks: -1, CC: -1, Dispels: -1, PriorityPct: -1}},
+			Party: models.RecapKeyCounts{Dispels: 3, PriorityPct: -1}},
+		{Start: 0, Dungeon: "Skyreach", Level: 10, Status: "timed",
+			You:   models.RecapKeyYou{DPS: 900, HPS: 50, RecapKeyCounts: models.RecapKeyCounts{Kicks: 1, CC: 1, Dispels: 2, PriorityPct: 40}},
+			Party: models.RecapKeyCounts{Kicks: 3, CC: 1, Dispels: 3, PriorityPct: 15}}}
+	if !reflect.DeepEqual(got[:3], want) {
+		t.Errorf("rows = %+v\nwant %+v", got[:3], want)
 	}
 }
 

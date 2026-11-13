@@ -34,6 +34,12 @@ import (
 // pushEvery is the most often the page is told the keys changed, so a burst of lines is one notice.
 const pushEvery = 250 * time.Millisecond
 
+// The folders, in the cache, of the saved keys and the saved raid pulls.
+const (
+	localKeysDir = "local-keys"
+	raidPullsDir = "raid-pulls"
+)
+
 // spellTimeout bounds one spell lookup on Wowhead, so a hover never waits on a site that is down.
 const spellTimeout = 10 * time.Second
 
@@ -82,8 +88,8 @@ type Site struct {
 // Start builds the site from opts. Follow, Learn or a replay then feed it the game's log.
 func Start(ctx context.Context, opts Options) (*Site, error) {
 	timers, affixes := dungeonData(ctx, opts.Cache, opts.Region)
-	store := keystore.Store{Dir: filepath.Join(opts.Cache, "local-keys")}
-	pulls := keystore.Pulls{Dir: filepath.Join(opts.Cache, "raid-pulls")}
+	store := keystore.Store{Dir: filepath.Join(opts.Cache, localKeysDir)}
+	pulls := keystore.Pulls{Dir: filepath.Join(opts.Cache, raidPullsDir)}
 	newKeys := func() (*service.LogTracker, error) {
 		keys, err := service.NewLogTracker(timers, affixes, opts.Rules, opts.Dungeons, store)
 		if err != nil {
@@ -392,7 +398,8 @@ func readLearned(path string) learned {
 // Follow reads the newest log in dir into the keys as the game writes it until ctx ends, closing a key the log went
 // silent on, saving each key once it ends, logging how far behind the game it was read, and reviewing it (when there
 // are Warcraft Logs keys and points to spare); a dungeon's first run gets its top Warcraft Logs runs for the estimate.
-// A failed read is logged and tried again.
+// Once caught up with the log, and after each key or raid pull that ends, it runs the auto rule (Tidy) in the
+// background. A failed read is logged and tried again.
 func (s *Site) Follow(ctx context.Context, dir string) {
 	watcher, err := combatlog.Watch(dir, combatlog.FallbackEvery)
 	if err != nil {
@@ -401,7 +408,8 @@ func (s *Site) Follow(ctx context.Context, dir string) {
 	defer watcher.Close()
 	tail := &combatlog.Tail{Dir: dir}
 	delays := &combatlog.Delays{File: s.opts.DelayLog}
-	caughtUp := false // keys that ended before the site started (read again on start) aren't reviewed on their own
+	caughtUp := false     // keys that ended before the site started (read again on start) aren't reviewed on their own
+	tidiedAt := int64(-1) // the LastEnd the auto rule last ran after
 	for {
 		lines, _, err := tail.Read()
 		if err != nil {
@@ -433,6 +441,14 @@ func (s *Site) Follow(ctx context.Context, dir string) {
 			}
 		}
 		caughtUp = caughtUp || len(lines) == 0
+		if end := s.Keys.LastEnd(); caughtUp && end != tidiedAt {
+			tidiedAt = end
+			go func() {
+				if err := s.Tidy(); err != nil {
+					log.Printf("auto rule: %v", err)
+				}
+			}()
+		}
 		if caughtUp && s.topRuns != nil { // FirstRun marks the run asked, so not while reading the log from the start
 			if key, ok := s.Keys.FirstRun(); ok {
 				go s.fetchTopRuns(ctx, key)

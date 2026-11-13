@@ -13,6 +13,7 @@ import {
   rowValue,
   resultText,
   versus,
+  versusBest,
   withRealm,
 } from './format'
 
@@ -181,5 +182,16 @@ describe('rowValue', () => {
     expect(rowValue(3.54, 'per min')).toBe('3.5 per min')
     expect(rowValue(1, 'casts')).toBe('1 cast')
     expect(rowValue(2, '')).toBe('2')
+  })
+})
+
+describe('versusBest', () => {
+  it.each([
+    [90_000, 120_000, '0:30 faster than'],
+    [150_000, 120_000, '0:30 slower than'],
+    [120_000, 120_000, 'level with'],
+    [120_000, 0, ''],
+  ])('%i against best %i', (ms, best, want) => {
+    expect(versusBest(ms, best)).toBe(want)
   })
 })
