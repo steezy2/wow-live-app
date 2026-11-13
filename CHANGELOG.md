@@ -15,6 +15,7 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 - A must-stop cast that wipes the raid when it goes off is the first line of a pull's *Fix next pull* ("Anguished Cry went off 1 time, which wipes the raid"): `wipe_stop` in `raid-mechanics.toml` (Ula'tek's Anguished Cry, the Weakened Doomscale's raid-wide stun), `wipe` on a `KeyStop`. `readerVersion` 15, so *Read old logs* fills it in.
 
 ### Changed
+- The repo is public, under the [PolyForm Noncommercial License 1.0.0](LICENSE) (source-available: anyone may use it noncommercially, only the author may sell it) instead of all rights reserved. The privacy policy moved here from steezy2/wow-live (`PRIVACY.md`), and so did the issues link, the Store listing text and the User-Agent. Copies from before 0.1.5 stay MIT.
 - The overlay is compact: columns sit closer (three columns are about 216 px wide instead of 312), no scrollbar shows while clicking or resizing, the dispels column reads "Dispels", and Pull DPS is offered only with the one-card setup.
 - Settings panels stack in columns, so short panels no longer leave gaps.
 - In the replay a focused player's casts and damage taken are on the left and the enemy's casts on the right.

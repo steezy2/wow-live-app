@@ -25,7 +25,7 @@ It's not an addon and doesn't touch the game: it only reads the combat log file 
 
 ## Install
 
-1. Get it from the [Microsoft Store](https://apps.microsoft.com/detail/9pfg7vnt6j89). [steezy2/wow-live](https://github.com/steezy2/wow-live) is its public page, for issues and the privacy policy.
+1. Get it from the [Microsoft Store](https://apps.microsoft.com/detail/9pfg7vnt6j89).
 2. In the game, turn on **Advanced Combat Logging** (Options > System > Network) and type `/combatlog` before the key.
 3. Optional, for the review and a dungeon's first estimate: with your Battle.net account linked to Warcraft Logs, make a Warcraft Logs API client at [warcraftlogs.com/api/clients](https://www.warcraftlogs.com/api/clients) (redirect URL `http://localhost`, *Public Client* left unchecked) and paste its ID and secret in the **Settings** tab before closing that page.
 
@@ -47,7 +47,7 @@ Play in Windowed or Windowed (Fullscreen) so the overlay shows over the game.
 - **Recap tab:** this month, last month, this season, this year or all time, on a Mythic+ tab and a Raid tab. Mythic+: keys run, timed % and your deaths against the party's; each dungeon's runs, timed % and its average, median and fastest timed run at the highest level you timed, against Warcraft Logs' top runs there; kicks, CC, dispels and priority damage per key; who you ran with (class colour and realm); facts that open their key. Raid: pulls, kills and each boss. Both: your Warcraft Logs parses this season.
 - **Overlay:** see-through. It scales to its window. A click on a player shows their top spells and damage into each enemy over that card's span (the last pull or the whole key; a right click goes back), and a click on the deaths line lists the deaths and opens a death's last 10 s; Ctrl+Alt+K (or the tray, or Settings) lets clicks through to the game instead. Between raid pulls it shows the last pull for a few minutes: how far it got, the first deaths, what to fix and the top DPS and HPS. Ctrl+Alt+O (or *Move overlay* in Settings) moves and resizes it; Settings also has when it shows, its background opacity, one or two cards, players per card and which columns.
 
-Settings, saved keys and raid pulls, and the log are in the Store package's own folder, which uninstalling removes; a build run from `bin/` keeps them in `%LOCALAPPDATA%\WoW Live`. Warcraft Logs keys are kept in Windows Credential Manager. Importing a character downloads that character's public Warcraft Logs reports. Nothing from the combat log leaves your PC: see the [privacy policy](https://github.com/steezy2/wow-live/blob/master/PRIVACY.md).
+Settings, saved keys and raid pulls, and the log are in the Store package's own folder, which uninstalling removes; a build run from `bin/` keeps them in `%LOCALAPPDATA%\WoW Live`. Warcraft Logs keys are kept in Windows Credential Manager. Importing a character downloads that character's public Warcraft Logs reports. Nothing from the combat log leaves your PC: see the [privacy policy](PRIVACY.md).
 
 ## Working on it
 
@@ -65,4 +65,4 @@ World of Warcraft is a trademark of Blizzard Entertainment; this project isn't a
 
 ## Licence
 
-Proprietary, all rights reserved: see [LICENSE](LICENSE).
+[PolyForm Noncommercial 1.0.0](LICENSE): the source is public and free to read, run, change and share for any noncommercial purpose. Selling it, or using it in a paid product or service, needs the author's written permission.
