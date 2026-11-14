@@ -19,7 +19,7 @@ import (
 
 // Limits on a route: its pulls and the characters in its name.
 const (
-	MaxPulls    = 60
+	maxPulls    = 60
 	maxNameLen  = 60
 	routeIDSize = 16 // characters in an id made here
 )
@@ -98,7 +98,7 @@ func (r *Routes) Import(code string) (models.RouteView, error) {
 // ImportPreset saves a Mythic Dungeon Tools preset as a route and counts in Dropped the enemies it pulls that the
 // dungeon's map doesn't have or an earlier pull has; a color that isn't 6 hex digits becomes defaultPullColor. Its uid
 // becomes the id, so importing it again replaces the route and keeps its star when it's of the same dungeon; a
-// dungeon's first route is starred. A dungeon outside the season's reference, or more than MaxPulls pulls, is
+// dungeon's first route is starred. A dungeon outside the season's reference, or more than maxPulls pulls, is
 // refused.
 func (r *Routes) ImportPreset(p models.MDTPreset) (models.RouteView, error) {
 	r.mu.Lock()
@@ -224,7 +224,7 @@ func (r *Routes) Create(mapID int, name string) (models.RouteView, error) {
 }
 
 // Update replaces a route's name and pulls. Every enemy must be on the dungeon's map and in one pull at most, and a
-// route has at most MaxPulls pulls.
+// route has at most maxPulls pulls.
 func (r *Routes) Update(id, name string, pulls []models.RoutePull) (models.RouteView, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -381,8 +381,8 @@ func (r *Routes) known(mapID int) map[models.EnemyRef]models.RouteEnemy {
 }
 
 func (r *Routes) checkPulls(mapID int, pulls []models.RoutePull) error {
-	if len(pulls) > MaxPulls {
-		return invalidf("%d pulls; at most %d", len(pulls), MaxPulls)
+	if len(pulls) > maxPulls {
+		return invalidf("%d pulls; at most %d", len(pulls), maxPulls)
 	}
 	known := r.known(mapID)
 	used := map[models.EnemyRef]bool{}

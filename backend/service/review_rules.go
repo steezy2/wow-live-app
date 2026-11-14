@@ -77,7 +77,7 @@ func buildReview(key models.Key, history []models.Key, baselines map[string]map[
 		Baseline: "No Warcraft Logs baseline for this key"}
 	switch {
 	case len(baselines) == 0:
-	case key.Status == "abandoned":
+	case key.Status == models.StatusAbandoned:
 		review.Baseline = fmt.Sprintf("Top runs of each spec at +%d from Warcraft Logs: whole keys, against the %s of "+
 			"this one", key.Level, clockText(lengthMS(key)))
 	default:
@@ -238,7 +238,7 @@ func advice(key models.Key, player string, spec specInfo, metrics []models.Revie
 // unlessAbandoned is a note about the top runs' time, which holds only for a key that finished: an abandoned key is
 // compared with whole runs.
 func unlessAbandoned(key models.Key, note string) string {
-	if key.Status == "abandoned" {
+	if key.Status == models.StatusAbandoned {
 		return ""
 	}
 	return note

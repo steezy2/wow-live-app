@@ -23,8 +23,8 @@ import (
 // CBOR byte strings and Lua tables as arrays or as maps with integer keys.
 const (
 	routePrefix = "!~MDT2~"
-	// MaxRouteCode is the longest route string read, in bytes.
-	MaxRouteCode = 64 << 10
+	// maxRouteCode is the longest route string read, in bytes.
+	maxRouteCode = 64 << 10
 	// maxInflated is the most a route string may inflate to, against zip bombs.
 	maxInflated = 1 << 20
 )
@@ -32,8 +32,8 @@ const (
 // DecodeRoute reads a route string from Mythic Dungeon Tools' Export button.
 func DecodeRoute(code string) (models.MDTPreset, error) {
 	code = strings.TrimSpace(code)
-	if len(code) > MaxRouteCode {
-		return models.MDTPreset{}, fmt.Errorf("not an MDT route: longer than %d bytes", MaxRouteCode)
+	if len(code) > maxRouteCode {
+		return models.MDTPreset{}, fmt.Errorf("not an MDT route: longer than %d bytes", maxRouteCode)
 	}
 	b64, ok := strings.CutPrefix(code, routePrefix)
 	if !ok {

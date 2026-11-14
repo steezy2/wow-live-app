@@ -119,8 +119,8 @@ func TestImportRoute(t *testing.T) {
 			}
 		})
 	}
-	t.Run("more than MaxPulls pulls are refused", func(t *testing.T) {
-		if _, err := newRoutes(t).ImportPreset(preset("abc", 163, make([]models.MDTPull, MaxPulls+1)...)); !errors.Is(err,
+	t.Run("more than maxPulls pulls are refused", func(t *testing.T) {
+		if _, err := newRoutes(t).ImportPreset(preset("abc", 163, make([]models.MDTPull, maxPulls+1)...)); !errors.Is(err,
 			ErrInvalidRoute) {
 			t.Fatalf("err = %v, want ErrInvalidRoute", err)
 		}
@@ -190,7 +190,7 @@ func TestUpdateRouteValidates(t *testing.T) {
 		return models.RoutePull{Color: "ff3eff", Enemies: refs}
 	}
 	one, two := models.EnemyRef{Index: 1, Clone: 1}, models.EnemyRef{Index: 1, Clone: 2}
-	long := make([]models.RoutePull, MaxPulls+1)
+	long := make([]models.RoutePull, maxPulls+1)
 	for i := range long {
 		long[i] = pull()
 	}
@@ -204,7 +204,7 @@ func TestUpdateRouteValidates(t *testing.T) {
 		{"enemy in two pulls", "Fine", []models.RoutePull{pull(one), pull(one)}, false},
 		{"unknown enemy", "Fine", []models.RoutePull{pull(models.EnemyRef{Index: 9, Clone: 1})}, false},
 		{"too many pulls", "Fine", long, false},
-		{"exactly the most pulls", "Fine", long[:MaxPulls], true},
+		{"exactly the most pulls", "Fine", long[:maxPulls], true},
 		{"bad color", "Fine", []models.RoutePull{{Color: "red"}}, false},
 		{"empty name", "", nil, false},
 		{"name of only spaces", "   ", nil, false},

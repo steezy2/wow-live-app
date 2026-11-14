@@ -36,7 +36,7 @@ export function pullCentres(enemies: RouteEnemy[], pulls: RoutePull[]): (Yards &
 }
 
 /** Mythic Dungeon Tools' default (Rainbow) pull colors, which it gives pulls by their place in the route. */
-export const PULL_COLORS = [
+const PULL_COLORS = [
   '3eff3e',
   '3eff9e',
   '3effff',
@@ -54,7 +54,7 @@ export const PULL_COLORS = [
 export const UNDO_EDITS = 20
 
 /** A route's name and pulls as the editor changes them. */
-export interface Draft {
+interface Draft {
   name: string
   pulls: Required<RoutePull>[]
 }

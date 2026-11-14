@@ -69,7 +69,7 @@ func projection(key models.Key, clockMS int64, history []models.Key) *models.Key
 // usable says whether an earlier run can estimate a key in the dungeon: one of it that finished (an abandoned run
 // has no end to go by).
 func usable(r models.Key, mapID int) bool {
-	return r.MapID == mapID && r.FinalMS > 0 && r.Status != "abandoned"
+	return r.MapID == mapID && r.FinalMS > 0 && r.Status != models.StatusAbandoned
 }
 
 // fromTopRuns is the estimate for a dungeon's first run here, from the times of its top Warcraft Logs runs at the
@@ -255,7 +255,7 @@ func forcesAt(k models.Key, clockMS int64) float64 {
 func bestRun(key models.Key, history []models.Key) *models.Key {
 	var best *models.Key
 	for i, r := range history {
-		if usable(r, key.MapID) && r.Status == "timed" && r.Level == key.Level && r.Start != key.Start &&
+		if usable(r, key.MapID) && r.Status == models.StatusTimed && r.Level == key.Level && r.Start != key.Start &&
 			(best == nil || r.FinalMS < best.FinalMS) {
 			best = &history[i]
 		}

@@ -2184,6 +2184,7 @@ const docTemplate = `{
                 "names": {
                     "type": "array",
                     "minItems": 1,
+                    "uniqueItems": true,
                     "items": {
                         "type": "string"
                     }

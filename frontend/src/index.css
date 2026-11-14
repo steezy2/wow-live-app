@@ -660,6 +660,9 @@ button {
 .review-table th:first-child,
 .review-table td:first-child {
   text-align: left;
+  position: sticky;
+  left: 0;
+  background: var(--panel);
 }
 
 .review-table th:not(:first-child),
@@ -682,14 +685,6 @@ button {
 
 .review-table td.good {
   color: var(--good);
-}
-
-/* The name stays in view when the table scrolls sideways. */
-.review-table th:first-child,
-.review-table td:first-child {
-  position: sticky;
-  left: 0;
-  background: var(--panel);
 }
 
 /* A faint rule before a group of columns (offense, defense, consumables, deaths): KeyReview.tsx sets the class. */
@@ -1569,9 +1564,6 @@ button.link {
   height: 6px;
   margin-bottom: var(--s2);
   background: var(--panel-2);
-}
-.card.small.per-key .card-row {
-  grid-template-columns: 1fr 4em 4em;
 }
 .recap-times {
   display: grid;

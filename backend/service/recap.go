@@ -143,7 +143,7 @@ func recapMPlus(keys []models.Key, you string) models.RecapMPlus {
 	dungeons := map[string][]models.Key{}
 	for _, k := range keys {
 		rc.Keys, rc.TimeMS, rc.Deaths = rc.Keys+1, rc.TimeMS+keyLength(k), rc.Deaths+len(k.Deaths)
-		if k.Status == "timed" {
+		if k.Status == models.StatusTimed {
 			rc.Timed, rc.HighestTimed = rc.Timed+1, max(rc.HighestTimed, k.Level)
 		}
 		dungeons[k.Dungeon] = append(dungeons[k.Dungeon], k)
@@ -163,7 +163,7 @@ func recapDungeon(name string, runs []models.Key) models.RecapDungeon {
 	d := models.RecapDungeon{Dungeon: name, Runs: len(runs)}
 	var times []int64 // the timed runs' at d.BestLevel
 	for _, k := range runs {
-		if k.Status != "timed" {
+		if k.Status != models.StatusTimed {
 			continue
 		}
 		d.Timed++
@@ -254,7 +254,7 @@ func recapParty(keys []models.Key, you string) []models.RecapMate {
 				m.Class = cmp.Or(m.Class, k.Overall.Rows[i].Class)
 			}
 			m.Keys++
-			if k.Status == "timed" {
+			if k.Status == models.StatusTimed {
 				m.Timed++
 			}
 		}
@@ -352,7 +352,7 @@ func recapFacts(keys []models.Key) []models.RecapFact {
 	add := func(k models.Key, text string, args ...any) {
 		facts = append(facts, models.RecapFact{Text: fmt.Sprintf(text, args...), Kind: models.FightMPlus, Start: k.Start})
 	}
-	timed := func(k models.Key) bool { return k.Status == "timed" && k.TimerMS > 0 && k.FinalMS > 0 }
+	timed := func(k models.Key) bool { return k.Status == models.StatusTimed && k.TimerMS > 0 && k.FinalMS > 0 }
 	if k, ok := best(func(k models.Key) float64 {
 		if !timed(k) {
 			return 0
@@ -418,7 +418,7 @@ func recapFacts(keys []models.Key) []models.RecapFact {
 		first[k.Dungeon] = k.Level
 	}
 	if k, ok := best(func(k models.Key) float64 {
-		if k.Status != "timed" {
+		if k.Status != models.StatusTimed {
 			return 0
 		}
 		return float64(k.Level - first[k.Dungeon])

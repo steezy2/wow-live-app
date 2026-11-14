@@ -57,7 +57,7 @@ export function ComparePlayer({ kind, start, player }: { kind: 'mplus' | 'raid';
           (compare.parses.found ? (
             <p className="small">
               {compare.parse
-                ? `Their Warcraft Logs parse here: best ${compare.parse.best.toFixed(0)}, median ${compare.parse.median.toFixed(0)} over ${compare.parse.runs} ranked. `
+                ? `Their Warcraft Logs parse here: best ${Math.floor(compare.parse.best)}, median ${Math.floor(compare.parse.median)} over ${compare.parse.runs} ranked. `
                 : 'No ranked parse here. '}
               <a href={compare.parses.url} target="_blank" rel="noreferrer">
                 Warcraft Logs page

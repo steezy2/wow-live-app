@@ -53,7 +53,7 @@ func newTracker(t *testing.T, timers map[int]int64) *LogTracker {
 	}
 	rules.Kicks.Names = []string{"Wind Shear"}
 	rules.CC.Names = []string{"Capacitor Totem"}
-	// Voidscar Arena's avoidable list has Light Bolt, so TestKeyStep2's hit counts as avoidable.
+	// Voidscar Arena's avoidable list has Light Bolt, so TestShortKeyIsReadAndSaved's hit counts as avoidable.
 	// The Radiant Spellsower (NPC 245336) is a quarter of the forces. Den of Nalorakk's (586) mob 3 is a boss.
 	facts := map[int]models.DungeonFacts{586: {Minibosses: []int{245331, 245332}, Bosses: []int{245333}}, 585: {Avoidable: []int{1238063}, MustStop: []int{1238063}, Dispel: []int{1234846},
 		Floors: []models.DungeonFloor{{RaidMap: models.RaidMap{UIMapID: 2610}, Tiles: "midnight/voidscar_arena/1"}},
@@ -160,10 +160,10 @@ func TestADeathsDefensiveIsOnlyTheirOwn(t *testing.T) {
 	}
 }
 
-// TestKeyStep2 reads one short key: an interrupt, a pet's hit counted to its owner, a heal, a dispel, an avoidable
+// TestShortKeyIsReadAndSaved reads one short key: an interrupt, a pet's hit counted to its owner, a heal, a dispel, an avoidable
 // hit taken, a defensive just before a death, the buffs each player lacked at the start, and the key saved when it
 // ends.
-func TestKeyStep2(t *testing.T) {
+func TestShortKeyIsReadAndSaved(t *testing.T) {
 	keys := newTracker(t, nil)
 	const shaman = `Player-76-0000BBBB,"Testshaman-Sargeras-US",0x512,0x80000000`
 	const petGUID = "Creature-0-3019-3004-1081-95072-00006A951E"

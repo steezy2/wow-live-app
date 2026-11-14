@@ -107,9 +107,9 @@ func Start(ctx context.Context, opts Options) (*Site, error) {
 		return nil, err
 	}
 	s := &Site{Keys: keys, Changes: &service.Changes{Every: pushEvery}, opts: opts, newKeys: newKeys}
+	characters := service.Characters{Realms: opts.Realms, Logs: opts.WCL,
+		Bosses: slices.Sorted(maps.Keys(opts.Bosses))}
 	if opts.Settings != nil {
-		characters := service.Characters{Realms: opts.Realms, Logs: opts.WCL,
-			Bosses: slices.Sorted(maps.Keys(opts.Bosses))}
 		opts.Settings.Logs, opts.Settings.Characters = s, characters
 		if opts.WCL != nil {
 			s.Import = s.importer(characters, store, pulls)
@@ -121,8 +121,7 @@ func Start(ctx context.Context, opts Options) (*Site, error) {
 		s.reviews, s.topRuns = reviewer, reviewer.TopRuns
 		if baselines, ok := opts.Baselines.(models.CompareBaselines); ok {
 			s.compares = service.Comparer{Keys: keys, Baselines: baselines, Store: store,
-				Characters: service.Characters{Realms: opts.Realms, Logs: opts.WCL,
-					Bosses: slices.Sorted(maps.Keys(opts.Bosses))}, Region: opts.Region, Rules: opts.SpecRules}
+				Characters: characters, Region: opts.Region, Rules: opts.SpecRules}
 		}
 	}
 	tiles := service.MapTiles{Facts: opts.Dungeons,
@@ -153,7 +152,8 @@ func (s *Site) importer(characters service.Characters, store keystore.Store, pul
 			return s.opts.WCL.ImportFight(ctx, ref.Code, ref.FightID,
 				wcl.FightOptions{Logger: character, Dungeons: s.opts.Dungeons})
 		},
-		Read: s.readImported,
+		Read:  s.readImported,
+		Write: cachefile.WriteJSON,
 		Saved: func() ([]models.Key, []models.RaidPull, error) {
 			keys, err := store.List()
 			if err != nil {

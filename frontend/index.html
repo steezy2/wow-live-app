@@ -3,11 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>M+ live</title>
-    <script>
-      // The overlay window is transparent: it gets no splash.
-      if (location.pathname === '/overlay') document.documentElement.className = 'is-overlay'
-    </script>
+    <title>WoW Live</title>
+    <script src="/overlay-class.js"></script>
     <style>
       /* The splash shows before any script or index.css loads; App's Splash uses the same markup, so React's first
          render changes nothing. The background is --bg of index.css. */

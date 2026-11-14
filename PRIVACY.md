@@ -14,7 +14,7 @@ WoW Live runs on your PC and has no accounts, analytics, ads or tracking. The de
 
 WoW Live downloads public game data. None of these requests include anything from your combat log, and only Warcraft Logs gets a character name (below).
 
-- **Warcraft Logs** (warcraftlogs.com), when you've entered API keys: top runs for a dungeon, key level and spec to compare against, and, when you import or look up your own runs, the name and realm of your character, to list its public reports and download their fights. See Warcraft Logs' own privacy policy.
+- **Warcraft Logs** (warcraftlogs.com), when you've entered API keys: top runs for a dungeon, key level and spec to compare against, and the name and realm of a character, to list its public reports and download their fights (when you import or look up your own runs) or to read its parses (when you run a player review, for the player you picked, who can be anyone in your group). See Warcraft Logs' own privacy policy.
 - **Raider.IO** (raider.io): the season's dungeon timers and this week's affixes, for your region.
 - **Keystone.guru**, through GitHub (raw.githubusercontent.com) and assets.keystone.guru: dungeon map images.
 - **Wowhead** (nether.wowhead.com): the text of a spell, when you hover its name.

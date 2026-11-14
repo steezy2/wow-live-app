@@ -142,7 +142,7 @@ func (k *LogTracker) Saved(character string) []models.KeySummary {
 		}
 		summary := models.KeySummary{Start: key.Start, Dungeon: key.Dungeon, Level: key.Level, Status: key.Status,
 			FinalMS: key.FinalMS, Report: key.Report, Imported: key.Imported}
-		if key.Status == "timed" {
+		if key.Status == models.StatusTimed {
 			summary.Chests = chests(key.FinalMS, key.TimerMS)
 		}
 		saved = append(saved, summary)
@@ -170,6 +170,7 @@ func (k *LogTracker) DeleteSaved(start int64) error {
 			return fmt.Errorf("clearing saved keys: %w", err)
 		}
 		k.history = nil
+		k.version++
 		return nil
 	}
 	i := slices.IndexFunc(k.history, func(key models.Key) bool { return key.Start == start })
@@ -180,6 +181,7 @@ func (k *LogTracker) DeleteSaved(start int64) error {
 		return fmt.Errorf("deleting a saved key: %w", err)
 	}
 	k.history = slices.Delete(k.history, i, i+1)
+	k.version++
 	return nil
 }
 
@@ -221,7 +223,9 @@ func (k *LogTracker) details(run *keyRun, at int64) models.Key {
 	for _, hit := range run.avoidable {
 		key.AvoidableHits = append(key.AvoidableHits, *hit)
 	}
-	slices.SortFunc(key.AvoidableHits, func(a, b models.KeyHit) int { return cmp.Compare(b.Damage, a.Damage) })
+	slices.SortFunc(key.AvoidableHits, func(a, b models.KeyHit) int {
+		return cmp.Or(cmp.Compare(b.Damage, a.Damage), cmp.Compare(a.Player, b.Player), cmp.Compare(a.Ability, b.Ability))
+	})
 	key.Bosses, key.Affixes = list(key.Bosses), list(key.Affixes)
 	key.Interrupts, key.Casts = list(key.Interrupts), append(k.prepots(run), key.Casts...)
 	key.Stops, key.WastedKicks, key.Debuffs = list(key.Stops), list(key.WastedKicks), list(key.Debuffs)
@@ -248,7 +252,7 @@ func (k *LogTracker) details(run *keyRun, at int64) models.Key {
 	key.LastPull = run.lastPull
 	if len(run.inPull) > 0 {
 		key.LastPull = k.pullMeter(run)
-		key.LastPull.Ongoing = key.Status == "running" && at-run.pullLast <= pullGapMS
+		key.LastPull.Ongoing = key.Status == models.StatusRunning && at-run.pullLast <= pullGapMS
 	}
 	key.LastPull.Rows = list(key.LastPull.Rows)
 	all := make([]int, 0, len(run.pulls))
@@ -268,7 +272,7 @@ func (k *LogTracker) details(run *keyRun, at int64) models.Key {
 	if run.key.Forces != nil {
 		forces := *run.key.Forces
 		forces.At = list(forces.At)
-		finished := key.Status == "timed" || key.Status == "depleted"
+		finished := key.Status == models.StatusTimed || key.Status == models.StatusDepleted
 		forces.NeedsCheck = finished && forces.Pct < forcesCheckPct
 		if finished && forces.Pct < 100 { // the game finishes a key only at 100%: what's missing wasn't counted here
 			forces.Pct = 100
@@ -283,7 +287,7 @@ func (k *LogTracker) details(run *keyRun, at int64) models.Key {
 		})
 		key.Forces = &forces
 	}
-	if key.Status != "running" {
+	if key.Status != models.StatusRunning {
 		key.Lanes = keyLanes(key, run.track.Pulls)
 		key.Suggestions = keySuggestions(key, bestRun(key, k.history), k.rules.Suggestions)
 	}

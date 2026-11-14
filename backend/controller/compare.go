@@ -90,7 +90,7 @@ func compare(c *gin.Context, compares Compares, kind models.FightKind, run bool)
 		return
 	}
 	if compares == nil {
-		c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "no Warcraft Logs credentials in .env"})
+		c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: noWCLKeys})
 		return
 	}
 	var review models.PlayerCompare
@@ -100,9 +100,18 @@ func compare(c *gin.Context, compares Compares, kind models.FightKind, run bool)
 	} else {
 		review, err = compares.Cached(kind, start, c.Param("player"))
 	}
+	wclAnswer(c, "player review", review, err)
+}
+
+// noWCLKeys is the answer when the site has no Warcraft Logs credentials at all.
+const noWCLKeys = "no Warcraft Logs credentials in .env"
+
+// wclAnswer answers with body, or maps a review's or comparer's error to a status (502 for Warcraft Logs failing,
+// without its text, logged as doing).
+func wclAnswer(c *gin.Context, doing string, body any, err error) {
 	switch {
 	case err == nil:
-		c.JSON(http.StatusOK, review)
+		c.JSON(http.StatusOK, body)
 	case errors.Is(err, service.ErrNoSuchKey), errors.Is(err, service.ErrNoSuchPull), errors.Is(err, service.ErrNoSuchPlayer):
 		c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	case errors.Is(err, service.ErrKeyRunning):
@@ -114,7 +123,7 @@ func compare(c *gin.Context, compares Compares, kind models.FightKind, run bool)
 	case errors.Is(err, models.ErrNoCredentials), errors.Is(err, models.ErrBadCredentials):
 		c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "no working Warcraft Logs keys: add them in Settings"})
 	default:
-		log.Printf("player review: %v", err)
+		log.Printf("%s: %v", doing, err)
 		c.JSON(http.StatusBadGateway, ErrorResponse{Error: "Warcraft Logs failed; try again later"})
 	}
 }
