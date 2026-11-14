@@ -131,6 +131,7 @@ type keyRun struct {
 	lastPull   models.KeyMeter
 	raid       *raidRun                         // nil for a key
 	buffGaps   buffTrack                        // flask, food and party buffs that came off
+	buffSpans  buffSpans                        // each player's own buffs, for the track
 	abilities  map[[2]string]*models.KeyAbility // (player, ability) -> what it did
 	takenBy    map[[2]string]int64              // (player, ability) -> damage taken from it
 	sample     abilitySampler                   // what the replay's focus bars keep
@@ -257,6 +258,7 @@ func (k *LogTracker) add(line models.LogLine) {
 	case "COMBATANT_INFO":
 		if len(f) > 0 && run.auras[f[0]] == nil {
 			run.auras[f[0]], run.gear[f[0]] = auraIDs(f), itemIDs(f)
+			run.buffSpans.own[f[0]] = ownAuraIDs(f)
 			run.party = append(run.party, f[0])
 		}
 	// A party's kill is logged as PARTY_KILL before the killing blow and UNIT_DIED after it, sometimes only one of the
@@ -437,7 +439,7 @@ func newRun(key models.Key, instance string) *keyRun {
 		takenAt: map[int64]map[[2]string]*models.SpikeCause{}, hits: newHitWatch(),
 		sample: abilitySampler{every: mplusAbilityEveryMS, abilitiesWere: map[[2]string]models.KeyAbility{},
 			takenWere: map[[2]string]int64{}, targetsWere: map[[2]string]int64{}, casting: map[string]int{}}}
-	run.buffGaps = newBuffTrack()
+	run.buffGaps, run.buffSpans = newBuffTrack(), newBuffSpans()
 	run.track.Casts, run.track.Abilities = map[string][]models.TrackCast{}, map[string][]models.AbilitySeries{}
 	run.track.TargetSeries = map[string][]models.AbilitySeries{}
 	return run
@@ -474,7 +476,7 @@ func (k *LogTracker) closeCurrent(at int64, status string, final int64) {
 	run.sample.at = -run.sample.every // closes the last stretch, however short
 	k.sampleAbilities(at)
 	key := k.details(run, at)
-	key.Abilities, key.Taken = abilities(run, k.schools)
+	key.Abilities, key.Taken = abilities(run, k.schools, k.spellIDs)
 	key.Report, key.Imported = k.source, k.source != nil
 	track := k.trackOf(run)
 	k.last, k.lastTrack, k.current = &key, &track, nil
@@ -552,17 +554,26 @@ func (k *LogTracker) event(at int64, event string, f []string) {
 		mark(run.acting, src, at/1000, at/1000+1) // a cast or hit covers about a global cooldown
 	}
 	if dst != "" && len(f) > 11 && f[11] == "BUFF" {
+		own := f[0] == f[4] && slices.Contains(run.party, f[4])
 		switch event {
 		case "SPELL_AURA_APPLIED", "SPELL_AURA_REFRESH":
 			k.buffChanged(run, k.clockAt(at), dst, atoi(f[8]), f[9], true)
+			if own && event == "SPELL_AURA_APPLIED" {
+				run.buffSpans.change(k.clockAt(at), dst, atoi(f[8]), f[9], true)
+			}
 		case "SPELL_AURA_REMOVED":
 			k.buffChanged(run, k.clockAt(at), dst, atoi(f[8]), f[9], false)
+			if own {
+				run.buffSpans.change(k.clockAt(at), dst, atoi(f[8]), f[9], false)
+			}
 		}
 	}
 	switch event {
 	case "SPELL_RESURRECT":
 		if dst != "" {
 			run.buffGaps.rezzed[dst] = append(run.buffGaps.rezzed[dst], k.clockAt(at))
+			run.key.Resurrections = append(run.key.Resurrections,
+				models.Resurrection{ClockMS: k.clockAt(at), By: src, Player: dst})
 		}
 	case "SPELL_AURA_APPLIED":
 		if n := len(run.key.Lusts); dst != "" && len(f) > 9 && slices.Contains(k.rules.Lust.Names, f[9]) &&
@@ -766,11 +777,11 @@ func (run *keyRun) ability(player, name string) *models.KeyAbility {
 }
 
 // abilities is what each player's abilities did over the run, and what each took damage from, most first, each with
-// its spell school (by ability name).
-func abilities(run *keyRun, schools map[string]int) ([]models.KeyAbility, []models.KeyHit) {
+// its spell school and ID (by ability name).
+func abilities(run *keyRun, schools, ids map[string]int) ([]models.KeyAbility, []models.KeyHit) {
 	done := make([]models.KeyAbility, 0, len(run.abilities))
 	for _, a := range run.abilities {
-		a.School = schools[a.Ability]
+		a.School, a.ID = schools[a.Ability], ids[a.Ability]
 		done = append(done, *a)
 	}
 	slices.SortFunc(done, func(a, b models.KeyAbility) int {
@@ -939,6 +950,21 @@ func auraIDs(f []string) []int {
 		parts := strings.Split(strings.Trim(list, "[]"), ",")
 		for j := 1; j < len(parts); j += 3 {
 			ids = append(ids, atoi(parts[j]))
+		}
+	}
+	return ids
+}
+
+// ownAuraIDs is the auras COMBATANT_INFO lists the player cast on themselves (flask, food, a rune): up when the run
+// started, with no line to say so.
+func ownAuraIDs(f []string) []int {
+	var ids []int
+	if list := listField(f, 0); list != "" {
+		parts := strings.Split(strings.Trim(list, "[]"), ",")
+		for j := 0; j+1 < len(parts); j += 3 {
+			if parts[j] == f[0] {
+				ids = append(ids, atoi(parts[j+1]))
+			}
 		}
 	}
 	return ids

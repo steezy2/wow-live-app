@@ -85,6 +85,17 @@ definitions:
       toMS:
         type: integer
     type: object
+  models.BuffSpan:
+    properties:
+      f:
+        type: integer
+      i:
+        type: integer
+      "n":
+        type: string
+      t:
+        type: integer
+    type: object
   models.Character:
     properties:
       class:
@@ -293,6 +304,10 @@ definitions:
       healing:
         type: integer
       hits:
+        type: integer
+      id:
+        description: the spell's ID, as Warcraft Logs has it; 0 in keys saved before
+          Nov 13
         type: integer
       player:
         type: string
@@ -729,6 +744,15 @@ definitions:
           Bosses is a raid boss's units and the adds to burst (by GUID, each point named, with its health) about once a
           second; a raid pull's or a key's, once it has ended.
         type: object
+      buffs:
+        additionalProperties:
+          items:
+            $ref: '#/definitions/models.BuffSpan'
+          type: array
+        description: |-
+          Buffs is each player's own buffs (cast on themselves) as stretches on the clock of a finished run; none in
+          tracks saved before Nov 13.
+        type: object
       casts:
         additionalProperties:
           items:
@@ -957,6 +981,12 @@ definitions:
         - $ref: '#/definitions/models.ReportLink'
         description: Report is the Warcraft Logs fight this key is, when one is known
           (imported, or matched to a report).
+      resurrections:
+        description: Resurrections is each time a player was brought back, in order;
+          missing in keys saved before Nov 13.
+        items:
+          $ref: '#/definitions/models.Resurrection'
+        type: array
       silentMS:
         description: |-
           SilentMS is how long ago the last line of a running key was logged (0 once it's over). The game writes its log
@@ -1487,10 +1517,21 @@ definitions:
         - $ref: '#/definitions/models.ReportLink'
         description: Report is the Warcraft Logs fight this pull is, when one is known
           (imported, or matched to a report).
+      resurrections:
+        items:
+          $ref: '#/definitions/models.Resurrection'
+        type: array
       soaks:
         items:
           $ref: '#/definitions/models.RaidSoak'
         type: array
+      specs:
+        additionalProperties:
+          type: integer
+        description: |-
+          Specs is each raider's specialization ID and Resurrections who was brought back and by whom; both missing in
+          pulls saved before Nov 13.
+        type: object
       spikes:
         items:
           $ref: '#/definitions/models.KeySpike'
@@ -1904,6 +1945,15 @@ definitions:
       fightID:
         type: integer
     type: object
+  models.Resurrection:
+    properties:
+      by:
+        type: string
+      clockMS:
+        type: integer
+      player:
+        type: string
+    type: object
   models.ReviewMetric:
     properties:
       amount:
@@ -2059,6 +2109,9 @@ definitions:
   models.TrackCast:
     properties:
       e:
+        type: integer
+      i:
+        description: the spell's ID; 0 in tracks saved before Nov 13
         type: integer
       s:
         type: string

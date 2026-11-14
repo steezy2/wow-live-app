@@ -196,7 +196,7 @@ func (k *LogTracker) trackCast(at int64, event string, f []string) {
 	open, casting := run.sample.casting[f[0]]
 	switch {
 	case event == "SPELL_CAST_START":
-		casts[who] = append(casts[who], models.TrackCast{ClockMS: clockMS, Spell: f[9], Cut: true})
+		casts[who] = append(casts[who], models.TrackCast{ClockMS: clockMS, Spell: f[9], ID: atoi(f[8]), Cut: true})
 		run.sample.casting[f[0]] = len(casts[who]) - 1
 	case casting && casts[who][open].Spell == f[9] &&
 		(event == "SPELL_CAST_SUCCESS" || len(f) > 11 && f[11] == "Interrupted"):
@@ -204,7 +204,7 @@ func (k *LogTracker) trackCast(at int64, event string, f []string) {
 		c.EndMS, c.Cut = max(clockMS, c.ClockMS+1), event != "SPELL_CAST_SUCCESS"
 		delete(run.sample.casting, f[0])
 	case event == "SPELL_CAST_SUCCESS":
-		casts[who] = append(casts[who], models.TrackCast{ClockMS: clockMS, Spell: f[9]})
+		casts[who] = append(casts[who], models.TrackCast{ClockMS: clockMS, Spell: f[9], ID: atoi(f[8])})
 	}
 }
 
@@ -272,6 +272,7 @@ func (k *LogTracker) trackOf(run *keyRun) models.KeyTrack {
 			}
 		}
 		t.Abilities, t.TargetSeries = copySeries(run.track.Abilities), copySeries(run.track.TargetSeries)
+		t.Buffs = run.buffSpans.done(trackEnd(t), k.names, k.spells)
 	}
 	if r := run.raid; r == nil {
 		t.Health = slices.SortedFunc(maps.Keys(t.Bosses), func(a, b string) int {
@@ -367,4 +368,80 @@ func (r *keyRun) bigUnit(guid, name string) bool {
 		return true
 	}
 	return r.facts != nil && slices.Contains(r.facts.Minibosses, npcOf(guid))
+}
+
+// buffSpans collects each player's own buffs as stretches: spans by player name, and which one of a (player, spell
+// ID) is still open.
+type buffSpans struct {
+	spans map[string][]models.BuffSpan
+	open  map[[2]string]int // (player, spell ID) -> index in the player's spans
+	// own is each player's (by GUID) own auras COMBATANT_INFO listed at the start, and off when one of them first came
+	// off with no span open: it was up until then.
+	own map[string][]int
+	off map[[2]string]int64
+}
+
+func newBuffSpans() buffSpans {
+	return buffSpans{open: map[[2]string]int{}, own: map[string][]int{}, off: map[[2]string]int64{}}
+}
+
+// change opens a span when a buff goes up on player at clockMS, and closes it when it comes off.
+func (b *buffSpans) change(clockMS int64, player string, id int, name string, up bool) {
+	key := [2]string{player, strconv.Itoa(id)}
+	i, open := b.open[key]
+	switch {
+	case up && !open:
+		if b.spans == nil {
+			b.spans = map[string][]models.BuffSpan{}
+		}
+		b.spans[player] = append(b.spans[player], models.BuffSpan{ID: id, Name: name, FromMS: clockMS})
+		b.open[key] = len(b.spans[player]) - 1
+	case !up && open:
+		b.spans[player][i].ToMS = clockMS
+		delete(b.open, key)
+	case !up:
+		if _, seen := b.off[key]; !seen {
+			b.off[key] = clockMS
+		}
+	}
+}
+
+// done is the players' spans with the ones still up ended at endMS, and the auras they started with (names: player
+// names by GUID, spells: spell names by ID) from the start to when one first came off, or to endMS.
+func (b *buffSpans) done(endMS int64, names map[string]string, spells map[int]string) map[string][]models.BuffSpan {
+	out := map[string][]models.BuffSpan{}
+	for player, spans := range b.spans {
+		out[player] = slices.Clone(spans)
+	}
+	for key, i := range b.open {
+		out[key[0]][i].ToMS = endMS
+	}
+	for guid, ids := range b.own {
+		player := names[guid]
+		for _, id := range ids {
+			key := [2]string{player, strconv.Itoa(id)}
+			to, off := b.off[key]
+			if !off && slices.ContainsFunc(out[player], func(s models.BuffSpan) bool { return s.ID == id }) {
+				continue // it came up in the run, so it wasn't up at the start
+			}
+			if !off {
+				to = endMS
+			}
+			if name := spells[id]; player != "" && name != "" {
+				out[player] = append(out[player], models.BuffSpan{ID: id, Name: name, ToMS: to})
+			}
+		}
+	}
+	return out
+}
+
+// trackEnd is the last moment a track has a position for.
+func trackEnd(t models.KeyTrack) int64 {
+	var end int64
+	for _, points := range t.Players {
+		if n := len(points); n > 0 {
+			end = max(end, points[n-1].ClockMS)
+		}
+	}
+	return end
 }

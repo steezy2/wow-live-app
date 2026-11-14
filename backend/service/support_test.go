@@ -23,23 +23,23 @@ func TestSupportDamageMovesToTheEvoker(t *testing.T) {
 		abilities []models.KeyAbility
 	}{
 		{"an Evoker in the party", "Player-76-0000BBBB", nil, "", map[string]int64{"Testmage": 800, "Testevoker": 200},
-			[]models.KeyAbility{{Player: "Testmage", Ability: "Arcane Barrage", Damage: 800, Hits: 1, School: 0x40},
-				{Player: "Testevoker", Ability: "Ebon Might", Damage: 200, Hits: 1, School: 0xc}}},
+			[]models.KeyAbility{{Player: "Testmage", Ability: "Arcane Barrage", ID: 44425, Damage: 800, Hits: 1, School: 0x40},
+				{Player: "Testevoker", Ability: "Ebon Might", ID: 395296, Damage: 200, Hits: 1, School: 0xc}}},
 		{"an Evoker in another party", "Player-76-0000CCCC", nil, "", map[string]int64{"Testmage": 1000},
-			[]models.KeyAbility{{Player: "Testmage", Ability: "Arcane Barrage", Damage: 1000, Hits: 1, School: 0x40}}},
+			[]models.KeyAbility{{Player: "Testmage", Ability: "Arcane Barrage", ID: 44425, Damage: 1000, Hits: 1, School: 0x40}}},
 		{"not after its hit", "Player-76-0000BBBB", []string{at(3, `DAMAGE_SHIELD,`+testPlayer+`,`+mobUnit(3)+
 			`,17,"Thorns",0x8,`+advancedOf(boss, "0000000000000000")+`,5,5,-1,8,0,0,0,nil,nil,nil`)}, "",
 			map[string]int64{"Testmage": 1000},
-			[]models.KeyAbility{{Player: "Testmage", Ability: "Arcane Barrage", Damage: 1000, Hits: 1, School: 0x40}}},
+			[]models.KeyAbility{{Player: "Testmage", Ability: "Arcane Barrage", ID: 44425, Damage: 1000, Hits: 1, School: 0x40}}},
 		{"a swing, whose support follows SWING_DAMAGE_LANDED", "Player-76-0000BBBB", []string{
 			at(3, `SWING_DAMAGE,`+testPlayer+`,`+mobUnit(3)+`,`+advancedOf(boss, "0000000000000000")+
 				`,500,500,-1,1,0,0,0,nil,nil,nil`),
 			at(3, `SWING_DAMAGE_LANDED,`+testPlayer+`,`+mobUnit(3)+`,`+advancedOf(boss, "0000000000000000")+
 				`,500,500,-1,1,0,0,0,nil,nil,nil`)}, "SWING_DAMAGE_LANDED_SUPPORT",
 			map[string]int64{"Testmage": 1300, "Testevoker": 200},
-			[]models.KeyAbility{{Player: "Testmage", Ability: "Arcane Barrage", Damage: 1000, Hits: 1, School: 0x40},
+			[]models.KeyAbility{{Player: "Testmage", Ability: "Arcane Barrage", ID: 44425, Damage: 1000, Hits: 1, School: 0x40},
 				{Player: "Testmage", Ability: "Melee", Damage: 300, Hits: 1, School: 0x1},
-				{Player: "Testevoker", Ability: "Ebon Might", Damage: 200, Hits: 1, School: 0xc}}},
+				{Player: "Testevoker", Ability: "Ebon Might", ID: 395296, Damage: 200, Hits: 1, School: 0xc}}},
 	} {
 		keys := newTracker(t, nil)
 		lines := append(partyOfTwo(at(0, `CHALLENGE_MODE_START,"Den of Nalorakk",2825,586,10,[9]`)),

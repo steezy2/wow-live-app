@@ -1,4 +1,4 @@
-import type { KeyCast, KeyDeath, KeyDispel, KeyInterrupt, RaidLane } from './api'
+import type { BuffSpan, KeyCast, KeyDeath, KeyDispel, KeyInterrupt, RaidLane, TrackCast } from './api'
 
 /** The lanes whose marks each name one player, first in the text ("Name · ability", or the name alone). */
 const playerLanes = new Set(['deaths', 'cooldowns', 'potions', 'cc'])
@@ -66,4 +66,29 @@ export function fightEvents(f: {
     })),
   ]
   return events.sort((a, b) => a.clockMS - b.clockMS)
+}
+
+/** A player's casts of the spells used at most once a minute through the fight (their cooldowns), a lane per spell. */
+export function cooldownLanes(casts: TrackCast[], durationMS: number): RaidLane[] {
+  const bySpell = new Map<string, TrackCast[]>()
+  casts.filter((c) => !c.x).forEach((c) => bySpell.set(c.s, [...(bySpell.get(c.s) ?? []), c]))
+  const most = Math.max(1, Math.ceil(durationMS / 60_000))
+  return [...bySpell]
+    .filter(([, list]) => list.length <= most)
+    .sort((a, b) => a[1][0].t - b[1][0].t)
+    .map(([spell, list]) => ({ name: spell, kind: 'cooldowns', marks: list.map((c) => ({ clockMS: c.t, text: spell })) }))
+}
+
+/** One buff's share of the fight it was up on a player (0 to 100), most up first; a buff cast again counts its
+ * stretches together. */
+export function buffUptimes(spans: BuffSpan[], durationMS: number): { id: number; name: string; pct: number }[] {
+  const up = new Map<number, { name: string; ms: number }>()
+  spans.forEach((s) => {
+    const row = up.get(s.i) ?? { name: s.n, ms: 0 }
+    row.ms += Math.max(0, Math.min(s.t, durationMS) - Math.max(s.f, 0))
+    up.set(s.i, row)
+  })
+  return [...up]
+    .map(([id, { name, ms }]) => ({ id, name, pct: durationMS > 0 ? Math.min(100, (ms / durationMS) * 100) : 0 }))
+    .sort((a, b) => b.pct - a.pct || a.name.localeCompare(b.name))
 }

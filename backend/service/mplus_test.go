@@ -181,6 +181,7 @@ func TestKeyStep2(t *testing.T) {
 		info("Player-76-0000BBBB", "262", "Player-76-0000BBBB,462854,1"),
 		// The shaman's name shows up only after the key started: still in the party.
 		`11/4/2026 19:01:10.000-7  SPELL_AURA_APPLIED,`+shaman+`,`+shaman+`,462854,"Skyfury",0x8,BUFF`,
+		`11/4/2026 19:01:12.000-7  SPELL_AURA_APPLIED_DOSE,`+shaman+`,`+shaman+`,462854,"Skyfury",0x8,BUFF,2`, // a stack: still up
 		`11/4/2026 19:01:19.000-7  SPELL_CAST_SUCCESS,`+shaman+`,`+none+`,nil,0x80000000,0x80000000,192058,"Capacitor Totem",0x8,`+
 			advancedOf("Player-76-0000BBBB", none),
 		`11/4/2026 19:01:20.000-7  SPELL_INTERRUPT,`+shaman+`,`+mob+`,57994,"Wind Shear",0x8,1238063,"Light Bolt",2`,
@@ -196,6 +197,7 @@ func TestKeyStep2(t *testing.T) {
 		`11/4/2026 19:01:25.000-7  SPELL_DAMAGE,`+mob+`,`+testPlayer+`,1238063,"Light Bolt",0x2,`+
 			advancedOf("Player-76-0000AAAA", none)+`,9000,9000,100,2,0,0,0,nil,nil,nil,ST`,
 		`11/4/2026 19:01:25.100-7  UNIT_DIED,`+none+`,nil,0x80000000,0x80000000,`+testPlayer+`,0`,
+		`11/4/2026 19:01:26.000-7  SPELL_RESURRECT,`+shaman+`,`+testPlayer+`,20484,"Rebirth",0x8`,
 		`11/4/2026 19:01:30.000-7  UNIT_DIED,`+none+`,nil,0x80000000,0x80000000,`+mob+`,0`,
 		`11/4/2026 19:01:31.000-7  UNIT_DIED,`+none+`,nil,0x80000000,0x80000000,`+mob+`,0`,
 		`11/4/2026 19:01:32.000-7  UNIT_DIED,`+none+`,nil,0x80000000,0x80000000,`+
@@ -238,11 +240,11 @@ func TestKeyStep2(t *testing.T) {
 			"table flagged, and the add the table lacks", f)
 	}
 	wantAbilities := []models.KeyAbility{
-		{Player: "Testmage", Ability: "Arcane Barrage", Damage: 5000, Hits: 1, School: 0x40},
-		{Player: "Testshaman", Ability: "Healing Wave", Healing: 2000, Hits: 1, School: 0x8},
+		{Player: "Testmage", Ability: "Arcane Barrage", ID: 44425, Damage: 5000, Hits: 1, School: 0x40},
+		{Player: "Testshaman", Ability: "Healing Wave", ID: 77472, Healing: 2000, Hits: 1, School: 0x8},
 		{Player: "Testshaman", Ability: "Melee", Damage: 1000, Hits: 1, School: 0x1}, // the pet's, under its owner
-		{Player: "Testmage", Ability: "Ice Block", Casts: 1, School: 0x10},
-		{Player: "Testshaman", Ability: "Capacitor Totem", Casts: 1, School: 0x8}}
+		{Player: "Testmage", Ability: "Ice Block", ID: 45438, Casts: 1, School: 0x10},
+		{Player: "Testshaman", Ability: "Capacitor Totem", ID: 192058, Casts: 1, School: 0x8}}
 	wantTaken := []models.KeyHit{{Player: "Testmage", Ability: "Light Bolt", Damage: 9000, School: 0x2}}
 	if !reflect.DeepEqual(got.Abilities, wantAbilities) || !reflect.DeepEqual(got.Taken, wantTaken) {
 		t.Fatalf("abilities = %+v\nwant %+v\ntaken = %+v, want %+v", got.Abilities, wantAbilities, got.Taken, wantTaken)
@@ -250,6 +252,9 @@ func TestKeyStep2(t *testing.T) {
 	if got.Logger != "Testmage" || got.Realms["Testshaman"] != "Sargeras" {
 		t.Fatalf("logger = %q, realms %v; want Testmage, whose unit flags say the log is theirs, and the shaman's realm",
 			got.Logger, got.Realms)
+	}
+	if r := got.Resurrections; len(r) != 1 || r[0].By != "Testshaman" || r[0].Player != "Testmage" || r[0].ClockMS != 32_000 { // 26 s of log, the death's penalty and the countdown
+		t.Fatalf("resurrections = %+v; want the shaman bringing Testmage back at 0:32 on the key clock", r)
 	}
 	if a := got.Activity["Testmage"]; a <= 0 || a > 100 || got.Lusts == nil || got.BetweenPulls == nil {
 		t.Fatalf("activity = %v, lusts %v, between pulls %v; want the mage busy for part of the pull, and lists",
@@ -259,6 +264,10 @@ func TestKeyStep2(t *testing.T) {
 		t.Fatalf("saved %d keys, %v; want the key saved", len(keys.Saved("")), err)
 	}
 	track, err := keys.Track(got.Start)
+	if sky := track.Buffs["Testshaman"]; err != nil || len(sky) != 1 || sky[0].ID != 462854 || sky[0].Name != "Skyfury" ||
+		sky[0].ToMS <= sky[0].FromMS {
+		t.Fatalf("buffs = %+v, %v; want the shaman's own Skyfury as one stretch to the end", track.Buffs, err)
+	}
 	if me := track.Players["Testmage"]; err != nil || len(me) == 0 || me[0].X != 1599.81 || me[0].Map != 2610 ||
 		len(track.Deaths) != 1 || track.Deaths[0].Name != "Radiant Spellsower" || track.Classes["Testmage"] != "Mage" ||
 		len(track.Meters["Testmage"]) == 0 {

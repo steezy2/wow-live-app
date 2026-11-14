@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { fightEvents, lanesOf } from './events'
+import { buffUptimes, cooldownLanes, fightEvents, lanesOf } from './events'
 
 describe('lanesOf', () => {
   it("cuts the player lanes to one player's marks and leaves the rest", () => {
@@ -39,6 +39,33 @@ describe('fightEvents', () => {
       [20, 'dispel', 'Tank', 'Curse on Tank ran out'],
       [40, 'raid cooldown', 'Healer', 'Barrier'],
       [50, 'death', 'Tank', 'died to Smash from Boss'],
+    ])
+  })
+})
+
+describe('cooldownLanes', () => {
+  it('keeps the spells cast at most once a minute and not the ones cut short', () => {
+    const casts = [
+      { t: 1000, s: 'Combustion' },
+      { t: 61_000, s: 'Combustion' },
+      ...[1, 2, 3, 4, 5].map((n) => ({ t: n * 1000, s: 'Fireball' })),
+      { t: 5000, s: 'Meteor', x: true },
+    ]
+    const lanes = cooldownLanes(casts, 90_000)
+    expect(lanes.map((l) => [l.name, l.marks.map((m) => m.clockMS)])).toEqual([['Combustion', [1000, 61_000]]])
+  })
+})
+
+describe('buffUptimes', () => {
+  it('adds a buff cast again, stops at the fight end and lists the most up first', () => {
+    const spans = [
+      { i: 1, n: 'Haste', f: 0, t: 25_000 },
+      { i: 1, n: 'Haste', f: 50_000, t: 75_000 },
+      { i: 2, n: 'Shield', f: 90_000, t: 150_000 },
+    ]
+    expect(buffUptimes(spans, 100_000)).toEqual([
+      { id: 1, name: 'Haste', pct: 50 },
+      { id: 2, name: 'Shield', pct: 10 },
     ])
   })
 })
