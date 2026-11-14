@@ -4,6 +4,9 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 
 ## [Unreleased]
 
+### Changed (replay)
+- A Mythic+ replay walks a player between pulls instead of jumping: where the log didn't see them for over 3 s (it has no position out of combat), they run at 7 yards a second along where parties have walked in the dungeon (`walkPath.ts`, `positionAt`) and wait at the next place they were seen. It's an estimate; with no walked way between the two places, or a move too fast to walk (a release, a portal), they still jump.
+
 ### Fixed
 - A player review no longer drops an unreadable track silently; a key's avoidable hits, a pull's stacks and soaks and a review's similar runs keep one order when rebuilt; deleting a saved key tells open windows and the overlay; an expired Warcraft Logs token is fetched again instead of failing until restart; the page's inline script (blocked by its policy) is a file, so the overlay opens without a splash; the Home tab logs a failed recap; a repeated log name is refused.
 

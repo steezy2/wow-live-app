@@ -12,6 +12,7 @@ import {
   type TrackPoint,
 } from './api'
 import { valueAt } from './format'
+import type { PathFinder } from './walkPath'
 
 /** A move between two track points faster than this (yards per second) is a jump (a teleport, a release, a portal),
  * drawn as one, not as a walk. */
@@ -19,6 +20,9 @@ export const JUMP_YARDS_PER_S = 15
 
 /** Track points further apart than this (ms) aren't walked between: the unit wasn't seen in the gap. */
 const TRACK_GAP_MS = 3_000
+
+/** How fast (yards per second) a unit is walked over a gap it wasn't seen in: a run. */
+const WALK_YARDS_PER_S = 7
 
 /** How often (ms) the page around a playing replay (lanes, graph, meters, cards) follows its clock; the map follows
  * it every frame. */
@@ -229,16 +233,28 @@ export function lastAt(points: TrackPoint[], now: number): TrackPoint | undefine
 }
 
 /** Where a unit was at a clock reading: between its points around it, as if it walked straight, unless they're on
- * different maps, far apart in time (TRACK_GAP_MS) or a jump; else its last point. */
-export function positionAt(points: TrackPoint[], now: number): TrackPoint | undefined {
+ * different maps, far apart in time (TRACK_GAP_MS) or a jump; else its last point. With a pathfinder, a gap the
+ * unit wasn't seen in is walked along where parties have walked (the log has no position out of combat), at
+ * WALK_YARDS_PER_S from the last point and waiting at the next, unless there's no way or it's a jump. */
+export function positionAt(points: TrackPoint[], now: number, route?: PathFinder): TrackPoint | undefined {
   const i = indexAfter(points, now)
   const last = points[i - 1]
   const next = points[i]
-  if (!last || !next || next.map !== last.map || next.t - last.t > TRACK_GAP_MS) return last
+  if (!last || !next || next.map !== last.map) return last
+  if (next.t - last.t > TRACK_GAP_MS) return route ? walkedBetween(last, next, now, route) : last
   const seconds = Math.max(1, next.t - last.t) / 1000
   if (Math.hypot(next.x - last.x, next.y - last.y) / seconds > JUMP_YARDS_PER_S) return last
   const share = (now - last.t) / (next.t - last.t)
   return { ...last, x: last.x + (next.x - last.x) * share, y: last.y + (next.y - last.y) * share }
+}
+
+function walkedBetween(last: TrackPoint, next: TrackPoint, now: number, route: PathFinder): TrackPoint {
+  const path = route(last, next)
+  const gap = next.t - last.t
+  if (!path || path.length / (gap / 1000) > JUMP_YARDS_PER_S) return last
+  const walking = Math.min(gap, (path.length / WALK_YARDS_PER_S) * 1000)
+  const [x, y] = path.at(path.length * Math.min(1, (now - last.t) / Math.max(1, walking)))
+  return { ...last, x, y }
 }
 
 /** A raider's pull up to a clock reading: their abilities, what they took damage from and (from tracks that have

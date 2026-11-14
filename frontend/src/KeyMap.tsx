@@ -27,6 +27,7 @@ import {
 import { BossBox, FocusBoxes } from './ReplayBoxes'
 import { useDungeonMap } from './routes'
 import { tip } from './tipAttrs'
+import { pathFinder } from './walkPath'
 
 const NO_DUNGEON: DungeonMap = { floors: [], tilesPerSide: 0, walked: [], enemies: [] }
 /** The trail the live map draws. */
@@ -183,6 +184,7 @@ export function KeyMap(props: {
           key={current}
           track={track}
           backdrop={backdrop}
+          walked={dungeon.walked}
           floor={current}
           now={now}
           clock={replay.playing ? replay.now : undefined}
@@ -270,8 +272,12 @@ export function MapCanvas(props: {
   /** Called with whether Shift was held. */
   onPickEnemy?: (guid: string, shift: boolean) => void
   overlay?: Overlay
+  /** Where parties have walked in the dungeon: with it, a player the log didn't see for a while walks to where they
+   * were next seen along those places, not as a jump. */
+  walked?: TrackPoint[]
 }) {
   const { track, backdrop, floor, now, clock, trailMS, deaths, focus, onPick, enemy, onPickEnemy, overlay } = props
+  const { walked } = props
   const ref = useRef<HTMLCanvasElement>(null)
   const [loaded, setLoaded] = useState(0)
   const [view, setView] = useState(WHOLE)
@@ -321,6 +327,10 @@ export function MapCanvas(props: {
   const area = useMemo<[number, number, number]>(
     () => (backdrop.kind === 'image' ? fightArea(backdrop.map, track, floor) : [0, 0, 1]),
     [backdrop, track, floor],
+  )
+  const route = useMemo(
+    () => (walked ? pathFinder([...walked, ...Object.values(track.players).flat()]) : undefined),
+    [walked, track.players],
   )
   const walkedHere = useMemo(
     () => (backdrop.kind === 'walked' ? backdrop.walked.filter((p) => p.map === floor) : []),
@@ -454,7 +464,7 @@ export function MapCanvas(props: {
       const players = Object.entries(track.players).sort(([a], [b]) => Number(a === focus) - Number(b === focus))
       players.forEach(([player, points]) => {
         const colour = classColors[track.classes[player]] ?? css.accent
-        const here = positionAt(points, now)
+        const here = positionAt(points, now, route)
         const seen = points
           .slice(indexAfter(points, now - trailMS - 1), indexAfter(points, now))
           .filter((p) => p.map === floor)
@@ -515,7 +525,9 @@ export function MapCanvas(props: {
     }
     tick()
     return () => cancelAnimationFrame(frame)
-  }, [track, backdrop, walkedHere, area, floor, now, clock, trailMS, deaths, loaded, view, focus, enemy, overlay])
+  }, [
+    track, backdrop, walkedHere, route, area, floor, now, clock, trailMS, deaths, loaded, view, focus, enemy, overlay,
+  ])
   return (
     <canvas
       ref={ref}

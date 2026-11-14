@@ -13,6 +13,7 @@ import {
   MIN_FLOOR_POINTS,
   positionAt,
 } from './replay'
+import type { PathFinder } from './walkPath'
 
 const at = (t: number, x: number, map = 1): TrackPoint => ({ t, x, y: 0, map })
 
@@ -57,6 +58,28 @@ describe('positionAt', () => {
 
   it('has no position before the first point', () => {
     expect(positionAt([at(1000, 0)], 500)).toBeUndefined()
+  })
+
+  describe('with a pathfinder', () => {
+    const route = (length: number): PathFinder => () => ({ length, at: (yards) => [yards, 5] })
+    const points = [at(0, 0), at(60_000, 40)]
+    it.each([
+      ['starts walking at once', 2000, 14],
+      ['waits at the next point once there', 30_000, 40],
+    ])('walks a gap it was not seen in, and %s', (_, now, x) => {
+      const here = positionAt(points, now, route(40))
+      expect(here?.x).toBeCloseTo(x)
+      expect(here?.y).toBe(5)
+    })
+    it.each([
+      ['there is no way', () => undefined],
+      ['the walk is a jump', route(5000)],
+    ])('holds the last point when %s', (_, finder) => {
+      expect(positionAt(points, 30_000, finder)?.x).toBe(0)
+    })
+    it('leaves a short gap to the straight line', () => {
+      expect(positionAt([at(0, 0), at(1000, 10)], 500, route(99))?.x).toBe(5)
+    })
   })
 })
 
