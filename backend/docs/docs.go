@@ -5542,10 +5542,6 @@ const docTemplate = `{
                     "description": "Character is the player's own character as \"Name-Realm\" (the realm as the player writes it), whose Warcraft\nLogs reports can be imported; empty for none.",
                     "type": "string"
                 },
-                "characterGuess": {
-                    "description": "CharacterGuess is the name of the character that wrote most saved keys' logs, to prefill Character with (\"\" for\nnone); the logs don't name its realm.",
-                    "type": "string"
-                },
                 "lastLogMS": {
                     "type": "integer"
                 },

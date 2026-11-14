@@ -107,7 +107,7 @@ func Start(ctx context.Context, opts Options) (*Site, error) {
 		return nil, err
 	}
 	s := &Site{Keys: keys, Changes: &service.Changes{Every: pushEvery}, opts: opts, newKeys: newKeys}
-	characters := service.Characters{Realms: opts.Realms, Keys: store, Logs: opts.WCL,
+	characters := service.Characters{Realms: opts.Realms, Logs: opts.WCL,
 		Bosses: slices.Sorted(maps.Keys(opts.Bosses))}
 	if opts.Settings != nil {
 		opts.Settings.Logs, opts.Settings.Characters = s, characters

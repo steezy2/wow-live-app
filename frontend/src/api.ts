@@ -859,8 +859,6 @@ export interface SettingsView extends Settings {
   overlayShows: OverlaySettings['show'][]
   overlayColumns: OverlayColumn[]
   minOpacity: number
-  /** The name of the character whose game wrote most saved keys, for the character's placeholder; "" for none. */
-  characterGuess: string
   /** The most days an auto rule takes. */
   maxAutoDays: number
 }

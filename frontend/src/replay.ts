@@ -271,6 +271,32 @@ function schoolsOf(pull: Pick<RaidPull, 'abilities' | 'taken'>) {
   return schools
 }
 
+/** A series' [damage, healing, damage taken] up to a clock reading: a stretch (ending at one of ends, each starting
+ * where the one before it ended) the moment is in counts for the share of it that has passed. */
+function sumStretches(points: [number, number, number, number][], ends: number[], now: number): [number, number, number] {
+  const sum: [number, number, number] = [0, 0, 0]
+  for (const [end, d, h, t] of points) {
+    const from = ends[ends.indexOf(end) - 1] ?? 0
+    const share = end <= now ? 1 : Math.max(0, (now - from) / Math.max(1, end - from))
+    if (share === 0) break
+    ;[sum[0], sum[1], sum[2]] = [sum[0] + d * share, sum[1] + h * share, sum[2] + t * share]
+  }
+  return sum
+}
+
+/** What each player has done to the enemies called `enemy` (by name, as the track keeps it: every mob of that name)
+ * up to a clock reading, most damage first; empty for a track without targets. */
+export function damageIntoEnemy(track: KeyTrack, enemy: string, now: number): { player: string; damage: number }[] {
+  const ends = track.abilityTimes ?? []
+  return Object.entries(track.targetSeries ?? {})
+    .map(([player, series]) => ({
+      player,
+      damage: series.filter((s) => s.a === enemy).reduce((n, s) => n + sumStretches(s.p, ends, now)[0], 0),
+    }))
+    .filter((p) => p.damage > 0)
+    .sort((a, b) => b.damage - a.damage)
+}
+
 /** A raider's pull up to a clock reading, from a raid pull's track: their abilities' damage and healing, what they
  * took damage from and what they hit (a stretch the moment is in counts for the share of it that has passed, so the
  * numbers grow smoothly), and their casts counted as they finished (not stopped ones); hits only over the whole pull,
@@ -285,20 +311,7 @@ export function abilitiesUpTo(
   const series = track.abilities?.[player]
   const ends = track.abilityTimes
   if (!series || !ends) return undefined
-  const passed = (end: number) => {
-    if (end <= now) return 1
-    const from = ends[ends.indexOf(end) - 1] ?? 0 // a stretch starts where the one before it ended
-    return Math.max(0, (now - from) / Math.max(1, end - from))
-  }
-  const sumUp = (points: [number, number, number, number][]): [number, number, number] => {
-    const sum: [number, number, number] = [0, 0, 0]
-    for (const [end, d, h, t] of points) {
-      const share = passed(end)
-      if (share === 0) break
-      ;[sum[0], sum[1], sum[2]] = [sum[0] + d * share, sum[1] + h * share, sum[2] + t * share]
-    }
-    return sum
-  }
+  const sumUp = (points: [number, number, number, number][]) => sumStretches(points, ends, now)
   const casts = new Map<string, number>()
   for (const c of track.casts?.[player] ?? []) {
     if (!c.x && (c.e ?? c.t) <= now) casts.set(c.s, (casts.get(c.s) ?? 0) + 1)

@@ -385,11 +385,18 @@ export function MapCanvas(props: {
         ctx.globalAlpha = 1
       }
       const dot = canvas.width / 160 / view.k // the same size on screen at any zoom
-      const label = (text: string, x: number, y: number) => {
-        ctx.fillStyle = css.text
+      // A name over a dot (a player's), or under it (an enemy's) so the two don't cover each other; outlined to read on
+      // any map.
+      const label = (text: string, x: number, y: number, color: string, below = false) => {
         ctx.font = `${Math.round(dot * 2.6 * 10) / 10}px system-ui, sans-serif`
         ctx.textAlign = 'center'
-        ctx.fillText(text, x, y - dot * 3.4)
+        ctx.lineJoin = 'round'
+        ctx.lineWidth = dot / 1.5
+        ctx.strokeStyle = '#000'
+        ctx.fillStyle = color
+        const at = below ? y + dot * 5.2 : y - dot * 3.4
+        ctx.strokeText(text, x, at)
+        ctx.fillText(text, x, at)
       }
       const ring = (x: number, y: number, r: number) => {
         ctx.strokeStyle = css.text
@@ -420,7 +427,7 @@ export function MapCanvas(props: {
         ctx.stroke()
         if (guid === enemy) {
           ring(x, y, dot * 2)
-          label(enemyName(track, guid), x, y)
+          label(enemyName(track, guid), x, y, css.text, true)
         }
       })
       Object.entries(track.bosses ?? {}).forEach(([guid, points]) => {
@@ -435,8 +442,10 @@ export function MapCanvas(props: {
         ctx.arc(x, y, dot * 2.4, 0, 2 * Math.PI)
         ctx.fill()
         ctx.stroke()
-        if (guid === enemy) ring(x, y, dot * 3.4)
-        label(last.name ?? '', x, y)
+        if (guid === enemy) {
+          ring(x, y, dot * 3.4)
+          label(last.name ?? '', x, y, css.text, true)
+        }
       })
       const died = new Map<string, number>() // each player's last death so far
       deaths
@@ -473,7 +482,7 @@ export function MapCanvas(props: {
         dots.current.push({ id: player, enemy: false, x, y, r: dot * 1.2 })
         if (player === focus) {
           ring(x, y, dot * 2.2)
-          label(player, x, y)
+          label(player, x, y, colour)
         }
         if (dead) {
           ctx.strokeStyle = css.bad

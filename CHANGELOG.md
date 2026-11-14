@@ -10,6 +10,10 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 ### Changed
 - Code only, no behavior change: the settings' cleaning and character rule are `service.CleanSettings` and `CharacterNeedsCheck`; the import's files are written by `cachefile.WriteJSON`; one `wclAnswer` maps review and compare errors to statuses (and a raid pull's missing-pull 404 shares `respondError`); a key's status is `models.StatusRunning`, `StatusTimed`, `StatusDepleted`, `StatusAbandoned`; folder sizes moved to `clients/cachefile/size.go`; names only used in their own package are unexported. A player's parse reads the same everywhere (rounded down, as Warcraft Logs shows it).
 - The privacy policy and README say a reviewed player's name and realm go to Warcraft Logs; the Store listing matches 0.4.3.
+### Changed
+- **Home's combat logs** are grouped by the day they were written, the last 5 days one box each and everything older in one; a box picks all of its logs. *Read old logs* and *Read everything again* look like buttons.
+- **Import from Warcraft Logs** always suggests `Name-Realm` in the character box; `characterGuess` is gone from `/api/settings`.
+- **Replay**: a boss's name shows only once you pick it, names are outlined (a raider's in their class color, over their dot; an enemy's under it) and picking an enemy lists what each player has done to it (bottom right).
 
 ## [0.4.3] - 2026-11-13
 
