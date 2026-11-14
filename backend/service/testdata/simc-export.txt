@@ -1,0 +1,66 @@
+# Testshaman - Elemental - 2026-11-14 15:08 - US/Testrealm
+# SimC Addon 12.1.5-04
+# WoW 12.1.5.70783, TOC 120105
+# Requires SimulationCraft 1000-01 or newer
+
+shaman="Testshaman"
+level=90
+race=dwarf
+region=us
+server=testrealm
+role=spell
+professions=enchanting=26/jewelcrafting=1
+spec=elemental
+# loot_spec=elemental
+
+talents=CYQALMl7AwW51MWzGneuHE3tPCAAAAzMbLzMGjZZbZMmhZAAAAgFzstZmZYzwCz2MTDNzCAMbzMzYstYCzMbjFzMzYGLzyMzywYmZBAYAMzMzYYYA
+
+# Saved Loadout: M+
+# talents=CYQALMl7AwW51MWzGneuHE3tPCAAAAzMbLzMGjZZbZMmhZAAAAgFzstZmZYzwCz2MjBzsAAz2MzMGbLGYmZbsYmZGzYZWmZWGGzMLAADgZmZGDDD
+
+omnium_talents=136814:1/136821:1/136817:1/136816:1/136822:1
+
+# Serpent Crown of the Ophidian Oracle (334)
+head=,id=271483,enchant_id=8017,gem_id=240967,bonus_id=13692/13440/6652/13695/13698/12854
+# Aqirbane Reliquary (334)
+neck=,id=268265,gem_id=240914/240906,bonus_id=6652/13668/13334/13987/12854
+# Adherent's Silken Shroud (331)
+back=,id=239656,bonus_id=12214/13667/12497/13751/14001/8960/12384/8791/13836,content_tuning=3615,crafted_stats=40/32,crafting_quality=5
+# Fanged Raiment of the Ophidian Oracle (334)
+chest=,id=271486,enchant_id=7987,bonus_id=13334/6652/13846/13690/13698/12854,redirected_base_stats=271876
+# Blinky's Collar (1)
+shirt=,id=268274,content_tuning=3606
+# Band of the Swarmcaller (334)
+finger1=,id=281029,enchant_id=7967,gem_id=240890,bonus_id=6652/13668/13334/12854
+# Masterwork Sin'dorei Band (331)
+finger2=,id=240949,enchant_id=7967,gem_id=240898,bonus_id=12214/13667/12497/13751/14001/8791/13836,content_tuning=3615,crafted_stats=40/36,crafting_quality=5
+# Vile Vial of Volatile Venom (341)
+trinket1=,id=273796,bonus_id=13440/6652/12699/12856
+# Twisted Horror's Tendril (341)
+trinket2=,id=281215,bonus_id=6652/13334/12856
+# Jan'thrazet, the Soul Fang (341)
+main_hand=,id=271092,enchant_id=8689,bonus_id=6652/13334/12856
+# Drake Rider's Stecktarge (341)
+off_hand=,id=193754,bonus_id=13440/40/12699/12856
+
+### Gear from Bags
+#
+# Locus of the Primal Core (289)
+# head=,id=249979,enchant_id=8017,gem_id=240967,bonus_id=13338/13440/6652/13575/12806/13534
+#
+# Lightwarden's Bind (311)
+# finger1=,id=251194,enchant_id=7967,gem_id=240892,bonus_id=12843/13440/6652/13668/12699,content_tuning=1279
+#
+# Lightspire Core (311)
+# trinket1=,id=250214,bonus_id=12843/13440/6652/12699,content_tuning=1279
+#
+# Polished Lightwood Channeler (334)
+# main_hand=,id=273778,enchant_id=8689,bonus_id=13440/6652/12701/12854
+
+### Additional Character Info
+#
+# catalyst_currencies=2813:8/3269:8/3116:8/3378:8/3465:6
+#
+# slot_high_watermarks=0:334:334/1:334:341/2:334:334
+
+# Checksum: 93bee22f
