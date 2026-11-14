@@ -697,9 +697,6 @@ type SettingsView struct {
 	MinOpacity     int      `json:"minOpacity"`
 	// MaxAutoDays is the most days each of Auto's fields takes.
 	MaxAutoDays int `json:"maxAutoDays"`
-	// CharacterGuess is the name of the character that wrote most saved keys' logs, to prefill Character with ("" for
-	// none); the logs don't name its realm.
-	CharacterGuess string `json:"characterGuess"`
 }
 
 // The sources of a LogFile: the game's combat log folder (and its archive), or the Warcraft Logs imports.

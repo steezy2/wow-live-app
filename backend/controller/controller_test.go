@@ -271,7 +271,7 @@ type fakeSettings struct{ saved *models.Settings }
 func (f fakeSettings) Get() models.SettingsView     { return models.SettingsView{Settings: *f.saved} }
 func (f fakeSettings) Save(s models.Settings) error { *f.saved = s; return nil }
 
-// fakeCharacters knows one character, Testmage-Somerealm, and guesses Testrogue.
+// fakeCharacters knows one character, Testmage-Somerealm.
 type fakeCharacters struct{ err error }
 
 func (f fakeCharacters) Resolve(_ context.Context, _, character string) (string, string, error) {
@@ -280,7 +280,6 @@ func (f fakeCharacters) Resolve(_ context.Context, _, character string) (string,
 	}
 	return "Testmage", "some-realm", f.err
 }
-func (fakeCharacters) Guess() string { return "Testrogue" }
 func (f fakeCharacters) Parses(context.Context, string, string) (models.CharacterParses, error) {
 	return models.CharacterParses{}, f.err
 }
@@ -310,7 +309,7 @@ func TestCharacterIsSavedOnlyWhenWarcraftLogsKnowsItsRealm(t *testing.T) {
 		var got models.SettingsView
 		json.Unmarshal(w.Body.Bytes(), &got)
 		if w.Code != tc.code || (tc.code == http.StatusOK) != (saved.Region == "us") ||
-			tc.code == http.StatusOK && (got.CharacterGuess != "Testrogue" || saved.Character != strings.TrimSpace(tc.character)) {
+			tc.code == http.StatusOK && saved.Character != strings.TrimSpace(tc.character) {
 			t.Errorf("%q (%v): %d %s, saved %+v; want %d", tc.character, tc.err, w.Code, w.Body, saved, tc.code)
 		}
 	}

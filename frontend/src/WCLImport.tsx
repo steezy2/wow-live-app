@@ -89,7 +89,7 @@ export function WCLImport({ view, onSaved }: { view: SettingsView; onSaved: (vie
           Character (Name-Realm)
           <input
             value={character}
-            placeholder={view.characterGuess ? `${view.characterGuess}-Realm` : 'Name-Realm'}
+            placeholder="Name-Realm"
             onChange={(e) => setCharacter(e.target.value)}
             spellCheck={false}
           />

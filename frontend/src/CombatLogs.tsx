@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { archiveLogs, deleteLogs, fetchLogFiles, type LogFile, type LogSource } from './api'
-import { counted, sizeText } from './format'
+import { counted, groupLogsByDay, sizeText } from './format'
 import { track, useNote } from './note'
+import { useNow } from './useLiveKey'
 import { NoteLine } from './NoteLine'
 import { tip } from './tipAttrs'
 
@@ -10,13 +11,15 @@ const rowKey = (f: LogFile) => `${f.source}:${f.archived ? 'zip' : 'log'}:${f.na
 
 /** The game's combat logs, the archived ones and the Warcraft Logs imports, to pick: the game's logs to archive
  * (zipped into the log folder's WoW Live archive folder, which live reading and Read old logs skip), archived logs and
- * imports (already zips) to delete for good. Old, read logs come ticked; the log the game is writing can't be picked.
+ * imports (already zips) to delete for good. Logs are listed by the day they were written (the last 5 days one by
+ * one, older ones together); a group's box picks all of its logs. Old, read logs come ticked; the log the game is writing can't be picked.
  * Listed again whenever a read (reading) or this list's own job ends, which also runs onChanged. */
 export function CombatLogs({ reading, onChanged }: { reading: boolean; onChanged: () => void }) {
   const [files, setFiles] = useState<LogFile[] | null>(null)
   const [picked, setPicked] = useState<Set<string>>(new Set())
   const [note, setNote] = useNote('combat logs')
   const busy = reading || !!note?.busy
+  const now = useNow(60_000)
   const show = (list: LogFile[]) => {
     setFiles(list)
     setPicked(new Set(list.filter((f) => f.suggested).map(rowKey)))
@@ -57,35 +60,51 @@ export function CombatLogs({ reading, onChanged }: { reading: boolean; onChanged
     )
     if (ok) run(deleteLogs(toDeleteImports.map((f) => f.name), 'wcl'), 'Deleting…')
   }
-  const toggle = (key: string) =>
+  /** Ticks every log in the group, or clears them all when they were all ticked. */
+  const toggle = (group: LogFile[], tick: boolean) =>
     setPicked((p) => {
       const next = new Set(p)
-      if (!next.delete(key)) next.add(key)
+      for (const f of group) {
+        if (tick) next.add(rowKey(f))
+        else next.delete(rowKey(f))
+      }
       return next
     })
   return (
     <>
       <ul className="list log-files">
-        {files.map((f) => (
-          <li key={rowKey(f)} {...tip(f.error)}>
-            <label className="inline">
-              <input
-                type="checkbox"
-                disabled={f.active || busy}
-                checked={picked.has(rowKey(f))}
-                onChange={() => toggle(rowKey(f))}
-              />{' '}
-              {new Date(f.writtenMS).toLocaleDateString()} · {sizeText(f.bytes)}{' '}
-              <span className="muted">
-                · {counted(f.keys, 'key')} · {counted(f.pulls, 'pull')}
-                {f.source === 'wcl' ? ' · Warcraft Logs import' : f.archived && ' · Archived'}
-                {f.active && ' · Being written'}
-                {!f.read && ' · Not read yet'}
-              </span>
-              {f.error && <span className="warning"> · {f.error}</span>}
-            </label>
-          </li>
-        ))}
+        {groupLogsByDay(files, now).map(({ label, files: day }) => {
+          const pickable = day.filter((f) => !f.active)
+          const count = pickable.filter((f) => picked.has(rowKey(f))).length
+          const archived = day.filter((f) => f.archived && f.source === 'game').length
+          const imports = day.filter((f) => f.source === 'wcl').length
+          const unread = day.filter((f) => !f.read).length
+          return (
+            <li key={label} {...tip(day.map((f) => f.error).find(Boolean))}>
+              <label className="inline">
+                <input
+                  type="checkbox"
+                  disabled={!pickable.length || busy}
+                  checked={pickable.length > 0 && count === pickable.length}
+                  ref={(el) => {
+                    if (el) el.indeterminate = count > 0 && count < pickable.length
+                  }}
+                  onChange={() => toggle(pickable, count < pickable.length)}
+                />{' '}
+                {label} · {counted(day.length, 'log')} · {sizeText(day.reduce((n, f) => n + f.bytes, 0))}{' '}
+                <span className="muted">
+                  · {counted(day.reduce((n, f) => n + f.keys, 0), 'key')} ·{' '}
+                  {counted(day.reduce((n, f) => n + f.pulls, 0), 'pull')}
+                  {archived > 0 && ` · ${archived} archived`}
+                  {imports > 0 && ` · ${counted(imports, 'Warcraft Logs import')}`}
+                  {day.some((f) => f.active) && ' · Being written'}
+                  {unread > 0 && ` · ${unread} not read yet`}
+                </span>
+                {day.map((f) => f.error && <span key={rowKey(f)} className="warning"> · {f.error}</span>)}
+              </label>
+            </li>
+          )
+        })}
         {files.length === 0 && <li className="muted">No combat logs in the folder</li>}
       </ul>
       <div className="actions">
