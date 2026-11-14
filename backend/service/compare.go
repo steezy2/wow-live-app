@@ -177,6 +177,9 @@ func (c Comparer) load(kind models.FightKind, start int64, player string) (fight
 		if !ok {
 			return fightRun{}, ErrNoSuchPlayer
 		}
+		if raidDifficulty[pull.Difficulty] == 0 {
+			return fightRun{}, fmt.Errorf("%w: Warcraft Logs ranks no %s pulls", ErrNoTopLogs, pull.Difficulty)
+		}
 		_, pulls := c.Keys.History()
 		f := fightRun{kind: kind, start: start, end: pull.End, encounter: pull.Boss, boss: raidDifficulty[pull.Difficulty],
 			character: character(player, pull.Realms), spec: spec, partial: !pull.Kill,
@@ -299,7 +302,7 @@ func (c Comparer) topRuns(ctx context.Context, f fightRun) ([]models.RankedRun, 
 		return nil, "", err
 	}
 	if q.Encounter = ids[f.encounter]; q.Encounter == 0 {
-		return nil, "", fmt.Errorf("no Warcraft Logs encounter for %s", f.encounter)
+		return nil, "", fmt.Errorf("%w: Warcraft Logs ranks no %s", ErrNoTopLogs, f.encounter)
 	}
 	var ranked []models.RankedRun
 	for page := 1; page <= comparePages; page++ {

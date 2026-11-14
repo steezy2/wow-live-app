@@ -1300,7 +1300,7 @@ export interface PlayerCompare {
   onlyTop: string[]
   advice: string[]
   /** The spec's rules (spec-rules.toml) the player fell short of, on their own log. */
-  rules: { text: string; share: number; atLeast: number; why?: string }[]
+  rules?: { text: string; share: number; atLeast: number; why?: string }[]
   /** The Warcraft Logs points it spent. */
   points: number
 }
