@@ -4,6 +4,8 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 
 ## [Unreleased]
 
+## [0.4.3] - 2026-11-13
+
 ### Added
 - **Routes** for Mythic+: import a Mythic Dungeon Tools route (paste its export string, or pick it from MDT's saved routes), see its pulls and forces % on the dungeon's map, edit them (move a pack to another pull, new, delete and reorder pulls, undo) and copy the route back as an MDT string. One route per dungeon is starred: the live page and overlay show its next pull with forces, and a key's **Route** tab shows which planned pulls were done, skipped or added. Enemies on each dungeon's map come from `reference/mplus-dungeons.json` (`go run ./cmd/mplusref`, from MDT's clones joined to Keystone.guru's positions). An import keeps the checks an edit has: a pull color that isn't 6 hex digits gets MDT's first default, an enemy already in an earlier pull is dropped, and more than 60 pulls are refused.
 - **Spec rules** (`spec-rules.toml`, beside `mplus.toml`): a table per spec ("Arcane Mage") of rules a player review checks on the player's own log, in three kinds: `with` (the share of a cast made while a buff was up), `together` (the share of a cast within N seconds of another) and `uptime` (a buff's share of the fight). A rule they fall short of is a line in the Compare tab with its share and its why. The file ships with the three kinds explained and no rules, since each spec's rules need checking against its guide first.
