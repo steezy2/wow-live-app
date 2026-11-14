@@ -339,7 +339,7 @@ func buffRows(in compareInput, best int) ([]models.CompareRow, []costedLine) {
 	}
 	var rows []models.CompareRow
 	var lines []costedLine
-	for k := range names {
+	for _, k := range slices.Sorted(maps.Keys(names)) {
 		row := models.CompareRow{Name: k, You: you[k], Unit: "%"}
 		tops := make([]float64, len(top))
 		for i, t := range top {

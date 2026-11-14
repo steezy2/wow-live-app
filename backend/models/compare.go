@@ -124,6 +124,36 @@ type PlayerCompare struct {
 	OnlyYou   []string         `json:"onlyYou"`
 	OnlyTop   []string         `json:"onlyTop"`
 	Advice    []string         `json:"advice"`
+	// Rules are the spec's rules the player fell short of, checked on their own log; none for a spec without rules.
+	Rules []RuleResult `json:"rules"`
 	// Points is what the review spent of Warcraft Logs' hourly points.
 	Points float64 `json:"points"`
+}
+
+// SpecRules are the per-spec rules a player review checks, by the spec as the review names it ("Arcane Mage"):
+// spec-rules.toml.
+type SpecRules map[string]struct {
+	Rules []SpecRule `toml:"rules"`
+}
+
+// SpecRule is one thing a spec should do. Kind "with": at least AtLeast (a share, 0 to 1) of the Cast casts happen
+// while Buff is up. "together": at least AtLeast of the Cast casts are within Seconds of a cast of Other. "uptime":
+// Buff is up at least AtLeast of the fight. Why says why it matters.
+type SpecRule struct {
+	Kind    string  `toml:"kind"`
+	Cast    string  `toml:"cast"`
+	Buff    string  `toml:"buff"`
+	Other   string  `toml:"other"`
+	Seconds float64 `toml:"seconds"`
+	AtLeast float64 `toml:"at_least"`
+	Why     string  `toml:"why"`
+}
+
+// RuleResult is a spec rule the player fell short of: what it checks, the share they reached and the share it asks
+// for (0 to 1), and its why.
+type RuleResult struct {
+	Text    string  `json:"text"`
+	Share   float64 `json:"share"`
+	AtLeast float64 `json:"atLeast"`
+	Why     string  `json:"why,omitempty"`
 }

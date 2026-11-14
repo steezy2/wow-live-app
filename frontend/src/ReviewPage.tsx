@@ -24,6 +24,7 @@ import { useRaidTrack, useReplay, useTrack } from './replay'
 import { Name, When, Who, type Seeker } from './Seek'
 import { ComparePlayer } from './ComparePlayer'
 import { PlayerReview } from './PlayerReview'
+import { Skeleton } from './Skeleton'
 import { Tabs } from './Tabs'
 
 /** The review page's tabs, by their name in the address (?tab=). */
@@ -75,7 +76,7 @@ export function ReviewPage({ kind, start }: { kind: 'mplus' | 'raid'; start: num
     return () => controller.abort()
   }, [kind, start])
   if (error) return <p className="warning">{error}</p>
-  if (saved?.start !== start) return <p className="muted">Loading…</p>
+  if (saved?.start !== start) return <Skeleton height={480} />
   return kind === 'mplus' ? <KeyFight view={saved as KeyView} /> : <PullFight pull={saved as RaidPull} />
 }
 

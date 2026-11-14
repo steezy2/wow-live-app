@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { fetchCompare, runCompare, type CompareRow, type PlayerCompare } from './api'
+import { Skeleton } from './Skeleton'
+import { fetchCompare, reportPages, runCompare, type CompareRow, type PlayerCompare } from './api'
 import { clock, rowValue } from './format'
 import { Spell } from './Spell'
 
@@ -24,7 +25,7 @@ export function ComparePlayer({ kind, start, player }: { kind: 'mplus' | 'raid';
       .then(setCompare, (err: unknown) => setError(err instanceof Error ? err.message : String(err)))
       .finally(() => setBusy(false))
   }
-  if (compare === undefined && !error) return <p className="muted">Loading…</p>
+  if (compare === undefined && !error) return <Skeleton height={320} />
   if (!compare) {
     return (
       <section className="panel">
@@ -81,6 +82,21 @@ export function ComparePlayer({ kind, start, player }: { kind: 'mplus' | 'raid';
           </ol>
         </section>
       )}
+      {compare.rules?.length && (
+        <section className="panel">
+          <h2>Spec rules</h2>
+          <ul className="list">
+            {compare.rules?.map((r) => (
+              <li key={r.text}>
+                <span>
+                  {r.text}: {Math.round(100 * r.share)}%, wanted {Math.round(100 * r.atLeast)}%
+                  {r.why && <span className="muted"> · {r.why}</span>}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       <Rows title="Key stats" rows={compare.stats} />
       <Rows title="Abilities" rows={compare.abilities} spells />
       <Rows title="Buffs on themselves" rows={compare.buffs} spells />
@@ -96,7 +112,7 @@ export function ComparePlayer({ kind, start, player }: { kind: 'mplus' | 'raid';
         <ul className="list">
           {compare.logs.map((l) => (
             <li key={`${l.code}-${l.fightID}`}>
-              <a href={`https://www.warcraftlogs.com/reports/${l.code}#fight=${l.fightID}`} target="_blank" rel="noreferrer">
+              <a href={reportPages(l).warcraftLogs} target="_blank" rel="noreferrer">
                 {l.name} <span className="muted">{l.server}</span>
               </a>
               <span className="muted">

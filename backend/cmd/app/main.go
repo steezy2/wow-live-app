@@ -291,6 +291,9 @@ func carried() (app.Options, error) {
 	if err := config.DecodeTOML(files, "embed/"+config.RaidRulesFile, &opts.RaidRules); err != nil {
 		return opts, fmt.Errorf("the built-in raid rules: %w", err)
 	}
+	if err := config.DecodeTOML(files, "embed/"+config.SpecRulesFile, &opts.SpecRules); err != nil {
+		return opts, fmt.Errorf("the built-in spec rules: %w", err)
+	}
 	bosses, err := files.ReadFile("embed/raid-bosses.json")
 	if err != nil {
 		return opts, err

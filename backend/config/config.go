@@ -87,6 +87,14 @@ const RulesFile = "mplus.toml"
 // RaidRulesFile holds the raid rules at the repo's root; the app builds it in.
 const RaidRulesFile = "raid-rules.toml"
 
+// SpecRulesFile holds the per-spec rules a player review checks at the repo's root; the app builds it in.
+const SpecRulesFile = "spec-rules.toml"
+
+// LoadSpecRules reads SpecRulesFile under root.
+func LoadSpecRules(root string) (models.SpecRules, error) {
+	return loadTOML[models.SpecRules](filepath.Join(root, SpecRulesFile))
+}
+
 // LoadRules reads RulesFile under root.
 func LoadRules(root string) (models.MPlusRules, error) {
 	return loadTOML[models.MPlusRules](filepath.Join(root, RulesFile))

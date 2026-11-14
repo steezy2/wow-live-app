@@ -42,6 +42,7 @@ type Comparer struct {
 	Store      models.CompareStore
 	Characters Characters
 	Region     string
+	Rules      models.SpecRules
 }
 
 // fightRun is the finished key or pull a review is of: what it was, the player's numbers in it and in their own
@@ -59,6 +60,9 @@ type fightRun struct {
 	partial bool
 	local   models.RankedPlayer
 	yours   []models.RankedPlayer
+	// casts and buffs are the player's own, from the track, for the spec's rules.
+	casts []models.TrackCast
+	buffs []models.BuffSpan
 }
 
 // Cached is a player's review if one was made, and the fight didn't go on after it.
@@ -138,6 +142,7 @@ func (c Comparer) Run(ctx context.Context, kind models.FightKind, start int64, p
 		in.parse = parseOf(parses, f.encounter, f.kind)
 	}
 	review := buildCompare(in)
+	review.Rules = failedRules(c.Rules[f.spec.label()].Rules, f.casts, f.buffs, f.local.DurationMS)
 	review.Kind, review.Start, review.End, review.Player, review.Spec = f.kind, f.start, f.end, player, f.spec.label()
 	review.WindowMS, review.Baseline = window, baseline
 	if err == nil {
@@ -172,6 +177,9 @@ func (c Comparer) load(kind models.FightKind, start int64, player string) (fight
 		if !ok {
 			return fightRun{}, ErrNoSuchPlayer
 		}
+		if raidDifficulty[pull.Difficulty] == 0 {
+			return fightRun{}, fmt.Errorf("%w: Warcraft Logs ranks no %s pulls", ErrNoTopLogs, pull.Difficulty)
+		}
 		_, pulls := c.Keys.History()
 		f := fightRun{kind: kind, start: start, end: pull.End, encounter: pull.Boss, boss: raidDifficulty[pull.Difficulty],
 			character: character(player, pull.Realms), spec: spec, partial: !pull.Kill,
@@ -179,6 +187,8 @@ func (c Comparer) load(kind models.FightKind, start int64, player string) (fight
 		for _, p := range similarPulls(pulls, pull, player) {
 			f.yours = append(f.yours, c.pullPlayer(p, player))
 		}
+		track, _ := c.Keys.RaidTrack(start)
+		f.casts, f.buffs = track.Casts[player], track.Buffs[player]
 		return f, nil
 	}
 	key, _, err := c.Keys.finished(start)
@@ -196,6 +206,8 @@ func (c Comparer) load(kind models.FightKind, start int64, player string) (fight
 	for _, k := range similarKeys(keys, key, player) {
 		f.yours = append(f.yours, c.keyPlayer(k, player))
 	}
+	track, _ := c.Keys.Track(start)
+	f.casts, f.buffs = track.Casts[player], track.Buffs[player]
 	return f, nil
 }
 
@@ -290,7 +302,7 @@ func (c Comparer) topRuns(ctx context.Context, f fightRun) ([]models.RankedRun, 
 		return nil, "", err
 	}
 	if q.Encounter = ids[f.encounter]; q.Encounter == 0 {
-		return nil, "", fmt.Errorf("no Warcraft Logs encounter for %s", f.encounter)
+		return nil, "", fmt.Errorf("%w: Warcraft Logs ranks no %s", ErrNoTopLogs, f.encounter)
 	}
 	var ranked []models.RankedRun
 	for page := 1; page <= comparePages; page++ {

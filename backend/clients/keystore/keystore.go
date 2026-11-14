@@ -91,7 +91,10 @@ func (s Store) Compare(kind models.FightKind, start int64, player string) (model
 
 // Delete removes one saved key, its track, its review and its players' reviews.
 func (s Store) Delete(start int64) error {
-	compares, _ := filepath.Glob(s.comparePath(models.FightMPlus, start, "*"))
+	compares, err := filepath.Glob(filepath.Join(s.Dir, "compares", fmt.Sprintf("%s-%d-*.json", models.FightMPlus, start)))
+	if err != nil {
+		return fmt.Errorf("listing a saved key's players' reviews: %w", err)
+	}
 	for _, path := range append(compares, s.path(start), s.trackPath(start), s.reviewPath(start)) {
 		if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
 			return fmt.Errorf("deleting a saved key: %w", err)
