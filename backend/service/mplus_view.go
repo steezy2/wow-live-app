@@ -170,6 +170,7 @@ func (k *LogTracker) DeleteSaved(start int64) error {
 			return fmt.Errorf("clearing saved keys: %w", err)
 		}
 		k.history = nil
+		k.version++
 		return nil
 	}
 	i := slices.IndexFunc(k.history, func(key models.Key) bool { return key.Start == start })
@@ -180,6 +181,7 @@ func (k *LogTracker) DeleteSaved(start int64) error {
 		return fmt.Errorf("deleting a saved key: %w", err)
 	}
 	k.history = slices.Delete(k.history, i, i+1)
+	k.version++
 	return nil
 }
 
@@ -221,7 +223,9 @@ func (k *LogTracker) details(run *keyRun, at int64) models.Key {
 	for _, hit := range run.avoidable {
 		key.AvoidableHits = append(key.AvoidableHits, *hit)
 	}
-	slices.SortFunc(key.AvoidableHits, func(a, b models.KeyHit) int { return cmp.Compare(b.Damage, a.Damage) })
+	slices.SortFunc(key.AvoidableHits, func(a, b models.KeyHit) int {
+		return cmp.Or(cmp.Compare(b.Damage, a.Damage), cmp.Compare(a.Player, b.Player), cmp.Compare(a.Ability, b.Ability))
+	})
 	key.Bosses, key.Affixes = list(key.Bosses), list(key.Affixes)
 	key.Interrupts, key.Casts = list(key.Interrupts), append(k.prepots(run), key.Casts...)
 	key.Stops, key.WastedKicks, key.Debuffs = list(key.Stops), list(key.WastedKicks), list(key.Debuffs)

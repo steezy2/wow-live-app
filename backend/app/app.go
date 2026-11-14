@@ -107,9 +107,9 @@ func Start(ctx context.Context, opts Options) (*Site, error) {
 		return nil, err
 	}
 	s := &Site{Keys: keys, Changes: &service.Changes{Every: pushEvery}, opts: opts, newKeys: newKeys}
+	characters := service.Characters{Realms: opts.Realms, Keys: store, Logs: opts.WCL,
+		Bosses: slices.Sorted(maps.Keys(opts.Bosses))}
 	if opts.Settings != nil {
-		characters := service.Characters{Realms: opts.Realms, Keys: store, Logs: opts.WCL,
-			Bosses: slices.Sorted(maps.Keys(opts.Bosses))}
 		opts.Settings.Logs, opts.Settings.Characters = s, characters
 		if opts.WCL != nil {
 			s.Import = s.importer(characters, store, pulls)
@@ -121,8 +121,7 @@ func Start(ctx context.Context, opts Options) (*Site, error) {
 		s.reviews, s.topRuns = reviewer, reviewer.TopRuns
 		if baselines, ok := opts.Baselines.(models.CompareBaselines); ok {
 			s.compares = service.Comparer{Keys: keys, Baselines: baselines, Store: store,
-				Characters: service.Characters{Realms: opts.Realms, Keys: store, Logs: opts.WCL,
-					Bosses: slices.Sorted(maps.Keys(opts.Bosses))}, Region: opts.Region, Rules: opts.SpecRules}
+				Characters: characters, Region: opts.Region, Rules: opts.SpecRules}
 		}
 	}
 	tiles := service.MapTiles{Facts: opts.Dungeons,

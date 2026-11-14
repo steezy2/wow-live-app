@@ -28,8 +28,8 @@ import { BossBox, FocusBoxes } from './ReplayBoxes'
 import { useDungeonMap } from './routes'
 import { tip } from './tipAttrs'
 
-/** The trail the live map draws. */
 const NO_DUNGEON: DungeonMap = { floors: [], tilesPerSide: 0, walked: [], enemies: [] }
+/** The trail the live map draws. */
 const LIVE_TRAIL_MS = 30_000
 const SPEEDS = [1, 2, 4, 8, 16, 32]
 const TRAILS = [0, 10_000, 30_000, 120_000, Infinity]

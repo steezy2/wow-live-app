@@ -72,7 +72,7 @@ type SettingsAPI struct {
 // LogNames names the logs to archive or delete, as LogFiles lists them, and their source (the game's, the default, or
 // Warcraft Logs imports).
 type LogNames struct {
-	Names  []string `json:"names" binding:"required,min=1"`
+	Names  []string `json:"names" binding:"required,min=1,unique"`
 	Source string   `json:"source" binding:"omitempty,oneof=game wcl" enums:"game,wcl"`
 }
 
@@ -269,6 +269,7 @@ func (s SettingsAPI) Put(c *gin.Context) {
 		}
 	}
 	if err := s.Settings.Save(next); err != nil {
+		log.Printf("saving the settings: %v", err)
 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "couldn't save the settings"})
 		return
 	}
@@ -367,6 +368,7 @@ func (s SettingsAPI) TestKeys(c *gin.Context) {
 //	@Router		/api/settings/warcraftlogs [delete]
 func (s SettingsAPI) RemoveKeys(c *gin.Context) {
 	if err := s.Keys.Remove(); err != nil {
+		log.Printf("removing the Warcraft Logs keys: %v", err)
 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "couldn't remove the keys"})
 		return
 	}

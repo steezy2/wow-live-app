@@ -1490,10 +1490,7 @@ export async function fetchCompare(
   player: string,
   signal?: AbortSignal,
 ): Promise<PlayerCompare | null> {
-  const response = await fetch(compareURL(kind, start, player), { signal })
-  if (response.status === 404) return null
-  if (!response.ok) throw await failure(response)
-  return (await response.json()) as PlayerCompare
+  return jsonOrNull<PlayerCompare>(compareURL(kind, start, player), signal)
 }
 
 /** Reviews a player against Warcraft Logs' top logs (spends points); the stored review when there is one. */

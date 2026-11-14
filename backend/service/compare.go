@@ -187,7 +187,10 @@ func (c Comparer) load(kind models.FightKind, start int64, player string) (fight
 		for _, p := range similarPulls(pulls, pull, player) {
 			f.yours = append(f.yours, c.pullPlayer(p, player))
 		}
-		track, _ := c.Keys.RaidTrack(start)
+		track, err := c.Keys.RaidTrack(start)
+		if err != nil && !errors.Is(err, ErrNoSuchPull) {
+			return fightRun{}, fmt.Errorf("reading the pull's track: %w", err)
+		}
 		f.casts, f.buffs = track.Casts[player], track.Buffs[player]
 		return f, nil
 	}
@@ -206,7 +209,10 @@ func (c Comparer) load(kind models.FightKind, start int64, player string) (fight
 	for _, k := range similarKeys(keys, key, player) {
 		f.yours = append(f.yours, c.keyPlayer(k, player))
 	}
-	track, _ := c.Keys.Track(start)
+	track, err := c.Keys.Track(start)
+	if err != nil && !errors.Is(err, ErrNoSuchKey) {
+		return fightRun{}, fmt.Errorf("reading the key's track: %w", err)
+	}
 	f.casts, f.buffs = track.Casts[player], track.Buffs[player]
 	return f, nil
 }

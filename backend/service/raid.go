@@ -622,7 +622,8 @@ func (k *LogTracker) raidPull(run *keyRun, key models.Key, at int64, kill bool) 
 		hits[h.Ability][h.Player] = h.Hits
 	}
 	p.Avoidable, p.AvoidableHits, p.Stacks = byAbility(hits), list(key.AvoidableHits), []models.RaidStacks{}
-	for id, players := range r.stacks {
+	for _, id := range slices.Sorted(maps.Keys(r.stacks)) {
+		players := r.stacks[id]
 		s := models.RaidStacks{Ability: k.spells[id], Limit: r.boss.Stacks[id], Players: playerCounts(players),
 			Over: []string{}}
 		for _, c := range s.Players {
@@ -632,9 +633,10 @@ func (k *LogTracker) raidPull(run *keyRun, key models.Key, at int64, kill bool) 
 		}
 		p.Stacks = append(p.Stacks, s)
 	}
-	slices.SortFunc(p.Stacks, func(a, b models.RaidStacks) int { return cmp.Compare(a.Ability, b.Ability) })
+	slices.SortStableFunc(p.Stacks, func(a, b models.RaidStacks) int { return cmp.Compare(a.Ability, b.Ability) })
 	p.Soaks = []models.RaidSoak{}
-	for id, t := range r.soaks {
+	for _, id := range slices.Sorted(maps.Keys(r.soaks)) {
+		t := r.soaks[id]
 		soak := models.RaidSoak{Ability: k.spells[id], Casts: len(t.casts), Fewest: len(t.casts[0]),
 			Needed: r.boss.Soakers[id], Died: []string{}}
 		for i, c := range t.casts {
@@ -649,7 +651,7 @@ func (k *LogTracker) raidPull(run *keyRun, key models.Key, at int64, kill bool) 
 		}
 		p.Soaks = append(p.Soaks, soak)
 	}
-	slices.SortFunc(p.Soaks, func(a, b models.RaidSoak) int { return cmp.Compare(a.Ability, b.Ability) })
+	slices.SortStableFunc(p.Soaks, func(a, b models.RaidSoak) int { return cmp.Compare(a.Ability, b.Ability) })
 	slices.SortFunc(p.Dispels, func(a, b models.KeyDispel) int { return cmp.Compare(b.AfterMS, a.AfterMS) })
 	p.Dispels = p.Dispels[:min(len(p.Dispels), shownDispels)]
 	for _, s := range key.Stops {

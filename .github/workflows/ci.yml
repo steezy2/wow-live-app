@@ -25,7 +25,6 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version-file: backend/go.mod
-          cache: false # stdlib only, nothing to cache
       - name: gofmt
         run: |
           unformatted=$(gofmt -l .)

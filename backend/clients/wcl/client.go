@@ -4,6 +4,7 @@ package wcl
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -92,16 +93,9 @@ func (c *Client) sleep(ctx context.Context, d time.Duration) error {
 	}
 }
 
-func orDefault(value, fallback string) string {
-	if value != "" {
-		return value
-	}
-	return fallback
-}
-
 // fetchToken gets a client-credentials token for the client.
 func (c *Client) fetchToken(ctx context.Context) (string, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, orDefault(c.TokenURL, TokenURL),
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, cmp.Or(c.TokenURL, TokenURL),
 		strings.NewReader("grant_type=client_credentials"))
 	if err != nil {
 		return "", fmt.Errorf("building token request: %w", err)
@@ -185,7 +179,7 @@ func (c *Client) post(ctx context.Context, body []byte) ([]byte, bool, error) {
 	if err != nil {
 		return nil, false, err
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, orDefault(c.APIURL, APIURL), bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, cmp.Or(c.APIURL, APIURL), bytes.NewReader(body))
 	if err != nil {
 		return nil, false, fmt.Errorf("building query request: %w", err)
 	}
@@ -207,6 +201,11 @@ func (c *Client) post(ctx context.Context, body []byte) ([]byte, bool, error) {
 	switch {
 	case resp.StatusCode == http.StatusTooManyRequests:
 		return nil, false, ErrRateLimited
+	case resp.StatusCode == http.StatusUnauthorized:
+		c.mu.Lock() // the token expired or was revoked: the next query fetches a new one
+		c.token = ""
+		c.mu.Unlock()
+		return nil, false, fmt.Errorf("querying Warcraft Logs: %s; try again", resp.Status)
 	case resp.StatusCode == http.StatusGatewayTimeout:
 		return nil, true, fmt.Errorf("querying Warcraft Logs: %s", resp.Status)
 	case resp.StatusCode != http.StatusOK:
