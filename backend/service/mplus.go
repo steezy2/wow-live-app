@@ -406,8 +406,8 @@ func (k *LogTracker) start(line models.LogLine) {
 	f := line.Fields
 	k.closeCurrent(k.lastAt, models.StatusAbandoned, 0)
 	mapID := atoi(f[2])
-	run := newRun(models.Key{Dungeon: f[0], MapID: mapID, Level: atoi(f[3]), Start: line.Time, Status: models.StatusRunning,
-		TimerMS: k.timers[mapID]}, f[1])
+	run := newRun(models.Key{Dungeon: f[0], MapID: mapID, Level: atoi(f[3]), Start: line.Time,
+		Status: models.StatusRunning, TimerMS: k.timers[mapID]}, f[1])
 	if facts, ok := k.facts[mapID]; ok {
 		run.facts, run.key.Reference = &facts, true
 		run.key.Forces = &models.KeyForces{Total: facts.Forces.Total, At: []models.ForcesPoint{}}
