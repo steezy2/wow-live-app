@@ -7,8 +7,8 @@ import (
 )
 
 func TestCleanSettingsTrimsTheCharacterAndCleansThePath(t *testing.T) {
-	got := CleanSettings(models.Settings{LogsDir: `C:\Logs\..\Logs\`, Character: "  Arnaud-Area52 "})
-	if got.LogsDir != `C:\Logs` || got.Character != "Arnaud-Area52" {
+	got := CleanSettings(models.Settings{LogsDir: "logs/../logs/", Character: "  Arnaud-Area52 "})
+	if got.LogsDir != "logs" || got.Character != "Arnaud-Area52" {
 		t.Fatalf("CleanSettings = %+v", got)
 	}
 }
