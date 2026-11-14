@@ -72,15 +72,16 @@ type FightImporter interface {
 
 // Site is a started site: its keys and change notices, and the page and API.
 type Site struct {
-	Keys    *service.LogTracker
-	Changes *service.Changes
-	Handler http.Handler
-	Import  *service.Importer // nil without Settings and Warcraft Logs
-	opts    Options
-	reviews controller.Reviews
-	topRuns func(ctx context.Context, key models.Key) ([]int64, error) // nil without Warcraft Logs
-	newKeys func() (*service.LogTracker, error)                        // another tracker on the same saved keys, for Learn
-	logJob  sync.Mutex                                                 // one read, archive or delete of logs at a time
+	Keys     *service.LogTracker
+	Changes  *service.Changes
+	Handler  http.Handler
+	Import   *service.Importer // nil without Settings and Warcraft Logs
+	opts     Options
+	reviews  controller.Reviews
+	compares controller.Compares
+	topRuns  func(ctx context.Context, key models.Key) ([]int64, error) // nil without Warcraft Logs
+	newKeys  func() (*service.LogTracker, error)                        // another tracker on the same saved keys, for Learn
+	logJob   sync.Mutex                                                 // one read, archive or delete of logs at a time
 }
 
 // Start builds the site from opts. Follow, Learn or a replay then feed it the game's log.
@@ -115,6 +116,11 @@ func Start(ctx context.Context, opts Options) (*Site, error) {
 	if opts.Baselines != nil {
 		reviewer := service.Reviewer{Keys: keys, Baselines: opts.Baselines, Store: store}
 		s.reviews, s.topRuns = reviewer, reviewer.TopRuns
+		if baselines, ok := opts.Baselines.(models.CompareBaselines); ok {
+			s.compares = service.Comparer{Keys: keys, Baselines: baselines, Store: store,
+				Characters: service.Characters{Realms: opts.Realms, Keys: store, Logs: opts.WCL,
+					Bosses: slices.Sorted(maps.Keys(opts.Bosses))}, Region: opts.Region}
+		}
 	}
 	tiles := service.MapTiles{Facts: opts.Dungeons,
 		Source: keystoneguru.Client{CacheDir: filepath.Join(opts.Cache, "keystone-guru")}}
@@ -124,9 +130,9 @@ func Start(ctx context.Context, opts Options) (*Site, error) {
 		Season: raiderio.Client{CacheDir: filepath.Join(opts.Cache, "raiderio")}}
 	spells := &service.Spells{Keys: keys, Source: wowhead.Client{CacheDir: filepath.Join(opts.Cache, "wowhead"),
 		HTTP: &http.Client{Timeout: spellTimeout}}}
-	s.Handler = controller.Router(controller.MPlus{Keys: keys, Reviews: s.reviews, Changes: s.Changes,
+	s.Handler = controller.Router(controller.MPlus{Keys: keys, Reviews: s.reviews, Compares: s.compares, Changes: s.Changes,
 		Now: opts.Now, Tiles: tiles, Recaps: recaps,
-		Spells: spells}, &controller.Raid{Pulls: keys, Maps: raidMaps, Now: opts.Now}, opts.Settings,
+		Spells: spells}, &controller.Raid{Compares: s.compares, Pulls: keys, Maps: raidMaps, Now: opts.Now}, opts.Settings,
 		opts.Pages, opts.Hosts...)
 	return s, nil
 }
