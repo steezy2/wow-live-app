@@ -601,6 +601,22 @@ export function subscribe(onChange: () => void): () => void {
   }
 }
 
+/** The full review page of a finished key or raid pull (its start), on a tab and, for the Player and Compare tabs, a
+ * player: /review/mplus/{start}?tab=…&player=…. */
+export function reviewURL(kind: 'mplus' | 'raid', start: number, tab = '', player = ''): string {
+  const query = new URLSearchParams()
+  if (tab) query.set('tab', tab)
+  if (player) query.set('player', player)
+  const text = query.toString()
+  return `/review/${kind}/${start}${text ? `?${text}` : ''}`
+}
+
+/** Shows a review page in a window of its own: the app opens (or brings up) one per page, a browser a new tab. */
+export function popOutReview(url: string): void {
+  if (location.host === APP_HOST) emitAppEvent('open-review', url)
+  else window.open(url, '_blank')
+}
+
 /** Sends the desktop app a Wails event; nothing in a browser. */
 function emitAppEvent(name: string, data?: unknown): void {
   if (location.host === APP_HOST) void appRuntime().then((wails) => wails.Events.Emit(name, data))

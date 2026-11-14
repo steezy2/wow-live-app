@@ -1647,6 +1647,15 @@ button.link {
   background: var(--panel-2);
 }
 
+/* The full review page's filters over the events feed. */
+.feed-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s3);
+  margin-bottom: var(--s3);
+}
+
 .waiting-card {
   max-width: 560px;
 }

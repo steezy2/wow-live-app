@@ -1,4 +1,4 @@
-import type { RaidLane } from './api'
+import type { KeyCast, KeyDeath, KeyDispel, KeyInterrupt, RaidLane } from './api'
 
 /** The lanes whose marks each name one player, first in the text ("Name · ability", or the name alone). */
 const playerLanes = new Set(['deaths', 'cooldowns', 'potions', 'cc'])
@@ -8,4 +8,62 @@ export function lanesOf(lanes: RaidLane[], player: string): RaidLane[] {
   return lanes.map((l) =>
     playerLanes.has(l.kind) ? { ...l, marks: l.marks.filter((m) => m.text.split(' · ')[0] === player) } : l,
   )
+}
+
+/** What happened on a fight's clock, for the Events feed's filter. */
+export const eventKinds = ['death', 'defensive', 'raid cooldown', 'potion', 'interrupt', 'wasted kick', 'cc', 'dispel'] as const
+export type EventKind = (typeof eventKinds)[number]
+
+/** One line of the Events feed: who did it (or who it happened to) and what, at a moment. */
+export interface FightEvent {
+  clockMS: number
+  kind: EventKind
+  player: string
+  text: string
+}
+
+const castKind: Record<KeyCast['kind'], EventKind> = {
+  defensive: 'defensive',
+  healthstone: 'potion',
+  'health potion': 'potion',
+  'combat potion': 'potion',
+  kick: 'wasted kick',
+  cc: 'cc',
+  'raid cooldown': 'raid cooldown',
+}
+
+/** A key's or pull's deaths, buttons pressed, interrupts and dispels as one list in time order. */
+export function fightEvents(f: {
+  deaths: KeyDeath[]
+  interrupts: KeyInterrupt[]
+  casts: KeyCast[]
+  debuffs: KeyDispel[]
+}): FightEvent[] {
+  const events: FightEvent[] = [
+    ...f.deaths.map((d) => ({
+      clockMS: d.clockMS,
+      kind: 'death' as const,
+      player: d.player,
+      text: `died to ${d.ability || 'unknown'} from ${d.killer || 'unknown'}`,
+    })),
+    ...f.casts.map((c) => ({
+      clockMS: c.clockMS,
+      kind: castKind[c.kind],
+      player: c.player,
+      text: c.kind === 'combat potion' && c.prepot ? 'pre-pot' : c.ability,
+    })),
+    ...f.interrupts.map((i) => ({
+      clockMS: i.clockMS,
+      kind: 'interrupt' as const,
+      player: i.player,
+      text: `${i.kick ? `${i.kick} → ` : ''}${i.spell} on ${i.target}`,
+    })),
+    ...f.debuffs.map((d) => ({
+      clockMS: d.clockMS,
+      kind: 'dispel' as const,
+      player: d.by || d.player,
+      text: d.by ? `${d.spell} off ${d.player}` : `${d.spell} on ${d.player} ran out`,
+    })),
+  ]
+  return events.sort((a, b) => a.clockMS - b.clockMS)
 }

@@ -4,6 +4,7 @@ package main
 
 import (
 	"log"
+	"strings"
 	"sync"
 	"time"
 
@@ -77,4 +78,25 @@ func restore(window *application.WebviewWindow, name string, settings *app.Setti
 	if fallback != nil {
 		fallback()
 	}
+}
+
+// reviewPrefix starts the path of a full review page (/review/mplus/{start}, /review/raid/{start}).
+const reviewPrefix = "/review/"
+
+// isReviewURL is whether the page asked for a path of a full review page, so the 'open-review' event can't open
+// anything else (or another site) in a window.
+func isReviewURL(url string) bool {
+	return strings.HasPrefix(url, reviewPrefix) && !strings.Contains(url, "//") && !strings.Contains(url, "..")
+}
+
+// popOut shows the full review page at url in a window of its own, one per url: the one already open is brought up.
+func popOut(wails *application.App, title, url string) {
+	name := "review " + url
+	if open, ok := wails.Window.GetByName(name); ok {
+		open.Show()
+		open.Focus()
+		return
+	}
+	wails.Window.NewWithOptions(application.WebviewWindowOptions{Name: name, Title: title + " review", Width: 1300,
+		Height: 900, URL: url})
 }
