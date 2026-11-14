@@ -243,21 +243,9 @@ func (k *LogTracker) trackOf(run *keyRun) models.KeyTrack {
 	for name, points := range run.track.Meters {
 		t.Meters[name] = list(points)
 	}
-	if len(run.track.Bosses) > 0 {
-		t.Bosses = map[string][]models.TrackPoint{}
-		for guid, points := range run.track.Bosses {
-			t.Bosses[guid] = list(points)
-		}
-	}
+	t.Bosses = bossTrails(run.track.Bosses)
 	if len(run.track.Mobs) > 0 {
-		t.Mobs = map[string]models.MobTrail{}
-		live := run.key.Status == "running"
-		for guid, m := range run.track.Mobs {
-			if live && m.Died > 0 { // the live map shows only the mobs still up
-				continue
-			}
-			t.Mobs[guid] = models.MobTrail{Name: m.Name, Points: list(m.Points), Died: m.Died}
-		}
+		t.Mobs = mobTrails(run.track.Mobs, run.key.Status == "running") // the live map shows only the mobs still up
 	}
 	if run.key.Status != "running" { // the focus bars and casts are for the replay of a finished run
 		t.AbilityTimes = list(run.track.AbilityTimes)
@@ -292,6 +280,29 @@ func (k *LogTracker) trackOf(run *keyRun) models.KeyTrack {
 	return t
 }
 
+// bossTrails is a copy of a run's boss trails, nil when there's none.
+func bossTrails(from map[string][]models.TrackPoint) map[string][]models.TrackPoint {
+	if len(from) == 0 {
+		return nil
+	}
+	out := map[string][]models.TrackPoint{}
+	for guid, points := range from {
+		out[guid] = list(points)
+	}
+	return out
+}
+
+// mobTrails is a copy of a run's mob trails, without the dead ones when skipDead.
+func mobTrails(from map[string]models.MobTrail, skipDead bool) map[string]models.MobTrail {
+	out := map[string]models.MobTrail{}
+	for guid, m := range from {
+		if !skipDead || m.Died == 0 {
+			out[guid] = models.MobTrail{Name: m.Name, Points: list(m.Points), Died: m.Died}
+		}
+	}
+	return out
+}
+
 // copySeries is a copy of ability series by raider, each raider's sorted by ability.
 func copySeries(from map[string][]models.AbilitySeries) map[string][]models.AbilitySeries {
 	out := map[string][]models.AbilitySeries{}
@@ -321,11 +332,39 @@ func (k *LogTracker) Track(start int64) (models.KeyTrack, error) {
 	return t, err
 }
 
+// RouteTrack is a key's map ID and what comparing it with a route reads of its track (by its start time, as Track):
+// for the running key its mobs with the dead ones (which Track leaves out while it runs), deaths, bosses and pulls; a
+// key saved without a track gets an empty one.
+func (k *LogTracker) RouteTrack(start int64) (int, models.KeyTrack, error) {
+	k.mu.RLock()
+	if run := k.current; run != nil && run.raid == nil && run.key.Start == start {
+		defer k.mu.RUnlock()
+		return run.key.MapID, models.KeyTrack{Mobs: mobTrails(run.track.Mobs, false), Deaths: list(run.track.Deaths),
+			Bosses: bossTrails(run.track.Bosses), Pulls: list(run.track.Pulls)}, nil
+	}
+	mapID := 0
+	if i := slices.IndexFunc(k.history, func(key models.Key) bool { return key.Start == start }); i >= 0 {
+		mapID = k.history[i].MapID
+	} else if k.last != nil && k.last.Start == start {
+		mapID = k.last.MapID
+	}
+	k.mu.RUnlock()
+	if mapID == 0 {
+		return 0, models.KeyTrack{}, ErrNoSuchKey
+	}
+	track, err := k.Track(start)
+	if errors.Is(err, ErrNoSuchKey) {
+		err = nil
+	}
+	return mapID, track, err
+}
+
 // DungeonMap is a dungeon's floors with Keystone.guru tiles (from the dungeon file) and where parties have walked in
 // its saved runs, one point per walkedGrid square (Name and ClockMS empty): the shape drawn for floors without tiles.
 func (k *LogTracker) DungeonMap(mapID int) (models.DungeonMap, error) {
 	walked, err := k.walked(mapID)
-	return models.DungeonMap{Floors: list(k.facts[mapID].Floors), TilesPerSide: tilesPerSide, Walked: walked}, err
+	return models.DungeonMap{Floors: list(k.facts[mapID].Floors), TilesPerSide: tilesPerSide, Walked: walked,
+		Enemies: list(k.facts[mapID].Enemies)}, err
 }
 
 func (k *LogTracker) walked(mapID int) ([]models.TrackPoint, error) {

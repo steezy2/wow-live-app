@@ -50,6 +50,53 @@ func TestDungeonFactsCountsAnNPCTwinAsTheMobItCopies(t *testing.T) {
 	}
 }
 
+// floor2514 is Den of Nalorakk's lower floor.
+var floor2514 = models.DungeonFloor{RaidMap: models.RaidMap{UIMapID: 2514, MinX: 5856.25, MaxX: 4731.25, MinY: 4014.58,
+	MaxY: 4764.58}}
+
+func TestKSGToLog(t *testing.T) {
+	// Keystone.guru's top left corner is the floor's maxY and -maxX, its bottom right its minY and -minX (where
+	// KeyMap.tsx's onTiles draws them).
+	for _, tc := range []struct{ lat, lng, x, y float64 }{{0, 0, 4764.6, -4731.3}, {-256, 384, 4014.6, -5856.3}} {
+		if x, y := ksgToLog(floor2514, tc.lat, tc.lng); x != tc.x || y != tc.y {
+			t.Errorf("ksgToLog(%v, %v) = %v, %v; want %v, %v", tc.lat, tc.lng, x, y, tc.x, tc.y)
+		}
+	}
+}
+
+func TestJoinEnemies(t *testing.T) {
+	mobs := map[int]models.MDTMob{100: {Count: 5}, 200: {Count: 0, Boss: true}}
+	for _, tc := range []struct {
+		name         string
+		clone        models.MDTClone
+		ksg          models.KeystoneGuruEnemy
+		want         []models.RouteEnemy
+		wantUnplaced bool
+	}{
+		{"by mdt_id, packed by MDT's group", models.MDTClone{Index: 1, Clone: 3, NPC: 100, Group: 7},
+			models.KeystoneGuruEnemy{NPC: 100, MDTID: 3, Lat: 0, Lng: 0, Map: 2514},
+			[]models.RouteEnemy{{Index: 1, Clone: 3, NPC: 100, Count: 5, Pack: 7, X: 4764.6, Y: -4731.3,
+				Map: 2514}}, false},
+		{"by mdt_npc_id, packed by Keystone.guru", models.MDTClone{Index: 2, Clone: 1, NPC: 200, Group: 7},
+			models.KeystoneGuruEnemy{NPC: 999, MDTNPC: 200, MDTID: 1, Pack: 42, Map: 2514},
+			[]models.RouteEnemy{{Index: 2, Clone: 1, NPC: 200, Boss: true, Pack: 42, X: 4764.6, Y: -4731.3,
+				Map: 2514}}, false},
+		{"another clone unplaced", models.MDTClone{Index: 1, Clone: 4, NPC: 100},
+			models.KeystoneGuruEnemy{NPC: 100, MDTID: 3, Map: 2514}, []models.RouteEnemy{}, true},
+		{"on a floor the map lacks", models.MDTClone{Index: 1, Clone: 3, NPC: 100},
+			models.KeystoneGuruEnemy{NPC: 100, MDTID: 3, Map: 2564}, []models.RouteEnemy{}, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, unplaced := RouteEnemies(models.MDTDungeon{Mobs: mobs, Clones: []models.MDTClone{tc.clone}},
+				[]models.DungeonFloor{floor2514}, []models.KeystoneGuruEnemy{tc.ksg})
+			if !reflect.DeepEqual(got, tc.want) || (len(unplaced) == 1) != tc.wantUnplaced {
+				t.Errorf("RouteEnemies = %+v, unplaced %+v; want %+v, unplaced %v", got, unplaced, tc.want,
+					tc.wantUnplaced)
+			}
+		})
+	}
+}
+
 func TestHitCounterFindsAbilitiesThatMissedSomeone(t *testing.T) {
 	h := NewHitCounter()
 	line := func(event string, f ...string) { h.Add(models.LogLine{Event: event, Fields: f}) }

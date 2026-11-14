@@ -30,7 +30,7 @@ func (s Store) Save(key models.Key) error {
 
 // List is every saved key, newest first; a missing folder is no keys.
 func (s Store) List() ([]models.Key, error) {
-	keys, err := readAll[models.Key](s.Dir)
+	keys, err := cachefile.ReadAll[models.Key](s.Dir)
 	slices.SortFunc(keys, func(a, b models.Key) int { return cmp.Compare(b.Start, a.Start) })
 	return keys, err
 }

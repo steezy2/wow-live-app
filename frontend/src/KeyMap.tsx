@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react'
 import {
-  fetchDungeonMap,
   raidMapURL,
   tileURL,
   type DungeonFloor,
@@ -26,9 +25,11 @@ import {
   type useReplay,
 } from './replay'
 import { BossBox, FocusBoxes } from './ReplayBoxes'
+import { useDungeonMap } from './routes'
 import { tip } from './tipAttrs'
 
 /** The trail the live map draws. */
+const NO_DUNGEON: DungeonMap = { floors: [], tilesPerSide: 0, walked: [], enemies: [] }
 const LIVE_TRAIL_MS = 30_000
 const SPEEDS = [1, 2, 4, 8, 16, 32]
 const TRAILS = [0, 10_000, 30_000, 120_000, Infinity]
@@ -130,16 +131,10 @@ export function KeyMap(props: {
 }) {
   const { keyView: key, clockMS, track, replay, focus: follow, onFocus: setFollow } = props
   const live = key.status === 'running'
-  const [dungeon, setDungeon] = useState<DungeonMap>({ floors: [], tilesPerSide: 0, walked: [] })
+  const dungeon = useDungeonMap(key.mapID) ?? NO_DUNGEON
   const [trail, setTrail] = useState(0)
   const [floor, setFloor] = useState<number | null>(null)
   const [enemy, setEnemy] = useState('')
-
-  useEffect(() => {
-    const controller = new AbortController()
-    fetchDungeonMap(key.mapID, controller.signal).then(setDungeon, () => undefined)
-    return () => controller.abort()
-  }, [key.mapID])
 
   const now = live ? clockMS : replay.at
   const floors = useMemo(() => floorsOf(track), [track])
@@ -242,12 +237,24 @@ function canvasSize(backdrop: Backdrop): [number, number] {
   }
 }
 
+/** A place in the combat log's yards. */
+export type Yards = Pick<TrackPoint, 'x' | 'y'>
+
+/** What a map draws over its backdrop: given where a place lands on the canvas and the size of a dot (the same on
+ * screen at any zoom). `hit` makes a dot it drew an enemy a click picks (onPickEnemy) by the id given. */
+export type Overlay = (
+  ctx: CanvasRenderingContext2D,
+  at: (p: Yards) => [number, number],
+  dot: number,
+  hit: (id: string, x: number, y: number, r: number) => void,
+) => void
+
 /** The map itself: the backdrop, each player's trail and dot in their class colour (a cross where they died), a raid
  * boss's units and minibosses (named), the other mobs alive (small, unnamed), and mob deaths so far. The wheel zooms
  * around the pointer, a drag pans and a double click shows all of it again. With onPick, a click on a player's dot
  * picks them and a right click picks nobody (''); the focused player gets a ring and their name, and the others'
  * trails fade. With onPickEnemy, a click on a mob or a boss picks it (by GUID), the right click lets go of it too, and
- * the picked enemy gets a ring and its name. */
+ * the picked enemy gets a ring and its name. An overlay is drawn on the backdrop, under all of those. */
 export function MapCanvas(props: {
   track: KeyTrack
   backdrop: Backdrop
@@ -260,9 +267,11 @@ export function MapCanvas(props: {
   focus?: string
   onPick?: (player: string) => void
   enemy?: string
-  onPickEnemy?: (guid: string) => void
+  /** Called with whether Shift was held. */
+  onPickEnemy?: (guid: string, shift: boolean) => void
+  overlay?: Overlay
 }) {
-  const { track, backdrop, floor, now, clock, trailMS, deaths, focus, onPick, enemy, onPickEnemy } = props
+  const { track, backdrop, floor, now, clock, trailMS, deaths, focus, onPick, enemy, onPickEnemy, overlay } = props
   const ref = useRef<HTMLCanvasElement>(null)
   const [loaded, setLoaded] = useState(0)
   const [view, setView] = useState(WHOLE)
@@ -299,14 +308,15 @@ export function MapCanvas(props: {
   const release = (e: PointerEvent<HTMLCanvasElement>) => {
     const from = press.current
     press.current = null
-    if (!from || from.dragged || !onPick) return
+    if (!from || from.dragged || !(onPick || onPickEnemy)) return
     const [x, y] = onCanvas(e, e.currentTarget)
     const [atX, atY] = [view.x + x / view.k, view.y + y / view.k]
     const far = (d: { x: number; y: number; r: number }) => Math.hypot(d.x - atX, d.y - atY) - d.r // from its edge
     const reach = ((e.currentTarget.width / 160) * 1.3) / view.k
     const pick = (d: { enemy: boolean }) => (d.enemy ? onPickEnemy : onPick)
     const [nearest] = dots.current.filter((d) => pick(d) && far(d) <= reach).sort((a, b) => far(a) - far(b))
-    if (nearest) pick(nearest)?.(nearest.id)
+    if (nearest?.enemy) onPickEnemy?.(nearest.id, e.shiftKey)
+    else if (nearest) onPick?.(nearest.id)
   }
   const area = useMemo<[number, number, number]>(
     () => (backdrop.kind === 'image' ? fightArea(backdrop.map, track, floor) : [0, 0, 1]),
@@ -388,6 +398,7 @@ export function MapCanvas(props: {
         ctx.arc(x, y, r, 0, 2 * Math.PI)
         ctx.stroke()
       }
+      overlay?.(ctx, at, dot, (id, x, y, r) => dots.current.push({ id, enemy: true, x, y, r }))
       ctx.fillStyle = css.bad
       track.deaths
         .filter((d) => d.map === floor && d.t <= now)
@@ -495,7 +506,7 @@ export function MapCanvas(props: {
     }
     tick()
     return () => cancelAnimationFrame(frame)
-  }, [track, backdrop, walkedHere, area, floor, now, clock, trailMS, deaths, loaded, view, focus, enemy])
+  }, [track, backdrop, walkedHere, area, floor, now, clock, trailMS, deaths, loaded, view, focus, enemy, overlay])
   return (
     <canvas
       ref={ref}
@@ -517,7 +528,7 @@ export function MapCanvas(props: {
         ((e) => {
           e.preventDefault()
           onPick('')
-          onPickEnemy?.('')
+          onPickEnemy?.('', false)
         })
       }
     />
@@ -527,7 +538,7 @@ export function MapCanvas(props: {
 /** Where a log position lands on a Keystone.guru floor: its x across is the log's -y within the floor's bounds,
  * its y down the log's x (both as Keystone.guru's CoordinatesService computes them). */
 function onTiles(floor: DungeonFloor, canvas: HTMLCanvasElement) {
-  return (p: TrackPoint): [number, number] => [
+  return (p: Yards): [number, number] => [
     ((floor.maxX + p.y) / (floor.maxX - floor.minX)) * canvas.width,
     ((floor.maxY - p.x) / (floor.maxY - floor.minY)) * canvas.height,
   ]
@@ -535,7 +546,7 @@ function onTiles(floor: DungeonFloor, canvas: HTMLCanvasElement) {
 
 /** Where a log position lands on a raid room's whole image, as shares of its width and height: across from its maxY
  * (west, the left edge), down from its maxX (north, the top), as the game's world map draws it. */
-function onRoom(map: RaidMap, p: TrackPoint): [number, number] {
+function onRoom(map: RaidMap, p: Yards): [number, number] {
   return [(map.maxY - p.y) / (map.maxY - map.minY), (map.maxX - p.x) / (map.maxX - map.minX)]
 }
 
@@ -559,7 +570,7 @@ function fightArea(map: RaidMap, track: KeyTrack, floor: number): [number, numbe
 
 /** Where a log position lands on the canvas showing a part of a raid room's image (fightArea). */
 function onImage(map: RaidMap, [left, top, share]: [number, number, number], canvas: HTMLCanvasElement) {
-  return (p: TrackPoint): [number, number] => {
+  return (p: Yards): [number, number] => {
     const [u, v] = onRoom(map, p)
     return [((u - left) / share) * canvas.width, ((v - top) / share) * canvas.height]
   }
@@ -576,5 +587,5 @@ function onWalked(walked: TrackPoint[], track: KeyTrack, floor: number, canvas: 
   }
   const pad = 12
   const scale = Math.min((canvas.width - 2 * pad) / (maxX - minX || 1), (canvas.height - 2 * pad) / (maxY - minY || 1))
-  return (p: TrackPoint): [number, number] => [pad + (-p.y - minX) * scale, canvas.height - pad - (p.x - minY) * scale]
+  return (p: Yards): [number, number] => [pad + (-p.y - minX) * scale, canvas.height - pad - (p.x - minY) * scale]
 }

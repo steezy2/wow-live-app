@@ -12,6 +12,7 @@ import {
   progressText,
   rowValue,
   resultText,
+  routeLine,
   versus,
   versusBest,
   withRealm,
@@ -172,6 +173,18 @@ describe('versus', () => {
     expect(versus(90_000, 30_000)).toBe('+1:00')
     expect(versus(30_000, 60_000)).toBe('-0:30')
     expect(versus(30_000, 30_000)).toBe('0:00')
+  })
+})
+
+describe('routeLine', () => {
+  const step = (number: number) => ({ number, pct: 12.4, totalPct: 58.1, color: '3eff3e', forces: 0, total: 0 })
+  it.each([
+    ['before any kill', null, step(7), 'Next: pull 7 (12.4%, to 58.1%)'],
+    ['on the route', step(6), step(7), 'Next: pull 7 (12.4%, to 58.1%)'],
+    ['past an unfinished pull', step(9), step(7), 'Next: pull 7 (12.4%, to 58.1%) · on pull 9'],
+    ['every pull done', step(18), null, 'Route done (102.3%)'],
+  ])('%s', (_, current, next, want) => {
+    expect(routeLine({ name: 'Route', current, next, forcesPct: 102.3 })).toBe(want)
   })
 })
 

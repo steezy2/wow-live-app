@@ -530,6 +530,59 @@
                 }
             }
         },
+        "/api/mplus/keys/{start}/route": {
+            "get": {
+                "description": "Each dead mob is matched to the nearest map enemy of its NPC on its floor within 20 yards, in\ndeath order. A pull is done when all of it died or 80% of its forces. noMobs is a key saved before\nmob positions were kept: only the route can be shown until its log is read again.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "mplus"
+                ],
+                "summary": "A key next to a route of its dungeon: which planned pulls were done, skipped or added",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "the key's start (ms since the epoch): the running key's, the last one's or a saved one's",
+                        "name": "start",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "the route's id; the dungeon's starred route when left out",
+                        "name": "id",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.RouteCompare"
+                        }
+                    },
+                    "400": {
+                        "description": "a bad start or id, or a route of another dungeon",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "no such key, or no such route (the dungeon has none)",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/mplus/keys/{start}/track": {
             "get": {
                 "produces": [
@@ -572,7 +625,7 @@
         },
         "/api/mplus/live": {
             "get": {
-                "description": "The key being played (its clock read now, death penalty included) or, between keys, the last one\nthat ended. The page reads it again on each notice from /api/mplus/events.",
+                "description": "The key being played (its clock read now, death penalty included) or, between keys, the last one\nthat ended. The page reads it again on each notice from /api/mplus/events. A running key carries\nits dungeon's starred route followed so far (route), when the dungeon has one.",
                 "produces": [
                     "application/json"
                 ],
@@ -606,6 +659,376 @@
                     },
                     "409": {
                         "description": "no key is running",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/mplus/route-dungeons": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "mplus"
+                ],
+                "summary": "The season's dungeons routes can be planned in",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.RouteDungeon"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/mplus/routes": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "mplus"
+                ],
+                "summary": "The planned routes, newest first, without their pulls' enemies",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "only this dungeon's routes (its map ID)",
+                        "name": "mapID",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.RouteView"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "The string's uid becomes the route's id, so importing it again replaces that route. The reply's\ndropped counts the enemies the string pulls that the dungeon's map doesn't have.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "mplus"
+                ],
+                "summary": "Add a route: import a Mythic Dungeon Tools export string, or make an empty one",
+                "parameters": [
+                    {
+                        "description": "code, mdtUID, or mapID and name",
+                        "name": "route",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controller.RouteRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "$ref": "#/definitions/models.RouteView"
+                        }
+                    },
+                    "400": {
+                        "description": "a bad string (the text says which step failed) or dungeon",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "no saved MDT route with that uid",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/mplus/routes/mdt-saves": {
+            "get": {
+                "description": "Mythic Dungeon Tools writes them on /reload or logout. An empty list when it has none.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "mplus"
+                ],
+                "summary": "The routes saved in Mythic Dungeon Tools, to import",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.SavedRoute"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/mplus/routes/{id}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "mplus"
+                ],
+                "summary": "One planned route with its pulls' forces",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "the route's id (letters, digits and brackets, up to 32)",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.RouteView"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "description": "Every enemy must be on the dungeon's map and in one pull at most; a route has at most 60 pulls and\na name of up to 60 characters.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "mplus"
+                ],
+                "summary": "Replace a route's name and pulls",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "the route's id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "name and pulls",
+                        "name": "route",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controller.RouteUpdate"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.RouteView"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "mplus"
+                ],
+                "summary": "Delete a route; if it was starred, its dungeon's newest route is",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "the route's id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/mplus/routes/{id}/export": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "mplus"
+                ],
+                "summary": "A route as a string for Mythic Dungeon Tools' Import",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "the route's id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/controller.RouteCode"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/mplus/routes/{id}/star": {
+            "post": {
+                "tags": [
+                    "mplus"
+                ],
+                "summary": "Make a route its dungeon's starred one (the live page and key comparison use it)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "the route's id",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "$ref": "#/definitions/controller.ErrorResponse"
                         }
@@ -1778,6 +2201,45 @@
                 }
             }
         },
+        "controller.RouteCode": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                }
+            }
+        },
+        "controller.RouteRequest": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "mapID": {
+                    "type": "integer"
+                },
+                "mdtUID": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "controller.RouteUpdate": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "pulls": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.RoutePull"
+                    }
+                }
+            }
+        },
         "models.AbilitySeries": {
             "type": "object",
             "properties": {
@@ -2025,6 +2487,13 @@
         "models.DungeonMap": {
             "type": "object",
             "properties": {
+                "enemies": {
+                    "description": "what a route can pull, for the route map",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.RouteEnemy"
+                    }
+                },
                 "floors": {
                     "type": "array",
                     "items": {
@@ -2040,6 +2509,17 @@
                     "items": {
                         "$ref": "#/definitions/models.TrackPoint"
                     }
+                }
+            }
+        },
+        "models.EnemyRef": {
+            "type": "object",
+            "properties": {
+                "clone": {
+                    "type": "integer"
+                },
+                "index": {
+                    "type": "integer"
                 }
             }
         },
@@ -3164,6 +3644,14 @@
                     "items": {
                         "$ref": "#/definitions/models.Resurrection"
                     }
+                },
+                "route": {
+                    "description": "Route is the dungeon's starred route followed so far, on the running key only (nil without a route).",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.RouteLive"
+                        }
+                    ]
                 },
                 "silentMS": {
                     "description": "SilentMS is how long ago the last line of a running key was logged (0 once it's over). The game writes its log\nin batches as fights start and end, so a long silence is a long fight, or a party that left.",
@@ -4699,6 +5187,263 @@
                 }
             }
         },
+        "models.RouteCompare": {
+            "type": "object",
+            "properties": {
+                "current": {
+                    "type": "integer"
+                },
+                "kills": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.EnemyRef"
+                    }
+                },
+                "next": {
+                    "type": "integer"
+                },
+                "noMobs": {
+                    "type": "boolean"
+                },
+                "off": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.RouteOff"
+                    }
+                },
+                "pulls": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.RoutePullProgress"
+                    }
+                },
+                "route": {
+                    "$ref": "#/definitions/models.RouteView"
+                },
+                "skipped": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                }
+            }
+        },
+        "models.RouteDungeon": {
+            "type": "object",
+            "properties": {
+                "forcesTotal": {
+                    "type": "integer"
+                },
+                "mapID": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.RouteEnemy": {
+            "type": "object",
+            "properties": {
+                "boss": {
+                    "type": "boolean"
+                },
+                "clone": {
+                    "type": "integer"
+                },
+                "count": {
+                    "type": "integer"
+                },
+                "index": {
+                    "type": "integer"
+                },
+                "map": {
+                    "description": "the floor's UIMapID",
+                    "type": "integer"
+                },
+                "npc": {
+                    "type": "integer"
+                },
+                "pack": {
+                    "description": "Keystone.guru's pack, else Mythic Dungeon Tools' group, else 0",
+                    "type": "integer"
+                },
+                "x": {
+                    "type": "number"
+                },
+                "y": {
+                    "type": "number"
+                }
+            }
+        },
+        "models.RouteLive": {
+            "type": "object",
+            "properties": {
+                "current": {
+                    "$ref": "#/definitions/models.RouteStep"
+                },
+                "forcesPct": {
+                    "type": "number"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "next": {
+                    "$ref": "#/definitions/models.RouteStep"
+                }
+            }
+        },
+        "models.RouteOff": {
+            "type": "object",
+            "properties": {
+                "clockMS": {
+                    "type": "integer"
+                },
+                "enemies": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.EnemyRef"
+                    }
+                },
+                "forces": {
+                    "type": "integer"
+                },
+                "keyPull": {
+                    "type": "integer"
+                },
+                "offMap": {
+                    "type": "integer"
+                },
+                "pct": {
+                    "type": "number"
+                }
+            }
+        },
+        "models.RoutePull": {
+            "type": "object",
+            "properties": {
+                "color": {
+                    "type": "string"
+                },
+                "enemies": {
+                    "description": "left out of the route list",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.EnemyRef"
+                    }
+                }
+            }
+        },
+        "models.RoutePullProgress": {
+            "type": "object",
+            "properties": {
+                "clockMS": {
+                    "type": "integer"
+                },
+                "done": {
+                    "type": "boolean"
+                },
+                "keyPull": {
+                    "type": "integer"
+                },
+                "killed": {
+                    "type": "integer"
+                },
+                "of": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.RoutePullView": {
+            "type": "object",
+            "properties": {
+                "color": {
+                    "type": "string"
+                },
+                "enemies": {
+                    "description": "left out of the route list",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.EnemyRef"
+                    }
+                },
+                "forces": {
+                    "type": "integer"
+                },
+                "pct": {
+                    "type": "number"
+                },
+                "total": {
+                    "type": "integer"
+                },
+                "totalPct": {
+                    "type": "number"
+                }
+            }
+        },
+        "models.RouteStep": {
+            "type": "object",
+            "properties": {
+                "color": {
+                    "type": "string"
+                },
+                "enemies": {
+                    "description": "left out of the route list",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.EnemyRef"
+                    }
+                },
+                "forces": {
+                    "type": "integer"
+                },
+                "number": {
+                    "type": "integer"
+                },
+                "pct": {
+                    "type": "number"
+                },
+                "total": {
+                    "type": "integer"
+                },
+                "totalPct": {
+                    "type": "number"
+                }
+            }
+        },
+        "models.RouteView": {
+            "type": "object",
+            "properties": {
+                "dropped": {
+                    "description": "an import's enemies that Mythic Dungeon Tools knows and this map doesn't",
+                    "type": "integer"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "mapID": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "pulls": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.RoutePullView"
+                    }
+                },
+                "starred": {
+                    "type": "boolean"
+                },
+                "totalPct": {
+                    "type": "number"
+                },
+                "updated": {
+                    "type": "integer"
+                }
+            }
+        },
         "models.RuleResult": {
             "type": "object",
             "properties": {
@@ -4712,6 +5457,29 @@
                     "type": "string"
                 },
                 "why": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.SavedRoute": {
+            "type": "object",
+            "properties": {
+                "dungeon": {
+                    "type": "string"
+                },
+                "imported": {
+                    "type": "boolean"
+                },
+                "mapID": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "pulls": {
+                    "type": "integer"
+                },
+                "uid": {
                     "type": "string"
                 }
             }

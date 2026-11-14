@@ -19,6 +19,7 @@ import { KeyDetails } from './KeyDetails'
 import { MPlusLive } from './MPlusLive'
 import { RaidPage } from './RaidPage'
 import { Recap } from './Recap'
+import { RoutesPage } from './RoutesPage'
 import { SavedKeys } from './SavedKeys'
 import { SettingsPage } from './SettingsPage'
 import { Skeleton } from './Skeleton'
@@ -26,7 +27,7 @@ import { Skeleton } from './Skeleton'
 /** The longest the splash stays up waiting for the settings and the characters. */
 const SPLASH_MAX_MS = 2000
 
-type Section = 'home' | 'mplus' | 'raid' | 'recap' | 'settings'
+type Section = 'home' | 'mplus' | 'routes' | 'raid' | 'recap' | 'settings'
 
 /** The section the app opens on, chosen once the settings are known (null when they never came): Home on the first
  * run (setup not done and no saved keys, null while not known), else Settings when the log folder is missing, else M+
@@ -41,7 +42,7 @@ function Splash() {
   return <div className="splash" role="status">WoW Live</div>
 }
 
-/** The site: its sections along the top (Home, M+ Live, Raid, Recap, and Settings in the desktop app) and the character
+/** The site: its sections along the top (Home, M+ Live, Routes, Raid, Recap, and Settings in the desktop app) and the character
  * picker, whose pick (Settings' character at first, else all) the saved keys, raid nights and recap show; M+ Live has
  * the saved keys on the side and the live key or the one picked from them. The app shows a splash until the settings and
  * characters are read (at most SPLASH_MAX_MS), then opens on Home on the first run, or on Settings when it can't find the log folder. */
@@ -58,6 +59,8 @@ export default function App() {
   const [splashOver, setSplashOver] = useState(false)
   const [settingsRead, setSettingsRead] = useState(false) // the settings answered, or there are none (the site without the app)
   const [first, setFirst] = useState<Section | null>(null) // the section opened on, chosen once
+  // the Routes page stays mounted so unsaved edits survive a tab switch
+  const [routesSeen, setRoutesSeen] = useState(false)
   const [raidPull, setRaidPull] = useState<number | null>(null)
   const [characters, setCharacters] = useState<Character[]>([])
   const [picked, setPicked] = useState<string | null>(null)
@@ -65,6 +68,7 @@ export default function App() {
   const preferred = settings?.character ?? ''
   const ready = (settingsRead && charactersRead && savedKeys !== null) || splashOver
   const section = picking ?? first
+  if (section === 'routes' && !routesSeen) setRoutesSeen(true)
   if (ready && first === null) setFirst(firstSection(settings, savedKeys)) // chosen once, so later changes never move the page
   useEffect(() => {
     const timer = setTimeout(() => setSplashOver(true), SPLASH_MAX_MS)
@@ -131,6 +135,7 @@ export default function App() {
           </button>
         )}
         <button {...tab('mplus')}>M+ Live</button>
+        <button {...tab('routes')}>Routes</button>
         <button {...tab('raid')}>Raid</button>
         <button {...tab('recap')}>Recap</button>
         {(settings || !settingsRead) && (
@@ -140,6 +145,11 @@ export default function App() {
         )}
         <CharacterPicker characters={characters} value={character} onChange={setPicked} />
       </nav>
+      {routesSeen && (
+        <div hidden={section !== 'routes'}>
+          <RoutesPage visible={section === 'routes'} />
+        </div>
+      )}
       {section === null ? (
         <Splash />
       ) : settings && section === 'settings' ? (
@@ -163,7 +173,7 @@ export default function App() {
             <Skeleton height={320} lines={5} />
           )}
         </main>
-      ) : section === 'raid' ? (
+      ) : section === 'routes' ? null : section === 'raid' ? (
         <RaidPage key={raidPull} initial={raidPull} character={character} />
       ) : section === 'recap' ? (
         <main className="page">

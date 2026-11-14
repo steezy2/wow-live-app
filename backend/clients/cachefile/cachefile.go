@@ -72,6 +72,27 @@ func writeBytes(path string, data []byte) error {
 	return nil
 }
 
+// ReadAll reads every JSON file in dir as a T; a missing folder is none.
+func ReadAll[T any](dir string) ([]T, error) {
+	paths, err := filepath.Glob(filepath.Join(dir, "*.json"))
+	if err != nil {
+		return nil, fmt.Errorf("listing %s: %w", dir, err)
+	}
+	all := []T{}
+	for _, path := range paths {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return nil, fmt.Errorf("reading %s: %w", path, err)
+		}
+		var v T
+		if err := json.Unmarshal(data, &v); err != nil {
+			return nil, fmt.Errorf("reading %s: %w", path, err)
+		}
+		all = append(all, v)
+	}
+	return all, nil
+}
+
 // AppendLine adds one line to a running log (live-delay.log), making the folder.
 func AppendLine(path, line string) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {

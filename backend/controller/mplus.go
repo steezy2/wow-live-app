@@ -25,8 +25,26 @@ type MPlus struct {
 	Compares Compares
 	Changes  Changes
 	Recaps   Recaps
+	Planner  Planner
 	Spells   Spells
 	Now      func() time.Time
+}
+
+// Planner keeps the owner's planned routes (service.Routes).
+type Planner interface {
+	List(mapID int) ([]models.RouteView, error)
+	Get(id string) (models.RouteView, error)
+	Import(code string) (models.RouteView, error)
+	ImportSaved(uid string) (models.RouteView, error)
+	Saved() ([]models.SavedRoute, error)
+	Dungeons() []models.RouteDungeon
+	Create(mapID int, name string) (models.RouteView, error)
+	Update(id, name string, pulls []models.RoutePull) (models.RouteView, error)
+	Star(id string) error
+	Delete(id string) error
+	Export(id string) (string, error)
+	Compare(start int64, id string) (models.RouteCompare, error)
+	Live(key models.KeyView) (*models.RouteLive, error)
 }
 
 // Changes gives the keys' new versions as they change (service.Changes).
@@ -52,7 +70,8 @@ type Reviews interface {
 //
 //	@Summary		The running Mythic+ key, or the last one
 //	@Description	The key being played (its clock read now, death penalty included) or, between keys, the last one
-//	@Description	that ended. The page reads it again on each notice from /api/mplus/events.
+//	@Description	that ended. The page reads it again on each notice from /api/mplus/events. A running key carries
+//	@Description	its dungeon's starred route followed so far (route), when the dungeon has one.
 //	@Tags			mplus
 //	@Produce		json
 //	@Success		200	{object}	models.KeyView
@@ -64,7 +83,39 @@ func (m MPlus) Live(c *gin.Context) {
 		c.Status(http.StatusNoContent)
 		return
 	}
+	var err error
+	if key.Route, err = m.Planner.Live(key); err != nil {
+		log.Printf("live route: %v", err) // the live key is still worth showing without it
+	}
 	c.JSON(http.StatusOK, key)
+}
+
+// KeyRoute godoc
+//
+//	@Summary		A key next to a route of its dungeon: which planned pulls were done, skipped or added
+//	@Description	Each dead mob is matched to the nearest map enemy of its NPC on its floor within 20 yards, in
+//	@Description	death order. A pull is done when all of it died or 80% of its forces. noMobs is a key saved before
+//	@Description	mob positions were kept: only the route can be shown until its log is read again.
+//	@Tags			mplus
+//	@Produce		json
+//	@Param			start	path		int		true	"the key's start (ms since the epoch): the running key's, the last one's or a saved one's"
+//	@Param			id		query		string	false	"the route's id; the dungeon's starred route when left out"
+//	@Success		200		{object}	models.RouteCompare
+//	@Failure		400		{object}	ErrorResponse	"a bad start or id, or a route of another dungeon"
+//	@Failure		404		{object}	ErrorResponse	"no such key, or no such route (the dungeon has none)"
+//	@Failure		500		{object}	ErrorResponse
+//	@Router			/api/mplus/keys/{start}/route [get]
+func (m MPlus) KeyRoute(c *gin.Context) {
+	start, ok := startParam(c)
+	if !ok {
+		return
+	}
+	id := c.Query("id")
+	if id != "" && !checkRouteID(c, id) {
+		return
+	}
+	compare, err := m.Planner.Compare(start, id)
+	respondRoute(c, http.StatusOK, compare, err)
 }
 
 // Abandon godoc
@@ -376,4 +427,232 @@ func respondError(c *gin.Context, err error) {
 	}
 	log.Printf("saved keys: %v", err)
 	c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "couldn't read or change the saved keys"})
+}
+
+// RouteRequest is the body of a new route: a Mythic Dungeon Tools export string, the uid of a route in its saved
+// variables, or a dungeon and a name for an empty one.
+type RouteRequest struct {
+	Code   string `json:"code"`
+	MDTUID string `json:"mdtUID"`
+	MapID  int    `json:"mapID"`
+	Name   string `json:"name"`
+}
+
+// RouteUpdate is the body that replaces a route's name and pulls.
+type RouteUpdate struct {
+	Name  string             `json:"name"`
+	Pulls []models.RoutePull `json:"pulls"`
+}
+
+// RouteCode is a route as a Mythic Dungeon Tools export string.
+type RouteCode struct {
+	Code string `json:"code"`
+}
+
+// RouteDungeons godoc
+//
+//	@Summary	The season's dungeons routes can be planned in
+//	@Tags		mplus
+//	@Produce	json
+//	@Success	200	{array}	models.RouteDungeon
+//	@Router		/api/mplus/route-dungeons [get]
+func (m MPlus) RouteDungeons(c *gin.Context) {
+	c.JSON(http.StatusOK, m.Planner.Dungeons())
+}
+
+// MDTSaves godoc
+//
+//	@Summary		The routes saved in Mythic Dungeon Tools, to import
+//	@Description	Mythic Dungeon Tools writes them on /reload or logout. An empty list when it has none.
+//	@Tags			mplus
+//	@Produce		json
+//	@Success		200	{array}		models.SavedRoute
+//	@Failure		500	{object}	ErrorResponse
+//	@Router			/api/mplus/routes/mdt-saves [get]
+func (m MPlus) MDTSaves(c *gin.Context) {
+	saves, err := m.Planner.Saved()
+	respondRoute(c, http.StatusOK, saves, err)
+}
+
+// Routes godoc
+//
+//	@Summary	The planned routes, newest first, without their pulls' enemies
+//	@Tags		mplus
+//	@Produce	json
+//	@Param		mapID	query		int	false	"only this dungeon's routes (its map ID)"
+//	@Success	200		{array}		models.RouteView
+//	@Failure	400		{object}	ErrorResponse
+//	@Failure	500		{object}	ErrorResponse
+//	@Router		/api/mplus/routes [get]
+func (m MPlus) Routes(c *gin.Context) {
+	mapID, err := strconv.Atoi(c.DefaultQuery("mapID", "0"))
+	if err != nil || mapID < 0 {
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "mapID must be a whole number"})
+		return
+	}
+	routes, err := m.Planner.List(mapID)
+	respondRoute(c, http.StatusOK, routes, err)
+}
+
+// Route godoc
+//
+//	@Summary	One planned route with its pulls' forces
+//	@Tags		mplus
+//	@Produce	json
+//	@Param		id	path		string	true	"the route's id (letters, digits and brackets, up to 32)"
+//	@Success	200	{object}	models.RouteView
+//	@Failure	400	{object}	ErrorResponse
+//	@Failure	404	{object}	ErrorResponse
+//	@Failure	500	{object}	ErrorResponse
+//	@Router		/api/mplus/routes/{id} [get]
+func (m MPlus) Route(c *gin.Context) {
+	if id, ok := routeID(c); ok {
+		route, err := m.Planner.Get(id)
+		respondRoute(c, http.StatusOK, route, err)
+	}
+}
+
+// AddRoute godoc
+//
+//	@Summary		Add a route: import a Mythic Dungeon Tools export string, or make an empty one
+//	@Description	The string's uid becomes the route's id, so importing it again replaces that route. The reply's
+//	@Description	dropped counts the enemies the string pulls that the dungeon's map doesn't have.
+//	@Tags			mplus
+//	@Accept			json
+//	@Produce		json
+//	@Param			route	body		RouteRequest	true	"code, mdtUID, or mapID and name"
+//	@Success		201		{object}	models.RouteView
+//	@Failure		400		{object}	ErrorResponse	"a bad string (the text says which step failed) or dungeon"
+//	@Failure		404		{object}	ErrorResponse	"no saved MDT route with that uid"
+//	@Failure		500		{object}	ErrorResponse
+//	@Router			/api/mplus/routes [post]
+func (m MPlus) AddRoute(c *gin.Context) {
+	var req RouteRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "send a code, an mdtUID, or a mapID and a name"})
+		return
+	}
+	var route models.RouteView
+	var err error
+	switch {
+	case req.Code != "":
+		route, err = m.Planner.Import(req.Code)
+	case req.MDTUID != "":
+		route, err = m.Planner.ImportSaved(req.MDTUID)
+	default:
+		route, err = m.Planner.Create(req.MapID, req.Name)
+	}
+	respondRoute(c, http.StatusCreated, route, err)
+}
+
+// UpdateRoute godoc
+//
+//	@Summary		Replace a route's name and pulls
+//	@Description	Every enemy must be on the dungeon's map and in one pull at most; a route has at most 60 pulls and
+//	@Description	a name of up to 60 characters.
+//	@Tags			mplus
+//	@Accept			json
+//	@Produce		json
+//	@Param			id		path		string		true	"the route's id"
+//	@Param			route	body		RouteUpdate	true	"name and pulls"
+//	@Success		200		{object}	models.RouteView
+//	@Failure		400		{object}	ErrorResponse
+//	@Failure		404		{object}	ErrorResponse
+//	@Failure		500		{object}	ErrorResponse
+//	@Router			/api/mplus/routes/{id} [put]
+func (m MPlus) UpdateRoute(c *gin.Context) {
+	id, ok := routeID(c)
+	if !ok {
+		return
+	}
+	var req RouteUpdate
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "send a name and pulls"})
+		return
+	}
+	route, err := m.Planner.Update(id, req.Name, req.Pulls)
+	respondRoute(c, http.StatusOK, route, err)
+}
+
+// StarRoute godoc
+//
+//	@Summary	Make a route its dungeon's starred one (the live page and key comparison use it)
+//	@Tags		mplus
+//	@Param		id	path	string	true	"the route's id"
+//	@Success	204
+//	@Failure	400	{object}	ErrorResponse
+//	@Failure	404	{object}	ErrorResponse
+//	@Failure	500	{object}	ErrorResponse
+//	@Router		/api/mplus/routes/{id}/star [post]
+func (m MPlus) StarRoute(c *gin.Context) {
+	if id, ok := routeID(c); ok {
+		respondRoute(c, http.StatusNoContent, nil, m.Planner.Star(id))
+	}
+}
+
+// DeleteRoute godoc
+//
+//	@Summary	Delete a route; if it was starred, its dungeon's newest route is
+//	@Tags		mplus
+//	@Param		id	path	string	true	"the route's id"
+//	@Success	204
+//	@Failure	400	{object}	ErrorResponse
+//	@Failure	404	{object}	ErrorResponse
+//	@Failure	500	{object}	ErrorResponse
+//	@Router		/api/mplus/routes/{id} [delete]
+func (m MPlus) DeleteRoute(c *gin.Context) {
+	if id, ok := routeID(c); ok {
+		respondRoute(c, http.StatusNoContent, nil, m.Planner.Delete(id))
+	}
+}
+
+// ExportRoute godoc
+//
+//	@Summary	A route as a string for Mythic Dungeon Tools' Import
+//	@Tags		mplus
+//	@Produce	json
+//	@Param		id	path		string	true	"the route's id"
+//	@Success	200	{object}	RouteCode
+//	@Failure	400	{object}	ErrorResponse
+//	@Failure	404	{object}	ErrorResponse
+//	@Failure	500	{object}	ErrorResponse
+//	@Router		/api/mplus/routes/{id}/export [get]
+func (m MPlus) ExportRoute(c *gin.Context) {
+	if id, ok := routeID(c); ok {
+		code, err := m.Planner.Export(id)
+		respondRoute(c, http.StatusOK, RouteCode{Code: code}, err)
+	}
+}
+
+// routeID reads the :id path parameter, answering 400 when it can't name a route (checkRouteID).
+func routeID(c *gin.Context) (string, bool) {
+	id := c.Param("id")
+	return id, checkRouteID(c, id)
+}
+
+// checkRouteID is whether id can name a route, answering 400 when it can't, before anything builds a file path from it.
+func checkRouteID(c *gin.Context, id string) bool {
+	ok := models.ValidRouteID(id)
+	if !ok {
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "id must be 1 to 32 letters, digits or brackets"})
+	}
+	return ok
+}
+
+// respondRoute answers body with status, or the status of the planner's error: 404 for a route that isn't there, 400
+// with the reason for one the request made invalid, else 500 without the internal error text.
+func respondRoute(c *gin.Context, status int, body any, err error) {
+	switch {
+	case err == nil && body == nil:
+		c.Status(status)
+	case err == nil:
+		c.JSON(status, body)
+	case errors.Is(err, service.ErrNoSuchRoute), errors.Is(err, service.ErrNoSuchKey):
+		c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
+	case errors.Is(err, service.ErrInvalidRoute):
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
+	default:
+		log.Printf("routes: %v", err)
+		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "couldn't read or change the routes"})
+	}
 }

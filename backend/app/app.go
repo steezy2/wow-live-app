@@ -23,7 +23,9 @@ import (
 	"wow-live/backend/clients/combatlog"
 	"wow-live/backend/clients/keystoneguru"
 	"wow-live/backend/clients/keystore"
+	"wow-live/backend/clients/mdt"
 	"wow-live/backend/clients/raiderio"
+	"wow-live/backend/clients/routestore"
 	"wow-live/backend/clients/wcl"
 	"wow-live/backend/clients/wowhead"
 	"wow-live/backend/controller"
@@ -129,11 +131,17 @@ func Start(ctx context.Context, opts Options) (*Site, error) {
 		Source: wcl.MapImages{CacheDir: filepath.Join(opts.Cache, "raid-maps")}}
 	recaps := service.Recaps{Saved: keys.History, Region: opts.Region, Now: opts.Now, Logs: opts.Baselines,
 		Season: raiderio.Client{CacheDir: filepath.Join(opts.Cache, "raiderio")}}
+	planner := &service.Routes{Store: routestore.Store{Dir: filepath.Join(opts.Cache, "routes")}, Facts: opts.Dungeons,
+		Now: opts.Now}
+	planner.Decode, planner.Encode, planner.Track = mdt.DecodeRoute, mdt.EncodeRoute, keys.RouteTrack
+	if opts.LogsDir != nil {
+		planner.Saves = func() ([]models.MDTPreset, error) { return mdt.SavedRoutes(opts.LogsDir()) }
+	}
 	spells := &service.Spells{Keys: keys, Source: wowhead.Client{CacheDir: filepath.Join(opts.Cache, "wowhead"),
 		HTTP: &http.Client{Timeout: spellTimeout}}}
 	s.Handler = controller.Router(controller.MPlus{Keys: keys, Reviews: s.reviews, Compares: s.compares, Changes: s.Changes,
 		Now: opts.Now, Tiles: tiles, Recaps: recaps,
-		Spells: spells}, &controller.Raid{Compares: s.compares, Pulls: keys, Maps: raidMaps, Now: opts.Now}, opts.Settings,
+		Spells: spells, Planner: planner}, &controller.Raid{Compares: s.compares, Pulls: keys, Maps: raidMaps, Now: opts.Now}, opts.Settings,
 		opts.Pages, opts.Hosts...)
 	return s, nil
 }

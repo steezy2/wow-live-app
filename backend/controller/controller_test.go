@@ -131,7 +131,7 @@ func TestLiveKeyIsReadAtNowOrNoContentBeforeAnyKey(t *testing.T) {
 	keys := &fakeKeys{key: models.KeyView{Key: models.Key{Dungeon: "Voidscar Arena", Level: 17}, ClockMS: 75_000},
 		ok: true}
 	now := time.UnixMilli(1_793_800_000_000)
-	router := Router(MPlus{Keys: keys, Now: func() time.Time { return now }}, nil, nil, os.DirFS(t.TempDir()), LocalHosts(port)...)
+	router := Router(MPlus{Keys: keys, Planner: &fakePlanner{}, Now: func() time.Time { return now }}, nil, nil, os.DirFS(t.TempDir()), LocalHosts(port)...)
 	w := get(t, router, "/api/mplus/live")
 	var got models.KeyView
 	if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil || w.Code != http.StatusOK ||
@@ -549,6 +549,95 @@ func TestRecapNeedsASpan(t *testing.T) {
 		router.ServeHTTP(w, r)
 		if w.Code != tc.code {
 			t.Errorf("%s: %d %s; want %d", tc.url, w.Code, w.Body, tc.code)
+		}
+	}
+}
+
+// fakePlanner has one route, "abc", and counts the calls that reach it.
+type fakePlanner struct{ calls int }
+
+func (f *fakePlanner) known(id string) error {
+	f.calls++
+	if id != "abc" {
+		return service.ErrNoSuchRoute
+	}
+	return nil
+}
+func (f *fakePlanner) List(int) ([]models.RouteView, error) {
+	f.calls++
+	return []models.RouteView{}, nil
+}
+func (f *fakePlanner) Get(id string) (models.RouteView, error) {
+	return models.RouteView{ID: id}, f.known(id)
+}
+func (f *fakePlanner) Import(code string) (models.RouteView, error) {
+	f.calls++
+	return models.RouteView{}, fmt.Errorf("%w: not an MDT route", service.ErrInvalidRoute)
+}
+func (f *fakePlanner) Create(int, string) (models.RouteView, error) {
+	f.calls++
+	return models.RouteView{ID: "new"}, nil
+}
+func (f *fakePlanner) Update(id, _ string, _ []models.RoutePull) (models.RouteView, error) {
+	return models.RouteView{ID: id}, f.known(id)
+}
+func (f *fakePlanner) ImportSaved(string) (models.RouteView, error) {
+	f.calls++
+	return models.RouteView{}, nil
+}
+func (f *fakePlanner) Dungeons() []models.RouteDungeon     { return nil }
+func (f *fakePlanner) Saved() ([]models.SavedRoute, error) { f.calls++; return nil, nil }
+func (f *fakePlanner) Star(id string) error                { return f.known(id) }
+func (f *fakePlanner) Delete(id string) error              { return f.known(id) }
+func (f *fakePlanner) Export(id string) (string, error) {
+	return "!~MDT2~", f.known(id)
+}
+
+// Compare knows no starred route, so only ?id=abc compares.
+func (f *fakePlanner) Compare(start int64, id string) (models.RouteCompare, error) {
+	if start != 7 {
+		return models.RouteCompare{}, service.ErrNoSuchKey
+	}
+	return models.RouteCompare{}, f.known(id)
+}
+func (f *fakePlanner) Live(models.KeyView) (*models.RouteLive, error) { return nil, nil }
+
+func TestRoutesAnswerBadIDsBeforeTouchingFiles(t *testing.T) {
+	planner := &fakePlanner{}
+	router := Router(MPlus{Keys: &fakeKeys{}, Planner: planner, Now: time.Now}, nil, nil, os.DirFS(t.TempDir()),
+		LocalHosts(port)...)
+	for _, tc := range []struct {
+		method, path, body string
+		code               int
+		calls              int
+	}{
+		{http.MethodGet, "/api/mplus/routes/x..y", "", http.StatusBadRequest, 0},
+		{http.MethodGet, "/api/mplus/routes/a.json", "", http.StatusBadRequest, 0},
+		{http.MethodPut, "/api/mplus/routes/a%20b", `{"name":"x","pulls":[]}`, http.StatusBadRequest, 0},
+		{http.MethodPost, "/api/mplus/routes/a.b/star", "", http.StatusBadRequest, 0},
+		{http.MethodDelete, "/api/mplus/routes/" + strings.Repeat("a", 33), "", http.StatusBadRequest, 0},
+		{http.MethodGet, "/api/mplus/routes/a(b)/export", "", http.StatusNotFound, 1},
+		{http.MethodGet, "/api/mplus/routes/abc", "", http.StatusOK, 1},
+		{http.MethodPut, "/api/mplus/routes/abc", `{"name":"x","pulls":[]}`, http.StatusOK, 1},
+		{http.MethodPut, "/api/mplus/routes/abc", `nope`, http.StatusBadRequest, 0},
+		{http.MethodPost, "/api/mplus/routes/abc/star", "", http.StatusNoContent, 1},
+		{http.MethodDelete, "/api/mplus/routes/abc", "", http.StatusNoContent, 1},
+		{http.MethodGet, "/api/mplus/routes", "", http.StatusOK, 1},
+		{http.MethodGet, "/api/mplus/routes?mapID=x", "", http.StatusBadRequest, 0},
+		{http.MethodPost, "/api/mplus/routes", `{"code":"hello"}`, http.StatusBadRequest, 1},
+		{http.MethodPost, "/api/mplus/routes", `{"mapID":585,"name":"x"}`, http.StatusCreated, 1},
+		{http.MethodGet, "/api/mplus/keys/7/route", "", http.StatusNotFound, 1},
+		{http.MethodGet, "/api/mplus/keys/7/route?id=abc", "", http.StatusOK, 1},
+		{http.MethodGet, "/api/mplus/keys/7/route?id=a.b", "", http.StatusBadRequest, 0},
+		{http.MethodGet, "/api/mplus/keys/8/route", "", http.StatusNotFound, 0},
+	} {
+		planner.calls = 0
+		r := httptest.NewRequest(tc.method, tc.path, strings.NewReader(tc.body))
+		r.Host = "localhost:8080"
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, r)
+		if w.Code != tc.code || planner.calls != tc.calls {
+			t.Errorf("%s %s: %d with %d calls, want %d with %d", tc.method, tc.path, w.Code, planner.calls, tc.code, tc.calls)
 		}
 	}
 }

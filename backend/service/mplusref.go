@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"fmt"
 	"maps"
+	"math"
 	"slices"
 	"strings"
 
@@ -86,6 +87,46 @@ func DungeonFacts(src DungeonSources) (models.DungeonFacts, error) {
 	}
 	f.MustStop, f.Review = sorted(f.MustStop), sorted(f.Review)
 	return f, nil
+}
+
+// RouteEnemies places Mythic Dungeon Tools' clones on the dungeon's floors, sorted by (Index, Clone), where
+// Keystone.guru's enemy with the same NPC (or the one it says Mythic Dungeon Tools lists) and clone index stands, and
+// the clones Keystone.guru doesn't place on those floors.
+func RouteEnemies(m models.MDTDungeon, floors []models.DungeonFloor, ksg []models.KeystoneGuruEnemy) (
+	enemies []models.RouteEnemy, unplaced []models.MDTClone) {
+	enemies, byClone := []models.RouteEnemy{}, map[[2]int]models.KeystoneGuruEnemy{} // a list in the file, never null
+	for _, e := range ksg {
+		byClone[[2]int{e.NPC, e.MDTID}] = e
+		if e.MDTNPC > 0 {
+			byClone[[2]int{e.MDTNPC, e.MDTID}] = e
+		}
+	}
+	for _, c := range m.Clones {
+		e, ok := byClone[[2]int{c.NPC, c.Clone}]
+		i := slices.IndexFunc(floors, func(f models.DungeonFloor) bool { return f.UIMapID == e.Map })
+		if !ok || i < 0 {
+			unplaced = append(unplaced, c)
+			continue
+		}
+		x, y := ksgToLog(floors[i], e.Lat, e.Lng)
+		mob := m.Mobs[c.NPC]
+		enemies = append(enemies, models.RouteEnemy{Index: c.Index, Clone: c.Clone, NPC: c.NPC, Count: mob.Count,
+			Boss: mob.Boss, Pack: cmp.Or(e.Pack, c.Group), X: x, Y: y, Map: e.Map})
+	}
+	slices.SortFunc(enemies, func(a, b models.RouteEnemy) int {
+		return cmp.Or(cmp.Compare(a.Index, b.Index), cmp.Compare(a.Clone, b.Clone))
+	})
+	return enemies, unplaced
+}
+
+// Keystone.guru's map is ksgWidth by ksgHeight at zoom 0: lng runs right, lat down from 0 to -ksgHeight.
+const ksgWidth, ksgHeight = 384.0, 256.0
+
+// ksgToLog is where a Keystone.guru map point stands in log yards (to a tenth), the inverse of the map's projection
+// (KeyMap.tsx's onTiles): across is the log's -y from the floor's maxX, down the log's x from its maxY.
+func ksgToLog(f models.DungeonFloor, lat, lng float64) (x, y float64) {
+	return math.Round((f.MaxY+lat/ksgHeight*(f.MaxY-f.MinY))*10) / 10,
+		math.Round((lng/ksgWidth*(f.MaxX-f.MinX)-f.MaxX)*10) / 10
 }
 
 // sorted is the IDs once each, in order, never nil (so the file always has a list).
