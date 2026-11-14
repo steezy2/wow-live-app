@@ -10,6 +10,7 @@ import {
   oddsText,
   periodLabel,
   progressText,
+  rowValue,
   resultText,
   versus,
   versusBest,
@@ -171,6 +172,16 @@ describe('versus', () => {
     expect(versus(90_000, 30_000)).toBe('+1:00')
     expect(versus(30_000, 60_000)).toBe('-0:30')
     expect(versus(30_000, 30_000)).toBe('0:00')
+  })
+})
+
+describe('rowValue', () => {
+  it('writes each unit its own way', () => {
+    expect(rowValue(1_234_000, '/s')).toBe('1.2M/s')
+    expect(rowValue(63.6, '%')).toBe('64%')
+    expect(rowValue(3.54, 'per min')).toBe('3.5 per min')
+    expect(rowValue(1, 'casts')).toBe('1 cast')
+    expect(rowValue(2, '')).toBe('2')
   })
 })
 

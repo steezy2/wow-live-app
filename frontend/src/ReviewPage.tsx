@@ -22,11 +22,12 @@ import { offense, raidOffense } from './meterColumns'
 import { RaidLanes, RaidReplay } from './RaidReplay'
 import { useRaidTrack, useReplay, useTrack } from './replay'
 import { Name, When, Who, type Seeker } from './Seek'
+import { ComparePlayer } from './ComparePlayer'
 import { PlayerReview } from './PlayerReview'
 import { Tabs } from './Tabs'
 
 /** The review page's tabs, by their name in the address (?tab=). */
-const TABS = ['overview', 'player', 'deaths', 'interrupts', 'events', 'timeline'] as const
+const TABS = ['overview', 'player', 'deaths', 'interrupts', 'events', 'timeline', 'compare'] as const
 type TabName = (typeof TABS)[number]
 
 /** The first page of WoWAnalyzer: nothing is uploaded, so there is no report to open there. */
@@ -324,6 +325,24 @@ function ReviewShell({ fight }: { fight: Fight }) {
       <NoAbilities />
     ),
     timeline: <section className="panel replay">{fight.timeline(replay, focus, setFocus)}</section>,
+    compare: (
+      <>
+        <label>
+          Player{' '}
+          <select value={focus} onChange={(e) => setFocus(e.target.value)}>
+            <option value="">Pick a player</option>
+            {fight.players.map((p) => (
+              <option key={p}>{p}</option>
+            ))}
+          </select>
+        </label>
+        {focus ? (
+          <ComparePlayer key={focus} kind={fight.kind} start={fight.start} player={focus} />
+        ) : (
+          <p className="muted">Pick a player to compare with the top logs of their spec.</p>
+        )}
+      </>
+    ),
   }
   return (
     <main className="page review">
@@ -344,6 +363,16 @@ function ReviewShell({ fight }: { fight: Fight }) {
         {fight.players.map((p) => (
           <span key={p}>
             <Name player={p} classes={classes} onPick={setFocus} />{' '}
+            <button
+              className="link"
+              onClick={() => {
+                setFocus(p)
+                open('compare')
+                setOpened((n) => n + 1)
+              }}
+            >
+              Logs
+            </button>{' '}
           </span>
         ))}
       </p>

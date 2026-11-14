@@ -1764,3 +1764,18 @@ button.link {
   text-decoration: underline dotted var(--muted);
   text-underline-offset: 3px;
 }
+
+/* A player review's rows: the player against their usual, the top logs and the best log. */
+table.compare {
+  width: 100%;
+  border-collapse: collapse;
+}
+table.compare th,
+table.compare td {
+  padding: var(--s1) var(--s2);
+  text-align: right;
+}
+table.compare th:first-child,
+table.compare td:first-child {
+  text-align: left;
+}

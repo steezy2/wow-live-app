@@ -1256,3 +1256,73 @@ export async function fetchRaidTrack(start: number, signal?: AbortSignal): Promi
 export function raidMapURL(uiMapID: number): string {
   return `/api/raid/maps/${uiMapID}`
 }
+
+/** A row of a player review (models.CompareRow): the player's number, their usual in similar runs (missing with none),
+ * the top logs' median and the best log's, in a unit ("/s", "%", "per min", "casts" or ""). */
+export interface CompareRow {
+  name: string
+  id?: number
+  you: number
+  yours?: number
+  top: number
+  best: number
+  unit: string
+  /** The ability's share of the player's damage or healing, in %. */
+  share?: number
+}
+
+/** A top log in a player review, linked to its Warcraft Logs fight. */
+export interface CompareLog {
+  name: string
+  server: string
+  code: string
+  fightID: number
+  durationMS: number
+  amount: number
+}
+
+/** A player's run against their own similar runs, the top Warcraft Logs logs of their spec and their parses
+ * (models.PlayerCompare). */
+export interface PlayerCompare {
+  kind: 'mplus' | 'raid'
+  start: number
+  player: string
+  spec: string
+  baseline: string
+  verdict: string
+  yourRuns: number
+  logs: CompareLog[]
+  parses?: CharacterParses
+  parse?: CharacterParse
+  stats: CompareRow[]
+  abilities: CompareRow[]
+  buffs: CompareRow[]
+  onlyYou: string[]
+  onlyTop: string[]
+  advice: string[]
+  /** The Warcraft Logs points it spent. */
+  points: number
+}
+
+/** A player's stored review of a finished key or raid pull, or null when none was made yet. */
+export async function fetchCompare(
+  kind: 'mplus' | 'raid',
+  start: number,
+  player: string,
+  signal?: AbortSignal,
+): Promise<PlayerCompare | null> {
+  const response = await fetch(compareURL(kind, start, player), { signal })
+  if (response.status === 404) return null
+  if (!response.ok) throw await failure(response)
+  return (await response.json()) as PlayerCompare
+}
+
+/** Reviews a player against Warcraft Logs' top logs (spends points); the stored review when there is one. */
+export async function runCompare(kind: 'mplus' | 'raid', start: number, player: string): Promise<PlayerCompare> {
+  return (await (await call(compareURL(kind, start, player), { method: 'POST' })).json()) as PlayerCompare
+}
+
+function compareURL(kind: 'mplus' | 'raid', start: number, player: string): string {
+  const path = kind === 'mplus' ? `mplus/keys/${start}` : `raid/pulls/${start}`
+  return `/api/${path}/players/${encodeURIComponent(player)}/compare`
+}
