@@ -265,21 +265,6 @@ func TestResolveChecksNameAndRealm(t *testing.T) {
 	}
 }
 
-type fakeKeyList []models.Key
-
-func (f fakeKeyList) List() ([]models.Key, error) { return f, nil }
-
-func TestGuessIsTheMostFrequentLogger(t *testing.T) {
-	keys := fakeKeyList{{Logger: "Testrogue"}, {Logger: "Testmage"}, {}, {Logger: "Testmage"}, {Logger: "Testrogue"},
-		{Logger: "Testmage"}}
-	if got := (Characters{Keys: keys}).Guess(); got != "Testmage" {
-		t.Errorf("guessed %q; want Testmage, the logger of 3 of 5 keys", got)
-	}
-	if got := (Characters{Keys: fakeKeyList{{}}}).Guess(); got != "" {
-		t.Errorf("guessed %q from keys with no logger; want none", got)
-	}
-}
-
 func TestQuickRepullsAreNotCopies(t *testing.T) {
 	reports := []models.CharacterReport{report("RAID", 200, t0,
 		bossFight(1, false, 0, 20_000, testParty...), bossFight(2, false, 120_000, 23_000, testParty...))}

@@ -3,6 +3,7 @@ import type { HitRecap, KeyTrack, RaidPull, TrackPoint } from './api'
 import {
   abilitiesBetween,
   abilitiesUpTo,
+  damageIntoEnemy,
   enemyName,
   floorsOf,
   healthAfter,
@@ -181,5 +182,23 @@ describe('healthAfter', () => {
   })
   it('knows nothing without a known point or max HP', () => {
     expect(healthAfter(recap([{ t: 1, k: 'damage', a: 'Melee', s: '', n: 100 }]))[0].pct).toBeUndefined()
+  })
+})
+
+describe('damageIntoEnemy', () => {
+  const track = {
+    abilityTimes: [10_000, 20_000],
+    targetSeries: {
+      Kaz: [{ a: 'Boss', p: [[10_000, 60, 0, 0], [20_000, 40, 0, 0]] }],
+      Mia: [{ a: 'Boss', p: [[10_000, 100, 0, 0]] }, { a: 'Add', p: [[10_000, 5, 0, 0]] }],
+    },
+  } as unknown as KeyTrack
+  it('adds each player\'s damage into the named enemy up to the moment, most first', () => {
+    expect(damageIntoEnemy(track, 'Boss', 15_000)).toEqual([
+      { player: 'Mia', damage: 100 },
+      { player: 'Kaz', damage: 80 },
+    ])
+    expect(damageIntoEnemy(track, 'Add', 5_000)).toEqual([{ player: 'Mia', damage: 2.5 }])
+    expect(damageIntoEnemy(track, 'Nobody', 15_000)).toEqual([])
   })
 })

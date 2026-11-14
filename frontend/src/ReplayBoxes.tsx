@@ -1,6 +1,6 @@
 import { classColors } from './classColors'
 import { amount } from './format'
-import { BOSS_GONE_MS, enemyName, lastAt, type AbilitiesUpTo } from './replay'
+import { BOSS_GONE_MS, damageIntoEnemy, enemyName, lastAt, type AbilitiesUpTo } from './replay'
 import type { KeyTrack, TrackCast } from './api'
 
 /** At most this many units in the boss box: the boss's own, then the adds to burst. */
@@ -35,7 +35,7 @@ export function BossBox({ track, now }: { track: KeyTrack; now: number }) {
 }
 
 /** The boxes over the bottom of the replay's map: the focused player's casts over the damage they took at
- * the left, a picked enemy's casts at the right. */
+ * the left, a picked enemy's casts under the damage each player has done to it at the right. */
 export function FocusBoxes(props: {
   track: KeyTrack
   player: string
@@ -59,6 +59,7 @@ export function FocusBoxes(props: {
       </div>
       {enemy && (
         <div className="map-stack">
+          <EnemyDamageBox track={track} name={enemyName(track, enemy)} now={now} />
           <CastBox
             title={enemyName(track, enemy)}
             color="var(--bad)"
@@ -113,6 +114,23 @@ function TakenBox({ taken }: { taken: AbilitiesUpTo['taken'] }) {
       {top.map((h) => (
         <div key={h.ability} className="muted">
           {h.ability} <b>{amount(h.damage)}</b>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/** What each player has done to the picked enemy (every enemy of its name) up to the replay's moment, the TAKEN_BOX_ROWS
+ * who did the most, in their class's colour. Nothing before anyone hit it. */
+function EnemyDamageBox({ track, name, now }: { track: KeyTrack; name: string; now: number }) {
+  const top = damageIntoEnemy(track, name, now).slice(0, TAKEN_BOX_ROWS)
+  if (top.length === 0) return null
+  return (
+    <div className="map-box taken-box" aria-label={`damage taken by ${name}`}>
+      <b>{name} took</b>
+      {top.map((p) => (
+        <div key={p.player}>
+          <span style={{ color: classColors[track.classes[p.player]] }}>{p.player}</span> <b>{amount(p.damage)}</b>
         </div>
       ))}
     </div>

@@ -42,11 +42,10 @@ type LogFolder interface {
 	Storage() (models.Storage, error)
 }
 
-// Characters checks the character setting and guesses it from the saved keys (service.Characters); Resolve's errors
+// Characters checks the character setting and reads its parses (service.Characters); Resolve's errors
 // wrap service.ErrBadCharacter for a character that doesn't fit, models.ErrNoCredentials without Warcraft Logs keys.
 type Characters interface {
 	Resolve(ctx context.Context, region, character string) (name, slug string, err error)
-	Guess() string
 	Parses(ctx context.Context, region, character string) (models.CharacterParses, error)
 }
 
@@ -297,9 +296,7 @@ func characterFailed(c *gin.Context, err error) bool {
 
 // view is the settings with the choices to pick from.
 func (s SettingsAPI) view() models.SettingsView {
-	view := service.SettingsChoices(s.Settings.Get())
-	view.CharacterGuess = s.Characters.Guess()
-	return view
+	return service.SettingsChoices(s.Settings.Get())
 }
 
 // KeysStatus godoc

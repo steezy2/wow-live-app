@@ -5,6 +5,7 @@ import type {
   ImportStatus,
   KeySpike,
   KeyView,
+  LogFile,
   MeterPoint,
   RaidPullSummary,
   RouteLive,
@@ -75,6 +76,25 @@ export function versusBest(ms: number, bestMS: number): string {
 /** A count with its word: "1 death", "3 deaths". */
 export function counted(n: number, word: string): string {
   return `${n} ${word}${n === 1 ? '' : 's'}`
+}
+
+/** The days a log list shows one by one; older logs share one group. */
+export const RECENT_LOG_DAYS = 5
+
+/** Logs grouped by the day they were written (local time) for the last RECENT_LOG_DAYS days, then one group for
+ * everything older; the list's order is kept, so newest first stays so. */
+export function groupLogsByDay(files: LogFile[], now: number): { label: string; files: LogFile[] }[] {
+  const midnight = (ms: number) => new Date(ms).setHours(0, 0, 0, 0)
+  const groups = new Map<string, LogFile[]>()
+  for (const f of files) {
+    const days = Math.round((midnight(now) - midnight(f.writtenMS)) / 86_400_000)
+    const label =
+      days > RECENT_LOG_DAYS
+        ? `Older than ${RECENT_LOG_DAYS} days`
+        : new Date(f.writtenMS).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })
+    groups.set(label, [...(groups.get(label) ?? []), f])
+  }
+  return [...groups].map(([label, list]) => ({ label, files: list }))
 }
 
 /** A short time in seconds: "6.3 s". */

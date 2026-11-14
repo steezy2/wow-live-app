@@ -108,7 +108,7 @@ func Start(ctx context.Context, opts Options) (*Site, error) {
 	}
 	s := &Site{Keys: keys, Changes: &service.Changes{Every: pushEvery}, opts: opts, newKeys: newKeys}
 	if opts.Settings != nil {
-		characters := service.Characters{Realms: opts.Realms, Keys: store, Logs: opts.WCL,
+		characters := service.Characters{Realms: opts.Realms, Logs: opts.WCL,
 			Bosses: slices.Sorted(maps.Keys(opts.Bosses))}
 		opts.Settings.Logs, opts.Settings.Characters = s, characters
 		if opts.WCL != nil {
@@ -121,7 +121,7 @@ func Start(ctx context.Context, opts Options) (*Site, error) {
 		s.reviews, s.topRuns = reviewer, reviewer.TopRuns
 		if baselines, ok := opts.Baselines.(models.CompareBaselines); ok {
 			s.compares = service.Comparer{Keys: keys, Baselines: baselines, Store: store,
-				Characters: service.Characters{Realms: opts.Realms, Keys: store, Logs: opts.WCL,
+				Characters: service.Characters{Realms: opts.Realms, Logs: opts.WCL,
 					Bosses: slices.Sorted(maps.Keys(opts.Bosses))}, Region: opts.Region, Rules: opts.SpecRules}
 		}
 	}
