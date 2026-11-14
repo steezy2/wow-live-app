@@ -12,7 +12,8 @@ const rowKey = (f: LogFile) => `${f.source}:${f.archived ? 'zip' : 'log'}:${f.na
 /** The game's combat logs, the archived ones and the Warcraft Logs imports, to pick: the game's logs to archive
  * (zipped into the log folder's WoW Live archive folder, which live reading and Read old logs skip), archived logs and
  * imports (already zips) to delete for good. Logs are listed by the day they were written (the last 5 days one by
- * one, older ones together); a group's box picks all of its logs. Old, read logs come ticked; the log the game is writing can't be picked.
+ * one, older ones together); a group's box picks all of its logs. Old, read logs come ticked; the log the game is
+ * writing can't be picked.
  * Listed again whenever a read (reading) or this list's own job ends, which also runs onChanged. */
 export function CombatLogs({ reading, onChanged }: { reading: boolean; onChanged: () => void }) {
   const [files, setFiles] = useState<LogFile[] | null>(null)
