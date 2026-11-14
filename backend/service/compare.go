@@ -204,7 +204,7 @@ func (c Comparer) load(kind models.FightKind, start int64, player string) (fight
 	}
 	keys, _ := c.Keys.History()
 	f := fightRun{kind: kind, start: start, end: key.End, encounter: key.Dungeon, level: key.Level,
-		character: character(player, key.Realms), spec: spec, partial: key.Status == "abandoned",
+		character: character(player, key.Realms), spec: spec, partial: key.Status == models.StatusAbandoned,
 		local: c.keyPlayer(key, player)}
 	for _, k := range similarKeys(keys, key, player) {
 		f.yours = append(f.yours, c.keyPlayer(k, player))

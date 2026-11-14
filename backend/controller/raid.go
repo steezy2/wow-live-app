@@ -67,15 +67,11 @@ func (r Raid) Pull(c *gin.Context) {
 		return
 	}
 	pull, err := r.Pulls.RaidPull(start)
-	switch {
-	case err == nil:
-		c.JSON(http.StatusOK, pull)
-	case errors.Is(err, service.ErrNoSuchPull):
-		c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
-	default:
-		log.Printf("raid pull: %v", err)
-		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "couldn't read the raid pull"})
+	if err != nil {
+		respondError(c, err)
+		return
 	}
+	c.JSON(http.StatusOK, pull)
 }
 
 // Track godoc
@@ -98,15 +94,11 @@ func (r Raid) Track(c *gin.Context) {
 		return
 	}
 	track, err := r.Pulls.RaidTrack(start)
-	switch {
-	case err == nil:
-		c.JSON(http.StatusOK, track)
-	case errors.Is(err, service.ErrNoSuchPull):
-		c.JSON(http.StatusNotFound, ErrorResponse{Error: "no track for that pull"})
-	default:
-		log.Printf("raid track: %v", err)
-		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "couldn't read the pull's track"})
+	if err != nil {
+		respondError(c, err)
+		return
 	}
+	c.JSON(http.StatusOK, track)
 }
 
 // Map godoc

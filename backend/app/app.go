@@ -152,7 +152,8 @@ func (s *Site) importer(characters service.Characters, store keystore.Store, pul
 			return s.opts.WCL.ImportFight(ctx, ref.Code, ref.FightID,
 				wcl.FightOptions{Logger: character, Dungeons: s.opts.Dungeons})
 		},
-		Read: s.readImported,
+		Read:  s.readImported,
+		Write: cachefile.WriteJSON,
 		Saved: func() ([]models.Key, []models.RaidPull, error) {
 			keys, err := store.List()
 			if err != nil {

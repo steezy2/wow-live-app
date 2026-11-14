@@ -28,8 +28,8 @@ const (
 	Mythic = 5
 )
 
-// RetryWaits are the pauses before each retry when Warcraft Logs times out (it's slow at peak times).
-var RetryWaits = []time.Duration{10 * time.Second, 30 * time.Second}
+// retryWaits are the pauses before each retry when Warcraft Logs times out (it's slow at peak times).
+var retryWaits = []time.Duration{10 * time.Second, 30 * time.Second}
 
 // ErrRateLimited means the account's hourly points are used up until the hour resets.
 var ErrRateLimited = models.ErrRateLimited
@@ -153,7 +153,7 @@ func (c *Client) Query(ctx context.Context, gql string, variables map[string]any
 	}
 	waits := c.Waits
 	if waits == nil {
-		waits = RetryWaits
+		waits = retryWaits
 	}
 	for attempt := 1; ; attempt++ {
 		data, retry, err := c.post(ctx, body)
@@ -263,9 +263,9 @@ func (c *Client) Test(ctx context.Context, creds Credentials) (models.RateLimit,
 	return probe.RateLimit(ctx)
 }
 
-// PointsLine is one line of logs/points.log, e.g. "2026-11-03 23:01 sim used 12.4, 380.1 of 1000 spent this
+// pointsLine is one line of logs/points.log, e.g. "2026-11-03 23:01 sim used 12.4, 380.1 of 1000 spent this
 // hour". The used count shows "?" when the hour reset mid-run.
-func PointsLine(when time.Time, script string, start float64, budget models.RateLimit) string {
+func pointsLine(when time.Time, script string, start float64, budget models.RateLimit) string {
 	used := budget.PointsSpentThisHour - start
 	usedText := "?"
 	if used >= 0 {
@@ -281,6 +281,6 @@ func (c *Client) LogPoints(ctx context.Context, logFile, script string, start fl
 	if err != nil {
 		return "", err
 	}
-	line := PointsLine(c.now(), script, start, budget)
+	line := pointsLine(c.now(), script, start, budget)
 	return line, cachefile.AppendLine(logFile, line)
 }

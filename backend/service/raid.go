@@ -178,7 +178,7 @@ func (k *LogTracker) startPull(line models.LogLine) {
 	if n := night(line.Time); n != k.raid.kitNight {
 		k.raid.kit, k.raid.kitNight = LearnKit(nil), n
 	}
-	run := newRun(models.Key{Dungeon: f[1], Start: line.Time, Status: "running"}, f[4])
+	run := newRun(models.Key{Dungeon: f[1], Start: line.Time, Status: models.StatusRunning}, f[4])
 	boss := k.raid.bosses[f[1]]
 	run.facts = &models.DungeonFacts{Name: f[1], Avoidable: boss.Avoidable, Soak: boss.Soak, Dispel: boss.Dispel,
 		MustStop: boss.MustStop}

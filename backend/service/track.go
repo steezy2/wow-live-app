@@ -245,9 +245,9 @@ func (k *LogTracker) trackOf(run *keyRun) models.KeyTrack {
 	}
 	t.Bosses = bossTrails(run.track.Bosses)
 	if len(run.track.Mobs) > 0 {
-		t.Mobs = mobTrails(run.track.Mobs, run.key.Status == "running") // the live map shows only the mobs still up
+		t.Mobs = mobTrails(run.track.Mobs, run.key.Status == models.StatusRunning) // the live map shows only the mobs still up
 	}
-	if run.key.Status != "running" { // the focus bars and casts are for the replay of a finished run
+	if run.key.Status != models.StatusRunning { // the focus bars and casts are for the replay of a finished run
 		t.AbilityTimes = list(run.track.AbilityTimes)
 		t.Casts = map[string][]models.TrackCast{}
 		for name, casts := range run.track.Casts {

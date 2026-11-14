@@ -1,5 +1,13 @@
 package models
 
+// The values of Key.Status: a key in progress, finished in time or over it, or left without an end in the log.
+const (
+	StatusRunning   = "running"
+	StatusTimed     = "timed"
+	StatusDepleted  = "depleted"
+	StatusAbandoned = "abandoned"
+)
+
 // Key is one Mythic+ run as the combat log shows it: the dungeon, level and affixes, when it started (ms since the
 // epoch, also its ID once saved), how it ended, and what happened on the key's clock.
 type Key struct {

@@ -25,8 +25,8 @@ import (
 const (
 	// Repo is Keystone.guru on GitHub.
 	Repo = "Wotuu/keystone.guru"
-	// Zoom is the tile zoom the site uses: 2^Zoom by 2^Zoom tiles of 384 by 256 pixels (a 1536 by 1024 map).
-	Zoom = 2
+	// zoom is the tile zoom the site uses: 2^zoom by 2^zoom tiles of 384 by 256 pixels (a 1536 by 1024 map).
+	zoom = 2
 	// dataMaxAge is how long the dungeon data is reused; tiles are kept for good.
 	dataMaxAge = 7 * 24 * time.Hour
 )
@@ -196,11 +196,11 @@ func (c Client) getJSON(ctx context.Context, file string, out any) error {
 	return nil
 }
 
-// Tile is one map tile of a floor (its Tiles path) at Zoom, as WebP: downloaded the first time, then from the cache.
+// Tile is one map tile of a floor (its Tiles path) at zoom, as WebP: downloaded the first time, then from the cache.
 func (c Client) Tile(ctx context.Context, tiles string, x, y int) ([]byte, error) {
 	name := fmt.Sprintf("%d_%d.webp", x, y)
 	path := filepath.Join(c.CacheDir, "tiles", filepath.FromSlash(tiles), name)
-	url := fmt.Sprintf("%s/tiles_webp/%s/%d/%s", cmp.Or(c.Assets, "https://assets.keystone.guru"), tiles, Zoom, name)
+	url := fmt.Sprintf("%s/tiles_webp/%s/%d/%s", cmp.Or(c.Assets, "https://assets.keystone.guru"), tiles, zoom, name)
 	if err := cachefile.Fresh(ctx, c.HTTP, url, path, 100*365*24*time.Hour); err != nil {
 		return nil, fmt.Errorf("Keystone.guru tile: %w", err)
 	}

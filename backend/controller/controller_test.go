@@ -15,6 +15,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gin-gonic/gin"
+
 	"wow-live/backend/models"
 	"wow-live/backend/service"
 )
@@ -669,5 +671,35 @@ func TestSpellAnswersByAbilityName(t *testing.T) {
 		if w.Code != tc.code {
 			t.Errorf("%s: %d %s; want %d", tc.url, w.Code, w.Body, tc.code)
 		}
+	}
+}
+
+func TestWCLAnswerMapsErrorsToStatuses(t *testing.T) {
+	for name, tc := range map[string]struct {
+		err  error
+		want int
+	}{
+		"ok":                 {nil, http.StatusOK},
+		"no key":             {service.ErrNoSuchKey, http.StatusNotFound},
+		"no pull":            {fmt.Errorf("reading: %w", service.ErrNoSuchPull), http.StatusNotFound},
+		"no player":          {service.ErrNoSuchPlayer, http.StatusNotFound},
+		"still running":      {service.ErrKeyRunning, http.StatusConflict},
+		"no top logs":        {service.ErrNoTopLogs, http.StatusUnprocessableEntity},
+		"no points":          {service.ErrNoPoints, http.StatusTooManyRequests},
+		"no credentials":     {models.ErrNoCredentials, http.StatusServiceUnavailable},
+		"bad credentials":    {models.ErrBadCredentials, http.StatusServiceUnavailable},
+		"warcraft logs down": {errors.New("boom"), http.StatusBadGateway},
+	} {
+		t.Run(name, func(t *testing.T) {
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			wclAnswer(c, "test", struct{}{}, tc.err)
+			if w.Code != tc.want {
+				t.Fatalf("status = %d, want %d", w.Code, tc.want)
+			}
+			if tc.want == http.StatusBadGateway && strings.Contains(w.Body.String(), "boom") {
+				t.Fatalf("the 502 leaks the error: %s", w.Body)
+			}
+		})
 	}
 }

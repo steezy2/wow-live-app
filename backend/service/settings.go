@@ -31,6 +31,19 @@ var ErrBadSettings = fmt.Errorf("send a full log folder path, a region (%s), whe
 	strings.Join(regions, ", "), strings.Join(overlayShows, ", "), minOpacity, strings.Join(overlayColumns, ", "),
 	maxAutoDays)
 
+// CleanSettings is s with its log folder path cleaned and its character trimmed, as every save stores them.
+func CleanSettings(s models.Settings) models.Settings {
+	s.LogsDir = filepath.Clean(s.LogsDir)
+	s.Character = strings.TrimSpace(s.Character)
+	return s
+}
+
+// CharacterNeedsCheck is whether saving next over before sets a character Warcraft Logs must still confirm: a new
+// one, or the same one in another region.
+func CharacterNeedsCheck(before, next models.Settings) bool {
+	return next.Character != "" && (next.Character != before.Character || next.Region != before.Region)
+}
+
 // ValidateSettings is nil when s is within the choices SettingsChoices serves, else ErrBadSettings.
 func ValidateSettings(s models.Settings) error {
 	o, auto := s.Overlay, s.Auto

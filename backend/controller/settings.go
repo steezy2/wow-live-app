@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"path/filepath"
 	"slices"
 	"strings"
 
@@ -256,14 +255,13 @@ func (s SettingsAPI) Put(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, ErrorResponse{Error: service.ErrBadSettings.Error()})
 		return
 	}
-	next.LogsDir = filepath.Clean(next.LogsDir)
+	next = service.CleanSettings(next)
 	if err := service.ValidateSettings(next); err != nil {
 		c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 		return
 	}
 	before := s.Settings.Get().Settings
-	next.Character = strings.TrimSpace(next.Character)
-	if next.Character != "" && (next.Character != before.Character || next.Region != before.Region) {
+	if service.CharacterNeedsCheck(before, next) {
 		if _, _, err := s.Characters.Resolve(c.Request.Context(), next.Region, next.Character); characterFailed(c, err) {
 			return
 		}

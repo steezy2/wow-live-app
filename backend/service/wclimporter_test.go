@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -64,6 +65,16 @@ type testImporter struct {
 func newTestImporter(t *testing.T, budgets []models.RateLimit, fail ...error) *testImporter {
 	ti := &testImporter{}
 	ti.Importer = &Importer{Source: &fakeReports{budgets: budgets}, Characters: Characters{Realms: fakeRealms{}},
+		Write: func(path string, v any) error {
+			data, err := json.Marshal(v)
+			if err != nil {
+				return err
+			}
+			if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+				return err
+			}
+			return os.WriteFile(path, data, 0o644)
+		},
 		Fetch: func(_ context.Context, ref models.FightRef, _ string) (string, error) {
 			ti.mu.Lock()
 			defer ti.mu.Unlock()

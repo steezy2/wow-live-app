@@ -85,7 +85,7 @@ func TestDecodeRouteRefuses(t *testing.T) {
 	for _, tc := range []struct{ name, code, want string }{
 		{"wrong prefix", "!WA:2!abc", "not an MDT route"},
 		{"bad Base64", routePrefix + "@@@@", "Base64"},
-		{"too long", routePrefix + strings.Repeat("A", MaxRouteCode), "longer than"},
+		{"too long", routePrefix + strings.Repeat("A", maxRouteCode), "longer than"},
 		{"zip bomb", routePrefix + base64.StdEncoding.EncodeToString(bomb.Bytes()), "inflates past"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
