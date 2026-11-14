@@ -129,10 +129,8 @@ func TestRaidPullDeathsMechanicsAndProgress(t *testing.T) {
 	for _, d := range p.Deaths {
 		early = append(early, d.Early)
 	}
-	if fmt.Sprint(early) != "[true true false]" || p.Deaths[0].Ability != "Caustic Waves" ||
-		len(p.Deaths[0].Recap) != 2 || p.Deaths[0].Recap[1].BeforeMS != 500 {
-		t.Fatalf("deaths = %+v; want the first, one 105 s before the end, not one 20 s before, each with its last "+
-			"hits (ticks too)", p.Deaths)
+	if fmt.Sprint(early) != "[true true false]" || p.Deaths[0].Ability != "Caustic Waves" {
+		t.Fatalf("deaths = %+v; want the first, one 105 s before the end, not one 20 s before", p.Deaths)
 	}
 	if len(p.MassKills) != 1 || p.MassKills[0] != (models.MassKill{Ability: "Caustic Waves", Killed: 2, ClockMS: 10_000}) {
 		t.Fatalf("mass kills = %+v; want Caustic Waves killing 2 at 10 s", p.MassKills)
@@ -375,7 +373,7 @@ func TestRaidPullKeepsAbilitiesTargetsAndHowLongBuffsLasted(t *testing.T) {
 		t.Fatal(err)
 	}
 	p := store.pulls[0]
-	if len(p.Abilities) != 2 || p.Abilities[0] != (models.KeyAbility{Player: "Testmage", Ability: "Arcane Barrage",
+	if len(p.Abilities) != 2 || p.Abilities[0] != (models.KeyAbility{Player: "Testmage", Ability: "Arcane Barrage", ID: 44425,
 		Damage: 5000, Hits: 1, School: 0x40}) || fmt.Sprint(p.Targets) != "[{Testmage Testboss 5000}]" {
 		t.Fatalf("abilities = %+v, targets = %+v; want the mage's arcane Arcane Barrage for 5000 into Testboss",
 			p.Abilities, p.Targets)
@@ -594,6 +592,11 @@ func TestMissingWindows(t *testing.T) {
 	if _, err := keys.SaveFinished(); err != nil {
 		t.Fatal(err)
 	}
+	if r := store.pulls[0].Resurrections; len(r) != 1 || r[0].Player != "Testmage" || r[0].ClockMS <= 0 ||
+		store.pulls[0].Specs["Testmage"] == 0 {
+		t.Errorf("resurrections = %+v, specs %v; want the battle res of Testmage, and each raider's spec", r,
+			store.pulls[0].Specs)
+	}
 	var got []models.BuffGap
 	for _, g := range store.pulls[0].BuffGaps {
 		if g.FromMS > 0 { // the start check's gaps are TestRaidBuffGapsAtThePull's
@@ -679,8 +682,8 @@ func TestRaidTrackKeepsBossHealthCastsAndAbilities(t *testing.T) {
 	if fmt.Sprint(hp) != "[40]" || fmt.Sprint(track.Health) != "["+bossGUID+"]" {
 		t.Errorf("boss health in the track = %v, shown %v; want the boss at 40%% in the box", hp, track.Health)
 	}
-	if got := fmt.Sprint(track.Casts["Testmage"]); got != "[{2000 Frostbolt 4000 false} {5000 Arcane Barrage 0 false} "+
-		"{6000 Frostbolt 7000 true} {8000 Frostbolt 0 true}]" {
+	if got := fmt.Sprint(track.Casts["Testmage"]); got != "[{2000 Frostbolt 116 4000 false} {5000 Arcane Barrage 44425 0 false} "+
+		"{6000 Frostbolt 116 7000 true} {8000 Frostbolt 116 0 true}]" {
 		t.Errorf("casts = %s; want the Frostbolt from 2 to 4 s, the instant at 5 s, one interrupted at 7 s (not at the "+
 			"key pressed again) and one the pull cut", got)
 	}

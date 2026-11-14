@@ -17,6 +17,7 @@ import {
 } from './api'
 import { counted } from './format'
 import { RouteMap } from './RouteMap'
+import { tip } from './tipAttrs'
 import { draftOf, edit, editorOf, packOf, pullForces, useDungeonMap } from './routes'
 
 /** The share of the dungeon's forces a route needs. */
@@ -130,7 +131,7 @@ export function RoutesPage({ visible }: { visible: boolean }) {
               className="route-star"
               aria-pressed={r.starred}
               disabled={r.starred}
-              title={r.starred ? 'The route the live page follows' : 'Make it the route the live page follows'}
+              {...tip(r.starred ? 'The route the live page follows' : 'Make it the route the live page follows')}
               onClick={() => {
                 setPicked(shown?.id ?? null) // the route shown stays shown
                 void act(starRoute(r.id))
@@ -140,7 +141,7 @@ export function RoutesPage({ visible }: { visible: boolean }) {
             </button>
             <button
               className="delete"
-              title="Delete route"
+              {...tip('Delete route')}
               onClick={() => {
                 const remove = () => act(deleteRoute(r.id))
                 if (r.id === shown?.id) leave(remove)
@@ -212,7 +213,7 @@ export function RoutesPage({ visible }: { visible: boolean }) {
               </button>
               <button
                 disabled={dirty}
-                title={dirty ? 'Save first: the string is the saved route' : undefined}
+                {...tip(dirty ? 'Save first: the string is the saved route' : undefined)}
                 onClick={() => void copy(route.id)}
               >
                 {copied === route.id ? 'Copied' : 'Copy MDT string'}

@@ -93,7 +93,7 @@ export function RouteMap(props: {
       <MapCanvas
         key={here.uiMapID}
         track={NO_TRACK}
-        backdrop={{ kind: 'tiles', floor: here, mapID }}
+        backdrop={{ kind: 'tiles', floor: here, mapID, perSide: dungeon?.tilesPerSide ?? 0 }}
         floor={here.uiMapID}
         now={0}
         trailMS={0}

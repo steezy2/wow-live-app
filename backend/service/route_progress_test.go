@@ -133,7 +133,8 @@ func TestCompareRoute(t *testing.T) {
 		{"a key saved without mobs", "", models.KeyTrack{}, "abc", true, nil},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := r.Compare(voidscar, tc.id, tc.track)
+			r.Track = func(int64) (int, models.KeyTrack, error) { return voidscar, tc.track, nil }
+			got, err := r.Compare(1, tc.id)
 			if !errors.Is(err, tc.wantErr) || err == nil && (got.Route.ID != tc.wantID || got.NoMobs != tc.wantNoMobs) {
 				t.Fatalf("compare = route %q, noMobs %v, %v; want %q, %v, %v", got.Route.ID, got.NoMobs, err, tc.wantID,
 					tc.wantNoMobs, tc.wantErr)
@@ -144,13 +145,18 @@ func TestCompareRoute(t *testing.T) {
 
 func TestLiveRoute(t *testing.T) {
 	r := newRoutes(t)
-	if live, err := r.Live(voidscar, routeTrack()); live != nil || err != nil {
+	running := models.KeyView{Key: models.Key{Start: 1, MapID: voidscar, Status: "running"}}
+	r.Track = func(int64) (int, models.KeyTrack, error) { return voidscar, routeTrack(), nil }
+	if live, err := r.Live(running); live != nil || err != nil {
 		t.Fatalf("live without a route = %+v, %v; want nil", live, err)
 	}
 	first := models.MDTPull{Color: "ff3eff", Enemies: map[int][]int{1: {1, 2}}}
 	second := models.MDTPull{Color: "ff3eff", Enemies: map[int][]int{2: {1}}}
 	if _, err := r.ImportPreset(preset("abc", 163, first, second)); err != nil {
 		t.Fatal(err)
+	}
+	if live, err := r.Live(models.KeyView{Key: models.Key{MapID: voidscar, Status: "done"}}); live != nil || err != nil {
+		t.Fatalf("live of a finished key = %+v, %v; want nil", live, err)
 	}
 	for _, tc := range []struct {
 		name          string
@@ -161,7 +167,8 @@ func TestLiveRoute(t *testing.T) {
 		{"every pull", routeTrack(0, 100, 200), 2, 0},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			live, err := r.Live(voidscar, tc.track)
+			r.Track = func(int64) (int, models.KeyTrack, error) { return voidscar, tc.track, nil }
+			live, err := r.Live(running)
 			number := func(s *models.RouteStep) int {
 				if s == nil {
 					return 0

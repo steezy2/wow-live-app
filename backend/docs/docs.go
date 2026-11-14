@@ -301,6 +301,134 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/mplus/keys/{start}/players/{player}/compare": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "mplus"
+                ],
+                "summary": "A player's review of a finished key against Warcraft Logs' top logs and their own runs, if one was made",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "the key's start (ms since the epoch)",
+                        "name": "start",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "the player's name in the key",
+                        "name": "player",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.PlayerCompare"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "no Warcraft Logs credentials",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "mplus"
+                ],
+                "summary": "Review a player of a finished key against Warcraft Logs' top logs and their own runs (spends points)",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "the key's start (ms since the epoch)",
+                        "name": "start",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "the player's name in the key",
+                        "name": "player",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.PlayerCompare"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "the key is still running",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "no top log could be read to compare with",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "too few Warcraft Logs points left this hour",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "502": {
+                        "description": "Warcraft Logs failed",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "no Warcraft Logs credentials",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/mplus/keys/{start}/review": {
             "get": {
                 "produces": [
@@ -1048,6 +1176,128 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/raid/pulls/{start}/players/{player}/compare": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "raid"
+                ],
+                "summary": "A raider's review of a raid pull against Warcraft Logs' top kills and their own pulls, if one was made",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "the pull's start (ms since the epoch)",
+                        "name": "start",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "the raider's name in the pull",
+                        "name": "player",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.PlayerCompare"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "no Warcraft Logs credentials",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "raid"
+                ],
+                "summary": "Review a raider of a raid pull against Warcraft Logs' top kills and their own pulls (spends points)",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "the pull's start (ms since the epoch)",
+                        "name": "start",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "the raider's name in the pull",
+                        "name": "player",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.PlayerCompare"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "422": {
+                        "description": "no top log could be read to compare with",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "429": {
+                        "description": "too few Warcraft Logs points left this hour",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "502": {
+                        "description": "Warcraft Logs failed",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "no Warcraft Logs credentials",
                         "schema": {
                             "$ref": "#/definitions/controller.ErrorResponse"
                         }
@@ -2059,6 +2309,23 @@ const docTemplate = `{
                 }
             }
         },
+        "models.BuffSpan": {
+            "type": "object",
+            "properties": {
+                "f": {
+                    "type": "integer"
+                },
+                "i": {
+                    "type": "integer"
+                },
+                "n": {
+                    "type": "string"
+                },
+                "t": {
+                    "type": "integer"
+                }
+            }
+        },
         "models.Character": {
             "type": "object",
             "properties": {
@@ -2135,6 +2402,61 @@ const docTemplate = `{
                 }
             }
         },
+        "models.CompareLog": {
+            "type": "object",
+            "properties": {
+                "amount": {
+                    "description": "its damage or healing per second",
+                    "type": "number"
+                },
+                "code": {
+                    "type": "string"
+                },
+                "durationMS": {
+                    "type": "integer"
+                },
+                "fightID": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "server": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.CompareRow": {
+            "type": "object",
+            "properties": {
+                "best": {
+                    "type": "number"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "share": {
+                    "description": "Share is the ability's share of the player's damage or healing, in %.",
+                    "type": "number"
+                },
+                "top": {
+                    "type": "number"
+                },
+                "unit": {
+                    "description": "Unit is \"/s\", \"%\", \"per min\" (a rotational ability), \"casts\" (one the top logs cast at most once a minute) or \"\".",
+                    "type": "string"
+                },
+                "you": {
+                    "type": "number"
+                },
+                "yours": {
+                    "type": "number"
+                }
+            }
+        },
         "models.Credentials": {
             "type": "object",
             "properties": {
@@ -2184,6 +2506,10 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/models.DungeonFloor"
                     }
+                },
+                "tilesPerSide": {
+                    "description": "tiles a floor is wide and tall",
+                    "type": "integer"
                 },
                 "walked": {
                     "type": "array",
@@ -2380,6 +2706,10 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "hits": {
+                    "type": "integer"
+                },
+                "id": {
+                    "description": "the spell's ID, as Warcraft Logs has it; 0 in keys saved before Nov 13",
                     "type": "integer"
                 },
                 "player": {
@@ -3013,6 +3343,16 @@ const docTemplate = `{
                         }
                     }
                 },
+                "buffs": {
+                    "description": "Buffs is each player's own buffs (cast on themselves) as stretches on the clock of a finished run; none in\ntracks saved before Nov 13.",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/definitions/models.BuffSpan"
+                        }
+                    }
+                },
                 "casts": {
                     "description": "Casts is each raider's casts in order, and Abilities what each one's abilities did in each abilityEveryMS\nstretch, so the replay shows what a raider was casting and their bars up to its moment; none in pulls saved\nbefore Nov 11.",
                     "type": "object",
@@ -3305,6 +3645,13 @@ const docTemplate = `{
                         }
                     ]
                 },
+                "resurrections": {
+                    "description": "Resurrections is each time a player was brought back, in order; missing in keys saved before Nov 13.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Resurrection"
+                    }
+                },
                 "route": {
                     "description": "Route is the dungeon's starred route followed so far, on the running key only (nil without a route).",
                     "allOf": [
@@ -3542,6 +3889,114 @@ const docTemplate = `{
                 }
             }
         },
+        "models.PlayerCompare": {
+            "type": "object",
+            "properties": {
+                "abilities": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.CompareRow"
+                    }
+                },
+                "advice": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "baseline": {
+                    "description": "Baseline says which logs the top column is: \"20 runs within 15% of 34:10\", or why not.",
+                    "type": "string"
+                },
+                "buffs": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.CompareRow"
+                    }
+                },
+                "end": {
+                    "description": "the fight's end when it was made: a key that went on afterwards is read again",
+                    "type": "integer"
+                },
+                "kind": {
+                    "enum": [
+                        "mplus",
+                        "raid"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.FightKind"
+                        }
+                    ]
+                },
+                "logs": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.CompareLog"
+                    }
+                },
+                "onlyTop": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "onlyYou": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "parse": {
+                    "description": "their parse of this dungeon or boss, from Parses",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.CharacterParse"
+                        }
+                    ]
+                },
+                "parses": {
+                    "$ref": "#/definitions/models.CharacterParses"
+                },
+                "player": {
+                    "type": "string"
+                },
+                "points": {
+                    "description": "Points is what the review spent of Warcraft Logs' hourly points.",
+                    "type": "number"
+                },
+                "rules": {
+                    "description": "Rules are the spec's rules the player fell short of, checked on their own log; none for a spec without rules.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.RuleResult"
+                    }
+                },
+                "spec": {
+                    "type": "string"
+                },
+                "start": {
+                    "type": "integer"
+                },
+                "stats": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.CompareRow"
+                    }
+                },
+                "verdict": {
+                    "type": "string"
+                },
+                "windowMS": {
+                    "description": "WindowMS is how much of the top logs was read: 0 for all of it, else the fight's length (a wipe or an\nabandoned key is read over the same stretch).",
+                    "type": "integer"
+                },
+                "yourRuns": {
+                    "description": "YourRuns is how many of the player's own earlier runs the Yours column is the median of.",
+                    "type": "integer"
+                }
+            }
+        },
         "models.PlayerCount": {
             "type": "object",
             "properties": {
@@ -3683,33 +4138,9 @@ const docTemplate = `{
                         "type": "string"
                     }
                 },
-                "recap": {
-                    "description": "the last hits before the death, oldest first",
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/models.RaidHit"
-                    }
-                },
                 "used": {
                     "description": "they pressed Defensive themselves",
                     "type": "boolean"
-                }
-            }
-        },
-        "models.RaidHit": {
-            "type": "object",
-            "properties": {
-                "ability": {
-                    "type": "string"
-                },
-                "amount": {
-                    "type": "integer"
-                },
-                "beforeMS": {
-                    "type": "integer"
-                },
-                "source": {
-                    "type": "string"
                 }
             }
         },
@@ -4072,10 +4503,23 @@ const docTemplate = `{
                         }
                     ]
                 },
+                "resurrections": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Resurrection"
+                    }
+                },
                 "soaks": {
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/models.RaidSoak"
+                    }
+                },
+                "specs": {
+                    "description": "Specs is each raider's specialization ID and Resurrections who was brought back and by whom; both missing in\npulls saved before Nov 13.",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer"
                     }
                 },
                 "spikes": {
@@ -4696,6 +5140,20 @@ const docTemplate = `{
                 }
             }
         },
+        "models.Resurrection": {
+            "type": "object",
+            "properties": {
+                "by": {
+                    "type": "string"
+                },
+                "clockMS": {
+                    "type": "integer"
+                },
+                "player": {
+                    "type": "string"
+                }
+            }
+        },
         "models.ReviewMetric": {
             "type": "object",
             "properties": {
@@ -4993,6 +5451,23 @@ const docTemplate = `{
                 }
             }
         },
+        "models.RuleResult": {
+            "type": "object",
+            "properties": {
+                "atLeast": {
+                    "type": "number"
+                },
+                "share": {
+                    "type": "number"
+                },
+                "text": {
+                    "type": "string"
+                },
+                "why": {
+                    "type": "string"
+                }
+            }
+        },
         "models.SavedRoute": {
             "type": "object",
             "properties": {
@@ -5190,6 +5665,10 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "e": {
+                    "type": "integer"
+                },
+                "i": {
+                    "description": "the spell's ID; 0 in tracks saved before Nov 13",
                     "type": "integer"
                 },
                 "s": {

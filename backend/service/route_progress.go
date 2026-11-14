@@ -166,11 +166,15 @@ func pullStart(pulls []models.PullSpan, keyPull int) int64 {
 	return pulls[keyPull].StartMS
 }
 
-// Compare is a route of the key's dungeon (mapID) next to how the key's track went along it: the route id names, or
-// the dungeon's starred one when id is "". ErrNoSuchRoute when there's none; a route of another dungeon is invalid.
-func (r *Routes) Compare(mapID int, id string, track models.KeyTrack) (models.RouteCompare, error) {
+// Compare is a route of the key's dungeon next to how the key's track went along it: the route id names, or the
+// dungeon's starred one when id is "". ErrNoSuchKey for an unknown key, ErrNoSuchRoute when there's no route; a
+// route of another dungeon is invalid.
+func (r *Routes) Compare(start int64, id string) (models.RouteCompare, error) {
+	mapID, track, err := r.Track(start)
+	if err != nil {
+		return models.RouteCompare{}, err
+	}
 	var route models.Route
-	var err error
 	if id == "" {
 		route, err = r.starred(mapID)
 	} else {
@@ -187,18 +191,25 @@ func (r *Routes) Compare(mapID int, id string, track models.KeyTrack) (models.Ro
 		NoMobs: track.Mobs == nil}, nil
 }
 
-// Live is the dungeon's starred route followed with the running key's kills so far (its track); nil when the dungeon
-// has no route.
-func (r *Routes) Live(mapID int, track models.KeyTrack) (*models.RouteLive, error) {
-	route, err := r.starred(mapID)
+// Live is the key's dungeon's starred route followed with the kills so far; nil unless the key is running and the
+// dungeon has a route.
+func (r *Routes) Live(key models.KeyView) (*models.RouteLive, error) {
+	if key.Status != "running" {
+		return nil, nil
+	}
+	route, err := r.starred(key.MapID)
 	switch {
 	case errors.Is(err, ErrNoSuchRoute):
 		return nil, nil
 	case err != nil:
 		return nil, err
 	}
+	_, track, err := r.Track(key.Start)
+	if err != nil {
+		return nil, err
+	}
 	view := r.view(route)
-	p := MatchKills(view, r.Facts[mapID], track)
+	p := MatchKills(view, r.Facts[key.MapID], track)
 	step := func(i int) *models.RouteStep {
 		if i < 0 {
 			return nil

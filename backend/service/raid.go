@@ -67,7 +67,6 @@ type raidRun struct {
 	phases     []models.PhaseTrigger
 	phase      string
 	units      map[string]*raidUnit       // hostile creature GUID -> what it is and its health
-	recaps     [][]models.RaidHit         // each death's last hits, kept by death() with the run's deaths
 	soaks      map[int]*soakTally         // soak spell ID -> its casts
 	stacks     map[int]map[string]int     // debuff spell ID -> raider -> most stacks
 	priority   map[string]int64           // unit to burst -> the raid's damage into it
@@ -559,17 +558,6 @@ func (r *raidRun) soak(id int, victim string, at, window int64) {
 	t.casts[len(t.casts)-1][victim], t.last = true, at
 }
 
-// recap is a raider's last hits that did damage before dying at at, oldest first.
-func recap(hits []hitAt, at int64) []models.RaidHit {
-	out := []models.RaidHit{}
-	for _, h := range hits {
-		if h.amount > 0 {
-			out = append(out, models.RaidHit{Ability: h.ability, Source: h.source, Amount: h.amount, BeforeMS: at - h.at})
-		}
-	}
-	return out
-}
-
 // finishPull closes the running raid pull (a kill or a wipe), keeps it as the newest pull and queues it for saving.
 // A pull the game ended (ENCOUNTER_END) has its end set; one closed by anything else ends at its last fighting.
 func (k *LogTracker) finishPull(kill bool) {
@@ -617,12 +605,12 @@ func (k *LogTracker) raidPull(run *keyRun, key models.Key, at int64, kill bool) 
 	r, rules := run.raid, k.raid.rules
 	p := models.RaidPull{Start: key.Start, End: at, Night: night(key.Start), Boss: key.Dungeon,
 		Difficulty: r.difficulty, DurationMS: at - key.Start, Kill: kill, BossPct: r.bossPct(kill), Phase: r.phase,
-		Players: key.Players, Logger: key.Logger, Realms: key.Realms, Meter: key.Overall, Lusts: key.Lusts,
+		Players: key.Players, Logger: key.Logger, Realms: key.Realms, Specs: key.Specs, Resurrections: key.Resurrections, Meter: key.Overall, Lusts: key.Lusts,
 		Dispels: list(key.Debuffs),
 		WentOff: []models.KeyStop{}}
 	for i, d := range key.Deaths {
 		early := i < rules.Deaths.First || p.DurationMS-d.ClockMS > int64(rules.Deaths.BeforeWipeSeconds*1000)
-		p.Deaths = append(p.Deaths, models.RaidDeath{KeyDeath: d, Early: early, Recap: r.recaps[i]})
+		p.Deaths = append(p.Deaths, models.RaidDeath{KeyDeath: d, Early: early})
 	}
 	p.Deaths = list(p.Deaths)
 	p.MassKills = massKills(key.Deaths, rules.Deaths.MassKillPlayers, int64(rules.Deaths.MassKillWindowSeconds*1000))
@@ -705,7 +693,7 @@ func (k *LogTracker) raidPull(run *keyRun, key models.Key, at int64, kill bool) 
 	slices.SortStableFunc(p.Cooldowns, func(a, b models.KeyCast) int { return cmp.Compare(a.ClockMS, b.ClockMS) })
 	p.Spikes, p.BigHits = key.Spikes, key.BigHits
 	p.Lanes = k.lanes(run, p, at)
-	p.Abilities, p.Taken = abilities(run, k.schools)
+	p.Abilities, p.Taken = abilities(run, k.schools, k.spellIDs)
 	p.Targets = targets(run)
 	p.Interrupts, p.Stops, p.WastedKicks, p.Debuffs = key.Interrupts, key.Stops, key.WastedKicks, key.Debuffs
 	p.Activity, p.Casts = key.Activity, key.Casts

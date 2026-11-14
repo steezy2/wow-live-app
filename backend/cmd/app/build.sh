@@ -8,7 +8,7 @@ repo="$(cd "$(dirname "$0")/../../.." && pwd)"
 embed="$repo/backend/cmd/app/embed"
 rm -rf "$embed/dist"
 cp -r "$repo/frontend/dist" "$embed/dist"
-cp "$repo/mplus.toml" "$repo/raid-rules.toml" "$repo/reference/mplus-dungeons.json" \
+cp "$repo/mplus.toml" "$repo/raid-rules.toml" "$repo/spec-rules.toml" "$repo/reference/mplus-dungeons.json" \
   "$repo/reference/raid-bosses.json" "$embed/"
 cd "$repo/backend" && go run ./cmd/appicon
 go build -ldflags "-H windowsgui" -o "$repo/bin/WoW Live.exe" ./cmd/app

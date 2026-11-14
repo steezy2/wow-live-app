@@ -26,7 +26,7 @@ func newRoutes(t *testing.T) *Routes {
 			{Index: 2, Clone: 1, NPC: 100, X: 200, Count: 20}, {Index: 3, Clone: 1, NPC: 100, X: 300, Count: 5}}},
 		586: {MDTIndex: 161},
 	}
-	return &Routes{Store: routestore.Store{Dir: t.TempDir()}, Facts: facts,
+	return &Routes{Store: routestore.Store{Dir: t.TempDir()}, Facts: facts, Decode: mdt.DecodeRoute, Encode: mdt.EncodeRoute,
 		Now: func() time.Time { now = now.Add(time.Second); return now }}
 }
 

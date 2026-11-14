@@ -21,11 +21,13 @@ type MPlus struct {
 	Keys    models.KeySource
 	Tiles   Tiles
 	Reviews Reviews // nil without Warcraft Logs credentials
-	Changes Changes
-	Recaps  Recaps
-	Planner Planner
-	Spells  Spells
-	Now     func() time.Time
+	// Compares is the players' reviews against top logs; nil without Warcraft Logs credentials.
+	Compares Compares
+	Changes  Changes
+	Recaps   Recaps
+	Planner  Planner
+	Spells   Spells
+	Now      func() time.Time
 }
 
 // Planner keeps the owner's planned routes (service.Routes).
@@ -41,8 +43,8 @@ type Planner interface {
 	Star(id string) error
 	Delete(id string) error
 	Export(id string) (string, error)
-	Compare(mapID int, id string, track models.KeyTrack) (models.RouteCompare, error)
-	Live(mapID int, track models.KeyTrack) (*models.RouteLive, error)
+	Compare(start int64, id string) (models.RouteCompare, error)
+	Live(key models.KeyView) (*models.RouteLive, error)
 }
 
 // Changes gives the keys' new versions as they change (service.Changes).
@@ -81,14 +83,9 @@ func (m MPlus) Live(c *gin.Context) {
 		c.Status(http.StatusNoContent)
 		return
 	}
-	if key.Status == "running" {
-		_, track, err := m.Keys.RouteTrack(key.Start)
-		if err == nil {
-			key.Route, err = m.Planner.Live(key.MapID, track)
-		}
-		if err != nil {
-			log.Printf("live route: %v", err) // the live key is still worth showing without it
-		}
+	var err error
+	if key.Route, err = m.Planner.Live(key); err != nil {
+		log.Printf("live route: %v", err) // the live key is still worth showing without it
 	}
 	c.JSON(http.StatusOK, key)
 }
@@ -117,12 +114,7 @@ func (m MPlus) KeyRoute(c *gin.Context) {
 	if id != "" && !checkRouteID(c, id) {
 		return
 	}
-	mapID, track, err := m.Keys.RouteTrack(start)
-	if err != nil {
-		respondError(c, err)
-		return
-	}
-	compare, err := m.Planner.Compare(mapID, id, track)
+	compare, err := m.Planner.Compare(start, id)
 	respondRoute(c, http.StatusOK, compare, err)
 }
 
@@ -655,7 +647,7 @@ func respondRoute(c *gin.Context, status int, body any, err error) {
 		c.Status(status)
 	case err == nil:
 		c.JSON(status, body)
-	case errors.Is(err, service.ErrNoSuchRoute):
+	case errors.Is(err, service.ErrNoSuchRoute), errors.Is(err, service.ErrNoSuchKey):
 		c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	case errors.Is(err, service.ErrInvalidRoute):
 		c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})

@@ -7,10 +7,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"slices"
 	"strconv"
+	"strings"
 
 	"wow-live/backend/clients/cachefile"
 	"wow-live/backend/models"
@@ -69,9 +71,31 @@ func (s Store) Review(start int64) (models.KeyReview, error) {
 	return r, nil
 }
 
-// Delete removes one saved key, its track and its review.
+// SaveCompare writes a player's review of a key or raid pull.
+func (s Store) SaveCompare(c models.PlayerCompare) error {
+	return cachefile.WriteJSON(s.comparePath(c.Kind, c.Start, c.Player), c)
+}
+
+// Compare reads a player's review of a key or raid pull; the error wraps os.ErrNotExist when there's none.
+func (s Store) Compare(kind models.FightKind, start int64, player string) (models.PlayerCompare, error) {
+	var c models.PlayerCompare
+	data, err := os.ReadFile(s.comparePath(kind, start, player))
+	if err != nil {
+		return c, fmt.Errorf("reading a player's review: %w", err)
+	}
+	if err := json.Unmarshal(data, &c); err != nil {
+		return c, fmt.Errorf("reading a player's review: %w", err)
+	}
+	return c, nil
+}
+
+// Delete removes one saved key, its track, its review and its players' reviews.
 func (s Store) Delete(start int64) error {
-	for _, path := range []string{s.path(start), s.trackPath(start), s.reviewPath(start)} {
+	compares, err := filepath.Glob(filepath.Join(s.Dir, "compares", fmt.Sprintf("%s-%d-*.json", models.FightMPlus, start)))
+	if err != nil {
+		return fmt.Errorf("listing a saved key's players' reviews: %w", err)
+	}
+	for _, path := range append(compares, s.path(start), s.trackPath(start), s.reviewPath(start)) {
 		if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
 			return fmt.Errorf("deleting a saved key: %w", err)
 		}
@@ -95,6 +119,12 @@ func (s Store) Clear() error {
 
 func (s Store) path(start int64) string {
 	return filepath.Join(s.Dir, strconv.FormatInt(start, 10)+".json")
+}
+
+// comparePath is where a player's review of a fight is kept; the player's name is escaped for the file name.
+func (s Store) comparePath(kind models.FightKind, start int64, player string) string {
+	name := fmt.Sprintf("%s-%d-%s.json", kind, start, url.PathEscape(player))
+	return filepath.Join(s.Dir, "compares", strings.ReplaceAll(name, "%", "_"))
 }
 
 func (s Store) reviewPath(start int64) string {

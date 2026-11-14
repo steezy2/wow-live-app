@@ -10,6 +10,7 @@ import {
   oddsText,
   periodLabel,
   progressText,
+  rowValue,
   resultText,
   routeLine,
   versus,
@@ -184,6 +185,16 @@ describe('routeLine', () => {
     ['every pull done', step(18), null, 'Route done (102.3%)'],
   ])('%s', (_, current, next, want) => {
     expect(routeLine({ name: 'Route', current, next, forcesPct: 102.3 })).toBe(want)
+  })
+})
+
+describe('rowValue', () => {
+  it('writes each unit its own way', () => {
+    expect(rowValue(1_234_000, '/s')).toBe('1.2M/s')
+    expect(rowValue(63.6, '%')).toBe('64%')
+    expect(rowValue(3.54, 'per min')).toBe('3.5 per min')
+    expect(rowValue(1, 'casts')).toBe('1 cast')
+    expect(rowValue(2, '')).toBe('2')
   })
 })
 

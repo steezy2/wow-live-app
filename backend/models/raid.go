@@ -194,11 +194,15 @@ type RaidPull struct {
 	Players    []string `json:"players"`
 	// Logger is the raider whose game wrote the log, and Realms each raider's realm; both missing in pulls saved
 	// before Nov 12.
-	Logger    string            `json:"logger,omitempty"`
-	Realms    map[string]string `json:"realms,omitempty"`
-	Deaths    []RaidDeath       `json:"deaths"`
-	MassKills []MassKill        `json:"massKills"`
-	Avoidable []RaidHits        `json:"avoidable"`
+	Logger string            `json:"logger,omitempty"`
+	Realms map[string]string `json:"realms,omitempty"`
+	// Specs is each raider's specialization ID and Resurrections who was brought back and by whom; both missing in
+	// pulls saved before Nov 13.
+	Specs         map[string]int `json:"specs,omitempty"`
+	Resurrections []Resurrection `json:"resurrections,omitempty"`
+	Deaths        []RaidDeath    `json:"deaths"`
+	MassKills     []MassKill     `json:"massKills"`
+	Avoidable     []RaidHits     `json:"avoidable"`
 	// AvoidableHits is each raider's avoidable damage by ability, most first; missing in pulls saved before Nov 11.
 	AvoidableHits []KeyHit       `json:"avoidableHits,omitempty"`
 	Soaks         []RaidSoak     `json:"soaks"`
@@ -256,19 +260,10 @@ type RaidTarget struct {
 }
 
 // RaidDeath is a raider's death: what killed them and what was ready (the M+ death rules), whether it was early
-// (before the wipe), and the last hits they took.
+// (before the wipe).
 type RaidDeath struct {
 	KeyDeath
-	Early bool      `json:"early"`
-	Recap []RaidHit `json:"recap"` // the last hits before the death, oldest first
-}
-
-// RaidHit is one hit a raider took: the ability, who dealt it, the amount and how long before the death.
-type RaidHit struct {
-	Ability  string `json:"ability"`
-	Source   string `json:"source"`
-	Amount   int64  `json:"amount"`
-	BeforeMS int64  `json:"beforeMS"`
+	Early bool `json:"early"`
 }
 
 // MassKill is one ability killing several raiders within the mass-kill window.

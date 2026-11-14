@@ -110,6 +110,17 @@ definitions:
       toMS:
         type: integer
     type: object
+  models.BuffSpan:
+    properties:
+      f:
+        type: integer
+      i:
+        type: integer
+      "n":
+        type: string
+      t:
+        type: integer
+    type: object
   models.Character:
     properties:
       class:
@@ -159,6 +170,45 @@ definitions:
       url:
         type: string
     type: object
+  models.CompareLog:
+    properties:
+      amount:
+        description: its damage or healing per second
+        type: number
+      code:
+        type: string
+      durationMS:
+        type: integer
+      fightID:
+        type: integer
+      name:
+        type: string
+      server:
+        type: string
+    type: object
+  models.CompareRow:
+    properties:
+      best:
+        type: number
+      id:
+        type: integer
+      name:
+        type: string
+      share:
+        description: Share is the ability's share of the player's damage or healing,
+          in %.
+        type: number
+      top:
+        type: number
+      unit:
+        description: Unit is "/s", "%", "per min" (a rotational ability), "casts"
+          (one the top logs cast at most once a minute) or "".
+        type: string
+      you:
+        type: number
+      yours:
+        type: number
+    type: object
   models.Credentials:
     properties:
       id:
@@ -192,6 +242,9 @@ definitions:
         items:
           $ref: '#/definitions/models.DungeonFloor'
         type: array
+      tilesPerSide:
+        description: tiles a floor is wide and tall
+        type: integer
       walked:
         items:
           $ref: '#/definitions/models.TrackPoint'
@@ -327,6 +380,10 @@ definitions:
       healing:
         type: integer
       hits:
+        type: integer
+      id:
+        description: the spell's ID, as Warcraft Logs has it; 0 in keys saved before
+          Nov 13
         type: integer
       player:
         type: string
@@ -763,6 +820,15 @@ definitions:
           Bosses is a raid boss's units and the adds to burst (by GUID, each point named, with its health) about once a
           second; a raid pull's or a key's, once it has ended.
         type: object
+      buffs:
+        additionalProperties:
+          items:
+            $ref: '#/definitions/models.BuffSpan'
+          type: array
+        description: |-
+          Buffs is each player's own buffs (cast on themselves) as stretches on the clock of a finished run; none in
+          tracks saved before Nov 13.
+        type: object
       casts:
         additionalProperties:
           items:
@@ -991,6 +1057,12 @@ definitions:
         - $ref: '#/definitions/models.ReportLink'
         description: Report is the Warcraft Logs fight this key is, when one is known
           (imported, or matched to a report).
+      resurrections:
+        description: Resurrections is each time a player was brought back, in order;
+          missing in keys saved before Nov 13.
+        items:
+          $ref: '#/definitions/models.Resurrection'
+        type: array
       route:
         allOf:
         - $ref: '#/definitions/models.RouteLive'
@@ -1165,6 +1237,83 @@ definitions:
         - "off"
         type: string
     type: object
+  models.PlayerCompare:
+    properties:
+      abilities:
+        items:
+          $ref: '#/definitions/models.CompareRow'
+        type: array
+      advice:
+        items:
+          type: string
+        type: array
+      baseline:
+        description: 'Baseline says which logs the top column is: "20 runs within
+          15% of 34:10", or why not.'
+        type: string
+      buffs:
+        items:
+          $ref: '#/definitions/models.CompareRow'
+        type: array
+      end:
+        description: 'the fight''s end when it was made: a key that went on afterwards
+          is read again'
+        type: integer
+      kind:
+        allOf:
+        - $ref: '#/definitions/models.FightKind'
+        enum:
+        - mplus
+        - raid
+      logs:
+        items:
+          $ref: '#/definitions/models.CompareLog'
+        type: array
+      onlyTop:
+        items:
+          type: string
+        type: array
+      onlyYou:
+        items:
+          type: string
+        type: array
+      parse:
+        allOf:
+        - $ref: '#/definitions/models.CharacterParse'
+        description: their parse of this dungeon or boss, from Parses
+      parses:
+        $ref: '#/definitions/models.CharacterParses'
+      player:
+        type: string
+      points:
+        description: Points is what the review spent of Warcraft Logs' hourly points.
+        type: number
+      rules:
+        description: Rules are the spec's rules the player fell short of, checked
+          on their own log; none for a spec without rules.
+        items:
+          $ref: '#/definitions/models.RuleResult'
+        type: array
+      spec:
+        type: string
+      start:
+        type: integer
+      stats:
+        items:
+          $ref: '#/definitions/models.CompareRow'
+        type: array
+      verdict:
+        type: string
+      windowMS:
+        description: |-
+          WindowMS is how much of the top logs was read: 0 for all of it, else the fight's length (a wipe or an
+          abandoned key is read over the same stretch).
+        type: integer
+      yourRuns:
+        description: YourRuns is how many of the player's own earlier runs the Yours
+          column is the median of.
+        type: integer
+    type: object
   models.PlayerCount:
     properties:
       count:
@@ -1260,25 +1409,9 @@ definitions:
         items:
           type: string
         type: array
-      recap:
-        description: the last hits before the death, oldest first
-        items:
-          $ref: '#/definitions/models.RaidHit'
-        type: array
       used:
         description: they pressed Defensive themselves
         type: boolean
-    type: object
-  models.RaidHit:
-    properties:
-      ability:
-        type: string
-      amount:
-        type: integer
-      beforeMS:
-        type: integer
-      source:
-        type: string
     type: object
   models.RaidHits:
     properties:
@@ -1542,10 +1675,21 @@ definitions:
         - $ref: '#/definitions/models.ReportLink'
         description: Report is the Warcraft Logs fight this pull is, when one is known
           (imported, or matched to a report).
+      resurrections:
+        items:
+          $ref: '#/definitions/models.Resurrection'
+        type: array
       soaks:
         items:
           $ref: '#/definitions/models.RaidSoak'
         type: array
+      specs:
+        additionalProperties:
+          type: integer
+        description: |-
+          Specs is each raider's specialization ID and Resurrections who was brought back and by whom; both missing in
+          pulls saved before Nov 13.
+        type: object
       spikes:
         items:
           $ref: '#/definitions/models.KeySpike'
@@ -1959,6 +2103,15 @@ definitions:
       fightID:
         type: integer
     type: object
+  models.Resurrection:
+    properties:
+      by:
+        type: string
+      clockMS:
+        type: integer
+      player:
+        type: string
+    type: object
   models.ReviewMetric:
     properties:
       amount:
@@ -2160,6 +2313,17 @@ definitions:
       updated:
         type: integer
     type: object
+  models.RuleResult:
+    properties:
+      atLeast:
+        type: number
+      share:
+        type: number
+      text:
+        type: string
+      why:
+        type: string
+    type: object
   models.SavedRoute:
     properties:
       dungeon:
@@ -2301,6 +2465,9 @@ definitions:
   models.TrackCast:
     properties:
       e:
+        type: integer
+      i:
+        description: the spell's ID; 0 in tracks saved before Nov 13
         type: integer
       s:
         type: string
@@ -2532,6 +2699,93 @@ paths:
           schema:
             $ref: '#/definitions/controller.ErrorResponse'
       summary: One saved Mythic+ key
+      tags:
+      - mplus
+  /api/mplus/keys/{start}/players/{player}/compare:
+    get:
+      parameters:
+      - description: the key's start (ms since the epoch)
+        in: path
+        name: start
+        required: true
+        type: integer
+      - description: the player's name in the key
+        in: path
+        name: player
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.PlayerCompare'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+        "503":
+          description: no Warcraft Logs credentials
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+      summary: A player's review of a finished key against Warcraft Logs' top logs
+        and their own runs, if one was made
+      tags:
+      - mplus
+    post:
+      parameters:
+      - description: the key's start (ms since the epoch)
+        in: path
+        name: start
+        required: true
+        type: integer
+      - description: the player's name in the key
+        in: path
+        name: player
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.PlayerCompare'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+        "409":
+          description: the key is still running
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+        "422":
+          description: no top log could be read to compare with
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+        "429":
+          description: too few Warcraft Logs points left this hour
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+        "502":
+          description: Warcraft Logs failed
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+        "503":
+          description: no Warcraft Logs credentials
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+      summary: Review a player of a finished key against Warcraft Logs' top logs and
+        their own runs (spends points)
       tags:
       - mplus
   /api/mplus/keys/{start}/review:
@@ -3051,6 +3305,89 @@ paths:
           schema:
             $ref: '#/definitions/controller.ErrorResponse'
       summary: One raid pull
+      tags:
+      - raid
+  /api/raid/pulls/{start}/players/{player}/compare:
+    get:
+      parameters:
+      - description: the pull's start (ms since the epoch)
+        in: path
+        name: start
+        required: true
+        type: integer
+      - description: the raider's name in the pull
+        in: path
+        name: player
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.PlayerCompare'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+        "503":
+          description: no Warcraft Logs credentials
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+      summary: A raider's review of a raid pull against Warcraft Logs' top kills and
+        their own pulls, if one was made
+      tags:
+      - raid
+    post:
+      parameters:
+      - description: the pull's start (ms since the epoch)
+        in: path
+        name: start
+        required: true
+        type: integer
+      - description: the raider's name in the pull
+        in: path
+        name: player
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.PlayerCompare'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+        "422":
+          description: no top log could be read to compare with
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+        "429":
+          description: too few Warcraft Logs points left this hour
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+        "502":
+          description: Warcraft Logs failed
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+        "503":
+          description: no Warcraft Logs credentials
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+      summary: Review a raider of a raid pull against Warcraft Logs' top kills and
+        their own pulls (spends points)
       tags:
       - raid
   /api/raid/pulls/{start}/track:

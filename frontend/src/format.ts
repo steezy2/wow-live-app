@@ -230,3 +230,19 @@ export function importTotal(plan: ImportPlan, kinds: ImportKind[]): string {
   const hours = approxHours(points / plan.pointsPerHour)
   return `Import ${counted(fights, 'fight')}: ${approxPoints(points)}, about ${hours}`
 }
+
+/** A player review's number with its unit: "1.2M/s", "64%", "3.5 per min", "5 casts". */
+export function rowValue(value: number, unit: string): string {
+  switch (unit) {
+    case '/s':
+      return `${amount(value)}/s`
+    case '%':
+      return `${value.toFixed(0)}%`
+    case 'per min':
+      return `${value.toFixed(1)} per min`
+    case 'casts':
+      return `${value.toFixed(0)} ${value === 1 ? 'cast' : 'casts'}`
+    default:
+      return value.toFixed(0)
+  }
+}

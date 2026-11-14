@@ -4,6 +4,9 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"testing/fstest"
+
+	"wow-live/backend/models"
 )
 
 func TestRootFindsTheRulesAbove(t *testing.T) {
@@ -67,5 +70,35 @@ func TestTheRepoRulesFilesHaveNoUnknownKeys(t *testing.T) {
 	}
 	if _, err := LoadRaidMechanics(RaidMechanicsPath(root)); err != nil {
 		t.Error(err)
+	}
+}
+
+func TestSpecRulesDecodeBySpecWithTheirKinds(t *testing.T) {
+	fsys := fstest.MapFS{"spec-rules.toml": {Data: []byte(`
+[["Arcane Mage".rules]]
+kind = "with"
+cast = "Arcane Barrage"
+buff = "Arcane Soul"
+at_least = 0.9
+why = "free damage"
+
+[["Arcane Mage".rules]]
+kind = "uptime"
+buff = "Arcane Tempo"
+at_least = 0.95
+`)}}
+	var rules models.SpecRules
+	if err := DecodeTOML(fsys, "spec-rules.toml", &rules); err != nil {
+		t.Fatal(err)
+	}
+	got := rules["Arcane Mage"].Rules
+	if len(got) != 2 || got[0].Kind != "with" || got[0].AtLeast != 0.9 || got[1].Buff != "Arcane Tempo" {
+		t.Errorf("rules = %+v, want the two Arcane Mage rules", got)
+	}
+}
+
+func TestShippedSpecRulesParse(t *testing.T) {
+	if _, err := LoadSpecRules(filepath.Join("..", "..")); err != nil {
+		t.Errorf("spec-rules.toml: %v", err)
 	}
 }

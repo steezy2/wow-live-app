@@ -47,11 +47,6 @@ func (f *fakeKeys) Track(int64) (models.KeyTrack, error) {
 	return models.KeyTrack{}, service.ErrNoSuchKey
 }
 
-func (f *fakeKeys) RouteTrack(start int64) (int, models.KeyTrack, error) {
-	_, err := f.SavedKey(start)
-	return 585, models.KeyTrack{}, err
-}
-
 func (f *fakeKeys) DungeonMap(int) (models.DungeonMap, error) { return models.DungeonMap{}, nil }
 func (f *fakeKeys) Abandon() bool                             { return f.ok }
 
@@ -136,7 +131,7 @@ func TestLiveKeyIsReadAtNowOrNoContentBeforeAnyKey(t *testing.T) {
 	keys := &fakeKeys{key: models.KeyView{Key: models.Key{Dungeon: "Voidscar Arena", Level: 17}, ClockMS: 75_000},
 		ok: true}
 	now := time.UnixMilli(1_793_800_000_000)
-	router := Router(MPlus{Keys: keys, Now: func() time.Time { return now }}, nil, nil, os.DirFS(t.TempDir()), LocalHosts(port)...)
+	router := Router(MPlus{Keys: keys, Planner: &fakePlanner{}, Now: func() time.Time { return now }}, nil, nil, os.DirFS(t.TempDir()), LocalHosts(port)...)
 	w := get(t, router, "/api/mplus/live")
 	var got models.KeyView
 	if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil || w.Code != http.StatusOK ||
@@ -599,10 +594,13 @@ func (f *fakePlanner) Export(id string) (string, error) {
 }
 
 // Compare knows no starred route, so only ?id=abc compares.
-func (f *fakePlanner) Compare(_ int, id string, _ models.KeyTrack) (models.RouteCompare, error) {
+func (f *fakePlanner) Compare(start int64, id string) (models.RouteCompare, error) {
+	if start != 7 {
+		return models.RouteCompare{}, service.ErrNoSuchKey
+	}
 	return models.RouteCompare{}, f.known(id)
 }
-func (f *fakePlanner) Live(int, models.KeyTrack) (*models.RouteLive, error) { return nil, nil }
+func (f *fakePlanner) Live(models.KeyView) (*models.RouteLive, error) { return nil, nil }
 
 func TestRoutesAnswerBadIDsBeforeTouchingFiles(t *testing.T) {
 	planner := &fakePlanner{}

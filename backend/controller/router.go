@@ -62,6 +62,8 @@ func Router(mplus MPlus, raid *Raid, settings *SettingsAPI, pages fs.FS, hosts .
 	api.DELETE("/mplus/routes/:id", mplus.DeleteRoute)
 	api.POST("/mplus/routes/:id/star", mplus.StarRoute)
 	api.GET("/mplus/routes/:id/export", mplus.ExportRoute)
+	api.GET("/mplus/keys/:start/players/:player/compare", mplus.PlayerCompare)
+	api.POST("/mplus/keys/:start/players/:player/compare", mplus.RunPlayerCompare)
 	api.GET("/mplus/dungeons/:mapID/map", mplus.DungeonMap)
 	api.GET("/mplus/dungeons/:mapID/floors/:uiMapID/tiles/:x/:y", mplus.Tile)
 	if raid != nil {
@@ -69,6 +71,8 @@ func Router(mplus MPlus, raid *Raid, settings *SettingsAPI, pages fs.FS, hosts .
 		api.GET("/raid/nights", raid.Nights)
 		api.GET("/raid/pulls/:start", raid.Pull)
 		api.GET("/raid/pulls/:start/track", raid.Track)
+		api.GET("/raid/pulls/:start/players/:player/compare", raid.PlayerCompare)
+		api.POST("/raid/pulls/:start/players/:player/compare", raid.RunPlayerCompare)
 		api.GET("/raid/maps/:uiMapID", raid.Map)
 	}
 	if settings != nil {

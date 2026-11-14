@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react'
-import type { KeyForces, KeyGhost, KeyReview as Review, KeyTrack, KeyView } from './api'
+import { reviewURL, type KeyForces, type KeyGhost, type KeyReview as Review, type KeyTrack, type KeyView } from './api'
 import { chestLabel, clock, oddsText, pullTitle, resultText, routeLine, share, versusBest } from './format'
 import { DamageGraph } from './DamageGraph'
 import { BuffGaps } from './BuffGaps'
@@ -75,6 +75,11 @@ export function KeyDetails({
       </header>
       <p className="muted">{key.affixes.map((a) => a.name || `affix ${a.id}`).join(' · ')}</p>
       {key.status !== 'running' && <ReportLinks fight={key.start} link={key.report} />}
+      {key.status !== 'running' && (
+        <p className="links">
+          <a href={reviewURL('mplus', key.start)}>Open full review</a>
+        </p>
+      )}
 
       {key.status === 'running' ? (
         <section className="clock">
@@ -120,7 +125,7 @@ export function KeyDetails({
           Projected {versusBest(projection.finalMS, key.bestFinalMS)} your best +{key.level} ({clock(key.bestFinalMS)})
         </p>
       )}
-      {key.route && <p title={`Route: ${key.route.name}`}>{routeLine(key.route)}</p>}
+      {key.route && <p {...tip(`Route: ${key.route.name}`)}>{routeLine(key.route)}</p>}
       {timer > 0 && key.status === 'running' && (
         <p className="muted">
           {clock(timer - clockMS)} left · +3 by {clock(key.plus3MS)} · +2 by {clock(key.plus2MS)}

@@ -249,6 +249,9 @@ export interface KeyView {
   spikes: KeySpike[]
   /** Missing in keys saved before Nov 12. */
   bigHits?: KeyBigHit[]
+  lusts?: number[]
+  /** Missing in keys saved before Nov 13. */
+  resurrections?: Resurrection[]
   pulls: KeyPull[]
   /** The season's dungeon file has this dungeon (avoidable list, forces). */
   reference: boolean
@@ -304,6 +307,8 @@ export interface KeyAbility {
   hits: number
   /** Its spell school as the combat log gives it, a bit per school (schoolColors.ts); missing before Nov 11. */
   school?: number
+  /** The spell's ID, as Warcraft Logs has it; missing before Nov 13. */
+  id?: number
 }
 
 /** A place at a time on the key's clock: x and y in yards as the combat log gives them (x north, y west), the map
@@ -361,10 +366,22 @@ export interface KeyTrack {
   /** Each death's and big hit's recap, and each enemy's casts by GUID; missing in tracks saved before Nov 12. */
   recaps?: HitRecap[]
   mobCasts?: Record<string, TrackCast[]>
+  /** Each player's own buffs as stretches; missing in tracks saved before Nov 13. */
+  buffs?: Record<string, BuffSpan[]>
 }
 
 /** A cast on the clock (models.TrackCast): e when one with a cast time ended, x when it never finished. */
-export type TrackCast = { t: number; s: string; e?: number; x?: boolean }
+export type TrackCast = { t: number; s: string; i?: number; e?: number; x?: boolean }
+
+/** A buff on a player from f to t on the clock: its spell ID and name (models.BuffSpan). */
+export type BuffSpan = { i: number; n: string; f: number; t: number }
+
+/** A player brought back by another's spell (models.Resurrection). */
+export interface Resurrection {
+  clockMS: number
+  by: string
+  player: string
+}
 
 /** One ability's (or enemy's) numbers in each stretch: [end, damage, healing, damage taken]. */
 interface AbilitySeries {
@@ -432,6 +449,8 @@ export interface RouteEnemy {
 /** What the replay draws a dungeon on. */
 export interface DungeonMap {
   floors: DungeonFloor[]
+  /** How many tiles a floor is wide and tall. */
+  tilesPerSide: number
   walked: TrackPoint[]
   enemies: RouteEnemy[]
 }
@@ -471,10 +490,22 @@ async function call(path: string, init?: RequestInit): Promise<Response> {
   return response
 }
 
+/** Reads the JSON answer of a request (a GET unless init says otherwise). */
+async function json<T>(path: string, init?: RequestInit): Promise<T> {
+  return (await (await call(path, init)).json()) as T
+}
+
+/** Like json, with null for a 404. */
+async function jsonOrNull<T>(path: string, signal?: AbortSignal): Promise<T | null> {
+  const response = await fetch(path, { signal })
+  if (response.status === 404) return null
+  if (!response.ok) throw await failure(response)
+  return (await response.json()) as T
+}
+
 /** Sends body as JSON with method and reads the JSON answer. */
 async function sendJSON<T>(path: string, method: string, body: unknown): Promise<T> {
-  const init = { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
-  return (await (await call(path, init)).json()) as T
+  return json(path, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
 }
 
 /** The site's own error message for a failed answer, or its status. */
@@ -498,41 +529,37 @@ export async function abandonLiveKey(): Promise<void> {
 /** The saved keys one character played ('' for every character), newest first. */
 export async function fetchSavedKeys(character: string, signal?: AbortSignal): Promise<KeySummary[]> {
   const query = new URLSearchParams({ character }).toString()
-  return (await (await call(`/api/mplus/keys?${query}`, { signal })).json()) as KeySummary[]
+  return json<KeySummary[]>(`/api/mplus/keys?${query}`, { signal })
 }
 
 /** One saved key. */
 export async function fetchSavedKey(start: number, signal?: AbortSignal): Promise<KeyView> {
-  return (await (await call(`/api/mplus/keys/${start}`, { signal })).json()) as KeyView
+  return json<KeyView>(`/api/mplus/keys/${start}`, { signal })
 }
 
 /** Where a key's party went and its mobs died: the running key's, the last one's or a saved one's. */
 export async function fetchTrack(start: number, signal?: AbortSignal): Promise<KeyTrack> {
-  return (await (await call(`/api/mplus/keys/${start}/track`, { signal })).json()) as KeyTrack
+  return json<KeyTrack>(`/api/mplus/keys/${start}/track`, { signal })
 }
 
 /** A dungeon's map: its floors with Keystone.guru tiles, and where parties have walked in its saved runs. */
 export async function fetchDungeonMap(mapID: number, signal?: AbortSignal): Promise<DungeonMap> {
-  return (await (await call(`/api/mplus/dungeons/${mapID}/map`, { signal })).json()) as DungeonMap
+  return json<DungeonMap>(`/api/mplus/dungeons/${mapID}/map`, { signal })
 }
 
-/** One 384 by 256 map tile of a dungeon floor; a floor is TILES_PER_SIDE tiles wide and tall. */
+/** One 384 by 256 map tile of a dungeon floor; a floor is DungeonMap.tilesPerSide tiles wide and tall. */
 export function tileURL(mapID: number, uiMapID: number, x: number, y: number): string {
   return `/api/mplus/dungeons/${mapID}/floors/${uiMapID}/tiles/${x}/${y}`
 }
-export const TILES_PER_SIDE = 4
 
 /** A finished key's review, or null when none was made yet. */
 export async function fetchReview(start: number, signal?: AbortSignal): Promise<KeyReview | null> {
-  const response = await fetch(`/api/mplus/keys/${start}/review`, { signal })
-  if (response.status === 404) return null
-  if (!response.ok) throw await failure(response)
-  return (await response.json()) as KeyReview
+  return jsonOrNull<KeyReview>(`/api/mplus/keys/${start}/review`, signal)
 }
 
 /** Reviews a finished key against Warcraft Logs (spends points); the kept review when there is one. */
 export async function makeReview(start: number): Promise<KeyReview> {
-  return (await (await call(`/api/mplus/keys/${start}/review`, { method: 'POST' })).json()) as KeyReview
+  return json<KeyReview>(`/api/mplus/keys/${start}/review`, { method: 'POST' })
 }
 
 /** Deletes one saved key, or every saved key without a start. */
@@ -579,12 +606,12 @@ export interface RouteView {
 /** The planned routes, newest first, without their pulls' enemies; one dungeon's with its map ID. */
 export async function fetchRoutes(mapID?: number, signal?: AbortSignal): Promise<RouteView[]> {
   const query = mapID ? `?${new URLSearchParams({ mapID: String(mapID) })}` : ''
-  return (await (await call(`/api/mplus/routes${query}`, { signal })).json()) as RouteView[]
+  return json<RouteView[]>(`/api/mplus/routes${query}`, { signal })
 }
 
 /** One route with its pulls' enemies and forces. */
 export async function fetchRoute(id: string, signal?: AbortSignal): Promise<RouteView> {
-  return (await (await call(`/api/mplus/routes/${id}`, { signal })).json()) as RouteView
+  return json<RouteView>(`/api/mplus/routes/${id}`, { signal })
 }
 
 /** Imports a Mythic Dungeon Tools export string; importing its route again replaces it. */
@@ -642,10 +669,7 @@ export interface RouteLive {
 /** A key's progress on a route (the dungeon's starred one when no id); null when the dungeon has no route. */
 export async function fetchKeyRoute(start: number, id?: string, signal?: AbortSignal): Promise<RouteCompare | null> {
   const query = id ? `?${new URLSearchParams({ id })}` : ''
-  const response = await fetch(`/api/mplus/keys/${start}/route${query}`, { signal })
-  if (response.status === 404) return null
-  if (!response.ok) throw await failure(response)
-  return (await response.json()) as RouteCompare
+  return jsonOrNull<RouteCompare>(`/api/mplus/keys/${start}/route${query}`, signal)
 }
 
 /** A dungeon of the season a route can be planned in. */
@@ -657,7 +681,7 @@ export interface RouteDungeon {
 
 /** The season's dungeons that have enemies on the map. */
 export async function fetchRouteDungeons(signal?: AbortSignal): Promise<RouteDungeon[]> {
-  return (await (await call('/api/mplus/route-dungeons', { signal })).json()) as RouteDungeon[]
+  return json<RouteDungeon[]>('/api/mplus/route-dungeons', { signal })
 }
 
 /** A route in Mythic Dungeon Tools' saved variables; `imported` when the app already keeps it. */
@@ -672,7 +696,7 @@ export interface SavedRoute {
 
 /** The routes Mythic Dungeon Tools saved (it writes them on /reload or logout). */
 export async function fetchSavedRoutes(signal?: AbortSignal): Promise<SavedRoute[]> {
-  return (await (await call('/api/mplus/routes/mdt-saves', { signal })).json()) as SavedRoute[]
+  return json<SavedRoute[]>('/api/mplus/routes/mdt-saves', { signal })
 }
 
 /** Imports one of Mythic Dungeon Tools' saved routes by its uid. */
@@ -695,13 +719,14 @@ export async function starRoute(id: string): Promise<void> {
   await call(`/api/mplus/routes/${id}/star`, { method: 'POST' })
 }
 
+/** Deletes a planned route. */
 export async function deleteRoute(id: string): Promise<void> {
   await call(`/api/mplus/routes/${id}`, { method: 'DELETE' })
 }
 
 /** A route as a string for Mythic Dungeon Tools' Import. */
 export async function exportRoute(id: string): Promise<string> {
-  return ((await (await call(`/api/mplus/routes/${id}/export`)).json()) as { code: string }).code
+  return (await json<{ code: string }>(`/api/mplus/routes/${id}/export`)).code
 }
 
 /** How often the page reads the keys again while the site's event stream is down. */
@@ -770,6 +795,22 @@ export function subscribe(onChange: () => void): () => void {
   }
 }
 
+/** The full review page of a finished key or raid pull (its start), on a tab and, for the Player and Compare tabs, a
+ * player: /review/mplus/{start}?tab=…&player=…. */
+export function reviewURL(kind: 'mplus' | 'raid', start: number, tab = '', player = ''): string {
+  const query = new URLSearchParams()
+  if (tab) query.set('tab', tab)
+  if (player) query.set('player', player)
+  const text = query.toString()
+  return `/review/${kind}/${start}${text ? `?${text}` : ''}`
+}
+
+/** Shows a review page in a window of its own: the app opens (or brings up) one per page, a browser a new tab. */
+export function popOutReview(url: string): void {
+  if (location.host === APP_HOST) emitAppEvent('open-review', url)
+  else window.open(url, '_blank')
+}
+
 /** Sends the desktop app a Wails event; nothing in a browser. */
 function emitAppEvent(name: string, data?: unknown): void {
   if (location.host === APP_HOST) void appRuntime().then((wails) => wails.Events.Emit(name, data))
@@ -825,10 +866,7 @@ export interface SettingsView extends Settings {
 }
 
 export async function fetchSettings(signal?: AbortSignal): Promise<SettingsView | null> {
-  const response = await fetch('/api/settings', { signal })
-  if (response.status === 404) return null
-  if (!response.ok) throw await failure(response)
-  return (await response.json()) as SettingsView
+  return jsonOrNull<SettingsView>('/api/settings', signal)
 }
 
 /** The saved settings in view, without what the page shows beside them, to save them with one change. */
@@ -860,7 +898,7 @@ export interface KeyStatus {
 }
 
 export async function fetchKeyStatus(signal?: AbortSignal): Promise<KeyStatus> {
-  return (await (await call('/api/settings/warcraftlogs', { signal })).json()) as KeyStatus
+  return json<KeyStatus>('/api/settings/warcraftlogs', { signal })
 }
 
 /** Tests and saves a Warcraft Logs client ID and secret; with force, saves them even when the test fails. */
@@ -869,7 +907,7 @@ export async function saveKeys(id: string, secret: string, force: boolean): Prom
 }
 
 export async function testKeys(): Promise<KeyStatus> {
-  return (await (await call('/api/settings/warcraftlogs/test', { method: 'POST' })).json()) as KeyStatus
+  return json<KeyStatus>('/api/settings/warcraftlogs/test', { method: 'POST' })
 }
 
 export async function removeKeys(): Promise<void> {
@@ -899,7 +937,7 @@ export interface ImportStatus {
 }
 
 export async function fetchImportStatus(signal?: AbortSignal): Promise<ImportStatus> {
-  return (await (await call('/api/settings/warcraftlogs/import', { signal })).json()) as ImportStatus
+  return json<ImportStatus>('/api/settings/warcraftlogs/import', { signal })
 }
 
 /** What the owner picks to import (models.ImportKind). */
@@ -927,7 +965,7 @@ export interface ImportPlan {
 /** Starts listing the saved character's reports (spending points) in the background, to count what an import would
  * fetch: the status's plan once it's done. */
 export async function findFights(): Promise<ImportStatus> {
-  return (await (await call('/api/settings/warcraftlogs/import/plan', { method: 'POST' })).json()) as ImportStatus
+  return json<ImportStatus>('/api/settings/warcraftlogs/import/plan', { method: 'POST' })
 }
 
 /** Starts importing the saved character's fights of this season of kinds in the background. */
@@ -937,7 +975,7 @@ export async function startImport(kinds: ImportKind[]): Promise<ImportStatus> {
 
 /** Stops the import; what it fetched stays for the next one. */
 export async function stopImport(): Promise<ImportStatus> {
-  return (await (await call('/api/settings/warcraftlogs/import', { method: 'DELETE' })).json()) as ImportStatus
+  return json<ImportStatus>('/api/settings/warcraftlogs/import', { method: 'DELETE' })
 }
 
 /** A period the Recap tab offers, with its span in ms since the epoch (models.RecapPeriod). */
@@ -1071,7 +1109,7 @@ export interface Character {
 
 /** The periods a recap covers (this month, last month, this season when Raider.IO says, this year, all time). */
 export async function fetchRecapPeriods(signal?: AbortSignal): Promise<RecapPeriod[]> {
-  return (await (await call('/api/recap/periods', { signal })).json()) as RecapPeriod[]
+  return json<RecapPeriod[]>('/api/recap/periods', { signal })
 }
 
 /** The query of a recap of a period, one character's ('' for all). */
@@ -1081,7 +1119,7 @@ function recapQuery(period: RecapPeriod, character: string): string {
 
 /** The recap of the keys and pulls that started in a period, one character's ('' for all). */
 export async function fetchRecap(period: RecapPeriod, character: string, signal?: AbortSignal): Promise<Recap> {
-  return (await (await call(`/api/recap?${recapQuery(period, character)}`, { signal })).json()) as Recap
+  return json<Recap>(`/api/recap?${recapQuery(period, character)}`, { signal })
 }
 
 /** Warcraft Logs' top-runs median per dungeon of a recap; null without Warcraft Logs keys. */
@@ -1128,7 +1166,7 @@ export function fetchSpell(name: string): Promise<SpellInfo | null> {
 /** The owner's characters, most runs first, the one Settings names (preferred) marked. */
 export async function fetchCharacters(preferred: string, signal?: AbortSignal): Promise<Character[]> {
   const query = new URLSearchParams({ preferred }).toString()
-  return (await (await call(`/api/characters?${query}`, { signal })).json()) as Character[]
+  return json<Character[]>(`/api/characters?${query}`, { signal })
 }
 
 /** The owner's character's Warcraft Logs parses this season (models.CharacterParses). */
@@ -1151,7 +1189,7 @@ export interface CharacterParse {
 
 /** The settings' character's parses (read from Warcraft Logs once a day). */
 export async function fetchCharacterParses(signal?: AbortSignal): Promise<CharacterParses> {
-  return (await (await call('/api/settings/warcraftlogs/parses', { signal })).json()) as CharacterParses
+  return json<CharacterParses>('/api/settings/warcraftlogs/parses', { signal })
 }
 
 /** Deletes every imported key and pull, and what the import fetched. */
@@ -1167,7 +1205,7 @@ export interface OldKeys {
 
 /** Reads the log folder's new or changed logs (all: every log again) and saves each finished key and raid pull. */
 export async function readOldKeys(all = false): Promise<OldKeys> {
-  return (await (await call(`/api/settings/read-keys${all ? '?all=true' : ''}`, { method: 'POST' })).json()) as OldKeys
+  return json<OldKeys>(`/api/settings/read-keys${all ? '?all=true' : ''}`, { method: 'POST' })
 }
 /** Where a log came from: the game's log folder, or a Warcraft Logs import. */
 export type LogSource = 'game' | 'wcl'
@@ -1193,7 +1231,7 @@ export interface LogFile {
 }
 
 export async function fetchLogFiles(signal?: AbortSignal): Promise<LogFile[]> {
-  return (await (await call('/api/settings/logs', { signal })).json()) as LogFile[]
+  return json<LogFile[]>('/api/settings/logs', { signal })
 }
 
 /** Zips the named logs into the archive folder (reading any not read yet first); answers the new list. */
@@ -1212,9 +1250,7 @@ export interface Storage {
 }
 
 export async function fetchStorage(signal?: AbortSignal): Promise<Storage> {
-  const response = await fetch('/api/storage', { signal })
-  if (!response.ok) throw await failure(response)
-  return response.json()
+  return json<Storage>('/api/storage', { signal })
 }
 
 
@@ -1236,10 +1272,9 @@ export interface RaidPullSummary {
   imported?: boolean
 }
 
-/** A raider's death in a raid pull: the M+ death with whether it was early (before the wipe) and their last hits. */
+/** A raider's death in a raid pull: the M+ death with whether it was early (before the wipe). */
 export interface RaidDeath extends KeyDeath {
   early: boolean
-  recap: { ability: string; source: string; amount: number; beforeMS: number }[]
 }
 
 /** A number for one raider. */
@@ -1299,6 +1334,9 @@ export interface RaidPull extends RaidPullSummary {
   priority: { target: string; damage: number }[]
   meter: KeyMeter
   lusts: number[]
+  /** Each raider's specialization ID, and who was brought back; missing before Nov 13. */
+  specs?: Record<string, number>
+  resurrections?: Resurrection[]
   cooldowns: KeyCast[]
   comparisons?: { tonight?: RaidPullSummary; ever?: RaidPullSummary }
   /** The boss's rooms for the replay. */
@@ -1372,29 +1410,98 @@ export interface RaidNight {
 
 /** The raid now. */
 export async function fetchRaidLive(signal?: AbortSignal): Promise<RaidLive> {
-  return (await (await call('/api/raid/live', { signal })).json()) as RaidLive
+  return json<RaidLive>('/api/raid/live', { signal })
 }
 
 /** Every raid night's pulls one character played ('' for every character), newest first. */
 export async function fetchRaidNights(character: string, signal?: AbortSignal): Promise<RaidNight[]> {
   const query = new URLSearchParams({ character }).toString()
-  return (await (await call(`/api/raid/nights?${query}`, { signal })).json()) as RaidNight[]
+  return json<RaidNight[]>(`/api/raid/nights?${query}`, { signal })
 }
 
 /** One raid pull. */
 export async function fetchRaidPull(start: number, signal?: AbortSignal): Promise<RaidPull> {
-  return (await (await call(`/api/raid/pulls/${start}`, { signal })).json()) as RaidPull
+  return json<RaidPull>(`/api/raid/pulls/${start}`, { signal })
 }
 
 /** One raid pull's replay track; null for a pull saved before replays were kept. */
 export async function fetchRaidTrack(start: number, signal?: AbortSignal): Promise<KeyTrack | null> {
-  const response = await fetch(`/api/raid/pulls/${start}/track`, { signal })
-  if (response.status === 404) return null
-  if (!response.ok) throw await failure(response)
-  return (await response.json()) as KeyTrack
+  return jsonOrNull<KeyTrack>(`/api/raid/pulls/${start}/track`, signal)
 }
 
 /** A raid room's map image. */
 export function raidMapURL(uiMapID: number): string {
   return `/api/raid/maps/${uiMapID}`
+}
+
+/** A row of a player review (models.CompareRow): the player's number, their usual in similar runs (missing with none),
+ * the top logs' median and the best log's, in a unit ("/s", "%", "per min", "casts" or ""). */
+export interface CompareRow {
+  name: string
+  id?: number
+  you: number
+  yours?: number
+  top: number
+  best: number
+  unit: string
+  /** The ability's share of the player's damage or healing, in %. */
+  share?: number
+}
+
+/** A top log in a player review, linked to its Warcraft Logs fight. */
+export interface CompareLog {
+  name: string
+  server: string
+  code: string
+  fightID: number
+  durationMS: number
+  amount: number
+}
+
+/** A player's run against their own similar runs, the top Warcraft Logs logs of their spec and their parses
+ * (models.PlayerCompare). */
+export interface PlayerCompare {
+  kind: 'mplus' | 'raid'
+  start: number
+  player: string
+  spec: string
+  baseline: string
+  verdict: string
+  yourRuns: number
+  logs: CompareLog[]
+  parses?: CharacterParses
+  parse?: CharacterParse
+  stats: CompareRow[]
+  abilities: CompareRow[]
+  buffs: CompareRow[]
+  onlyYou: string[]
+  onlyTop: string[]
+  advice: string[]
+  /** The spec's rules (spec-rules.toml) the player fell short of, on their own log. */
+  rules?: { text: string; share: number; atLeast: number; why?: string }[]
+  /** The Warcraft Logs points it spent. */
+  points: number
+}
+
+/** A player's stored review of a finished key or raid pull, or null when none was made yet. */
+export async function fetchCompare(
+  kind: 'mplus' | 'raid',
+  start: number,
+  player: string,
+  signal?: AbortSignal,
+): Promise<PlayerCompare | null> {
+  const response = await fetch(compareURL(kind, start, player), { signal })
+  if (response.status === 404) return null
+  if (!response.ok) throw await failure(response)
+  return (await response.json()) as PlayerCompare
+}
+
+/** Reviews a player against Warcraft Logs' top logs (spends points); the stored review when there is one. */
+export async function runCompare(kind: 'mplus' | 'raid', start: number, player: string): Promise<PlayerCompare> {
+  return (await (await call(compareURL(kind, start, player), { method: 'POST' })).json()) as PlayerCompare
+}
+
+function compareURL(kind: 'mplus' | 'raid', start: number, player: string): string {
+  const path = kind === 'mplus' ? `mplus/keys/${start}` : `raid/pulls/${start}`
+  return `/api/${path}/players/${encodeURIComponent(player)}/compare`
 }

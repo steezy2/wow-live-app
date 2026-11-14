@@ -15,9 +15,10 @@ import (
 // Raid serves the raid overview: raid pulls read from the combat log. Now is the clock the overlay's timing is read
 // at (the wall clock live, the replay's when replaying a log).
 type Raid struct {
-	Pulls models.RaidSource
-	Maps  models.MapImageSource
-	Now   func() time.Time
+	Compares Compares // nil without Warcraft Logs credentials
+	Pulls    models.RaidSource
+	Maps     models.MapImageSource
+	Now      func() time.Time
 }
 
 // Live godoc

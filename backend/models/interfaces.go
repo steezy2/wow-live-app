@@ -15,9 +15,6 @@ type KeySource interface {
 	SavedKey(start int64) (KeyView, error)
 	DeleteSaved(start int64) error
 	Track(start int64) (KeyTrack, error)
-	// RouteTrack is a key's dungeon and what comparing it with a route reads of its track: mobs (the dead ones too
-	// while it runs), deaths, bosses and pulls.
-	RouteTrack(start int64) (int, KeyTrack, error)
 	DungeonMap(mapID int) (DungeonMap, error)
 	Abandon() bool
 }

@@ -14,7 +14,6 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"wow-live/backend/clients/mdt"
 	"wow-live/backend/models"
 )
 
@@ -50,6 +49,11 @@ type Routes struct {
 	Now   func() time.Time
 	// Saves reads the routes Mythic Dungeon Tools saved (mdt.SavedRoutes on the log folder); nil means none.
 	Saves func() ([]models.MDTPreset, error)
+	// Decode and Encode turn a Mythic Dungeon Tools string into a route and back (mdt.DecodeRoute, mdt.EncodeRoute).
+	Decode func(string) (models.MDTPreset, error)
+	Encode func(models.MDTPreset) (string, error)
+	// Track is a key's dungeon and track by its start (LogTracker.RouteTrack).
+	Track func(start int64) (int, models.KeyTrack, error)
 	mu    sync.Mutex // one change at a time, since starring changes several files
 }
 
@@ -84,7 +88,7 @@ func (r *Routes) Get(id string) (models.RouteView, error) {
 
 // Import saves the route in a Mythic Dungeon Tools string; see ImportPreset.
 func (r *Routes) Import(code string) (models.RouteView, error) {
-	preset, err := mdt.DecodeRoute(code)
+	preset, err := r.Decode(code)
 	if err != nil {
 		return models.RouteView{}, fmt.Errorf("%w: %w", ErrInvalidRoute, err)
 	}
@@ -288,7 +292,7 @@ func (r *Routes) Export(id string) (string, error) {
 			preset.Pulls[i].Enemies[e.Index] = append(preset.Pulls[i].Enemies[e.Index], e.Clone)
 		}
 	}
-	code, err := mdt.EncodeRoute(preset)
+	code, err := r.Encode(preset)
 	if err != nil {
 		return "", fmt.Errorf("exporting a route: %w", err)
 	}
