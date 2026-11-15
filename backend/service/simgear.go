@@ -26,10 +26,13 @@ type gearCandidate struct {
 	worn string
 }
 
-// gearCombo is one combination Top Gear sims: its profileset name and the slots it changes.
+// gearCombo is one combination a sim runs: its profileset name and the slots it changes, and for a Droptimizer's
+// drop where it drops.
 type gearCombo struct {
-	name  string
-	swaps []models.SimSwap
+	name   string
+	swaps  []models.SimSwap
+	source string
+	boss   string
 }
 
 // topGearCombos is every legal combination of the picked items (indexes into p's Equipped and Bags) other than the
@@ -237,15 +240,25 @@ type simSetJSON struct {
 	MeanStdDev float64 `json:"mean_stddev"`
 }
 
-// gearResults are the combinations simc ran, best first, with their gain over the baseline's DPS.
+// gearResults are the combinations simc ran, best first, with their gain over the baseline's DPS. A drop that fills
+// two slots (a ring) keeps its better row.
 func gearResults(sets []simSetJSON, baseline float64, combos []gearCombo) []models.SimCombo {
 	rows := []models.SimCombo{}
 	for _, set := range sets {
 		if i := slices.IndexFunc(combos, func(c gearCombo) bool { return c.name == set.Name }); i >= 0 {
 			rows = append(rows, models.SimCombo{DPS: set.Mean, DPSError: set.MeanStdDev, Gain: set.Mean - baseline,
-				Swaps: combos[i].swaps})
+				Swaps: combos[i].swaps, Source: combos[i].source, Boss: combos[i].boss})
 		}
 	}
 	slices.SortStableFunc(rows, func(a, b models.SimCombo) int { return cmp.Compare(b.DPS, a.DPS) })
-	return rows
+	seen := map[string]bool{}
+	return slices.DeleteFunc(rows, func(r models.SimCombo) bool {
+		if r.Source == "" {
+			return false
+		}
+		key := fmt.Sprint(r.Source, r.Boss, r.Swaps[0].In.ID)
+		dup := seen[key]
+		seen[key] = true
+		return dup
+	})
 }

@@ -2158,7 +2158,7 @@ const docTemplate = `{
                 "summary": "Start a sim",
                 "parameters": [
                     {
-                        "description": "the kind, the export and the options",
+                        "description": "the kind, the export, the options and, for topgear, the picked equipped and bag indexes",
                         "name": "body",
                         "in": "body",
                         "required": true,
@@ -6141,7 +6141,8 @@ const docTemplate = `{
                     "type": "string",
                     "enum": [
                         "quick",
-                        "topgear"
+                        "topgear",
+                        "drops"
                     ]
                 },
                 "options": {
@@ -6226,16 +6227,33 @@ const docTemplate = `{
                 "defaults": {
                     "$ref": "#/definitions/models.SimOptions"
                 },
+                "difficulties": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "fightStyles": {
                     "type": "array",
                     "items": {
                         "type": "string"
                     }
                 },
+                "keyLevels": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
                 "maxCombos": {
                     "description": "MaxCombos is the most gear combinations a Top Gear sim runs; a request over it is refused.",
                     "type": "integer",
                     "example": 100
+                },
+                "maxDrops": {
+                    "description": "MaxDrops is the most drops a Droptimizer sims; Difficulties are the raid difficulties it can sim the raid at and\nKeyLevels the Mythic+ key levels it can sim dungeons at.",
+                    "type": "integer",
+                    "example": 300
                 },
                 "maxLength": {
                     "type": "integer"
@@ -6251,6 +6269,9 @@ const docTemplate = `{
         "models.SimCombo": {
             "type": "object",
             "properties": {
+                "boss": {
+                    "type": "string"
+                },
                 "dps": {
                     "type": "number"
                 },
@@ -6259,6 +6280,9 @@ const docTemplate = `{
                 },
                 "gain": {
                     "type": "number"
+                },
+                "source": {
+                    "type": "string"
                 },
                 "swaps": {
                     "type": "array",
@@ -6423,6 +6447,10 @@ const docTemplate = `{
                         "type": "integer"
                     }
                 },
+                "difficulty": {
+                    "type": "string",
+                    "example": "heroic"
+                },
                 "equipped": {
                     "type": "array",
                     "items": {
@@ -6431,6 +6459,10 @@ const docTemplate = `{
                 },
                 "export": {
                     "type": "string"
+                },
+                "keyLevel": {
+                    "type": "integer",
+                    "example": 10
                 },
                 "kind": {
                     "type": "string",

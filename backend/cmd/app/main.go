@@ -303,6 +303,13 @@ func carried() (app.Options, error) {
 		return opts, fmt.Errorf("reading the built-in raid bosses: %w", err)
 	}
 	opts.Bosses, opts.Tier = raid.Bosses, raid.Tier
+	drops, err := files.ReadFile("embed/sim-drops.json")
+	if err != nil {
+		return opts, err
+	}
+	if err := json.Unmarshal(drops, &opts.Drops); err != nil {
+		return opts, fmt.Errorf("reading the built-in sim drops: %w", err)
+	}
 	return opts, nil
 }
 
