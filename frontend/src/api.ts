@@ -319,7 +319,7 @@ export interface TrackPoint {
   y: number
   map: number
   name?: string
-  /** A raid boss's or add's health left (%). */
+  /** A player's, raid boss's, add's or mob's health left (%); missing in tracks saved before it was kept. */
   hp?: number
 }
 

@@ -4,8 +4,11 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 
 ## [Unreleased]
 
+### Added
+- The replay's focused player and picked enemy show a health bar in their box (kept on the track now, so saved keys are read again).
+
 ### Fixed
-- A player review no longer drops an unreadable track silently; a key's avoidable hits, a pull's stacks and soaks and a review's similar runs keep one order when rebuilt; deleting a saved key tells open windows and the overlay; an expired Warcraft Logs token is fetched again instead of failing until restart; the page's inline script (blocked by its policy) is a file, so the overlay opens without a splash; the Home tab logs a failed recap; a repeated log name is refused.
+- A key finished over its timer is depleted, not timed (the log's success flag only says it was completed); saved keys are read again to fix it. A player review no longer drops an unreadable track silently; a key's avoidable hits, a pull's stacks and soaks and a review's similar runs keep one order when rebuilt; deleting a saved key tells open windows and the overlay; an expired Warcraft Logs token is fetched again instead of failing until restart; the page's inline script (blocked by its policy) is a file, so the overlay opens without a splash; the Home tab logs a failed recap; a repeated log name is refused.
 
 ### Changed
 - Code only, no behavior change: the settings' cleaning and character rule are `service.CleanSettings` and `CharacterNeedsCheck`; the import's files are written by `cachefile.WriteJSON`; one `wclAnswer` maps review and compare errors to statuses (and a raid pull's missing-pull 404 shares `respondError`); a key's status is `models.StatusRunning`, `StatusTimed`, `StatusDepleted`, `StatusAbandoned`; folder sizes moved to `clients/cachefile/size.go`; names only used in their own package are unexported. A player's parse reads the same everywhere (rounded down, as Warcraft Logs shows it).
