@@ -522,6 +522,15 @@ func TestAKeyEndedByMistakeKeepsItsTimedEnd(t *testing.T) {
 	}
 }
 
+// TestAKeyFinishedOverTheTimerIsDepleted: the log's success flag is 1 for any completed key, so the timer decides.
+func TestAKeyFinishedOverTheTimerIsDepleted(t *testing.T) {
+	keys, _ := silentKey(t)
+	feed(t, keys, "11/3/2026 23:20:00.000-7  CHALLENGE_MODE_END,2923,1,17,2070000,0.000000,0.000000")
+	if got, _ := keys.Latest(0); got.Status != "depleted" || got.FinalMS != 2_070_000 {
+		t.Fatalf("finished 4:30 over: %s in %d ms; want depleted", got.Status, got.FinalMS)
+	}
+}
+
 func TestAViewHasTheBestOtherRunsBossLengths(t *testing.T) {
 	key := models.Key{Start: 1, MapID: 586, Level: 15, Status: "timed", FinalMS: 1_500_000}
 	boss := func(ms int64) []models.KeyBoss {

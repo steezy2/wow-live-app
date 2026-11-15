@@ -445,14 +445,16 @@ func newRun(key models.Key, instance string) *keyRun {
 	return run
 }
 
-// end closes the running key: CHALLENGE_MODE_END,2923,1,17,1686807,... (timed or not, level, the game's time).
+// end closes the running key: CHALLENGE_MODE_END,2923,1,17,1686807,... (completed or not, level, the game's time).
+// The flag is 1 for any completed key, even one over the timer, so the timer decides timed or depleted.
 // 0,0,0 is logged before the next key starts, so a key still running then was abandoned.
 func (k *LogTracker) end(line models.LogLine) {
 	f := line.Fields
 	at, status, final := k.lastAt, models.StatusAbandoned, int64(atoi(f[3]))
+	overTimer := k.current != nil && k.current.key.TimerMS > 0 && final > k.current.key.TimerMS
 	switch {
 	case final == 0:
-	case f[1] == "1":
+	case f[1] == "1" && !overTimer:
 		at, status = line.Time, models.StatusTimed
 	default:
 		at, status = line.Time, models.StatusDepleted
