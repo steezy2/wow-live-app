@@ -4,6 +4,8 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 
 ## [Unreleased]
 
+## [0.4.5] - 2026-11-15
+
 ### Added
 - The replay's focused player and picked enemy show a health bar in their box (kept on the track now, so saved keys are read again).
 
