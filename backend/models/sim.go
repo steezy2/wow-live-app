@@ -32,6 +32,97 @@ type SimItem struct {
 	Opts  map[string][]int `json:"opts,omitempty"`
 }
 
+// SimOptions are the fight a sim runs: its style (one of SimChoices.FightStyles), its length in seconds, how many
+// targets and its accuracy (one of SimChoices.Accuracies).
+type SimOptions struct {
+	FightStyle string `json:"fightStyle" example:"Patchwerk"`
+	Length     int    `json:"length" example:"300"`
+	Targets    int    `json:"targets" example:"1"`
+	Accuracy   string `json:"accuracy" example:"normal"`
+}
+
+// SimChoices are what the sim page picks its options from, and the options it starts with.
+type SimChoices struct {
+	FightStyles []string   `json:"fightStyles"`
+	Accuracies  []string   `json:"accuracies"`
+	MinLength   int        `json:"minLength"`
+	MaxLength   int        `json:"maxLength"`
+	MaxTargets  int        `json:"maxTargets"`
+	Defaults    SimOptions `json:"defaults"`
+}
+
+// SimRequest starts a sim: its Kind (one of SimKinds), the pasted SimC export (parsed again on every request) and
+// the options.
+type SimRequest struct {
+	Kind    string     `json:"kind" binding:"required" example:"quick"`
+	Export  string     `json:"export" binding:"required"`
+	Options SimOptions `json:"options"`
+}
+
+// SimKinds are the kinds of sim: one character's DPS ("quick").
+var SimKinds = []string{"quick"}
+
+// The states a sim is in (Sim.State).
+const (
+	SimRunning   = "running"
+	SimDone      = "done"
+	SimFailed    = "failed"
+	SimCancelled = "cancelled"
+)
+
+// Sim is one run: who, what kind, how far along it is (Progress 0 to 100), when it started (ms since the epoch) and
+// how long it took, and, once State is "done", its Result; a failed one says why in Error. The list leaves Result out.
+type Sim struct {
+	ID        string     `json:"id" example:"9f3a1c5e7b2d4a60"`
+	Kind      string     `json:"kind" enums:"quick"`
+	State     string     `json:"state" enums:"running,done,failed,cancelled"`
+	Character string     `json:"character" example:"Steezy"`
+	Spec      string     `json:"spec" example:"elemental"`
+	Options   SimOptions `json:"options"`
+	Progress  int        `json:"progress"`
+	StartedMS int64      `json:"startedMS"`
+	TookMS    int64      `json:"tookMS,omitempty"`
+	Error     string     `json:"error,omitempty"`
+	Result    *SimResult `json:"result,omitempty"`
+}
+
+// SimResult is what a finished sim found: the character's DPS (DPSError is the 1 standard error of the mean), each
+// ability's part of it, biggest first, and the buffs that were up, longest first.
+type SimResult struct {
+	DPS       float64      `json:"dps"`
+	DPSError  float64      `json:"dpsError"`
+	Abilities []SimAbility `json:"abilities"`
+	Buffs     []SimBuff    `json:"buffs"`
+}
+
+// SimAbility is one ability's damage or healing: its spell ID (for the tooltip), its DPS, its share of the total
+// (0 to 1), casts per fight and the average amount per cast.
+type SimAbility struct {
+	Name    string  `json:"name"`
+	ID      int     `json:"id"`
+	School  string  `json:"school,omitempty"`
+	DPS     float64 `json:"dps"`
+	Share   float64 `json:"share"`
+	Casts   float64 `json:"casts"`
+	PerCast float64 `json:"perCast"`
+}
+
+// SimBuff is a buff and the share of the fight it was up, in percent.
+type SimBuff struct {
+	Name   string  `json:"name"`
+	ID     int     `json:"id"`
+	Uptime float64 `json:"uptime"`
+}
+
+// SimEngineStatus is the engine and what the app is doing about it: Installing while a download runs, Error when the
+// last one failed, Stale when the installed build is older than the page should trust (a patch makes an old one wrong).
+type SimEngineStatus struct {
+	SimEngine
+	Installing bool   `json:"installing"`
+	Stale      bool   `json:"stale"`
+	Error      string `json:"error,omitempty"`
+}
+
 // SimEngine is the SimulationCraft program the app downloaded: its file name on simulationcraft.org, the version and
 // game patch it printed, when it was built (ms since the epoch; the nightly list's time) and its size.
 type SimEngine struct {

@@ -100,6 +100,16 @@ func Router(mplus MPlus, raid *Raid, settings *SettingsAPI, pages fs.FS, hosts .
 		api.POST("/settings/logs/archive", settings.ArchiveLogs)
 		api.DELETE("/settings/logs/archive", settings.DeleteLogs)
 		api.GET("/storage", settings.Storage)
+		if settings.Sim != nil {
+			api.GET("/sim", settings.Sim.List)
+			api.POST("/sim", settings.Sim.Start)
+			api.GET("/sim/choices", settings.Sim.Choices)
+			api.GET("/sim/engine", settings.Sim.Engine)
+			api.POST("/sim/engine", settings.Sim.InstallEngine)
+			api.POST("/sim/profile", settings.Sim.ParseProfile)
+			api.GET("/sim/:id", settings.Sim.Get)
+			api.DELETE("/sim/:id", settings.Sim.Remove)
+		}
 	}
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	r.NoRoute(func(c *gin.Context) {

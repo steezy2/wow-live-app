@@ -65,6 +65,7 @@ type SettingsAPI struct {
 	Logs       LogFolder  // set by app.Start
 	Characters Characters // set by app.Start
 	Import     Import     // set by app.Start
+	Sim        *SimAPI    // set by app.Start
 }
 
 // LogNames names the logs to archive or delete, as LogFiles lists them, and their source (the game's, the default, or
