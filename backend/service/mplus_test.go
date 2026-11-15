@@ -268,7 +268,7 @@ func TestShortKeyIsReadAndSaved(t *testing.T) {
 		sky[0].ToMS <= sky[0].FromMS {
 		t.Fatalf("buffs = %+v, %v; want the shaman's own Skyfury as one stretch to the end", track.Buffs, err)
 	}
-	if me := track.Players["Testmage"]; err != nil || len(me) == 0 || me[0].X != 1599.81 || me[0].Map != 2610 ||
+	if me := track.Players["Testmage"]; err != nil || len(me) == 0 || me[0].X != 1599.81 || me[0].Map != 2610 || me[0].HP != 100 ||
 		len(track.Deaths) != 1 || track.Deaths[0].Name != "Radiant Spellsower" || track.Classes["Testmage"] != "Mage" ||
 		len(track.Meters["Testmage"]) == 0 {
 		t.Fatalf("track = %+v, %v; want the mage's position and the mob's death", track, err)
@@ -277,7 +277,7 @@ func TestShortKeyIsReadAndSaved(t *testing.T) {
 		t.Fatalf("mobs = %+v; want the Spellsower's trail", track.Mobs)
 	}
 	for _, m := range track.Mobs {
-		if m.Name != "Radiant Spellsower" || len(m.Points) == 0 || m.Points[0].Name != "" || m.Died != track.Deaths[0].ClockMS {
+		if m.Name != "Radiant Spellsower" || len(m.Points) == 0 || m.Points[0].Name != "" || m.Points[0].HP != 100 || m.Died != track.Deaths[0].ClockMS {
 			t.Fatalf("mob trail = %+v; want the name and unnamed points ending at its death %d", m, track.Deaths[0].ClockMS)
 		}
 	}

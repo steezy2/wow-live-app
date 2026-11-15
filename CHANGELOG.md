@@ -4,6 +4,9 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 
 ## [Unreleased]
 
+### Added
+- The replay's focused player and picked enemy show a health bar in their box (kept on the track now, so saved keys are read again).
+
 ### Fixed
 - A key finished over its timer is depleted, not timed (the log's success flag only says it was completed); saved keys are read again to fix it. A player review no longer drops an unreadable track silently; a key's avoidable hits, a pull's stacks and soaks and a review's similar runs keep one order when rebuilt; deleting a saved key tells open windows and the overlay; an expired Warcraft Logs token is fetched again instead of failing until restart; the page's inline script (blocked by its policy) is a file, so the overlay opens without a splash; the Home tab logs a failed recap; a repeated log name is refused.
 

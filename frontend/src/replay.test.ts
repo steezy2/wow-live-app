@@ -8,6 +8,7 @@ import {
   floorsOf,
   healthAfter,
   indexAfter,
+  healthAt,
   lastAt,
   meterBetween,
   MIN_FLOOR_POINTS,
@@ -26,6 +27,17 @@ describe('indexAfter', () => {
     ['duplicate times', [at(10, 0), at(20, 1), at(20, 2), at(30, 0)], 20, 3],
   ])('%s', (_, points, now, i) => {
     expect(indexAfter(points, now)).toBe(i)
+  })
+})
+
+describe('healthAt', () => {
+  const points = [{ ...at(10, 1), hp: 100 }, { ...at(20, 2), hp: 60 }, at(30, 3)]
+  it.each([
+    [5, undefined],
+    [25, 60],
+    [35, undefined],
+  ])('at %i', (now, hp) => {
+    expect(healthAt(points, now)).toBe(hp)
   })
 })
 

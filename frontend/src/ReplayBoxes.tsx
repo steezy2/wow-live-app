@@ -1,6 +1,6 @@
 import { classColors } from './classColors'
 import { amount } from './format'
-import { BOSS_GONE_MS, damageIntoEnemy, enemyName, lastAt, type AbilitiesUpTo } from './replay'
+import { BOSS_GONE_MS, damageIntoEnemy, enemyName, healthAt, lastAt, type AbilitiesUpTo } from './replay'
 import type { KeyTrack, TrackCast } from './api'
 
 /** At most this many units in the boss box: the boss's own, then the adds to burst. */
@@ -52,6 +52,7 @@ export function FocusBoxes(props: {
             title={player}
             color={classColors[track.classes[player]] ?? 'var(--accent)'}
             casts={track.casts?.[player]}
+            hp={healthAt(track.players[player] ?? [], now)}
             now={now}
           />
         )}
@@ -64,6 +65,7 @@ export function FocusBoxes(props: {
             title={enemyName(track, enemy)}
             color="var(--bad)"
             casts={track.mobCasts ? (track.mobCasts[enemy] ?? []) : undefined}
+            hp={enemyHealth(track, enemy, now)}
             now={now}
           />
         </div>
@@ -72,12 +74,19 @@ export function FocusBoxes(props: {
   )
 }
 
-/** A caster at the replay's moment: what they're casting (with how far along) and their last few casts, newest first,
- * under their name in its colour. Nothing for a track without casts. */
-function CastBox(props: { title: string; color: string; casts: TrackCast[] | undefined; now: number }) {
-  const { title, color, casts, now } = props
-  if (!casts) return null
-  const started = casts.filter((c) => c.t <= now)
+/** A picked enemy's health (%) at the replay's moment: 0 once it died, undefined while the track has none. */
+function enemyHealth(track: KeyTrack, guid: string, now: number): number | undefined {
+  const mob = track.mobs?.[guid]
+  if (mob?.died && mob.died <= now) return 0
+  return healthAt(track.bosses?.[guid] ?? mob?.p ?? [], now)
+}
+
+/** A caster at the replay's moment: their health as a bar, what they're casting (with how far along) and their last
+ * few casts, newest first, under their name in its colour. Nothing for a track without casts or health. */
+function CastBox(props: { title: string; color: string; casts: TrackCast[] | undefined; hp: number | undefined; now: number }) {
+  const { title, color, casts, hp, now } = props
+  if (!casts && hp === undefined) return null
+  const started = (casts ?? []).filter((c) => c.t <= now)
   const current = started.filter((c) => c.e !== undefined && c.e > now).pop()
   const recent = started
     .filter((c) => c !== current)
@@ -86,6 +95,14 @@ function CastBox(props: { title: string; color: string; casts: TrackCast[] | und
   return (
     <div className="map-box cast-box" aria-label={`${title}'s casts`}>
       <b style={{ color }}>{title}</b>
+      {hp !== undefined && (
+        <div className="hp-bar" aria-label={`${title}'s health`}>
+          <b>{hp.toFixed(0)}%</b>
+          <div className="bar">
+            <div className="fill" style={{ width: `${hp}%` }} />
+          </div>
+        </div>
+      )}
       {current && current.e !== undefined && (
         <div>
           Casting {current.s}

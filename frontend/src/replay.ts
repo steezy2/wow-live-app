@@ -228,6 +228,12 @@ export function lastAt(points: TrackPoint[], now: number): TrackPoint | undefine
   return points[indexAfter(points, now) - 1]
 }
 
+/** A unit's health (%) at its last point at or before a clock reading; undefined when the track has none (saved
+ * before health was kept). */
+export function healthAt(points: TrackPoint[], now: number): number | undefined {
+  return lastAt(points, now)?.hp
+}
+
 /** Where a unit was at a clock reading: between its points around it, as if it walked straight, unless they're on
  * different maps, far apart in time (TRACK_GAP_MS) or a jump; else its last point. */
 export function positionAt(points: TrackPoint[], now: number): TrackPoint | undefined {

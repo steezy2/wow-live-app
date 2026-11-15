@@ -330,7 +330,7 @@ type TrackPoint struct {
 	Y       float64 `json:"y"`
 	Map     int     `json:"map"`
 	Name    string  `json:"name,omitempty"`
-	HP      float64 `json:"hp,omitempty"` // a raid boss's or add's health left (%), 0 when unknown
+	HP      float64 `json:"hp,omitempty"` // a player's, boss's, add's or mob's health left (%), 0 when unknown
 }
 
 // KeyStop is a must-stop cast (the dungeon file's mustStop list) and its outcome: interrupted (By the player, IntoMS
