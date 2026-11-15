@@ -32,6 +32,8 @@ func fakeSimc(mode string) {
 	}
 	if path := os.Getenv("WOWLIVE_FAKE_ARGS"); path != "" {
 		os.WriteFile(path, []byte(strings.Join(os.Args[1:], "\n")), 0o644)
+		input, _ := os.ReadFile(os.Args[1])
+		os.WriteFile(path+".simc", input, 0o644)
 	}
 	fmt.Print("Generating Baseline: 1/1 [====>...] 50/100 1.0 Mean=1 Error=1%\r")
 	switch mode {
@@ -136,7 +138,7 @@ func TestSimsStartRefuses(t *testing.T) {
 		change func(*models.SimRequest, *Sims)
 		want   error
 	}{
-		{"unknown kind", func(r *models.SimRequest, _ *Sims) { r.Kind = "topgear" }, ErrBadSimOptions},
+		{"unknown kind", func(r *models.SimRequest, _ *Sims) { r.Kind = "stat_weights" }, ErrBadSimOptions},
 		{"unknown fight style", func(r *models.SimRequest, _ *Sims) { r.Options.FightStyle = "DungeonRoute" }, ErrBadSimOptions},
 		{"too long", func(r *models.SimRequest, _ *Sims) { r.Options.Length = maxSimLength + 1 }, ErrBadSimOptions},
 		{"no options", func(r *models.SimRequest, _ *Sims) { r.Options = models.SimOptions{} }, ErrBadSimOptions},
@@ -264,7 +266,7 @@ func TestParseSimProgress(t *testing.T) {
 }
 
 func TestReadSimResult(t *testing.T) {
-	result, err := readSimResult("testdata/sim-result.json")
+	result, err := readSimResult("testdata/sim-result.json", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -281,7 +283,7 @@ func TestReadSimResult(t *testing.T) {
 			t.Errorf("buffs %+v: want longest first and at least 1%%", result.Buffs)
 		}
 	}
-	if _, err := readSimResult("testdata/simc-export.txt"); err == nil {
+	if _, err := readSimResult("testdata/simc-export.txt", nil); err == nil {
 		t.Error("a file that isn't simc's JSON should fail")
 	}
 }

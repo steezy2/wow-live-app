@@ -43,24 +43,30 @@ type SimOptions struct {
 
 // SimChoices are what the sim page picks its options from, and the options it starts with.
 type SimChoices struct {
-	FightStyles []string   `json:"fightStyles"`
-	Accuracies  []string   `json:"accuracies"`
-	MinLength   int        `json:"minLength"`
-	MaxLength   int        `json:"maxLength"`
-	MaxTargets  int        `json:"maxTargets"`
-	Defaults    SimOptions `json:"defaults"`
+	FightStyles []string `json:"fightStyles"`
+	Accuracies  []string `json:"accuracies"`
+	MinLength   int      `json:"minLength"`
+	MaxLength   int      `json:"maxLength"`
+	MaxTargets  int      `json:"maxTargets"`
+	// MaxCombos is the most gear combinations a Top Gear sim runs; a request over it is refused.
+	MaxCombos int        `json:"maxCombos" example:"100"`
+	Defaults  SimOptions `json:"defaults"`
 }
 
 // SimRequest starts a sim: its Kind (one of SimKinds), the pasted SimC export (parsed again on every request) and
-// the options.
+// the options. A Top Gear sim also sends the items it may put on, as indexes into the parsed profile's Equipped and
+// Bags; an equipped item left out is not a candidate.
 type SimRequest struct {
-	Kind    string     `json:"kind" binding:"required" example:"quick"`
-	Export  string     `json:"export" binding:"required"`
-	Options SimOptions `json:"options"`
+	Kind     string     `json:"kind" binding:"required" example:"quick"`
+	Export   string     `json:"export" binding:"required"`
+	Options  SimOptions `json:"options"`
+	Equipped []int      `json:"equipped,omitempty"`
+	Bags     []int      `json:"bags,omitempty"`
 }
 
-// SimKinds are the kinds of sim: one character's DPS ("quick").
-var SimKinds = []string{"quick"}
+// SimKinds are the kinds of sim: one character's DPS ("quick") and the best combination of the gear they carry
+// ("topgear").
+var SimKinds = []string{"quick", "topgear"}
 
 // The states a sim is in (Sim.State).
 const (
@@ -74,7 +80,7 @@ const (
 // how long it took, and, once State is "done", its Result; a failed one says why in Error. The list leaves Result out.
 type Sim struct {
 	ID        string     `json:"id" example:"9f3a1c5e7b2d4a60"`
-	Kind      string     `json:"kind" enums:"quick"`
+	Kind      string     `json:"kind" enums:"quick,topgear"`
 	State     string     `json:"state" enums:"running,done,failed,cancelled"`
 	Character string     `json:"character" example:"Steezy"`
 	Spec      string     `json:"spec" example:"elemental"`
@@ -87,12 +93,31 @@ type Sim struct {
 }
 
 // SimResult is what a finished sim found: the character's DPS (DPSError is the 1 standard error of the mean), each
-// ability's part of it, biggest first, and the buffs that were up, longest first.
+// ability's part of it, biggest first, and the buffs that were up, longest first. A Top Gear sim's DPS is the
+// equipped gear's, and Combos the other combinations, best first.
 type SimResult struct {
 	DPS       float64      `json:"dps"`
 	DPSError  float64      `json:"dpsError"`
 	Abilities []SimAbility `json:"abilities"`
 	Buffs     []SimBuff    `json:"buffs"`
+	Combos    []SimCombo   `json:"combos,omitempty"`
+}
+
+// SimCombo is one gear combination a Top Gear sim ran: its DPS, the standard error of that mean, its gain over the
+// equipped gear (negative for a loss) and the slots it changes.
+type SimCombo struct {
+	DPS      float64   `json:"dps"`
+	DPSError float64   `json:"dpsError"`
+	Gain     float64   `json:"gain"`
+	Swaps    []SimSwap `json:"swaps"`
+}
+
+// SimSwap is one slot a combination changes: the equipped item taken off (Out, none when the slot was empty) and the
+// item put on (In, its Slot the one it goes in; none empties the slot, as an off-hand beside a two-handed weapon).
+type SimSwap struct {
+	Slot string   `json:"slot" example:"finger2"`
+	Out  *SimItem `json:"out,omitempty"`
+	In   *SimItem `json:"in,omitempty"`
 }
 
 // SimAbility is one ability's damage or healing: its spell ID (for the tooltip), its DPS, its share of the total
