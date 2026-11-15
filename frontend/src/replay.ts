@@ -14,11 +14,12 @@ import {
 import { valueAt } from './format'
 
 /** A move between two track points faster than this (yards per second) is a jump (a teleport, a release, a portal),
- * drawn as one, not as a walk. */
+ * drawn as one in a trail, not as a walk. */
 export const JUMP_YARDS_PER_S = 15
 
-/** Track points further apart than this (ms) aren't walked between: the unit wasn't seen in the gap. */
-const TRACK_GAP_MS = 3_000
+/** A player not sampled for this long (ms), as in Warcraft Logs' replay, isn't walked between points across the gap
+ * and isn't drawn until their next sample. */
+export const UNSEEN_MS = 10_000
 
 /** How often (ms) the page around a playing replay (lanes, graph, meters, cards) follows its clock; the map follows
  * it every frame. */
@@ -234,15 +235,13 @@ export function healthAt(points: TrackPoint[], now: number): number | undefined 
   return lastAt(points, now)?.hp
 }
 
-/** Where a unit was at a clock reading: between its points around it, as if it walked straight, unless they're on
- * different maps, far apart in time (TRACK_GAP_MS) or a jump; else its last point. */
+/** Where a unit was at a clock reading: between its points around it, as if it moved straight, however fast, unless
+ * they're on different maps or further apart than UNSEEN_MS; else its last point. */
 export function positionAt(points: TrackPoint[], now: number): TrackPoint | undefined {
   const i = indexAfter(points, now)
   const last = points[i - 1]
   const next = points[i]
-  if (!last || !next || next.map !== last.map || next.t - last.t > TRACK_GAP_MS) return last
-  const seconds = Math.max(1, next.t - last.t) / 1000
-  if (Math.hypot(next.x - last.x, next.y - last.y) / seconds > JUMP_YARDS_PER_S) return last
+  if (!last || !next || next.map !== last.map || next.t - last.t > UNSEEN_MS) return last
   const share = (now - last.t) / (next.t - last.t)
   return { ...last, x: last.x + (next.x - last.x) * share, y: last.y + (next.y - last.y) * share }
 }

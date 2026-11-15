@@ -21,6 +21,7 @@ import {
   lastAt,
   MOB_GONE_MS,
   positionAt,
+  UNSEEN_MS,
   type SliderMark,
   type useReplay,
 } from './replay'
@@ -477,7 +478,7 @@ export function MapCanvas(props: {
         // seen. Dead until they're seen again after their last death (a release and run back, or a battle res).
         const last = here ?? points[0]
         const dead = died.has(player) && (!last || last.t <= (died.get(player) ?? 0) + REVIVED_AFTER_MS)
-        if (!last || last.map !== floor) return
+        if (!last || last.map !== floor || (!dead && now - last.t > UNSEEN_MS)) return
         const [x, y] = at(last)
         dots.current.push({ id: player, enemy: false, x, y, r: dot * 1.2 })
         if (player === focus) {

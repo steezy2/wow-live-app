@@ -13,6 +13,7 @@ import {
   meterBetween,
   MIN_FLOOR_POINTS,
   positionAt,
+  UNSEEN_MS,
 } from './replay'
 
 const at = (t: number, x: number, map = 1): TrackPoint => ({ t, x, y: 0, map })
@@ -60,9 +61,10 @@ describe('positionAt', () => {
   it.each([
     ['between two points', [at(0, 0), at(1000, 10)], 500, 5],
     ['past the last point', [at(0, 0), at(1000, 10)], 2000, 10],
-    ['across a gap the unit was not seen in', [at(0, 0), at(10_000, 10)], 5000, 0],
+    ['across a gap up to UNSEEN_MS', [at(0, 0), at(UNSEEN_MS, 10)], UNSEEN_MS / 2, 5],
+    ['across a gap the unit was not seen in', [at(0, 0), at(UNSEEN_MS + 1, 10)], 5000, 0],
     ['across a map change', [at(0, 0), at(1000, 10, 2)], 500, 0],
-    ['across a jump', [at(0, 0), at(1000, 100)], 500, 0],
+    ['across a fast move', [at(0, 0), at(1000, 100)], 500, 50],
   ])('%s', (_, points, now, x) => {
     expect(positionAt(points, now)?.x).toBe(x)
   })
