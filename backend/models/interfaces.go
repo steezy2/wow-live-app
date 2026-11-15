@@ -16,6 +16,7 @@ type KeySource interface {
 	DeleteSaved(start int64) error
 	Track(start int64) (KeyTrack, error)
 	DungeonMap(mapID int) (DungeonMap, error)
+	Mobs(mapID, level int) DungeonMobs
 	Abandon() bool
 }
 

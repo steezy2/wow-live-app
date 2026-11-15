@@ -65,6 +65,7 @@ func Router(mplus MPlus, raid *Raid, settings *SettingsAPI, pages fs.FS, hosts .
 	api.GET("/mplus/keys/:start/players/:player/compare", mplus.PlayerCompare)
 	api.POST("/mplus/keys/:start/players/:player/compare", mplus.RunPlayerCompare)
 	api.GET("/mplus/dungeons/:mapID/map", mplus.DungeonMap)
+	api.GET("/mplus/dungeons/:mapID/mobs", mplus.DungeonMobs)
 	api.GET("/mplus/dungeons/:mapID/floors/:uiMapID/tiles/:x/:y", mplus.Tile)
 	if raid != nil {
 		api.GET("/raid/live", raid.Live)

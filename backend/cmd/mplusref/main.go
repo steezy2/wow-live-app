@@ -1,7 +1,9 @@
 // Command mplusref writes reference/mplus-dungeons.json, the season's dungeon facts the M+ page reads: forces from
 // Mythic Dungeon Tools checked against Keystone.guru, and the must-stop, avoidable, soak, dispel, purge and priority
-// lists from Wowhead's overviews, and every enemy a Mythic Dungeon Tools route can pull, placed where Keystone.guru
-// has it (it prints how many it placed and names any it couldn't). Run it each season or patch and review the diff.
+// lists from Wowhead's overviews, every enemy a Mythic Dungeon Tools route can pull, placed where Keystone.guru has
+// it (it prints how many it placed and names any it couldn't), its patrols, each mob's health, flags and spells, and
+// where each floor is on Mythic Dungeon Tools' map (it names the floors it couldn't place). Run it each season or
+// patch and review the diff.
 //
 // Usage, from backend/:
 //
@@ -66,16 +68,22 @@ func generate(ctx context.Context, cache, path string) error {
 	if err != nil {
 		return err
 	}
+	npcs, err := kgClient.NPCs(ctx)
+	if err != nil {
+		return err
+	}
 	ref := models.MPlusReference{Season: season, Dungeons: map[int]models.DungeonFacts{}, Sources: map[string]string{
 		"forces": fmt.Sprintf("github.com/%s@%s (GPL-2.0), totals checked against Keystone.guru's", mdt.Repo,
 			commit),
 		"spells": "Wowhead dungeon overviews (each dungeon's guide), interrupts checked against Mythic Dungeon Tools",
-		"maps": fmt.Sprintf("github.com/%s dungeon data: floor bounds, forces totals and where enemies stand only; "+
-			"the site fetches the tiles", keystoneguru.Repo),
+		"maps": fmt.Sprintf("github.com/%s dungeon data: floor bounds, forces totals, where enemies stand and "+
+			"patrols only; the site fetches the tiles", keystoneguru.Repo),
+		"mobs": fmt.Sprintf("names and spells from Mythic Dungeon Tools; level, type, class, base health and flags "+
+			"from github.com/%s's npcs.json", keystoneguru.Repo),
 		"written": time.Now().Format("2006-01-02"),
 	}}
 	for _, d := range dungeons {
-		src := service.DungeonSources{Name: d.Name, KeystoneGuruTotal: kg[d.MapID].ForcesTotal}
+		src := service.DungeonSources{Name: d.Name, KeystoneGuruTotal: kg[d.MapID].ForcesTotal, NPCs: npcs}
 		if i := slices.IndexFunc(mdtDungeons, func(m models.MDTDungeon) bool { return m.MapID == d.MapID }); i >= 0 {
 			src.MDT = mdtDungeons[i]
 		}
@@ -91,10 +99,21 @@ func generate(ctx context.Context, cache, path string) error {
 		if err != nil {
 			return err
 		}
+		facts.Floors = service.MDTPlanes(src.MDT, facts.Floors, kgEnemies)
+		for _, f := range facts.Floors {
+			if f.MDT == nil {
+				log.Printf("%s: floor %d isn't placed on MDT's map, so its drawings stay in the app", d.Name, f.UIMapID)
+			}
+		}
 		var unplaced []models.MDTClone
 		facts.MDTIndex = src.MDT.Index
 		facts.Enemies, unplaced = service.RouteEnemies(src.MDT, facts.Floors, kgEnemies)
-		log.Printf("%s: %d/%d placed", d.Name, len(facts.Enemies), len(src.MDT.Clones))
+		kgPatrols, err := kgClient.Patrols(ctx, kg[d.MapID])
+		if err != nil {
+			return err
+		}
+		facts.Patrols = service.RoutePatrols(facts.Floors, kgPatrols, kgEnemies, facts.Enemies)
+		log.Printf("%s: %d/%d placed, %d patrols", d.Name, len(facts.Enemies), len(src.MDT.Clones), len(facts.Patrols))
 		for _, c := range unplaced {
 			log.Printf("%s: left out %s (enemy %d clone %d)", d.Name, src.MDT.Mobs[c.NPC].Name, c.Index, c.Clone)
 		}

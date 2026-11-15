@@ -25,6 +25,56 @@ type DungeonFacts struct {
 	Review     []int          `json:"review"`     // interrupts the guide names that Mythic Dungeon Tools doesn't mark interruptible
 	MDTIndex   int            `json:"mdtIndex"`   // Mythic Dungeon Tools' dungeonIndex, which its routes name
 	Enemies    []RouteEnemy   `json:"enemies"`    // every enemy a route can pull, by (Index, Clone)
+	// Mobs is each NPC Mythic Dungeon Tools lists, by NPC ID, health at +1 (absent in a file written before mobs).
+	Mobs map[int]DungeonMob `json:"mobs,omitempty"`
+	// Patrols is where enemies walk, from Keystone.guru (absent in a file written before patrols).
+	Patrols []Patrol `json:"patrols,omitempty"`
+}
+
+// Patrol is a path enemies walk on the floor Map, from Keystone.guru: its color (6 hex digits, "003280"), its points
+// in log yards as (x, y) like RouteEnemy's, whether it is a loop they walk round (else they walk it back and forth)
+// and the enemies walking it.
+type Patrol struct {
+	Map     int          `json:"map"`
+	Loop    bool         `json:"loop"`
+	Color   string       `json:"color"`
+	Points  [][2]float64 `json:"points"`
+	Enemies []EnemyRef   `json:"enemies"`
+}
+
+// DungeonMob is one of a dungeon's NPCs: its name and spells from Mythic Dungeon Tools, the rest from Keystone.guru's
+// npcs.json. Health is the base (+1) in the reference and at the key level from the mobs endpoint; 0 when
+// Keystone.guru doesn't have the NPC. Flags are the Keystone.guru flags it has: bolstering, bursting, sanguine (it
+// takes part in those affixes), dangerous, truesight (it sees stealth), runsAwayInFear.
+type DungeonMob struct {
+	NPC            int        `json:"npc"`
+	Name           string     `json:"name"`
+	Level          int        `json:"level,omitempty"`
+	Type           string     `json:"type,omitempty"`  // "Humanoid"
+	Class          string     `json:"class,omitempty"` // "Elite", "Boss"
+	Boss           bool       `json:"boss,omitempty"`
+	Health         int        `json:"health"`
+	Aggressiveness string     `json:"aggressiveness,omitempty"` // "aggressive", "unfriendly", "neutral", "awakened"
+	Flags          []string   `json:"flags,omitempty"`
+	Spells         []MobSpell `json:"spells,omitempty"`
+}
+
+// MobSpell is a spell a mob casts, with Mythic Dungeon Tools' flags.
+type MobSpell struct {
+	ID            int  `json:"id"`
+	Interruptible bool `json:"interruptible,omitempty"`
+	Magic         bool `json:"magic,omitempty"`
+}
+
+// DungeonMobs is a dungeon's mobs at a key level: the level, the one the page starts at (the owner's newest saved
+// key in the dungeon, else 10), the level's health and damage multipliers over +1 (before Fortified and Tyrannical,
+// which each mob's health includes), and the mobs in NPC ID order (none for a reference file written before mobs).
+type DungeonMobs struct {
+	Level        int          `json:"level"`
+	DefaultLevel int          `json:"defaultLevel"`
+	HealthMult   float64      `json:"healthMult"`
+	DamageMult   float64      `json:"damageMult"`
+	Mobs         []DungeonMob `json:"mobs"`
 }
 
 // RouteEnemy is one enemy a Mythic Dungeon Tools route can pull: its enemy and clone index there, its NPC, the forces
@@ -47,15 +97,30 @@ type RouteEnemy struct {
 type DungeonFloor struct {
 	RaidMap
 	Tiles string `json:"tiles"`
+	// MDT is where the floor is drawn on Mythic Dungeon Tools' map; absent when its enemies there fit none, or in a
+	// file written before drawings went to MDT.
+	MDT *MDTPlane `json:"mdt,omitempty"`
+}
+
+// MDTPlane places a floor on Mythic Dungeon Tools' map of its Sublevel (840 by 555, y negative, down): Keystone.guru's
+// (lng, lat) is Scale times MDT's (x, y) plus (X, Y), fitted to the floor's enemies, which stand inside Box on MDT's
+// map (min x, min y, max x, max y).
+type MDTPlane struct {
+	Sublevel int        `json:"sublevel"`
+	Scale    float64    `json:"scale"`
+	X        float64    `json:"x"`
+	Y        float64    `json:"y"`
+	Box      [4]float64 `json:"box"`
 }
 
 // DungeonMap is what the replay draws a dungeon on: its floors with map tiles (none for a dungeon Keystone.guru
-// doesn't map), and where parties have walked in its saved runs, and its enemies.
+// doesn't map), and where parties have walked in its saved runs, its enemies and its patrols.
 type DungeonMap struct {
 	Floors       []DungeonFloor `json:"floors"`
 	TilesPerSide int            `json:"tilesPerSide"` // tiles a floor is wide and tall
 	Walked       []TrackPoint   `json:"walked"`
 	Enemies      []RouteEnemy   `json:"enemies"` // what a route can pull, for the route map
+	Patrols      []Patrol       `json:"patrols"` // none for a reference file written before patrols
 }
 
 // Forces is a dungeon's enemy forces: the total a key needs and each NPC's count (0 for the mobs Mythic Dungeon Tools
@@ -85,14 +150,28 @@ type MDTClone struct {
 	Sublevel, Group   int
 }
 
-// MDTPreset is a Mythic Dungeon Tools route: its name, uid, dungeon index and pulls. Raw is the whole preset as CBOR,
-// so the fields the app doesn't read (drawings, week, difficulty) survive a round trip.
+// MDTPreset is a Mythic Dungeon Tools route: its name, uid, dungeon index, pulls and the drawings the app reads. Raw is
+// the rest of the preset as CBOR, so the fields the app doesn't read (week, difficulty, undone drawings, texts) survive
+// a round trip.
 type MDTPreset struct {
 	Name       string
 	UID        string
 	DungeonIdx int
 	Pulls      []MDTPull
+	Drawings   []MDTDrawing
 	Raw        []byte
+}
+
+// MDTDrawing is a drawing of a Mythic Dungeon Tools route on its Sublevel's map (840 by 555, y negative, down): a line
+// through Points in Color (MDT keeps its segments), or a Note pin at its one point with Text (maybe none). Raw is the
+// drawing as MDT wrote it (CBOR) when it was read from MDT; one with Raw is written back as it was.
+type MDTDrawing struct {
+	Sublevel int          `json:"sublevel"`
+	Note     bool         `json:"note,omitempty"`
+	Color    string       `json:"color,omitempty"`
+	Points   [][2]float64 `json:"points"`
+	Text     string       `json:"text,omitempty"`
+	Raw      []byte       `json:"raw,omitempty"`
 }
 
 // MDTPull is one pull of a route: its color ("ff3eff") and its enemies, enemy index to clone indexes.
@@ -102,19 +181,29 @@ type MDTPull struct {
 }
 
 // KeystoneGuruEnemy is an enemy on Keystone.guru's newest mapping of a dungeon: the NPC, the NPC Mythic Dungeon
-// Tools lists it as when that differs (else 0), its Mythic Dungeon Tools clone index, its pack (0 for none), its
-// place on the floor's 384 by 256 map (lat negative, down) and that floor's UIMapID.
+// Tools lists it as when that differs (else 0), its Mythic Dungeon Tools clone index, its pack and the patrol it walks
+// (0 for none), its place on the floor's 384 by 256 map (lat negative, down) and that floor's UIMapID.
 type KeystoneGuruEnemy struct {
-	NPC, MDTNPC, MDTID, Pack int
-	Lat, Lng                 float64
-	Map                      int
+	NPC, MDTNPC, MDTID, Pack, Patrol int
+	Lat, Lng                         float64
+	Map                              int
 }
 
-// MDTMob is a mob in Mythic Dungeon Tools' data.
+// KeystoneGuruPatrol is a patrol path on Keystone.guru's newest mapping of a dungeon: its ID (the one its enemies
+// name), its color ("#003280"), its points as (lat, lng) on the floor's 384 by 256 map and that floor's UIMapID.
+type KeystoneGuruPatrol struct {
+	ID     int
+	Color  string
+	Points [][2]float64
+	Map    int
+}
+
+// MDTMob is a mob in Mythic Dungeon Tools' data, with the IDs of its spells in the file's order.
 type MDTMob struct {
-	Name  string
-	Count int
-	Boss  bool
+	Name   string
+	Count  int
+	Boss   bool
+	Spells []int
 }
 
 // MDTSpell is a mob spell's flags in Mythic Dungeon Tools' data.

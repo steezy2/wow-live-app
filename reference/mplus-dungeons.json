@@ -2,9 +2,10 @@
   "season": "season-mn-2",
   "sources": {
     "forces": "github.com/Nnoggie/MythicDungeonTools@4009a240114089052d8a0ee5921b0331f3e450d3 (GPL-2.0), totals checked against Keystone.guru's",
-    "maps": "github.com/Wotuu/keystone.guru dungeon data: floor bounds, forces totals and where enemies stand only; the site fetches the tiles",
+    "maps": "github.com/Wotuu/keystone.guru dungeon data: floor bounds, forces totals, where enemies stand and patrols only; the site fetches the tiles",
+    "mobs": "names and spells from Mythic Dungeon Tools; level, type, class, base health and flags from github.com/Wotuu/keystone.guru's npcs.json",
     "spells": "Wowhead dungeon overviews (each dungeon's guide), interrupts checked against Mythic Dungeon Tools",
-    "written": "2026-11-13"
+    "written": "2026-11-14"
   },
   "dungeons": {
     "249": {
@@ -18,7 +19,19 @@
           "maxX": -3280.94,
           "minY": -1240.31,
           "maxY": -679.68,
-          "tiles": "bfa/kingsrest/1"
+          "tiles": "bfa/kingsrest/1",
+          "mdt": {
+            "sublevel": 1,
+            "scale": 0.391077,
+            "x": 28.787,
+            "y": -7.384,
+            "box": [
+              86.8,
+              -532.7,
+              706.7,
+              -104.8
+            ]
+          }
         }
       ],
       "forces": {
@@ -1093,7 +1106,971 @@
           "y": 2911.2,
           "map": 1004
         }
-      ]
+      ],
+      "mobs": {
+        "133935": {
+          "npc": 133935,
+          "name": "Animated Guardian",
+          "level": 91,
+          "type": "Undead",
+          "class": "Elite",
+          "health": 5513534,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine",
+            "dangerous"
+          ],
+          "spells": [
+            {
+              "id": 270003
+            },
+            {
+              "id": 270016
+            },
+            {
+              "id": 1310755
+            }
+          ]
+        },
+        "133943": {
+          "npc": 133943,
+          "name": "Minion of Zul",
+          "level": 90,
+          "type": "Aberration",
+          "class": "Normal",
+          "health": 340110,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 269935,
+              "magic": true
+            }
+          ]
+        },
+        "134157": {
+          "npc": 134157,
+          "name": "Umbral Warrior",
+          "level": 90,
+          "type": "Undead",
+          "class": "Elite",
+          "health": 3243255,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1311942
+            }
+          ]
+        },
+        "134158": {
+          "npc": 134158,
+          "name": "Shadow-Borne Champion",
+          "level": 91,
+          "type": "Undead",
+          "class": "Elite",
+          "health": 5189208,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine",
+            "dangerous"
+          ],
+          "spells": [
+            {
+              "id": 269928
+            },
+            {
+              "id": 269976
+            },
+            {
+              "id": 1305945
+            },
+            {
+              "id": 1310758
+            }
+          ]
+        },
+        "134174": {
+          "npc": 134174,
+          "name": "Risen Hexer",
+          "level": 91,
+          "type": "Undead",
+          "class": "Elite",
+          "health": 4864883,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 269972,
+              "interruptible": true
+            },
+            {
+              "id": 1294815,
+              "interruptible": true,
+              "magic": true
+            }
+          ]
+        },
+        "134251": {
+          "npc": 134251,
+          "name": "Seneschal M'bara",
+          "level": 90,
+          "type": "Undead",
+          "class": "Elite",
+          "health": 3243255,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine",
+            "dangerous"
+          ],
+          "spells": [
+            {
+              "id": 270901,
+              "interruptible": true,
+              "magic": true
+            },
+            {
+              "id": 1296671,
+              "magic": true
+            }
+          ]
+        },
+        "134331": {
+          "npc": 134331,
+          "name": "King Rahu'ai",
+          "level": 91,
+          "type": "Undead",
+          "class": "Elite",
+          "health": 5189208,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine",
+            "dangerous"
+          ],
+          "spells": [
+            {
+              "id": 270889
+            },
+            {
+              "id": 1296671,
+              "magic": true
+            },
+            {
+              "id": 1296719
+            }
+          ]
+        },
+        "134739": {
+          "npc": 134739,
+          "name": "Purification Construct",
+          "level": 91,
+          "type": "Undead",
+          "class": "Elite",
+          "health": 7783811,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine",
+            "dangerous"
+          ],
+          "spells": [
+            {
+              "id": 270292
+            },
+            {
+              "id": 270293
+            },
+            {
+              "id": 1310755
+            }
+          ]
+        },
+        "134993": {
+          "npc": 134993,
+          "name": "Mchimba the Embalmer",
+          "level": 92,
+          "type": "Mechanical",
+          "class": "Boss",
+          "boss": true,
+          "health": 20432506,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "dangerous"
+          ],
+          "spells": [
+            {
+              "id": 267618
+            },
+            {
+              "id": 267639
+            },
+            {
+              "id": 267702
+            },
+            {
+              "id": 267874
+            },
+            {
+              "id": 271290
+            },
+            {
+              "id": 1312146
+            },
+            {
+              "id": 1312848
+            }
+          ]
+        },
+        "135167": {
+          "npc": 135167,
+          "name": "Royal Berserker",
+          "level": 91,
+          "type": "Undead",
+          "class": "Elite",
+          "health": 3891906,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine",
+            "dangerous"
+          ],
+          "spells": [
+            {
+              "id": 270482
+            },
+            {
+              "id": 1301851
+            }
+          ]
+        },
+        "135192": {
+          "npc": 135192,
+          "name": "Honored Raptor",
+          "level": 90,
+          "type": "Undead",
+          "class": "Elite",
+          "health": 3243255,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 270502
+            }
+          ]
+        },
+        "135204": {
+          "npc": 135204,
+          "name": "Phantom Hex Priest",
+          "level": 90,
+          "type": "Undead",
+          "class": "Elite",
+          "health": 2918930,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 270492,
+              "interruptible": true
+            },
+            {
+              "id": 1295125,
+              "interruptible": true,
+              "magic": true
+            }
+          ]
+        },
+        "135231": {
+          "npc": 135231,
+          "name": "Ghostly Brute",
+          "level": 91,
+          "type": "Undead",
+          "class": "Elite",
+          "health": 6486509,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine",
+            "dangerous"
+          ],
+          "spells": [
+            {
+              "id": 270514
+            },
+            {
+              "id": 1302028
+            }
+          ]
+        },
+        "135239": {
+          "npc": 135239,
+          "name": "Spectral Shaman",
+          "level": 90,
+          "type": "Undead",
+          "class": "Elite",
+          "health": 3243255,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 270497
+            },
+            {
+              "id": 270499,
+              "magic": true
+            }
+          ]
+        },
+        "135322": {
+          "npc": 135322,
+          "name": "The Golden Serpent",
+          "level": 92,
+          "type": "Beast",
+          "class": "Boss",
+          "boss": true,
+          "health": 20432506,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "dangerous"
+          ],
+          "spells": [
+            {
+              "id": 265773
+            },
+            {
+              "id": 265910
+            },
+            {
+              "id": 265923
+            },
+            {
+              "id": 265991
+            },
+            {
+              "id": 1311987
+            }
+          ]
+        },
+        "135406": {
+          "npc": 135406,
+          "name": "Animated Gold",
+          "level": 90,
+          "type": "Aberration",
+          "class": "Elite",
+          "health": 291893,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 265991
+            },
+            {
+              "id": 1289063
+            }
+          ]
+        },
+        "135761": {
+          "npc": 135761,
+          "name": "Thundering Totem",
+          "level": 90,
+          "type": "Totem",
+          "class": "Elite",
+          "health": 324326,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 267257
+            },
+            {
+              "id": 1309499
+            }
+          ]
+        },
+        "135764": {
+          "npc": 135764,
+          "name": "Explosive Totem",
+          "level": 90,
+          "type": "Totem",
+          "class": "Elite",
+          "health": 324326,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 267077
+            },
+            {
+              "id": 1309499
+            }
+          ]
+        },
+        "135765": {
+          "npc": 135765,
+          "name": "Torrent Totem",
+          "level": 90,
+          "type": "Totem",
+          "class": "Elite",
+          "health": 324326,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 267105
+            },
+            {
+              "id": 1309499
+            }
+          ]
+        },
+        "136160": {
+          "npc": 136160,
+          "name": "King Dazar",
+          "level": 92,
+          "type": "Undead",
+          "class": "Final boss",
+          "boss": true,
+          "health": 29189294,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "dangerous"
+          ],
+          "spells": [
+            {
+              "id": 268586
+            },
+            {
+              "id": 1302945
+            },
+            {
+              "id": 1303105
+            },
+            {
+              "id": 1303267
+            },
+            {
+              "id": 1303372
+            },
+            {
+              "id": 1303396
+            }
+          ]
+        },
+        "136256": {
+          "npc": 136256,
+          "name": "Coffin",
+          "level": 334,
+          "class": "Elite",
+          "health": 648651,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ]
+        },
+        "136976": {
+          "npc": 136976,
+          "name": "T'zala",
+          "level": 91,
+          "type": "Undead",
+          "class": "Boss",
+          "boss": true,
+          "health": 32432549,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine",
+            "dangerous"
+          ],
+          "spells": [
+            {
+              "id": 1303324
+            },
+            {
+              "id": 1303396
+            },
+            {
+              "id": 1303488
+            }
+          ]
+        },
+        "136984": {
+          "npc": 136984,
+          "name": "Reban",
+          "level": 91,
+          "type": "Undead",
+          "class": "Elite",
+          "health": 4540557,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 269232
+            },
+            {
+              "id": 269369,
+              "interruptible": true
+            }
+          ]
+        },
+        "137473": {
+          "npc": 137473,
+          "name": "Guard Captain Atu",
+          "level": 90,
+          "type": "Undead",
+          "class": "Elite",
+          "health": 5270289,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine",
+            "dangerous"
+          ],
+          "spells": [
+            {
+              "id": 1296671,
+              "magic": true
+            }
+          ]
+        },
+        "137474": {
+          "npc": 137474,
+          "name": "King Timalji",
+          "level": 91,
+          "type": "Undead",
+          "class": "Elite",
+          "health": 7783811,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine",
+            "dangerous"
+          ],
+          "spells": [
+            {
+              "id": 270927
+            },
+            {
+              "id": 1297326
+            },
+            {
+              "id": 1306049
+            }
+          ]
+        },
+        "137478": {
+          "npc": 137478,
+          "name": "Queen Wasi",
+          "level": 91,
+          "type": "Undead",
+          "class": "Elite",
+          "health": 7783811,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine",
+            "dangerous"
+          ],
+          "spells": [
+            {
+              "id": 270920,
+              "interruptible": true,
+              "magic": true
+            },
+            {
+              "id": 1294972,
+              "interruptible": true,
+              "magic": true
+            },
+            {
+              "id": 1297326
+            }
+          ]
+        },
+        "137484": {
+          "npc": 137484,
+          "name": "King A'akul",
+          "level": 91,
+          "type": "Undead",
+          "class": "Elite",
+          "health": 8432462,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine",
+            "dangerous"
+          ],
+          "spells": [
+            {
+              "id": 1297918
+            },
+            {
+              "id": 1297970
+            }
+          ]
+        },
+        "137485": {
+          "npc": 137485,
+          "name": "Bloodsworn Assassin",
+          "level": 90,
+          "type": "Undead",
+          "class": "Elite",
+          "health": 3243255,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1297781
+            }
+          ]
+        },
+        "137486": {
+          "npc": 137486,
+          "name": "Queen Patlaa",
+          "level": 91,
+          "type": "Undead",
+          "class": "Elite",
+          "health": 5189208,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine",
+            "dangerous"
+          ],
+          "spells": [
+            {
+              "id": 1294883
+            },
+            {
+              "id": 1297763
+            },
+            {
+              "id": 1305982
+            },
+            {
+              "id": 1306763
+            }
+          ]
+        },
+        "137487": {
+          "npc": 137487,
+          "name": "Skeletal Hunting Raptor",
+          "level": 91,
+          "type": "Undead",
+          "class": "Elite",
+          "health": 3243255,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine",
+            "dangerous"
+          ],
+          "spells": [
+            {
+              "id": 270502
+            },
+            {
+              "id": 1297763
+            }
+          ]
+        },
+        "137591": {
+          "npc": 137591,
+          "name": "Healing Tide Totem",
+          "level": 90,
+          "type": "Totem",
+          "class": "Elite",
+          "health": 6487,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ]
+        },
+        "137969": {
+          "npc": 137969,
+          "name": "Interment Construct",
+          "level": 91,
+          "type": "Undead",
+          "class": "Elite",
+          "health": 5837859,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine",
+            "dangerous"
+          ],
+          "spells": [
+            {
+              "id": 271555
+            },
+            {
+              "id": 271561
+            },
+            {
+              "id": 1310755
+            },
+            {
+              "id": 1312569
+            }
+          ]
+        },
+        "137989": {
+          "npc": 137989,
+          "name": "Embalming Fluid",
+          "level": 90,
+          "type": "Aberration",
+          "class": "Normal",
+          "health": 1945953,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 271563
+            },
+            {
+              "id": 1298104
+            }
+          ]
+        },
+        "138489": {
+          "npc": 138489,
+          "name": "Shadow of Zul",
+          "level": -1,
+          "type": "Humanoid",
+          "class": "Elite",
+          "health": 8432462,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine",
+            "dangerous"
+          ],
+          "spells": [
+            {
+              "id": 272388
+            },
+            {
+              "id": 1298304
+            },
+            {
+              "id": 1309385
+            }
+          ]
+        },
+        "138493": {
+          "npc": 138493,
+          "name": "Minion of Zul",
+          "level": 90,
+          "type": "Aberration",
+          "class": "Elite",
+          "health": 243242,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 269935,
+              "magic": true
+            }
+          ]
+        },
+        "269808": {
+          "npc": 269808,
+          "name": "Aka'ali the Conqueror",
+          "level": 92,
+          "type": "Undead",
+          "class": "Boss",
+          "boss": true,
+          "health": 7783812,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine",
+            "dangerous"
+          ],
+          "spells": [
+            {
+              "id": 266237
+            },
+            {
+              "id": 266951
+            }
+          ]
+        },
+        "269810": {
+          "npc": 269810,
+          "name": "Zanazal the Wise",
+          "level": 92,
+          "type": "Undead",
+          "class": "Boss",
+          "boss": true,
+          "health": 9729765,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine",
+            "dangerous"
+          ],
+          "spells": [
+            {
+              "id": 267060
+            },
+            {
+              "id": 267273,
+              "interruptible": true
+            },
+            {
+              "id": 1305810
+            }
+          ]
+        },
+        "269811": {
+          "npc": 269811,
+          "name": "Kula the Butcher",
+          "level": 92,
+          "type": "Undead",
+          "class": "Boss",
+          "boss": true,
+          "health": 5189208,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine",
+            "dangerous"
+          ],
+          "spells": [
+            {
+              "id": 266191
+            },
+            {
+              "id": 266206
+            },
+            {
+              "id": 266231
+            }
+          ]
+        },
+        "270502": {
+          "npc": 270502,
+          "name": "Half-Finished Mummy",
+          "level": 91,
+          "type": "Undead",
+          "class": "Elite",
+          "health": 3243255,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 267763,
+              "interruptible": true
+            }
+          ]
+        },
+        "273050": {
+          "npc": 273050,
+          "name": "Half-Finished Mummy",
+          "level": 90,
+          "type": "Undead",
+          "class": "Elite",
+          "health": 3243255,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 267763,
+              "interruptible": true
+            }
+          ]
+        }
+      }
     },
     "250": {
       "name": "Temple of Sethraliss",
@@ -1106,7 +2083,19 @@
           "maxX": -3916.67,
           "minY": 3187.5,
           "maxY": 3937.5,
-          "tiles": "bfa/templeofsethraliss/1"
+          "tiles": "bfa/templeofsethraliss/1",
+          "mdt": {
+            "sublevel": 1,
+            "scale": 0.43341,
+            "x": -43.698,
+            "y": -15.567,
+            "box": [
+              403,
+              -527,
+              736.7,
+              -144.7
+            ]
+          }
         },
         {
           "uiMapID": 1043,
@@ -1114,7 +2103,19 @@
           "maxX": -3972,
           "minY": 3760.42,
           "maxY": 4285.42,
-          "tiles": "bfa/templeofsethraliss/2"
+          "tiles": "bfa/templeofsethraliss/2",
+          "mdt": {
+            "sublevel": 1,
+            "scale": 0.632274,
+            "x": 86.259,
+            "y": 14.175,
+            "box": [
+              66.5,
+              -380.6,
+              261.6,
+              -73.3
+            ]
+          }
         }
       ],
       "forces": {
@@ -2485,6 +3486,1045 @@
           "y": 3553.8,
           "map": 1043
         }
+      ],
+      "mobs": {
+        "133384": {
+          "npc": 133384,
+          "name": "Merektha",
+          "level": 92,
+          "type": "Beast",
+          "class": "Boss",
+          "boss": true,
+          "health": 14918973,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "dangerous"
+          ],
+          "spells": [
+            {
+              "id": 264172
+            },
+            {
+              "id": 1289205
+            },
+            {
+              "id": 1289589
+            },
+            {
+              "id": 1289602
+            },
+            {
+              "id": 1290031
+            },
+            {
+              "id": 1290797
+            },
+            {
+              "id": 1293048
+            },
+            {
+              "id": 1296912
+            },
+            {
+              "id": 1297034
+            }
+          ]
+        },
+        "133392": {
+          "npc": 133392,
+          "name": "Avatar of Sethraliss",
+          "level": 120,
+          "type": "Undead",
+          "class": "Final boss",
+          "boss": true,
+          "health": 25946039,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "dangerous"
+          ]
+        },
+        "134364": {
+          "npc": 134364,
+          "name": "Faithless Subjugator",
+          "level": 90,
+          "type": "Humanoid",
+          "class": "Elite",
+          "health": 3243255,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 269896
+            },
+            {
+              "id": 1293307,
+              "interruptible": true
+            }
+          ]
+        },
+        "134388": {
+          "npc": 134388,
+          "name": "A Knot of Snakes",
+          "level": 90,
+          "type": "Beast",
+          "class": "Elite",
+          "health": 540542,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 263958
+            }
+          ]
+        },
+        "134389": {
+          "npc": 134389,
+          "name": "Toxic Viper",
+          "level": 90,
+          "type": "Beast",
+          "class": "Elite",
+          "health": 1686493,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 267027,
+              "interruptible": true
+            }
+          ]
+        },
+        "134390": {
+          "npc": 134390,
+          "name": "Storm Serpent",
+          "level": 91,
+          "type": "Beast",
+          "class": "Elite",
+          "health": 3567581,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1289589
+            },
+            {
+              "id": 1291622
+            }
+          ]
+        },
+        "134487": {
+          "npc": 134487,
+          "name": "Merektha",
+          "level": 90,
+          "type": "Beast",
+          "class": "Elite",
+          "health": 307716,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ]
+        },
+        "134599": {
+          "npc": 134599,
+          "name": "Imbued Stormcaller",
+          "level": 90,
+          "type": "Humanoid",
+          "class": "Elite",
+          "health": 3243255,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 269116
+            },
+            {
+              "id": 1291262,
+              "interruptible": true
+            },
+            {
+              "id": 1296052,
+              "magic": true
+            },
+            {
+              "id": 1310739,
+              "magic": true
+            }
+          ]
+        },
+        "134600": {
+          "npc": 134600,
+          "name": "Sandswept Hunter",
+          "level": 90,
+          "type": "Humanoid",
+          "class": "Elite",
+          "health": 3567581,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1292585
+            },
+            {
+              "id": 1308113
+            }
+          ]
+        },
+        "134602": {
+          "npc": 134602,
+          "name": "Shrouded Fang",
+          "level": 90,
+          "type": "Humanoid",
+          "class": "Elite",
+          "health": 3243255,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1295635
+            },
+            {
+              "id": 1308100,
+              "interruptible": true
+            }
+          ]
+        },
+        "134616": {
+          "npc": 134616,
+          "name": "Barbed Krolusk",
+          "level": 90,
+          "type": "Beast",
+          "class": "Normal",
+          "health": 2594604,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1291399
+            }
+          ]
+        },
+        "134629": {
+          "npc": 134629,
+          "name": "Sand-Sworn Rider",
+          "level": 91,
+          "type": "Humanoid",
+          "class": "Elite",
+          "health": 5189208,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 262046
+            },
+            {
+              "id": 272655
+            },
+            {
+              "id": 1291399
+            },
+            {
+              "id": 1292990
+            }
+          ]
+        },
+        "134686": {
+          "npc": 134686,
+          "name": "Krolusk Matriarch",
+          "level": 91,
+          "type": "Beast",
+          "class": "Elite",
+          "health": 4216232,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 272654
+            },
+            {
+              "id": 272655
+            }
+          ]
+        },
+        "134691": {
+          "npc": 134691,
+          "name": "Static Anomaly",
+          "level": 90,
+          "type": "Elemental",
+          "class": "Elite",
+          "health": 3243255,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 264763
+            },
+            {
+              "id": 1310693
+            }
+          ]
+        },
+        "134990": {
+          "npc": 134990,
+          "name": "Storm Adept",
+          "level": 90,
+          "type": "Humanoid",
+          "class": "Elite",
+          "health": 2918930,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1291262,
+              "interruptible": true
+            }
+          ]
+        },
+        "134991": {
+          "npc": 134991,
+          "name": "Sandfury Stonefist",
+          "level": 91,
+          "type": "Humanoid",
+          "class": "Elite",
+          "health": 5837859,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine",
+            "dangerous"
+          ],
+          "spells": [
+            {
+              "id": 265966
+            },
+            {
+              "id": 1291468
+            }
+          ]
+        },
+        "135007": {
+          "npc": 135007,
+          "name": "Orb Watcher",
+          "level": 91,
+          "type": "Humanoid",
+          "class": "Elite",
+          "health": 6486510,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1303443
+            },
+            {
+              "id": 1303452
+            },
+            {
+              "id": 1303486
+            }
+          ]
+        },
+        "135445": {
+          "npc": 135445,
+          "name": "Lightning Spire",
+          "level": 90,
+          "type": "Elemental",
+          "class": "Elite",
+          "health": 21621699,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ]
+        },
+        "135562": {
+          "npc": 135562,
+          "name": "Poisonous Viper",
+          "level": 90,
+          "type": "Beast",
+          "class": "Elite",
+          "health": 3243255,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1308148,
+              "interruptible": true
+            }
+          ]
+        },
+        "135846": {
+          "npc": 135846,
+          "name": "Lightning Serpent",
+          "level": 90,
+          "type": "Beast",
+          "class": "Elite",
+          "health": 3243255,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1293133
+            },
+            {
+              "id": 1310396
+            }
+          ]
+        },
+        "135971": {
+          "npc": 135971,
+          "name": "Faithless Conscript",
+          "level": 90,
+          "type": "Humanoid",
+          "class": "Elite",
+          "health": 648651,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ]
+        },
+        "136076": {
+          "npc": 136076,
+          "name": "Agitated Nimbus",
+          "level": 91,
+          "type": "Elemental",
+          "class": "Elite",
+          "health": 5189208,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1293464,
+              "magic": true
+            },
+            {
+              "id": 1293475
+            },
+            {
+              "id": 1293650
+            }
+          ]
+        },
+        "136250": {
+          "npc": 136250,
+          "name": "Twisted Hexxer",
+          "level": 91,
+          "type": "Humanoid",
+          "class": "Elite",
+          "health": 4864883,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 268013,
+              "interruptible": true
+            },
+            {
+              "id": 1300666
+            },
+            {
+              "id": 1300684
+            },
+            {
+              "id": 1311980
+            }
+          ]
+        },
+        "139097": {
+          "npc": 139097,
+          "name": "Sandswept Marksman",
+          "level": 90,
+          "type": "Humanoid",
+          "class": "Elite",
+          "health": 439629,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 273225
+            }
+          ]
+        },
+        "139108": {
+          "npc": 139108,
+          "name": "Loose Spark",
+          "level": 90,
+          "type": "Elemental",
+          "class": "Elite",
+          "health": 3243255,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 267483
+            },
+            {
+              "id": 273241
+            }
+          ]
+        },
+        "139110": {
+          "npc": 139110,
+          "name": "Spark Channeler",
+          "level": 90,
+          "type": "Humanoid",
+          "class": "Elite",
+          "health": 972977,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 267483
+            }
+          ]
+        },
+        "139131": {
+          "npc": 139131,
+          "name": "Polarized Spire",
+          "level": 90,
+          "type": "Elemental",
+          "class": "Elite",
+          "health": 10000,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ]
+        },
+        "139422": {
+          "npc": 139422,
+          "name": "Dutiful Tamer",
+          "level": 90,
+          "type": "Humanoid",
+          "class": "Elite",
+          "health": 3243255,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1291399
+            },
+            {
+              "id": 1292990
+            }
+          ]
+        },
+        "139425": {
+          "npc": 139425,
+          "name": "Brood Tender",
+          "level": 90,
+          "type": "Humanoid",
+          "class": "Elite",
+          "health": 3243255,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1310683,
+              "interruptible": true
+            }
+          ]
+        },
+        "240681": {
+          "npc": 240681,
+          "name": "Eye of Sethraliss",
+          "level": 90,
+          "class": "Elite",
+          "health": 287585,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1303596
+            }
+          ]
+        },
+        "262530": {
+          "npc": 262530,
+          "name": "Adderis",
+          "level": 92,
+          "type": "Humanoid",
+          "class": "Boss",
+          "boss": true,
+          "health": 9729765,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine",
+            "dangerous"
+          ],
+          "spells": [
+            {
+              "id": 263425
+            },
+            {
+              "id": 1288087
+            },
+            {
+              "id": 1288428
+            },
+            {
+              "id": 1310311
+            }
+          ]
+        },
+        "262822": {
+          "npc": 262822,
+          "name": "Aspix",
+          "level": 92,
+          "type": "Humanoid",
+          "class": "Boss",
+          "boss": true,
+          "health": 9729765,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine",
+            "dangerous"
+          ],
+          "spells": [
+            {
+              "id": 1288457
+            },
+            {
+              "id": 1288864
+            },
+            {
+              "id": 1289062
+            },
+            {
+              "id": 1292035
+            },
+            {
+              "id": 1310311
+            }
+          ]
+        },
+        "263181": {
+          "npc": 263181,
+          "name": "Egg",
+          "level": 91,
+          "type": "Humanoid",
+          "class": "Elite",
+          "health": 10000,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1289208
+            },
+            {
+              "id": 1296738
+            }
+          ]
+        },
+        "263383": {
+          "npc": 263383,
+          "name": "Snake",
+          "level": 90,
+          "type": "Beast",
+          "class": "Elite",
+          "health": 1297302,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ]
+        },
+        "263658": {
+          "npc": 263658,
+          "name": "Galvazzt",
+          "level": 92,
+          "type": "Elemental",
+          "class": "Boss",
+          "boss": true,
+          "health": 20756831,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine",
+            "dangerous"
+          ],
+          "spells": [
+            {
+              "id": 1290531
+            },
+            {
+              "id": 1291815
+            }
+          ]
+        },
+        "264785": {
+          "npc": 264785,
+          "name": "Swarming Krolusk",
+          "level": 91,
+          "type": "Beast",
+          "class": "Elite",
+          "health": 810814,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ]
+        },
+        "265057": {
+          "npc": 265057,
+          "name": "Spark Channeler",
+          "level": 120,
+          "type": "Humanoid",
+          "class": "Elite",
+          "health": 648651,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ]
+        },
+        "268317": {
+          "npc": 268317,
+          "name": "Faithless Tormentor",
+          "level": 90,
+          "type": "Humanoid",
+          "class": "Elite",
+          "health": 1135139,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1300704
+            },
+            {
+              "id": 1300714
+            }
+          ]
+        },
+        "268344": {
+          "npc": 268344,
+          "name": "Corrupted Guardian",
+          "level": 91,
+          "type": "Elemental",
+          "class": "Elite",
+          "health": 2043251,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1300803
+            },
+            {
+              "id": 1302616
+            },
+            {
+              "id": 1302761
+            }
+          ]
+        },
+        "268364": {
+          "npc": 268364,
+          "name": "Lifeforce",
+          "level": 90,
+          "class": "Elite",
+          "health": 330722,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1300871
+            },
+            {
+              "id": 1302826
+            },
+            {
+              "id": 1302897
+            },
+            {
+              "id": 1312214
+            }
+          ]
+        },
+        "268427": {
+          "npc": 268427,
+          "name": "Essence Defiler",
+          "level": 91,
+          "type": "Humanoid",
+          "class": "Elite",
+          "health": 5189208,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1301199
+            }
+          ]
+        },
+        "268491": {
+          "npc": 268491,
+          "name": "Twisted Hexxer",
+          "level": 91,
+          "type": "Humanoid",
+          "class": "Elite",
+          "health": 2821632,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1300684
+            },
+            {
+              "id": 1302153
+            },
+            {
+              "id": 1302158,
+              "interruptible": true
+            }
+          ]
+        },
+        "268729": {
+          "npc": 268729,
+          "name": "Faithless Tormentor",
+          "level": 90,
+          "type": "Humanoid",
+          "class": "Elite",
+          "health": 583786,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1300704
+            },
+            {
+              "id": 1300714
+            }
+          ]
+        },
+        "268747": {
+          "npc": 268747,
+          "name": "Lesser Lifeforce",
+          "level": 90,
+          "class": "Elite",
+          "health": 10000,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ]
+        },
+        "269227": {
+          "npc": 269227,
+          "name": "Temple Disruptor",
+          "level": 90,
+          "type": "Humanoid",
+          "class": "Elite",
+          "health": 1945953,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ]
+        }
+      },
+      "patrols": [
+        {
+          "map": 1038,
+          "loop": false,
+          "color": "003280",
+          "points": [
+            [
+              3394.4,
+              3228.5
+            ],
+            [
+              3392.4,
+              3213.3
+            ],
+            [
+              3388,
+              3196.9
+            ],
+            [
+              3383.8,
+              3192.2
+            ],
+            [
+              3388,
+              3196.9
+            ],
+            [
+              3392.4,
+              3213.3
+            ],
+            [
+              3394.4,
+              3228.5
+            ],
+            [
+              3393.1,
+              3243.3
+            ],
+            [
+              3390.4,
+              3271.2
+            ],
+            [
+              3391.1,
+              3313.1
+            ],
+            [
+              3390.4,
+              3271.2
+            ],
+            [
+              3393.1,
+              3243.3
+            ],
+            [
+              3394.4,
+              3228.5
+            ]
+          ],
+          "enemies": [
+            {
+              "index": 6,
+              "clone": 1
+            },
+            {
+              "index": 34,
+              "clone": 1
+            }
+          ]
+        }
       ]
     },
     "399": {
@@ -2498,7 +4538,19 @@
           "maxX": -75,
           "minY": 1335,
           "maxY": 1685,
-          "tiles": "df/rubylifepools/1"
+          "tiles": "df/rubylifepools/1",
+          "mdt": {
+            "sublevel": 1,
+            "scale": 0.447252,
+            "x": 110.836,
+            "y": 20.472,
+            "box": [
+              32.9,
+              -478.1,
+              338.1,
+              -122.2
+            ]
+          }
         },
         {
           "uiMapID": 2095,
@@ -2506,7 +4558,19 @@
           "maxX": -181.25,
           "minY": 1345.83,
           "maxY": 1868.75,
-          "tiles": "df/rubylifepools/2"
+          "tiles": "df/rubylifepools/2",
+          "mdt": {
+            "sublevel": 1,
+            "scale": 0.403987,
+            "x": -39.744,
+            "y": -15.887,
+            "box": [
+              226.4,
+              -502.3,
+              787.9,
+              -21.4
+            ]
+          }
         }
       ],
       "forces": {
@@ -4052,7 +6116,631 @@
           "y": -163.8,
           "map": 2095
         }
-      ]
+      ],
+      "mobs": {
+        "187894": {
+          "npc": 187894,
+          "name": "Infused Whelp",
+          "level": 90,
+          "type": "Dragonkin",
+          "class": "Normal",
+          "health": 1297302,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1305234,
+              "magic": true
+            }
+          ]
+        },
+        "187897": {
+          "npc": 187897,
+          "name": "Defier Draghar",
+          "level": 91,
+          "type": "Dragonkin",
+          "class": "Boss",
+          "boss": true,
+          "health": 9729765,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine",
+            "dangerous",
+            "truesight"
+          ],
+          "spells": [
+            {
+              "id": 372047
+            },
+            {
+              "id": 372087
+            }
+          ]
+        },
+        "187969": {
+          "npc": 187969,
+          "name": "Deepstone Earthshaper",
+          "level": 90,
+          "type": "Humanoid",
+          "class": "Elite",
+          "health": 3891906,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 371471
+            },
+            {
+              "id": 1305225
+            }
+          ]
+        },
+        "188011": {
+          "npc": 188011,
+          "name": "Earthbound Guardian",
+          "level": 90,
+          "type": "Elemental",
+          "class": "Elite",
+          "health": 3567581,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 384933,
+              "interruptible": true
+            },
+            {
+              "id": 1307205
+            }
+          ]
+        },
+        "188067": {
+          "npc": 188067,
+          "name": "Flashfrost Chillweaver",
+          "level": 90,
+          "type": "Humanoid",
+          "class": "Elite",
+          "health": 3243255,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 371489
+            },
+            {
+              "id": 371984,
+              "interruptible": true
+            },
+            {
+              "id": 372743,
+              "interruptible": true
+            }
+          ]
+        },
+        "188244": {
+          "npc": 188244,
+          "name": "Primal Juggernaut",
+          "level": 91,
+          "type": "Elemental",
+          "class": "Elite",
+          "health": 6486510,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 372730
+            },
+            {
+              "id": 372793
+            },
+            {
+              "id": 1305201
+            },
+            {
+              "id": 1310489
+            }
+          ]
+        },
+        "188252": {
+          "npc": 188252,
+          "name": "Melidrussa Chillworn",
+          "level": 92,
+          "type": "Humanoid",
+          "class": "Boss",
+          "boss": true,
+          "health": 19459530,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine",
+            "dangerous"
+          ],
+          "spells": [
+            {
+              "id": 372808,
+              "interruptible": true
+            },
+            {
+              "id": 372851
+            },
+            {
+              "id": 372988
+            },
+            {
+              "id": 373046
+            },
+            {
+              "id": 373680
+            },
+            {
+              "id": 373727
+            },
+            {
+              "id": 384024
+            },
+            {
+              "id": 396044
+            }
+          ]
+        },
+        "189232": {
+          "npc": 189232,
+          "name": "Kokia Blazehoof",
+          "level": 92,
+          "type": "Humanoid",
+          "class": "Boss",
+          "boss": true,
+          "health": 20756831,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine",
+            "dangerous"
+          ],
+          "spells": [
+            {
+              "id": 372107
+            },
+            {
+              "id": 372820
+            },
+            {
+              "id": 372858
+            },
+            {
+              "id": 372860
+            },
+            {
+              "id": 372863
+            }
+          ]
+        },
+        "189886": {
+          "npc": 189886,
+          "name": "Blazebound Firestorm",
+          "level": 91,
+          "type": "Elemental",
+          "class": "Elite",
+          "health": 2594604,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 373017,
+              "interruptible": true
+            },
+            {
+              "id": 373087
+            },
+            {
+              "id": 384823
+            }
+          ]
+        },
+        "189893": {
+          "npc": 189893,
+          "name": "Infused Whelp",
+          "level": 90,
+          "type": "Dragonkin",
+          "class": "Elite",
+          "health": 972977,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1305234,
+              "magic": true
+            }
+          ]
+        },
+        "190034": {
+          "npc": 190034,
+          "name": "Blazebound Destroyer",
+          "level": 91,
+          "type": "Elemental",
+          "class": "Elite",
+          "health": 7135161,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine",
+            "dangerous"
+          ],
+          "spells": [
+            {
+              "id": 373614
+            },
+            {
+              "id": 373692
+            },
+            {
+              "id": 384139
+            },
+            {
+              "id": 1305955,
+              "interruptible": true
+            }
+          ]
+        },
+        "190205": {
+          "npc": 190205,
+          "name": "Scorchling",
+          "level": 90,
+          "type": "Elemental",
+          "class": "Normal",
+          "health": 648651,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1307372
+            }
+          ]
+        },
+        "190206": {
+          "npc": 190206,
+          "name": "Ashseer Flamelasher",
+          "level": 90,
+          "type": "Humanoid",
+          "class": "Elite",
+          "health": 3567581,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 373972,
+              "magic": true
+            },
+            {
+              "id": 385536
+            }
+          ]
+        },
+        "190207": {
+          "npc": 190207,
+          "name": "Primalist Cinderweaver",
+          "level": 90,
+          "type": "Humanoid",
+          "class": "Elite",
+          "health": 2918930,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 373693
+            },
+            {
+              "id": 384194,
+              "interruptible": true
+            }
+          ]
+        },
+        "190484": {
+          "npc": 190484,
+          "name": "Kyrakka",
+          "level": 92,
+          "type": "Dragonkin",
+          "class": "Boss",
+          "boss": true,
+          "health": 12973020,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine",
+            "dangerous"
+          ],
+          "spells": [
+            {
+              "id": 381525
+            },
+            {
+              "id": 381602
+            },
+            {
+              "id": 384773
+            }
+          ]
+        },
+        "190485": {
+          "npc": 190485,
+          "name": "Erkhart Stormvein",
+          "level": 92,
+          "type": "Humanoid",
+          "class": "Boss",
+          "boss": true,
+          "health": 14594648,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine",
+            "dangerous"
+          ],
+          "spells": [
+            {
+              "id": 181089
+            },
+            {
+              "id": 381512,
+              "magic": true
+            },
+            {
+              "id": 381516
+            },
+            {
+              "id": 381517
+            }
+          ]
+        },
+        "194622": {
+          "npc": 194622,
+          "name": "Scorchling",
+          "level": 90,
+          "type": "Elemental",
+          "class": "Elite",
+          "health": 648651,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1307372
+            }
+          ]
+        },
+        "195119": {
+          "npc": 195119,
+          "name": "Ruinous Stormbringer",
+          "level": 91,
+          "type": "Humanoid",
+          "class": "Elite",
+          "health": 10740817,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 385310,
+              "interruptible": true
+            },
+            {
+              "id": 385311
+            },
+            {
+              "id": 385312
+            },
+            {
+              "id": 385313
+            }
+          ]
+        },
+        "197509": {
+          "npc": 197509,
+          "name": "Primal Thundercloud",
+          "level": 89,
+          "type": "Elemental",
+          "class": "Normal",
+          "health": 1621628,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 391031,
+              "magic": true
+            },
+            {
+              "id": 392399
+            }
+          ]
+        },
+        "197535": {
+          "npc": 197535,
+          "name": "High Channeler Ryvati",
+          "level": 91,
+          "type": "Humanoid",
+          "class": "Boss",
+          "boss": true,
+          "health": 6486510,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine",
+            "dangerous"
+          ],
+          "spells": [
+            {
+              "id": 1306366
+            },
+            {
+              "id": 1307511
+            },
+            {
+              "id": 1310355
+            }
+          ]
+        },
+        "197697": {
+          "npc": 197697,
+          "name": "Flamegullet",
+          "level": 91,
+          "type": "Dragonkin",
+          "class": "Boss",
+          "boss": true,
+          "health": 9729765,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine",
+            "dangerous",
+            "truesight"
+          ],
+          "spells": [
+            {
+              "id": 391723
+            },
+            {
+              "id": 392394
+            },
+            {
+              "id": 392569
+            }
+          ]
+        },
+        "197698": {
+          "npc": 197698,
+          "name": "Thunderhead",
+          "level": 91,
+          "type": "Dragonkin",
+          "class": "Boss",
+          "boss": true,
+          "health": 8432463,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine",
+            "dangerous"
+          ],
+          "spells": [
+            {
+              "id": 391726
+            },
+            {
+              "id": 392395
+            },
+            {
+              "id": 392640,
+              "magic": true
+            },
+            {
+              "id": 1310599
+            }
+          ]
+        },
+        "197982": {
+          "npc": 197982,
+          "name": "Storm Warrior",
+          "level": 90,
+          "type": "Humanoid",
+          "class": "Elite",
+          "health": 3567581,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 392406
+            }
+          ]
+        },
+        "198047": {
+          "npc": 198047,
+          "name": "Tempest Channeler",
+          "level": 91,
+          "type": "Humanoid",
+          "class": "Elite",
+          "health": 5189208,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 392576,
+              "interruptible": true
+            },
+            {
+              "id": 1306366
+            },
+            {
+              "id": 1307502
+            }
+          ]
+        }
+      }
     },
     "584": {
       "name": "The Blinding Vale",
@@ -4065,7 +6753,19 @@
           "maxX": -2341.67,
           "minY": 916.67,
           "maxY": 1675,
-          "tiles": "midnight/the_blinding_vale/1"
+          "tiles": "midnight/the_blinding_vale/1",
+          "mdt": {
+            "sublevel": 1,
+            "scale": 0.339009,
+            "x": 69.257,
+            "y": -29.554,
+            "box": [
+              44.4,
+              -525.3,
+              830.7,
+              -66.6
+            ]
+          }
         }
       ],
       "forces": {
@@ -6903,7 +9603,702 @@
           "y": 1891.6,
           "map": 2500
         }
-      ]
+      ],
+      "mobs": {
+        "243028": {
+          "npc": 243028,
+          "name": "Meittik",
+          "level": 92,
+          "type": "Humanoid",
+          "class": "Boss",
+          "boss": true,
+          "health": 43783942,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine",
+            "dangerous"
+          ],
+          "spells": [
+            {
+              "id": 1234753
+            },
+            {
+              "id": 1234802
+            },
+            {
+              "id": 1253028
+            },
+            {
+              "id": 1276586
+            }
+          ]
+        },
+        "243029": {
+          "npc": 243029,
+          "name": "Kezkitt",
+          "level": 92,
+          "type": "Humanoid",
+          "class": "Boss",
+          "boss": true,
+          "health": 43783942,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine",
+            "dangerous"
+          ],
+          "spells": [
+            {
+              "id": 1235564
+            },
+            {
+              "id": 1235616,
+              "interruptible": true
+            },
+            {
+              "id": 1235828
+            },
+            {
+              "id": 1253028
+            }
+          ]
+        },
+        "243030": {
+          "npc": 243030,
+          "name": "Lekshi",
+          "level": 92,
+          "type": "Humanoid",
+          "class": "Boss",
+          "boss": true,
+          "health": 43783942,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine",
+            "dangerous"
+          ],
+          "spells": [
+            {
+              "id": 1234850
+            },
+            {
+              "id": 1235640
+            },
+            {
+              "id": 1253028
+            },
+            {
+              "id": 1261011
+            }
+          ]
+        },
+        "244528": {
+          "npc": 244528,
+          "name": "Lightblossom",
+          "level": 90,
+          "class": "Elite",
+          "health": 10000,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1235752
+            }
+          ]
+        },
+        "244887": {
+          "npc": 244887,
+          "name": "Ikuzz the Light Hunter",
+          "level": 92,
+          "type": "Elemental",
+          "class": "Boss",
+          "boss": true,
+          "health": 22702784,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine",
+            "dangerous"
+          ],
+          "spells": [
+            {
+              "id": 1236709
+            },
+            {
+              "id": 1236746
+            },
+            {
+              "id": 1237073
+            },
+            {
+              "id": 1237093
+            },
+            {
+              "id": 1237166
+            },
+            {
+              "id": 1237330
+            },
+            {
+              "id": 1253410
+            },
+            {
+              "id": 1272290
+            }
+          ]
+        },
+        "245336": {
+          "npc": 245336,
+          "name": "Radiant Spellsower",
+          "level": 90,
+          "type": "Humanoid",
+          "class": "Elite",
+          "health": 2918930,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1238063,
+              "interruptible": true
+            },
+            {
+              "id": 1238200,
+              "interruptible": true
+            },
+            {
+              "id": 1267029
+            },
+            {
+              "id": 1301834,
+              "interruptible": true
+            }
+          ]
+        },
+        "245339": {
+          "npc": 245339,
+          "name": "Underbrush Stalker",
+          "level": 90,
+          "type": "Humanoid",
+          "class": "Elite",
+          "health": 3243254,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1238066
+            }
+          ]
+        },
+        "245345": {
+          "npc": 245345,
+          "name": "Lightgorged Lasher",
+          "level": 90,
+          "type": "Elemental",
+          "class": "Elite",
+          "health": 3081092,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1238158,
+              "interruptible": true
+            },
+            {
+              "id": 1238173
+            }
+          ]
+        },
+        "245346": {
+          "npc": 245346,
+          "name": "Virid Grovekeeper",
+          "level": 91,
+          "type": "Humanoid",
+          "class": "Elite",
+          "health": 5189207,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1237855
+            },
+            {
+              "id": 1237858
+            },
+            {
+              "id": 1255205
+            }
+          ]
+        },
+        "245410": {
+          "npc": 245410,
+          "name": "Lasher",
+          "level": 90,
+          "type": "Elemental",
+          "class": "Elite",
+          "health": 648651,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1238084,
+              "magic": true
+            }
+          ]
+        },
+        "245460": {
+          "npc": 245460,
+          "name": "Leafy Grovecrawler",
+          "level": 90,
+          "type": "Elemental",
+          "class": "Elite",
+          "health": 3243254,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1238232,
+              "interruptible": true
+            },
+            {
+              "id": 1242200
+            }
+          ]
+        },
+        "245473": {
+          "npc": 245473,
+          "name": "Thorny Saptor",
+          "level": 90,
+          "type": "Elemental",
+          "class": "Elite",
+          "health": 3243254,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1242200
+            },
+            {
+              "id": 1314883
+            }
+          ]
+        },
+        "245484": {
+          "npc": 245484,
+          "name": "Lightfeather Petalwing",
+          "level": 90,
+          "type": "Elemental",
+          "class": "Elite",
+          "health": 3891906,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1238294,
+              "interruptible": true
+            },
+            {
+              "id": 1242200
+            }
+          ]
+        },
+        "245513": {
+          "npc": 245513,
+          "name": "Overgrown Hydra",
+          "level": 91,
+          "type": "Elemental",
+          "class": "Elite",
+          "health": 6162185,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1238368
+            },
+            {
+              "id": 1238642
+            }
+          ]
+        },
+        "245527": {
+          "npc": 245527,
+          "name": "Spineshield Beetle",
+          "level": 90,
+          "type": "Beast",
+          "class": "Elite",
+          "health": 324326,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1238581,
+              "magic": true
+            },
+            {
+              "id": 1242200
+            }
+          ]
+        },
+        "245912": {
+          "npc": 245912,
+          "name": "Lightwarden Ruia",
+          "level": 92,
+          "type": "Humanoid",
+          "class": "Boss",
+          "boss": true,
+          "health": 20432506,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine",
+            "dangerous"
+          ],
+          "spells": [
+            {
+              "id": 1239821,
+              "interruptible": true
+            },
+            {
+              "id": 1239824
+            },
+            {
+              "id": 1239882
+            },
+            {
+              "id": 1239883
+            },
+            {
+              "id": 1239885
+            },
+            {
+              "id": 1239919
+            },
+            {
+              "id": 1240100
+            },
+            {
+              "id": 1240210
+            },
+            {
+              "id": 1241058
+            },
+            {
+              "id": 1241067
+            },
+            {
+              "id": 1242180
+            },
+            {
+              "id": 1242244
+            },
+            {
+              "id": 1257094
+            },
+            {
+              "id": 1272265
+            }
+          ]
+        },
+        "246367": {
+          "npc": 246367,
+          "name": "Spirit Bear",
+          "level": 90,
+          "type": "Beast",
+          "class": "Elite",
+          "health": 648651,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1240210
+            },
+            {
+              "id": 1241058
+            },
+            {
+              "id": 1257094
+            }
+          ]
+        },
+        "246371": {
+          "npc": 246371,
+          "name": "Spirit Moonkin",
+          "level": 90,
+          "type": "Beast",
+          "class": "Elite",
+          "health": 648651,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1239824
+            },
+            {
+              "id": 1240100
+            }
+          ]
+        },
+        "246871": {
+          "npc": 246871,
+          "name": "Luminous Thornmaw",
+          "level": 91,
+          "type": "Elemental",
+          "class": "Elite",
+          "health": 5675695,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1242135
+            },
+            {
+              "id": 1242138
+            },
+            {
+              "id": 1242200
+            }
+          ]
+        },
+        "247676": {
+          "npc": 247676,
+          "name": "Ziekket",
+          "level": 92,
+          "type": "Elemental",
+          "class": "Boss",
+          "boss": true,
+          "health": 22702784,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine",
+            "dangerous"
+          ],
+          "spells": [
+            {
+              "id": 1246372
+            },
+            {
+              "id": 1246607
+            },
+            {
+              "id": 1246753
+            },
+            {
+              "id": 1246858
+            },
+            {
+              "id": 1247039
+            },
+            {
+              "id": 1247050
+            },
+            {
+              "id": 1247377
+            },
+            {
+              "id": 1247685
+            }
+          ]
+        },
+        "247755": {
+          "npc": 247755,
+          "name": "Lightspawn Lasher",
+          "level": 90,
+          "type": "Elemental",
+          "class": "Elite",
+          "health": 1297302,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1246527
+            },
+            {
+              "id": 1247669,
+              "interruptible": true
+            },
+            {
+              "id": 1253320
+            }
+          ]
+        },
+        "249756": {
+          "npc": 249756,
+          "name": "Potatoad Matriarch",
+          "level": 91,
+          "type": "Elemental",
+          "class": "Elite",
+          "health": 9729764,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1250100
+            },
+            {
+              "id": 1250199
+            },
+            {
+              "id": 1250813
+            },
+            {
+              "id": 1250937
+            }
+          ]
+        },
+        "249783": {
+          "npc": 249783,
+          "name": "Potadpole Egg",
+          "level": 90,
+          "type": "Beast",
+          "class": "Elite",
+          "health": 648651,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1250203
+            }
+          ]
+        },
+        "250202": {
+          "npc": 250202,
+          "name": "Newborn Potadpole",
+          "level": 90,
+          "type": "Elemental",
+          "class": "Elite",
+          "health": 648651,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1250829
+            }
+          ]
+        },
+        "253571": {
+          "npc": 253571,
+          "name": "Bloodthorn Roots",
+          "level": 90,
+          "class": "Elite",
+          "health": 486488,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1259365,
+              "magic": true
+            }
+          ]
+        },
+        "254850": {
+          "npc": 254850,
+          "name": "Sporeblight Belcher",
+          "level": 91,
+          "type": "Elemental",
+          "class": "Elite",
+          "health": 5837858,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1242200
+            },
+            {
+              "id": 1263636
+            },
+            {
+              "id": 1271385
+            }
+          ]
+        }
+      }
     },
     "585": {
       "name": "Voidscar Arena",
@@ -6916,7 +10311,19 @@
           "maxX": 204.99,
           "minY": 4358.33,
           "maxY": 4691.66,
-          "tiles": "midnight/voidscar_arena/1"
+          "tiles": "midnight/voidscar_arena/1",
+          "mdt": {
+            "sublevel": 1,
+            "scale": 0.82393,
+            "x": 25.896,
+            "y": 226.143,
+            "box": [
+              88.6,
+              -507.9,
+              310.8,
+              -345.3
+            ]
+          }
         },
         {
           "uiMapID": 2572,
@@ -6924,7 +10331,19 @@
           "maxX": 195.83,
           "minY": 4368.75,
           "maxY": 4718.75,
-          "tiles": "midnight/voidscar_arena/2"
+          "tiles": "midnight/voidscar_arena/2",
+          "mdt": {
+            "sublevel": 1,
+            "scale": 0.778478,
+            "x": 32.151,
+            "y": 7.848,
+            "box": [
+              87.2,
+              -299.6,
+              332.2,
+              -85
+            ]
+          }
         },
         {
           "uiMapID": 2573,
@@ -6932,7 +10351,19 @@
           "maxX": 18.75,
           "minY": 4716.66,
           "maxY": 5312.5,
-          "tiles": "midnight/voidscar_arena/3"
+          "tiles": "midnight/voidscar_arena/3",
+          "mdt": {
+            "sublevel": 1,
+            "scale": 0.483542,
+            "x": -123.9,
+            "y": 14.416,
+            "box": [
+              507,
+              -494.2,
+              802.7,
+              -208.6
+            ]
+          }
         }
       ],
       "forces": {
@@ -9137,7 +12568,789 @@
           "y": -475.4,
           "map": 2573
         }
-      ]
+      ],
+      "mobs": {
+        "238883": {
+          "npc": 238883,
+          "name": "Dominated Brawler",
+          "level": 90,
+          "type": "Humanoid",
+          "class": "Elite",
+          "health": 3891906,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1254826
+            },
+            {
+              "id": 1298899,
+              "interruptible": true
+            }
+          ]
+        },
+        "238887": {
+          "npc": 238887,
+          "name": "Taz'Rah",
+          "level": 92,
+          "type": "Humanoid",
+          "class": "Boss",
+          "boss": true,
+          "health": 20432506,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine",
+            "dangerous"
+          ],
+          "spells": [
+            {
+              "id": 1296889
+            },
+            {
+              "id": 1296963
+            },
+            {
+              "id": 1296967
+            },
+            {
+              "id": 1297017
+            },
+            {
+              "id": 1300259
+            }
+          ]
+        },
+        "239008": {
+          "npc": 239008,
+          "name": "Atroxus",
+          "level": 92,
+          "type": "Beast",
+          "class": "Boss",
+          "boss": true,
+          "health": 20432506,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine",
+            "dangerous"
+          ],
+          "spells": [
+            {
+              "id": 1222484
+            },
+            {
+              "id": 1222519
+            },
+            {
+              "id": 1222642
+            },
+            {
+              "id": 1222721
+            },
+            {
+              "id": 1226120
+            },
+            {
+              "id": 1262497
+            },
+            {
+              "id": 1263971
+            }
+          ]
+        },
+        "239070": {
+          "npc": 239070,
+          "name": "Toxic Creeper",
+          "level": 91,
+          "type": "Beast",
+          "class": "Elite",
+          "health": 1135139,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1222692
+            },
+            {
+              "id": 1282892
+            }
+          ]
+        },
+        "239167": {
+          "npc": 239167,
+          "name": "Charonus",
+          "level": 92,
+          "type": "Aberration",
+          "class": "Boss",
+          "boss": true,
+          "health": 23351436,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine",
+            "dangerous"
+          ],
+          "spells": [
+            {
+              "id": 1227197
+            },
+            {
+              "id": 1227247
+            },
+            {
+              "id": 1248112
+            },
+            {
+              "id": 1310025
+            },
+            {
+              "id": 1311923
+            }
+          ]
+        },
+        "241496": {
+          "npc": 241496,
+          "name": "Enthralled Shaman",
+          "level": 90,
+          "type": "Humanoid",
+          "class": "Elite",
+          "health": 3567581,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1228176,
+              "interruptible": true
+            },
+            {
+              "id": 1246820
+            }
+          ]
+        },
+        "243736": {
+          "npc": 243736,
+          "name": "Blistercreep",
+          "level": 90,
+          "type": "Beast",
+          "class": "Elite",
+          "health": 648651,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1233264
+            }
+          ]
+        },
+        "243766": {
+          "npc": 243766,
+          "name": "Kilivore Screamer",
+          "level": 90,
+          "type": "Beast",
+          "class": "Elite",
+          "health": 3081092,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1233398,
+              "interruptible": true
+            }
+          ]
+        },
+        "243835": {
+          "npc": 243835,
+          "name": "Savage Shredclaw",
+          "level": 90,
+          "type": "Beast",
+          "class": "Elite",
+          "health": 3405418,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1233535
+            }
+          ]
+        },
+        "243983": {
+          "npc": 243983,
+          "name": "Sycophantic Tarasek",
+          "level": 90,
+          "type": "Dragonkin",
+          "class": "Elite",
+          "health": 2918930,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1249661
+            },
+            {
+              "id": 1250043,
+              "magic": true
+            }
+          ]
+        },
+        "243985": {
+          "npc": 243985,
+          "name": "Longtooth Tuskarr",
+          "level": 90,
+          "type": "Humanoid",
+          "class": "Elite",
+          "health": 3243255,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1249661
+            },
+            {
+              "id": 1310319
+            }
+          ]
+        },
+        "243988": {
+          "npc": 243988,
+          "name": "Feral Saberon",
+          "level": 90,
+          "type": "Humanoid",
+          "class": "Elite",
+          "health": 3405418,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1249661
+            },
+            {
+              "id": 1267894
+            }
+          ]
+        },
+        "243996": {
+          "npc": 243996,
+          "name": "Lost Sethrak",
+          "level": 90,
+          "type": "Humanoid",
+          "class": "Elite",
+          "health": 2918930,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1250640
+            }
+          ]
+        },
+        "244260": {
+          "npc": 244260,
+          "name": "Chitigoth",
+          "level": 91,
+          "type": "Beast",
+          "class": "Elite",
+          "health": 5837859,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1234833
+            },
+            {
+              "id": 1234855
+            },
+            {
+              "id": 1249661
+            }
+          ]
+        },
+        "244309": {
+          "npc": 244309,
+          "name": "Brutok",
+          "level": 91,
+          "type": "Humanoid",
+          "class": "Elite",
+          "health": 7135161,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1234890
+            },
+            {
+              "id": 1245186
+            },
+            {
+              "id": 1249661
+            },
+            {
+              "id": 1269284
+            },
+            {
+              "id": 1310321
+            }
+          ]
+        },
+        "244708": {
+          "npc": 244708,
+          "name": "Voidminder",
+          "level": 90,
+          "type": "Aberration",
+          "class": "Elite",
+          "health": 3632446,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1227020
+            },
+            {
+              "id": 1310324,
+              "interruptible": true
+            }
+          ]
+        },
+        "245950": {
+          "npc": 245950,
+          "name": "Watchful Harrower",
+          "level": 91,
+          "type": "Beast",
+          "class": "Elite",
+          "health": 8756789,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1239856,
+              "magic": true
+            },
+            {
+              "id": 1300116
+            },
+            {
+              "id": 1300138
+            }
+          ]
+        },
+        "248666": {
+          "npc": 248666,
+          "name": "Magma Totem",
+          "level": 90,
+          "class": "Elite",
+          "health": 6487,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1246825
+            }
+          ]
+        },
+        "249461": {
+          "npc": 249461,
+          "name": "Abducted Drakonid",
+          "level": 90,
+          "type": "Dragonkin",
+          "class": "Elite",
+          "health": 3243255,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1249238,
+              "magic": true
+            },
+            {
+              "id": 1249661
+            }
+          ]
+        },
+        "249590": {
+          "npc": 249590,
+          "name": "Angry Krolusk",
+          "level": 90,
+          "type": "Beast",
+          "class": "Elite",
+          "health": 3567581,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1249621,
+              "interruptible": true
+            }
+          ]
+        },
+        "249603": {
+          "npc": 249603,
+          "name": "Protective Turtle",
+          "level": 90,
+          "type": "Beast",
+          "class": "Elite",
+          "health": 1945953,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1249661
+            },
+            {
+              "id": 1250021
+            },
+            {
+              "id": 1250023
+            },
+            {
+              "id": 1310320
+            }
+          ]
+        },
+        "249608": {
+          "npc": 249608,
+          "name": "Raging Raptor",
+          "level": 90,
+          "type": "Beast",
+          "class": "Elite",
+          "health": 3891906,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1249661
+            }
+          ]
+        },
+        "252053": {
+          "npc": 252053,
+          "name": "Brutal Overseer",
+          "level": 91,
+          "type": "Humanoid",
+          "class": "Elite",
+          "health": 5675696,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1298900
+            },
+            {
+              "id": 1310309
+            }
+          ]
+        },
+        "252072": {
+          "npc": 252072,
+          "name": "Voidtouched Magi",
+          "level": 91,
+          "type": "Humanoid",
+          "class": "Elite",
+          "health": 5513534,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1299913
+            },
+            {
+              "id": 1299938,
+              "interruptible": true
+            }
+          ]
+        },
+        "252508": {
+          "npc": 252508,
+          "name": "Scavenging Siphoid",
+          "level": 90,
+          "type": "Aberration",
+          "class": "Elite",
+          "health": 1297302,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1269866
+            }
+          ]
+        },
+        "254677": {
+          "npc": 254677,
+          "name": "Ethereal Shade",
+          "level": 92,
+          "type": "Humanoid",
+          "class": "Elite",
+          "health": 648651,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1222100
+            },
+            {
+              "id": 1296963
+            }
+          ]
+        },
+        "255000": {
+          "npc": 255000,
+          "name": "Targeting Stalker",
+          "level": 90,
+          "class": "Elite",
+          "health": 10000,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1263984
+            }
+          ]
+        },
+        "255001": {
+          "npc": 255001,
+          "name": "Gravitic Orb",
+          "level": 334,
+          "class": "Elite",
+          "health": 540543,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1263983
+            }
+          ]
+        },
+        "263228": {
+          "npc": 263228,
+          "name": "Agitated Voidscythe",
+          "level": 91,
+          "type": "Beast",
+          "class": "Elite",
+          "health": 5189208,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1233472
+            },
+            {
+              "id": 1289265
+            }
+          ]
+        },
+        "267545": {
+          "npc": 267545,
+          "name": "Aegyra the Unyielding",
+          "level": 91,
+          "type": "Humanoid",
+          "class": "Elite",
+          "health": 8432463,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1298903
+            },
+            {
+              "id": 1298908
+            },
+            {
+              "id": 1298924
+            },
+            {
+              "id": 1299125
+            },
+            {
+              "id": 1299145
+            },
+            {
+              "id": 1299210
+            }
+          ]
+        },
+        "267546": {
+          "npc": 267546,
+          "name": "Raj'kess the Spellstorm",
+          "level": 91,
+          "type": "Humanoid",
+          "class": "Elite",
+          "health": 7459487,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1298902
+            },
+            {
+              "id": 1299240
+            },
+            {
+              "id": 1299257
+            },
+            {
+              "id": 1299270
+            },
+            {
+              "id": 1311712
+            },
+            {
+              "id": 1311747
+            },
+            {
+              "id": 1311754
+            }
+          ]
+        },
+        "268184": {
+          "npc": 268184,
+          "name": "Devouring Brutalizer",
+          "level": 91,
+          "type": "Humanoid",
+          "class": "Elite",
+          "health": 6227050,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1252406
+            },
+            {
+              "id": 1282959
+            },
+            {
+              "id": 1300243
+            },
+            {
+              "id": 1300249
+            },
+            {
+              "id": 1300250
+            },
+            {
+              "id": 1310324,
+              "interruptible": true
+            }
+          ]
+        }
+      }
     },
     "586": {
       "name": "Den of Nalorakk",
@@ -9150,7 +13363,19 @@
           "maxX": 4406.25,
           "minY": 4500,
           "maxY": 5129.16,
-          "tiles": "midnight/den_of_nalorakk/3"
+          "tiles": "midnight/den_of_nalorakk/3",
+          "mdt": {
+            "sublevel": 1,
+            "scale": 0.950205,
+            "x": -449.72,
+            "y": 34.259,
+            "box": [
+              646.8,
+              -253.4,
+              692.8,
+              -72
+            ]
+          }
         },
         {
           "uiMapID": 2514,
@@ -9158,7 +13383,19 @@
           "maxX": 4731.25,
           "minY": 4014.58,
           "maxY": 4764.58,
-          "tiles": "midnight/den_of_nalorakk/2"
+          "tiles": "midnight/den_of_nalorakk/2",
+          "mdt": {
+            "sublevel": 1,
+            "scale": 0.4631,
+            "x": 55.929,
+            "y": 4.721,
+            "box": [
+              44.5,
+              -462,
+              594.3,
+              -101.7
+            ]
+          }
         }
       ],
       "forces": {
@@ -11278,7 +15515,781 @@
           "y": -5416.7,
           "map": 2514
         }
-      ]
+      ],
+      "mobs": {
+        "241808": {
+          "npc": 241808,
+          "name": "Territorial Matriarch",
+          "level": 90,
+          "type": "Beast",
+          "class": "Elite",
+          "health": 3729743,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1238053
+            },
+            {
+              "id": 1241219
+            }
+          ]
+        },
+        "241809": {
+          "npc": 241809,
+          "name": "Curious Yearling",
+          "level": 90,
+          "type": "Beast",
+          "class": "Elite",
+          "health": 778381,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1238053
+            }
+          ]
+        },
+        "241812": {
+          "npc": 241812,
+          "name": "The Hoardmonger",
+          "level": 92,
+          "type": "Humanoid",
+          "class": "Boss",
+          "boss": true,
+          "health": 22702784,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine",
+            "dangerous"
+          ],
+          "spells": [
+            {
+              "id": 1232012
+            },
+            {
+              "id": 1234021
+            },
+            {
+              "id": 1234233
+            },
+            {
+              "id": 1234681
+            },
+            {
+              "id": 1234846
+            },
+            {
+              "id": 1235072
+            },
+            {
+              "id": 1235079
+            },
+            {
+              "id": 1235105
+            },
+            {
+              "id": 1235125
+            },
+            {
+              "id": 1235129
+            },
+            {
+              "id": 1235405
+            },
+            {
+              "id": 1245593
+            }
+          ]
+        },
+        "241813": {
+          "npc": 241813,
+          "name": "Thornclaw Gatherer",
+          "level": 90,
+          "type": "Humanoid",
+          "class": "Elite",
+          "health": 3243255,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1241217
+            },
+            {
+              "id": 1297699
+            },
+            {
+              "id": 1297701
+            }
+          ]
+        },
+        "241814": {
+          "npc": 241814,
+          "name": "Earthwhisper Tender",
+          "level": 90,
+          "type": "Humanoid",
+          "class": "Elite",
+          "health": 2918930,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1241214,
+              "interruptible": true
+            },
+            {
+              "id": 1297696,
+              "interruptible": true,
+              "magic": true
+            }
+          ]
+        },
+        "241816": {
+          "npc": 241816,
+          "name": "Keen-Eyed Striker",
+          "level": 90,
+          "type": "Beast",
+          "class": "Elite",
+          "health": 2918930,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1238439
+            }
+          ]
+        },
+        "241869": {
+          "npc": 241869,
+          "name": "Avatar of Determination",
+          "level": 91,
+          "type": "Undead",
+          "class": "Elite",
+          "health": 6486510,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1240280
+            },
+            {
+              "id": 1241463
+            }
+          ]
+        },
+        "241872": {
+          "npc": 241872,
+          "name": "Frigid Mauler",
+          "level": 90,
+          "type": "Beast",
+          "class": "Elite",
+          "health": 3567581,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1309919,
+              "interruptible": true
+            }
+          ]
+        },
+        "241874": {
+          "npc": 241874,
+          "name": "Frostfang",
+          "level": 90,
+          "type": "Beast",
+          "class": "Elite",
+          "health": 2789199,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1241226
+            },
+            {
+              "id": 1265400
+            }
+          ]
+        },
+        "241876": {
+          "npc": 241876,
+          "name": "Glacial Revenant",
+          "level": 90,
+          "type": "Elemental",
+          "class": "Elite",
+          "health": 3081092,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1239860,
+              "magic": true
+            },
+            {
+              "id": 1266178
+            }
+          ]
+        },
+        "241911": {
+          "npc": 241911,
+          "name": "Terra Rumbler",
+          "level": 90,
+          "type": "Elemental",
+          "class": "Elite",
+          "health": 2918930,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1296518
+            }
+          ]
+        },
+        "244100": {
+          "npc": 244100,
+          "name": "Sentinel of Winter",
+          "level": 92,
+          "type": "Humanoid",
+          "class": "Boss",
+          "boss": true,
+          "health": 20432506,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine",
+            "dangerous"
+          ],
+          "spells": [
+            {
+              "id": 1235548,
+              "magic": true
+            },
+            {
+              "id": 1235623
+            },
+            {
+              "id": 1235656
+            },
+            {
+              "id": 1235783
+            },
+            {
+              "id": 1236289
+            }
+          ]
+        },
+        "244696": {
+          "npc": 244696,
+          "name": "Raging Squall",
+          "level": 90,
+          "class": "Elite",
+          "health": 428857,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1235641
+            }
+          ]
+        },
+        "244759": {
+          "npc": 244759,
+          "name": "Fractured Shivercore",
+          "level": 90,
+          "type": "Elemental",
+          "class": "Elite",
+          "health": 810814,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1234314
+            },
+            {
+              "id": 1235829,
+              "interruptible": true
+            },
+            {
+              "id": 1263590
+            },
+            {
+              "id": 1263597
+            }
+          ]
+        },
+        "244889": {
+          "npc": 244889,
+          "name": "Loa Speaker Nanea",
+          "level": 91,
+          "type": "Humanoid",
+          "class": "Elite",
+          "health": 7783812,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1251027
+            },
+            {
+              "id": 1264753
+            },
+            {
+              "id": 1290205,
+              "interruptible": true
+            },
+            {
+              "id": 1296722
+            },
+            {
+              "id": 1309925
+            }
+          ]
+        },
+        "245076": {
+          "npc": 245076,
+          "name": "The Pale Eye",
+          "level": 90,
+          "class": "Elite",
+          "health": 537461,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1250805
+            }
+          ]
+        },
+        "245139": {
+          "npc": 245139,
+          "name": "Stormbound Mystic",
+          "level": 90,
+          "type": "Humanoid",
+          "class": "Elite",
+          "health": 2918930,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1246687,
+              "interruptible": true
+            },
+            {
+              "id": 1297778,
+              "interruptible": true
+            }
+          ]
+        },
+        "245143": {
+          "npc": 245143,
+          "name": "Ruthless Totemcaller",
+          "level": 90,
+          "type": "Humanoid",
+          "class": "Elite",
+          "health": 3243255,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1246820
+            }
+          ]
+        },
+        "245145": {
+          "npc": 245145,
+          "name": "Bonded Beasttamer",
+          "level": 90,
+          "type": "Humanoid",
+          "class": "Elite",
+          "health": 3081092,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1246847,
+              "interruptible": true
+            },
+            {
+              "id": 1246865
+            },
+            {
+              "id": 1246877
+            },
+            {
+              "id": 1266207
+            }
+          ]
+        },
+        "245146": {
+          "npc": 245146,
+          "name": "Grizzled Warbringer",
+          "level": 91,
+          "type": "Beast",
+          "class": "Elite",
+          "health": 5513534,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1246957
+            },
+            {
+              "id": 1246986
+            }
+          ]
+        },
+        "245148": {
+          "npc": 245148,
+          "name": "Grizzled Warbringer",
+          "level": 90,
+          "type": "Humanoid",
+          "class": "Elite",
+          "health": 698700,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1247030
+            },
+            {
+              "id": 1311572
+            }
+          ]
+        },
+        "245190": {
+          "npc": 245190,
+          "name": "Loyal Saberfang",
+          "level": 90,
+          "type": "Beast",
+          "class": "Elite",
+          "health": 2594604,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1246865
+            },
+            {
+              "id": 1246882
+            }
+          ]
+        },
+        "245567": {
+          "npc": 245567,
+          "name": "Starvation Effigy",
+          "level": 90,
+          "class": "Elite",
+          "health": 421623,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1238801
+            }
+          ]
+        },
+        "245752": {
+          "npc": 245752,
+          "name": "Keen-Eyed Striker",
+          "level": 90,
+          "type": "Beast",
+          "class": "Elite",
+          "health": 2918930,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 110960
+            },
+            {
+              "id": 1238439
+            },
+            {
+              "id": 1239394,
+              "interruptible": true
+            }
+          ]
+        },
+        "245855": {
+          "npc": 245855,
+          "name": "Spirit of Hunger",
+          "level": 91,
+          "type": "Undead",
+          "class": "Elite",
+          "health": 4864883,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1238687
+            },
+            {
+              "id": 1238760
+            }
+          ]
+        },
+        "246404": {
+          "npc": 246404,
+          "name": "Nalorakk",
+          "level": 92,
+          "type": "Beast",
+          "class": "Boss",
+          "boss": true,
+          "health": 21016293,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine",
+            "dangerous"
+          ],
+          "spells": [
+            {
+              "id": 1242860
+            },
+            {
+              "id": 1243002
+            },
+            {
+              "id": 1243408
+            },
+            {
+              "id": 1254622
+            },
+            {
+              "id": 1297792
+            },
+            {
+              "id": 1297796
+            },
+            {
+              "id": 1297797
+            }
+          ]
+        },
+        "246409": {
+          "npc": 246409,
+          "name": "Zul'jarra",
+          "level": 90,
+          "type": "Humanoid",
+          "class": "Elite",
+          "health": 1621628,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1243018
+            },
+            {
+              "id": 1243078
+            },
+            {
+              "id": 1249186
+            },
+            {
+              "id": 1261776
+            },
+            {
+              "id": 1262253
+            }
+          ]
+        },
+        "247301": {
+          "npc": 247301,
+          "name": "Echo of Nalorakk",
+          "level": 92,
+          "type": "Beast",
+          "class": "Boss",
+          "boss": true,
+          "health": 3378390,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine",
+            "dangerous"
+          ],
+          "spells": [
+            {
+              "id": 1242976
+            },
+            {
+              "id": 1255577
+            }
+          ]
+        },
+        "248666": {
+          "npc": 248666,
+          "name": "Magma Totem",
+          "level": 90,
+          "class": "Elite",
+          "health": 6487,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1246825
+            }
+          ]
+        },
+        "250478": {
+          "npc": 250478,
+          "name": "The Winter Squall",
+          "level": 91,
+          "type": "Elemental",
+          "class": "Elite",
+          "health": 3243255,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1309947
+            }
+          ]
+        },
+        "251189": {
+          "npc": 251189,
+          "name": "Snow Orb Stalker",
+          "level": 90,
+          "class": "Elite",
+          "health": 648651,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1253083
+            }
+          ]
+        },
+        "272074": {
+          "npc": 272074,
+          "name": "Volatile Totem",
+          "level": 90,
+          "class": "Elite",
+          "health": 64865,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1309931
+            }
+          ]
+        }
+      }
     },
     "587": {
       "name": "Murder Row",
@@ -11291,7 +16302,19 @@
           "maxX": 4629.16,
           "minY": 8633.33,
           "maxY": 8952.08,
-          "tiles": "midnight/murder_row/1"
+          "tiles": "midnight/murder_row/1",
+          "mdt": {
+            "sublevel": 1,
+            "scale": 0.600804,
+            "x": -216.129,
+            "y": 84.277,
+            "box": [
+              519.7,
+              -516,
+              792.9,
+              -268.1
+            ]
+          }
         },
         {
           "uiMapID": 2435,
@@ -11299,7 +16322,19 @@
           "maxX": 4670,
           "minY": 8850,
           "maxY": 9000,
-          "tiles": "midnight/murder_row/2"
+          "tiles": "midnight/murder_row/2",
+          "mdt": {
+            "sublevel": 1,
+            "scale": 0.611507,
+            "x": -142.217,
+            "y": -2.224,
+            "box": [
+              362.6,
+              -245.9,
+              649.2,
+              -39
+            ]
+          }
         },
         {
           "uiMapID": 2434,
@@ -11307,7 +16342,19 @@
           "maxX": 4458.33,
           "minY": 8554.17,
           "maxY": 9250,
-          "tiles": "midnight/murder_row/3"
+          "tiles": "midnight/murder_row/3",
+          "mdt": {
+            "sublevel": 1,
+            "scale": 0.351798,
+            "x": 113.388,
+            "y": -34.818,
+            "box": [
+              117.7,
+              -544,
+              314.3,
+              -98.1
+            ]
+          }
         }
       ],
       "forces": {
@@ -13655,7 +18702,1009 @@
           "y": -4780.8,
           "map": 2435
         }
-      ]
+      ],
+      "mobs": {
+        "234647": {
+          "npc": 234647,
+          "name": "Xathuux the Annihilator",
+          "level": 92,
+          "type": "Demon",
+          "class": "Boss",
+          "boss": true,
+          "health": 22702784,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine",
+            "dangerous"
+          ],
+          "spells": [
+            {
+              "id": 473898
+            },
+            {
+              "id": 474197
+            },
+            {
+              "id": 474234
+            },
+            {
+              "id": 1214641
+            },
+            {
+              "id": 1295453
+            }
+          ]
+        },
+        "234648": {
+          "npc": 234648,
+          "name": "Kystia Manaheart",
+          "level": 92,
+          "type": "Humanoid",
+          "class": "Boss",
+          "boss": true,
+          "health": 19459530,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine",
+            "dangerous"
+          ],
+          "spells": [
+            {
+              "id": 474238
+            },
+            {
+              "id": 1214959
+            },
+            {
+              "id": 1217989
+            },
+            {
+              "id": 1223906
+            },
+            {
+              "id": 1230298
+            },
+            {
+              "id": 1264095
+            }
+          ]
+        },
+        "234649": {
+          "npc": 234649,
+          "name": "Zaen Bladesorrow",
+          "level": 92,
+          "type": "Humanoid",
+          "class": "Boss",
+          "boss": true,
+          "health": 22702784,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine",
+            "dangerous"
+          ],
+          "spells": [
+            {
+              "id": 474478
+            },
+            {
+              "id": 474515
+            },
+            {
+              "id": 1214357
+            },
+            {
+              "id": 1218347,
+              "interruptible": true
+            },
+            {
+              "id": 1222795
+            }
+          ]
+        },
+        "234660": {
+          "npc": 234660,
+          "name": "Nibbles",
+          "level": 92,
+          "type": "Beast",
+          "class": "Boss",
+          "boss": true,
+          "health": 7783812,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine",
+            "dangerous"
+          ],
+          "spells": [
+            {
+              "id": 1217464
+            },
+            {
+              "id": 1228198,
+              "magic": true
+            },
+            {
+              "id": 1230304
+            },
+            {
+              "id": 1253811
+            }
+          ]
+        },
+        "234763": {
+          "npc": 234763,
+          "name": "Lithiel Cinderfury",
+          "level": 92,
+          "type": "Humanoid",
+          "class": "Boss",
+          "boss": true,
+          "health": 16864926,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine",
+            "dangerous"
+          ],
+          "spells": [
+            {
+              "id": 474375,
+              "interruptible": true
+            },
+            {
+              "id": 474408
+            },
+            {
+              "id": 474462
+            },
+            {
+              "id": 1214675
+            },
+            {
+              "id": 1217345
+            },
+            {
+              "id": 1217415
+            },
+            {
+              "id": 1217881
+            },
+            {
+              "id": 1226469
+            },
+            {
+              "id": 1287627,
+              "interruptible": true
+            }
+          ]
+        },
+        "234799": {
+          "npc": 234799,
+          "name": "Furious Vilefiend",
+          "level": 92,
+          "type": "Demon",
+          "class": "Elite",
+          "health": 1945953,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1293101
+            }
+          ]
+        },
+        "234849": {
+          "npc": 234849,
+          "name": "Unleashed Imp",
+          "level": 90,
+          "type": "Demon",
+          "class": "Elite",
+          "health": 486488,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1223204,
+              "interruptible": true
+            }
+          ]
+        },
+        "234852": {
+          "npc": 234852,
+          "name": "Forbidden Freight",
+          "level": 90,
+          "class": "Elite",
+          "health": 649,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1217099,
+              "interruptible": true
+            },
+            {
+              "id": 1222598
+            },
+            {
+              "id": 1266241
+            }
+          ]
+        },
+        "234860": {
+          "npc": 234860,
+          "name": "Crate Loader",
+          "level": 90,
+          "type": "Humanoid",
+          "class": "Elite",
+          "health": 648651,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 474766
+            },
+            {
+              "id": 474768
+            }
+          ]
+        },
+        "234984": {
+          "npc": 234984,
+          "name": "Silvermoon Patron",
+          "level": 90,
+          "type": "Humanoid",
+          "class": "Elite",
+          "health": 648651,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 44427
+            },
+            {
+              "id": 1214260
+            },
+            {
+              "id": 1214487
+            }
+          ]
+        },
+        "235257": {
+          "npc": 235257,
+          "name": "Demon Fly",
+          "level": 90,
+          "type": "Demon",
+          "class": "Elite",
+          "health": 1621628,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1293022
+            }
+          ]
+        },
+        "235261": {
+          "npc": 235261,
+          "name": "Trained Felhunter",
+          "level": 90,
+          "type": "Demon",
+          "class": "Elite",
+          "health": 3405418,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1217930,
+              "magic": true
+            },
+            {
+              "id": 1293101
+            }
+          ]
+        },
+        "235265": {
+          "npc": 235265,
+          "name": "Corrupted Warlock",
+          "level": 91,
+          "type": "Humanoid",
+          "class": "Elite",
+          "health": 5027045,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1217973
+            },
+            {
+              "id": 1297682
+            },
+            {
+              "id": 1297684
+            }
+          ]
+        },
+        "235267": {
+          "npc": 235267,
+          "name": "Wrathguard Flayer",
+          "level": 90,
+          "type": "Demon",
+          "class": "Elite",
+          "health": 3405418,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1214922,
+              "interruptible": true
+            },
+            {
+              "id": 1295427
+            }
+          ]
+        },
+        "235268": {
+          "npc": 235268,
+          "name": "Fel Invoker",
+          "level": 90,
+          "type": "Humanoid",
+          "class": "Elite",
+          "health": 2918930,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1214980,
+              "interruptible": true
+            },
+            {
+              "id": 1297693
+            }
+          ]
+        },
+        "235322": {
+          "npc": 235322,
+          "name": "Defiled Golem",
+          "level": 91,
+          "type": "Mechanical",
+          "class": "Elite",
+          "health": 8432463,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1215961
+            },
+            {
+              "id": 1294824
+            },
+            {
+              "id": 1294836
+            },
+            {
+              "id": 1294870
+            }
+          ]
+        },
+        "235465": {
+          "npc": 235465,
+          "name": "Shivan Punisher",
+          "level": 91,
+          "type": "Demon",
+          "class": "Elite",
+          "health": 5513534,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1294770
+            },
+            {
+              "id": 1297676
+            },
+            {
+              "id": 1297691
+            }
+          ]
+        },
+        "235520": {
+          "npc": 235520,
+          "name": "Legion Axe",
+          "level": 90,
+          "class": "Elite",
+          "health": 972977,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 5543
+            },
+            {
+              "id": 1214650
+            }
+          ]
+        },
+        "235841": {
+          "npc": 235841,
+          "name": "Selenar Sunshy",
+          "level": 90,
+          "type": "Humanoid",
+          "class": "Elite",
+          "health": 648651,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1216074
+            }
+          ]
+        },
+        "236071": {
+          "npc": 236071,
+          "name": "Bribed Guard",
+          "level": 91,
+          "type": "Humanoid",
+          "class": "Elite",
+          "health": 5189208,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1216529
+            },
+            {
+              "id": 1295035
+            }
+          ]
+        },
+        "236073": {
+          "npc": 236073,
+          "name": "Row Hooligan",
+          "level": 90,
+          "type": "Humanoid",
+          "class": "Elite",
+          "health": 1945953,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1216300
+            }
+          ]
+        },
+        "236082": {
+          "npc": 236082,
+          "name": "Seductive Sayaad",
+          "level": 90,
+          "type": "Demon",
+          "class": "Elite",
+          "health": 2270279,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1201554,
+              "interruptible": true,
+              "magic": true
+            }
+          ]
+        },
+        "236084": {
+          "npc": 236084,
+          "name": "Felonious Mage",
+          "level": 90,
+          "type": "Humanoid",
+          "class": "Elite",
+          "health": 2854064,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1216571,
+              "interruptible": true
+            },
+            {
+              "id": 1229433,
+              "magic": true
+            }
+          ]
+        },
+        "236085": {
+          "npc": 236085,
+          "name": "Felwyrm",
+          "level": 90,
+          "type": "Beast",
+          "class": "Elite",
+          "health": 1297302,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1214966
+            },
+            {
+              "id": 1216538,
+              "magic": true
+            }
+          ]
+        },
+        "236088": {
+          "npc": 236088,
+          "name": "Masked Noble",
+          "level": 90,
+          "type": "Humanoid",
+          "class": "Elite",
+          "health": 10000,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1219468
+            }
+          ]
+        },
+        "236091": {
+          "npc": 236091,
+          "name": "Street Sneak",
+          "level": 90,
+          "type": "Humanoid",
+          "class": "Elite",
+          "health": 2918930,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1216284
+            },
+            {
+              "id": 1216589
+            }
+          ]
+        },
+        "236525": {
+          "npc": 236525,
+          "name": "Rowdy Patron",
+          "level": 90,
+          "type": "Humanoid",
+          "class": "Elite",
+          "health": 648651,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1213658,
+              "interruptible": true
+            }
+          ]
+        },
+        "236893": {
+          "npc": 236893,
+          "name": "Warehouse Worker",
+          "level": 90,
+          "type": "Humanoid",
+          "class": "Elite",
+          "health": 2270279,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1216970
+            },
+            {
+              "id": 1217992
+            },
+            {
+              "id": 1311136
+            }
+          ]
+        },
+        "236897": {
+          "npc": 236897,
+          "name": "Keen Taskmaster",
+          "level": 90,
+          "type": "Humanoid",
+          "class": "Elite",
+          "health": 3243255,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1216970
+            }
+          ]
+        },
+        "236902": {
+          "npc": 236902,
+          "name": "Massive Felwyrm",
+          "level": 91,
+          "type": "Beast",
+          "class": "Elite",
+          "health": 4540557,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1217633,
+              "magic": true
+            },
+            {
+              "id": 1256299
+            },
+            {
+              "id": 1256300,
+              "magic": true
+            },
+            {
+              "id": 1258537
+            },
+            {
+              "id": 1297667
+            }
+          ]
+        },
+        "236905": {
+          "npc": 236905,
+          "name": "Felmaster Lucsei",
+          "level": 91,
+          "type": "Humanoid",
+          "class": "Elite",
+          "health": 6486510,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1216954
+            },
+            {
+              "id": 1217930,
+              "magic": true
+            },
+            {
+              "id": 1217937
+            },
+            {
+              "id": 1302007
+            }
+          ]
+        },
+        "237626": {
+          "npc": 237626,
+          "name": "Wild Imp",
+          "level": 90,
+          "type": "Demon",
+          "class": "Elite",
+          "health": 259460,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1223204,
+              "interruptible": true
+            },
+            {
+              "id": 1226469
+            }
+          ]
+        },
+        "238414": {
+          "npc": 238414,
+          "name": "Infernal",
+          "level": 93,
+          "type": "Demon",
+          "class": "Elite",
+          "health": 2703424,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1231256
+            },
+            {
+              "id": 1231262
+            }
+          ]
+        },
+        "240289": {
+          "npc": 240289,
+          "name": "Nauseous Patron",
+          "level": 90,
+          "type": "Humanoid",
+          "class": "Elite",
+          "health": 648651,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1216076
+            }
+          ]
+        },
+        "252529": {
+          "npc": 252529,
+          "name": "Bribed Captain",
+          "level": 91,
+          "type": "Humanoid",
+          "class": "Elite",
+          "health": 7783812,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1216529
+            },
+            {
+              "id": 1256276
+            },
+            {
+              "id": 1295035
+            }
+          ]
+        },
+        "253081": {
+          "npc": 253081,
+          "name": "Influentual Reviewer",
+          "level": 90,
+          "type": "Humanoid",
+          "class": "Elite",
+          "health": 648651,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1257877,
+              "interruptible": true
+            }
+          ]
+        },
+        "253324": {
+          "npc": 253324,
+          "name": "Tiny Felwyrm",
+          "level": 90,
+          "type": "Beast",
+          "class": "Elite",
+          "health": 648651,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1214966
+            },
+            {
+              "id": 1216538,
+              "magic": true
+            }
+          ]
+        },
+        "255050": {
+          "npc": 255050,
+          "name": "Kystia Manaheart",
+          "level": 92,
+          "type": "Humanoid",
+          "class": "Elite",
+          "health": 5189210,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1264106,
+              "interruptible": true
+            }
+          ]
+        },
+        "255604": {
+          "npc": 255604,
+          "name": "Seductive Sayaad",
+          "level": 90,
+          "type": "Demon",
+          "class": "Elite",
+          "health": 2270279,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1201554,
+              "interruptible": true,
+              "magic": true
+            }
+          ]
+        },
+        "263940": {
+          "npc": 263940,
+          "name": "Belath Dawnblade",
+          "level": 90,
+          "type": "Humanoid",
+          "class": "Elite",
+          "health": 648651,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1218465
+            },
+            {
+              "id": 1218466
+            },
+            {
+              "id": 1218467
+            },
+            {
+              "id": 1218468
+            },
+            {
+              "id": 1218508
+            },
+            {
+              "id": 1255881
+            }
+          ]
+        },
+        "272246": {
+          "npc": 272246,
+          "name": "Trained Felhunter",
+          "level": 90,
+          "type": "Demon",
+          "class": "Elite",
+          "health": 10000,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1293101
+            }
+          ]
+        }
+      }
     },
     "588": {
       "name": "Altar of Fangs",
@@ -13668,7 +19717,19 @@
           "maxX": -2552.08,
           "minY": 1414.58,
           "maxY": 2008.33,
-          "tiles": "midnight/altar_of_fangs/1"
+          "tiles": "midnight/altar_of_fangs/1",
+          "mdt": {
+            "sublevel": 1,
+            "scale": 0.480366,
+            "x": 124.045,
+            "y": 0.024,
+            "box": [
+              58.5,
+              -429.4,
+              207,
+              -100.5
+            ]
+          }
         },
         {
           "uiMapID": 2589,
@@ -13676,7 +19737,19 @@
           "maxX": -2395.83,
           "minY": 1043.75,
           "maxY": 1470.83,
-          "tiles": "midnight/altar_of_fangs/2"
+          "tiles": "midnight/altar_of_fangs/2",
+          "mdt": {
+            "sublevel": 1,
+            "scale": 0.609266,
+            "x": -27.13,
+            "y": 100.781,
+            "box": [
+              292.4,
+              -406.6,
+              516.9,
+              -46.6
+            ]
+          }
         },
         {
           "uiMapID": 2590,
@@ -13684,7 +19757,19 @@
           "maxX": -2527.5,
           "minY": 960,
           "maxY": 1560,
-          "tiles": "midnight/altar_of_fangs/3"
+          "tiles": "midnight/altar_of_fangs/3",
+          "mdt": {
+            "sublevel": 1,
+            "scale": 0.512744,
+            "x": -150.629,
+            "y": 19.992,
+            "box": [
+              605.2,
+              -445.2,
+              785.5,
+              -111.1
+            ]
+          }
         }
       ],
       "forces": {
@@ -15358,7 +21443,591 @@
           "y": 1916.7,
           "map": 2589
         }
-      ]
+      ],
+      "mobs": {
+        "259445": {
+          "npc": 259445,
+          "name": "Rav'i",
+          "level": 92,
+          "type": "Beast",
+          "class": "Boss",
+          "boss": true,
+          "health": 20367641,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine",
+            "dangerous"
+          ],
+          "spells": [
+            {
+              "id": 1296058
+            },
+            {
+              "id": 1296219
+            },
+            {
+              "id": 1296220
+            },
+            {
+              "id": 1298223
+            },
+            {
+              "id": 1298683
+            },
+            {
+              "id": 1306345
+            },
+            {
+              "id": 1307700
+            },
+            {
+              "id": 1307703
+            },
+            {
+              "id": 1307768
+            },
+            {
+              "id": 1307894
+            },
+            {
+              "id": 1310378
+            }
+          ]
+        },
+        "259446": {
+          "npc": 259446,
+          "name": "The Writhing Coil",
+          "level": 92,
+          "type": "Beast",
+          "class": "Boss",
+          "boss": true,
+          "health": 29189294,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine",
+            "dangerous"
+          ],
+          "spells": [
+            {
+              "id": 1287798
+            },
+            {
+              "id": 1287811
+            },
+            {
+              "id": 1298949
+            },
+            {
+              "id": 1299053
+            },
+            {
+              "id": 1299130
+            },
+            {
+              "id": 1299154
+            },
+            {
+              "id": 1299940
+            },
+            {
+              "id": 1300044
+            },
+            {
+              "id": 1300503
+            },
+            {
+              "id": 1300612
+            },
+            {
+              "id": 1300686
+            },
+            {
+              "id": 1305368
+            },
+            {
+              "id": 1305393
+            },
+            {
+              "id": 1310357
+            },
+            {
+              "id": 1310974
+            }
+          ]
+        },
+        "259447": {
+          "npc": 259447,
+          "name": "Zul'jan",
+          "level": 92,
+          "type": "Humanoid",
+          "class": "Boss",
+          "boss": true,
+          "health": 25946039,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine",
+            "dangerous"
+          ],
+          "spells": [
+            {
+              "id": 1300876
+            },
+            {
+              "id": 1300888
+            },
+            {
+              "id": 1300894
+            },
+            {
+              "id": 1301111
+            },
+            {
+              "id": 1301217
+            },
+            {
+              "id": 1301350
+            },
+            {
+              "id": 1301413
+            }
+          ]
+        },
+        "261550": {
+          "npc": 261550,
+          "name": "Venom Leech",
+          "level": 90,
+          "type": "Beast",
+          "class": "Elite",
+          "health": 1945953,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1294432
+            },
+            {
+              "id": 1307098
+            }
+          ]
+        },
+        "261552": {
+          "npc": 261552,
+          "name": "Bloodletter",
+          "level": 90,
+          "type": "Beast",
+          "class": "Elite",
+          "health": 3243255,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1307526
+            }
+          ]
+        },
+        "261553": {
+          "npc": 261553,
+          "name": "Ravenous Descendant",
+          "level": 90,
+          "type": "Humanoid",
+          "class": "Elite",
+          "health": 3567581,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1306308
+            },
+            {
+              "id": 1306333
+            }
+          ]
+        },
+        "261554": {
+          "npc": 261554,
+          "name": "Twinfang Harrower",
+          "level": 91,
+          "type": "Beast",
+          "class": "Elite",
+          "health": 5513534,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1294567,
+              "magic": true
+            },
+            {
+              "id": 1294572
+            },
+            {
+              "id": 1306668
+            }
+          ]
+        },
+        "261556": {
+          "npc": 261556,
+          "name": "Hatchling",
+          "level": 90,
+          "type": "Beast",
+          "class": "Elite",
+          "health": 972977,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1306383
+            }
+          ]
+        },
+        "261557": {
+          "npc": 261557,
+          "name": "High Evolutionist",
+          "level": 90,
+          "type": "Humanoid",
+          "class": "Elite",
+          "health": 2918930,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1287544
+            },
+            {
+              "id": 1289416,
+              "interruptible": true
+            },
+            {
+              "id": 1292904
+            },
+            {
+              "id": 1306385
+            },
+            {
+              "id": 1307567,
+              "interruptible": true
+            },
+            {
+              "id": 1307602
+            }
+          ]
+        },
+        "261560": {
+          "npc": 261560,
+          "name": "Primal Serpent",
+          "level": 90,
+          "type": "Beast",
+          "class": "Elite",
+          "health": 2918930,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1294557,
+              "interruptible": true
+            },
+            {
+              "id": 1306381
+            }
+          ]
+        },
+        "261573": {
+          "npc": 261573,
+          "name": "Ascendant Serpent",
+          "level": 91,
+          "type": "Beast",
+          "class": "Elite",
+          "health": 9081114,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1293420
+            },
+            {
+              "id": 1294934
+            },
+            {
+              "id": 1295055
+            },
+            {
+              "id": 1308864
+            },
+            {
+              "id": 1309416
+            }
+          ]
+        },
+        "262011": {
+          "npc": 262011,
+          "name": "Rattling Writhe",
+          "level": 91,
+          "type": "Beast",
+          "class": "Elite",
+          "health": 5513534,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1294845
+            },
+            {
+              "id": 1294849
+            }
+          ]
+        },
+        "262398": {
+          "npc": 262398,
+          "name": "Uncoiled Writhe",
+          "level": 92,
+          "type": "Beast",
+          "class": "Elite",
+          "health": 32432549,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1300503
+            },
+            {
+              "id": 1300698
+            },
+            {
+              "id": 1305368
+            },
+            {
+              "id": 1305393
+            },
+            {
+              "id": 1310666,
+              "interruptible": true
+            }
+          ]
+        },
+        "263109": {
+          "npc": 263109,
+          "name": "Ula'tek's Chosen",
+          "level": 91,
+          "type": "Humanoid",
+          "class": "Elite",
+          "health": 4864883,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1289416,
+              "interruptible": true
+            },
+            {
+              "id": 1292892
+            },
+            {
+              "id": 1306852
+            },
+            {
+              "id": 1306856
+            },
+            {
+              "id": 1307567,
+              "interruptible": true
+            }
+          ]
+        },
+        "263112": {
+          "npc": 263112,
+          "name": "Living Venom",
+          "level": 90,
+          "type": "Elemental",
+          "class": "Elite",
+          "health": 1297302,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1303366
+            }
+          ]
+        },
+        "264798": {
+          "npc": 264798,
+          "name": "Infused Eggs",
+          "level": 90,
+          "class": "Elite",
+          "health": 648651,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1293059
+            }
+          ]
+        },
+        "268358": {
+          "npc": 268358,
+          "name": "Ritual Snake",
+          "level": 90,
+          "type": "Beast",
+          "class": "Elite",
+          "health": 10000,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1300885
+            }
+          ]
+        },
+        "270306": {
+          "npc": 270306,
+          "name": "Ritual Chieftain",
+          "level": 91,
+          "type": "Humanoid",
+          "class": "Elite",
+          "health": 5189208,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1306517
+            },
+            {
+              "id": 1306844
+            },
+            {
+              "id": 1306893
+            },
+            {
+              "id": 1306911
+            }
+          ]
+        },
+        "270378": {
+          "npc": 270378,
+          "name": "Ritual Spirit",
+          "level": 91,
+          "type": "Humanoid",
+          "class": "Elite",
+          "health": 5189208,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1306657
+            }
+          ]
+        },
+        "270417": {
+          "npc": 270417,
+          "name": "Uncoiled Writhe",
+          "level": 92,
+          "type": "Beast",
+          "class": "Elite",
+          "health": 32432550,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1300698
+            },
+            {
+              "id": 1305393
+            }
+          ]
+        },
+        "271453": {
+          "npc": 271453,
+          "name": "Blade of the Altar",
+          "level": 90,
+          "type": "Humanoid",
+          "class": "Elite",
+          "health": 3243255,
+          "aggressiveness": "aggressive",
+          "flags": [
+            "bolstering",
+            "bursting",
+            "sanguine"
+          ],
+          "spells": [
+            {
+              "id": 1308518
+            }
+          ]
+        }
+      }
     }
   }
 }

@@ -364,7 +364,7 @@ func (k *LogTracker) RouteTrack(start int64) (int, models.KeyTrack, error) {
 func (k *LogTracker) DungeonMap(mapID int) (models.DungeonMap, error) {
 	walked, err := k.walked(mapID)
 	return models.DungeonMap{Floors: list(k.facts[mapID].Floors), TilesPerSide: tilesPerSide, Walked: walked,
-		Enemies: list(k.facts[mapID].Enemies)}, err
+		Enemies: list(k.facts[mapID].Enemies), Patrols: list(k.facts[mapID].Patrols)}, err
 }
 
 func (k *LogTracker) walked(mapID int) ([]models.TrackPoint, error) {

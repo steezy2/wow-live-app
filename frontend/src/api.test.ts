@@ -1,5 +1,5 @@
 import { afterEach, expect, test, vi } from 'vitest'
-import { FALLBACK_POLL_MS, fetchSpell, subscribe } from './api'
+import { FALLBACK_POLL_MS, fetchMobs, fetchSpell, subscribe } from './api'
 
 class FakeEventSource {
   static last: FakeEventSource
@@ -61,4 +61,23 @@ test('fetchSpell asks once for an answer, keeps an unknown ability, and asks aga
   expect(await fetchSpell('Barkskin')).toBeNull()
   expect((await fetchSpell('Barkskin'))?.id).toBe(3)
   expect(fetchMock).toHaveBeenCalledTimes(4)
+})
+
+test('fetchMobs asks for the level picked, or the default with none', async () => {
+  const fetchMock = vi.fn(async () => new Response('{}'))
+  vi.stubGlobal('fetch', fetchMock)
+  await fetchMobs(1015, null)
+  await fetchMobs(1015, 17)
+  expect(fetchMock.mock.calls.map((c) => (c as unknown[])[0])).toEqual([
+    '/api/mplus/dungeons/1015/mobs',
+    '/api/mplus/dungeons/1015/mobs?level=17',
+  ])
+})
+
+test('fetchSpell asks by spell ID apart from names', async () => {
+  const info = { id: 270003, name: 'Bone Shield', description: 'x' }
+  const fetchMock = vi.fn(async () => new Response(JSON.stringify(info)))
+  vi.stubGlobal('fetch', fetchMock)
+  expect((await fetchSpell(270003))?.name).toBe('Bone Shield')
+  expect(fetchMock.mock.calls[0]).toEqual(['/api/spells?id=270003'])
 })

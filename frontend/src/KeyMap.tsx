@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEvent } from 'react'
 import {
   raidMapURL,
   tileURL,
@@ -26,10 +26,11 @@ import {
 } from './replay'
 import { BossBox, FocusBoxes } from './ReplayBoxes'
 import { useDungeonMap } from './routes'
+import { TipBox } from './Tip'
 import { tip } from './tipAttrs'
 
 /** The trail the live map draws. */
-const NO_DUNGEON: DungeonMap = { floors: [], tilesPerSide: 0, walked: [], enemies: [] }
+const NO_DUNGEON: DungeonMap = { floors: [], tilesPerSide: 0, walked: [], enemies: [], patrols: [] }
 const LIVE_TRAIL_MS = 30_000
 const SPEEDS = [1, 2, 4, 8, 16, 32]
 const TRAILS = [0, 10_000, 30_000, 120_000, Infinity]
@@ -254,7 +255,8 @@ export type Overlay = (
  * around the pointer, a drag pans and a double click shows all of it again. With onPick, a click on a player's dot
  * picks them and a right click picks nobody (''); the focused player gets a ring and their name, and the others'
  * trails fade. With onPickEnemy, a click on a mob or a boss picks it (by GUID), the right click lets go of it too, and
- * the picked enemy gets a ring and its name. An overlay is drawn on the backdrop, under all of those. */
+ * the picked enemy gets a ring and its name; with onContext, a right click on an enemy gives it instead. With tipOf,
+ * the mouse on an enemy shows its hover box. An overlay is drawn on the backdrop, under all of those. */
 export function MapCanvas(props: {
   track: KeyTrack
   backdrop: Backdrop
@@ -269,12 +271,23 @@ export function MapCanvas(props: {
   enemy?: string
   /** Called with whether Shift was held. */
   onPickEnemy?: (guid: string, shift: boolean) => void
+  /** A right click on an enemy's dot instead of letting go: its id and where the click was in the window. */
+  onContext?: (id: string, x: number, y: number) => void
+  /** The hover box for an enemy's dot by its id, none for undefined. */
+  tipOf?: (id: string) => { text: string; head?: string } | undefined
   overlay?: Overlay
+  /** While set (a draw tool is on), a left press, each move while pressed and its release come here in yards, with
+   * how far a click reaches in yards, instead of panning or picking; a double click doesn't show the whole floor. */
+  onStroke?: (phase: 'down' | 'move' | 'up', at: Yards, reach: number) => void
 }) {
   const { track, backdrop, floor, now, clock, trailMS, deaths, focus, onPick, enemy, onPickEnemy, overlay } = props
+  const { onContext, tipOf, onStroke } = props
   const ref = useRef<HTMLCanvasElement>(null)
+  const placed = useRef<((p: Yards) => [number, number]) | null>(null) // where a place lands, as last drawn
   const [loaded, setLoaded] = useState(0)
   const [view, setView] = useState(WHOLE)
+  const [hover, setHover] = useState<{ id: string; x: number; y: number } | null>(null)
+  const hovered = hover && tipOf?.(hover.id)
   const shown = useRef(WHOLE) // the view as last drawn, for the wheel
   // Where each player and enemy (by its GUID) was last drawn, and its dot's radius.
   const dots = useRef<{ id: string; enemy: boolean; x: number; y: number; r: number }[]>([])
@@ -298,6 +311,7 @@ export function MapCanvas(props: {
   const drag = (e: PointerEvent<HTMLCanvasElement>) => {
     const from = press.current
     if (!from) return
+    if (onStroke) return stroke('move', e)
     const [dx, dy] = [e.clientX - from.x, e.clientY - from.y]
     if (!from.dragged && Math.hypot(dx, dy) < DRAG_PX) return
     press.current = { x: e.clientX, y: e.clientY, dragged: true }
@@ -305,18 +319,40 @@ export function MapCanvas(props: {
     const scale = onCanvas(e, canvas)[2]
     setView((v) => inside({ k: v.k, x: v.x - (dx * scale) / v.k, y: v.y - (dy * scale) / v.k }, canvas))
   }
+  /** Where the pointer is on the canvas in canvas pixels (after the zoom), and how far (in those) a click reaches. */
+  const pointed = (e: MouseEvent<HTMLCanvasElement>): [number, number, number] => {
+    const [x, y] = onCanvas(e, e.currentTarget)
+    return [view.x + x / view.k, view.y + y / view.k, ((e.currentTarget.width / 160) * 1.3) / view.k]
+  }
+  /** The dot under the pointer (within a dot's reach of its edge) of those wanted, the nearest first. */
+  const nearest = (e: MouseEvent<HTMLCanvasElement>, wanted: (d: { enemy: boolean }) => unknown) => {
+    const [atX, atY, reach] = pointed(e)
+    const far = (d: { x: number; y: number; r: number }) => Math.hypot(d.x - atX, d.y - atY) - d.r // from its edge
+    return dots.current.filter((d) => wanted(d) && far(d) <= reach).sort((a, b) => far(a) - far(b))[0]
+  }
+  /** Gives onStroke where the pointer is in yards: `placed` turned round (every backdrop places yards linearly). */
+  const stroke = (phase: 'down' | 'move' | 'up', e: PointerEvent<HTMLCanvasElement>) => {
+    const at = placed.current
+    if (!at || !onStroke) return
+    const [px, py, reach] = pointed(e)
+    const [o, ex, ey] = [at({ x: 0, y: 0 }), at({ x: 1, y: 0 }), at({ x: 0, y: 1 })]
+    const [ax, ay, bx, by] = [ex[0] - o[0], ex[1] - o[1], ey[0] - o[0], ey[1] - o[1]]
+    const [u, v, det] = [px - o[0], py - o[1], ax * by - bx * ay]
+    onStroke(phase, { x: (u * by - bx * v) / det, y: (ax * v - ay * u) / det }, reach / Math.hypot(ax, ay))
+  }
   const release = (e: PointerEvent<HTMLCanvasElement>) => {
     const from = press.current
     press.current = null
+    if (from && onStroke) return stroke('up', e)
     if (!from || from.dragged || !(onPick || onPickEnemy)) return
-    const [x, y] = onCanvas(e, e.currentTarget)
-    const [atX, atY] = [view.x + x / view.k, view.y + y / view.k]
-    const far = (d: { x: number; y: number; r: number }) => Math.hypot(d.x - atX, d.y - atY) - d.r // from its edge
-    const reach = ((e.currentTarget.width / 160) * 1.3) / view.k
-    const pick = (d: { enemy: boolean }) => (d.enemy ? onPickEnemy : onPick)
-    const [nearest] = dots.current.filter((d) => pick(d) && far(d) <= reach).sort((a, b) => far(a) - far(b))
-    if (nearest?.enemy) onPickEnemy?.(nearest.id, e.shiftKey)
-    else if (nearest) onPick?.(nearest.id)
+    const near = nearest(e, (d) => (d.enemy ? onPickEnemy : onPick))
+    if (near?.enemy) onPickEnemy?.(near.id, e.shiftKey)
+    else if (near) onPick?.(near.id)
+  }
+  const hoverAt = (e: PointerEvent<HTMLCanvasElement>) => {
+    if (!tipOf || press.current?.dragged) return
+    const id = (e.buttons === 0 && nearest(e, (d) => d.enemy)?.id) || ''
+    setHover((h) => (h?.id === id ? h : id ? { id, x: e.clientX, y: e.clientY } : null))
   }
   const area = useMemo<[number, number, number]>(
     () => (backdrop.kind === 'image' ? fightArea(backdrop.map, track, floor) : [0, 0, 1]),
@@ -337,6 +373,7 @@ export function MapCanvas(props: {
           ? onImage(backdrop.map, area, canvas)
           : onWalked(backdrop.walked, track, floor, canvas)
     if (!at) return
+    placed.current = at
     const image = (url: string) => {
       let img = images.get(url)
       if (!img) {
@@ -508,30 +545,49 @@ export function MapCanvas(props: {
     return () => cancelAnimationFrame(frame)
   }, [track, backdrop, walkedHere, area, floor, now, clock, trailMS, deaths, loaded, view, focus, enemy, overlay])
   return (
-    <canvas
-      ref={ref}
-      width={width}
-      height={height}
-      className={view.k > 1 ? 'map-canvas zoomed' : 'map-canvas'}
-      role="img"
-      aria-label="players on the map"
-      onPointerDown={(e) => {
-        if (e.button !== 0) return
-        press.current = { x: e.clientX, y: e.clientY, dragged: false }
-        e.currentTarget.setPointerCapture(e.pointerId)
-      }}
-      onPointerMove={drag}
-      onPointerUp={release}
-      onDoubleClick={() => setView(WHOLE)}
-      onContextMenu={
-        onPick &&
-        ((e) => {
-          e.preventDefault()
-          onPick('')
-          onPickEnemy?.('', false)
-        })
-      }
-    />
+    <>
+      <canvas
+        ref={ref}
+        width={width}
+        height={height}
+        className={onStroke ? 'map-canvas drawing' : view.k > 1 ? 'map-canvas zoomed' : 'map-canvas'}
+        role="img"
+        aria-label="players on the map"
+        onPointerDown={(e) => {
+          if (e.button !== 0) return
+          press.current = { x: e.clientX, y: e.clientY, dragged: false }
+          e.currentTarget.setPointerCapture(e.pointerId)
+          stroke('down', e)
+        }}
+        onPointerMove={(e) => {
+          drag(e)
+          hoverAt(e)
+        }}
+        onPointerUp={release}
+        onPointerLeave={() => setHover(null)}
+        onDoubleClick={() => !onStroke && setView(WHOLE)}
+        onContextMenu={
+          onContext
+            ? (e) => {
+                e.preventDefault()
+                setHover(null) // the card takes the hover box's place
+                const near = nearest(e, (d) => d.enemy)
+                if (near) onContext(near.id, e.clientX, e.clientY)
+              }
+            : onPick &&
+              ((e) => {
+                e.preventDefault()
+                onPick('')
+                onPickEnemy?.('', false)
+              })
+        }
+      />
+      {hover && hovered && (
+        <TipBox x={hover.x} y={hover.y - 6} head={hovered.head}>
+          {hovered.text}
+        </TipBox>
+      )}
+    </>
   )
 }
 

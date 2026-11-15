@@ -39,6 +39,15 @@ func (s *Spells) Info(ctx context.Context, name string) (models.SpellInfo, error
 	if id == 0 {
 		return models.SpellInfo{}, ErrUnknownSpell
 	}
+	info, err := s.ByID(ctx, id)
+	if err != nil {
+		return models.SpellInfo{}, fmt.Errorf("%s: %w", name, err)
+	}
+	return info, nil
+}
+
+// ByID is what the spell does and its cooldown, by its ID (a mob's spell from the reference file).
+func (s *Spells) ByID(ctx context.Context, id int) (models.SpellInfo, error) {
 	s.mu.Lock()
 	at, bad := s.failed[id]
 	s.mu.Unlock()
@@ -53,7 +62,7 @@ func (s *Spells) Info(ctx context.Context, name string) (models.SpellInfo, error
 		}
 		s.failed[id] = time.Now()
 		s.mu.Unlock()
-		return models.SpellInfo{}, fmt.Errorf("reading spell %d (%s): %w", id, name, err)
+		return models.SpellInfo{}, fmt.Errorf("reading spell %d: %w", id, err)
 	}
 	return info, nil
 }

@@ -82,8 +82,8 @@ var (
 	cloneField = regexp.MustCompile(`^        \["(x|y|g|sublevel)"\] = (-?[\d.]+),?$`)
 )
 
-// Parse reads one dungeon file: its name, index, map ID and forces total, then each mob (name, id, count, isBoss),
-// the flags of the spells in its "spells" block and its clones. A file that isn't a dungeon has MapID 0.
+// Parse reads one dungeon file: its name, index, map ID and forces total, then each mob (name, id, count, isBoss and
+// the IDs in its "spells" block), the flags of those spells and its clones. A file that isn't a dungeon has MapID 0.
 func Parse(lua string) models.MDTDungeon {
 	d := models.MDTDungeon{Mobs: map[int]models.MDTMob{}, Spells: map[int]models.MDTSpell{}}
 	if m := englishName.FindStringSubmatch(lua); m != nil {
@@ -136,6 +136,7 @@ func Parse(lua string) models.MDTDungeon {
 		case inSpells && spellStart.MatchString(line):
 			spell, _ = strconv.Atoi(spellStart.FindStringSubmatch(line)[1])
 			d.Spells[spell] = d.Spells[spell]
+			mob.Spells = append(mob.Spells, spell)
 		}
 		m := field.FindStringSubmatch(line)
 		if m == nil {

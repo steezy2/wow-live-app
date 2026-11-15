@@ -1717,6 +1717,23 @@ button.link {
   gap: var(--s1);
 }
 
+/* The route map's draw tools (DrawTools.tsx): while one is on, a press draws and a drag doesn't move the map. */
+.draw-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s1);
+}
+
+.draw-tools .route-swatch {
+  height: 1.4rem;
+}
+
+.map-canvas.drawing,
+.replay .map-canvas.drawing {
+  cursor: crosshair;
+}
+
 button.route-swatch {
   padding: 0;
   border: 2px solid transparent;
@@ -1724,6 +1741,78 @@ button.route-swatch {
 
 button.route-swatch[aria-pressed='true'] {
   border-color: var(--text);
+}
+
+/* A pull row's mobs ("3× Name") and their health, under its numbers. */
+.route-mobs {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--s2);
+  text-align: left;
+}
+
+.route-level input {
+  width: 3.5rem;
+  margin-left: 2px;
+}
+
+/* A mob's card and a pull row's menu (MobMenu.tsx), fixed where the right click was. */
+.context-menu {
+  position: fixed;
+  z-index: 20;
+  display: grid;
+  gap: var(--s1);
+  box-sizing: border-box;
+  width: max-content;
+  max-width: 300px;
+  overflow: auto;
+  padding: var(--s2) var(--s3);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 0.35);
+}
+
+.context-menu h3,
+.context-menu p {
+  margin: 0;
+}
+
+.mob-facts {
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 0 var(--s3);
+  margin: 0;
+}
+
+.mob-facts dd {
+  margin: 0;
+  text-align: right;
+}
+
+.mob-badges,
+.mob-spells li,
+.pull-colors,
+.menu-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s1);
+}
+
+.pull-colors .route-swatch {
+  height: 1.4rem;
+}
+
+.mob-spells {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.tag.good {
+  border-color: var(--good);
 }
 
 /* The full review page's filters over the events feed. */

@@ -8,6 +8,10 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/fxamacker/cbor/v2"
+
+	"wow-live/backend/models"
 )
 
 // ownersRoute is the owner's Murder Row route (MDT dungeon 160), exported from the game.
@@ -94,4 +98,93 @@ func TestDecodeRouteRefuses(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestRouteDrawings reads the preset objects as the owner's saved routes have them (coordinates as strings): the shown
+// lines (an arrow too) and note pins, leaving the rest in Raw, and writes them back before Raw's.
+func TestRouteDrawings(t *testing.T) {
+	s := func(v string) []byte { return []byte(v) }
+	k := func(name string) cbor.ByteString { return cbor.ByteString(name) }
+	line := map[any]any{k("d"): []any{uint64(10), 1.1, uint64(1), true, s("fcfbff"), int64(-8), true},
+		k("l"): []any{s("182.0"), s("-326.3"), s("185.1"), s("-328.0"), s("185.1"), s("-328.0"), s("187.9"), s("-330.6")}}
+	arrow := map[any]any{k("d"): []any{uint64(11), uint64(1), uint64(2), true, s("ff0000")},
+		k("l"): []any{10.5, -20.0, 30.0, -40.5}, k("t"): []any{1.2}}
+	note := map[any]any{k("n"): true, k("d"): []any{s("145.1"), s("-182.1"), uint64(1), true, s("Bloodlust")}}
+	label := map[any]any{k("n"): true, k("tx"): true, k("d"): []any{s("1.0"), s("-2.0"), uint64(1), true, s("Go")}}
+	undone := map[any]any{k("d"): []any{uint64(2), 1.1, uint64(1), false, s("fcfbff")},
+		k("l"): []any{1.0, -1.0, 2.0, -2.0}}
+	broken := map[any]any{k("d"): []any{uint64(2), 1.1, uint64(1), true, s("fcfbff")},
+		k("l"): []any{1.0, -1.0, 2.0, -2.0, 5.0, -5.0, 6.0, -6.0}}
+	raw, err := encodeTree(map[any]any{k("uid"): s("abc"), k("text"): s("Drawn"),
+		k("objects"): []any{line, label, arrow, undone, note, broken},
+		k("value"):   map[any]any{k("currentDungeonIdx"): uint64(160), k("pulls"): []any{}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	code, err := EncodeRoute(models.MDTPreset{Raw: raw})
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, err := DecodeRoute(code)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []models.MDTDrawing{
+		{Sublevel: 1, Color: "fcfbff", Points: [][2]float64{{182, -326.3}, {185.1, -328}, {187.9, -330.6}}},
+		{Sublevel: 2, Color: "ff0000", Points: [][2]float64{{10.5, -20}, {30, -40.5}}},
+		{Sublevel: 1, Note: true, Points: [][2]float64{{145.1, -182.1}}, Text: "Bloodlust"},
+	}
+	if len(p.Drawings) != len(want) {
+		t.Fatalf("drawings = %+v; want %+v", p.Drawings, want)
+	}
+	for i := range want {
+		if got := p.Drawings[i]; got.Raw == nil || !reflect.DeepEqual(withoutRaw(got), want[i]) {
+			t.Errorf("drawing %d = %+v; want %+v with its Raw", i, got, want[i])
+		}
+	}
+	if left := list(get(mustTop(t, p.Raw), "objects")); len(left) != 3 {
+		t.Fatalf("Raw keeps %d objects; want the label, the undone line and the broken one", len(left))
+	}
+
+	made := models.MDTDrawing{Sublevel: 1, Note: true, Points: [][2]float64{{1, -1}}, Text: "Kick"}
+	marker := models.MDTDrawing{Sublevel: 1, Note: true, Points: [][2]float64{{3.25, -4}}}
+	drawn := models.MDTDrawing{Sublevel: 1, Color: "3eff3e", Points: [][2]float64{{1, -1}, {2.5, -3}, {4, -5}}}
+	p.Drawings = append([]models.MDTDrawing{made, marker, drawn}, p.Drawings...)
+	if code, err = EncodeRoute(p); err != nil {
+		t.Fatal(err)
+	}
+	again, err := DecodeRoute(code)
+	if err != nil {
+		t.Fatal(err)
+	}
+	marker.Points = [][2]float64{{3.2, -4}} // written to a tenth, like MDT's own
+	wantAgain := append([]models.MDTDrawing{made, marker, drawn}, want...)
+	got := make([]models.MDTDrawing, len(again.Drawings))
+	for i, d := range again.Drawings {
+		got[i] = withoutRaw(d)
+	}
+	if !reflect.DeepEqual(got, wantAgain) {
+		t.Fatalf("written back = %+v\nwant %+v", got, wantAgain)
+	}
+	if !reflect.DeepEqual(again.Drawings[3:], p.Drawings[3:]) || !reflect.DeepEqual(again.Raw, p.Raw) {
+		t.Error("MDT's own drawings and the rest of the preset changed on the way back")
+	}
+}
+
+func withoutRaw(d models.MDTDrawing) models.MDTDrawing {
+	d.Raw = nil
+	return d
+}
+
+func mustTop(t *testing.T, raw []byte) map[any]any {
+	t.Helper()
+	tree, err := decodeTree(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	top, _, err := preset(tree)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return top
 }

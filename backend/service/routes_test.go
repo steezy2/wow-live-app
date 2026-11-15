@@ -2,6 +2,8 @@ package service
 
 import (
 	"errors"
+	"fmt"
+	"math"
 	"reflect"
 	"slices"
 	"strings"
@@ -16,14 +18,18 @@ import (
 const voidscar = 585
 
 // newRoutes is Routes on a temp folder over a dungeon with four enemies of NPC 100, 100 yards apart, worth 10, 10, 20
-// and 5 of 100 forces, and a clock that moves on a second each time it's read.
+// and 5 of 100 forces, on floor 2000 (log x 0 to 400, y -100 to 0), and a clock that moves on a second each time it's
+// read.
 func newRoutes(t *testing.T) *Routes {
 	t.Helper()
 	now := time.Unix(1000, 0)
+	// Its x bounds run backwards, as Keystone.guru's often do.
+	floor := models.DungeonFloor{RaidMap: models.RaidMap{UIMapID: 2000, MinX: 100, MaxX: 0, MinY: 0, MaxY: 400}}
 	facts := map[int]models.DungeonFacts{
-		voidscar: {MDTIndex: 163, Forces: models.Forces{Total: 100}, Enemies: []models.RouteEnemy{
-			{Index: 1, Clone: 1, NPC: 100, Count: 10}, {Index: 1, Clone: 2, NPC: 100, X: 100, Count: 10},
-			{Index: 2, Clone: 1, NPC: 100, X: 200, Count: 20}, {Index: 3, Clone: 1, NPC: 100, X: 300, Count: 5}}},
+		voidscar: {MDTIndex: 163, Forces: models.Forces{Total: 100}, Floors: []models.DungeonFloor{floor},
+			Enemies: []models.RouteEnemy{
+				{Index: 1, Clone: 1, NPC: 100, Count: 10}, {Index: 1, Clone: 2, NPC: 100, X: 100, Count: 10},
+				{Index: 2, Clone: 1, NPC: 100, X: 200, Count: 20}, {Index: 3, Clone: 1, NPC: 100, X: 300, Count: 5}}},
 		586: {MDTIndex: 161},
 	}
 	return &Routes{Store: routestore.Store{Dir: t.TempDir()}, Facts: facts, Decode: mdt.DecodeRoute, Encode: mdt.EncodeRoute,
@@ -211,15 +217,89 @@ func TestUpdateRouteValidates(t *testing.T) {
 		{"name too long", strings.Repeat("x", 61), nil, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			_, err := r.Update("abc", tc.route, tc.pulls)
+			_, err := r.Update("abc", models.RouteUpdate{Name: tc.route, Pulls: tc.pulls})
 			if tc.wantOK != (err == nil) || (err != nil && !errors.Is(err, ErrInvalidRoute)) {
 				t.Fatalf("err = %v, want ok %v", err, tc.wantOK)
 			}
 		})
 	}
-	if _, err := r.Update("nope", "Fine", nil); !errors.Is(err, ErrNoSuchRoute) {
+	if _, err := r.Update("nope", models.RouteUpdate{Name: "Fine"}); !errors.Is(err, ErrNoSuchRoute) {
 		t.Fatalf("update of an unknown route: %v", err)
 	}
+}
+
+func TestUpdateRouteDrawings(t *testing.T) {
+	r := newRoutes(t)
+	if _, err := r.ImportPreset(preset("abc", 163)); err != nil {
+		t.Fatal(err)
+	}
+	line := models.Drawing{ID: "a1", Map: 2000, Kind: models.DrawLine, Color: "ff3eff",
+		Points: [][2]float64{{10, -10}, {390, -90}}}
+	with := func(change func(*models.Drawing)) []models.Drawing {
+		d := line
+		d.Points = slices.Clone(line.Points)
+		change(&d)
+		return []models.Drawing{d}
+	}
+	many := func(n int) []models.Drawing {
+		out := make([]models.Drawing, n)
+		for i := range out {
+			out[i] = line
+			out[i].ID = fmt.Sprint("d", i)
+		}
+		return out
+	}
+	point := [][2]float64{{50, -50}}
+	for _, tc := range []struct {
+		name     string
+		drawings []models.Drawing
+		wantOK   bool
+	}{
+		{"a line", with(func(*models.Drawing) {}), true},
+		{"a marker", with(func(d *models.Drawing) { d.Kind, d.Points = models.DrawMarker, point }), true},
+		{"a note", with(func(d *models.Drawing) { d.Kind, d.Points, d.Text = models.DrawNote, point, "Lust" }), true},
+		{"bad kind", with(func(d *models.Drawing) { d.Kind = "circle" }), false},
+		{"bad color", with(func(d *models.Drawing) { d.Color = "red" }), false},
+		{"bad id", with(func(d *models.Drawing) { d.ID = "../x" }), false},
+		{"repeated id", append(with(func(*models.Drawing) {}), line), false},
+		{"NaN", with(func(d *models.Drawing) { d.Points[0][0] = math.NaN() }), false},
+		{"infinite", with(func(d *models.Drawing) { d.Points[1][1] = math.Inf(-1) }), false},
+		{"off the floor", with(func(d *models.Drawing) { d.Points[1] = [2]float64{410, -50} }), false},
+		{"unknown floor", with(func(d *models.Drawing) { d.Map = 2001 }), false},
+		{"line of one point", with(func(d *models.Drawing) { d.Points = point }), false},
+		{"line of too many points", with(func(d *models.Drawing) {
+			d.Points = slices.Repeat(point, drawingLimits.LinePoints+1)
+		}), false},
+		{"marker of two points", with(func(d *models.Drawing) { d.Kind = models.DrawMarker }), false},
+		{"note without text", with(func(d *models.Drawing) { d.Kind, d.Points, d.Text = models.DrawNote, point, " " }),
+			false},
+		{"long note", with(func(d *models.Drawing) {
+			d.Kind, d.Points, d.Text = models.DrawNote, point, strings.Repeat("é", drawingLimits.NoteText+1)
+		}), false},
+		{"text on a line", with(func(d *models.Drawing) { d.Text = "hi" }), false},
+		{"the most drawings", many(drawingLimits.Drawings), true},
+		{"too many drawings", many(drawingLimits.Drawings + 1), false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := r.Update("abc", models.RouteUpdate{Name: "Fine", Drawings: tc.drawings})
+			if tc.wantOK != (err == nil) || (err != nil && !errors.Is(err, ErrInvalidRoute)) {
+				t.Fatalf("err = %v, want ok %v", err, tc.wantOK)
+			}
+		})
+	}
+	t.Run("saved drawings come back with the route, not in the list", func(t *testing.T) {
+		if _, err := r.Update("abc", models.RouteUpdate{Name: "Fine", Drawings: []models.Drawing{line}}); err != nil {
+			t.Fatal(err)
+		}
+		view, err := r.Get("abc")
+		if err != nil || !reflect.DeepEqual(view.Drawings, []models.Drawing{line}) || view.Limits != drawingLimits {
+			t.Fatalf("view = %+v, %v; want the line and the limits", view, err)
+		}
+		list, _ := r.List(voidscar)
+		if len(list) != 1 || list[0].Drawings != nil {
+			t.Fatalf("list = %+v; want no drawings", list)
+		}
+	})
 }
 
 func TestRouteViewForces(t *testing.T) {
@@ -232,7 +312,7 @@ func TestRouteViewForces(t *testing.T) {
 		{Color: "ff3eff"},
 		{Color: "ff3eff", Enemies: []models.EnemyRef{{Index: 2, Clone: 1}}},
 	}
-	view, err := r.Update("abc", "Fine", pulls)
+	view, err := r.Update("abc", models.RouteUpdate{Name: "Fine", Pulls: pulls})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -261,7 +341,7 @@ func TestExportRoute(t *testing.T) {
 		t.Fatal(err)
 	}
 	pull := models.RoutePull{Color: "ff3eff", Enemies: []models.EnemyRef{{Index: 1, Clone: 2}, {Index: 1, Clone: 1}}}
-	if _, err := r.Update(view.ID, "Fresh", []models.RoutePull{pull}); err != nil {
+	if _, err := r.Update(view.ID, models.RouteUpdate{Name: "Fresh", Pulls: []models.RoutePull{pull}}); err != nil {
 		t.Fatal(err)
 	}
 	code, err := r.Export(view.ID)
@@ -300,5 +380,124 @@ func TestSavedRoutes(t *testing.T) {
 	}
 	if _, err := r.ImportSaved("nope"); !errors.Is(err, ErrNoSuchRoute) {
 		t.Fatalf("ImportSaved(nope) = %v; want ErrNoSuchRoute", err)
+	}
+}
+
+// altar is Altar of Fangs' first floor with its plane on MDT's map, as the reference has them.
+var altar = models.DungeonFloor{RaidMap: models.RaidMap{UIMapID: 2588, MinX: -1662.5, MaxX: -2552.08, MinY: 1414.58,
+	MaxY: 2008.33}, MDT: &models.MDTPlane{Sublevel: 1, Scale: 0.480366, X: 124.045, Y: 0.024,
+	Box: [4]float64{58.5, -429.4, 207, -100.5}}}
+
+// withPlanes is newRoutes with floor 2000 on all of MDT's sublevel 1 at half scale, and altar beside it on sublevel 3.
+func withPlanes(t *testing.T) *Routes {
+	t.Helper()
+	r := newRoutes(t)
+	f := r.Facts[voidscar]
+	f.Floors[0].MDT = &models.MDTPlane{Sublevel: 1, Scale: 0.5, Box: [4]float64{0, -555, 840, 0}}
+	a := altar
+	plane := *altar.MDT
+	plane.Sublevel = 3
+	a.MDT = &plane
+	f.Floors = append(f.Floors, a)
+	r.Facts[voidscar] = f
+	return r
+}
+
+func TestMDTPlaneYards(t *testing.T) {
+	// Two of Altar of Fangs' enemies: where Mythic Dungeon Tools has them and where the reference does, in yards.
+	r := withPlanes(t)
+	for _, tc := range []struct{ mdt, yards [2]float64 }{
+		{[2]float64{65.5, -205.5}, [2]float64{1779.4, 2191.8}},
+		{[2]float64{201.1, -204.8}, [2]float64{1780.2, 2040.9}},
+	} {
+		got, kept := r.importDrawings(voidscar, []models.MDTDrawing{{Sublevel: 3, Note: true, Points: [][2]float64{tc.mdt}}})
+		if len(kept) > 0 || len(got) != 1 || got[0].Map != 2588 || got[0].Points[0] != tc.yards {
+			t.Errorf("MDT %v = %+v (kept %v); want a marker on 2588 at %v", tc.mdt, got, kept, tc.yards)
+		}
+		back := r.exportDrawings(models.Route{MapID: voidscar, Drawings: []models.Drawing{{Map: 2588,
+			Kind: models.DrawMarker, Points: [][2]float64{tc.yards}}}})
+		if p := back[0].Points[0]; back[0].Sublevel != 3 || math.Abs(p[0]-tc.mdt[0]) > 0.1 || math.Abs(p[1]-tc.mdt[1]) > 0.1 {
+			t.Errorf("yards %v = MDT %+v; want sublevel 3 at %v", tc.yards, back[0], tc.mdt)
+		}
+	}
+}
+
+func TestMDTObjectsRoundTrip(t *testing.T) {
+	r := withPlanes(t)
+	foreign := models.MDTDrawing{Sublevel: 2, Color: "ff0000", Points: [][2]float64{{1, -1}, {2, -2}}}
+	code, err := mdt.EncodeRoute(models.MDTPreset{UID: "abc", DungeonIdx: 163, Drawings: []models.MDTDrawing{foreign}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if view, err := r.Import(code); err != nil || view.DroppedDrawings != 1 {
+		t.Fatalf("import = %+v, %v; want MDT's sublevel 2 line dropped", view, err)
+	}
+	drawings := []models.Drawing{
+		{ID: "a", Map: 2000, Kind: models.DrawLine, Color: "ff3eff", Points: [][2]float64{{10.5, -10}, {390, -90.2}}},
+		{ID: "b", Map: 2000, Kind: models.DrawNote, Color: "ffffff", Points: [][2]float64{{200, -50}}, Text: "Lust"},
+		{ID: "c", Map: 2588, Kind: models.DrawMarker, Color: "ffffff", Points: [][2]float64{{1779.4, 2191.8}}},
+	}
+	if _, err := r.Update("abc", models.RouteUpdate{Name: "Drawn", Drawings: drawings}); err != nil {
+		t.Fatal(err)
+	}
+	if code, err = r.Export("abc"); err != nil {
+		t.Fatal(err)
+	}
+	exported, err := mdt.DecodeRoute(code)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if last := exported.Drawings[len(exported.Drawings)-1]; len(exported.Drawings) != 4 || last.Raw == nil ||
+		last.Sublevel != 2 {
+		t.Fatalf("exported drawings = %+v; want the 3 drawn and MDT's own line last", exported.Drawings)
+	}
+	view, err := r.Import(code)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i := range view.Drawings {
+		view.Drawings[i].ID = drawings[i].ID // an import names them anew
+	}
+	if !reflect.DeepEqual(view.Drawings, drawings) || view.DroppedDrawings != 1 {
+		t.Fatalf("imported again = %+v, %d dropped\nwant %+v, 1", view.Drawings, view.DroppedDrawings, drawings)
+	}
+}
+
+func TestImportDrawingsDrops(t *testing.T) {
+	line := func(sublevel int, color string, points ...[2]float64) models.MDTDrawing {
+		return models.MDTDrawing{Sublevel: sublevel, Color: color, Points: points}
+	}
+	note := func(text string) models.MDTDrawing {
+		return models.MDTDrawing{Sublevel: 1, Note: true, Points: [][2]float64{{100, -100}}, Text: text}
+	}
+	many := slices.Repeat([]models.MDTDrawing{note("x")}, drawingLimits.Drawings+2)
+	for _, tc := range []struct {
+		name      string
+		drawings  []models.MDTDrawing
+		kinds     []string
+		droppedOf int
+	}{
+		{"a line, a note and a pin without text", []models.MDTDrawing{line(1, "fcfbff", [2]float64{0, 0},
+			[2]float64{10, -10}), note("Kick"), note(" ")}, []string{"line", "note", "marker"}, 0},
+		{"a sublevel no floor is on", []models.MDTDrawing{line(2, "fcfbff", [2]float64{0, 0}, [2]float64{1, -1})}, nil, 1},
+		{"a point off the floor", []models.MDTDrawing{line(1, "fcfbff", [2]float64{0, 0}, [2]float64{0, -900})}, nil, 1},
+		{"a bad color", []models.MDTDrawing{line(1, "white", [2]float64{0, 0}, [2]float64{1, -1})}, nil, 1},
+		{"a long note", []models.MDTDrawing{note(strings.Repeat("x", drawingLimits.NoteText+1))}, nil, 1},
+		{"past the most drawings", many, slices.Repeat([]string{"note"}, drawingLimits.Drawings), 2},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			r := withPlanes(t)
+			view, err := r.ImportPreset(models.MDTPreset{UID: "abc", DungeonIdx: 163, Drawings: tc.drawings})
+			if err != nil {
+				t.Fatal(err)
+			}
+			var kinds []string
+			for _, d := range view.Drawings {
+				kinds = append(kinds, d.Kind)
+			}
+			if !slices.Equal(kinds, tc.kinds) || view.DroppedDrawings != tc.droppedOf {
+				t.Fatalf("kinds = %v, %d dropped; want %v, %d", kinds, view.DroppedDrawings, tc.kinds, tc.droppedOf)
+			}
+		})
 	}
 }

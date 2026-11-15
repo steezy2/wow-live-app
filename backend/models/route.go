@@ -20,16 +20,51 @@ type RoutePull struct {
 	Enemies []EnemyRef `json:"enemies,omitempty"` // left out of the route list
 }
 
+// The kinds of drawing on a route's map.
+const (
+	DrawLine   = "line"
+	DrawMarker = "marker"
+	DrawNote   = "note"
+)
+
+// Drawing is something drawn on a route's floor Map (its UIMapID): a freehand line through its points, or a marker or
+// a note (its Text) at its one point. Points are in log yards as (x, y) like RouteEnemy's; Color is 6 hex digits.
+type Drawing struct {
+	ID     string       `json:"id"`
+	Map    int          `json:"map"`
+	Kind   string       `json:"kind" enums:"line,marker,note"`
+	Color  string       `json:"color"`
+	Points [][2]float64 `json:"points"`
+	Text   string       `json:"text,omitempty"`
+}
+
+// DrawingLimits are the most drawings a route has, characters a note has and points a line has.
+type DrawingLimits struct {
+	Drawings   int `json:"drawings"`
+	NoteText   int `json:"noteText"`
+	LinePoints int `json:"linePoints"`
+}
+
+// RouteUpdate is what replaces a route's name, pulls and drawings.
+type RouteUpdate struct {
+	Name     string      `json:"name"`
+	Pulls    []RoutePull `json:"pulls"`
+	Drawings []Drawing   `json:"drawings"`
+}
+
 // Route is a planned route through a dungeon, as kept in its file. MDT is the Mythic Dungeon Tools preset it came
-// from (CBOR), kept so an export still carries what the app doesn't edit; empty for a route made in the app.
+// from (CBOR, MDTPreset.Raw), and MDTDrawings the preset's drawings the import couldn't take, both kept so an export
+// still carries what the app doesn't edit; empty for a route made in the app.
 type Route struct {
-	ID      string      `json:"id"` // the preset's uid when it has one
-	Name    string      `json:"name"`
-	MapID   int         `json:"mapID"`
-	Starred bool        `json:"starred"` // the dungeon's route the live page and key comparison use
-	Pulls   []RoutePull `json:"pulls"`
-	MDT     []byte      `json:"mdt,omitempty"`
-	Updated int64       `json:"updated"` // ms since the epoch
+	ID          string       `json:"id"` // the preset's uid when it has one
+	Name        string       `json:"name"`
+	MapID       int          `json:"mapID"`
+	Starred     bool         `json:"starred"` // the dungeon's route the live page and key comparison use
+	Pulls       []RoutePull  `json:"pulls"`
+	Drawings    []Drawing    `json:"drawings,omitempty"` // absent in a route saved before drawings
+	MDT         []byte       `json:"mdt,omitempty"`
+	MDTDrawings []MDTDrawing `json:"mdtDrawings,omitempty"`
+	Updated     int64        `json:"updated"` // ms since the epoch
 }
 
 // RoutePullView is a route's pull with its forces: what its enemies give, the running total to it, and both as a
@@ -42,17 +77,21 @@ type RoutePullView struct {
 	TotalPct float64 `json:"totalPct"`
 }
 
-// RouteView is what the routes endpoints return: the route without its MDT preset, its pulls' forces, and the whole
-// route's forces percent.
+// RouteView is what the routes endpoints return: the route without its MDT preset, its pulls' forces, the whole
+// route's forces percent, its drawings and the limits on them.
 type RouteView struct {
 	ID       string          `json:"id"`
 	Name     string          `json:"name"`
 	MapID    int             `json:"mapID"`
 	Starred  bool            `json:"starred"`
 	Pulls    []RoutePullView `json:"pulls"`
+	Drawings []Drawing       `json:"drawings,omitempty"` // left out of the route list
+	Limits   DrawingLimits   `json:"limits"`
 	TotalPct float64         `json:"totalPct"`
 	Updated  int64           `json:"updated"`
 	Dropped  int             `json:"dropped,omitempty"` // an import's enemies that Mythic Dungeon Tools knows and this map doesn't
+	// DroppedDrawings counts an import's drawings the app can't show (kept for the export).
+	DroppedDrawings int `json:"droppedDrawings,omitempty"`
 }
 
 // RouteProgress is how a key went along a route: each route pull's progress in the route's order, the route pull the

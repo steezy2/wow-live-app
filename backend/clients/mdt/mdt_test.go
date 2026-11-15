@@ -60,11 +60,12 @@ MDT.dungeonEnemies[dungeonIndex] = {
   },
 };`
 
-func TestParseReadsForcesMobsAndSpellFlags(t *testing.T) {
+func TestParseReadsForcesMobsTheirSpellsAndSpellFlags(t *testing.T) {
 	got := Parse(fixture)
 	got.Clones = nil // TestParseKeepsClones
 	want := models.MDTDungeon{Name: "Den of Nalorakk", Index: 161, MapID: 586, Total: 729,
-		Mobs: map[int]models.MDTMob{241812: {Name: "The Hoardmonger", Boss: true}, 241814: {Name: "Earthwhisper Tender", Count: 7}},
+		Mobs: map[int]models.MDTMob{241812: {Name: "The Hoardmonger", Boss: true},
+			241814: {Name: "Earthwhisper Tender", Count: 7, Spells: []int{1241214, 1297696, 1238760}}},
 		Spells: map[int]models.MDTSpell{1241214: {Interruptible: true}, 1297696: {Interruptible: true, Magic: true},
 			1238760: {}}}
 	if !reflect.DeepEqual(got, want) {

@@ -59,15 +59,6 @@ definitions:
       name:
         type: string
     type: object
-  controller.RouteUpdate:
-    properties:
-      name:
-        type: string
-      pulls:
-        items:
-          $ref: '#/definitions/models.RoutePull'
-        type: array
-    type: object
   models.AbilitySeries:
     properties:
       a:
@@ -216,12 +207,51 @@ definitions:
       secret:
         type: string
     type: object
+  models.Drawing:
+    properties:
+      color:
+        type: string
+      id:
+        type: string
+      kind:
+        enum:
+        - line
+        - marker
+        - note
+        type: string
+      map:
+        type: integer
+      points:
+        items:
+          items:
+            format: float64
+            type: number
+          type: array
+        type: array
+      text:
+        type: string
+    type: object
+  models.DrawingLimits:
+    properties:
+      drawings:
+        type: integer
+      linePoints:
+        type: integer
+      noteText:
+        type: integer
+    type: object
   models.DungeonFloor:
     properties:
       maxX:
         type: number
       maxY:
         type: number
+      mdt:
+        allOf:
+        - $ref: '#/definitions/models.MDTPlane'
+        description: |-
+          MDT is where the floor is drawn on Mythic Dungeon Tools' map; absent when its enemies there fit none, or in a
+          file written before drawings went to MDT.
       minX:
         type: number
       minY:
@@ -242,12 +272,62 @@ definitions:
         items:
           $ref: '#/definitions/models.DungeonFloor'
         type: array
+      patrols:
+        description: none for a reference file written before patrols
+        items:
+          $ref: '#/definitions/models.Patrol'
+        type: array
       tilesPerSide:
         description: tiles a floor is wide and tall
         type: integer
       walked:
         items:
           $ref: '#/definitions/models.TrackPoint'
+        type: array
+    type: object
+  models.DungeonMob:
+    properties:
+      aggressiveness:
+        description: '"aggressive", "unfriendly", "neutral", "awakened"'
+        type: string
+      boss:
+        type: boolean
+      class:
+        description: '"Elite", "Boss"'
+        type: string
+      flags:
+        items:
+          type: string
+        type: array
+      health:
+        type: integer
+      level:
+        type: integer
+      name:
+        type: string
+      npc:
+        type: integer
+      spells:
+        items:
+          $ref: '#/definitions/models.MobSpell'
+        type: array
+      type:
+        description: '"Humanoid"'
+        type: string
+    type: object
+  models.DungeonMobs:
+    properties:
+      damageMult:
+        type: number
+      defaultLevel:
+        type: integer
+      healthMult:
+        type: number
+      level:
+        type: integer
+      mobs:
+        items:
+          $ref: '#/definitions/models.DungeonMob'
         type: array
     type: object
   models.EnemyRef:
@@ -1155,6 +1235,21 @@ definitions:
         description: 'last written (Unix ms; an import: its fight''s end)'
         type: integer
     type: object
+  models.MDTPlane:
+    properties:
+      box:
+        items:
+          type: number
+        type: array
+      scale:
+        type: number
+      sublevel:
+        type: integer
+      x:
+        type: number
+      "y":
+        type: number
+    type: object
   models.MassKill:
     properties:
       ability:
@@ -1183,6 +1278,15 @@ definitions:
       tk:
         description: damage taken so far; 0 in keys saved before Nov 8
         type: integer
+    type: object
+  models.MobSpell:
+    properties:
+      id:
+        type: integer
+      interruptible:
+        type: boolean
+      magic:
+        type: boolean
     type: object
   models.MobTrail:
     properties:
@@ -1236,6 +1340,26 @@ definitions:
         - always
         - "off"
         type: string
+    type: object
+  models.Patrol:
+    properties:
+      color:
+        type: string
+      enemies:
+        items:
+          $ref: '#/definitions/models.EnemyRef'
+        type: array
+      loop:
+        type: boolean
+      map:
+        type: integer
+      points:
+        items:
+          items:
+            format: float64
+            type: number
+          type: array
+        type: array
     type: object
   models.PlayerCompare:
     properties:
@@ -2290,14 +2414,38 @@ definitions:
       totalPct:
         type: number
     type: object
+  models.RouteUpdate:
+    properties:
+      drawings:
+        items:
+          $ref: '#/definitions/models.Drawing'
+        type: array
+      name:
+        type: string
+      pulls:
+        items:
+          $ref: '#/definitions/models.RoutePull'
+        type: array
+    type: object
   models.RouteView:
     properties:
+      drawings:
+        description: left out of the route list
+        items:
+          $ref: '#/definitions/models.Drawing'
+        type: array
       dropped:
         description: an import's enemies that Mythic Dungeon Tools knows and this
           map doesn't
         type: integer
+      droppedDrawings:
+        description: DroppedDrawings counts an import's drawings the app can't show
+          (kept for the export).
+        type: integer
       id:
         type: string
+      limits:
+        $ref: '#/definitions/models.DrawingLimits'
       mapID:
         type: integer
       name:
@@ -2596,8 +2744,40 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/controller.ErrorResponse'
-      summary: 'A dungeon''s map: its floors with Keystone.guru tiles, and where parties
-        have walked in its saved runs'
+      summary: 'A dungeon''s map: its floors with Keystone.guru tiles, where parties
+        have walked in its saved runs, its enemies and its patrols'
+      tags:
+      - mplus
+  /api/mplus/dungeons/{mapID}/mobs:
+    get:
+      description: |-
+        Each NPC's name, type, class, flags and spells (Mythic Dungeon Tools, Keystone.guru) and its health
+        at the level, as Keystone.guru scales it: 7% a level through +10 and 10% a level after, Fortified
+        on trash and Tyrannical on bosses from +10, trash 5% lower up to +5. No source has a mob's own
+        damage: damageMult is the level's multiplier over +1. The level defaults to the owner's newest saved
+        key in the dungeon, else 10. No mobs for a reference file written before they were kept.
+      parameters:
+      - description: the dungeon's map ID (challenge mode ID)
+        in: path
+        name: mapID
+        required: true
+        type: integer
+      - description: the key level, 2 to 40
+        in: query
+        name: level
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.DungeonMobs'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+      summary: A dungeon's mobs at a key level, for the route editor
       tags:
       - mplus
   /api/mplus/events:
@@ -3007,7 +3187,8 @@ paths:
       - application/json
       description: |-
         The string's uid becomes the route's id, so importing it again replaces that route. The reply's
-        dropped counts the enemies the string pulls that the dungeon's map doesn't have.
+        dropped counts the enemies the string pulls that the dungeon's map doesn't have, droppedDrawings its
+        drawings the app can't show (an export still carries them).
       parameters:
       - description: code, mdtUID, or mapID and name
         in: body
@@ -3098,19 +3279,21 @@ paths:
       - application/json
       description: |-
         Every enemy must be on the dungeon's map and in one pull at most; a route has at most 60 pulls and
-        a name of up to 60 characters.
+        a name of up to 60 characters. Drawings (left out: none) keep to the route's limits: a line of 2
+        points or more, a marker or a note at one point, 6 hex digit colors, text on notes only, every point
+        on one of the dungeon's floors.
       parameters:
       - description: the route's id
         in: path
         name: id
         required: true
         type: string
-      - description: name and pulls
+      - description: name, pulls and drawings
         in: body
         name: route
         required: true
         schema:
-          $ref: '#/definitions/controller.RouteUpdate'
+          $ref: '#/definitions/models.RouteUpdate'
       produces:
       - application/json
       responses:
@@ -3130,11 +3313,13 @@ paths:
           description: Internal Server Error
           schema:
             $ref: '#/definitions/controller.ErrorResponse'
-      summary: Replace a route's name and pulls
+      summary: Replace a route's name, pulls and drawings
       tags:
       - mplus
   /api/mplus/routes/{id}/export:
     get:
+      description: Its drawings go on MDT's map, except those on a floor the reference
+        doesn't place there.
       parameters:
       - description: the route's id
         in: path
@@ -3946,15 +4131,19 @@ paths:
   /api/spells:
     get:
       description: |-
-        The ability's description and cooldown, from Wowhead's tooltip for the spell ID the combat log gave
-        its name (cached a week). 404 for an ability the log hasn't shown since the app started, 502 when
-        Wowhead can't be reached.
+        The ability's description and cooldown, from Wowhead's tooltip (cached a week) for the spell ID
+        given, else for the one the combat log gave its name. 404 for an ability the log hasn't shown since
+        the app started, 502 when Wowhead can't be reached.
       parameters:
-      - description: the ability's name as the combat log shows it
+      - description: the ability's name as the combat log shows it (needed without
+          id)
         in: query
         name: name
-        required: true
         type: string
+      - description: a spell ID (a mob's spell from /api/mplus/dungeons/{mapID}/mobs)
+        in: query
+        name: id
+        type: integer
       produces:
       - application/json
       responses:

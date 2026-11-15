@@ -111,7 +111,7 @@
                 "tags": [
                     "mplus"
                 ],
-                "summary": "A dungeon's map: its floors with Keystone.guru tiles, and where parties have walked in its saved runs",
+                "summary": "A dungeon's map: its floors with Keystone.guru tiles, where parties have walked in its saved runs, its enemies and its patrols",
                 "parameters": [
                     {
                         "type": "integer",
@@ -136,6 +136,47 @@
                     },
                     "500": {
                         "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/mplus/dungeons/{mapID}/mobs": {
+            "get": {
+                "description": "Each NPC's name, type, class, flags and spells (Mythic Dungeon Tools, Keystone.guru) and its health\nat the level, as Keystone.guru scales it: 7% a level through +10 and 10% a level after, Fortified\non trash and Tyrannical on bosses from +10, trash 5% lower up to +5. No source has a mob's own\ndamage: damageMult is the level's multiplier over +1. The level defaults to the owner's newest saved\nkey in the dungeon, else 10. No mobs for a reference file written before they were kept.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "mplus"
+                ],
+                "summary": "A dungeon's mobs at a key level, for the route editor",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "the dungeon's map ID (challenge mode ID)",
+                        "name": "mapID",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "the key level, 2 to 40",
+                        "name": "level",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.DungeonMobs"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
                         "schema": {
                             "$ref": "#/definitions/controller.ErrorResponse"
                         }
@@ -730,7 +771,7 @@
                 }
             },
             "post": {
-                "description": "The string's uid becomes the route's id, so importing it again replaces that route. The reply's\ndropped counts the enemies the string pulls that the dungeon's map doesn't have.",
+                "description": "The string's uid becomes the route's id, so importing it again replaces that route. The reply's\ndropped counts the enemies the string pulls that the dungeon's map doesn't have, droppedDrawings its\ndrawings the app can't show (an export still carries them).",
                 "consumes": [
                     "application/json"
                 ],
@@ -855,7 +896,7 @@
                 }
             },
             "put": {
-                "description": "Every enemy must be on the dungeon's map and in one pull at most; a route has at most 60 pulls and\na name of up to 60 characters.",
+                "description": "Every enemy must be on the dungeon's map and in one pull at most; a route has at most 60 pulls and\na name of up to 60 characters. Drawings (left out: none) keep to the route's limits: a line of 2\npoints or more, a marker or a note at one point, 6 hex digit colors, text on notes only, every point\non one of the dungeon's floors.",
                 "consumes": [
                     "application/json"
                 ],
@@ -865,7 +906,7 @@
                 "tags": [
                     "mplus"
                 ],
-                "summary": "Replace a route's name and pulls",
+                "summary": "Replace a route's name, pulls and drawings",
                 "parameters": [
                     {
                         "type": "string",
@@ -875,12 +916,12 @@
                         "required": true
                     },
                     {
-                        "description": "name and pulls",
+                        "description": "name, pulls and drawings",
                         "name": "route",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/controller.RouteUpdate"
+                            "$ref": "#/definitions/models.RouteUpdate"
                         }
                     }
                 ],
@@ -952,6 +993,7 @@
         },
         "/api/mplus/routes/{id}/export": {
             "get": {
+                "description": "Its drawings go on MDT's map, except those on a floor the reference doesn't place there.",
                 "produces": [
                     "application/json"
                 ],
@@ -2063,7 +2105,7 @@
         },
         "/api/spells": {
             "get": {
-                "description": "The ability's description and cooldown, from Wowhead's tooltip for the spell ID the combat log gave\nits name (cached a week). 404 for an ability the log hasn't shown since the app started, 502 when\nWowhead can't be reached.",
+                "description": "The ability's description and cooldown, from Wowhead's tooltip (cached a week) for the spell ID\ngiven, else for the one the combat log gave its name. 404 for an ability the log hasn't shown since\nthe app started, 502 when Wowhead can't be reached.",
                 "produces": [
                     "application/json"
                 ],
@@ -2074,10 +2116,15 @@
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "the ability's name as the combat log shows it",
+                        "description": "the ability's name as the combat log shows it (needed without id)",
                         "name": "name",
-                        "in": "query",
-                        "required": true
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "a spell ID (a mob's spell from /api/mplus/dungeons/{mapID}/mobs)",
+                        "name": "id",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -2223,20 +2270,6 @@
                 },
                 "name": {
                     "type": "string"
-                }
-            }
-        },
-        "controller.RouteUpdate": {
-            "type": "object",
-            "properties": {
-                "name": {
-                    "type": "string"
-                },
-                "pulls": {
-                    "type": "array",
-                    "items": {
-                        "$ref": "#/definitions/models.RoutePull"
-                    }
                 }
             }
         },
@@ -2461,6 +2494,55 @@
                 }
             }
         },
+        "models.Drawing": {
+            "type": "object",
+            "properties": {
+                "color": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "kind": {
+                    "type": "string",
+                    "enum": [
+                        "line",
+                        "marker",
+                        "note"
+                    ]
+                },
+                "map": {
+                    "type": "integer"
+                },
+                "points": {
+                    "type": "array",
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "type": "number",
+                            "format": "float64"
+                        }
+                    }
+                },
+                "text": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.DrawingLimits": {
+            "type": "object",
+            "properties": {
+                "drawings": {
+                    "type": "integer"
+                },
+                "linePoints": {
+                    "type": "integer"
+                },
+                "noteText": {
+                    "type": "integer"
+                }
+            }
+        },
         "models.DungeonFloor": {
             "type": "object",
             "properties": {
@@ -2469,6 +2551,14 @@
                 },
                 "maxY": {
                     "type": "number"
+                },
+                "mdt": {
+                    "description": "MDT is where the floor is drawn on Mythic Dungeon Tools' map; absent when its enemies there fit none, or in a\nfile written before drawings went to MDT.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.MDTPlane"
+                        }
+                    ]
                 },
                 "minX": {
                     "type": "number"
@@ -2500,6 +2590,13 @@
                         "$ref": "#/definitions/models.DungeonFloor"
                     }
                 },
+                "patrols": {
+                    "description": "none for a reference file written before patrols",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Patrol"
+                    }
+                },
                 "tilesPerSide": {
                     "description": "tiles a floor is wide and tall",
                     "type": "integer"
@@ -2508,6 +2605,73 @@
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/models.TrackPoint"
+                    }
+                }
+            }
+        },
+        "models.DungeonMob": {
+            "type": "object",
+            "properties": {
+                "aggressiveness": {
+                    "description": "\"aggressive\", \"unfriendly\", \"neutral\", \"awakened\"",
+                    "type": "string"
+                },
+                "boss": {
+                    "type": "boolean"
+                },
+                "class": {
+                    "description": "\"Elite\", \"Boss\"",
+                    "type": "string"
+                },
+                "flags": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "health": {
+                    "type": "integer"
+                },
+                "level": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "npc": {
+                    "type": "integer"
+                },
+                "spells": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.MobSpell"
+                    }
+                },
+                "type": {
+                    "description": "\"Humanoid\"",
+                    "type": "string"
+                }
+            }
+        },
+        "models.DungeonMobs": {
+            "type": "object",
+            "properties": {
+                "damageMult": {
+                    "type": "number"
+                },
+                "defaultLevel": {
+                    "type": "integer"
+                },
+                "healthMult": {
+                    "type": "number"
+                },
+                "level": {
+                    "type": "integer"
+                },
+                "mobs": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.DungeonMob"
                     }
                 }
             }
@@ -3773,6 +3937,29 @@
                 }
             }
         },
+        "models.MDTPlane": {
+            "type": "object",
+            "properties": {
+                "box": {
+                    "type": "array",
+                    "items": {
+                        "type": "number"
+                    }
+                },
+                "scale": {
+                    "type": "number"
+                },
+                "sublevel": {
+                    "type": "integer"
+                },
+                "x": {
+                    "type": "number"
+                },
+                "y": {
+                    "type": "number"
+                }
+            }
+        },
         "models.MassKill": {
             "type": "object",
             "properties": {
@@ -3814,6 +4001,20 @@
                 "tk": {
                     "description": "damage taken so far; 0 in keys saved before Nov 8",
                     "type": "integer"
+                }
+            }
+        },
+        "models.MobSpell": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "interruptible": {
+                    "type": "boolean"
+                },
+                "magic": {
+                    "type": "boolean"
                 }
             }
         },
@@ -3879,6 +4080,36 @@
                         "always",
                         "off"
                     ]
+                }
+            }
+        },
+        "models.Patrol": {
+            "type": "object",
+            "properties": {
+                "color": {
+                    "type": "string"
+                },
+                "enemies": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.EnemyRef"
+                    }
+                },
+                "loop": {
+                    "type": "boolean"
+                },
+                "map": {
+                    "type": "integer"
+                },
+                "points": {
+                    "type": "array",
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "type": "number",
+                            "format": "float64"
+                        }
+                    }
                 }
             }
         },
@@ -5411,15 +5642,49 @@
                 }
             }
         },
+        "models.RouteUpdate": {
+            "type": "object",
+            "properties": {
+                "drawings": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Drawing"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                },
+                "pulls": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.RoutePull"
+                    }
+                }
+            }
+        },
         "models.RouteView": {
             "type": "object",
             "properties": {
+                "drawings": {
+                    "description": "left out of the route list",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Drawing"
+                    }
+                },
                 "dropped": {
                     "description": "an import's enemies that Mythic Dungeon Tools knows and this map doesn't",
                     "type": "integer"
                 },
+                "droppedDrawings": {
+                    "description": "DroppedDrawings counts an import's drawings the app can't show (kept for the export).",
+                    "type": "integer"
+                },
                 "id": {
                     "type": "string"
+                },
+                "limits": {
+                    "$ref": "#/definitions/models.DrawingLimits"
                 },
                 "mapID": {
                     "type": "integer"
