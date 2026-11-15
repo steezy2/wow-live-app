@@ -165,6 +165,21 @@ func LoadRaidReference(path string) (models.RaidReference, error) {
 	return loadJSON[models.RaidReference](path, "raidref")
 }
 
+// SimDropsPath is the Droptimizer's gear, written by cmd/simref.
+func SimDropsPath(root string) string {
+	return filepath.Join(root, "reference", "sim-drops.json")
+}
+
+// SimDropLevelsPath is the hand-kept item levels cmd/simref gives the Droptimizer's gear.
+func SimDropLevelsPath(root string) string {
+	return filepath.Join(root, "reference", "sim-drops.toml")
+}
+
+// LoadSimDropLevels reads the hand-kept drop item levels (SimDropLevelsPath).
+func LoadSimDropLevels(path string) (models.SimDropLevels, error) {
+	return loadTOML[models.SimDropLevels](path)
+}
+
 // loadJSON reads a generated reference file, saying which command writes it when it's missing.
 func loadJSON[T any](path, command string) (T, error) {
 	var v T

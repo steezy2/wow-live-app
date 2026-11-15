@@ -71,6 +71,9 @@ func TestTheRepoRulesFilesHaveNoUnknownKeys(t *testing.T) {
 	if _, err := LoadRaidMechanics(RaidMechanicsPath(root)); err != nil {
 		t.Error(err)
 	}
+	if _, err := LoadSimDropLevels(SimDropLevelsPath(root)); err != nil {
+		t.Error(err)
+	}
 }
 
 func TestSpecRulesDecodeBySpecWithTheirKinds(t *testing.T) {
