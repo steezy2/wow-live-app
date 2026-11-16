@@ -239,3 +239,21 @@ func TestLiveRoute(t *testing.T) {
 		})
 	}
 }
+
+func TestRecordPulls(t *testing.T) {
+	facts := models.DungeonFacts{Enemies: []models.RouteEnemy{
+		{Index: 1, Clone: 1, NPC: 100, Map: 1},
+		{Index: 1, Clone: 2, NPC: 100, X: 100, Map: 1},
+		{Index: 2, Clone: 1, NPC: 200, X: 200, Map: 1},
+	}}
+	track := models.KeyTrack{
+		Pulls: []models.PullSpan{{StartMS: 500}, {StartMS: 5000}},
+		Mobs: map[string]models.MobTrail{
+			mobGUID(100, 1): died(0, 0, 1, 1000), mobGUID(100, 2): died(100, 0, 1, 6000), mobGUID(200, 1): died(200, 0, 1, 7000),
+			mobGUID(300, 1): died(0, 0, 1, 1500), // not on the map
+		}}
+	want := [][]models.EnemyRef{{{Index: 1, Clone: 1}}, {{Index: 1, Clone: 2}, {Index: 2, Clone: 1}}}
+	if got := recordPulls(facts, track); !reflect.DeepEqual(got, want) {
+		t.Fatalf("pulls %v; want %v", got, want)
+	}
+}

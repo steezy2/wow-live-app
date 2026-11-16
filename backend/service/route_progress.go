@@ -170,6 +170,35 @@ func MatchKills(route models.RouteView, facts models.DungeonFacts, track models.
 	return p
 }
 
+// recordPulls are the route pulls a key made: the map enemies its kills matched (matchEnemies) grouped by the key pull
+// they died in, in pull order. Kills before the first pull join it.
+func recordPulls(facts models.DungeonFacts, track models.KeyTrack) [][]models.EnemyRef {
+	all := kills(track)
+	byPull := map[int][]models.EnemyRef{}
+	for i, at := range matchEnemies(facts.Enemies, all) {
+		if at < 0 {
+			continue
+		}
+		pull := max(keyPullAt(track.Pulls, all[i].at.ClockMS), 0)
+		byPull[pull] = append(byPull[pull], models.EnemyRef{Index: facts.Enemies[at].Index, Clone: facts.Enemies[at].Clone})
+	}
+	out := [][]models.EnemyRef{}
+	for _, pull := range slices.Sorted(maps.Keys(byPull)) {
+		out = append(out, byPull[pull])
+	}
+	return out
+}
+
+// Recorded is the pulls a key made as route pulls' enemies, for a route recorded from it (ErrNoSuchKey for an unknown
+// key); none for a key saved before mob positions were kept.
+func (r *Routes) Recorded(start int64) ([][]models.EnemyRef, error) {
+	mapID, track, err := r.Track(start)
+	if err != nil {
+		return nil, err
+	}
+	return recordPulls(r.Facts[mapID], track), nil
+}
+
 // markPulls gives each route pull its state and finds the missed pulls and how far the forces trail the plan; forces
 // are the key's kills' forces by route pull.
 func markPulls(p *models.RouteProgress, route models.RouteView, facts models.DungeonFacts, forces []int) {

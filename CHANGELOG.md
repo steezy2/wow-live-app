@@ -4,6 +4,9 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 
 ## [Unreleased]
 
+### Added
+- **Record route**: a key's Route tab has a *Record route* button that makes a new route (starred when the dungeon has none) from the pulls the key made: its kills matched to map enemies, grouped by the key pull they died in. `GET /api/mplus/keys/{start}/recorded-route` gives those pulls.
+
 ### Changed
 - A running key's route map labels its two live pulls **Current** and **Next** instead of their numbers, and outlines them in colors that run along the line (still, with reduced motion).
 - The replay's floor buttons are numbered in the dungeon's own floor order, as the route map's are, not by where the party stood most (Voidscar Arena's route Floor 1 was the replay's Floor 3).

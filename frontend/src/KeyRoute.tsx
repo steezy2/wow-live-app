@@ -1,9 +1,48 @@
 import { useEffect, useMemo, useState } from 'react'
-import { fetchKeyRoute, fetchRoutes, type KeyTrack, type KeyView, type RouteCompare, type RouteView } from './api'
+import {
+  createRoute,
+  fetchKeyRoute,
+  fetchRecordedRoute,
+  fetchRoutes,
+  saveRoute,
+  type KeyTrack, type KeyView, type RouteCompare,
+  type RouteView,
+} from './api'
 import { counted } from './format'
 import { RouteMap } from './RouteMap'
-import { enemyKey, pullMobs, useDungeonMap, useMobs } from './routes'
+import { enemyKey, PULL_COLORS, pullMobs, useDungeonMap, useMobs } from './routes'
 import { When, type Seeker } from './Seek'
+
+/** Makes a route of the pulls the key made (a new route, the dungeon's starred one when it has none), then reports it. */
+function RecordRoute({ keyView: key, onRecorded }: { keyView: KeyView; onRecorded: () => void }) {
+  const [state, setState] = useState<'idle' | 'busy' | string>('idle')
+  const record = async () => {
+    setState('busy')
+    try {
+      const pulls = await fetchRecordedRoute(key.start)
+      if (pulls.length === 0) return setState("No kills on the map to record: read this key's log again.")
+      const name = `${key.dungeon} +${key.level} recorded`
+      const route = await createRoute(key.mapID, name)
+      await saveRoute(route.id, {
+        name,
+        drawings: [],
+        pulls: pulls.map((enemies, i) => ({ color: PULL_COLORS[i % PULL_COLORS.length], enemies })),
+      })
+      setState(`Recorded as “${name}” (see the Routes tab).`)
+      onRecorded()
+    } catch (err) {
+      setState((err as Error).message)
+    }
+  }
+  return (
+    <p>
+      <button onClick={record} disabled={state === 'busy'}>
+        Record route
+      </button>{' '}
+      {state !== 'idle' && state !== 'busy' && <span className="muted">{state}</span>}
+    </p>
+  )
+}
 
 /** A key next to a route of its dungeon (the starred one until another is picked): the route's map with the enemies
  * the key killed ticked, each route pull's planned forces, when the key pulled it and how much of it died, then the
@@ -14,6 +53,7 @@ export function KeyRoute({ keyView: key, track, seek }: { keyView: KeyView; trac
   const [id, setID] = useState<string>()
   const [compare, setCompare] = useState<RouteCompare | null>()
   const [error, setError] = useState('')
+  const [fetched, setFetched] = useState(0) // up one when a route is recorded, to read the comparison again
   const dungeon = useDungeonMap(key.mapID)
   const mobs = useMobs(key.mapID, key.level, '')
   const byNPC = useMemo(() => new Map(mobs?.mobs.map((m) => [m.npc, m])), [mobs])
@@ -30,13 +70,19 @@ export function KeyRoute({ keyView: key, track, seek }: { keyView: KeyView; trac
       (err: Error) => controller.signal.aborted || setError(err.message),
     )
     return () => controller.abort()
-  }, [key.start, id, track])
+  }, [key.start, id, track, fetched])
 
   if (error) return <p className="warning">{error}</p>
   if (compare === undefined) return <p className="muted">Loading…</p>
   if (compare === null) {
     return (
-      <p className="muted">No route for {key.dungeon} yet: import one from Mythic Dungeon Tools on the Routes tab.</p>
+      <>
+        <p className="muted">
+          No route for {key.dungeon} yet: import one from Mythic Dungeon Tools on the Routes tab, or record one from this
+          key.
+        </p>
+        <RecordRoute keyView={key} onRecorded={() => setFetched((n) => n + 1)} />
+      </>
     )
   }
   const { route, noMobs } = compare
@@ -60,6 +106,7 @@ export function KeyRoute({ keyView: key, track, seek }: { keyView: KeyView; trac
           · {counted(route.pulls.length, 'pull')} · {route.totalPct.toFixed(1)}% planned
         </span>
       </p>
+      {!noMobs && <RecordRoute keyView={key} onRecorded={() => setFetched((n) => n + 1)} />}
       {noMobs && (
         <p className="warning">This key was saved before mob positions were kept; read its log again to compare.</p>
       )}
