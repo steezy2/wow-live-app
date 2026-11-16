@@ -9,6 +9,8 @@ import {
   type KeyView,
 } from './api'
 
+import { errorText } from './format'
+
 /** How often a running clock ticks between answers. */
 const TICK_MS = 250
 
@@ -41,7 +43,7 @@ export function useLiveKey(onEnded?: () => void) {
           setError(null)
         })
         .catch((err: unknown) => {
-          if (!controller.signal.aborted) setError(err instanceof Error ? err.message : String(err))
+          if (!controller.signal.aborted) setError(errorText(err))
         })
     const unsubscribe = subscribe(() => void read())
     return () => {

@@ -13,7 +13,7 @@ import (
 // ErrUnknownSpell is returned for an ability the combat log hasn't shown yet, and for a spell ID no dungeon mob casts.
 var ErrUnknownSpell = errors.New("no such spell: not in the combat log or any dungeon mob's spells")
 
-// ErrSpellDown is returned by Spells.Info for a spell whose lookup failed less than spellRetry ago.
+// ErrSpellDown is returned by Spells.Info and MobSpell for a spell whose lookup failed less than spellRetry ago.
 var ErrSpellDown = errors.New("spell lookup failed lately")
 
 // spellRetry is how long a failed lookup is left alone, so a source that is down isn't asked on every hover.

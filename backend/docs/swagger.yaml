@@ -2749,8 +2749,8 @@ paths:
         Each NPC's name, type, class, flags and spells (Mythic Dungeon Tools, Keystone.guru) and its health
         at the level, as Keystone.guru scales it: 7% a level through +10 and 10% a level after, Fortified
         on trash and Tyrannical on bosses from +10, trash 5% lower up to +5. No source has a mob's own
-        damage: damageMult is the level's multiplier over +1. The level defaults to the owner's newest saved
-        key in the dungeon, else 10. No mobs for a reference file written before they were kept.
+        damage: damageMult is the level's multiplier over +1. The level defaults to the character's newest
+        saved key in the dungeon, else 10. No mobs for a reference file written before they were kept.
       parameters:
       - description: the dungeon's map ID (challenge mode ID)
         in: path
@@ -2761,6 +2761,10 @@ paths:
         in: query
         name: level
         type: integer
+      - description: Name-Realm whose newest key sets the default level
+        in: query
+        name: character
+        type: string
       produces:
       - application/json
       responses:

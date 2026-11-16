@@ -148,7 +148,7 @@ func recapMPlus(keys []models.Key, you string) models.RecapMPlus {
 		}
 		dungeons[k.Dungeon] = append(dungeons[k.Dungeon], k)
 	}
-	rc.SuccessPct = share(int64(rc.Timed), int64(rc.Keys))
+	rc.SuccessPct = share(rc.Timed, rc.Keys)
 	for name, runs := range dungeons {
 		rc.Dungeons = append(rc.Dungeons, recapDungeon(name, runs))
 	}
@@ -174,7 +174,7 @@ func recapDungeon(name string, runs []models.Key) models.RecapDungeon {
 			times = append(times, k.FinalMS)
 		}
 	}
-	d.SuccessPct = share(int64(d.Timed), int64(d.Runs))
+	d.SuccessPct = share(d.Timed, d.Runs)
 	if len(times) > 0 {
 		var sum int64
 		for _, t := range times {

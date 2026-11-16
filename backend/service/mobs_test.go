@@ -37,22 +37,24 @@ func TestMobsStartAtTheNewestSavedKeysLevelAndAnOldReferenceHasNone(t *testing.T
 	facts := map[int]models.DungeonFacts{250: {Mobs: map[int]models.DungeonMob{
 		2: {NPC: 2, Health: 1_000_000}, 1: {NPC: 1, Health: 2_000_000, Boss: true}}}, 585: {}}
 	keys, err := NewLogTracker(nil, nil, models.MPlusRules{}, facts, &memStore{keys: []models.Key{
-		{MapID: 585, Level: 20}, {MapID: 250, Level: 17}, {MapID: 250, Level: 12}}})
+		{MapID: 585, Level: 20}, {MapID: 250, Level: 17, Logger: "Alt"}, {MapID: 250, Level: 12, Logger: "Main"}}})
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, tc := range []struct {
-		name         string
-		mapID, level int
-		wantLevel    int
-		wantHealth   []int
+		name, character string
+		mapID, level    int
+		wantLevel       int
+		wantHealth      []int
 	}{
-		{"the newest key's level", 250, 0, 17, []int{8_950_000, 4_296_000}},
-		{"the level asked for", 250, 2, 2, []int{2_140_000, 1_016_500}},
-		{"no saved key: +10", 399, 0, 10, nil},
-		{"a reference without mobs", 585, 0, 20, nil},
+		{"the newest key's level", "", 250, 0, 17, []int{8_950_000, 4_296_000}},
+		{"the character's newest key", "Main", 250, 0, 12, []int{5_550_000, 2_664_000}},
+		{"a character with no key there: +10", "Other", 250, 0, 10, []int{4_600_000, 2_208_000}},
+		{"the level asked for", "", 250, 2, 2, []int{2_140_000, 1_016_500}},
+		{"no saved key: +10", "", 399, 0, 10, nil},
+		{"a reference without mobs", "", 585, 0, 20, nil},
 	} {
-		got := keys.Mobs(tc.mapID, tc.level)
+		got := keys.Mobs(tc.mapID, tc.level, tc.character)
 		var health []int
 		for _, m := range got.Mobs {
 			health = append(health, m.Health)

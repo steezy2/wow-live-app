@@ -4,6 +4,7 @@ import {
   groupLogsByDay,
   clock,
   coverOf,
+  errorText,
   importKindText,
   importProgress,
   importTotal,
@@ -220,4 +221,11 @@ describe('groupLogsByDay', () => {
     expect(groups.map((g) => g.files.map((f) => f.name))).toEqual([['0-12', '0-8'], ['1-9'], ['5-9'], ['6-9', '40-9']])
     expect(groups[3].label).toBe('Older than 5 days')
   })
+})
+
+describe('errorText', () => {
+  it.each([
+    ['an Error says its message', new Error('boom'), 'boom'],
+    ['anything else is written out', 'plain', 'plain'],
+  ])('%s', (_, err, want) => expect(errorText(err)).toBe(want))
 })

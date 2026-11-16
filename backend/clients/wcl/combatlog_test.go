@@ -167,3 +167,10 @@ func TestDungeonOfFallsBackToTheInstanceForAKeyNamedByItsBosses(t *testing.T) {
 		}
 	}
 }
+
+func TestWriteFightLogRefusesACodeThatIsNotAReportCode(t *testing.T) {
+	f := newFake(t)
+	if err := f.client(t).WriteFightLog(context.Background(), `..\..\x`, 1, fixtureOptions, io.Discard); err == nil {
+		t.Fatal("a path as the report code was accepted")
+	}
+}

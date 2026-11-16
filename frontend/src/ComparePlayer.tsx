@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Skeleton } from './Skeleton'
 import { fetchCompare, reportPages, runCompare, type CompareRow, type PlayerCompare } from './api'
-import { clock, rowValue } from './format'
+import { clock, errorText, rowValue } from './format'
 import { Spell } from './Spell'
 
 /** A player's review of a finished key or raid pull against the top Warcraft Logs logs of their spec and their own
@@ -14,7 +14,7 @@ export function ComparePlayer({ kind, start, player }: { kind: 'mplus' | 'raid';
   useEffect(() => {
     const controller = new AbortController()
     fetchCompare(kind, start, player, controller.signal).then(setCompare, (err: unknown) => {
-      if (!controller.signal.aborted) setError(err instanceof Error ? err.message : String(err))
+      if (!controller.signal.aborted) setError(errorText(err))
     })
     return () => controller.abort()
   }, [kind, start, player])
@@ -22,7 +22,7 @@ export function ComparePlayer({ kind, start, player }: { kind: 'mplus' | 'raid';
     setBusy(true)
     setError(null)
     runCompare(kind, start, player)
-      .then(setCompare, (err: unknown) => setError(err instanceof Error ? err.message : String(err)))
+      .then(setCompare, (err: unknown) => setError(errorText(err)))
       .finally(() => setBusy(false))
   }
   if (compare === undefined && !error) return <Skeleton height={320} />

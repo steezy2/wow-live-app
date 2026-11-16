@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type {
   Drawing,
   DrawingLimits,
@@ -14,10 +14,12 @@ import { DrawTools, type DrawTool } from './DrawTools'
 import { amount, counted } from './format'
 import { MapCanvas, type Overlay, type Yards } from './KeyMap'
 import {
+  addsDrawing,
   drawingAt,
   enemyKey,
   mobName,
   PULL_COLORS,
+  type Point,
   pullCentres,
   pullHull,
   pullIndexes,
@@ -32,7 +34,6 @@ const UNPULLED = '#8a93a6'
 /** Characters a note's line holds before it wraps. */
 const NOTE_LINE = 28
 
-type Point = [number, number]
 
 /** A place in yards kept on a floor (whose bounds' min can be above its max): the canvas's edge for a press outside
  * it, beside a letterboxed map. */
@@ -120,12 +121,15 @@ export function RouteMap(props: {
   const [floor, setFloor] = useState<number | null>(null)
   const [packs, setPacks] = useState(false)
   const [walks, setWalks] = useState(true)
-  const [tool, setTool] = useState<DrawTool>('select')
+  const [picked, setTool] = useState<DrawTool>('select')
   const [color, setColor] = useState(PULL_COLORS[8])
   const [text, setText] = useState('')
   const [line, setLine] = useState<Point[] | null>(null) // the line being drawn
   const drawn = useRef<Point[]>([]) // the same, for the press's end
   const full = (drawings?.length ?? 0) >= (limits?.drawings ?? Infinity)
+  const tool = full && addsDrawing(picked) ? 'select' : picked // a full route leaves a tool that would add
+  const frame = useRef(0) // the animation frame that shows the line so far
+  useEffect(() => () => cancelAnimationFrame(frame.current), [])
 
   const floors = useMemo(
     () => dungeon?.floors.filter((f) => dungeon.enemies.some((e) => e.map === f.uiMapID)) ?? [],
@@ -231,15 +235,18 @@ export function RouteMap(props: {
     const at = onFloor(here, p)
     const add = (d: Omit<Drawing, 'id' | 'map' | 'color'>) => {
       const id = crypto.randomUUID().replace(/-/g, '') // 32 characters, as the site takes them
-      if (!full) onDraw({ kind: 'draw', drawing: { id, map: here.uiMapID, color, ...d } })
+      onDraw({ kind: 'draw', drawing: { id, map: here.uiMapID, color, ...d } })
     }
     if (tool === 'erase' && phase === 'down') {
       const hit = drawingAt(drawnHere, here.uiMapID, at, reach)
       if (hit) onDraw({ kind: 'erase', id: hit.id })
     } else if (tool === 'line' && phase !== 'up') {
-      drawn.current = phase === 'down' ? [at] : [...drawn.current, at]
-      setLine(drawn.current)
+      if (phase === 'down') drawn.current = [at]
+      else drawn.current.push(at)
+      cancelAnimationFrame(frame.current)
+      frame.current = requestAnimationFrame(() => setLine([...drawn.current]))
     } else if (tool === 'line') {
+      cancelAnimationFrame(frame.current)
       setLine(null)
       const points = simplifyLine([...drawn.current, at], reach / 4, limits?.linePoints ?? Infinity)
       if (points.length > 1 && points.some((q) => q[0] !== points[0][0] || q[1] !== points[0][1])) {

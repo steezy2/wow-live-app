@@ -206,7 +206,8 @@ func packOrder(s *pullStat, minis map[string]bool, mini *mobStat) models.KeyMini
 	return m
 }
 
-func share(part, whole int64) float64 {
+// share is part as a percent of whole (0 without one).
+func share[T ~int | ~int64](part, whole T) float64 {
 	if whole == 0 {
 		return 0
 	}

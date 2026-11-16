@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { fetchReview, makeReview, type KeyReview as Review, type KeyView, type ReviewMetric } from './api'
-import { amount } from './format'
+import { amount, errorText } from './format'
 import { tip } from './tipAttrs'
 
 /** The cell's tone: deaths red, a combat potion green. */
@@ -44,7 +44,7 @@ export function KeyReview(props: { keyView: KeyView; justEnded: boolean; onRevie
           if (wait) timer = setTimeout(() => void read(), WAIT_POLL_MS)
         })
         .catch((err: unknown) => {
-          if (!controller.signal.aborted) setError(err instanceof Error ? err.message : String(err))
+          if (!controller.signal.aborted) setError(errorText(err))
         })
     void read()
     return () => {
@@ -57,7 +57,7 @@ export function KeyReview(props: { keyView: KeyView; justEnded: boolean; onRevie
     setState('making')
     setError(null)
     makeReview(key.start).then(setReview, (err: unknown) => {
-      setError(err instanceof Error ? err.message : String(err))
+      setError(errorText(err))
       setState('none')
     })
   }

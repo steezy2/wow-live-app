@@ -1,14 +1,14 @@
-import { PULL_COLORS } from './routes'
+import { addsDrawing, PULL_COLORS } from './routes'
 import { tip } from './tipAttrs'
 
 /** What a press on the route map does: Select picks enemies as before, the others draw or erase. */
 export type DrawTool = 'select' | 'line' | 'marker' | 'note' | 'erase'
 
-const TOOLS: { tool: DrawTool; label: string; hint: string; adds?: boolean }[] = [
+const TOOLS: { tool: DrawTool; label: string; hint: string }[] = [
   { tool: 'select', label: 'Select', hint: 'Click enemies to put them in the selected pull; drag to move the map' },
-  { tool: 'line', label: 'Line', hint: 'Drag to draw a line', adds: true },
-  { tool: 'marker', label: 'Marker', hint: 'Click to place a marker', adds: true },
-  { tool: 'note', label: 'Note', hint: 'Type the note, then click where it goes', adds: true },
+  { tool: 'line', label: 'Line', hint: 'Drag to draw a line' },
+  { tool: 'marker', label: 'Marker', hint: 'Click to place a marker' },
+  { tool: 'note', label: 'Note', hint: 'Type the note, then click where it goes' },
   { tool: 'erase', label: 'Erase', hint: 'Click a drawing to erase it' },
 ]
 
@@ -26,15 +26,15 @@ export function DrawTools(props: {
   full: boolean
 }) {
   const { tool, onTool, color, onColor, text, onText, maxText, full } = props
-  const adding = TOOLS.find((t) => t.tool === tool)?.adds
+  const adding = addsDrawing(tool)
   return (
     <div className="draw-tools" role="toolbar" aria-label="drawing tools">
       {TOOLS.map((t) => (
         <button
           key={t.tool}
           aria-pressed={t.tool === tool}
-          disabled={t.adds && full}
-          {...tip(t.adds && full ? 'The route has as many drawings as it can: erase one first' : t.hint)}
+          disabled={addsDrawing(t.tool) && full}
+          {...tip(addsDrawing(t.tool) && full ? 'The route has as many drawings as it can: erase one first' : t.hint)}
           onClick={() => onTool(t.tool)}
         >
           {t.label}
@@ -54,7 +54,7 @@ export function DrawTools(props: {
       {tool === 'note' && (
         <input
           value={text}
-          maxLength={maxText}
+          maxLength={maxText === Infinity ? undefined : maxText}
           placeholder="Note text"
           aria-label="note text"
           onChange={(e) => onText(e.target.value)}

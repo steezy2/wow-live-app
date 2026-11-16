@@ -242,6 +242,7 @@ const readerVersion = 19
 // logs next time.
 type learned struct {
 	ReaderVersion int          `json:"readerVersion"`
+	Partial       bool         `json:"partial,omitempty"` // a read stopped before the archives and imports were done
 	Logs          []learnedLog `json:"logs"`
 }
 
@@ -295,7 +296,8 @@ func (s *Site) learn(all bool) (read, saved int, err error) {
 		}
 		sources = append(sources, source{logPath, entry.ModTime, combatlog.EachLineIn, &entry})
 	}
-	if before.ReaderVersion != readerVersion { // a new reader (or all): the archived logs too
+	everything := before.ReaderVersion != readerVersion || before.Partial
+	if everything { // a new reader (or all), or a read that stopped early: the archived logs too
 		zips, err := combatlog.Archived(dir)
 		if err != nil {
 			return 0, 0, err
@@ -305,7 +307,7 @@ func (s *Site) learn(all bool) (read, saved int, err error) {
 		}
 		slices.SortStableFunc(sources, func(a, b source) int { return cmp.Compare(a.modTime, b.modTime) })
 	}
-	now := learned{ReaderVersion: readerVersion}
+	now := learned{ReaderVersion: readerVersion, Partial: true}
 	for _, src := range sources {
 		if src.entry == nil || !before.has(*src.entry) {
 			if err := s.readInto(keys, src.path, src.each); err != nil {
@@ -320,13 +322,14 @@ func (s *Site) learn(all bool) (read, saved int, err error) {
 			}
 		}
 	}
-	if before.ReaderVersion != readerVersion { // a new reader: the imported fights again too
+	if everything { // the imported fights again too
 		n, err := s.readImportedZips()
 		if err != nil {
 			return read, 0, err
 		}
 		read += n
 	}
+	now.Partial = false
 	if err := cachefile.WriteJSON(path, now); err != nil {
 		return read, 0, err
 	}

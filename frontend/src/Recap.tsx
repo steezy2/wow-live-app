@@ -17,7 +17,7 @@ import { CharacterParses } from './CharacterParses'
 import { classColors } from './classColors'
 import { Skeleton } from './Skeleton'
 import { useDelayed } from './useDelayed'
-import { amount, clock, counted, realmName, versus, withRealm } from './format'
+import { amount, clock, counted, errorText, realmName, versus, withRealm } from './format'
 import { Tabs } from './Tabs'
 import { Tiles } from './Tiles'
 
@@ -40,7 +40,7 @@ export function Recap({ character, parsesFor, onOpen }: { character?: Character;
   useEffect(() => {
     const controller = new AbortController()
     fetchRecapPeriods(controller.signal).then(setPeriods, (err: unknown) => {
-      if (!controller.signal.aborted) setAnswer({ error: err instanceof Error ? err.message : String(err) })
+      if (!controller.signal.aborted) setAnswer({ error: errorText(err) })
     })
     return () => controller.abort()
   }, [])
@@ -50,7 +50,7 @@ export function Recap({ character, parsesFor, onOpen }: { character?: Character;
     fetchRecap(period, id, controller.signal).then(
       (recap) => setAnswer({ key, recap }),
       (err: unknown) => {
-        if (!controller.signal.aborted) setAnswer({ key, error: err instanceof Error ? err.message : String(err) })
+        if (!controller.signal.aborted) setAnswer({ key, error: errorText(err) })
       },
     )
     // The recap reads fine without Warcraft Logs, so a failure only leaves the top runs out.

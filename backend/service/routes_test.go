@@ -410,7 +410,7 @@ func TestMDTPlaneYards(t *testing.T) {
 		{[2]float64{65.5, -205.5}, [2]float64{1779.4, 2191.8}},
 		{[2]float64{201.1, -204.8}, [2]float64{1780.2, 2040.9}},
 	} {
-		got, kept := r.importDrawings(voidscar, []models.MDTDrawing{{Sublevel: 3, Note: true, Points: [][2]float64{tc.mdt}}})
+		got, kept, _ := r.importDrawings(voidscar, []models.MDTDrawing{{Sublevel: 3, Note: true, Points: [][2]float64{tc.mdt}}})
 		if len(kept) > 0 || len(got) != 1 || got[0].Map != 2588 || got[0].Points[0] != tc.yards {
 			t.Errorf("MDT %v = %+v (kept %v); want a marker on 2588 at %v", tc.mdt, got, kept, tc.yards)
 		}
@@ -499,5 +499,24 @@ func TestImportDrawingsDrops(t *testing.T) {
 				t.Fatalf("kinds = %v, %d dropped; want %v, %d", kinds, view.DroppedDrawings, tc.kinds, tc.droppedOf)
 			}
 		})
+	}
+}
+
+func TestExportKeepsAnImportedDrawingAsMDTWroteItUntilItMoves(t *testing.T) {
+	r := withPlanes(t)
+	was := models.MDTDrawing{Sublevel: 3, Note: true, Points: [][2]float64{{65.5, -205.5}}, Raw: []byte{1, 2, 3}}
+	for _, tc := range []struct {
+		name string
+		at   [2]float64
+		want []byte
+	}{
+		{"untouched", [2]float64{1779.4, 2191.8}, []byte{1, 2, 3}},
+		{"moved", [2]float64{1700, 2100}, nil},
+	} {
+		route := models.Route{MapID: voidscar, MDTImported: map[string]models.MDTDrawing{"mdt1": was},
+			Drawings: []models.Drawing{{ID: "mdt1", Map: 2588, Kind: models.DrawMarker, Points: [][2]float64{tc.at}}}}
+		if got := r.exportDrawings(route)[0].Raw; !slices.Equal(got, tc.want) {
+			t.Errorf("%s: exported raw %v; want %v", tc.name, got, tc.want)
+		}
 	}
 }

@@ -277,10 +277,13 @@ func forcesPace(best *models.Key, pct float64, clockMS int64) *models.ForcesPace
 		FasterPct: 100 * float64(bestMS-clockMS) / float64(bestMS)}
 }
 
-// median is the middle value, or the mean of the two middle ones for an even count (sorting a copy).
+// median is the middle value, or the mean of the two middle ones for an even count (sorting a copy), 0 for none.
 func median[T ~int64 | ~float64](values []T) T {
 	sorted := slices.Sorted(slices.Values(values))
 	n := len(sorted)
+	if n == 0 {
+		return 0
+	}
 	if n%2 == 1 {
 		return sorted[n/2]
 	}

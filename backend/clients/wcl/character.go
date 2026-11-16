@@ -108,6 +108,9 @@ func (c *Client) RecentReports(ctx context.Context, region, slug, name string, p
 	}
 	var reports []models.CharacterReport
 	for _, r := range character.RecentReports.Data {
+		if !reportCode.MatchString(r.Code) {
+			continue
+		}
 		report := models.CharacterReport{Code: r.Code, StartTime: r.StartTime, EndTime: r.EndTime}
 		if r.Zone != nil {
 			report.ZoneID = r.Zone.ID

@@ -591,10 +591,18 @@ export interface DungeonMobs {
   mobs: DungeonMob[]
 }
 
-/** A dungeon's mobs at a key level, or at the level of the owner's newest key there with none. */
-export async function fetchMobs(mapID: number, level: number | null, signal?: AbortSignal): Promise<DungeonMobs> {
-  const query = level === null ? '' : `?${new URLSearchParams({ level: String(level) })}`
-  return json<DungeonMobs>(`/api/mplus/dungeons/${mapID}/mobs${query}`, { signal })
+/** A dungeon's mobs at a key level, or with none at the level of the newest key there of the character ('' for any). */
+export async function fetchMobs(
+  mapID: number,
+  level: number | null,
+  character: string,
+  signal?: AbortSignal,
+): Promise<DungeonMobs> {
+  const query = new URLSearchParams()
+  if (level !== null) query.set('level', String(level))
+  if (character) query.set('character', character)
+  const text = query.toString()
+  return json<DungeonMobs>(`/api/mplus/dungeons/${mapID}/mobs${text && `?${text}`}`, { signal })
 }
 
 /** One 384 by 256 map tile of a dungeon floor; a floor is DungeonMap.tilesPerSide tiles wide and tall. */
@@ -1218,7 +1226,8 @@ interface SpellInfo {
 const spellAnswers = new Map<string, Promise<SpellInfo | null>>()
 
 /** What an ability does, by the name the combat log gives it or a spell ID, or null when it can't be told. Answers are
- * kept, so a hover asks once; an unknown ability (404) is kept too, but a failed lookup is asked again next time. */
+ * kept, so a hover asks once; an unknown spell ID (404) is kept too, but a failed lookup, or a name the log hasn't shown
+ * yet, is asked again next time. */
 export function fetchSpell(spell: string | number): Promise<SpellInfo | null> {
   const key = typeof spell === 'number' ? `#${spell}` : spell
   let answer = spellAnswers.get(key)
@@ -1227,7 +1236,7 @@ export function fetchSpell(spell: string | number): Promise<SpellInfo | null> {
     answer = fetch(`/api/spells?${new URLSearchParams(query)}`)
       .then((r) => {
         if (r.ok) return r.json() as Promise<SpellInfo>
-        if (r.status !== 404) spellAnswers.delete(key)
+        if (r.status !== 404 || typeof spell !== 'number') spellAnswers.delete(key)
         return null
       })
       .catch(() => {

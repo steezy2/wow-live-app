@@ -1,25 +1,11 @@
-import { useEffect, useState } from 'react'
-import { fetchCharacterParses, type CharacterParses as Parses } from './api'
+import { fetchCharacterParses } from './api'
 import { counted } from './format'
+import { useFetched } from './useFetched'
 
 /** The Recap's panel of the saved character's Warcraft Logs parses this season in Mythic+ dungeons or raid bosses
  * (kind): best and median, runs and spec, with a link to its page; nothing while there's no character. */
 export function CharacterParses({ character, kind }: { character: string; kind: 'mplus' | 'raid' }) {
-  // The last answer, for the character it was asked for: the parses or why they couldn't be read.
-  const [answer, setAnswer] = useState<{ character: string; parses?: Parses; problem?: string }>({ character: '' })
-  useEffect(() => {
-    if (!character) return
-    const controller = new AbortController()
-    fetchCharacterParses(controller.signal).then(
-      (parses) => setAnswer({ character, parses }),
-      (err: unknown) => {
-        if (!controller.signal.aborted)
-          setAnswer({ character, problem: err instanceof Error ? err.message : String(err) })
-      },
-    )
-    return () => controller.abort()
-  }, [character])
-  const { parses, problem } = answer.character === character ? answer : { parses: undefined, problem: undefined }
+  const { data: parses, error: problem } = useFetched(character || null, fetchCharacterParses)
   if (!character || (!parses && !problem)) return null
   const shown = parses?.parses.filter((p) => p.kind === kind) ?? []
   const page = parses && (

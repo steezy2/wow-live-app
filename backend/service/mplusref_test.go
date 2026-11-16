@@ -17,7 +17,8 @@ func TestDungeonFactsCombinesTheSources(t *testing.T) {
 				241812: {Name: "The Hoardmonger", Boss: true}},
 			Spells: map[int]models.MDTSpell{1239352: {Interruptible: true}}},
 		NPCs: map[int]models.DungeonMob{241816: {NPC: 241816, Level: 90, Type: "Humanoid", Class: "Elite", Health: 3243255,
-			Flags: []string{"bolstering"}}, 241812: {NPC: 241812, Class: "Elite"}},
+			Flags: []string{"bolstering"}}, 241812: {NPC: 241812, Class: "Elite", Health: 9000000},
+			245752: {NPC: 245752, Health: 3000000}, 245855: {NPC: 245855, Health: 4000000}},
 		Guide: models.DungeonGuide{URL: "https://www.wowhead.com/guide/x",
 			Interrupts: map[int]string{1239352: "Keen-Eyed Striker", 1309919: "Frigid Mauler"},
 			Dispels:    map[int]string{1238801: "Spirit of Hunger"}, Purges: map[int]string{1238053: "Territorial Matriarch"},
@@ -36,8 +37,9 @@ func TestDungeonFactsCombinesTheSources(t *testing.T) {
 		Mobs: map[int]models.DungeonMob{
 			241816: {NPC: 241816, Name: "Keen-Eyed Striker", Level: 90, Type: "Humanoid", Class: "Elite", Health: 3243255,
 				Flags: []string{"bolstering"}, Spells: []models.MobSpell{{ID: 1239352, Interruptible: true}, {ID: 1240000}}},
-			245752: {NPC: 245752, Name: "Keen-Eyed Striker"}, 245855: {NPC: 245855, Name: "Spirit of Hunger"},
-			241812: {NPC: 241812, Name: "The Hoardmonger", Class: "Elite", Boss: true}}}
+			245752: {NPC: 245752, Name: "Keen-Eyed Striker", Health: 3000000},
+			245855: {NPC: 245855, Name: "Spirit of Hunger", Health: 4000000},
+			241812: {NPC: 241812, Name: "The Hoardmonger", Class: "Elite", Health: 9000000, Boss: true}}}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("DungeonFacts = %+v\nwant %+v", got, want)
 	}
@@ -45,11 +47,17 @@ func TestDungeonFactsCombinesTheSources(t *testing.T) {
 	if _, err := DungeonFacts(src); err == nil || !strings.Contains(err.Error(), "729") {
 		t.Errorf("totals 729 and 730 gave %v; want an error naming both", err)
 	}
+	src.KeystoneGuruTotal = 729
+	delete(src.NPCs, 245855)
+	if _, err := DungeonFacts(src); err == nil || !strings.Contains(err.Error(), "245855") {
+		t.Errorf("a mob without health gave %v; want an error naming it", err)
+	}
 }
 
 func TestDungeonFactsCountsAnNPCTwinAsTheMobItCopies(t *testing.T) {
 	got, err := DungeonFacts(DungeonSources{Name: "Kings' Rest", MDT: models.MDTDungeon{MapID: 249, Total: 608,
-		Mobs: map[int]models.MDTMob{270502: {Name: "Half-Finished Mummy", Count: 7}}}})
+		Mobs: map[int]models.MDTMob{270502: {Name: "Half-Finished Mummy", Count: 7}}},
+		NPCs: map[int]models.DungeonMob{270502: {Health: 1}, 273050: {Health: 1}}})
 	if err != nil {
 		t.Fatal(err)
 	}

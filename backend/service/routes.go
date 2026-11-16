@@ -144,7 +144,7 @@ func (r *Routes) ImportPreset(p models.MDTPreset) (models.RouteView, error) {
 	if err := r.checkPulls(mapID, route.Pulls); err != nil {
 		return models.RouteView{}, err
 	}
-	route.Drawings, route.MDTDrawings = r.importDrawings(mapID, p.Drawings)
+	route.Drawings, route.MDTDrawings, route.MDTImported = r.importDrawings(mapID, p.Drawings)
 	if err := r.save(&route, true); err != nil {
 		return models.RouteView{}, err
 	}
@@ -158,10 +158,12 @@ const mdtPinColor = "ffffff"
 
 // importDrawings is a preset's drawings on the dungeon's floors, and those it can't take: on a floor without an
 // MDTPlane, past drawingLimits.Drawings, or failing drawingProblem. Each goes on the floor of its sublevel whose
-// enemies' box on MDT's map is nearest its first point; a pin with text is a note, one without a marker.
+// enemies' box on MDT's map is nearest its first point; a pin with text is a note, one without a marker. imported
+// keeps each taken drawing as MDT wrote it, by id, for exportDrawings.
 func (r *Routes) importDrawings(mapID int, mdts []models.MDTDrawing) (drawings []models.Drawing,
-	kept []models.MDTDrawing) {
+	kept []models.MDTDrawing, imported map[string]models.MDTDrawing) {
 	floors := r.Facts[mapID].Floors
+	imported = map[string]models.MDTDrawing{}
 	for _, m := range mdts {
 		f := -1
 		for i, g := range floors {
@@ -192,8 +194,17 @@ func (r *Routes) importDrawings(mapID int, mdts []models.MDTDrawing) (drawings [
 			continue
 		}
 		drawings = append(drawings, d)
+		imported[d.ID] = m
 	}
-	return drawings, kept
+	return drawings, kept, imported
+}
+
+// sameMDTDrawing is whether a is b on MDT's map, to within what a round trip through yards loses.
+func sameMDTDrawing(a, b models.MDTDrawing) bool {
+	return a.Sublevel == b.Sublevel && a.Note == b.Note && a.Text == b.Text && (a.Note || a.Color == b.Color) &&
+		slices.EqualFunc(a.Points, b.Points, func(p, q [2]float64) bool {
+			return math.Abs(p[0]-q[0]) < 0.1 && math.Abs(p[1]-q[1]) < 0.1
+		})
 }
 
 // boxDistance is how far a point is from a box (min x, min y, max x, max y): 0 inside it.
@@ -202,7 +213,8 @@ func boxDistance(b [4]float64, p [2]float64) float64 {
 }
 
 // exportDrawings is a route's drawings on MDT's map, then the ones its import couldn't take, as they were. A drawing
-// on a floor without an MDTPlane stays in the app; a marker is a pin without text.
+// on a floor without an MDTPlane stays in the app; a marker is a pin without text. An imported drawing left as it
+// was goes out as MDT wrote it (its size, its arrow).
 func (r *Routes) exportDrawings(route models.Route) []models.MDTDrawing {
 	floors := r.Facts[route.MapID].Floors
 	var out []models.MDTDrawing
@@ -219,6 +231,9 @@ func (r *Routes) exportDrawings(route models.Route) []models.MDTDrawing {
 		for _, p := range d.Points {
 			lat, lng := logToKsg(floors[f], p[0], p[1])
 			m.Points = append(m.Points, [2]float64{(lng - plane.X) / plane.Scale, (lat - plane.Y) / plane.Scale})
+		}
+		if was, ok := route.MDTImported[d.ID]; ok && sameMDTDrawing(was, m) {
+			m = was
 		}
 		out = append(out, m)
 	}
@@ -323,6 +338,11 @@ func (r *Routes) Update(id string, u models.RouteUpdate) (models.RouteView, erro
 		return models.RouteView{}, err
 	}
 	route.Name, route.Pulls, route.Drawings = name, u.Pulls, u.Drawings
+	for id := range route.MDTImported {
+		if !slices.ContainsFunc(u.Drawings, func(d models.Drawing) bool { return d.ID == id }) {
+			delete(route.MDTImported, id)
+		}
+	}
 	if err := r.save(&route, false); err != nil {
 		return models.RouteView{}, err
 	}
@@ -550,7 +570,7 @@ func onFloor(f models.RaidMap, p [2]float64) bool {
 // view is a route with its pulls' forces.
 func (r *Routes) view(route models.Route) models.RouteView {
 	known, total := r.known(route.MapID), r.Facts[route.MapID].Forces.Total
-	pct := func(n int) float64 { return forcesPct(n, total) }
+	pct := func(n int) float64 { return share(n, total) }
 	v := models.RouteView{ID: route.ID, Name: route.Name, MapID: route.MapID, Starred: route.Starred,
 		Drawings: route.Drawings, Limits: drawingLimits, Updated: route.Updated,
 		Pulls: make([]models.RoutePullView, len(route.Pulls))}
@@ -566,14 +586,6 @@ func (r *Routes) view(route models.Route) models.RouteView {
 	}
 	v.TotalPct = pct(running)
 	return v
-}
-
-// forcesPct is n forces as a percent of a dungeon's total (0 without one).
-func forcesPct(n, total int) float64 {
-	if total == 0 {
-		return 0
-	}
-	return float64(n) / float64(total) * 100
 }
 
 // checkName is a route's name without its outer spaces, refused when that leaves none or more than maxNameLen

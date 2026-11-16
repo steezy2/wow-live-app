@@ -35,7 +35,7 @@ var npcTwins = map[int]int{273050: 270502}
 
 // DungeonFacts combines a dungeon's sources into its reference entry, counting each of npcTwins as its twin, and
 // puts each mob's name and spells from Mythic Dungeon Tools on Keystone.guru's NPC (a boss when either says so). It
-// fails when Mythic Dungeon Tools has no data for the dungeon or its forces total disagrees with Keystone.guru's.
+// fails when Mythic Dungeon Tools has no data for the dungeon, its forces total disagrees with Keystone.guru's or a mob has no health there.
 func DungeonFacts(src DungeonSources) (models.DungeonFacts, error) {
 	m, g := src.MDT, src.Guide
 	if m.MapID == 0 {
@@ -70,7 +70,10 @@ func DungeonFacts(src DungeonSources) (models.DungeonFacts, error) {
 		if mob.Count > 0 {
 			counts = append(counts, int64(mob.Count))
 		}
-		d := src.NPCs[id]
+		d, ok := src.NPCs[id]
+		if !ok || d.Health == 0 {
+			return models.DungeonFacts{}, fmt.Errorf("%s: Keystone.guru has no health for NPC %d (%s)", src.Name, id, mob.Name)
+		}
 		d.NPC, d.Name, d.Boss = id, mob.Name, d.Boss || mob.Boss
 		for _, s := range mob.Spells {
 			d.Spells = append(d.Spells, models.MobSpell{ID: s, Interruptible: m.Spells[s].Interruptible,

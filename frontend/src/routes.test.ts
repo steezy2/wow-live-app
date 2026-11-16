@@ -5,11 +5,13 @@ import {
   drawingAt,
   edit,
   editorOf,
+  enemyKey,
   mobActions,
   packOf,
   patrolOf,
   pullCentres,
   pullHull,
+  type Point,
   pullMobs,
   simplifyLine,
   UNDO_EDITS,
@@ -48,16 +50,15 @@ describe('patrolOf', () => {
 })
 
 describe('pullHull', () => {
-  type Pt = [number, number]
-  const box = (h: Pt[]) => ({
+  const box = (h: Point[]) => ({
     x0: Math.min(...h.map((p) => p[0])),
     x1: Math.max(...h.map((p) => p[0])),
     y0: Math.min(...h.map((p) => p[1])),
     y1: Math.max(...h.map((p) => p[1])),
   })
-  const square: Pt[] = [[0, 0], [10, 0], [0, 10], [10, 10]]
-  const inner: Pt[] = Array.from({ length: 8 }, (_, i) => [3 + (i % 4), 3 + Math.floor(i / 4) * 3])
-  it.each<[string, Pt[], ReturnType<typeof box> | undefined]>([
+  const square: Point[] = [[0, 0], [10, 0], [0, 10], [10, 10]]
+  const inner: Point[] = Array.from({ length: 8 }, (_, i) => [3 + (i % 4), 3 + Math.floor(i / 4) * 3])
+  it.each<[string, Point[], ReturnType<typeof box> | undefined]>([
     ['no points', [], undefined],
     ['one point is a circle', [[10, 10]], { x0: 8, x1: 12, y0: 8, y1: 12 }],
     ['two points are a capsule', [[0, 0], [10, 0]], { x0: -2, x1: 12, y0: -2, y1: 2 }],
@@ -75,7 +76,7 @@ describe('pullHull', () => {
   })
   it('keeps every corner at the padding from its point', () => {
     const hull = pullHull([[0, 0], [10, 0], [5, 8]], 2)
-    const far = (p: Pt) => Math.min(...[[0, 0], [10, 0], [5, 8]].map(([x, y]) => Math.hypot(p[0] - x, p[1] - y)))
+    const far = (p: Point) => Math.min(...[[0, 0], [10, 0], [5, 8]].map(([x, y]) => Math.hypot(p[0] - x, p[1] - y)))
     expect(Math.max(...hull.map(far))).toBeCloseTo(2)
   })
 })
@@ -171,16 +172,17 @@ describe('mobActions', () => {
 describe('pullMobs', () => {
   const mob = (npc: number, name: string, health: number): DungeonMob => ({ npc, name, health })
   const enemies = [enemy(1, 0, 0, 0, 10), enemy(2, 0, 0, 0, 20), enemy(3, 0, 0, 0, 20), enemy(4, 0, 0, 0, 30)]
+  const byKey = new Map(enemies.map((e) => [enemyKey(e), e]))
   const pull = [1, 2, 3, 4].map((index) => ({ index, clone: 1 }))
   it('groups a pull by name, most first, and sums its health', () => {
     const mobs = new Map([mob(10, 'Guard', 100), mob(20, 'Hound', 50)].map((m) => [m.npc, m]))
-    const { groups, health } = pullMobs(pull, enemies, mobs)
+    const { groups, health } = pullMobs(pull, byKey, mobs)
     expect(groups.map((g) => [g.enemies.length, g.name])).toEqual([[2, 'Hound'], [1, 'Guard'], [1, 'NPC 30']])
     expect(health).toBe(200)
   })
   it('names them by NPC without mob data', () => {
     const want = { groups: [{ name: 'NPC 10', enemies: [enemies[0]] }], health: 0 }
-    expect(pullMobs(pull.slice(0, 1), enemies, new Map())).toEqual(want)
+    expect(pullMobs(pull.slice(0, 1), byKey, new Map())).toEqual(want)
   })
 })
 
@@ -230,8 +232,7 @@ describe('drawings', () => {
 })
 
 describe('simplifyLine', () => {
-  type Pt = [number, number]
-  it.each<[string, Pt[], number, Pt[]]>([
+  it.each<[string, Point[], number, Point[]]>([
     ['a short line stays', [[0, 0], [1, 1]], 1, [[0, 0], [1, 1]]],
     ['a nearly straight line keeps its ends', [[0, 0], [1, 0.1], [2, -0.1], [3, 0]], 0.5, [[0, 0], [3, 0]]],
     ['a corner stays', [[0, 0], [5, 0.1], [10, 0], [10, 5], [10, 10]], 0.5, [[0, 0], [10, 0], [10, 10]]],
@@ -239,7 +240,7 @@ describe('simplifyLine', () => {
     expect(simplifyLine(points, tolerance, Infinity)).toEqual(want)
   })
   it('loosens the tolerance until at most max points are left', () => {
-    const zigzag = Array.from({ length: 100 }, (_, i): Pt => [i, (i % 2) * (i / 10)])
+    const zigzag = Array.from({ length: 100 }, (_, i): Point => [i, (i % 2) * (i / 10)])
     const got = simplifyLine(zigzag, 0.01, 10)
     expect(got.length).toBeLessThanOrEqual(10)
     expect([got[0], got[got.length - 1]]).toEqual([zigzag[0], zigzag[99]])

@@ -61,6 +61,7 @@ type LogTracker struct {
 	everyday     map[string]consumable // flask and food, the consumables every key and pull asks for (read-only)
 	store        models.KeyStore
 	facts        map[int]models.DungeonFacts // by map ID, from reference/mplus-dungeons.json
+	mobSpells    map[int]bool                // the spell IDs the facts' mobs cast
 	spells       map[int]string              // spell ID -> name, from every line seen
 	spellIDs     map[string]int              // ability name -> spell ID: the one cast, else the first seen
 	schools      map[string]int              // ability name -> spell school (a bit per school), from every line seen
@@ -164,8 +165,16 @@ func NewLogTracker(timers map[int]int64, affixes map[int]string, rules models.MP
 			kinds[name] = list.kind
 		}
 	}
+	mobSpells := map[int]bool{}
+	for _, f := range facts {
+		for _, m := range f.Mobs {
+			for _, s := range m.Spells {
+				mobSpells[s.ID] = true
+			}
+		}
+	}
 	c := rules.Consumables
-	return &LogTracker{timers: timers, affixes: affixes, rules: rules, kinds: kinds, facts: facts, store: store,
+	return &LogTracker{timers: timers, affixes: affixes, rules: rules, kinds: kinds, facts: facts, mobSpells: mobSpells, store: store,
 		history: history, everyday: map[string]consumable{"flask": {patterns: c.Flask}, "food": {patterns: c.Food}},
 		spells: map[int]string{}, spellIDs: map[string]int{}, schools: map[string]int{"Melee": physicalSchool}, specs: map[string]int{},
 		owners: map[string]string{}, names: map[string]string{}, realms: map[string]string{},
