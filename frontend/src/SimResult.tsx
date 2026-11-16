@@ -11,8 +11,8 @@ function swapText(s: SimSwap): string {
   return `${s.out ? itemText(s.out) : 'empty'} → ${s.in ? itemText(s.in) : 'empty'}`
 }
 
-/** The gear combinations or drops of a Top Gear or Droptimizer sim, best first: the gain over the equipped gear, the DPS,
- * what changes and where a drop comes from. Drops filter by source. */
+/** The gear combinations or drops of a Top Gear or Droptimizer sim, best first: the gain over the equipped gear,
+ * the DPS, what changes and where a drop comes from. Drops filter by source. */
 function Combos({ combos, drops }: { combos: SimCombo[]; drops: boolean }) {
   const [source, setSource] = useState('')
   const sources = [...new Set(combos.flatMap((c) => (c.source ? [c.source] : [])))]
@@ -77,6 +77,7 @@ export function SimResult({ sim }: { sim: Sim }) {
   const result = sim.result
   if (!result) return null
   const top = Math.max(1, ...result.abilities.map((a) => a.dps))
+  const share = (dps: number) => (dps / top) * 100
   return (
     <>
       <section className="panel">
@@ -84,7 +85,8 @@ export function SimResult({ sim }: { sim: Sim }) {
           {amount(result.dps)} DPS <span className="muted small">± {amount(result.dpsError)}</span>
         </h2>
         <p className="muted small">
-          {sim.options.fightStyle}, {sim.options.length} s, {sim.options.targets} target{sim.options.targets > 1 ? 's' : ''}
+          {sim.options.fightStyle}, {sim.options.length} s, {sim.options.targets}{' '}
+          target{sim.options.targets > 1 ? 's' : ''}
           {sim.tookMS ? ` · took ${clock(sim.tookMS)}` : ''}
         </p>
       </section>
@@ -105,7 +107,12 @@ export function SimResult({ sim }: { sim: Sim }) {
             <tbody>
               {result.abilities.map((a) => (
                 <tr key={a.id || a.name}>
-                  <td style={{ textAlign: 'left', backgroundImage: `linear-gradient(to right, var(--border) ${(a.dps / top) * 100}%, transparent 0)` }}>
+                  <td
+                    style={{
+                      textAlign: 'left',
+                      backgroundImage: `linear-gradient(to right, var(--border) ${share(a.dps)}%, transparent 0)`,
+                    }}
+                  >
                     <Spell name={a.name} />
                   </td>
                   <td>{amount(a.dps)}</td>

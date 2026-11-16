@@ -66,6 +66,9 @@ var (
 	simAccuracies = []simAccuracy{{"quick", 0.3}, {"normal", 0.1}, {"high", 0.05}}
 	simDefaults   = models.SimOptions{FightStyle: "Patchwerk", Length: 300, Targets: 1, Accuracy: "normal"}
 
+	defaultDropDifficulty = "heroic"
+	defaultDropKey        = 10
+
 	simIDPattern = regexp.MustCompile(`^[0-9a-f]{16}$`)
 	// simProgress is simc's progress line: "Generating Profileset: t50 2/76 [====>...] 1122/4300 146.2 Mean=...", the
 	// stage (a baseline is 1/1, each profileset a stage) and the iterations in it.
@@ -111,9 +114,14 @@ func (s *Sims) Choices() models.SimChoices {
 	for i, k := range s.Drops.Keys {
 		keyLevels[i] = k.Level
 	}
+	defaultKey := slices.Max(append([]int{0}, keyLevels...))
+	if slices.Contains(keyLevels, defaultDropKey) {
+		defaultKey = defaultDropKey
+	}
 	return models.SimChoices{FightStyles: simFightStyles, Accuracies: accuracies, MinLength: minSimLength,
 		MaxLength: maxSimLength, MaxTargets: maxSimTargets, MaxCombos: maxCombos, MaxDrops: maxDrops,
-		Difficulties: simDifficulties, KeyLevels: keyLevels, Defaults: simDefaults}
+		Difficulties: simDifficulties, KeyLevels: keyLevels, Defaults: simDefaults,
+		DefaultDifficulty: defaultDropDifficulty, DefaultKeyLevel: defaultKey}
 }
 
 // simAccuracyOf is the accuracy named name, false when there is none.

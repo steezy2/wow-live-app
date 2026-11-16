@@ -44,8 +44,8 @@ export function Sim() {
   const [options, setOptions] = useState<SimOptions | null>(null)
   const [equipped, setEquipped] = useState<number[]>([])
   const [bags, setBags] = useState<number[]>([])
-  const [difficulty, setDifficulty] = useState('heroic')
-  const [keyLevel, setKeyLevel] = useState(10)
+  const [difficulty, setDifficulty] = useState('')
+  const [keyLevel, setKeyLevel] = useState(0)
   const [sim, setSim] = useState<SimRun | null>(null)
   const [saved, setSaved] = useState<SimRun[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -57,7 +57,8 @@ export function Sim() {
       (c) => {
         setChoices(c)
         setOptions(c.defaults)
-        setKeyLevel(c.keyLevels.includes(10) ? 10 : (c.keyLevels[c.keyLevels.length - 1] ?? 0))
+        setDifficulty(c.defaultDifficulty)
+        setKeyLevel(c.defaultKeyLevel)
       },
       (err: unknown) => setError(errorText(err)),
     )
@@ -147,7 +148,12 @@ export function Sim() {
         <h2>Character</h2>
         <label>
           Paste the SimulationCraft addon's export (type /simc in game, copy the window)
-          <textarea rows={6} value={text} onChange={(e) => setText(e.target.value)} spellCheck={false} />
+          <textarea rows={6} value={text} onChange={(e) => {
+              setText(e.target.value)
+              setProfile(null) // the picked gear indexes belong to the text that was read
+            }}
+            spellCheck={false}
+          />
         </label>
         <div className="actions">
           <button disabled={!text.trim()} onClick={read}>
@@ -155,7 +161,7 @@ export function Sim() {
           </button>
           {profile && (
             <span>
-              {profile.name} · {profile.spec} {profile.class.replace('_', ' ')} · {profile.equipped.length} worn,{' '}
+              {profile.name} · {profile.spec} {profile.class} · {profile.equipped.length} worn,{' '}
               {profile.bags.length} carried
             </span>
           )}
@@ -175,7 +181,10 @@ export function Sim() {
           <div className="actions">
             <label>
               Fight
-              <select value={options.fightStyle} onChange={(e) => setOptions({ ...options, fightStyle: e.target.value })}>
+              <select
+                value={options.fightStyle}
+                onChange={(e) => setOptions({ ...options, fightStyle: e.target.value })}
+              >
                 {choices.fightStyles.map((s) => (
                   <option key={s}>{s}</option>
                 ))}
@@ -210,7 +219,8 @@ export function Sim() {
           {kind === 'topgear' && (
             <>
               <p className="muted">
-                Tick what it may wear: worn items stay candidates, carried ones are added. At most {choices.maxCombos}{' '}
+                Tick what it may wear: worn items stay candidates, carried ones are added. At most{' '}
+                {choices.maxCombos}{' '}
                 combinations run.
               </p>
               {gearGroups(profile.equipped, profile.bags).map((g) => (

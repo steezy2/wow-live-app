@@ -1632,6 +1632,8 @@ export interface SimChoices {
   difficulties: string[]
   keyLevels: number[]
   defaults: SimOptions
+  defaultDifficulty: string
+  defaultKeyLevel: number
 }
 
 export type SimKind = 'quick' | 'topgear' | 'drops'

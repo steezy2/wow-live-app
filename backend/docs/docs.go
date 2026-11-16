@@ -6230,6 +6230,15 @@ const docTemplate = `{
                         "type": "string"
                     }
                 },
+                "defaultDifficulty": {
+                    "description": "DefaultDifficulty and DefaultKeyLevel are what the Droptimizer starts on.",
+                    "type": "string",
+                    "example": "heroic"
+                },
+                "defaultKeyLevel": {
+                    "type": "integer",
+                    "example": 10
+                },
                 "defaults": {
                     "$ref": "#/definitions/models.SimOptions"
                 },

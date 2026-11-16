@@ -9,7 +9,8 @@ export function simOptionsError(o: SimOptions, c: SimChoices): string | null {
   return null
 }
 
-/** The slots Top Gear lists its items under, in the order they are worn, by a slot's group ("finger1" and "finger2" are rings). */
+/** The slots Top Gear lists its items under, in the order they are worn, by a slot's group ("finger1" and "finger2"
+ * are rings). */
 const SLOT_GROUPS: [string, string][] = [
   ['head', 'Head'],
   ['neck', 'Neck'],
@@ -30,7 +31,8 @@ const SLOT_GROUPS: [string, string][] = [
 /** An item's group key: "finger" for both rings, "trinket" for both trinkets, else its slot. */
 const groupKey = (slot: string) => slot.replace(/[12]$/, '')
 
-/** The items of each slot group (indexes into the profile's equipped and bags lists), in wearing order; empty groups left out. */
+/** The items of each slot group (indexes into the profile's equipped and bags lists), in wearing order; empty
+ * groups left out. */
 export function gearGroups(equipped: SimItem[], bags: SimItem[]) {
   return SLOT_GROUPS.map(([key, label]) => ({
     label,

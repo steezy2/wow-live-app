@@ -2639,6 +2639,14 @@ definitions:
         items:
           type: string
         type: array
+      defaultDifficulty:
+        description: DefaultDifficulty and DefaultKeyLevel are what the Droptimizer
+          starts on.
+        example: heroic
+        type: string
+      defaultKeyLevel:
+        example: 10
+        type: integer
       defaults:
         $ref: '#/definitions/models.SimOptions'
       difficulties:
