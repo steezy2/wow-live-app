@@ -138,6 +138,7 @@ export function RoutesPage({ visible }: { visible: boolean }) {
       .catch(fail)
   const total = dungeons.find((d) => d.mapID === dungeon)?.forcesTotal
   const rows = dirty ? pullForces(draft.pulls, map?.enemies ?? [], total) : route?.pulls
+  const last = rows?.[rows.length - 1]
 
   return (
     <div className="layout">
@@ -312,6 +313,12 @@ export function RoutesPage({ visible }: { visible: boolean }) {
                     ↓
                   </button>
                 </div>
+                {last && (
+                  <p className={last.totalPct >= FULL_PCT ? 'good' : undefined}>
+                    Route forces: {percent(last.totalPct)}
+                    {total ? ` (${last.total} of ${total})` : ''}
+                  </p>
+                )}
                 <ol className="route-pulls">
                   <li className="muted small">
                     <span>Pull</span>
