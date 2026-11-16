@@ -6,6 +6,7 @@ import {
   fetchRoute,
   fetchRouteDungeons,
   fetchRoutes,
+  fetchSavedKey,
   fetchSavedRoutes,
   importRoute,
   importSavedRoute,
@@ -26,13 +27,16 @@ import {
   editorOf,
   enemyKey,
   mobActions,
+  createRouteFrom,
   packOf,
   patrolOf,
   pullForces,
   pullMobs,
+  recordKeyRoute,
   useDungeonMap,
   useMobs,
 } from './routes'
+import { useLiveKey } from './useLiveKey'
 
 /** The share of the dungeon's forces a route needs. */
 const FULL_PCT = 100
@@ -71,6 +75,8 @@ export function RoutesPage({ visible, character }: { visible: boolean; character
   const [copied, setCopied] = useState('')
   const [notice, setNotice] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [armed, setArmed] = useState<{ mapID: number; after: number | null } | null>(null) // `after`: the key that ended before
+  const { endedHere } = useLiveKey()
   const fail = (err: unknown) => setError(errorText(err))
 
   const load = useCallback(
@@ -84,6 +90,7 @@ export function RoutesPage({ visible, character }: { visible: boolean; character
 
   const dungeon = dungeons.find((d) => d.mapID === mapID)?.mapID ?? dungeons[0]?.mapID ?? null
   const here = routes.filter((r) => r.mapID === dungeon)
+  const savedHere = saves.filter((s) => s.mapID === dungeon)
   const shown = here.find((r) => r.id === picked) ?? here.find((r) => r.starred) ?? here[0]
   const opened = useCallback((r: RouteView) => {
     setRoute(r)
@@ -122,6 +129,17 @@ export function RoutesPage({ visible, character }: { visible: boolean; character
     setNotice('')
     return work.then(load).catch(fail)
   }
+  useEffect(() => {
+    if (!armed || endedHere === null || endedHere === armed.after) return
+    void fetchSavedKey(endedHere)
+      .then((key) => {
+        if (key.mapID !== armed.mapID) return // waits for a key of its dungeon
+        setArmed(null)
+        return act(recordKeyRoute(key).then((r) => setNotice(r.message)))
+      })
+      .catch(fail)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- act and fail only set state
+  }, [armed, endedHere])
   const imported = (r: RouteView) => {
     setMapID(r.mapID)
     setPicked(r.id)
@@ -133,6 +151,11 @@ export function RoutesPage({ visible, character }: { visible: boolean; character
     setNotice(notes.filter(Boolean).join(' '))
   }
   const add = (work: () => Promise<RouteView>) => leave(() => act(work().then(imported)))
+  const remove = (r: RouteView) => {
+    const gone = () => act(deleteRoute(r.id))
+    if (r.id === shown?.id) leave(gone)
+    else void gone()
+  }
   const copy = (id: string) =>
     exportRoute(id)
       .then((text) => navigator.clipboard.writeText(text))
@@ -181,11 +204,7 @@ export function RoutesPage({ visible, character }: { visible: boolean; character
             <button
               className="delete"
               {...tip('Delete route')}
-              onClick={() => {
-                const remove = () => act(deleteRoute(r.id))
-                if (r.id === shown?.id) leave(remove)
-                else void remove()
-              }}
+              onClick={() => remove(r)}
             >
               ×
             </button>
@@ -196,7 +215,20 @@ export function RoutesPage({ visible, character }: { visible: boolean; character
             New route
           </button>
         )}
-        <h2>Import</h2>
+        {dungeon !== null &&
+          (armed?.mapID === dungeon ? (
+            <>
+              <p className="muted small">Waiting for the next key in this dungeon to end, then recording its pulls.</p>
+              <button className="action" onClick={() => setArmed(null)}>
+                Cancel recording
+              </button>
+            </>
+          ) : (
+            <button className="action" onClick={() => setArmed({ mapID: dungeon, after: endedHere })}>
+              Record next run as new route
+            </button>
+          ))}
+        <h2>Import a string</h2>
         <textarea
           rows={3}
           value={code}
@@ -211,13 +243,13 @@ export function RoutesPage({ visible, character }: { visible: boolean; character
           Import string
         </button>
         <h2>From MDT's saves</h2>
-        {saves.length === 0 && <p className="muted small">No saved routes found.</p>}
-        {saves.map((s) => (
+        {savedHere.length === 0 && <p className="muted small">No saved routes for this dungeon.</p>}
+        {savedHere.map((s) => (
           <div key={s.uid} className="item">
             <span className="open">
               <span>{s.name}</span>
               <span className="muted small">
-                {s.dungeon} · {counted(s.pulls, 'pull')}
+                {counted(s.pulls, 'pull')}
               </span>
             </span>
             {s.imported ? (
@@ -241,11 +273,22 @@ export function RoutesPage({ visible, character }: { visible: boolean; character
                 onChange={(e) => dispatch({ kind: 'rename', name: e.target.value })}
                 aria-label="route name"
               />
+              {draft.name.trim() !== route.name && (
+                <button
+                  className="action"
+                  {...tip('Keeps this route as it was and saves the draft as a new one')}
+                  onClick={() => void act(createRouteFrom(route.mapID, draft).then(imported))}
+                >
+                  Save as new route
+                </button>
+              )}
               <button
+                className={draft.name.trim() === route.name ? 'action' : undefined}
                 disabled={!dirty}
+                {...tip('Saves the draft over this route')}
                 onClick={() => void act(saveRoute(route.id, draft).then(opened))}
               >
-                Save
+                {draft.name.trim() === route.name ? 'Save' : 'Rename'}
               </button>
               <button disabled={editor.undo.length === 0} onClick={() => dispatch({ kind: 'undo' })}>
                 Undo
@@ -256,6 +299,9 @@ export function RoutesPage({ visible, character }: { visible: boolean; character
                 onClick={() => void copy(route.id)}
               >
                 {copied === route.id ? 'Copied' : 'Copy MDT string'}
+              </button>
+              <button className="danger" onClick={() => remove(route)}>
+                Delete route
               </button>
             </div>
             <div className="route-view">
