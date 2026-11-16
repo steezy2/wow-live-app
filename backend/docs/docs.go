@@ -6140,7 +6140,8 @@ const docTemplate = `{
                 "kind": {
                     "type": "string",
                     "enum": [
-                        "quick"
+                        "quick",
+                        "topgear"
                     ]
                 },
                 "options": {
@@ -6231,6 +6232,11 @@ const docTemplate = `{
                         "type": "string"
                     }
                 },
+                "maxCombos": {
+                    "description": "MaxCombos is the most gear combinations a Top Gear sim runs; a request over it is refused.",
+                    "type": "integer",
+                    "example": 100
+                },
                 "maxLength": {
                     "type": "integer"
                 },
@@ -6239,6 +6245,26 @@ const docTemplate = `{
                 },
                 "minLength": {
                     "type": "integer"
+                }
+            }
+        },
+        "models.SimCombo": {
+            "type": "object",
+            "properties": {
+                "dps": {
+                    "type": "number"
+                },
+                "dpsError": {
+                    "type": "number"
+                },
+                "gain": {
+                    "type": "number"
+                },
+                "swaps": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.SimSwap"
+                    }
                 }
             }
         },
@@ -6391,6 +6417,18 @@ const docTemplate = `{
                 "kind"
             ],
             "properties": {
+                "bags": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "equipped": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
                 "export": {
                     "type": "string"
                 },
@@ -6418,11 +6456,32 @@ const docTemplate = `{
                         "$ref": "#/definitions/models.SimBuff"
                     }
                 },
+                "combos": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.SimCombo"
+                    }
+                },
                 "dps": {
                     "type": "number"
                 },
                 "dpsError": {
                     "type": "number"
+                }
+            }
+        },
+        "models.SimSwap": {
+            "type": "object",
+            "properties": {
+                "in": {
+                    "$ref": "#/definitions/models.SimItem"
+                },
+                "out": {
+                    "$ref": "#/definitions/models.SimItem"
+                },
+                "slot": {
+                    "type": "string",
+                    "example": "finger2"
                 }
             }
         },

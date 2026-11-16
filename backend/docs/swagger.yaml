@@ -2583,6 +2583,7 @@ definitions:
       kind:
         enum:
         - quick
+        - topgear
         type: string
       options:
         $ref: '#/definitions/models.SimOptions'
@@ -2643,12 +2644,30 @@ definitions:
         items:
           type: string
         type: array
+      maxCombos:
+        description: MaxCombos is the most gear combinations a Top Gear sim runs;
+          a request over it is refused.
+        example: 100
+        type: integer
       maxLength:
         type: integer
       maxTargets:
         type: integer
       minLength:
         type: integer
+    type: object
+  models.SimCombo:
+    properties:
+      dps:
+        type: number
+      dpsError:
+        type: number
+      gain:
+        type: number
+      swaps:
+        items:
+          $ref: '#/definitions/models.SimSwap'
+        type: array
     type: object
   models.SimEngineStatus:
     properties:
@@ -2753,6 +2772,14 @@ definitions:
     type: object
   models.SimRequest:
     properties:
+      bags:
+        items:
+          type: integer
+        type: array
+      equipped:
+        items:
+          type: integer
+        type: array
       export:
         type: string
       kind:
@@ -2774,10 +2801,24 @@ definitions:
         items:
           $ref: '#/definitions/models.SimBuff'
         type: array
+      combos:
+        items:
+          $ref: '#/definitions/models.SimCombo'
+        type: array
       dps:
         type: number
       dpsError:
         type: number
+    type: object
+  models.SimSwap:
+    properties:
+      in:
+        $ref: '#/definitions/models.SimItem'
+      out:
+        $ref: '#/definitions/models.SimItem'
+      slot:
+        example: finger2
+        type: string
     type: object
   models.SpellInfo:
     properties:
