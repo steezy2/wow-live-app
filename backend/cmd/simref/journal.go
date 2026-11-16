@@ -94,7 +94,7 @@ func readJournal(ctx context.Context, tables wago.Client) (journal, error) {
 		{"ItemSpec", []string{"ItemType", "PrimaryStat", "SecondaryStat", "SpecializationID"}, 0, func(_ []string, n []int) {
 			j.itemSpecs = append(j.itemSpecs, itemSpec{kind: n[0], primary: n[1], secondary: n[2], spec: n[3]})
 		}},
-		{"ChrClasses", []string{"Name_lang", "ID"}, 1, func(t []string, n []int) { classes[n[0]] = simcName(t[0]) }},
+		{"ChrClasses", []string{"Name_lang", "ID"}, 1, func(t []string, n []int) { classes[n[0]] = strings.ReplaceAll(simcName(t[0]), "_", "") }},
 		// A playable spec is one ItemSpec gives loot to, but OrderIndex 4, a class's "Initial" spec before one is
 		// picked; the rest are pets' and test classes'.
 		{"ChrSpecialization", []string{"Name_lang", "ID", "ClassID", "OrderIndex"}, 1, func(t []string, n []int) {
@@ -123,7 +123,7 @@ func readJournal(ctx context.Context, tables wago.Client) (journal, error) {
 	return j, nil
 }
 
-// simcName is a class or spec as simc writes it: "Death Knight" is "death_knight".
+// simcName is a spec as simc writes it: "Beast Mastery" is "beast_mastery". A class has no underscore ("deathknight").
 func simcName(name string) string {
 	return strings.ReplaceAll(strings.ToLower(name), " ", "_")
 }

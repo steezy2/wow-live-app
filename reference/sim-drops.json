@@ -35,19 +35,19 @@
       "spec": "augmentation"
     },
     "1480": {
-      "class": "demon_hunter",
+      "class": "demonhunter",
       "spec": "devourer"
     },
     "250": {
-      "class": "death_knight",
+      "class": "deathknight",
       "spec": "blood"
     },
     "251": {
-      "class": "death_knight",
+      "class": "deathknight",
       "spec": "frost"
     },
     "252": {
-      "class": "death_knight",
+      "class": "deathknight",
       "spec": "unholy"
     },
     "253": {
@@ -123,11 +123,11 @@
       "spec": "mistweaver"
     },
     "577": {
-      "class": "demon_hunter",
+      "class": "demonhunter",
       "spec": "havoc"
     },
     "581": {
-      "class": "demon_hunter",
+      "class": "demonhunter",
       "spec": "vengeance"
     },
     "62": {

@@ -1,7 +1,9 @@
 package service
 
 import (
+	"encoding/json"
 	"errors"
+	"os"
 	"slices"
 	"strconv"
 	"testing"
@@ -103,5 +105,37 @@ func TestGearResultsKeepARingsBetterSlot(t *testing.T) {
 	rows := gearResults(sets, 100, combos)
 	if len(rows) != 2 || rows[0].Swaps[0].Slot != "finger2" || rows[0].Gain != 10 || rows[0].Source != "Raid" || rows[0].Boss != "Boss" {
 		t.Errorf("rows %+v: want the ring's better slot once, then the other drop", rows)
+	}
+}
+
+func TestDropCombosSkipAnOffHandBesideATwoHander(t *testing.T) {
+	d := testDrops()
+	d.Raids[0].Bosses[0].Items = []models.DropItem{{ID: 6, Name: "Shield", Slot: "off_hand"}}
+	p := gearProfile(true) // wears a two-hander
+	p.Class, p.Spec = "shaman", "elemental"
+	combos, err := dropCombos(p, d, "normal", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range combos {
+		if c.swaps[0].In.ID == 6 {
+			t.Errorf("combo %s puts an off-hand beside a two-hander", c.name)
+		}
+	}
+}
+
+func TestSimDropsNameClassesTheWayTheExportDoes(t *testing.T) {
+	raw, err := os.ReadFile("../../reference/sim-drops.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var d models.SimDrops
+	if err := json.Unmarshal(raw, &d); err != nil {
+		t.Fatal(err)
+	}
+	for id, s := range d.Specs {
+		if !slices.Contains(simClasses, s.Class) {
+			t.Errorf("spec %d: class %q is not one ParseSimC accepts", id, s.Class)
+		}
 	}
 }

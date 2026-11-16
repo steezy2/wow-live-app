@@ -132,8 +132,9 @@ func pairOptions(slots [2]string, picked []gearCandidate, worn map[string]*model
 	if len(picked) == 0 {
 		return [][]models.SimSwap{nil}
 	}
+	short := len(picked) < 2
 	for _, slot := range slots {
-		if len(picked) < 2 && worn[slot] != nil && !slices.ContainsFunc(picked, func(c gearCandidate) bool { return c.worn == slot }) {
+		if short && worn[slot] != nil && !slices.ContainsFunc(picked, func(c gearCandidate) bool { return c.worn == slot }) {
 			picked = append(picked, gearCandidate{item: *worn[slot], worn: slot})
 		}
 	}
