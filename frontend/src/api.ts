@@ -782,6 +782,11 @@ export async function fetchKeyRoute(start: number, id?: string, signal?: AbortSi
   return jsonOrNull<RouteCompare>(`/api/mplus/keys/${start}/route${query}`, signal)
 }
 
+/** The pulls a key made as the enemies of route pulls, to record a route from it. */
+export async function fetchRecordedRoute(start: number): Promise<EnemyRef[][]> {
+  return json<EnemyRef[][]>(`/api/mplus/keys/${start}/recorded-route`)
+}
+
 /** A dungeon of the season a route can be planned in. */
 export interface RouteDungeon {
   mapID: number

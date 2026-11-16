@@ -12,8 +12,8 @@ import (
 
 // How a key's kills are put on a route; tune after the owner's first keys.
 const (
-	// matchYards is how far from a map enemy's place a mob of its NPC can die and still be that enemy.
-	matchYards = 20.0
+	// matchYards is how far from a map enemy's place a mob of its NPC can first be seen and still be that enemy.
+	matchYards = 30.0
 	// pullDonePct is the share of a route pull's forces (in percent) that makes it done when not every enemy died.
 	pullDonePct = 80
 	// livePullsAhead is how many unfinished pulls after the last one reached are shown as next: a fight's kills reach
@@ -23,20 +23,21 @@ const (
 	behindPct = 1.0
 )
 
-// kill is a mob's death: its GUID, its NPC and where it died, with when on the key's clock (ClockMS).
+// kill is a mob's death: its GUID, its NPC and where it stood, with when it died on the key's clock (ClockMS).
 type kill struct {
 	guid string
 	npc  int
 	at   models.TrackPoint
 }
 
-// kills are a track's mob deaths in order: each dead mob at its last trail point, and each boss or miniboss unit
+// kills are a track's mob deaths in order: each dead mob at its first trail point (a pulled mob runs to the party, so
+// where it died is not where the route put it), and each boss or miniboss unit
 // (followed in Bosses, so not in Mobs) at its place in Deaths, the first death of its name after its last point.
 func kills(track models.KeyTrack) []kill {
 	var out []kill
 	for guid, m := range track.Mobs {
 		if m.Died > 0 {
-			at := m.Points[len(m.Points)-1]
+			at := m.Points[0]
 			at.ClockMS = m.Died
 			out = append(out, kill{guid, npcOf(guid), at})
 		}
@@ -61,21 +62,30 @@ func kills(track models.KeyTrack) []kill {
 	return out
 }
 
-// matchEnemies is the map enemy (an index in enemies) each kill was, in death order: the nearest one not taken yet with
-// the kill's NPC on its floor within matchYards, or -1 for a kill off the map.
+// matchEnemies is the map enemy (an index in enemies) each kill was, in death order, or -1 for a kill off the map: the
+// pairs of a kill and an enemy of its NPC on its floor within matchYards are taken closest first, so a pack's far kill
+// doesn't take the enemy a nearer kill stood at.
 func matchEnemies(enemies []models.RouteEnemy, kills []kill) []int {
-	taken := make([]bool, len(enemies))
-	out := make([]int, len(kills))
+	type pair struct {
+		kill, enemy int
+		yards       float64
+	}
+	var pairs []pair
 	for i, k := range kills {
-		out[i] = -1
-		best := matchYards
 		for j, e := range enemies {
-			if d := math.Hypot(e.X-k.at.X, e.Y-k.at.Y); !taken[j] && e.NPC == k.npc && e.Map == k.at.Map && d <= best {
-				out[i], best = j, d
+			if d := math.Hypot(e.X-k.at.X, e.Y-k.at.Y); e.NPC == k.npc && e.Map == k.at.Map && d <= matchYards {
+				pairs = append(pairs, pair{i, j, d})
 			}
 		}
-		if out[i] >= 0 {
-			taken[out[i]] = true
+	}
+	slices.SortStableFunc(pairs, func(a, b pair) int { return cmp.Compare(a.yards, b.yards) })
+	out, taken := make([]int, len(kills)), make([]bool, len(enemies))
+	for i := range out {
+		out[i] = -1
+	}
+	for _, p := range pairs {
+		if out[p.kill] < 0 && !taken[p.enemy] {
+			out[p.kill], taken[p.enemy] = p.enemy, true
 		}
 	}
 	return out
@@ -158,6 +168,35 @@ func MatchKills(route models.RouteView, facts models.DungeonFacts, track models.
 	}
 	markPulls(&p, route, facts, forces)
 	return p
+}
+
+// recordPulls are the route pulls a key made: the map enemies its kills matched (matchEnemies) grouped by the key pull
+// they died in, in pull order. Kills before the first pull join it.
+func recordPulls(facts models.DungeonFacts, track models.KeyTrack) [][]models.EnemyRef {
+	all := kills(track)
+	byPull := map[int][]models.EnemyRef{}
+	for i, at := range matchEnemies(facts.Enemies, all) {
+		if at < 0 {
+			continue
+		}
+		pull := max(keyPullAt(track.Pulls, all[i].at.ClockMS), 0)
+		byPull[pull] = append(byPull[pull], models.EnemyRef{Index: facts.Enemies[at].Index, Clone: facts.Enemies[at].Clone})
+	}
+	out := [][]models.EnemyRef{}
+	for _, pull := range slices.Sorted(maps.Keys(byPull)) {
+		out = append(out, byPull[pull])
+	}
+	return out
+}
+
+// Recorded is the pulls a key made as route pulls' enemies, for a route recorded from it (ErrNoSuchKey for an unknown
+// key); none for a key saved before mob positions were kept.
+func (r *Routes) Recorded(start int64) ([][]models.EnemyRef, error) {
+	mapID, track, err := r.Track(start)
+	if err != nil {
+		return nil, err
+	}
+	return recordPulls(r.Facts[mapID], track), nil
 }
 
 // markPulls gives each route pull its state and finds the missed pulls and how far the forces trail the plan; forces

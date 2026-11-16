@@ -4,8 +4,17 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 
 ## [Unreleased]
 
+### Added
+- **Record route**: a key's Route tab has a *Record route* button that makes a new route (starred when the dungeon has none) from the pulls the key made: its kills matched to map enemies, grouped by the key pull they died in. `GET /api/mplus/keys/{start}/recorded-route` gives those pulls.
+
 ### Changed
 - **Smaller and faster**: the app's exe is about half its size (`-s -w -trimpath` in `build.sh`, and the Swagger UI, which the app couldn't serve without its spec, now only comes with `go run ./cmd/site`). *Read old logs* peaks at about a third of the memory (1,019 MB to 327 MB on 2.2 GB of logs) with the same saved keys and pulls, byte for byte: finished keys and pulls are saved every 100,000 lines instead of when the log ends, at most 4 goroutines parse, saved tracks are freed, and two per-line string splits no longer allocate. Following a log from its start reads it with one buffer. The replay is about 3 times lighter per move (the graph's numbers by binary search, review tabs built once instead of on every tick, no remount when a tab opens or its count changes, one render per live tick). Idle: the live clock only ticks while a key runs, a window hidden in the tray reads once when it shows, the Route tab re-reads a running key only while open, and a key's page asks for its dungeon map once. The built page's `assets/` are cached for good.
+- A running key's route map labels its two live pulls **Current** and **Next** instead of their numbers, and outlines them in colors that run along the line (still, with reduced motion).
+- The replay's floor buttons are numbered in the dungeon's own floor order, as the route map's are, not by where the party stood most (Voidscar Arena's route Floor 1 was the replay's Floor 3).
+
+### Fixed
+- A key's kills match the route far more often: a mob counts where it was first seen (a pulled mob runs to the party before it dies), up to 30 yards from its enemy, and the closest kill and enemy pair match first. On five saved keys' logs this took matches from about 40% to 80%.
+- **Ruby Life Pools** had its two floors' map IDs swapped against the combat log (every kill stood on the other floor's enemies), so nothing matched a route and its enemies drew on the wrong floor. `reference/mplus-dungeons.json` and the generator now use the log's IDs; a saved route's drawings there sit on the other floor and need drawing again. Every other dungeon's kills fall on their own floors.
 
 ## [0.4.6] - 2026-11-15
 

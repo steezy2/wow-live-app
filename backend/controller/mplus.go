@@ -45,6 +45,7 @@ type Planner interface {
 	Delete(id string) error
 	Export(id string) (string, error)
 	Compare(start int64, id string) (models.RouteCompare, error)
+	Recorded(start int64) ([][]models.EnemyRef, error)
 	Live(key models.KeyView) (*models.RouteLive, error)
 }
 
@@ -94,8 +95,8 @@ func (m MPlus) Live(c *gin.Context) {
 // KeyRoute godoc
 //
 //	@Summary		A key next to a route of its dungeon: which planned pulls were done, skipped or added
-//	@Description	Each dead mob is matched to the nearest map enemy of its NPC on its floor within 20 yards, in
-//	@Description	death order. A pull is done when all of it died or 80% of its forces. noMobs is a key saved before
+//	@Description	Each dead mob is matched to a map enemy of its NPC on its floor within 30 yards of where it was
+//	@Description	first seen, closest pairs first. A pull is done when all of it died or 80% of its forces. noMobs is a key saved before
 //	@Description	mob positions were kept: only the route can be shown until its log is read again.
 //	@Tags			mplus
 //	@Produce		json
@@ -117,6 +118,29 @@ func (m MPlus) KeyRoute(c *gin.Context) {
 	}
 	compare, err := m.Planner.Compare(start, id)
 	respondRoute(c, http.StatusOK, compare, err)
+}
+
+// RecordedRoute godoc
+//
+//	@Summary		The pulls a key made, as the enemies of a route to record from it
+//	@Description	The key's kills matched to map enemies as KeyRoute does, grouped by the key pull they died in, in
+//	@Description	order. The page makes a route of them (POST /api/mplus/routes, then PUT with colors). Empty for a
+//	@Description	key saved before mob positions were kept.
+//	@Tags			mplus
+//	@Produce		json
+//	@Param			start	path		int	true	"the key's start (ms since the epoch)"
+//	@Success		200		{array}		[]models.EnemyRef
+//	@Failure		400		{object}	ErrorResponse
+//	@Failure		404		{object}	ErrorResponse	"no such key"
+//	@Failure		500		{object}	ErrorResponse
+//	@Router			/api/mplus/keys/{start}/recorded-route [get]
+func (m MPlus) RecordedRoute(c *gin.Context) {
+	start, ok := startParam(c)
+	if !ok {
+		return
+	}
+	pulls, err := m.Planner.Recorded(start)
+	respondRoute(c, http.StatusOK, pulls, err)
 }
 
 // Abandon godoc

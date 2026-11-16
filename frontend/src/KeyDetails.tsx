@@ -18,6 +18,9 @@ import { Tabs } from './Tabs'
 import { type Seeker } from './Seek'
 import { tip } from './tipAttrs'
 
+/** The Route tab's place in the key's tabs: a running key with a route opens on it. */
+const ROUTE_TAB = 3
+
 /** The result's icon, so it doesn't rest on colour alone. */
 const resultIcon: Record<KeyView['status'], string> = {
   running: '',
@@ -58,7 +61,7 @@ export function KeyDetails({
     [key.status, show, track],
   )
   const [review, setReview] = useState<Review | null>(null)
-  const [routeOpen, setRouteOpen] = useState(false)
+  const [routeOpen, setRouteOpen] = useState(!!key.route)
   // Built when what they show changes, not on each tick of the replay's clock, so their panels stay as they are.
   const tabs = useMemo(
     () => [
@@ -237,7 +240,11 @@ export function KeyDetails({
         <KeyMap keyView={key} clockMS={clockMS} track={track} replay={replay} focus={focus} onFocus={setFocus} />
       </section>
 
-      <Tabs tabs={tabs} onOpen={(i) => setRouteOpen(tabs[i].name === 'Route')} />
+      <Tabs
+        initial={key.route ? ROUTE_TAB : 0}
+        tabs={tabs}
+        onOpen={(i) => setRouteOpen(i === ROUTE_TAB)}
+      />
       <p className="muted small">{key.players.join(' · ')}</p>
     </div>
   )

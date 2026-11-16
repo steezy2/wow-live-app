@@ -469,6 +469,59 @@
                 }
             }
         },
+        "/api/mplus/keys/{start}/recorded-route": {
+            "get": {
+                "description": "The key's kills matched to map enemies as KeyRoute does, grouped by the key pull they died in, in\norder. The page makes a route of them (POST /api/mplus/routes, then PUT with colors). Empty for a\nkey saved before mob positions were kept.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "mplus"
+                ],
+                "summary": "The pulls a key made, as the enemies of a route to record from it",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "the key's start (ms since the epoch)",
+                        "name": "start",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/definitions/models.EnemyRef"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "no such key",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/mplus/keys/{start}/review": {
             "get": {
                 "produces": [
@@ -579,7 +632,7 @@
         },
         "/api/mplus/keys/{start}/route": {
             "get": {
-                "description": "Each dead mob is matched to the nearest map enemy of its NPC on its floor within 20 yards, in\ndeath order. A pull is done when all of it died or 80% of its forces. noMobs is a key saved before\nmob positions were kept: only the route can be shown until its log is read again.",
+                "description": "Each dead mob is matched to a map enemy of its NPC on its floor within 30 yards of where it was\nfirst seen, closest pairs first. A pull is done when all of it died or 80% of its forces. noMobs is a key saved before\nmob positions were kept: only the route can be shown until its log is read again.",
                 "produces": [
                     "application/json"
                 ],
