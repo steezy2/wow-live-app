@@ -116,7 +116,7 @@ func Start(ctx context.Context, opts Options) (*Site, error) {
 	if opts.Settings != nil {
 		opts.Settings.Logs, opts.Settings.Characters = s, characters
 		opts.Settings.Sim = &controller.SimAPI{Runs: &service.Sims{Engine: simc.Client{Dir: filepath.Join(opts.Cache, simEngineDir)},
-			Dir: filepath.Join(opts.Cache, simsDir), Drops: opts.Drops, Now: opts.Now}}
+			Dir: filepath.Join(opts.Cache, simsDir), Drops: opts.Drops, Now: opts.Now, Ctx: ctx}}
 		if opts.WCL != nil {
 			s.Import = s.importer(characters, store, pulls)
 			opts.Settings.Import = s.Import

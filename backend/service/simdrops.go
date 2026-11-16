@@ -55,6 +55,9 @@ func dropCombos(p models.SimProfile, d models.SimDrops, difficulty string, keyLe
 				slots = []string{item.Slot}
 			}
 			for _, slot := range slots {
+				if slot == "off_hand" && worn["main_hand"] != nil && worn["off_hand"] == nil {
+					continue // the equipped main hand is a two-hander (as in weaponOptions), which has no off-hand
+				}
 				in := models.SimItem{Slot: slot, Name: item.Name, Level: level, ID: item.ID,
 					Opts: map[string][]int{"ilevel": {level}}}
 				swaps := []models.SimSwap{{Slot: slot, Out: worn[slot], In: &in}}

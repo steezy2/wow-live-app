@@ -4459,6 +4459,10 @@ paths:
           description: a sim or a download is running, or no engine is installed
           schema:
             $ref: '#/definitions/controller.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
       summary: Start a sim
       tags:
       - sim
