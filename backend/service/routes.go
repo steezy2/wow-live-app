@@ -163,9 +163,6 @@ func (r *Routes) importDrawings(mapID int, mdts []models.MDTDrawing) (drawings [
 	kept []models.MDTDrawing) {
 	floors := r.Facts[mapID].Floors
 	for _, m := range mdts {
-		if len(m.Points) == 0 {
-			continue
-		}
 		f := -1
 		for i, g := range floors {
 			if g.MDT != nil && g.MDT.Sublevel == m.Sublevel &&

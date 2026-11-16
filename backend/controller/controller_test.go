@@ -655,7 +655,7 @@ func (fakeSpells) Info(_ context.Context, name string) (models.SpellInfo, error)
 	return models.SpellInfo{}, service.ErrUnknownSpell
 }
 
-func (fakeSpells) ByID(_ context.Context, id int) (models.SpellInfo, error) {
+func (fakeSpells) MobSpell(_ context.Context, id int) (models.SpellInfo, error) {
 	return models.SpellInfo{ID: id}, nil
 }
 

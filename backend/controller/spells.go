@@ -15,7 +15,7 @@ import (
 // Spells explains an ability by its name or a spell by its ID (service.Spells).
 type Spells interface {
 	Info(ctx context.Context, name string) (models.SpellInfo, error)
-	ByID(ctx context.Context, id int) (models.SpellInfo, error)
+	MobSpell(ctx context.Context, id int) (models.SpellInfo, error)
 }
 
 // SpellQuery is the ability to explain, as the combat log names it, or a spell ID.
@@ -29,7 +29,7 @@ type SpellQuery struct {
 //	@Summary		What an ability does
 //	@Description	The ability's description and cooldown, from Wowhead's tooltip (cached a week) for the spell ID
 //	@Description	given, else for the one the combat log gave its name. 404 for an ability the log hasn't shown since
-//	@Description	the app started, 502 when Wowhead can't be reached.
+//	@Description	the app started or a spell ID no dungeon mob casts, 502 when Wowhead can't be reached.
 //	@Tags			spells
 //	@Produce		json
 //	@Param			name	query		string	false	"the ability's name as the combat log shows it (needed without id)"
@@ -49,7 +49,7 @@ func (m MPlus) Spell(c *gin.Context) {
 	var info models.SpellInfo
 	var err error
 	if q.ID > 0 {
-		info, err = m.Spells.ByID(c.Request.Context(), q.ID)
+		info, err = m.Spells.MobSpell(c.Request.Context(), q.ID)
 	} else {
 		info, err = m.Spells.Info(c.Request.Context(), q.Name)
 	}

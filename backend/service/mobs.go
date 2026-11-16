@@ -40,8 +40,8 @@ func keyMult(level int) float64 {
 	return math.Round(mult*100) / 100
 }
 
-// ScaleMob is the mob at a key level: its base health times the level's multiplier and the affixes it takes there.
-func ScaleMob(m models.DungeonMob, level int) models.DungeonMob {
+// scaleMob is the mob at a key level: its base health times the level's multiplier and the affixes it takes there.
+func scaleMob(m models.DungeonMob, level int) models.DungeonMob {
 	mult := keyMult(level)
 	switch {
 	case level >= bothAffixesFrom && m.Boss:
@@ -55,6 +55,18 @@ func ScaleMob(m models.DungeonMob, level int) models.DungeonMob {
 	return m
 }
 
+// MobCasts is whether a mob in the reference file casts the spell.
+func (k *LogTracker) MobCasts(id int) bool {
+	for _, f := range k.facts {
+		for _, m := range f.Mobs {
+			if slices.ContainsFunc(m.Spells, func(s models.MobSpell) bool { return s.ID == id }) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // Mobs is the dungeon's mobs at a key level, by NPC ID; level 0 is the default: the level of the newest saved key in
 // the dungeon, else defaultMobLevel. A dungeon the reference file has no mobs for has none.
 func (k *LogTracker) Mobs(mapID, level int) models.DungeonMobs {
@@ -65,11 +77,10 @@ func (k *LogTracker) Mobs(mapID, level int) models.DungeonMobs {
 	}
 	k.mu.RUnlock()
 	level = cmp.Or(level, def)
-	out := models.DungeonMobs{Level: level, DefaultLevel: def, HealthMult: keyMult(level), DamageMult: keyMult(level),
-		Mobs: []models.DungeonMob{}}
+	out := models.DungeonMobs{Level: level, DamageMult: keyMult(level), Mobs: []models.DungeonMob{}}
 	mobs := k.facts[mapID].Mobs
 	for _, npc := range slices.Sorted(maps.Keys(mobs)) {
-		out.Mobs = append(out.Mobs, ScaleMob(mobs[npc], level))
+		out.Mobs = append(out.Mobs, scaleMob(mobs[npc], level))
 	}
 	return out
 }

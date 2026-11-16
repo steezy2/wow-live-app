@@ -320,10 +320,6 @@ definitions:
     properties:
       damageMult:
         type: number
-      defaultLevel:
-        type: integer
-      healthMult:
-        type: number
       level:
         type: integer
       mobs:
@@ -4129,7 +4125,7 @@ paths:
       description: |-
         The ability's description and cooldown, from Wowhead's tooltip (cached a week) for the spell ID
         given, else for the one the combat log gave its name. 404 for an ability the log hasn't shown since
-        the app started, 502 when Wowhead can't be reached.
+        the app started or a spell ID no dungeon mob casts, 502 when Wowhead can't be reached.
       parameters:
       - description: the ability's name as the combat log shows it (needed without
           id)

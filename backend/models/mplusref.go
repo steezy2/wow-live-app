@@ -70,11 +70,9 @@ type MobSpell struct {
 // key in the dungeon, else 10), the level's health and damage multipliers over +1 (before Fortified and Tyrannical,
 // which each mob's health includes), and the mobs in NPC ID order (none for a reference file written before mobs).
 type DungeonMobs struct {
-	Level        int          `json:"level"`
-	DefaultLevel int          `json:"defaultLevel"`
-	HealthMult   float64      `json:"healthMult"`
-	DamageMult   float64      `json:"damageMult"`
-	Mobs         []DungeonMob `json:"mobs"`
+	Level      int          `json:"level"`
+	DamageMult float64      `json:"damageMult"`
+	Mobs       []DungeonMob `json:"mobs"`
 }
 
 // RouteEnemy is one enemy a Mythic Dungeon Tools route can pull: its enemy and clone index there, its NPC, the forces

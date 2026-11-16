@@ -2112,7 +2112,7 @@ const docTemplate = `{
         },
         "/api/spells": {
             "get": {
-                "description": "The ability's description and cooldown, from Wowhead's tooltip (cached a week) for the spell ID\ngiven, else for the one the combat log gave its name. 404 for an ability the log hasn't shown since\nthe app started, 502 when Wowhead can't be reached.",
+                "description": "The ability's description and cooldown, from Wowhead's tooltip (cached a week) for the spell ID\ngiven, else for the one the combat log gave its name. 404 for an ability the log hasn't shown since\nthe app started or a spell ID no dungeon mob casts, 502 when Wowhead can't be reached.",
                 "produces": [
                     "application/json"
                 ],
@@ -2665,12 +2665,6 @@ const docTemplate = `{
             "type": "object",
             "properties": {
                 "damageMult": {
-                    "type": "number"
-                },
-                "defaultLevel": {
-                    "type": "integer"
-                },
-                "healthMult": {
                     "type": "number"
                 },
                 "level": {

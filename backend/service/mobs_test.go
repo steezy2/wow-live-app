@@ -24,10 +24,10 @@ func TestScaleMob(t *testing.T) {
 		if got := keyMult(tc.level); got != tc.mult {
 			t.Errorf("+%d multiplier %v; want %v", tc.level, got, tc.mult)
 		}
-		if got := ScaleMob(trash, tc.level).Health; got != tc.trash {
+		if got := scaleMob(trash, tc.level).Health; got != tc.trash {
 			t.Errorf("+%d trash health %d; want %d", tc.level, got, tc.trash)
 		}
-		if got := ScaleMob(boss, tc.level).Health; got != tc.bossHealth {
+		if got := scaleMob(boss, tc.level).Health; got != tc.bossHealth {
 			t.Errorf("+%d boss health %d; want %d", tc.level, got, tc.bossHealth)
 		}
 	}
@@ -42,25 +42,24 @@ func TestMobsStartAtTheNewestSavedKeysLevelAndAnOldReferenceHasNone(t *testing.T
 		t.Fatal(err)
 	}
 	for _, tc := range []struct {
-		name               string
-		mapID, level       int
-		wantLevel, wantDef int
-		wantHealth         []int
+		name         string
+		mapID, level int
+		wantLevel    int
+		wantHealth   []int
 	}{
-		{"the newest key's level", 250, 0, 17, 17, []int{8_950_000, 4_296_000}},
-		{"the level asked for", 250, 2, 2, 17, []int{2_140_000, 1_016_500}},
-		{"no saved key: +10", 399, 0, 10, 10, nil},
-		{"a reference without mobs", 585, 0, 20, 20, nil},
+		{"the newest key's level", 250, 0, 17, []int{8_950_000, 4_296_000}},
+		{"the level asked for", 250, 2, 2, []int{2_140_000, 1_016_500}},
+		{"no saved key: +10", 399, 0, 10, nil},
+		{"a reference without mobs", 585, 0, 20, nil},
 	} {
 		got := keys.Mobs(tc.mapID, tc.level)
 		var health []int
 		for _, m := range got.Mobs {
 			health = append(health, m.Health)
 		}
-		if got.Level != tc.wantLevel || got.DefaultLevel != tc.wantDef || got.HealthMult != keyMult(tc.wantLevel) ||
+		if got.Level != tc.wantLevel || got.DamageMult != keyMult(tc.wantLevel) ||
 			got.Mobs == nil || fmt.Sprint(health) != fmt.Sprint(tc.wantHealth) {
-			t.Errorf("%s: %+v; want level %d (default %d), healths %v by NPC", tc.name, got, tc.wantLevel, tc.wantDef,
-				tc.wantHealth)
+			t.Errorf("%s: %+v; want level %d, healths %v by NPC", tc.name, got, tc.wantLevel, tc.wantHealth)
 		}
 	}
 }

@@ -586,8 +586,6 @@ export interface DungeonMob {
  * multipliers over +1 (the mobs' health has them already) and the mobs, none for an old reference file. */
 export interface DungeonMobs {
   level: number
-  defaultLevel: number
-  healthMult: number
   damageMult: number
   mobs: DungeonMob[]
 }
