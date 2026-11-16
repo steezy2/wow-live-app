@@ -1,5 +1,6 @@
-// Package keystoneguru reads Keystone.guru's dungeon maps: each floor's in-game bounds and enemies and each dungeon's
-// forces total from its repository's dungeon data (github.com/Wotuu/keystone.guru, numbers only), and its map tiles from its asset
+// Package keystoneguru reads Keystone.guru's dungeon maps: each floor's in-game bounds and enemies, each dungeon's
+// forces total and each NPC's health and flags from its repository's dungeon data (github.com/Wotuu/keystone.guru,
+// numbers only), and its map tiles from its asset
 // server, each downloaded once and kept in CacheDir (logs/cache/, never committed). The page credits Keystone.guru on
 // the map.
 package keystoneguru
@@ -11,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"math"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -163,6 +165,7 @@ func (c Client) Enemies(ctx context.Context, d Dungeon) ([]models.KeystoneGuruEn
 			MDTNPC  int     `json:"mdt_npc_id"`
 			MDTID   int     `json:"mdt_id"`
 			Pack    int     `json:"enemy_pack_id"`
+			Patrol  int     `json:"enemy_patrol_id"`
 			Lat     float64 `json:"lat"`
 			Lng     float64 `json:"lng"`
 		}
@@ -172,9 +175,114 @@ func (c Client) Enemies(ctx context.Context, d Dungeon) ([]models.KeystoneGuruEn
 		for _, e := range enemies {
 			if e.Mapping == d.mapping {
 				out = append(out, models.KeystoneGuruEnemy{NPC: e.NPC, MDTNPC: e.MDTNPC, MDTID: e.MDTID, Pack: e.Pack,
-					Lat: e.Lat, Lng: e.Lng, Map: f.UIMapID})
+					Patrol: e.Patrol, Lat: e.Lat, Lng: e.Lng, Map: f.UIMapID})
 			}
 		}
+	}
+	return out, nil
+}
+
+// Patrols is every patrol path of the dungeon's newest mapping on its floors, from each floor's enemy_patrols.json
+// (beside its enemies.json); a floor without the file has none.
+func (c Client) Patrols(ctx context.Context, d Dungeon) ([]models.KeystoneGuruPatrol, error) {
+	var out []models.KeystoneGuruPatrol
+	for _, f := range d.Floors {
+		var patrols []struct {
+			ID       int `json:"id"`
+			Mapping  int `json:"mapping_version_id"`
+			Polyline struct {
+				Color    string `json:"color"`
+				Vertices string `json:"vertices_json"` // a JSON list of {lat, lng} in a string
+			} `json:"polyline"`
+		}
+		err := c.getJSON(ctx, f.Tiles+"/enemy_patrols.json", &patrols)
+		if errors.Is(err, cachefile.ErrNotFound) {
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		for _, p := range patrols {
+			if p.Mapping != d.mapping {
+				continue
+			}
+			var vertices []struct {
+				Lat float64 `json:"lat"`
+				Lng float64 `json:"lng"`
+			}
+			if err := json.Unmarshal([]byte(p.Polyline.Vertices), &vertices); err != nil {
+				return nil, fmt.Errorf("reading Keystone.guru patrol %d: %w", p.ID, err)
+			}
+			patrol := models.KeystoneGuruPatrol{ID: p.ID, Color: p.Polyline.Color, Map: f.UIMapID}
+			for _, v := range vertices {
+				patrol.Points = append(patrol.Points, [2]float64{v.Lat, v.Lng})
+			}
+			out = append(out, patrol)
+		}
+	}
+	return out, nil
+}
+
+// retail is Keystone.guru's game version ID for the live game, whose health row NPCs uses.
+const retail = 1
+
+// npcTypes and npcClassifications name Keystone.guru's NPC type and classification IDs (app/Models/Npc).
+var (
+	npcTypes = map[int]string{1: "Aberration", 2: "Beast", 3: "Critter", 4: "Demon", 5: "Dragonkin", 6: "Elemental",
+		7: "Giant", 8: "Humanoid", 9: "Mechanical", 10: "Undead", 11: "Uncategorized", 12: "Totem"}
+	npcClassifications = map[int]string{1: "Normal", 2: "Elite", 3: "Boss", 4: "Final boss", 5: "Rare"}
+)
+
+// NPCs is every NPC in Keystone.guru's npcs.json by NPC ID, without a name (its file has translation keys only):
+// level, type, classification (Boss set for a boss or final boss), the live game's base health (scaled by the row's
+// percentage), aggressiveness and the flags set, in the order DungeonMob lists them.
+func (c Client) NPCs(ctx context.Context) (map[int]models.DungeonMob, error) {
+	var npcs []struct {
+		ID             int    `json:"id"`
+		Level          int    `json:"level"`
+		Type           int    `json:"npc_type_id"`
+		Classification int    `json:"classification_id"`
+		Aggressiveness string `json:"aggressiveness"`
+		Bolstering     int    `json:"bolstering"`
+		Bursting       int    `json:"bursting"`
+		Sanguine       int    `json:"sanguine"`
+		Dangerous      int    `json:"dangerous"`
+		Truesight      int    `json:"truesight"`
+		RunsAway       int    `json:"runs_away_in_fear"`
+		Healths        []struct {
+			GameVersion int      `json:"game_version_id"`
+			Health      float64  `json:"health"`
+			Percentage  *float64 `json:"percentage"`
+		} `json:"npc_healths"`
+	}
+	if err := c.getJSON(ctx, "npcs.json", &npcs); err != nil {
+		return nil, err
+	}
+	out := make(map[int]models.DungeonMob, len(npcs))
+	for _, n := range npcs {
+		mob := models.DungeonMob{NPC: n.ID, Level: n.Level, Type: npcTypes[n.Type],
+			Class: npcClassifications[n.Classification], Boss: n.Classification == 3 || n.Classification == 4,
+			Aggressiveness: n.Aggressiveness}
+		for _, h := range n.Healths {
+			if h.GameVersion != retail {
+				continue
+			}
+			pct := 100.0
+			if h.Percentage != nil && *h.Percentage > 0 {
+				pct = *h.Percentage
+			}
+			mob.Health = int(math.Round(h.Health * pct / 100))
+		}
+		for _, f := range []struct {
+			name string
+			on   int
+		}{{"bolstering", n.Bolstering}, {"bursting", n.Bursting}, {"sanguine", n.Sanguine},
+			{"dangerous", n.Dangerous}, {"truesight", n.Truesight}, {"runsAwayInFear", n.RunsAway}} {
+			if f.on != 0 {
+				mob.Flags = append(mob.Flags, f.name)
+			}
+		}
+		out[n.ID] = mob
 	}
 	return out, nil
 }

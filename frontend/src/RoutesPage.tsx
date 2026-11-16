@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useReducer, useState } from 'react'
+import { useCallback, useEffect, useMemo, useReducer, useState, type MouseEvent } from 'react'
 import {
   createRoute,
   deleteRoute,
@@ -12,16 +12,41 @@ import {
   saveRoute,
   starRoute,
   type RouteDungeon,
+  type RouteEnemy,
   type RouteView,
   type SavedRoute,
 } from './api'
-import { counted } from './format'
+import { amount, counted } from './format'
+import { MobMenu, PullMenu } from './MobMenu'
 import { RouteMap } from './RouteMap'
 import { tip } from './tipAttrs'
-import { draftOf, edit, editorOf, packOf, pullForces, useDungeonMap } from './routes'
+import {
+  draftOf,
+  edit,
+  editorOf,
+  mobActions,
+  packOf,
+  patrolOf,
+  pullForces,
+  pullMobs,
+  useDungeonMap,
+  useMobs,
+} from './routes'
 
 /** The share of the dungeon's forces a route needs. */
 const FULL_PCT = 100
+/** The key levels the mobs endpoint scales to. */
+const KEY_LEVELS = { min: 2, max: 40 }
+
+/** An open menu: a mob's card or a pull row's, at a place in the window. */
+type Menu = { x: number; y: number } & ({ kind: 'mob'; enemy: RouteEnemy } | { kind: 'pull'; pull: number })
+
+/** Where a menu opened by a right click (or the keyboard's menu key, which has no pointer) goes. */
+function menuAt(e: MouseEvent<HTMLElement>): { x: number; y: number } {
+  if (e.clientX || e.clientY) return { x: e.clientX, y: e.clientY }
+  const box = e.currentTarget.getBoundingClientRect()
+  return { x: box.left, y: box.bottom }
+}
 
 /** A percent with one decimal, or a dash when it can't be known yet (a route never saved with forces). */
 const percent = (n: number) => (Number.isFinite(n) ? `${n.toFixed(1)}%` : '–')
@@ -29,7 +54,10 @@ const percent = (n: number) => (Number.isFinite(n) ? `${n.toFixed(1)}%` : '–')
 /** The Routes section: a dungeon's planned routes (the starred one is what the live page will follow) with a map of
  * the picked route's pulls and their forces, a box to import a Mythic Dungeon Tools string, the routes Mythic Dungeon
  * Tools saved and a new empty route. The picked route is edited in place (pulls picked on the map, added, moved,
- * deleted, renamed, with Undo) and saved; leaving it unsaved asks first. A route copies back as a string for Mythic
+ * deleted, renamed, with Undo) and saved; leaving it unsaved asks first. Its mobs are read at a key level the toolbar
+ * picks (the owner's newest key there to start): each pull row lists its mobs by name with their health, a click on
+ * one or a right click on the map opens the mob's card, and a right click on a row its menu (the hovered row's pull
+ * is highlighted on the map). A route copies back as a string for Mythic
  * Dungeon Tools' Import. The page stays mounted while hidden, and reads the routes and MDT's saves again each time it
  * becomes visible. */
 export function RoutesPage({ visible }: { visible: boolean }) {
@@ -39,7 +67,7 @@ export function RoutesPage({ visible }: { visible: boolean }) {
   const [mapID, setMapID] = useState<number | null>(null)
   const [picked, setPicked] = useState<string | null>(null)
   const [route, setRoute] = useState<RouteView | null>(null)
-  const [editor, dispatch] = useReducer(edit, { name: '', pulls: [] }, editorOf)
+  const [editor, dispatch] = useReducer(edit, { name: '', pulls: [], drawings: [] }, editorOf)
   const [code, setCode] = useState('')
   const [copied, setCopied] = useState('')
   const [notice, setNotice] = useState('')
@@ -70,6 +98,12 @@ export function RoutesPage({ visible }: { visible: boolean }) {
     return () => controller.abort()
   }, [shownID, opened])
   const map = useDungeonMap(dungeon)
+  const [levelPick, setLevelPick] = useState<{ mapID: number; level: number } | null>(null)
+  const mobs = useMobs(dungeon, levelPick?.mapID === dungeon ? levelPick.level : null)
+  const byNPC = useMemo(() => new Map(mobs?.mobs.map((m) => [m.npc, m])), [mobs])
+  const [menu, setMenu] = useState<Menu | null>(null)
+  const closeMenu = () => setMenu(null)
+  const [hovered, setHovered] = useState(-1)
 
   const { draft, selected } = editor
   const dirty = route !== null && route.id === shownID && JSON.stringify(draft) !== JSON.stringify(draftOf(route))
@@ -92,7 +126,11 @@ export function RoutesPage({ visible }: { visible: boolean }) {
     setMapID(r.mapID)
     setPicked(r.id)
     opened(r) // an import of the shown route replaces it
-    if (r.dropped) setNotice(`${counted(r.dropped, 'enemy')} MDT knows aren't on this map.`)
+    const notes = [
+      r.dropped ? `${counted(r.dropped, 'enemy')} MDT knows aren't on this map.` : '',
+      r.droppedDrawings ? `${counted(r.droppedDrawings, 'drawing')} can't be shown here; the export keeps them.` : '',
+    ]
+    setNotice(notes.filter(Boolean).join(' '))
   }
   const add = (work: () => Promise<RouteView>) => leave(() => act(work().then(imported)))
   const copy = (id: string) =>
@@ -204,7 +242,7 @@ export function RoutesPage({ visible }: { visible: boolean }) {
               />
               <button
                 disabled={!dirty}
-                onClick={() => void act(saveRoute(route.id, draft.name, draft.pulls).then(opened))}
+                onClick={() => void act(saveRoute(route.id, draft).then(opened))}
               >
                 Save
               </button>
@@ -225,12 +263,38 @@ export function RoutesPage({ visible }: { visible: boolean }) {
                 dungeon={map}
                 pulls={draft.pulls}
                 selected={selected}
+                highlight={hovered}
                 onEnemy={(e, shift) =>
                   dispatch({ kind: 'toggle', enemies: shift ? packOf(e, map?.enemies ?? []) : [e] })
                 }
+                onContext={(enemy, x, y) => setMenu({ kind: 'mob', enemy, x, y })}
+                mobs={byNPC}
+                level={mobs?.level}
+                drawings={draft.drawings}
+                onDraw={dispatch}
+                limits={route.limits}
               />
               <div>
                 <div className="route-tools">
+                  {mobs && (
+                    <label className="route-level" {...tip('The key level the health and damage are at')}>
+                      +
+                      <input
+                        key={dungeon}
+                        type="number"
+                        min={KEY_LEVELS.min}
+                        max={KEY_LEVELS.max}
+                        defaultValue={mobs.level}
+                        aria-label="key level"
+                        onChange={(e) =>
+                          dungeon !== null &&
+                          e.target.value &&
+                          e.target.validity.valid &&
+                          setLevelPick({ mapID: dungeon, level: e.target.valueAsNumber })
+                        }
+                      />
+                    </label>
+                  )}
                   <button onClick={() => dispatch({ kind: 'new' })}>New pull</button>
                   <button disabled={selected < 0} onClick={() => dispatch({ kind: 'delete' })}>
                     Delete pull
@@ -257,25 +321,78 @@ export function RoutesPage({ visible }: { visible: boolean }) {
                     <span>Of total</span>
                     <span>Running</span>
                   </li>
-                  {rows.map((p, i) => (
-                    <li key={i}>
-                      <button
-                        className="route-swatch"
-                        style={{ background: `#${p.color}` }}
-                        aria-pressed={i === selected}
-                        onClick={() => dispatch({ kind: 'select', pull: i })}
+                  {rows.map((p, i) => {
+                    const { groups, health } = pullMobs(draft.pulls[i]?.enemies ?? [], map?.enemies ?? [], byNPC)
+                    return (
+                      <li
+                        key={i}
+                        onMouseEnter={() => setHovered(i)}
+                        onMouseLeave={() => setHovered(-1)}
+                        onContextMenu={(e) => {
+                          e.preventDefault()
+                          dispatch({ kind: 'select', pull: i })
+                          setMenu({ kind: 'pull', pull: i, ...menuAt(e) })
+                        }}
                       >
-                        {i + 1}
-                      </button>
-                      <span>{p.forces}</span>
-                      <span className="muted">{percent(p.pct)}</span>
-                      <span className={p.totalPct >= FULL_PCT ? 'good' : undefined}>{percent(p.totalPct)}</span>
-                    </li>
-                  ))}
+                        <button
+                          className="route-swatch"
+                          style={{ background: `#${p.color}` }}
+                          aria-pressed={i === selected}
+                          onClick={() => dispatch({ kind: 'select', pull: i })}
+                        >
+                          {i + 1}
+                        </button>
+                        <span>{p.forces}</span>
+                        <span className="muted">{percent(p.pct)}</span>
+                        <span className={p.totalPct >= FULL_PCT ? 'good' : undefined}>{percent(p.totalPct)}</span>
+                        <span className="route-mobs small">
+                          {groups.map((g) => (
+                            <button
+                              key={g.name}
+                              className="link"
+                              onClick={(e) => setMenu({ kind: 'mob', enemy: g.enemies[0], ...menuAt(e) })}
+                            >
+                              {g.enemies.length}× {g.name}
+                            </button>
+                          ))}
+                          {health > 0 && <span className="muted">{amount(health)} health</span>}
+                        </span>
+                      </li>
+                    )
+                  })}
                 </ol>
                 {dirty && <p className="muted small">Unsaved: forces summed here, the site counts them on Save.</p>}
+                <p className="muted small">
+                  Right click a pull to move, delete or recolor it; click a mob for its card.
+                  {mobs?.mobs.length === 0 && ' No mob data for this dungeon: names and health need a newer reference.'}
+                </p>
               </div>
             </div>
+            {menu?.kind === 'mob' && (
+              <MobMenu
+                enemy={menu.enemy}
+                mob={byNPC.get(menu.enemy.npc)}
+                level={mobs?.level}
+                damageMult={mobs?.damageMult}
+                patrol={patrolOf(menu.enemy, map?.patrols ?? [])}
+                actions={mobActions(menu.enemy, editor, map?.enemies ?? [])}
+                x={menu.x}
+                y={menu.y}
+                onEdit={dispatch}
+                onClose={closeMenu}
+              />
+            )}
+            {menu?.kind === 'pull' && draft.pulls[menu.pull] && (
+              <PullMenu
+                pull={menu.pull}
+                pulls={draft.pulls.length}
+                color={draft.pulls[menu.pull].color}
+                x={menu.x}
+                y={menu.y}
+                onEdit={dispatch}
+                onClose={closeMenu}
+              />
+            )}
           </>
         ) : (
           <p className="muted">Import a route from Mythic Dungeon Tools, or make a new one.</p>

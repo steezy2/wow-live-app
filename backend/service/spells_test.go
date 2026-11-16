@@ -61,3 +61,22 @@ func TestSpellsInfoLeavesAFailedLookupAloneForAWhile(t *testing.T) {
 		t.Errorf("after the wait: err = %v, asked %v; want asked again", err, source.asked)
 	}
 }
+
+// TestSpellsMobSpellRefusesAnIDNoMobCasts: only a spell a dungeon mob casts is looked up, so the endpoint can't be made
+// to fetch every spell there is.
+func TestSpellsMobSpellRefusesAnIDNoMobCasts(t *testing.T) {
+	facts := map[int]models.DungeonFacts{250: {Mobs: map[int]models.DungeonMob{
+		1: {NPC: 1, Spells: []models.MobSpell{{ID: 1}}}}}}
+	keys, err := NewLogTracker(nil, nil, models.MPlusRules{}, facts, &memStore{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := &fakeSpells{}
+	spells := &Spells{Keys: keys, Source: source}
+	if _, err := spells.MobSpell(context.Background(), 2); !errors.Is(err, ErrUnknownSpell) || len(source.asked) != 0 {
+		t.Errorf("a spell no mob casts: err = %v, asked %v; want ErrUnknownSpell and no ask", err, source.asked)
+	}
+	if _, err := spells.MobSpell(context.Background(), 1); err != nil || len(source.asked) != 1 {
+		t.Errorf("a mob's spell: err = %v, asked %v; want one ask", err, source.asked)
+	}
+}

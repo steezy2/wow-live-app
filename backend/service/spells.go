@@ -10,8 +10,8 @@ import (
 	"wow-live/backend/models"
 )
 
-// ErrUnknownSpell is returned by Spells.Info for an ability the combat log hasn't shown yet.
-var ErrUnknownSpell = errors.New("no spell by that name in the combat log")
+// ErrUnknownSpell is returned for an ability the combat log hasn't shown yet, and for a spell ID no dungeon mob casts.
+var ErrUnknownSpell = errors.New("no such spell: not in the combat log or any dungeon mob's spells")
 
 // ErrSpellDown is returned by Spells.Info for a spell whose lookup failed less than spellRetry ago.
 var ErrSpellDown = errors.New("spell lookup failed lately")
@@ -39,6 +39,23 @@ func (s *Spells) Info(ctx context.Context, name string) (models.SpellInfo, error
 	if id == 0 {
 		return models.SpellInfo{}, ErrUnknownSpell
 	}
+	info, err := s.byID(ctx, id)
+	if err != nil {
+		return models.SpellInfo{}, fmt.Errorf("%s: %w", name, err)
+	}
+	return info, nil
+}
+
+// MobSpell is what a spell of one of the season's dungeon mobs does, by its ID; ErrUnknownSpell for any other ID, so
+// the endpoint can't be made to fetch and cache every spell Wowhead has.
+func (s *Spells) MobSpell(ctx context.Context, id int) (models.SpellInfo, error) {
+	if !s.Keys.MobCasts(id) {
+		return models.SpellInfo{}, ErrUnknownSpell
+	}
+	return s.byID(ctx, id)
+}
+
+func (s *Spells) byID(ctx context.Context, id int) (models.SpellInfo, error) {
 	s.mu.Lock()
 	at, bad := s.failed[id]
 	s.mu.Unlock()
@@ -53,7 +70,7 @@ func (s *Spells) Info(ctx context.Context, name string) (models.SpellInfo, error
 		}
 		s.failed[id] = time.Now()
 		s.mu.Unlock()
-		return models.SpellInfo{}, fmt.Errorf("reading spell %d (%s): %w", id, name, err)
+		return models.SpellInfo{}, fmt.Errorf("reading spell %d: %w", id, err)
 	}
 	return info, nil
 }

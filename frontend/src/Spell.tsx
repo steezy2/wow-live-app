@@ -1,10 +1,10 @@
 import { Fragment } from 'react'
 import { spellTip } from './tipAttrs'
 
-/** An ability's name; the mouse on it says what it does and its cooldown. */
-export function Spell({ name }: { name: string }) {
+/** An ability's name; the mouse on it says what it does and its cooldown, looked up by its spell ID when given. */
+export function Spell({ name, id }: { name: string; id?: number }) {
   return (
-    <span className="spell" {...spellTip(name)}>
+    <span className="spell" {...spellTip(id ?? name)}>
       {name}
     </span>
   )

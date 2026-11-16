@@ -453,6 +453,18 @@ export interface DungeonMap {
   tilesPerSide: number
   walked: TrackPoint[]
   enemies: RouteEnemy[]
+  /** None for a reference file written before patrols. */
+  patrols: Patrol[]
+}
+
+/** A path enemies walk on the floor `map`, from Keystone.guru (models.Patrol): its color (6 hex digits), its points in
+ * log yards as [x, y] like a RouteEnemy's, whether it ends where it starts, and the enemies walking it. */
+export interface Patrol {
+  map: number
+  loop: boolean
+  color: string
+  points: [number, number][]
+  enemies: EnemyRef[]
 }
 
 /** A saved key in the list. */
@@ -547,6 +559,43 @@ export async function fetchDungeonMap(mapID: number, signal?: AbortSignal): Prom
   return json<DungeonMap>(`/api/mplus/dungeons/${mapID}/map`, { signal })
 }
 
+/** A spell a mob casts, with Mythic Dungeon Tools' flags (models.MobSpell). */
+export interface MobSpell {
+  id: number
+  interruptible?: boolean
+  magic?: boolean
+}
+
+/** One of a dungeon's NPCs at a key level (models.DungeonMob): health already at the level with Fortified or
+ * Tyrannical, 0 when Keystone.guru doesn't have it; flags are bolstering, bursting, sanguine, dangerous, truesight and
+ * runsAwayInFear. */
+export interface DungeonMob {
+  npc: number
+  name: string
+  level?: number
+  type?: string
+  class?: string
+  boss?: boolean
+  health: number
+  aggressiveness?: string
+  flags?: string[]
+  spells?: MobSpell[]
+}
+
+/** A dungeon's mobs at a key level (models.DungeonMobs): the level, the one to start at, the level's health and damage
+ * multipliers over +1 (the mobs' health has them already) and the mobs, none for an old reference file. */
+export interface DungeonMobs {
+  level: number
+  damageMult: number
+  mobs: DungeonMob[]
+}
+
+/** A dungeon's mobs at a key level, or at the level of the owner's newest key there with none. */
+export async function fetchMobs(mapID: number, level: number | null, signal?: AbortSignal): Promise<DungeonMobs> {
+  const query = level === null ? '' : `?${new URLSearchParams({ level: String(level) })}`
+  return json<DungeonMobs>(`/api/mplus/dungeons/${mapID}/mobs${query}`, { signal })
+}
+
 /** One 384 by 256 map tile of a dungeon floor; a floor is DungeonMap.tilesPerSide tiles wide and tall. */
 export function tileURL(mapID: number, uiMapID: number, x: number, y: number): string {
   return `/api/mplus/dungeons/${mapID}/floors/${uiMapID}/tiles/${x}/${y}`
@@ -589,6 +638,24 @@ interface RoutePullView extends RoutePull {
   totalPct: number
 }
 
+/** Something drawn on a route's floor `map`: a freehand line through its points, or a marker or a note (its text) at
+ * its one point. Points are in log yards as [x, y] like a RouteEnemy's; the color is 6 hex digits. */
+export interface Drawing {
+  id: string
+  map: number
+  kind: 'line' | 'marker' | 'note'
+  color: string
+  points: [number, number][]
+  text?: string
+}
+
+/** The most drawings a route has, characters a note has and points a line has. */
+export interface DrawingLimits {
+  drawings: number
+  noteText: number
+  linePoints: number
+}
+
 /** A planned route. */
 export interface RouteView {
   id: string
@@ -597,10 +664,15 @@ export interface RouteView {
   /** The dungeon's route the live page and key comparison use. */
   starred: boolean
   pulls: RoutePullView[]
+  /** Left out of the route list and of a route saved before drawings. */
+  drawings?: Drawing[]
+  limits: DrawingLimits
   totalPct: number
   updated: number
   /** An import's enemies that Mythic Dungeon Tools knows and the dungeon's map doesn't. */
   dropped?: number
+  /** An import's drawings the app can't show; an export still carries them. */
+  droppedDrawings?: number
 }
 
 /** The planned routes, newest first, without their pulls' enemies; one dungeon's with its map ID. */
@@ -709,9 +781,12 @@ export async function createRoute(mapID: number, name: string): Promise<RouteVie
   return sendJSON('/api/mplus/routes', 'POST', { mapID, name })
 }
 
-/** Replaces a route's name and pulls; the site checks them and answers with the route's forces. */
-export async function saveRoute(id: string, name: string, pulls: RoutePull[]): Promise<RouteView> {
-  return sendJSON(`/api/mplus/routes/${id}`, 'PUT', { name, pulls })
+/** Replaces a route's name, pulls and drawings; the site checks them and answers with the route's forces. */
+export async function saveRoute(
+  id: string,
+  route: { name: string; pulls: RoutePull[]; drawings: Drawing[] },
+): Promise<RouteView> {
+  return sendJSON(`/api/mplus/routes/${id}`, 'PUT', route)
 }
 
 /** Makes a route its dungeon's starred one. */
@@ -1141,22 +1216,24 @@ interface SpellInfo {
 
 const spellAnswers = new Map<string, Promise<SpellInfo | null>>()
 
-/** What the ability the combat log calls name does, or null when it can't be told. Answers are kept, so a hover asks
- * once; the log not knowing the ability (404) is kept too, but a failed lookup is asked again next time. */
-export function fetchSpell(name: string): Promise<SpellInfo | null> {
-  let answer = spellAnswers.get(name)
+/** What an ability does, by the name the combat log gives it or a spell ID, or null when it can't be told. Answers are
+ * kept, so a hover asks once; an unknown ability (404) is kept too, but a failed lookup is asked again next time. */
+export function fetchSpell(spell: string | number): Promise<SpellInfo | null> {
+  const key = typeof spell === 'number' ? `#${spell}` : spell
+  let answer = spellAnswers.get(key)
   if (!answer) {
-    answer = fetch(`/api/spells?${new URLSearchParams({ name })}`)
+    const query: Record<string, string> = typeof spell === 'number' ? { id: String(spell) } : { name: spell }
+    answer = fetch(`/api/spells?${new URLSearchParams(query)}`)
       .then((r) => {
         if (r.ok) return r.json() as Promise<SpellInfo>
-        if (r.status !== 404) spellAnswers.delete(name)
+        if (r.status !== 404) spellAnswers.delete(key)
         return null
       })
       .catch(() => {
-        spellAnswers.delete(name)
+        spellAnswers.delete(key)
         return null
       })
-    spellAnswers.set(name, answer)
+    spellAnswers.set(key, answer)
   }
   return answer
 }

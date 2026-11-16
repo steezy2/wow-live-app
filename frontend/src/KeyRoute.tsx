@@ -64,6 +64,7 @@ export function KeyRoute({ keyView: key, track, seek }: { keyView: KeyView; trac
           mapID={route.mapID}
           dungeon={dungeon}
           pulls={route.pulls}
+          drawings={route.drawings}
           killed={noMobs ? undefined : compare.kills}
         />
         <ol className="route-pulls">

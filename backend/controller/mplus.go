@@ -39,7 +39,7 @@ type Planner interface {
 	Saved() ([]models.SavedRoute, error)
 	Dungeons() []models.RouteDungeon
 	Create(mapID int, name string) (models.RouteView, error)
-	Update(id, name string, pulls []models.RoutePull) (models.RouteView, error)
+	Update(id string, u models.RouteUpdate) (models.RouteView, error)
 	Star(id string) error
 	Delete(id string) error
 	Export(id string) (string, error)
@@ -235,7 +235,7 @@ func (m MPlus) Track(c *gin.Context) {
 
 // DungeonMap godoc
 //
-//	@Summary	A dungeon's map: its floors with Keystone.guru tiles, and where parties have walked in its saved runs
+//	@Summary	A dungeon's map: its floors with Keystone.guru tiles, where parties have walked in its saved runs, its enemies and its patrols
 //	@Tags		mplus
 //	@Produce	json
 //	@Param		mapID	path		int	true	"the dungeon's map ID (challenge mode ID)"
@@ -254,6 +254,39 @@ func (m MPlus) DungeonMap(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, dungeon)
+}
+
+// MobsQuery is the key level to scale a dungeon's mobs to; 0 (left out) for the default.
+type MobsQuery struct {
+	Level int `form:"level" binding:"omitempty,min=2,max=40"`
+}
+
+// DungeonMobs godoc
+//
+//	@Summary		A dungeon's mobs at a key level, for the route editor
+//	@Description	Each NPC's name, type, class, flags and spells (Mythic Dungeon Tools, Keystone.guru) and its health
+//	@Description	at the level, as Keystone.guru scales it: 7% a level through +10 and 10% a level after, Fortified
+//	@Description	on trash and Tyrannical on bosses from +10, trash 5% lower up to +5. No source has a mob's own
+//	@Description	damage: damageMult is the level's multiplier over +1. The level defaults to the owner's newest saved
+//	@Description	key in the dungeon, else 10. No mobs for a reference file written before they were kept.
+//	@Tags			mplus
+//	@Produce		json
+//	@Param			mapID	path		int	true	"the dungeon's map ID (challenge mode ID)"
+//	@Param			level	query		int	false	"the key level, 2 to 40"
+//	@Success		200		{object}	models.DungeonMobs
+//	@Failure		400		{object}	ErrorResponse
+//	@Router			/api/mplus/dungeons/{mapID}/mobs [get]
+func (m MPlus) DungeonMobs(c *gin.Context) {
+	ids, ok := intParams(c, "mapID")
+	if !ok {
+		return
+	}
+	var q MobsQuery
+	if err := c.ShouldBindQuery(&q); err != nil {
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "level must be a key level from 2 to 40"})
+		return
+	}
+	c.JSON(http.StatusOK, m.Keys.Mobs(ids[0], q.Level))
 }
 
 // Tile godoc
@@ -424,12 +457,6 @@ type RouteRequest struct {
 	Name   string `json:"name"`
 }
 
-// RouteUpdate is the body that replaces a route's name and pulls.
-type RouteUpdate struct {
-	Name  string             `json:"name"`
-	Pulls []models.RoutePull `json:"pulls"`
-}
-
 // RouteCode is a route as a Mythic Dungeon Tools export string.
 type RouteCode struct {
 	Code string `json:"code"`
@@ -502,7 +529,8 @@ func (m MPlus) Route(c *gin.Context) {
 //
 //	@Summary		Add a route: import a Mythic Dungeon Tools export string, or make an empty one
 //	@Description	The string's uid becomes the route's id, so importing it again replaces that route. The reply's
-//	@Description	dropped counts the enemies the string pulls that the dungeon's map doesn't have.
+//	@Description	dropped counts the enemies the string pulls that the dungeon's map doesn't have, droppedDrawings its
+//	@Description	drawings the app can't show (an export still carries them).
 //	@Tags			mplus
 //	@Accept			json
 //	@Produce		json
@@ -533,14 +561,16 @@ func (m MPlus) AddRoute(c *gin.Context) {
 
 // UpdateRoute godoc
 //
-//	@Summary		Replace a route's name and pulls
+//	@Summary		Replace a route's name, pulls and drawings
 //	@Description	Every enemy must be on the dungeon's map and in one pull at most; a route has at most 60 pulls and
-//	@Description	a name of up to 60 characters.
+//	@Description	a name of up to 60 characters. Drawings (left out: none) keep to the route's limits: a line of 2
+//	@Description	points or more, a marker or a note at one point, 6 hex digit colors, text on notes only, every point
+//	@Description	on one of the dungeon's floors.
 //	@Tags			mplus
 //	@Accept			json
 //	@Produce		json
-//	@Param			id		path		string		true	"the route's id"
-//	@Param			route	body		RouteUpdate	true	"name and pulls"
+//	@Param			id		path		string				true	"the route's id"
+//	@Param			route	body		models.RouteUpdate	true	"name, pulls and drawings"
 //	@Success		200		{object}	models.RouteView
 //	@Failure		400		{object}	ErrorResponse
 //	@Failure		404		{object}	ErrorResponse
@@ -551,12 +581,12 @@ func (m MPlus) UpdateRoute(c *gin.Context) {
 	if !ok {
 		return
 	}
-	var req RouteUpdate
+	var req models.RouteUpdate
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "send a name and pulls"})
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "send a name, pulls and drawings"})
 		return
 	}
-	route, err := m.Planner.Update(id, req.Name, req.Pulls)
+	route, err := m.Planner.Update(id, req)
 	respondRoute(c, http.StatusOK, route, err)
 }
 
@@ -594,14 +624,15 @@ func (m MPlus) DeleteRoute(c *gin.Context) {
 
 // ExportRoute godoc
 //
-//	@Summary	A route as a string for Mythic Dungeon Tools' Import
-//	@Tags		mplus
-//	@Produce	json
-//	@Param		id	path		string	true	"the route's id"
-//	@Success	200	{object}	RouteCode
-//	@Failure	400	{object}	ErrorResponse
-//	@Failure	404	{object}	ErrorResponse
-//	@Failure	500	{object}	ErrorResponse
+//	@Summary		A route as a string for Mythic Dungeon Tools' Import
+//	@Description	Its drawings go on MDT's map, except those on a floor the reference doesn't place there.
+//	@Tags			mplus
+//	@Produce		json
+//	@Param			id	path		string	true	"the route's id"
+//	@Success		200	{object}	RouteCode
+//	@Failure		400	{object}	ErrorResponse
+//	@Failure		404	{object}	ErrorResponse
+//	@Failure		500	{object}	ErrorResponse
 //	@Router		/api/mplus/routes/{id}/export [get]
 func (m MPlus) ExportRoute(c *gin.Context) {
 	if id, ok := routeID(c); ok {

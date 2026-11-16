@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/fs"
 	"maps"
+	"math"
 	"regexp"
 	"slices"
 	"strings"
@@ -23,6 +24,9 @@ const (
 	maxNameLen  = 60
 	routeIDSize = 16 // characters in an id made here
 )
+
+// drawingLimits are the limits on a route's drawings, served with each route so the editor keeps to them.
+var drawingLimits = models.DrawingLimits{Drawings: 200, NoteText: 200, LinePoints: 500}
 
 var (
 	// ErrNoSuchRoute is returned for a route that isn't there.
@@ -57,7 +61,8 @@ type Routes struct {
 	mu    sync.Mutex // one change at a time, since starring changes several files
 }
 
-// List is the routes of one dungeon (every dungeon's for mapID 0), newest first, without their pulls' enemies.
+// List is the routes of one dungeon (every dungeon's for mapID 0), newest first, without their pulls' enemies or
+// their drawings.
 func (r *Routes) List(mapID int) ([]models.RouteView, error) {
 	routes, err := r.Store.List()
 	if err != nil {
@@ -69,6 +74,7 @@ func (r *Routes) List(mapID int) ([]models.RouteView, error) {
 			continue
 		}
 		view := r.view(route)
+		view.Drawings = nil
 		for i := range view.Pulls {
 			view.Pulls[i].Enemies = nil
 		}
@@ -96,7 +102,8 @@ func (r *Routes) Import(code string) (models.RouteView, error) {
 }
 
 // ImportPreset saves a Mythic Dungeon Tools preset as a route and counts in Dropped the enemies it pulls that the
-// dungeon's map doesn't have or an earlier pull has; a color that isn't 6 hex digits becomes defaultPullColor. Its uid
+// dungeon's map doesn't have or an earlier pull has, and in DroppedDrawings the drawings importDrawings can't take
+// (kept for the export); a color that isn't 6 hex digits becomes defaultPullColor. Its uid
 // becomes the id, so importing it again replaces the route and keeps its star when it's of the same dungeon; a
 // dungeon's first route is starred. A dungeon outside the season's reference, or more than maxPulls pulls, is
 // refused.
@@ -137,12 +144,85 @@ func (r *Routes) ImportPreset(p models.MDTPreset) (models.RouteView, error) {
 	if err := r.checkPulls(mapID, route.Pulls); err != nil {
 		return models.RouteView{}, err
 	}
+	route.Drawings, route.MDTDrawings = r.importDrawings(mapID, p.Drawings)
 	if err := r.save(&route, true); err != nil {
 		return models.RouteView{}, err
 	}
 	view := r.view(route)
-	view.Dropped = dropped
+	view.Dropped, view.DroppedDrawings = dropped, len(route.MDTDrawings)
 	return view, nil
+}
+
+// mdtPinColor is the color an imported note or marker gets: MDT's pins have none, and white is its brush's default.
+const mdtPinColor = "ffffff"
+
+// importDrawings is a preset's drawings on the dungeon's floors, and those it can't take: on a floor without an
+// MDTPlane, past drawingLimits.Drawings, or failing drawingProblem. Each goes on the floor of its sublevel whose
+// enemies' box on MDT's map is nearest its first point; a pin with text is a note, one without a marker.
+func (r *Routes) importDrawings(mapID int, mdts []models.MDTDrawing) (drawings []models.Drawing,
+	kept []models.MDTDrawing) {
+	floors := r.Facts[mapID].Floors
+	for _, m := range mdts {
+		f := -1
+		for i, g := range floors {
+			if g.MDT != nil && g.MDT.Sublevel == m.Sublevel &&
+				(f < 0 || boxDistance(g.MDT.Box, m.Points[0]) < boxDistance(floors[f].MDT.Box, m.Points[0])) {
+				f = i
+			}
+		}
+		if f < 0 || len(drawings) == drawingLimits.Drawings {
+			kept = append(kept, m)
+			continue
+		}
+		d := models.Drawing{ID: fmt.Sprint("mdt", len(drawings)+1), Map: floors[f].UIMapID, Kind: models.DrawLine,
+			Color: m.Color}
+		switch {
+		case m.Note && strings.TrimSpace(m.Text) == "":
+			d.Kind, d.Color = models.DrawMarker, mdtPinColor
+		case m.Note:
+			d.Kind, d.Color, d.Text = models.DrawNote, mdtPinColor, m.Text
+		}
+		plane := floors[f].MDT
+		for _, p := range m.Points {
+			x, y := ksgToLog(floors[f], plane.Scale*p[1]+plane.Y, plane.Scale*p[0]+plane.X)
+			d.Points = append(d.Points, [2]float64{x, y})
+		}
+		if drawingProblem(d, floors) != "" {
+			kept = append(kept, m)
+			continue
+		}
+		drawings = append(drawings, d)
+	}
+	return drawings, kept
+}
+
+// boxDistance is how far a point is from a box (min x, min y, max x, max y): 0 inside it.
+func boxDistance(b [4]float64, p [2]float64) float64 {
+	return math.Hypot(max(b[0]-p[0], 0, p[0]-b[2]), max(b[1]-p[1], 0, p[1]-b[3]))
+}
+
+// exportDrawings is a route's drawings on MDT's map, then the ones its import couldn't take, as they were. A drawing
+// on a floor without an MDTPlane stays in the app; a marker is a pin without text.
+func (r *Routes) exportDrawings(route models.Route) []models.MDTDrawing {
+	floors := r.Facts[route.MapID].Floors
+	var out []models.MDTDrawing
+	for _, d := range route.Drawings {
+		f := slices.IndexFunc(floors, func(f models.DungeonFloor) bool { return f.UIMapID == d.Map && f.MDT != nil })
+		if f < 0 {
+			continue
+		}
+		plane := floors[f].MDT
+		m := models.MDTDrawing{Sublevel: plane.Sublevel, Note: d.Kind != models.DrawLine, Text: d.Text}
+		if !m.Note {
+			m.Color = d.Color
+		}
+		for _, p := range d.Points {
+			lat, lng := logToKsg(floors[f], p[0], p[1])
+			m.Points = append(m.Points, [2]float64{(lng - plane.X) / plane.Scale, (lat - plane.Y) / plane.Scale})
+		}
+		out = append(out, m)
+	}
+	return append(out, route.MDTDrawings...)
 }
 
 // Dungeons are the season's dungeons that have enemies on the map, by name.
@@ -223,22 +303,26 @@ func (r *Routes) Create(mapID int, name string) (models.RouteView, error) {
 	return r.view(route), nil
 }
 
-// Update replaces a route's name and pulls. Every enemy must be on the dungeon's map and in one pull at most, and a
-// route has at most maxPulls pulls.
-func (r *Routes) Update(id, name string, pulls []models.RoutePull) (models.RouteView, error) {
+// Update replaces a route's name, pulls and drawings. Every enemy must be on the dungeon's map and in one pull at
+// most, a route has at most maxPulls pulls, and its drawings keep to checkDrawings.
+func (r *Routes) Update(id string, u models.RouteUpdate) (models.RouteView, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	route, err := r.get(id)
 	if err != nil {
 		return models.RouteView{}, err
 	}
-	if name, err = checkName(name); err != nil {
+	name, err := checkName(u.Name)
+	if err != nil {
 		return models.RouteView{}, err
 	}
-	if err := r.checkPulls(route.MapID, pulls); err != nil {
+	if err := r.checkPulls(route.MapID, u.Pulls); err != nil {
 		return models.RouteView{}, err
 	}
-	route.Name, route.Pulls = name, pulls
+	if err := r.checkDrawings(route.MapID, u.Drawings); err != nil {
+		return models.RouteView{}, err
+	}
+	route.Name, route.Pulls, route.Drawings = name, u.Pulls, u.Drawings
 	if err := r.save(&route, false); err != nil {
 		return models.RouteView{}, err
 	}
@@ -277,15 +361,15 @@ func (r *Routes) Delete(id string) error {
 	return r.setStar(route.MapID, others[0].ID)
 }
 
-// Export is the route as a string for Mythic Dungeon Tools' Import: the preset it came from with this route's name and
-// pulls.
+// Export is the route as a string for Mythic Dungeon Tools' Import: the preset it came from with this route's name,
+// pulls and drawings (exportDrawings').
 func (r *Routes) Export(id string) (string, error) {
 	route, err := r.get(id)
 	if err != nil {
 		return "", err
 	}
 	preset := models.MDTPreset{Name: route.Name, UID: route.ID, DungeonIdx: r.Facts[route.MapID].MDTIndex, Raw: route.MDT,
-		Pulls: make([]models.MDTPull, len(route.Pulls))}
+		Pulls: make([]models.MDTPull, len(route.Pulls)), Drawings: r.exportDrawings(route)}
 	for i, pull := range route.Pulls {
 		preset.Pulls[i] = models.MDTPull{Color: pull.Color, Enemies: map[int][]int{}}
 		for _, e := range pull.Enemies {
@@ -403,12 +487,73 @@ func (r *Routes) checkPulls(mapID int, pulls []models.RoutePull) error {
 	return nil
 }
 
+// checkDrawings refuses more drawings than drawingLimits allows, two with one id, or one drawingProblem finds wrong:
+// a bad id (ValidRouteID's rule), a kind other than a line (2 points or more), a marker or a note (1 point each), a
+// color that isn't 6 hex digits, text on anything but a note (which needs some), a floor the dungeon doesn't have or
+// a point that isn't on that floor.
+func (r *Routes) checkDrawings(mapID int, drawings []models.Drawing) error {
+	if len(drawings) > drawingLimits.Drawings {
+		return invalidf("%d drawings; at most %d", len(drawings), drawingLimits.Drawings)
+	}
+	floors := r.Facts[mapID].Floors
+	ids := map[string]bool{}
+	for i, d := range drawings {
+		if ids[d.ID] {
+			return invalidf("drawing %d: its id is another's", i+1)
+		}
+		if why := drawingProblem(d, floors); why != "" {
+			return invalidf("drawing %d: %s", i+1, why)
+		}
+		ids[d.ID] = true
+	}
+	return nil
+}
+
+// drawingProblem is what's wrong with a drawing on its own, "" when nothing is.
+func drawingProblem(d models.Drawing, floors []models.DungeonFloor) string {
+	points := len(d.Points)
+	f := slices.IndexFunc(floors, func(f models.DungeonFloor) bool { return f.UIMapID == d.Map })
+	switch {
+	case !models.ValidRouteID(d.ID):
+		return "a missing or bad id"
+	case d.Kind != models.DrawLine && d.Kind != models.DrawMarker && d.Kind != models.DrawNote:
+		return fmt.Sprintf("no kind %q", d.Kind)
+	case !pullColor.MatchString(d.Color):
+		return "color must be 6 hex digits"
+	case d.Kind == models.DrawLine && (points < 2 || points > drawingLimits.LinePoints):
+		return fmt.Sprintf("a line has 2 to %d points", drawingLimits.LinePoints)
+	case d.Kind != models.DrawLine && points != 1:
+		return fmt.Sprintf("a %s has one point", d.Kind)
+	case d.Kind == models.DrawNote &&
+		(strings.TrimSpace(d.Text) == "" || utf8.RuneCountInString(d.Text) > drawingLimits.NoteText):
+		return fmt.Sprintf("a note has 1 to %d characters", drawingLimits.NoteText)
+	case d.Kind != models.DrawNote && d.Text != "":
+		return "only a note has text"
+	case f < 0:
+		return fmt.Sprintf("no floor %d in this dungeon", d.Map)
+	}
+	for _, p := range d.Points {
+		if !onFloor(floors[f].RaidMap, p) {
+			return "a point off the floor"
+		}
+	}
+	return ""
+}
+
+// onFloor is whether a point in log yards is inside a floor's bounds (so never NaN or infinite), whose x is the log's
+// -y and y the log's x, and whose min can be above its max (Keystone.guru's often are).
+func onFloor(f models.RaidMap, p [2]float64) bool {
+	between := func(v, a, b float64) bool { return v >= min(a, b) && v <= max(a, b) }
+	return between(-p[1], f.MinX, f.MaxX) && between(p[0], f.MinY, f.MaxY)
+}
+
 // view is a route with its pulls' forces.
 func (r *Routes) view(route models.Route) models.RouteView {
 	known, total := r.known(route.MapID), r.Facts[route.MapID].Forces.Total
 	pct := func(n int) float64 { return forcesPct(n, total) }
 	v := models.RouteView{ID: route.ID, Name: route.Name, MapID: route.MapID, Starred: route.Starred,
-		Updated: route.Updated, Pulls: make([]models.RoutePullView, len(route.Pulls))}
+		Drawings: route.Drawings, Limits: drawingLimits, Updated: route.Updated,
+		Pulls: make([]models.RoutePullView, len(route.Pulls))}
 	running := 0
 	for i, pull := range route.Pulls {
 		forces := 0

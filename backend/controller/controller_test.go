@@ -52,6 +52,9 @@ func (f *fakeKeys) Track(int64) (models.KeyTrack, error) {
 func (f *fakeKeys) DungeonMap(int) (models.DungeonMap, error) { return models.DungeonMap{}, nil }
 func (f *fakeKeys) Abandon() bool                             { return f.ok }
 
+// Mobs answers with the level asked for, so a test sees what the handler passed.
+func (f *fakeKeys) Mobs(_, level int) models.DungeonMobs { return models.DungeonMobs{Level: level} }
+
 func (f *fakeKeys) DeleteSaved(start int64) error {
 	if start != 7 && start != 0 {
 		return service.ErrNoSuchKey
@@ -579,7 +582,7 @@ func (f *fakePlanner) Create(int, string) (models.RouteView, error) {
 	f.calls++
 	return models.RouteView{ID: "new"}, nil
 }
-func (f *fakePlanner) Update(id, _ string, _ []models.RoutePull) (models.RouteView, error) {
+func (f *fakePlanner) Update(id string, _ models.RouteUpdate) (models.RouteView, error) {
 	return models.RouteView{ID: id}, f.known(id)
 }
 func (f *fakePlanner) ImportSaved(string) (models.RouteView, error) {
@@ -652,13 +655,20 @@ func (fakeSpells) Info(_ context.Context, name string) (models.SpellInfo, error)
 	return models.SpellInfo{}, service.ErrUnknownSpell
 }
 
-func TestSpellAnswersByAbilityName(t *testing.T) {
+func (fakeSpells) MobSpell(_ context.Context, id int) (models.SpellInfo, error) {
+	return models.SpellInfo{ID: id}, nil
+}
+
+func TestSpellAnswersByAbilityNameOrSpellID(t *testing.T) {
 	for _, tc := range []struct {
 		url  string
 		code int
 	}{
 		{"/api/spells?name=Icebound+Fortitude", http.StatusOK},
 		{"/api/spells?name=Nothing", http.StatusNotFound},
+		{"/api/spells?id=48792", http.StatusOK},
+		{"/api/spells?id=0", http.StatusBadRequest},
+		{"/api/spells?id=x", http.StatusBadRequest},
 		{"/api/spells", http.StatusBadRequest},
 	} {
 		router := Router(MPlus{Keys: &fakeKeys{}, Now: time.Now, Spells: fakeSpells{}}, nil, nil,
@@ -669,6 +679,28 @@ func TestSpellAnswersByAbilityName(t *testing.T) {
 		router.ServeHTTP(w, r)
 		if w.Code != tc.code {
 			t.Errorf("%s: %d %s; want %d", tc.url, w.Code, w.Body, tc.code)
+		}
+	}
+}
+
+func TestMobsEndpointPassesTheLevelAndRefusesOneOutOfRange(t *testing.T) {
+	router := Router(MPlus{Keys: &fakeKeys{}, Now: time.Now}, nil, nil, os.DirFS(t.TempDir()), LocalHosts(port)...)
+	for _, tc := range []struct {
+		url   string
+		code  int
+		level int
+	}{
+		{"/api/mplus/dungeons/588/mobs", http.StatusOK, 0},
+		{"/api/mplus/dungeons/588/mobs?level=17", http.StatusOK, 17},
+		{"/api/mplus/dungeons/588/mobs?level=1", http.StatusBadRequest, 0},
+		{"/api/mplus/dungeons/588/mobs?level=41", http.StatusBadRequest, 0},
+		{"/api/mplus/dungeons/588/mobs?level=x", http.StatusBadRequest, 0},
+		{"/api/mplus/dungeons/x/mobs", http.StatusBadRequest, 0},
+	} {
+		w := get(t, router, tc.url)
+		var got models.DungeonMobs
+		if w.Code != tc.code || tc.code == http.StatusOK && (json.Unmarshal(w.Body.Bytes(), &got) != nil || got.Level != tc.level) {
+			t.Errorf("%s: %d %s; want %d at level %d", tc.url, w.Code, w.Body, tc.code, tc.level)
 		}
 	}
 }

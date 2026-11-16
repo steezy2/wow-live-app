@@ -36,7 +36,7 @@ export function TipHost() {
   useEffect(() => {
     let current: Element | null = null // the element the box is for, so a late spell answer can't land on another
     const over = (e: MouseEvent) => {
-      const el = (e.target as Element | null)?.closest?.('[data-tip],[data-spell]') ?? null
+      const el = (e.target as Element | null)?.closest?.('[data-tip],[data-spell],[data-spell-id]') ?? null
       if (el === current) return
       current = el
       if (!el) return setShown(null)
@@ -46,9 +46,10 @@ export function TipHost() {
       const below = box.top < NEAR_TOP // no room above
       const y = below ? box.bottom : box.top
       const spell = el.getAttribute('data-spell')
+      const id = Number(el.getAttribute('data-spell-id'))
       setShown({ x, y, below, text: text || spell || '', head: el.getAttribute('data-tip-head') ?? undefined })
-      if (!spell) return
-      void fetchSpell(spell).then((info) => {
+      if (!spell && !id) return
+      void fetchSpell(id || spell || '').then((info) => {
         if (info && current === el) {
           const head = [info.name, info.cooldown].filter(Boolean).join(' · ')
           setShown({ x, y, below, head, text: info.description })

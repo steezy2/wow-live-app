@@ -22,7 +22,8 @@ func TestDungeonsKeepsMappedFloorsWithSafeTileFoldersAndTheNewestMappingsForcesA
 			return
 		case strings.HasSuffix(r.URL.Path, "/bfa/templeofsethraliss/1/enemies.json"):
 			_, _ = w.Write([]byte(`[{"mapping_version_id": 30, "npc_id": 1, "mdt_id": 1, "lat": -1, "lng": 1},
-			  {"mapping_version_id": 31, "npc_id": 2, "mdt_npc_id": 3, "mdt_id": 4, "enemy_pack_id": 5, "lat": -6, "lng": 7}]`))
+			  {"mapping_version_id": 31, "npc_id": 2, "mdt_npc_id": 3, "mdt_id": 4, "enemy_pack_id": 5,
+			   "enemy_patrol_id": 8, "lat": -6, "lng": 7}]`))
 			return
 		}
 		_, _ = w.Write([]byte(`[
@@ -43,7 +44,8 @@ func TestDungeonsKeepsMappedFloorsWithSafeTileFoldersAndTheNewestMappingsForcesA
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := []models.KeystoneGuruEnemy{{NPC: 2, MDTNPC: 3, MDTID: 4, Pack: 5, Lat: -6, Lng: 7, Map: 1038}}; !reflect.DeepEqual(enemies, want) {
+	if want := []models.KeystoneGuruEnemy{{NPC: 2, MDTNPC: 3, MDTID: 4, Pack: 5, Patrol: 8, Lat: -6, Lng: 7,
+		Map: 1038}}; !reflect.DeepEqual(enemies, want) {
 		t.Errorf("Temple enemies = %+v; want %+v, the newest mapping's", enemies, want)
 	}
 	if f := temple.Floors; len(f) != 1 || f[0].Tiles != "bfa/templeofsethraliss/1" || f[0].UIMapID != 1038 {
@@ -54,6 +56,61 @@ func TestDungeonsKeepsMappedFloorsWithSafeTileFoldersAndTheNewestMappingsForcesA
 	}
 	if len(dungeons[1].Floors) != 0 {
 		t.Errorf("a key with ../ gave floors %+v; want none", dungeons[1].Floors)
+	}
+}
+
+func TestPatrolsReadTheNewestMappingsPathsAndSkipAFloorWithoutTheFile(t *testing.T) {
+	// The shape of Murder Row's floor 3 file: the path's points are JSON in a string.
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !strings.HasSuffix(r.URL.Path, "/midnight/murder_row/3/enemy_patrols.json") {
+			http.NotFound(w, r)
+			return
+		}
+		_, _ = w.Write([]byte(`[
+		 {"id": 22280, "mapping_version_id": 906, "floor_id": 406, "teeming": null, "faction": "any",
+		  "polyline": {"color": "#003280", "color_animated": null, "weight": 3,
+		   "vertices_json": "[{\"lat\":-200.8082,\"lng\":216.1495},{\"lat\":-189.9236,\"lng\":215.0353}]"},
+		  "mdt_polyline": null},
+		 {"id": 1, "mapping_version_id": 812, "polyline": {"color": "#fff", "vertices_json": "[]"}}]`))
+	}))
+	defer server.Close()
+	d := Dungeon{mapping: 906, Floors: []models.DungeonFloor{
+		{RaidMap: models.RaidMap{UIMapID: 2433}, Tiles: "midnight/murder_row/1"},
+		{RaidMap: models.RaidMap{UIMapID: 2435}, Tiles: "midnight/murder_row/3"}}}
+	got, err := Client{CacheDir: t.TempDir(), Raw: server.URL}.Patrols(context.Background(), d)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []models.KeystoneGuruPatrol{{ID: 22280, Color: "#003280", Map: 2435,
+		Points: [][2]float64{{-200.8082, 216.1495}, {-189.9236, 215.0353}}}}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("Patrols = %+v\nwant %+v", got, want)
+	}
+}
+
+func TestNPCsNameTypesAndClassesAndKeepTheLiveGamesHealthAndSetFlags(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`[
+		 {"id": 262530, "level": 92, "npc_type_id": 8, "classification_id": 4, "aggressiveness": "aggressive",
+		  "bolstering": 0, "bursting": 0, "sanguine": 0, "dangerous": 1, "truesight": 1, "runs_away_in_fear": 0,
+		  "npc_healths": [{"game_version_id": 4, "health": 1}, {"game_version_id": 1, "health": 9729765, "percentage": null}]},
+		 {"id": 7, "level": null, "npc_type_id": 100, "classification_id": 2, "aggressiveness": "neutral",
+		  "bolstering": 1, "bursting": 1, "sanguine": 1, "dangerous": 0, "truesight": 0, "runs_away_in_fear": 1,
+		  "npc_healths": [{"game_version_id": 1, "health": 1000, "percentage": 30}]}]`))
+	}))
+	defer server.Close()
+	got, err := Client{CacheDir: t.TempDir(), Raw: server.URL}.NPCs(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := map[int]models.DungeonMob{
+		262530: {NPC: 262530, Level: 92, Type: "Humanoid", Class: "Final boss", Boss: true, Health: 9729765,
+			Aggressiveness: "aggressive", Flags: []string{"dangerous", "truesight"}},
+		7: {NPC: 7, Class: "Elite", Health: 300, Aggressiveness: "neutral",
+			Flags: []string{"bolstering", "bursting", "sanguine", "runsAwayInFear"}},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("NPCs = %+v\nwant %+v", got, want)
 	}
 }
 
