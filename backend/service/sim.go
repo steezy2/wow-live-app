@@ -84,6 +84,7 @@ type Sims struct {
 	Engine SimEngineSource
 	Dir    string
 	Now    func() time.Time
+	Ctx    context.Context // the app's: canceled on Quit, which stops a running sim and download; nil never cancels
 
 	mu         sync.Mutex
 	run        *simRun     // the sim running now
@@ -148,7 +149,7 @@ func (s *Sims) InstallEngine() error {
 	}
 	s.installing, s.installErr = true, ""
 	go func() {
-		_, err := s.Engine.Install(context.Background())
+		_, err := s.Engine.Install(s.base())
 		s.mu.Lock()
 		defer s.mu.Unlock()
 		s.installing = false
@@ -190,7 +191,7 @@ func (s *Sims) Start(req models.SimRequest) (models.Sim, error) {
 	if err := os.WriteFile(input, []byte(SimInput(profile)), 0o644); err != nil {
 		return models.Sim{}, fmt.Errorf("writing %s: %w", input, err)
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), simTimeout)
+	ctx, cancel := context.WithTimeout(s.base(), simTimeout)
 	sim := models.Sim{ID: id, Kind: req.Kind, State: models.SimRunning, Character: profile.Name, Spec: profile.Spec,
 		Options: req.Options, StartedMS: s.Now().UnixMilli()}
 	s.run, s.last = &simRun{sim: sim, cancel: cancel}, nil
@@ -253,8 +254,14 @@ func (s *Sims) execute(ctx context.Context, input, output string) {
 		}
 	}
 	s.run.cancel()
-	s.run, s.last = nil, &sim
+	s.run, s.last = nil, nil
+	if sim.State != models.SimDone {
+		s.last = &sim
+	}
 }
+
+// base is the context sims and downloads run under.
+func (s *Sims) base() context.Context { return cmp.Or(s.Ctx, context.Background()) }
 
 // follow reads simc's output, updating the running sim's progress, and returns the last error line it printed.
 func (s *Sims) follow(r io.Reader) string {
@@ -269,7 +276,7 @@ func (s *Sims) follow(r io.Reader) string {
 				s.run.sim.Progress = p
 			}
 			s.mu.Unlock()
-		} else if strings.Contains(line, "Error") {
+		} else if strings.HasPrefix(line, "Error") {
 			complaint = line[:min(len(line), 300)]
 		}
 	}
