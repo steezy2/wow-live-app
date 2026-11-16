@@ -7,9 +7,7 @@ import {
   onAppEvent,
   savedSettings,
   saveSettings,
-  subscribe,
   type Character,
-  type KeyView,
   type Settings,
   type SettingsView,
 } from './api'
@@ -23,8 +21,8 @@ import { RoutesPage } from './RoutesPage'
 import { SavedKeys } from './SavedKeys'
 import { SettingsPage } from './SettingsPage'
 import { Skeleton } from './Skeleton'
+import { useSaved } from './useSaved'
 
-import { errorText } from './format'
 
 /** The longest the splash stays up waiting for the settings and the characters. */
 const SPLASH_MAX_MS = 2000
@@ -193,24 +191,9 @@ export default function App() {
   )
 }
 
-/** A saved key, read again when the saved keys change (a report linked to it, say). */
+/** A saved key. */
 function SavedKey({ start }: { start: number }) {
-  const [key, setKey] = useState<KeyView | null>(null) // the previous key stays up, dimmed, while this one is read
-  const [error, setError] = useState<string | null>(null)
-  useEffect(() => {
-    const controller = new AbortController()
-    const read = () =>
-      fetchSavedKey(start, controller.signal)
-        .then(setKey)
-        .catch((err: unknown) => {
-          if (!controller.signal.aborted) setError(errorText(err))
-        })
-    const off = subscribe(() => void read())
-    return () => {
-      controller.abort()
-      off()
-    }
-  }, [start])
+  const { data: key, error } = useSaved(start, fetchSavedKey) // the previous key stays up, dimmed, while this one is read
   if (error) return <p className="warning">{error}</p>
   if (!key) return <Skeleton height={480} />
   return (

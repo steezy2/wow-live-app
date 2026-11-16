@@ -357,6 +357,16 @@ func TestMassKillsLeaveOutDeathsWithNoHitSeen(t *testing.T) {
 	}
 }
 
+func TestMassKillsAtTheSameTimeComeOutByAbility(t *testing.T) {
+	deaths := []models.KeyDeath{{Ability: "Zap", ClockMS: 1000}, {Ability: "Zap", ClockMS: 1000},
+		{Ability: "Burn", ClockMS: 1000}, {Ability: "Burn", ClockMS: 1000}}
+	for range 20 { // a map's order changes between runs
+		if got := massKills(deaths, 2, 10_000); len(got) != 2 || got[0].Ability != "Burn" || got[1].Ability != "Zap" {
+			t.Fatalf("mass kills = %+v; want Burn then Zap", got)
+		}
+	}
+}
+
 func TestRaidPullKeepsAbilitiesTargetsAndHowLongBuffsLasted(t *testing.T) {
 	keys, store := newRaidTracker(t)
 	keys.rules.Lust.Names = []string{"Bloodlust"}

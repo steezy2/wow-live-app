@@ -312,6 +312,20 @@ func TestStartTurnsDownABadCharacter(t *testing.T) {
 	}
 }
 
+func TestReloadKeepsWhatEndedButIsNotSavedYet(t *testing.T) {
+	k, pulls := newRaidTracker(t)
+	k.store.(*memStore).keys = []models.Key{{Start: 1}}
+	pulls.pulls = []models.RaidPull{{Start: 3, Meter: fightingMeter()}}
+	k.unsaved = []savedRun{{key: models.Key{Start: 2}}, {key: models.Key{Start: 1}}}
+	k.unsavedPulls = []savedPull{{pull: models.RaidPull{Start: 4}}}
+	if err := k.Reload(); err != nil {
+		t.Fatal(err)
+	}
+	if len(k.history) != 2 || k.history[0].Start != 2 || len(k.pulls) != 2 || k.pulls[0].Start != 4 {
+		t.Errorf("history %+v, pulls %+v; want the unsaved key 2 and pull 4 on top of the saved ones", k.history, k.pulls)
+	}
+}
+
 func TestRemoveImportedKeepsLocalKeysAndPulls(t *testing.T) {
 	k, pulls := newRaidTracker(t)
 	keys := k.store.(*memStore)

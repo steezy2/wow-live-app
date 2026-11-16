@@ -196,6 +196,21 @@ func (k *LogTracker) Reload() error {
 	}
 	k.mu.Lock()
 	defer k.mu.Unlock()
+	// A key or pull that ended since the lists were read isn't saved yet; the fresh lists don't have it.
+	for _, run := range k.unsaved {
+		if !slices.ContainsFunc(history, func(h models.Key) bool {
+			return h.Start == run.key.Start && h.Imported == run.key.Imported
+		}) {
+			history = append([]models.Key{run.key}, history...)
+		}
+	}
+	for _, p := range k.unsavedPulls {
+		if !slices.ContainsFunc(pulls, func(h models.RaidPull) bool {
+			return h.Start == p.pull.Start && h.Imported == p.pull.Imported
+		}) {
+			pulls = append([]models.RaidPull{p.pull}, pulls...)
+		}
+	}
 	k.history, k.pulls = history, pulls
 	k.version++
 	return nil

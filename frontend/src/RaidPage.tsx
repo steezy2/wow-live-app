@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { fetchRaidNights, fetchRaidPull, reviewURL, subscribe, type KeyTrack, type RaidNight, type RaidPull, type RaidPullSummary } from './api'
-import { clock, counted, errorText, groupBy, progressText } from './format'
+import { fetchRaidNights, fetchRaidPull, reviewURL, type KeyTrack, type RaidNight, type RaidPull, type RaidPullSummary } from './api'
+import { clock, counted, groupBy, progressText } from './format'
 import { defense, raidOffense } from './meterColumns'
 import { MeterCard } from './MeterCards'
 import { ReportLinks, ReportTag } from './ReportLinks'
@@ -15,6 +15,7 @@ import { RaidReplay } from './RaidReplay'
 import { topMeter, useRaidTrack, useReplay } from './replay'
 import { Tabs } from './Tabs'
 import { useNow, useRaidLive } from './useLiveKey'
+import { useSaved } from './useSaved'
 import { Skeleton } from './Skeleton'
 import { tip } from './tipAttrs'
 import { WaitingCard } from './WaitingCard'
@@ -121,24 +122,9 @@ function nightTime(n: RaidNight): number {
   return new Date(`${n.night}T12:00`).getTime()
 }
 
-/** A saved pull, read again when the saved keys and pulls change (a report linked to it, say). */
+/** A saved pull. */
 function SavedPull({ start }: { start: number }) {
-  const [pull, setPull] = useState<RaidPull | null>(null) // the previous pull stays up, dimmed, while this one is read
-  const [error, setError] = useState<string | null>(null)
-  useEffect(() => {
-    const controller = new AbortController()
-    const read = () =>
-      fetchRaidPull(start, controller.signal)
-        .then(setPull)
-        .catch((err: unknown) => {
-          if (!controller.signal.aborted) setError(errorText(err))
-        })
-    const off = subscribe(() => void read())
-    return () => {
-      controller.abort()
-      off()
-    }
-  }, [start])
+  const { data: pull, error } = useSaved(start, fetchRaidPull) // the previous pull stays up, dimmed, while this one is read
   if (error) return <p className="warning">{error}</p>
   if (!pull) return <Skeleton height={480} />
   return (

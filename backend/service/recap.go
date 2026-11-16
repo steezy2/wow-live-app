@@ -142,7 +142,7 @@ func recapMPlus(keys []models.Key, you string) models.RecapMPlus {
 		KeyRows: keyRows(keys, you), Party: recapParty(keys, you)}
 	dungeons := map[string][]models.Key{}
 	for _, k := range keys {
-		rc.Keys, rc.TimeMS, rc.Deaths = rc.Keys+1, rc.TimeMS+keyLength(k), rc.Deaths+len(k.Deaths)
+		rc.Keys, rc.TimeMS, rc.Deaths = rc.Keys+1, rc.TimeMS+lengthMS(k), rc.Deaths+len(k.Deaths)
 		if k.Status == models.StatusTimed {
 			rc.Timed, rc.HighestTimed = rc.Timed+1, max(rc.HighestTimed, k.Level)
 		}
@@ -265,14 +265,6 @@ func recapParty(keys []models.Key, you string) []models.RecapMate {
 	}
 	slices.SortStableFunc(party, func(a, b models.RecapMate) int { return cmp.Compare(b.Keys, a.Keys) })
 	return party[:min(len(party), recapMates)]
-}
-
-// keyLength is a key's time: the game's own once it ended, else from its start to its end.
-func keyLength(k models.Key) int64 {
-	if k.FinalMS > 0 {
-		return k.FinalMS
-	}
-	return k.End - k.Start
 }
 
 // recapYou is you in keys (nil for no one): the specs played, most first; the median DPS, or HPS in a healer spec,
@@ -410,8 +402,8 @@ func recapFacts(keys []models.Key) []models.RecapFact {
 		player, n := kicker(k)
 		add(k, "Most kicks in a key: %s, %d in %s", player, n, name(k))
 	}
-	if k, ok := best(func(k models.Key) float64 { return float64(keyLength(k)) }); ok {
-		add(k, "Longest key: %s, %s", name(k), clockText(keyLength(k)))
+	if k, ok := best(func(k models.Key) float64 { return float64(lengthMS(k)) }); ok {
+		add(k, "Longest key: %s, %s", name(k), clockText(lengthMS(k)))
 	}
 	first := map[string]int{} // dungeon -> its oldest key's level
 	for _, k := range keys {

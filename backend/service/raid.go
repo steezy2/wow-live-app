@@ -865,7 +865,9 @@ func massKills(deaths []models.KeyDeath, players int, window int64) []models.Mas
 			i = j
 		}
 	}
-	slices.SortFunc(kills, func(a, b models.MassKill) int { return cmp.Compare(a.ClockMS, b.ClockMS) })
+	slices.SortFunc(kills, func(a, b models.MassKill) int {
+		return cmp.Or(cmp.Compare(a.ClockMS, b.ClockMS), strings.Compare(a.Ability, b.Ability))
+	})
 	return kills
 }
 

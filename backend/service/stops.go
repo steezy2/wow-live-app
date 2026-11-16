@@ -199,7 +199,7 @@ func (k *LogTracker) spikes(run *keyRun, casts []models.KeyCast, buffs []models.
 	if len(stretches) < minSpikeStretches {
 		return spikes
 	}
-	slices.SortFunc(stretches, func(a, b [2]int64) int { return cmp.Compare(b[1], a[1]) })
+	slices.SortFunc(stretches, func(a, b [2]int64) int { return cmp.Or(cmp.Compare(b[1], a[1]), cmp.Compare(a[0], b[0])) })
 	threshold := stretches[int(float64(len(stretches))*(1-spikeShare))][1]
 	var taken []int64
 	for _, s := range stretches {

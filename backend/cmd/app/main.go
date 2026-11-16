@@ -86,7 +86,11 @@ func run() error {
 		})},
 		Windows: application.WindowsOptions{WebviewUserDataPath: filepath.Join(data, "webview")},
 		SingleInstance: &application.SingleInstanceOptions{UniqueID: "wow-live.app",
-			OnSecondInstanceLaunch: func(application.SecondInstanceData) { show() }}})
+			OnSecondInstanceLaunch: func(application.SecondInstanceData) {
+				if show != nil { // a second copy started before the window exists
+					show()
+				}
+			}}})
 	opts, err := carried()
 	if err != nil {
 		return err

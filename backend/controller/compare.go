@@ -104,7 +104,7 @@ func compare(c *gin.Context, compares Compares, kind models.FightKind, run bool)
 }
 
 // noWCLKeys is the answer when the site has no Warcraft Logs credentials at all.
-const noWCLKeys = "no Warcraft Logs credentials in .env"
+const noWCLKeys = "no Warcraft Logs credentials saved"
 
 // wclAnswer answers with body, or maps a review's or comparer's error to a status (502 for Warcraft Logs failing,
 // without its text, logged as doing).

@@ -62,6 +62,22 @@ func TestSpellsInfoLeavesAFailedLookupAloneForAWhile(t *testing.T) {
 	}
 }
 
+func TestSpellsInfoDoesNotBlameTheSpellForACancelledAsk(t *testing.T) {
+	keys := newTracker(t, nil)
+	feed(t, keys, at(2, `SPELL_CAST_SUCCESS,`+testPlayer+`,0000000000000000,nil,0x80000000,0x80000000,48792,"Icebound Fortitude",0x10`))
+	source := &fakeSpells{err: context.Canceled}
+	spells := &Spells{Keys: keys, Source: source}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := spells.Info(ctx, "Icebound Fortitude"); !errors.Is(err, context.Canceled) {
+		t.Fatalf("err = %v; want the cancel", err)
+	}
+	source.err = nil
+	if info, err := spells.Info(context.Background(), "Icebound Fortitude"); err != nil || info.ID != 48792 {
+		t.Errorf("the next ask: %+v, %v; want it answered, not held back", info, err)
+	}
+}
+
 // TestSpellsMobSpellRefusesAnIDNoMobCasts: only a spell a dungeon mob casts is looked up, so the endpoint can't be made
 // to fetch every spell there is.
 func TestSpellsMobSpellRefusesAnIDNoMobCasts(t *testing.T) {

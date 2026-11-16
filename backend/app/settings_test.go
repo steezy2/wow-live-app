@@ -23,6 +23,12 @@ func TestSettingsFromAnOlderFileKeepDefaultsAndPlacesSurviveASave(t *testing.T) 
 	if got := s.Current(); got.Region != "eu" || !reflect.DeepEqual(got.Overlay, overlay) {
 		t.Fatalf("loaded %+v, want region eu and the default overlay", got)
 	}
+	if err := os.WriteFile(path, []byte(`{"overlay": {"columns": []}}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if empty, err := LoadSettings(path, models.Settings{}); err != nil || len(empty.Current().Overlay.Columns) != 0 {
+		t.Fatalf("an empty column list was chosen: %+v, %v", empty.Current().Overlay.Columns, err)
+	}
 	place := Place{X: 10, Y: 20, W: 420, H: 340}
 	if err := s.SavePlace("overlay", place); err != nil {
 		t.Fatal(err)
