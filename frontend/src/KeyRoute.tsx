@@ -8,7 +8,7 @@ import { When, type Seeker } from './Seek'
 /** A key next to a route of its dungeon (the starred one until another is picked): the route's map with the enemies
  * the key killed ticked, each route pull's planned forces, when the key pulled it and how much of it died, then the
  * kills off the route by key pull and the route pulls with nothing killed. With seek, a time moves the replay. A
- * running key's comparison is read again as its track changes. */
+ * running key's comparison is read again as its track changes (a null track, not at all). */
 export function KeyRoute({ keyView: key, track, seek }: { keyView: KeyView; track: KeyTrack | null; seek?: Seeker }) {
   const [routes, setRoutes] = useState<RouteView[]>([])
   const [id, setID] = useState<string>()

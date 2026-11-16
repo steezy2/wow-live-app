@@ -19,6 +19,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gin-gonic/gin"
+
 	"wow-live/backend/clients/cachefile"
 	"wow-live/backend/clients/combatlog"
 	"wow-live/backend/clients/keystoneguru"
@@ -77,7 +79,7 @@ type FightImporter interface {
 type Site struct {
 	Keys     *service.LogTracker
 	Changes  *service.Changes
-	Handler  http.Handler
+	Handler  *gin.Engine
 	Import   *service.Importer // nil without Settings and Warcraft Logs
 	opts     Options
 	reviews  controller.Reviews
@@ -364,10 +366,22 @@ func (s *Site) readImportedZips() (int, error) {
 	return read, nil
 }
 
+// saveEvery is how many lines readInto reads between saving what ended, so a long log's finished keys and pulls (with
+// their tracks) don't all wait in memory until its end.
+const saveEvery = 100_000
+
 // readInto reads one log (each reads it, a log or a zip) into keys and saves what ended in it.
 func (s *Site) readInto(keys *service.LogTracker, path string, each func(string, func(models.LogLine)) error) error {
-	if err := each(path, keys.Add); err != nil {
-		return err
+	lines := 0
+	var saveErr error // the first failure to save, returned once the log is read
+	err := each(path, func(l models.LogLine) {
+		keys.Add(l)
+		if lines++; lines%saveEvery == 0 && saveErr == nil {
+			_, saveErr = keys.SaveFinished()
+		}
+	})
+	if err != nil || saveErr != nil {
+		return cmp.Or(err, saveErr)
 	}
 	if _, err := keys.SaveFinished(); err != nil {
 		return err

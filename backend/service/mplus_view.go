@@ -119,7 +119,7 @@ func saveQueued[T any](mu *sync.RWMutex, queue *[]T, save func(T) error) error {
 	saved := 0
 	defer func() {
 		mu.Lock()
-		*queue = (*queue)[saved:]
+		*queue = slices.Delete(*queue, 0, saved) // clears the freed slots, so saved tracks can be collected
 		mu.Unlock()
 	}()
 	for _, item := range done {

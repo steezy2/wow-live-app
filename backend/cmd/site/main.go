@@ -31,6 +31,9 @@ import (
 	"sync"
 	"time"
 
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
+
 	"wow-live/backend/app"
 	"wow-live/backend/clients/combatlog"
 	"wow-live/backend/clients/wcl"
@@ -121,6 +124,7 @@ func run(port int, replay string, key int, speed float64, learn bool, region str
 			}
 		}()
 	}
+	site.Handler.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	server := &http.Server{Addr: fmt.Sprintf("127.0.0.1:%d", port), ReadHeaderTimeout: 5 * time.Second,
 		Handler: site.Handler}
 	go func() {

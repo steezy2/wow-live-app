@@ -4,6 +4,9 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 
 ## [Unreleased]
 
+### Changed
+- **Smaller and faster**: the app's exe is about half its size (`-s -w -trimpath` in `build.sh`, and the Swagger UI, which the app couldn't serve without its spec, now only comes with `go run ./cmd/site`). *Read old logs* peaks at about a third of the memory (1,019 MB to 327 MB on 2.2 GB of logs) with the same saved keys and pulls, byte for byte: finished keys and pulls are saved every 100,000 lines instead of when the log ends, at most 4 goroutines parse, saved tracks are freed, and two per-line string splits no longer allocate. Following a log from its start reads it with one buffer. The replay is about 3 times lighter per move (the graph's numbers by binary search, review tabs built once instead of on every tick, no remount when a tab opens or its count changes, one render per live tick). Idle: the live clock only ticks while a key runs, a window hidden in the tray reads once when it shows, the Route tab re-reads a running key only while open, and a key's page asks for its dungeon map once. The built page's `assets/` are cached for good.
+
 ## [0.4.6] - 2026-11-15
 
 ### Added

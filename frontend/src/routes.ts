@@ -19,9 +19,7 @@ import type { Yards } from './KeyMap'
 
 /** A dungeon's map with its floors and route enemies, null while it's read or without a dungeon. */
 export function useDungeonMap(mapID: number | null): DungeonMap | null {
-  const { data } = useFetched(mapID === null ? null : String(mapID), (signal, key) =>
-    fetchDungeonMap(Number(key), signal),
-  )
+  const { data } = useFetched(mapID === null ? null : String(mapID), (_, key) => fetchDungeonMap(Number(key)))
   return data ?? null // never the last dungeon's while this one is read
 }
 

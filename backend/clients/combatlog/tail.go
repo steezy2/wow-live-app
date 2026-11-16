@@ -52,12 +52,18 @@ func (t *Tail) Read() ([]string, string, error) {
 	if _, err := file.Seek(t.offset, io.SeekStart); err != nil {
 		return nil, "", fmt.Errorf("reading %s: %w", t.path, err)
 	}
-	chunk, err := io.ReadAll(io.LimitReader(file, maxRead))
+	info, err := file.Stat()
 	if err != nil {
 		return nil, "", fmt.Errorf("reading %s: %w", t.path, err)
 	}
-	t.offset += int64(len(chunk))
-	data := append(t.partial, chunk...)
+	// One buffer of the size to read, so a long backlog isn't grown and copied again and again.
+	buf := make([]byte, len(t.partial)+int(max(min(info.Size()-t.offset, maxRead), 0)))
+	n, err := io.ReadFull(file, buf[copy(buf, t.partial):])
+	if err != nil && !errors.Is(err, io.EOF) && !errors.Is(err, io.ErrUnexpectedEOF) {
+		return nil, "", fmt.Errorf("reading %s: %w", t.path, err)
+	}
+	t.offset += int64(n)
+	data := buf[:len(t.partial)+n]
 	end := bytes.LastIndexByte(data, '\n')
 	if end < 0 {
 		t.partial = data
@@ -65,8 +71,8 @@ func (t *Tail) Read() ([]string, string, error) {
 	}
 	t.partial = append([]byte(nil), data[end+1:]...)
 	var lines []string
-	for _, line := range bytes.Split(data[:end], []byte{'\n'}) {
-		if line = bytes.TrimRight(line, "\r"); len(line) > 0 {
+	for line := range bytes.Lines(data[:end]) {
+		if line = bytes.TrimRight(line, "\r\n"); len(line) > 0 {
 			lines = append(lines, string(line))
 		}
 	}
@@ -76,6 +82,9 @@ func (t *Tail) Read() ([]string, string, error) {
 // parseChunk is how many lines one parse job holds, so handing chunks between goroutines costs little next to
 // parsing them.
 const parseChunk = 4096
+
+// maxParsers is the most goroutines parsing at once.
+const maxParsers = 4
 
 // readBuffer is EachLine's read buffer; a longer line still reads whole.
 const readBuffer = 1 << 20
@@ -149,15 +158,16 @@ func Parse(texts []string) []models.LogLine {
 }
 
 // eachParsed parses the chunks feed sends on a pool of goroutines and passes their lines to add in the order sent,
-// on the caller's goroutine. At most 2 chunks per worker wait to be added, so memory stays flat however long the log.
+// on the caller's goroutine. The tracker adding them is the bottleneck, so a few workers (maxParsers) keep it fed, and
+// as many chunks wait to be added as there are workers: memory stays flat however long the log.
 func eachParsed(feed func(send func([]string)), add func(models.LogLine)) {
-	workers := max(runtime.NumCPU()-1, 1)
+	workers := min(max(runtime.NumCPU()-1, 1), maxParsers)
 	type job struct {
 		texts []string
 		done  chan []models.LogLine
 	}
 	jobs := make(chan job)
-	ordered := make(chan chan []models.LogLine, 2*workers)
+	ordered := make(chan chan []models.LogLine, workers)
 	for range workers {
 		go func() {
 			for j := range jobs {

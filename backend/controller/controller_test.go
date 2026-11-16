@@ -174,7 +174,17 @@ func TestPagesAndUnknownAPIPaths(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(pages, "index.html"), []byte("page"), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	if err := os.MkdirAll(filepath.Join(pages, "assets"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(pages, "assets", "index-abc.js"), []byte("js"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	router := Router(MPlus{Keys: &fakeKeys{}, Now: time.Now}, nil, nil, os.DirFS(pages), LocalHosts(port)...)
+	if w := get(t, router, "/assets/index-abc.js"); !strings.Contains(w.Header().Get("Cache-Control"), "immutable") ||
+		get(t, router, "/mplus").Header().Get("Cache-Control") != "" {
+		t.Errorf("an asset is cached for good and a page isn't: %q", w.Header().Get("Cache-Control"))
+	}
 	if w := get(t, router, "/mplus"); w.Code != http.StatusOK || w.Body.String() != "page" {
 		t.Fatalf("a page route: %d %q, want index.html", w.Code, w.Body)
 	}

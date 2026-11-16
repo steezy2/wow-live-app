@@ -11,5 +11,5 @@ cp -r "$repo/frontend/dist" "$embed/dist"
 cp "$repo/mplus.toml" "$repo/raid-rules.toml" "$repo/spec-rules.toml" "$repo/reference/mplus-dungeons.json" \
   "$repo/reference/raid-bosses.json" "$embed/"
 cd "$repo/backend" && go run ./cmd/appicon
-go build -ldflags "-H windowsgui" -o "$repo/bin/WoW Live.exe" ./cmd/app
+go build -trimpath -ldflags "-H windowsgui -s -w" -o "$repo/bin/WoW Live.exe" ./cmd/app
 echo "built $repo/bin/WoW Live.exe"

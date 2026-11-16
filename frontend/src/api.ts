@@ -554,9 +554,17 @@ export async function fetchTrack(start: number, signal?: AbortSignal): Promise<K
   return json<KeyTrack>(`/api/mplus/keys/${start}/track`, { signal })
 }
 
-/** A dungeon's map: its floors with Keystone.guru tiles, and where parties have walked in its saved runs. */
-export async function fetchDungeonMap(mapID: number, signal?: AbortSignal): Promise<DungeonMap> {
-  return json<DungeonMap>(`/api/mplus/dungeons/${mapID}/map`, { signal })
+const dungeonMaps = new Map<number, Promise<DungeonMap>>()
+
+/** A dungeon's map: its floors with Keystone.guru tiles, and where parties have walked in its saved runs. Pages that
+ * ask at once (a key's map and its route) share one request, which none of them can abort; a later ask reads anew. */
+export function fetchDungeonMap(mapID: number): Promise<DungeonMap> {
+  let read = dungeonMaps.get(mapID)
+  if (!read) {
+    read = json<DungeonMap>(`/api/mplus/dungeons/${mapID}/map`).finally(() => dungeonMaps.delete(mapID))
+    dungeonMaps.set(mapID, read)
+  }
+  return read
 }
 
 /** A spell a mob casts, with Mythic Dungeon Tools' flags (models.MobSpell). */
@@ -872,8 +880,30 @@ export function onAppEvent(name: string, callback: (data: unknown) => void): () 
 
 /** Calls onChange once now and whenever the site says the keys changed (and in a browser when the stream reopens). In the desktop app the notices are Wails
  * events; in a browser, the site's event stream, polling every FALLBACK_POLL_MS while it's down (the browser keeps
- * retrying it). Returns the unsubscribe. */
-export function subscribe(onChange: () => void): () => void {
+ * retrying it). While the page is hidden (a window in the tray) a change waits and is read once when it shows again.
+ * Returns the unsubscribe. */
+export function subscribe(notify: () => void): () => void {
+  let missed = false
+  const onChange = () => {
+    if (document.hidden) missed = true
+    else notify()
+  }
+  const shown = () => {
+    if (!document.hidden && missed) {
+      missed = false
+      notify()
+    }
+  }
+  document.addEventListener('visibilitychange', shown)
+  const stop = subscribeToChanges(onChange)
+  return () => {
+    document.removeEventListener('visibilitychange', shown)
+    stop()
+  }
+}
+
+/** subscribe without the wait for the page to show. */
+function subscribeToChanges(onChange: () => void): () => void {
   if (location.host === APP_HOST) {
     const off = onAppEvent('change', onChange)
     onChange()

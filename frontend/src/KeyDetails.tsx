@@ -18,6 +18,9 @@ import { Tabs } from './Tabs'
 import { type Seeker } from './Seek'
 import { tip } from './tipAttrs'
 
+/** The Route tab's place in the key's tabs. */
+const ROUTE_TAB = 3
+
 /** The result's icon, so it doesn't rest on colour alone. */
 const resultIcon: Record<KeyView['status'], string> = {
   running: '',
@@ -57,14 +60,35 @@ export function KeyDetails({
       key.status === 'running' ? undefined : { onSeek: show, classes: track?.classes ?? {}, onFocus: setFocus },
     [key.status, show, track],
   )
-  const fight = fightTabs(
-    { ...key, lanes: key.lanes ?? [] },
-    `Deaths ${key.deaths.length} (+${clock(key.penaltyMS)})`,
-    'party',
-    seek,
-    track,
-  )
   const [review, setReview] = useState<Review | null>(null)
+  const [routeOpen, setRouteOpen] = useState(false)
+  // Built when what they show changes, not on each tick of the replay's clock, so their panels stay as they are.
+  const tabs = useMemo(
+    () => [
+      {
+        name: `Priority targets ${key.pulls.filter((p) => p.late).length}/${key.pulls.length}`,
+        body: <PriorityLedger keyView={key} />,
+      },
+      {
+        name: `Buffs ${new Set(key.buffGaps?.map((g) => g.buff)).size}`,
+        body: <BuffGaps gaps={key.buffGaps ?? []} endMS={clockMS} players={key.players.length} seek={seek} />,
+      },
+      {
+        name: 'Bosses',
+        body: <BossList keyView={key} track={track} topBosses={review?.topBosses} onSeek={show} />,
+      },
+      // A running key's route is compared again as its track grows, but only while its tab is open.
+      { name: 'Route', body: <KeyRoute keyView={key} track={routeOpen ? track : null} seek={seek} /> },
+      ...fightTabs(
+        { ...key, lanes: key.lanes ?? [] },
+        `Deaths ${key.deaths.length} (+${clock(key.penaltyMS)})`,
+        'party',
+        seek,
+        track,
+      ),
+    ],
+    [key, clockMS, seek, track, review, show, routeOpen],
+  )
   return (
     <div className={key.status === 'running' || track ? 'key-ready' : 'key-loading'}>
       <header className="title">
@@ -216,24 +240,7 @@ export function KeyDetails({
         <KeyMap keyView={key} clockMS={clockMS} track={track} replay={replay} focus={focus} onFocus={setFocus} />
       </section>
 
-      <Tabs
-        tabs={[
-          {
-            name: `Priority targets ${key.pulls.filter((p) => p.late).length}/${key.pulls.length}`,
-            body: <PriorityLedger keyView={key} />,
-          },
-          {
-            name: `Buffs ${new Set(key.buffGaps?.map((g) => g.buff)).size}`,
-            body: <BuffGaps gaps={key.buffGaps ?? []} endMS={clockMS} players={key.players.length} seek={seek} />,
-          },
-          {
-            name: 'Bosses',
-            body: <BossList keyView={key} track={track} topBosses={review?.topBosses} onSeek={show} />,
-          },
-          { name: 'Route', body: <KeyRoute keyView={key} track={track} seek={seek} /> },
-          ...fight,
-        ]}
-      />
+      <Tabs tabs={tabs} onOpen={(i) => setRouteOpen(i === ROUTE_TAB)} />
       <p className="muted small">{key.players.join(' · ')}</p>
     </div>
   )
