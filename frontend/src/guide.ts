@@ -1,6 +1,7 @@
 import type { SettingsView } from './api'
 
-/** One step of Home's setup guide: what to check, whether it holds, and the Settings panel (element id) that fixes it. */
+/** One step of Home's setup guide: what to check, whether it holds, and the Settings panel (element id) that fixes
+ * it. */
 interface GuideStep {
   label: string
   met: boolean

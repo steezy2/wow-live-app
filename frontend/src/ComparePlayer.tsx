@@ -51,14 +51,16 @@ export function ComparePlayer({ kind, start, player }: { kind: FightKind; start:
         </h2>
         <p>{compare.verdict}</p>
         <p className="muted small">
-          Top logs: {compare.baseline} · {compare.yourRuns > 0 ? `your usual is the median of ${earlier}` : 'no earlier similar runs'}
+          Top logs: {compare.baseline} ·{' '}
+          {compare.yourRuns > 0 ? `your usual is the median of ${earlier}` : 'no earlier similar runs'}
           {compare.points > 0 && ` · ${compare.points.toFixed(0)} Warcraft Logs points spent`}
         </p>
         {compare.parses &&
           (compare.parses.found ? (
             <p className="small">
               {compare.parse
-                ? `Their Warcraft Logs parse here: best ${Math.floor(compare.parse.best)}, median ${Math.floor(compare.parse.median)} over ${compare.parse.runs} ranked. `
+                ? `Their Warcraft Logs parse here: best ${Math.floor(compare.parse.best)}, ` +
+                  `median ${Math.floor(compare.parse.median)} over ${compare.parse.runs} ranked. `
                 : 'No ranked parse here. '}
               <a href={compare.parses.url} target="_blank" rel="noreferrer">
                 Warcraft Logs page

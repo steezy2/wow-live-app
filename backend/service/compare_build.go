@@ -223,7 +223,8 @@ func abilityRows(in compareInput, best int) (rows []models.CompareRow, onlyYou, 
 		}
 		youRate := perMinute(you[k].casts, in.you.DurationMS)
 		topMed := median(topRates)
-		youUsed, topUsed := you[k].casts > 0 || you[k].done > 0, len(top) > 0 && float64(used) >= presentShare*float64(len(top))
+		youUsed, topUsed := you[k].casts > 0 || you[k].done > 0, len(top) > 0 &&
+			float64(used) >= presentShare*float64(len(top))
 		switch {
 		case !youUsed && topUsed:
 			onlyTop = append(onlyTop, name.name)
@@ -378,7 +379,8 @@ func verdict(c models.PlayerCompare, metric string) string {
 			rank++
 		}
 	}
-	parts := []string{fmt.Sprintf("%.0f%% of the top %d's median %s (%s of %d)", 100*main.You/main.Top, len(c.Logs), metric,
+	parts := []string{fmt.Sprintf("%.0f%% of the top %d's median %s (%s of %d)", 100*main.You/main.Top, len(c.Logs),
+		metric,
 		ordinal(rank), len(c.Logs)+1)}
 	if main.Yours != nil && c.YourRuns >= 2 && *main.Yours > 0 {
 		switch d := 100 * (main.You / *main.Yours - 1); {

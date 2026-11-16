@@ -44,10 +44,11 @@ type hitWatch struct {
 	last    map[string][]recapLine                                // the player's last events, oldest first
 	maxHP   map[string]int64                                      // the player's max HP, as last seen
 	takenAt map[string]map[int64]map[[2]string]*models.SpikeCause // the player's own takenAt, their last seconds only
-	over    map[string]bool                                       // the player's damage over the last seconds is at their bar
-	next    map[string]int64                                      // the first second the player's next big hit can start
-	all     []*bigHit                                             // the run's big hits, in order
-	open    []*bigHit                                             // those still running, in order
+	// the player's damage over the last seconds is at their bar
+	over map[string]bool
+	next map[string]int64 // the first second the player's next big hit can start
+	all  []*bigHit        // the run's big hits, in order
+	open []*bigHit        // those still running, in order
 }
 
 func newHitWatch() hitWatch {

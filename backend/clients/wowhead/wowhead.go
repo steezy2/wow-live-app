@@ -20,7 +20,8 @@ import (
 const maxAge = 24 * time.Hour
 
 // guidePaths are the overview URLs, by dungeon slug: new dungeons' and returning ones'.
-var guidePaths = []string{"/guide/midnight/%s-dungeon-overview-location-rewards", "/guide/midnight/%s-dungeon-overview-mythic-plus"}
+var guidePaths = []string{"/guide/midnight/%s-dungeon-overview-location-rewards",
+	"/guide/midnight/%s-dungeon-overview-mythic-plus"}
 
 // Client downloads Wowhead pages. BaseURL defaults to Wowhead's; HTTP may be nil.
 type Client struct {

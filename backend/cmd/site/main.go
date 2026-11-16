@@ -12,7 +12,7 @@
 //
 //	@title		WoW Live API
 //	@version	1
-//	@description	The site's API: the live Mythic+ key read from the combat log.
+//	@description	The site's API: the live Mythic+ key and raid pull read from the combat log, their saved keys and pulls and reviews, planned routes, the recap, and the settings.
 //	@BasePath	/
 package main
 
@@ -76,7 +76,8 @@ func run(port int, replay string, key int, speed float64, learn bool, region str
 		return err
 	}
 	if loaded.RefErr != nil {
-		log.Printf("no dungeon facts or raid boss mechanics, so no avoidable damage, forces or raid mechanics: %v", loaded.RefErr)
+		log.Printf("no dungeon facts or raid boss mechanics, so no avoidable damage, forces or raid mechanics: %v",
+			loaded.RefErr)
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()

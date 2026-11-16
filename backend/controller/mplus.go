@@ -310,7 +310,8 @@ func (m MPlus) DungeonMobs(c *gin.Context) {
 		return
 	}
 	var q MobsQuery
-	if err := c.ShouldBindQuery(&q); err != nil || q.Level != 0 && (q.Level < service.MinMobLevel || q.Level > service.MaxMobLevel) {
+	if err := c.ShouldBindQuery(&q); err != nil || q.Level != 0 &&
+		(q.Level < service.MinMobLevel || q.Level > service.MaxMobLevel) {
 		c.JSON(http.StatusBadRequest, ErrorResponse{
 			Error: fmt.Sprintf("level must be a key level from %d to %d", service.MinMobLevel, service.MaxMobLevel)})
 		return

@@ -155,7 +155,8 @@ function PullFight({ pull }: { pull: RaidPull }) {
 const NO_DATA = <SavedBefore what="abilities" />
 
 /** The select that picks the player a tab is about. */
-function PlayerPicker({ players, focus, onFocus }: { players: string[]; focus: string; onFocus: (player: string) => void }) {
+function PlayerPicker(props: { players: string[]; focus: string; onFocus: (player: string) => void }) {
+  const { players, focus, onFocus } = props
   return (
     <label>
       Player{' '}

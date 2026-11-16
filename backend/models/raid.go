@@ -70,25 +70,27 @@ type RaidReference struct {
 // gives no number), units to burst (names), and from the curated file: how many raiders each soak wants, auras
 // raiders take by picking something up, debuffs whose removal sets off a raid-wide effect, and what spawns each add.
 type RaidBoss struct {
-	Name      string           `json:"name"`
-	Guide     string           `json:"guide"`
-	NPCs      []int            `json:"npcs"`
-	Health    []int            `json:"health,omitempty"`  // the NPCs whose health is the boss's; empty: see service bossUnits
-	NotAdds   []int            `json:"notAdds,omitempty"` // NPCs the raid hits that never die (eggs): not listed as adds
-	Avoidable []int            `json:"avoidable"`
-	Soak      []int            `json:"soak"`
-	Soakers   map[int]int      `json:"soakers,omitempty"` // soak spell ID -> raiders wanted in each (0 or missing: everyone)
-	Dispel    []int            `json:"dispel"`
-	MustStop  []int            `json:"mustStop"`
-	WipeStop  []int            `json:"wipeStop,omitempty"` // the MustStop casts that wipe the raid when they go off
-	Stacks    map[int]int      `json:"stacks"`
-	Priority  []string         `json:"priority"`
-	Pickups   []RaidPickupRule `json:"pickups,omitempty"`
-	Breaks    []RaidBreakRule  `json:"breaks,omitempty"`
-	Spawns    []RaidSpawnRule  `json:"spawns,omitempty"`
-	Checked   string           `json:"checked,omitempty"` // how the curated mechanics were checked; empty: not curated
-	Sources   []string         `json:"sources,omitempty"`
-	Maps      []RaidMap        `json:"maps"` // the rooms the boss is fought in
+	Name  string `json:"name"`
+	Guide string `json:"guide"`
+	NPCs  []int  `json:"npcs"`
+	// the NPCs whose health is the boss's; empty: see service bossUnits
+	Health    []int `json:"health,omitempty"`
+	NotAdds   []int `json:"notAdds,omitempty"` // NPCs the raid hits that never die (eggs): not listed as adds
+	Avoidable []int `json:"avoidable"`
+	Soak      []int `json:"soak"`
+	// soak spell ID -> raiders wanted in each (0 or missing: everyone)
+	Soakers  map[int]int      `json:"soakers,omitempty"`
+	Dispel   []int            `json:"dispel"`
+	MustStop []int            `json:"mustStop"`
+	WipeStop []int            `json:"wipeStop,omitempty"` // the MustStop casts that wipe the raid when they go off
+	Stacks   map[int]int      `json:"stacks"`
+	Priority []string         `json:"priority"`
+	Pickups  []RaidPickupRule `json:"pickups,omitempty"`
+	Breaks   []RaidBreakRule  `json:"breaks,omitempty"`
+	Spawns   []RaidSpawnRule  `json:"spawns,omitempty"`
+	Checked  string           `json:"checked,omitempty"` // how the curated mechanics were checked; empty: not curated
+	Sources  []string         `json:"sources,omitempty"`
+	Maps     []RaidMap        `json:"maps"` // the rooms the boss is fought in
 }
 
 // RaidMechanics is reference/raid-mechanics.toml: the hand-kept mechanics of each boss (by boss name as
@@ -180,13 +182,15 @@ type RaidPull struct {
 	// Report is the Warcraft Logs fight this pull is, when one is known (imported, or matched to a report).
 	Report *ReportLink `json:"report,omitempty"`
 	// Imported marks a pull built from a Warcraft Logs report instead of a local combat log.
-	Imported   bool     `json:"imported,omitempty"`
-	Start      int64    `json:"start"`
-	End        int64    `json:"end"`
-	Night      string   `json:"night" example:"2026-11-03"` // the raid night: the start's date, before 6 am counting as the day before
-	Boss       string   `json:"boss"`
-	Difficulty string   `json:"difficulty" enums:"LFR,Normal,Heroic,Mythic"`
-	Number     int      `json:"number"` // the pull's number on this boss and difficulty tonight, from the pulls known when it's read
+	Imported bool  `json:"imported,omitempty"`
+	Start    int64 `json:"start"`
+	End      int64 `json:"end"`
+	// the raid night: the start's date, before 6 am counting as the day before
+	Night      string `json:"night" example:"2026-11-03"`
+	Boss       string `json:"boss"`
+	Difficulty string `json:"difficulty" enums:"LFR,Normal,Heroic,Mythic"`
+	// the pull's number on this boss and difficulty tonight, from the pulls known when it's read
+	Number     int      `json:"number"`
 	DurationMS int64    `json:"durationMS"`
 	Kill       bool     `json:"kill"`
 	BossPct    float64  `json:"bossPct"` // the boss's health left, 0-100; -1 without advanced logging

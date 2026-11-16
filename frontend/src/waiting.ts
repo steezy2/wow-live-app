@@ -35,7 +35,8 @@ export function raidTonight(nights: RaidNight[], today: string, open: (start: nu
     const kill = group.find((p) => p.kill)
     const best = kill ?? group.filter((p) => p.bossPct >= 0).sort((a, b) => a.bossPct - b.bossPct)[0] ?? group[0]
     const result = kill ? 'Kill' : best.bossPct >= 0 ? `best ${Math.round(best.bossPct)}%` : 'wipe'
-    return { id: boss, label: boss, result: `${result} · ${counted(group.length, 'pull')}`, good: !!kill, onOpen: () => open(best.start) }
+    const summary = `${result} · ${counted(group.length, 'pull')}`
+    return { id: boss, label: boss, result: summary, good: !!kill, onOpen: () => open(best.start) }
   })
 }
 

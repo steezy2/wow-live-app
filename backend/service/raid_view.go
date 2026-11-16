@@ -167,7 +167,8 @@ func (k *LogTracker) savePulls() error {
 // one's; ErrNoSuchPull when there's none.
 func (k *LogTracker) RaidTrack(start int64) (models.KeyTrack, error) {
 	k.mu.RLock()
-	if i := slices.IndexFunc(k.unsavedPulls, func(p savedFight[models.RaidPull]) bool { return p.fight.Start == start }); i >= 0 {
+	if i := slices.IndexFunc(k.unsavedPulls,
+		func(p savedFight[models.RaidPull]) bool { return p.fight.Start == start }); i >= 0 {
 		defer k.mu.RUnlock()
 		return k.unsavedPulls[i].track, nil
 	}

@@ -76,7 +76,8 @@ func comparison(yourUsual ...models.RankedPlayer) models.PlayerCompare {
 			Buffs: []models.RankedBuff{{ID: 1, Name: "Arcane Tempo", UptimeMS: haste}}}
 	}
 	top := []models.RankedPlayer{run(5, 450_000_000, 285_000), run(5, 420_000_000, 285_000), run(5, 480_000_000, 285_000)}
-	logs := []models.CompareLog{{Name: "A", Amount: 1_500_000}, {Name: "B", Amount: 1_400_000}, {Name: "C", Amount: 1_600_000}}
+	logs := []models.CompareLog{{Name: "A", Amount: 1_500_000}, {Name: "B", Amount: 1_400_000},
+		{Name: "C", Amount: 1_600_000}}
 	return buildCompare(compareInput{you: run(3, 300_000_000, 150_000), yours: yourUsual, top: top, logs: logs,
 		metric: "DPS", spec: specs[62]})
 }
@@ -90,7 +91,8 @@ func TestBuildCompareRowsAndAdvice(t *testing.T) {
 	if r := c.Abilities[i]; r.Unit != "casts" || r.You != 3 || r.Top != 5 || r.Best != 5 || r.Yours != nil {
 		t.Errorf("Arcane Surge row = %+v, want 3 casts against the top's 5 and no usual", r)
 	}
-	if len(c.Advice) < 2 || !strings.HasPrefix(c.Advice[0], "Arcane Surge: 3 casts, top Arcane Mages 5 in the same time (about ") ||
+	if len(c.Advice) < 2 || !strings.HasPrefix(c.Advice[0],
+		"Arcane Surge: 3 casts, top Arcane Mages 5 in the same time (about ") ||
 		!strings.Contains(strings.Join(c.Advice, "|"), "Arcane Tempo up 50% of the time, top Arcane Mages 95%") {
 		t.Errorf("advice = %q, want the Arcane Surge casts first and the buff uptime", c.Advice)
 	}
@@ -113,11 +115,15 @@ func TestVerdictAgainstYourUsualNeedsTwoRuns(t *testing.T) {
 }
 
 func TestAbilitiesOnlyOneSideUsedAreListedApart(t *testing.T) {
-	you := models.RankedPlayer{DurationMS: 60_000, Damage: 100, Abilities: []models.RankedAbility{{ID: 1, Name: "Mine", Casts: 4, Damage: 50}}}
-	top := models.RankedPlayer{DurationMS: 60_000, Damage: 100, Abilities: []models.RankedAbility{{ID: 2, Name: "Theirs", Casts: 4, Damage: 50}}}
-	c := buildCompare(compareInput{you: you, top: []models.RankedPlayer{top, top}, logs: []models.CompareLog{{Amount: 1}, {Amount: 1}},
+	you := models.RankedPlayer{DurationMS: 60_000, Damage: 100,
+		Abilities: []models.RankedAbility{{ID: 1, Name: "Mine", Casts: 4, Damage: 50}}}
+	top := models.RankedPlayer{DurationMS: 60_000, Damage: 100,
+		Abilities: []models.RankedAbility{{ID: 2, Name: "Theirs", Casts: 4, Damage: 50}}}
+	c := buildCompare(compareInput{you: you, top: []models.RankedPlayer{top, top},
+		logs:   []models.CompareLog{{Amount: 1}, {Amount: 1}},
 		metric: "DPS", spec: specs[62]})
-	if !slices.Equal(c.OnlyYou, []string{"Mine"}) || !slices.Equal(c.OnlyTop, []string{"Theirs"}) || len(c.Abilities) != 0 {
+	if !slices.Equal(c.OnlyYou, []string{"Mine"}) || !slices.Equal(c.OnlyTop, []string{"Theirs"}) ||
+		len(c.Abilities) != 0 {
 		t.Errorf("only you %v, only top %v, rows %+v; want each side's own ability listed apart and not scored", c.OnlyYou,
 			c.OnlyTop, c.Abilities)
 	}

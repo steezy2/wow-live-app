@@ -239,7 +239,8 @@ func (c *Client) CharacterParses(ctx context.Context, region, slug, name string,
 	kinds := map[string]models.FightKind{}
 	var fields []string
 	vars := map[string]any{"n": name, "s": slug, "r": region}
-	for alias, zone := range map[string]int{string(models.FightMPlus): zones.MPlusID, string(models.FightRaid): zones.RaidID} {
+	for alias, zone := range map[string]int{string(models.FightMPlus): zones.MPlusID,
+		string(models.FightRaid): zones.RaidID} {
 		if zone != 0 {
 			fields = append(fields, fmt.Sprintf("%s: zoneRankings(zoneID: %d)", alias, zone))
 			kinds[alias] = models.FightKind(alias)

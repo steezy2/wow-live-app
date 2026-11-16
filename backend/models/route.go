@@ -91,7 +91,8 @@ type RouteView struct {
 	Limits   DrawingLimits   `json:"limits"`
 	TotalPct float64         `json:"totalPct"`
 	Updated  int64           `json:"updated"`
-	Dropped  int             `json:"dropped,omitempty"` // an import's enemies that Mythic Dungeon Tools knows and this map doesn't
+	// an import's enemies that Mythic Dungeon Tools knows and this map doesn't
+	Dropped int `json:"dropped,omitempty"`
 	// DroppedDrawings counts an import's drawings the app can't show (kept for the export).
 	DroppedDrawings int `json:"droppedDrawings,omitempty"`
 }

@@ -234,7 +234,8 @@ func PickFights(reports []models.CharacterReport, zones models.WCLZones, charact
 	var picked []models.FightRef
 	for i, c := range candidates {
 		copied := slices.ContainsFunc(candidates[:i], func(o candidate) bool { // the same fight in another report
-			return o.ref.Code != c.ref.Code && o.fight.EncounterID == c.fight.EncounterID && o.fight.KeystoneLevel == c.fight.KeystoneLevel &&
+			return o.ref.Code != c.ref.Code && o.fight.EncounterID == c.fight.EncounterID &&
+				o.fight.KeystoneLevel == c.fight.KeystoneLevel &&
 				o.fight.Difficulty == c.fight.Difficulty && o.fight.Kill == c.fight.Kill &&
 				abs(o.ref.StartMS-c.ref.StartMS) <= matchSlackMS && abs(length(o)-length(c)) <= copyLengthMS
 		})

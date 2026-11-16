@@ -1,4 +1,5 @@
-// Package routestore keeps planned routes as JSON files in a folder (logs/cache/routes/), one per route, named by its id.
+// Package routestore keeps planned routes as JSON files in a folder (logs/cache/routes/), one per route, named by its
+// id.
 package routestore
 
 import (

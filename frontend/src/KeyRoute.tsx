@@ -16,7 +16,8 @@ import { enemyKey, PULL_COLORS, pullMobs, useDungeonMap, useMobs } from './route
 import { When, type Seeker } from './Seek'
 import { useFetched } from './useFetched'
 
-/** Makes a route of the pulls the key made (a new route, the dungeon's starred one when it has none), then reports it. */
+/** Makes a route of the pulls the key made (a new route, the dungeon's starred one when it has none), then reports
+ * it. */
 function RecordRoute({ keyView: key, onRecorded }: { keyView: KeyView; onRecorded: () => void }) {
   const [state, setState] = useState<'idle' | 'busy' | string>('idle')
   const record = async () => {
@@ -75,8 +76,8 @@ export function KeyRoute({ keyView: key, track, seek }: { keyView: KeyView; trac
     return (
       <>
         <p className="muted">
-          No route for {key.dungeon} yet: import one from Mythic Dungeon Tools on the Routes tab, or record one from this
-          key.
+          No route for {key.dungeon} yet: import one from Mythic Dungeon Tools on the Routes tab, or record one from
+          this key.
         </p>
         <RecordRoute keyView={key} onRecorded={() => setFetched((n) => n + 1)} />
       </>

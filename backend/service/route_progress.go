@@ -257,7 +257,8 @@ func markPulls(p *models.RouteProgress, route models.RouteView, facts models.Dun
 // keyPullAt is the key pull (an index in pulls) a mob dying at clockMS died in: the last one started by then, -1 before
 // the first.
 func keyPullAt(pulls []models.PullSpan, clockMS int64) int {
-	i, _ := slices.BinarySearchFunc(pulls, clockMS+1, func(p models.PullSpan, t int64) int { return cmp.Compare(p.StartMS, t) })
+	i, _ := slices.BinarySearchFunc(pulls, clockMS+1,
+		func(p models.PullSpan, t int64) int { return cmp.Compare(p.StartMS, t) })
 	return i - 1
 }
 

@@ -97,7 +97,11 @@ export function fightTabs(
       body: <KickLedger data={data} seek={seek} />,
     },
     { id: 'spikes', name: `Spikes ${data.spikes.length}`, body: <SpikeLedger data={data} group={group} seek={seek} /> },
-    { id: 'big-hits', name: `Big hits ${data.bigHits?.length ?? 0}`, body: <BigHits data={data} seek={seek} track={track} /> },
+    {
+      id: 'big-hits',
+      name: `Big hits ${data.bigHits?.length ?? 0}`,
+      body: <BigHits data={data} seek={seek} track={track} />,
+    },
     {
       id: 'avoidable',
       name: `Avoidable ${new Set(data.avoidableHits?.map((h) => h.ability)).size}`,
@@ -109,7 +113,12 @@ export function fightTabs(
       body: (
         <div className="cards compact">
           {byPlayer(pressed, data.deaths).map(([player, casts]) => (
-            <PlayerCard key={player} player={player} summary={countBy(casts.map(castName)) || 'pressed nothing'} seek={seek}>
+            <PlayerCard
+              key={player}
+              player={player}
+              summary={countBy(casts.map(castName)) || 'pressed nothing'}
+              seek={seek}
+            >
               {casts.map((c, i) => (
                 <div key={i} className="card-row">
                   <span className="name">{castName(c)}</span>
@@ -171,7 +180,12 @@ function PlayerCard(props: { player: string; summary: string; seek?: Seeker; chi
     <div className="card small">
       <div className="card-row card-head">
         <span>
-          <button className="back" aria-expanded={open} aria-label={`${player}'s details`} onClick={() => setOpen(!open)}>
+          <button
+            className="back"
+            aria-expanded={open}
+            aria-label={`${player}'s details`}
+            onClick={() => setOpen(!open)}
+          >
             {open ? '▾' : '▸'}
           </button>{' '}
           <Who player={player} seek={seek} />

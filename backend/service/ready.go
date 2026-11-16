@@ -97,9 +97,10 @@ func (k *LogTracker) buffChanged(run *keyRun, clockMS int64, player string, id i
 	}
 }
 
-// buffGaps is a key's or finished pull's buff gaps, in order: what each player lacked at the start (start, from buffCheck) until
-// it first came up, else to the end, then each gap in the pull (one still open ends at the end); none under
-// buffGapMS, and none of a raider who died as it opened and wasn't brought back before it closed (their death says it).
+// buffGaps is a key's or finished pull's buff gaps, in order: what each player lacked at the start (start, from
+// buffCheck) until it first came up, else to the end, then each gap in the pull (one still open ends at the end); none
+// under buffGapMS, and none of a raider who died as it opened and wasn't brought back before it closed (their death
+// says it).
 func (k *LogTracker) buffGaps(run *keyRun, start []models.KeyBuffCheck, deaths []models.KeyDeath,
 	endMS int64) []models.BuffGap {
 	r := &run.buffGaps

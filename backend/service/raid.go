@@ -180,8 +180,9 @@ func (k *LogTracker) startPull(line models.LogLine) {
 	boss := k.raid.bosses[f[1]]
 	run.facts = &models.DungeonFacts{Name: f[1], Avoidable: boss.Avoidable, Soak: boss.Soak, Dispel: boss.Dispel,
 		MustStop: boss.MustStop}
-	run.raid = &raidRun{difficulty: combatlog.RaidDifficultyByLogID(f[2]).Name, boss: boss, phases: k.raid.rules.Phases[f[1]],
-		units: map[string]*raidUnit{}, soaks: map[int]*soakTally{}, stacks: map[int]map[string]int{},
+	run.raid = &raidRun{difficulty: combatlog.RaidDifficultyByLogID(f[2]).Name, boss: boss,
+		phases: k.raid.rules.Phases[f[1]],
+		units:  map[string]*raidUnit{}, soaks: map[int]*soakTally{}, stacks: map[int]map[string]int{},
 		priority: map[string]int64{}, lustEnds: map[int64]int64{}, marks: map[lane][]models.RaidMark{},
 		causes: map[int]*causeAt{}, lostAt: map[spellOn]int64{}, landedAt: map[spellOn]int64{},
 		pickups: []models.RaidPickup{}, openWaves: map[string]int{}, holds: map[spellOn]bool{},
@@ -502,7 +503,8 @@ func (k *LogTracker) raidUnits(at int64, event string, f []string) {
 	r := k.current.raid
 	for _, i := range []int{0, 4} {
 		guid := f[i]
-		if (strings.HasPrefix(guid, "Creature-") || strings.HasPrefix(guid, "Vehicle-")) && hasFlag(f[i+2], combatlog.FlagHostile) &&
+		if (strings.HasPrefix(guid, "Creature-") || strings.HasPrefix(guid, "Vehicle-")) &&
+			hasFlag(f[i+2], combatlog.FlagHostile) &&
 			r.units[guid] == nil {
 			r.units[guid] = &raidUnit{name: f[i+1], seen: at,
 				spawn: r.spawnOf(f[i+1], at, k.current.clock(at), k.spells)}
@@ -590,8 +592,8 @@ func (k *LogTracker) raidPull(run *keyRun, key models.Key, at int64, kill bool) 
 	r, rules := run.raid, k.raid.rules
 	p := models.RaidPull{Start: key.Start, End: at, Night: night(key.Start), Boss: key.Dungeon,
 		Difficulty: r.difficulty, DurationMS: at - key.Start, Kill: kill, BossPct: r.bossPct(kill), Phase: r.phase,
-		Players: key.Players, Logger: key.Logger, Realms: key.Realms, Specs: key.Specs, Resurrections: key.Resurrections, Meter: key.Overall, Lusts: key.Lusts,
-		Dispels: list(key.Debuffs),
+		Players: key.Players, Logger: key.Logger, Realms: key.Realms, Specs: key.Specs,
+		Resurrections: key.Resurrections, Meter: key.Overall, Lusts: key.Lusts, Dispels: list(key.Debuffs),
 		WentOff: []models.KeyStop{}}
 	for i, d := range key.Deaths {
 		early := i < rules.Deaths.First || p.DurationMS-d.ClockMS > int64(rules.Deaths.BeforeWipeSeconds*1000)

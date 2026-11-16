@@ -15,8 +15,10 @@ import (
 func TestRealmsMapNormalizedNamesToSlugsAcrossPages(t *testing.T) {
 	f := newFake(t,
 		data(`{"worldData": {"regions": [{"id": 1, "compactName": "US"}, {"id": 2, "compactName": "EU"}]}}`),
-		data(`{"worldData": {"region": {"servers": {"data": [{"name": "Area 52", "slug": "area-52"}], "has_more_pages": true}}}}`),
-		data(`{"worldData": {"region": {"servers": {"data": [{"name": "Somerealm", "slug": "somerealm"}], "has_more_pages": false}}}}`))
+		data(`{"worldData": {"region": {"servers": {"data": [{"name": "Area 52", "slug": "area-52"}],
+			"has_more_pages": true}}}}`),
+		data(`{"worldData": {"region": {"servers": {"data": [{"name": "Somerealm", "slug": "somerealm"}],
+			"has_more_pages": false}}}}`))
 	realms, err := f.client(t).Realms(context.Background(), "us")
 	if want := map[string]string{"area52": "area-52", "somerealm": "somerealm"}; err != nil ||
 		!reflect.DeepEqual(realms, want) {
@@ -83,12 +85,16 @@ func TestRecentReportsStopAtTheLastPageWarcraftLogsServes(t *testing.T) {
 
 func TestCharacterParsesKeepRankedEncountersByKind(t *testing.T) {
 	f := newFake(t, data(`{"characterData": {"character": {
-		"mplus": {"rankings": [{"encounter": {"name": "Ara-Kara"}, "rankPercent": 91.5, "medianPercent": 80, "totalKills": 4, "spec": "Fire"},
-		                       {"encounter": {"name": "Skyreach"}, "rankPercent": null, "medianPercent": null, "totalKills": 0}]},
-		"raid": {"rankings": [{"encounter": {"name": "Test Boss"}, "rankPercent": 40, "medianPercent": 35, "totalKills": 2, "spec": "Fire"}]}}}}`),
+		"mplus": {"rankings": [{"encounter": {"name": "Ara-Kara"}, "rankPercent": 91.5, "medianPercent": 80, "totalKills": 4,
+			"spec": "Fire"},
+		                       {"encounter": {"name": "Skyreach"}, "rankPercent": null, "medianPercent": null,
+		                         "totalKills": 0}]},
+		"raid": {"rankings": [{"encounter": {"name": "Test Boss"}, "rankPercent": 40, "medianPercent": 35,
+			"totalKills": 2, "spec": "Fire"}]}}}}`),
 		data(`{"characterData": {"character": null}}`))
 	c := f.client(t)
-	got, err := c.CharacterParses(context.Background(), "us", "some-realm", "Testmage", models.WCLZones{MPlusID: 1, RaidID: 2})
+	got, err := c.CharacterParses(context.Background(), "us", "some-realm", "Testmage",
+		models.WCLZones{MPlusID: 1, RaidID: 2})
 	want := models.CharacterParses{URL: "https://www.warcraftlogs.com/character/us/some-realm/testmage", Found: true,
 		Parses: []models.CharacterParse{
 			{Kind: models.FightMPlus, Encounter: "Ara-Kara", Best: 91.5, Median: 80, Runs: 4, Spec: "Fire"},

@@ -78,8 +78,13 @@ export function KeyDetails({
         name: 'Bosses',
         body: <BossList keyView={key} track={track} topBosses={review?.topBosses} onSeek={show} />,
       },
-      // A running key's route is compared again as its track grows, but only while its tab is open (a saved key's once).
-      { id: 'route', name: 'Route', body: <KeyRoute keyView={key} track={routeOpen || key.status !== 'running' ? track : null} seek={seek} /> },
+      // A running key's route is compared again as its track grows, but only while its tab is open (a saved key's
+      // once).
+      {
+        id: 'route',
+        name: 'Route',
+        body: <KeyRoute keyView={key} track={routeOpen || key.status !== 'running' ? track : null} seek={seek} />,
+      },
       ...fightTabs(
         { ...key, lanes: key.lanes ?? [] },
         `Deaths ${key.deaths.length} (+${clock(key.penaltyMS)})`,
@@ -137,7 +142,9 @@ export function KeyDetails({
           <span aria-hidden="true">{resultIcon[key.status]}</span> {resultText(key.status, key.chests, clockMS, timer)}
         </section>
       )}
-      {(key.status === 'timed' || key.status === 'depleted') && key.bestFinalMS !== undefined && key.bestFinalMS > 0 && (
+      {(key.status === 'timed' || key.status === 'depleted') &&
+        key.bestFinalMS !== undefined &&
+        key.bestFinalMS > 0 && (
         <p className="muted">
           Your best timed +{key.level} here: {clock(key.bestFinalMS)} ·{' '}
           {clock(Math.abs(clockMS - key.bestFinalMS))} {clockMS <= key.bestFinalMS ? 'faster' : 'slower'}

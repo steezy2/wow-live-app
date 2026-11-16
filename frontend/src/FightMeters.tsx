@@ -84,7 +84,14 @@ export function FightMeters(props: {
     const targets = raidTargets((whole ? fight.targets : undefined) ?? between?.targets, focus)
     return { ...v, taken, targets, known: whole || between !== undefined }
   })
-  const card = (i: number, title: string, rows: AbilityRow[], under: string, underLabel: string, more: AbilityRow[]) => (
+  const card = (
+    i: number,
+    title: string,
+    rows: AbilityRow[],
+    under: string,
+    underLabel: string,
+    more: AbilityRow[],
+  ) => (
     <div key={`${title}-${windows[i].title}`} className="card focus drill" onContextMenu={back}>
       <h2>
         <button className="back" onClick={back}>

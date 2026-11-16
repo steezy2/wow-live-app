@@ -92,7 +92,11 @@ export function PlayerReview(props: {
       <section className="panel">
         <h2>Preparation</h2>
         <p>
-          {lacked.length > 0 ? <span className="bad">Missing at the start: {lacked.join(', ')}</span> : 'Flask, food and raid buffs were up.'}
+          {lacked.length > 0 ? (
+            <span className="bad">Missing at the start: {lacked.join(', ')}</span>
+          ) : (
+            'Flask, food and raid buffs were up.'
+          )}
           {' · '}
           {potions} combat {potions === 1 ? 'potion' : 'potions'}
           {lusts.length > 0 && ` for ${lusts.length} Bloodlust${lusts.length === 1 ? '' : 's'}`}

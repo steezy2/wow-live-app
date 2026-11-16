@@ -36,7 +36,8 @@ var npcTwins = map[int]int{273050: 270502}
 
 // DungeonFacts combines a dungeon's sources into its reference entry, counting each of npcTwins as its twin, and
 // puts each mob's name and spells from Mythic Dungeon Tools on Keystone.guru's NPC (a boss when either says so). It
-// fails when Mythic Dungeon Tools has no data for the dungeon, its forces total disagrees with Keystone.guru's or a mob has no health there.
+// fails when Mythic Dungeon Tools has no data for the dungeon, its forces total disagrees with Keystone.guru's or a mob
+// has no health there.
 func DungeonFacts(src DungeonSources) (models.DungeonFacts, error) {
 	m, g := src.MDT, src.Guide
 	if m.MapID == 0 {
@@ -343,7 +344,8 @@ func (h *HitCounter) Add(line models.LogLine) {
 	switch {
 	case line.Event == "CHALLENGE_MODE_START" && len(f) >= 3:
 		h.mapID, h.raid, h.party, h.hits = atoi(f[2]), false, nil, map[int]map[string]int{}
-	case line.Event == "ENCOUNTER_START" && h.hits == nil && len(f) >= 3 && combatlog.RaidDifficultyByLogID(f[2]).Name != "":
+	case line.Event == "ENCOUNTER_START" && h.hits == nil && len(f) >= 3 &&
+		combatlog.RaidDifficultyByLogID(f[2]).Name != "":
 		h.mapID, h.raid, h.party, h.hits = atoi(f[0]), true, nil, map[int]map[string]int{}
 		h.Encounters[h.mapID] = f[1]
 	case h.hits == nil:
@@ -355,7 +357,8 @@ func (h *HitCounter) Add(line models.LogLine) {
 		if parts := strings.Split(f[4], "-"); len(parts) > 5 {
 			h.Kills[[2]int{h.mapID, atoi(parts[5])}]++
 		}
-	case line.Event == "SPELL_DAMAGE" && len(f) > 9 && hasFlag(f[2], combatlog.FlagHostile) && slices.Contains(h.party, f[4]):
+	case line.Event == "SPELL_DAMAGE" && len(f) > 9 && hasFlag(f[2], combatlog.FlagHostile) &&
+		slices.Contains(h.party, f[4]):
 		spell := atoi(f[8])
 		if h.hits[spell] == nil {
 			h.hits[spell] = map[string]int{}

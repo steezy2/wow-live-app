@@ -54,7 +54,7 @@ func (w *Watcher) Wait(ctx context.Context) bool {
 				return true
 			}
 		}
-	case <-errs:
+	case <-errs: //nolint:errcheck // a watcher error just means read now
 	case <-time.After(w.Every):
 	}
 	return true

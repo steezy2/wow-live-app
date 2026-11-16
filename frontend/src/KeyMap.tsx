@@ -541,7 +541,23 @@ export function MapCanvas(props: {
     }
     tick()
     return () => cancelAnimationFrame(frame)
-  }, [track, backdrop, walkedBounds, walkedHere, area, floor, now, clock, trailMS, deaths, loaded, view, focus, enemy, overlay])
+  }, [
+    track,
+    backdrop,
+    walkedBounds,
+    walkedHere,
+    area,
+    floor,
+    now,
+    clock,
+    trailMS,
+    deaths,
+    loaded,
+    view,
+    focus,
+    enemy,
+    overlay,
+  ])
   return (
     <>
       <canvas
@@ -632,7 +648,11 @@ function onImage(map: RaidMap, [left, top, share]: [number, number, number], can
 
 /** The area of a floor without tiles that the walked points and the track cover, as [minX, maxX, minY, maxY] on the
  * canvas's axes (north up); undefined when nothing was there. */
-function walkedArea(walked: TrackPoint[], track: KeyTrack, floor: number): [number, number, number, number] | undefined {
+function walkedArea(
+  walked: TrackPoint[],
+  track: KeyTrack,
+  floor: number,
+): [number, number, number, number] | undefined {
   const all = [...walked, ...Object.values(track.players).flat()].filter((p) => p.map === floor)
   if (all.length === 0) return undefined
   // A loop, not Math.min(...points): a season of runs can pass the engine's limit on arguments.

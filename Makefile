@@ -18,8 +18,9 @@ page: deps ## Build the page into frontend/dist
 site: page ## Serve the page and API in a browser at http://localhost:8080
 	cd backend && go run ./cmd/site
 
-check: deps ## Run what CI runs: gofmt, go vet and go test, then eslint, vitest and the page's build
+check: deps ## Run what CI runs: gofmt, go vet, golangci-lint (when installed) and go test, then eslint, vitest and the build
 	cd backend && test -z "$$(gofmt -l . | tee /dev/stderr)" && go vet ./... && go test ./...
+	@command -v golangci-lint >/dev/null && { cd backend && golangci-lint run; } || echo "golangci-lint not installed: CI runs it"
 	cd frontend && npm run lint && npm test && npm run build
 
 fmt: ## gofmt the backend

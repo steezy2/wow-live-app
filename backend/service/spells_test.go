@@ -45,7 +45,8 @@ func TestSpellsInfoAsksForTheIDTheAbilityWasCastBy(t *testing.T) {
 // without asking again until spellRetry has passed.
 func TestSpellsInfoLeavesAFailedLookupAloneForAWhile(t *testing.T) {
 	keys := newTracker(t, nil)
-	feed(t, keys, at(2, `SPELL_CAST_SUCCESS,`+testPlayer+`,0000000000000000,nil,0x80000000,0x80000000,48792,"Icebound Fortitude",0x10`))
+	feed(t, keys,
+		at(2, `SPELL_CAST_SUCCESS,`+testPlayer+`,0000000000000000,nil,0x80000000,0x80000000,48792,"Icebound Fortitude",0x10`))
 	source := &fakeSpells{err: errors.New("down")}
 	spells := &Spells{Keys: keys, Source: source}
 	for i, want := range []error{source.err, ErrSpellDown} {
@@ -57,14 +58,16 @@ func TestSpellsInfoLeavesAFailedLookupAloneForAWhile(t *testing.T) {
 		t.Errorf("asked %v; want one ask", source.asked)
 	}
 	spells.failed[48792] = time.Now().Add(-2 * spellRetry)
-	if _, err := spells.Info(context.Background(), "Icebound Fortitude"); !errors.Is(err, source.err) || len(source.asked) != 2 {
+	if _, err := spells.Info(context.Background(), "Icebound Fortitude"); !errors.Is(err, source.err) ||
+		len(source.asked) != 2 {
 		t.Errorf("after the wait: err = %v, asked %v; want asked again", err, source.asked)
 	}
 }
 
 func TestSpellsInfoDoesNotBlameTheSpellForACancelledAsk(t *testing.T) {
 	keys := newTracker(t, nil)
-	feed(t, keys, at(2, `SPELL_CAST_SUCCESS,`+testPlayer+`,0000000000000000,nil,0x80000000,0x80000000,48792,"Icebound Fortitude",0x10`))
+	feed(t, keys,
+		at(2, `SPELL_CAST_SUCCESS,`+testPlayer+`,0000000000000000,nil,0x80000000,0x80000000,48792,"Icebound Fortitude",0x10`))
 	source := &fakeSpells{err: context.Canceled}
 	spells := &Spells{Keys: keys, Source: source}
 	ctx, cancel := context.WithCancel(context.Background())

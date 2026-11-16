@@ -110,7 +110,8 @@ export function amount(n: number): string {
   return n >= 1e3 ? `${Math.round(n / 1e3)}k` : String(Math.round(n))
 }
 
-/** A finished key's result: "Timed +2 · 21:52 / 32:00 · 10:08 under", "Depleted · …· 2:10 over", "Abandoned at 12:03". */
+/** A finished key's result: "Timed +2 · 21:52 / 32:00 · 10:08 under", "Depleted · …· 2:10 over", "Abandoned at
+ * 12:03". */
 export function resultText(status: string, chests: number, clockMS: number, timerMS: number): string {
   if (status === 'abandoned') return `Abandoned at ${clock(clockMS)}`
   const head = status === 'timed' ? `Timed${chests > 0 ? ` +${chests}` : ''}` : 'Depleted'
@@ -121,7 +122,11 @@ export function resultText(status: string, chests: number, clockMS: number, time
 
 /** What covered a death or a hit: "used" Ice Cold (pressed it), "had" Pain Suppression (put on them), "still had"
  * Barkskin and Renewal, or "nothing ready"; ready is missing in raid pulls saved before it was kept. */
-export function coverOf(c: { defensive: string; used?: boolean; ready?: string[] }): { lead: string; spells: string[] } {
+export function coverOf(c: {
+  defensive: string
+  used?: boolean
+  ready?: string[]
+}): { lead: string; spells: string[] } {
   if (c.defensive) return { lead: c.used ? 'used' : 'had', spells: [c.defensive] }
   return c.ready?.length ? { lead: 'still had', spells: c.ready } : { lead: 'nothing ready', spells: [] }
 }
@@ -154,7 +159,8 @@ export function routeLine({ current, next, forcesPct, missed, behind }: RouteLiv
 /** The middle value, or the mean of the two middle ones for an even count (0 for none). */
 export function median(values: number[]): number {
   const sorted = [...values].sort((a, b) => a - b)
-  return sorted.length === 0 ? 0 : (sorted[Math.floor((sorted.length - 1) / 2)] + sorted[Math.floor(sorted.length / 2)]) / 2
+  if (sorted.length === 0) return 0
+  return (sorted[Math.floor((sorted.length - 1) / 2)] + sorted[Math.floor(sorted.length / 2)]) / 2
 }
 
 /** A file size: "40 KB", "820 MB", "1.4 GB". */

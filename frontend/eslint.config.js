@@ -19,6 +19,7 @@ export default tseslint.config(
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
+      'max-len': ['error', { code: 120, ignoreUrls: true }],
       'react-refresh/only-export-components': [
         'warn',
         { allowConstantExport: true },

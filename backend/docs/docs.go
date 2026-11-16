@@ -6105,7 +6105,7 @@ var SwaggerInfo = &swag.Spec{
 	BasePath:         "/",
 	Schemes:          []string{},
 	Title:            "WoW Live API",
-	Description:      "The site's API: the live Mythic+ key read from the combat log.",
+	Description:      "The site's API: the live Mythic+ key and raid pull read from the combat log, their saved keys and pulls and reviews, planned routes, the recap, and the settings.",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

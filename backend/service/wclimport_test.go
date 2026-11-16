@@ -260,7 +260,8 @@ func TestResolveChecksNameAndRealm(t *testing.T) {
 		}
 	}
 	boom := errors.New("down")
-	if _, _, err := (Characters{Realms: fakeRealms{boom}}).Resolve(context.Background(), "us", "Testmage-Area52"); !errors.Is(err, boom) {
+	if _, _, err := (Characters{Realms: fakeRealms{boom}}).Resolve(context.Background(), "us",
+		"Testmage-Area52"); !errors.Is(err, boom) {
 		t.Errorf("Warcraft Logs failing gave %v; want its error through", err)
 	}
 }

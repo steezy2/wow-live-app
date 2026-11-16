@@ -885,8 +885,8 @@ export function onAppEvent(name: string, callback: (data: unknown) => void): () 
 
 /** Calls notify once now and whenever the site says the keys changed (and in a browser when the stream reopens). In
  * the desktop app the notices are Wails events; in a browser, the site's event stream, polling every FALLBACK_POLL_MS
- * while it's down (the browser keeps retrying it). While the page is hidden (a window in the tray) a change waits and is read once when it shows again.
- * Returns the unsubscribe. */
+ * while it's down (the browser keeps retrying it). While the page is hidden (a window in the tray) a change waits and
+ * is read once when it shows again. Returns the unsubscribe. */
 export function subscribe(notify: () => void): () => void {
   let missed = false
   const onChange = () => {
@@ -977,7 +977,8 @@ export interface Settings {
   overlay: OverlaySettings
   /** The character Warcraft Logs reports are imported for, "Name-Realm"; "" for none. */
   character: string
-  /** The auto rules, in days (0 for off): archive the game's logs read and this old, delete imports this long after they were imported. */
+  /** The auto rules, in days (0 for off): archive the game's logs read and this old, delete imports this long after
+   * they were imported. */
   auto: { archiveGameLogsDays: number; deleteImportsDays: number }
   /** The Home tab's setup guide is done or dismissed. */
   setupDone: boolean
@@ -994,7 +995,16 @@ export interface OverlaySettings {
   clickThrough: boolean
 }
 /** A column the overlay's cards can show (the settings' overlayColumns). */
-export type OverlayColumn = 'dps' | 'hps' | 'kicks' | 'pullDps' | 'taken' | 'avoidable' | 'priority' | 'dispels' | 'deaths'
+export type OverlayColumn =
+  | 'dps'
+  | 'hps'
+  | 'kicks'
+  | 'pullDps'
+  | 'taken'
+  | 'avoidable'
+  | 'priority'
+  | 'dispels'
+  | 'deaths'
 export interface SettingsView extends Settings {
   logsDirFound: boolean
   lastLogMS: number
@@ -1285,8 +1295,8 @@ interface SpellInfo {
 const spellAnswers = new Map<string, Promise<SpellInfo | null>>()
 
 /** What an ability does, by the name the combat log gives it or a spell ID, or null when it can't be told. Answers are
- * kept, so a hover asks once; an unknown spell ID (404) is kept too, but a failed lookup, or a name the log hasn't shown
- * yet, is asked again next time. */
+ * kept, so a hover asks once; an unknown spell ID (404) is kept too, but a failed lookup, or a name the log hasn't
+ * shown yet, is asked again next time. */
 export function fetchSpell(spell: string | number): Promise<SpellInfo | null> {
   const key = typeof spell === 'number' ? `#${spell}` : spell
   let answer = spellAnswers.get(key)

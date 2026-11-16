@@ -40,8 +40,8 @@ type Recaps struct {
 }
 
 // TopTimes is, for each dungeon character timed from from to to (as Recap), the median time of its top speed-ranked
-// Warcraft Logs runs at the highest level they timed it, in the recap's order, all asked for at once. A dungeon Warcraft
-// Logs fails on is left out (and logged); models.ErrNoCredentials or ErrBadCredentials without working Logs.
+// Warcraft Logs runs at the highest level they timed it, in the recap's order, all asked for at once. A dungeon
+// Warcraft Logs fails on is left out (and logged); models.ErrNoCredentials or ErrBadCredentials without working Logs.
 func (r Recaps) TopTimes(ctx context.Context, from, to int64, character string) ([]models.RecapTopTime, error) {
 	if r.Logs == nil {
 		return nil, models.ErrNoCredentials
@@ -273,7 +273,8 @@ func recapYou(keys []models.Key, you string) *models.RecapYou {
 	if you == "" {
 		return nil
 	}
-	r := &models.RecapYou{Character: you, Specs: []string{}, Dungeons: []models.RecapRate{}, Killers: []models.RecapCount{}}
+	r := &models.RecapYou{Character: you, Specs: []string{}, Dungeons: []models.RecapRate{},
+		Killers: []models.RecapCount{}}
 	specCount, killers := map[string]int{}, map[string]int{}
 	rates := map[[2]string][]float64{} // (dungeon, metric) -> per key
 	for _, k := range keys {
@@ -428,7 +429,10 @@ func recapRaid(pulls []models.RaidPull, you string) models.RecapRaid {
 	bosses := []*models.RecapBoss{}
 	taken := map[*models.RecapBoss]map[string]int64{}
 	for _, p := range pulls {
-		i := slices.IndexFunc(bosses, func(b *models.RecapBoss) bool { return b.Boss == p.Boss && b.Difficulty == p.Difficulty })
+		i := slices.IndexFunc(bosses, func(b *models.RecapBoss) bool {
+			return b.Boss == p.Boss &&
+				b.Difficulty == p.Difficulty
+		})
 		if i < 0 {
 			bosses = append(bosses, &models.RecapBoss{Boss: p.Boss, Difficulty: p.Difficulty, BestWipePct: -1})
 			i = len(bosses) - 1

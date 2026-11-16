@@ -1,7 +1,7 @@
 {
     "swagger": "2.0",
     "info": {
-        "description": "The site's API: the live Mythic+ key read from the combat log.",
+        "description": "The site's API: the live Mythic+ key and raid pull read from the combat log, their saved keys and pulls and reviews, planned routes, the recap, and the settings.",
         "title": "WoW Live API",
         "contact": {},
         "version": "1"

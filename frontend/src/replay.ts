@@ -133,7 +133,8 @@ export function enemyName(track: KeyTrack, guid: string): string {
   return track.bosses?.[guid]?.[0]?.name || track.mobs?.[guid]?.n || 'Enemy'
 }
 
-/** The player's recap ending at clockMS on the key's clock (a death's clockMS, a big hit's recapMS), if there is one. */
+/** The player's recap ending at clockMS on the key's clock (a death's clockMS, a big hit's recapMS), if there is
+ * one. */
 export function recapOf(track: KeyTrack | null | undefined, player: string, clockMS: number | undefined) {
   return track?.recaps?.find((r) => r.player === player && r.clockMS === clockMS)
 }
@@ -279,7 +280,11 @@ function schoolsOf(pull: Pick<RaidPull, 'abilities' | 'taken'>) {
 
 /** A series' [damage, healing, damage taken] up to a clock reading: a stretch (ending at one of ends, each starting
  * where the one before it ended) the moment is in counts for the share of it that has passed. */
-function sumStretches(points: [number, number, number, number][], ends: number[], now: number): [number, number, number] {
+function sumStretches(
+  points: [number, number, number, number][],
+  ends: number[],
+  now: number,
+): [number, number, number] {
   const sum: [number, number, number] = [0, 0, 0]
   let j = 0 // the points come in the order of ends, so one pointer walks both
   for (const [end, d, h, t] of points) {
