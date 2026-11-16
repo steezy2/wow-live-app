@@ -95,7 +95,8 @@ function trace(ctx: CanvasRenderingContext2D, points: [number, number][], closed
  * color (the selected pull's ringed in white), and the pull's number where its enemies are. A switcher picks the
  * floor, a Packs button outlines the unpulled enemies of each pack, and a Patrols button (on, shown when the dungeon
  * has any) dashes each patrol's path in its color. Each pull is outlined under its dots in its color, the selected and
- * the highlighted one stronger. With onEnemy, a click on an enemy's dot gives it and whether Shift was held, and with onContext a right click gives it and where in the window. With mobs (by NPC, at the key
+ * the highlighted one stronger. With onEnemy, a click on an enemy's dot gives it and whether Shift was held, and with
+ * onContext a right click gives it and where in the window. With mobs (by NPC, at the key
  * level), the mouse on an enemy tells its name, health there and forces. The killed enemies (a key's) are ticked.
  * The floor's drawings go on top; with onDraw, DrawTools' tools draw lines (simplified as they end), markers and notes
  * in a pull color, or erase one, each an Edit. */
@@ -315,7 +316,7 @@ export function RouteMap(props: {
       />
       <p className="muted small">
         Scroll to zoom, drag to move, double click for the whole floor
-        {onEnemy && ' · click an enemy to put its whole pack in the selected pull or take it out, Shift+click for the enemy alone'}
+        {onEnemy && ' · click an enemy for its pack in the selected pull (again: out), Shift+click for it alone'}
         {onContext && ' · right click an enemy for its card'} · map:{' '}
         <a href="https://keystone.guru" target="_blank" rel="noreferrer">
           Keystone.guru

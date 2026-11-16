@@ -33,8 +33,9 @@ func Router(mplus MPlus, raid *Raid, settings *SettingsAPI, pages fs.FS, hosts .
 			c.AbortWithStatusJSON(http.StatusMisdirectedRequest, ErrorResponse{Error: "use http://localhost"})
 			return
 		}
-		site := c.GetHeader("Sec-Fetch-Site") // sent by every browser: "cross-site" for another site's <img> or <script>
-		if origin := c.GetHeader("Origin"); site == "cross-site" || origin != "" && origin != "http://"+c.Request.Host {
+		// Browsers mark another site's <img> or <script> request "cross-site"; a link to this site (a "navigate") is fine.
+		cross := c.GetHeader("Sec-Fetch-Site") == "cross-site" && c.GetHeader("Sec-Fetch-Mode") != "navigate"
+		if origin := c.GetHeader("Origin"); cross || origin != "" && origin != "http://"+c.Request.Host {
 			c.AbortWithStatusJSON(http.StatusForbidden, ErrorResponse{Error: "only this site's pages can call the API"})
 		}
 	})

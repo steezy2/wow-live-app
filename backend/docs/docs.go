@@ -2667,10 +2667,11 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "maxLevel": {
+                    "description": "and the highest",
                     "type": "integer"
                 },
                 "minLevel": {
-                    "description": "the lowest and highest level the endpoint scales to",
+                    "description": "the lowest key level the endpoint scales to",
                     "type": "integer"
                 },
                 "mobs": {

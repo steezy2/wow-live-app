@@ -11,10 +11,10 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 - **Drawings** on a route's map: the editor's toolbar has Select, Line (freehand, simplified as you let go), Marker, Note and Erase, in any pull color, per floor and on Undo like any other edit; a key's Route tab shows them too. They are saved with the route (`drawings` on `PUT /api/mplus/routes/{id}` and in the route's reply, with the `limits`: 200 drawings, notes of 200 characters, lines of 500 points); the site refuses a bad kind or color, text off a note, or a point off the dungeon's floors. Routes saved before have none. MDT strings carry them both ways: an import reads MDT's shown lines and note pins (a pin without text is a marker) onto the floors and says how many it can't show (`droppedDrawings`: any off a floor or past the limits), and an export writes the route's drawings onto MDT's map and keeps those, and the ones the app doesn't read (undone drawings, text labels, lines erased apart), as they were. An imported line goes back at MDT's default brush size, an arrow as a plain line. Each floor's place on MDT's map (`mdt` on the dungeon's floors) is fitted from where MDT and Keystone.guru both put its enemies.
 
 ### Changed
-- **Route editor**: a click on an enemy puts its whole pack (Keystone.guru's, else MDT's group) in the selected pull or takes it out, Shift+click the enemy alone; a click anywhere on a pull's row selects that pull. The key levels the +level box accepts come from `GET /api/mplus/dungeons/{mapID}/mobs` (`minLevel`, `maxLevel`).
+- **Route editor**: a click on an enemy puts its whole pack (Keystone.guru's, else MDT's group) in the selected pull or takes it out, Shift+click the enemy alone (a click on a pack part-way in another pull moves all of it here); a click anywhere on a pull's row selects that pull. The key levels the +level box accepts come from `GET /api/mplus/dungeons/{mapID}/mobs` (`minLevel`, `maxLevel`).
 
 ### Fixed
-- A website's `<img>` or `<script>` tag can no longer make the app call its API (such requests carry no `Origin`, so the check missed them; the browser's `Sec-Fetch-Site: cross-site` marks them). `GET /api/spells?id=` only explains a spell some dungeon mob casts, so it can't be made to fetch and cache every Wowhead spell.
+- A website's `<img>` or `<script>` tag can no longer make the app call its API (such requests carry no `Origin`, so the check missed them; the browser's `Sec-Fetch-Site: cross-site` marks them).
 
 ## [0.4.5] - 2026-11-15
 

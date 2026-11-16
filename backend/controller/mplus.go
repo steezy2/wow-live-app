@@ -259,7 +259,7 @@ func (m MPlus) DungeonMap(c *gin.Context) {
 
 // MobsQuery is the key level to scale a dungeon's mobs to; 0 (left out) for the default.
 type MobsQuery struct {
-	Level int `form:"level" binding:"omitempty"`
+	Level int `form:"level"`
 }
 
 // DungeonMobs godoc

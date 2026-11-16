@@ -348,7 +348,10 @@ export function RoutesPage({ visible }: { visible: boolean }) {
                             <button
                               key={g.name}
                               className="link"
-                              onClick={(e) => setMenu({ kind: 'mob', enemy: g.enemies[0], ...menuAt(e) })}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setMenu({ kind: 'mob', enemy: g.enemies[0], ...menuAt(e) })
+                              }}
                             >
                               {g.enemies.length}× {g.name}
                             </button>

@@ -70,8 +70,8 @@ type MobSpell struct {
 // which each mob's health includes), and the mobs in NPC ID order (none for a reference file written before mobs).
 type DungeonMobs struct {
 	Level      int          `json:"level"`
-	MinLevel   int          `json:"minLevel"` // the lowest and highest level the endpoint scales to
-	MaxLevel   int          `json:"maxLevel"`
+	MinLevel   int          `json:"minLevel"` // the lowest key level the endpoint scales to
+	MaxLevel   int          `json:"maxLevel"` // and the highest
 	DamageMult float64      `json:"damageMult"`
 	Mobs       []DungeonMob `json:"mobs"`
 }
