@@ -14,6 +14,7 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 - **Route editor**: a click on an enemy puts its whole pack (Keystone.guru's, else MDT's group) in the selected pull or takes it out, Shift+click the enemy alone (a click on a pack part-way in another pull moves all of it here); a click anywhere on a pull's row selects that pull. The key levels the +level box accepts come from `GET /api/mplus/dungeons/{mapID}/mobs` (`minLevel`, `maxLevel`).
 
 ### Fixed
+- `npm run dev` no longer gets a 403 on saving, importing or deleting: Vite's proxy now sends the API's own `Origin`.
 - A website's `<img>` or `<script>` tag can no longer make the app call its API (such requests carry no `Origin`, so the check missed them; the browser's `Sec-Fetch-Site: cross-site` marks them).
 
 ## [0.4.5] - 2026-11-15
