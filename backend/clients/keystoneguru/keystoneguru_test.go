@@ -91,10 +91,10 @@ func TestPatrolsReadTheNewestMappingsPathsAndSkipAFloorWithoutTheFile(t *testing
 func TestNPCsNameTypesAndClassesAndKeepTheLiveGamesHealthAndSetFlags(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(`[
-		 {"id": 262530, "level": 92, "npc_type_id": 8, "classification_id": 4, "aggressiveness": "aggressive",
+		 {"id": 262530, "level": 92, "npc_type_id": 8, "classification_id": 4,
 		  "bolstering": 0, "bursting": 0, "sanguine": 0, "dangerous": 1, "truesight": 1, "runs_away_in_fear": 0,
 		  "npc_healths": [{"game_version_id": 4, "health": 1}, {"game_version_id": 1, "health": 9729765, "percentage": null}]},
-		 {"id": 7, "level": null, "npc_type_id": 100, "classification_id": 2, "aggressiveness": "neutral",
+		 {"id": 7, "level": null, "npc_type_id": 100, "classification_id": 2,
 		  "bolstering": 1, "bursting": 1, "sanguine": 1, "dangerous": 0, "truesight": 0, "runs_away_in_fear": 1,
 		  "npc_healths": [{"game_version_id": 1, "health": 1000, "percentage": 30}]}]`))
 	}))
@@ -105,8 +105,8 @@ func TestNPCsNameTypesAndClassesAndKeepTheLiveGamesHealthAndSetFlags(t *testing.
 	}
 	want := map[int]models.DungeonMob{
 		262530: {NPC: 262530, Level: 92, Type: "Humanoid", Class: "Final boss", Boss: true, Health: 9729765,
-			Aggressiveness: "aggressive", Flags: []string{"dangerous", "truesight"}},
-		7: {NPC: 7, Class: "Elite", Health: 300, Aggressiveness: "neutral",
+			Flags: []string{"dangerous", "truesight"}},
+		7: {NPC: 7, Class: "Elite", Health: 300,
 			Flags: []string{"bolstering", "bursting", "sanguine", "runsAwayInFear"}},
 	}
 	if !reflect.DeepEqual(got, want) {

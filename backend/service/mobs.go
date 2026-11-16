@@ -25,6 +25,8 @@ const (
 	lowKeyTrashTo          = 5
 	// defaultMobLevel is the mobs' key level in a dungeon without a saved key.
 	defaultMobLevel = 10
+	// MinMobLevel and MaxMobLevel are the key levels Mobs scales to.
+	MinMobLevel, MaxMobLevel = 2, 40
 )
 
 // keyMult is the health and damage multiplier of a key level over +1, before affixes.
@@ -77,7 +79,7 @@ func (k *LogTracker) Mobs(mapID, level int) models.DungeonMobs {
 	}
 	k.mu.RUnlock()
 	level = cmp.Or(level, def)
-	out := models.DungeonMobs{Level: level, DamageMult: keyMult(level), Mobs: []models.DungeonMob{}}
+	out := models.DungeonMobs{Level: level, MinLevel: MinMobLevel, MaxLevel: MaxMobLevel, DamageMult: keyMult(level), Mobs: []models.DungeonMob{}}
 	mobs := k.facts[mapID].Mobs
 	for _, npc := range slices.Sorted(maps.Keys(mobs)) {
 		out.Mobs = append(out.Mobs, scaleMob(mobs[npc], level))

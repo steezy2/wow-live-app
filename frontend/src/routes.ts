@@ -145,7 +145,8 @@ export function editorOf(route: Saved): Editor {
   return { draft, selected: draft.pulls.length ? 0 : -1, undo: [], renaming: false }
 }
 
-/** The enemies a Shift+click takes: the enemy's whole pack, or the enemy alone when it's in none (pack 0). */
+/** The enemies a click takes: the enemy's whole pack (Keystone.guru's, else MDT's group), or the enemy alone when it's
+ * in none (pack 0). */
 export const packOf = (enemy: RouteEnemy, enemies: RouteEnemy[]): RouteEnemy[] =>
   enemy.pack ? enemies.filter((e) => e.pack === enemy.pack) : [enemy]
 

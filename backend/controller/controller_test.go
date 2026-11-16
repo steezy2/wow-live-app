@@ -201,6 +201,14 @@ func TestPagesAndUnknownAPIPaths(t *testing.T) {
 			t.Errorf("a request from %s: %d, want %d", tc.name, w.Code, tc.code)
 		}
 	}
+	r := httptest.NewRequest(http.MethodGet, "/api/mplus/keys", nil)
+	r.Host = "localhost:8080"
+	r.Header.Set("Sec-Fetch-Site", "cross-site")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, r)
+	if w.Code != http.StatusForbidden {
+		t.Errorf("a GET from another site's image: %d, want 403", w.Code)
+	}
 }
 
 func TestEventsStreamAChangeNotice(t *testing.T) {

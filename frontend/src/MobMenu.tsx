@@ -47,8 +47,8 @@ function ContextMenu(props: { x: number; y: number; label: string; onClose: () =
 
 /** A mob's card at a key level: what it is, its health there and the level's damage multiplier (no source gives a
  * mob's own damage), its forces, the patrol it walks, Keystone.guru's flags and its spells (each hoverable, marked
- * Interruptible and Magic), with what the route editor can do with it. Without the mob's data (an old reference file), its name and
- * forces only. */
+ * Interruptible and Magic), with what the route editor can do with it. Without the mob's data (an old reference
+ * file), its name and forces only. */
 export function MobMenu(props: {
   enemy: RouteEnemy
   mob?: DungeonMob

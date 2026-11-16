@@ -35,8 +35,6 @@ import {
 
 /** The share of the dungeon's forces a route needs. */
 const FULL_PCT = 100
-/** The key levels the mobs endpoint scales to. */
-const KEY_LEVELS = { min: 2, max: 40 }
 
 /** An open menu: a mob's card or a pull row's, at a place in the window. */
 type Menu = { x: number; y: number } & ({ kind: 'mob'; enemy: RouteEnemy } | { kind: 'pull'; pull: number })
@@ -265,7 +263,7 @@ export function RoutesPage({ visible }: { visible: boolean }) {
                 selected={selected}
                 highlight={hovered}
                 onEnemy={(e, shift) =>
-                  dispatch({ kind: 'toggle', enemies: shift ? packOf(e, map?.enemies ?? []) : [e] })
+                  dispatch({ kind: 'toggle', enemies: shift ? [e] : packOf(e, map?.enemies ?? []) })
                 }
                 onContext={(enemy, x, y) => setMenu({ kind: 'mob', enemy, x, y })}
                 mobs={byNPC}
@@ -282,8 +280,8 @@ export function RoutesPage({ visible }: { visible: boolean }) {
                       <input
                         key={dungeon}
                         type="number"
-                        min={KEY_LEVELS.min}
-                        max={KEY_LEVELS.max}
+                        min={mobs.minLevel}
+                        max={mobs.maxLevel}
                         defaultValue={mobs.level}
                         aria-label="key level"
                         onChange={(e) =>
@@ -328,6 +326,7 @@ export function RoutesPage({ visible }: { visible: boolean }) {
                         key={i}
                         onMouseEnter={() => setHovered(i)}
                         onMouseLeave={() => setHovered(-1)}
+                        onClick={() => dispatch({ kind: 'select', pull: i })}
                         onContextMenu={(e) => {
                           e.preventDefault()
                           dispatch({ kind: 'select', pull: i })
@@ -338,7 +337,6 @@ export function RoutesPage({ visible }: { visible: boolean }) {
                           className="route-swatch"
                           style={{ background: `#${p.color}` }}
                           aria-pressed={i === selected}
-                          onClick={() => dispatch({ kind: 'select', pull: i })}
                         >
                           {i + 1}
                         </button>
@@ -363,7 +361,7 @@ export function RoutesPage({ visible }: { visible: boolean }) {
                 </ol>
                 {dirty && <p className="muted small">Unsaved: forces summed here, the site counts them on Save.</p>}
                 <p className="muted small">
-                  Right click a pull to move, delete or recolor it; click a mob for its card.
+                  Click a pull to select it, right click it to move, delete or recolor it; click a mob for its card.
                   {mobs?.mobs.length === 0 && ' No mob data for this dungeon: names and health need a newer reference.'}
                 </p>
               </div>

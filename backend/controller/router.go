@@ -20,7 +20,8 @@ import (
 // /swagger/index.html, and the built page from pages (frontend/dist, on disk or built into the app) for every other
 // path, so the page's own routes load index.html. Only requests addressed to this PC by name are answered, so another
 // website can't read the API by pointing its domain at 127.0.0.1 (DNS rebinding), and requests sent by another
-// website's page are refused, so it can't spend points or delete keys through a plain form post.
+// website's page (or an image or script it loads) are refused, so it can't spend points, delete keys or fill the
+// cache through a plain form post or tag.
 func Router(mplus MPlus, raid *Raid, settings *SettingsAPI, pages fs.FS, hosts ...string) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
@@ -32,7 +33,8 @@ func Router(mplus MPlus, raid *Raid, settings *SettingsAPI, pages fs.FS, hosts .
 			c.AbortWithStatusJSON(http.StatusMisdirectedRequest, ErrorResponse{Error: "use http://localhost"})
 			return
 		}
-		if origin := c.GetHeader("Origin"); origin != "" && origin != "http://"+c.Request.Host {
+		site := c.GetHeader("Sec-Fetch-Site") // sent by every browser: "cross-site" for another site's <img> or <script>
+		if origin := c.GetHeader("Origin"); site == "cross-site" || origin != "" && origin != "http://"+c.Request.Host {
 			c.AbortWithStatusJSON(http.StatusForbidden, ErrorResponse{Error: "only this site's pages can call the API"})
 		}
 	})

@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -258,7 +259,7 @@ func (m MPlus) DungeonMap(c *gin.Context) {
 
 // MobsQuery is the key level to scale a dungeon's mobs to; 0 (left out) for the default.
 type MobsQuery struct {
-	Level int `form:"level" binding:"omitempty,min=2,max=40"`
+	Level int `form:"level" binding:"omitempty"`
 }
 
 // DungeonMobs godoc
@@ -282,8 +283,9 @@ func (m MPlus) DungeonMobs(c *gin.Context) {
 		return
 	}
 	var q MobsQuery
-	if err := c.ShouldBindQuery(&q); err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "level must be a key level from 2 to 40"})
+	if err := c.ShouldBindQuery(&q); err != nil || q.Level != 0 && (q.Level < service.MinMobLevel || q.Level > service.MaxMobLevel) {
+		c.JSON(http.StatusBadRequest, ErrorResponse{
+			Error: fmt.Sprintf("level must be a key level from %d to %d", service.MinMobLevel, service.MaxMobLevel)})
 		return
 	}
 	c.JSON(http.StatusOK, m.Keys.Mobs(ids[0], q.Level))

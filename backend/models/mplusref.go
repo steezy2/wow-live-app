@@ -47,16 +47,15 @@ type Patrol struct {
 // Keystone.guru doesn't have the NPC. Flags are the Keystone.guru flags it has: bolstering, bursting, sanguine (it
 // takes part in those affixes), dangerous, truesight (it sees stealth), runsAwayInFear.
 type DungeonMob struct {
-	NPC            int        `json:"npc"`
-	Name           string     `json:"name"`
-	Level          int        `json:"level,omitempty"`
-	Type           string     `json:"type,omitempty"`  // "Humanoid"
-	Class          string     `json:"class,omitempty"` // "Elite", "Boss"
-	Boss           bool       `json:"boss,omitempty"`
-	Health         int        `json:"health"`
-	Aggressiveness string     `json:"aggressiveness,omitempty"` // "aggressive", "unfriendly", "neutral", "awakened"
-	Flags          []string   `json:"flags,omitempty"`
-	Spells         []MobSpell `json:"spells,omitempty"`
+	NPC    int        `json:"npc"`
+	Name   string     `json:"name"`
+	Level  int        `json:"level,omitempty"`
+	Type   string     `json:"type,omitempty"`  // "Humanoid"
+	Class  string     `json:"class,omitempty"` // "Elite", "Boss"
+	Boss   bool       `json:"boss,omitempty"`
+	Health int        `json:"health"`
+	Flags  []string   `json:"flags,omitempty"`
+	Spells []MobSpell `json:"spells,omitempty"`
 }
 
 // MobSpell is a spell a mob casts, with Mythic Dungeon Tools' flags.
@@ -71,6 +70,8 @@ type MobSpell struct {
 // which each mob's health includes), and the mobs in NPC ID order (none for a reference file written before mobs).
 type DungeonMobs struct {
 	Level      int          `json:"level"`
+	MinLevel   int          `json:"minLevel"` // the lowest and highest level the endpoint scales to
+	MaxLevel   int          `json:"maxLevel"`
 	DamageMult float64      `json:"damageMult"`
 	Mobs       []DungeonMob `json:"mobs"`
 }

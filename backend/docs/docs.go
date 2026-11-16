@@ -2620,10 +2620,6 @@ const docTemplate = `{
         "models.DungeonMob": {
             "type": "object",
             "properties": {
-                "aggressiveness": {
-                    "description": "\"aggressive\", \"unfriendly\", \"neutral\", \"awakened\"",
-                    "type": "string"
-                },
                 "boss": {
                     "type": "boolean"
                 },
@@ -2668,6 +2664,13 @@ const docTemplate = `{
                     "type": "number"
                 },
                 "level": {
+                    "type": "integer"
+                },
+                "maxLevel": {
+                    "type": "integer"
+                },
+                "minLevel": {
+                    "description": "the lowest and highest level the endpoint scales to",
                     "type": "integer"
                 },
                 "mobs": {
