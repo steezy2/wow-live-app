@@ -187,7 +187,13 @@ describe('routeLine', () => {
     ['past an unfinished pull', step(9), step(7), 'Next: pull 7 (12.4%, to 58.1%) · on pull 9'],
     ['every pull done', step(18), null, 'Route done (102.3%)'],
   ])('%s', (_, current, next, want) => {
-    expect(routeLine({ name: 'Route', current, next, forcesPct: 102.3 })).toBe(want)
+    expect(routeLine({ name: 'Route', current, next, forcesPct: 102.3, missed: 0, behind: false })).toBe(want)
+  })
+
+  it('names the missed pulls and the forces behind plan', () => {
+    expect(routeLine({ name: 'Route', current: step(9), next: step(7), forcesPct: 102.3, missed: 2, behind: true })).toBe(
+      'Next: pull 7 (12.4%, to 58.1%) · on pull 9 · 2 missed · forces behind plan',
+    )
   })
 })
 

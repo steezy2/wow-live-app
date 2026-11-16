@@ -700,6 +700,9 @@ export async function importRoute(code: string): Promise<RouteView> {
   return sendJSON('/api/mplus/routes', 'POST', { code })
 }
 
+/** A route pull on a running key's map (models.PullDone and the rest in the Go). */
+export type PullState = 'done' | 'missed' | 'next' | 'later'
+
 /** One route pull's progress in a key: how many of its enemies died, and the key pull that killed most of them. */
 interface RoutePullProgress {
   killed: number
@@ -708,6 +711,7 @@ interface RoutePullProgress {
   /** Index into the key's pulls, -1 for none. */
   keyPull: number
   clockMS: number
+  state: PullState
 }
 
 /** Kills that were in no route pull, grouped by the key pull they died in (-1 before the first pull). */
@@ -730,7 +734,21 @@ export interface RouteCompare {
   off: RouteOff[]
   skipped: number[]
   kills: EnemyRef[]
+  /** The highest route pull with a kill, -1 for none. */
+  last: number
+  /** Unfinished pulls before `last`, with the enemies not killed. */
+  missed: RouteMiss[]
+  /** Set when the key's forces trail the route's plan at `last`. */
+  behind?: { plannedPct: number; actualPct: number }
   noMobs: boolean
+}
+
+/** A missed route pull (an index): the enemies of it not killed, and their forces. */
+interface RouteMiss {
+  pull: number
+  enemies: EnemyRef[]
+  forces: number
+  pct: number
 }
 
 /** A route pull with its number (from 1). */
@@ -745,6 +763,9 @@ export interface RouteLive {
   next: RouteStep | null
   /** Forces % the whole route plans. */
   forcesPct: number
+  /** Pulls missed so far, and whether the forces trail the plan. */
+  missed: number
+  behind: boolean
 }
 
 /** A key's progress on a route (the dungeon's starred one when no id); null when the dungeon has no route. */

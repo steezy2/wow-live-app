@@ -107,17 +107,47 @@ type RouteProgress struct {
 	Off     []RouteOff          `json:"off"`
 	Skipped []int               `json:"skipped"`
 	Kills   []EnemyRef          `json:"kills"`
+	// Last is the highest route pull with a kill (-1 for none); Missed the unfinished pulls before it, and Behind how
+	// far the key's forces trail the route's plan at Last (nil unless by a worthwhile margin).
+	Last   int          `json:"last"`
+	Missed []RouteMiss  `json:"missed"`
+	Behind *RouteBehind `json:"behind,omitempty"`
+}
+
+// The states of a route pull on the map: done, missed (unfinished though a later pull was reached), next (one of the
+// first unfinished pulls ahead, since the log shows nothing inside a fight) and later.
+const (
+	PullDone   = "done"
+	PullMissed = "missed"
+	PullNext   = "next"
+	PullLater  = "later"
+)
+
+// RouteMiss is a missed route pull (an index): the enemies of it not killed, their forces and the forces as a percent
+// of the dungeon's total.
+type RouteMiss struct {
+	Pull    int        `json:"pull"`
+	Enemies []EnemyRef `json:"enemies"`
+	Forces  int        `json:"forces"`
+	Pct     float64    `json:"pct"`
+}
+
+// RouteBehind is the forces percent the route planned up to the last pull reached next to the percent the key has.
+type RouteBehind struct {
+	PlannedPct float64 `json:"plannedPct"`
+	ActualPct  float64 `json:"actualPct"`
 }
 
 // RoutePullProgress is how much of one route pull a key killed: its enemies killed of those planned, whether it's
 // done (all killed, or enough of its forces), and the key pull (an index in the track's Pulls, -1 for none) that
 // killed most of it with that pull's start on the key's clock.
 type RoutePullProgress struct {
-	Killed  int   `json:"killed"`
-	Of      int   `json:"of"`
-	Done    bool  `json:"done"`
-	KeyPull int   `json:"keyPull"`
-	ClockMS int64 `json:"clockMS"`
+	Killed  int    `json:"killed"`
+	Of      int    `json:"of"`
+	Done    bool   `json:"done"`
+	KeyPull int    `json:"keyPull"`
+	ClockMS int64  `json:"clockMS"`
+	State   string `json:"state"` // PullDone, PullMissed, PullNext or PullLater
 }
 
 // RouteOff is what one key pull (an index in the track's Pulls, -1 before the first) killed off the route: the map's
@@ -153,6 +183,8 @@ type RouteLive struct {
 	Current   *RouteStep `json:"current"`
 	Next      *RouteStep `json:"next"`
 	ForcesPct float64    `json:"forcesPct"`
+	Missed    int        `json:"missed"` // pulls missed so far
+	Behind    bool       `json:"behind"` // forces trail the plan
 }
 
 // SavedRoute is a route in Mythic Dungeon Tools' saved variables, listed to import: Imported when a route with its

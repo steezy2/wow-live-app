@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { fetchKeyRoute, fetchRoutes, type KeyTrack, type KeyView, type RouteCompare, type RouteView } from './api'
 import { counted } from './format'
 import { RouteMap } from './RouteMap'
-import { useDungeonMap } from './routes'
+import { enemyKey, pullMobs, useDungeonMap, useMobs } from './routes'
 import { When, type Seeker } from './Seek'
 
 /** A key next to a route of its dungeon (the starred one until another is picked): the route's map with the enemies
@@ -15,6 +15,9 @@ export function KeyRoute({ keyView: key, track, seek }: { keyView: KeyView; trac
   const [compare, setCompare] = useState<RouteCompare | null>()
   const [error, setError] = useState('')
   const dungeon = useDungeonMap(key.mapID)
+  const mobs = useMobs(key.mapID, key.level, '')
+  const byNPC = useMemo(() => new Map(mobs?.mobs.map((m) => [m.npc, m])), [mobs])
+  const enemyByKey = useMemo(() => new Map(dungeon?.enemies.map((e) => [enemyKey(e), e])), [dungeon])
   useEffect(() => {
     const controller = new AbortController()
     fetchRoutes(key.mapID, controller.signal).then(setRoutes, () => undefined)
@@ -37,6 +40,7 @@ export function KeyRoute({ keyView: key, track, seek }: { keyView: KeyView; trac
     )
   }
   const { route, noMobs } = compare
+  const running = key.status === 'running' && !noMobs
   return (
     <div>
       <p>
@@ -59,6 +63,25 @@ export function KeyRoute({ keyView: key, track, seek }: { keyView: KeyView; trac
       {noMobs && (
         <p className="warning">This key was saved before mob positions were kept; read its log again to compare.</p>
       )}
+      {route.totalPct < 100 && (
+        <p className="warning">
+          This route plans only {route.totalPct.toFixed(1)}% forces: you cannot time the key on it.
+        </p>
+      )}
+      {running && compare.behind && (
+        <p className="warning">
+          Forces {compare.behind.actualPct.toFixed(1)}% vs {compare.behind.plannedPct.toFixed(1)}% planned.
+        </p>
+      )}
+      {running &&
+        compare.missed.map((m) => (
+          <p key={m.pull} className="warning">
+            Pull {m.pull + 1} missed ({m.pct.toFixed(1)}%):{' '}
+            {pullMobs(m.enemies, enemyByKey, byNPC)
+              .groups.map((g) => `${g.enemies.length}× ${g.name}`)
+              .join(', ')}
+          </p>
+        ))}
       <div className="route-view">
         <RouteMap
           mapID={route.mapID}
@@ -66,6 +89,7 @@ export function KeyRoute({ keyView: key, track, seek }: { keyView: KeyView; trac
           pulls={route.pulls}
           drawings={route.drawings}
           killed={noMobs ? undefined : compare.kills}
+          states={running ? compare.pulls.map((p) => p.state) : undefined}
         />
         <ol className="route-pulls">
           <li className="muted small">
@@ -77,11 +101,13 @@ export function KeyRoute({ keyView: key, track, seek }: { keyView: KeyView; trac
           {route.pulls.map((p, i) => {
             const done = noMobs ? undefined : compare.pulls[i]
             return (
-              <li key={i}>
+              <li key={i} className={running && done?.state === 'missed' ? 'warning' : undefined}>
                 <span className="route-swatch" style={{ background: `#${p.color}` }}>
                   {i + 1}
                 </span>
-                <span className="muted">{p.pct.toFixed(1)}%</span>
+                <span className="muted">
+                  {p.pct.toFixed(1)}%{running && done?.state === 'next' && ' · next'}
+                </span>
                 <span>{done && done.keyPull >= 0 && <When ms={done.clockMS} seek={seek} />}</span>
                 <span className={done?.done ? 'good' : undefined}>{done && `${done.killed}/${done.of}`}</span>
               </li>

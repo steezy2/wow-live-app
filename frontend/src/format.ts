@@ -143,11 +143,13 @@ export function pullTitle(key: KeyView, clockMS: number): string {
 }
 
 /** The live key's place on its route in one line: "Next: pull 7 (12.4%, to 58.1%)", with " · on pull 9" when the
- * party's last kill on the route was past an unfinished pull, or "Route done (102.3%)". */
-export function routeLine({ current, next, forcesPct }: RouteLive): string {
-  if (!next) return `Route done (${forcesPct.toFixed(1)}%)`
+ * party's last kill on the route was past an unfinished pull, or "Route done (102.3%)"; then " · 2 missed" and
+ * " · forces behind plan" when so. */
+export function routeLine({ current, next, forcesPct, missed, behind }: RouteLive): string {
+  const warn = (missed > 0 ? ` · ${missed} missed` : '') + (behind ? ' · forces behind plan' : '')
+  if (!next) return `Route done (${forcesPct.toFixed(1)}%)${warn}`
   const past = current && current.number > next.number ? ` · on pull ${current.number}` : ''
-  return `Next: pull ${next.number} (${next.pct.toFixed(1)}%, to ${next.totalPct.toFixed(1)}%)${past}`
+  return `Next: pull ${next.number} (${next.pct.toFixed(1)}%, to ${next.totalPct.toFixed(1)}%)${past}${warn}`
 }
 
 /** One of a player's numbers so far at a clock reading (damage 'd', healing 'h', damage taken 'tk', and so on), from a

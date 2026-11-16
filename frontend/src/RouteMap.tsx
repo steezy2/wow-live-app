@@ -7,6 +7,7 @@ import type {
   DungeonMob,
   EnemyRef,
   KeyTrack,
+  PullState,
   RouteEnemy,
   RoutePull,
 } from './api'
@@ -31,6 +32,11 @@ import {
 const NO_TRACK: KeyTrack = { players: {}, classes: {}, deaths: [], meters: {} }
 /** What an enemy in no pull is filled with. */
 const UNPULLED = '#8a93a6'
+/** A done pull's color and a missed pull's outline on a live key's map. */
+const DONE = '#6b8f71'
+const MISSED = '#e5484d'
+/** How faded a pull still far ahead is drawn. */
+const LATER_ALPHA = 0.35
 /** Characters a note's line holds before it wraps. */
 const NOTE_LINE = 28
 
@@ -112,11 +118,13 @@ export function RouteMap(props: {
   mobs?: Map<number, DungeonMob>
   level?: number
   killed?: EnemyRef[]
+  /** Each pull's state on a running key (done pulls muted, next ones bright, later ones faded, missed outlined). */
+  states?: PullState[]
   drawings?: Drawing[]
   onDraw?: (edit: Edit) => void
   limits?: DrawingLimits
 }) {
-  const { mapID, dungeon, pulls, selected, highlight, onEnemy, onContext, mobs, level, killed } = props
+  const { mapID, dungeon, pulls, selected, highlight, onEnemy, onContext, mobs, level, killed, states } = props
   const { drawings, onDraw, limits } = props
   const [floor, setFloor] = useState<number | null>(null)
   const [packs, setPacks] = useState(false)
@@ -146,6 +154,8 @@ export function RouteMap(props: {
   const overlay = useCallback<Overlay>(
     (ctx, at, dot, hit) => {
       const pullOf = pullIndexes(pulls)
+      const shade = (pull: number | undefined) => (pull !== undefined && states?.[pull] === 'later' ? LATER_ALPHA : 1)
+      const colorOf = (pull: number) => (states?.[pull] === 'done' ? DONE : `#${pulls[pull].color}`)
       const outline = (group: RouteEnemy[]) => pullHull(group.map((e) => at(e)), dot * 2.5)
       const groups = (key: (e: RouteEnemy) => number | undefined) => {
         const by = new Map<number, RouteEnemy[]>()
@@ -168,12 +178,13 @@ export function RouteMap(props: {
       }
       groups((e) => pullOf.get(enemyKey(e))).forEach((group, pull) => {
         trace(ctx, outline(group))
-        ctx.globalAlpha = pull === highlight ? 0.4 : 0.18
-        ctx.fillStyle = `#${pulls[pull].color}`
+        ctx.globalAlpha = (pull === highlight ? 0.4 : 0.18) * shade(pull)
+        ctx.fillStyle = colorOf(pull)
         ctx.fill()
-        ctx.globalAlpha = 0.9
-        ctx.strokeStyle = ctx.fillStyle
-        ctx.lineWidth = pull === selected || pull === highlight ? dot / 1.5 : dot / 4
+        ctx.globalAlpha = 0.9 * shade(pull)
+        ctx.strokeStyle = states?.[pull] === 'missed' ? MISSED : ctx.fillStyle
+        const bold = pull === selected || pull === highlight || states?.[pull] === 'next' || states?.[pull] === 'missed'
+        ctx.lineWidth = bold ? dot / 1.5 : dot / 4
         ctx.stroke()
         ctx.globalAlpha = 1
       })
@@ -191,12 +202,14 @@ export function RouteMap(props: {
         const [x, y] = at(e)
         const r = e.boss ? dot * 1.4 : dot * 0.8
         hit(enemyKey(e), x, y, r)
-        ctx.fillStyle = pull === undefined ? UNPULLED : `#${pulls[pull].color}`
+        ctx.fillStyle = pull === undefined ? UNPULLED : colorOf(pull)
         ctx.strokeStyle = pull !== undefined && pull === selected ? '#fff' : '#000'
+        ctx.globalAlpha = shade(pull)
         ctx.beginPath()
         ctx.arc(x, y, r, 0, 2 * Math.PI)
         ctx.fill()
         ctx.stroke()
+        ctx.globalAlpha = 1
       })
       const dead = new Set(killed?.map(enemyKey))
       ctx.strokeStyle = '#000'
@@ -226,7 +239,7 @@ export function RouteMap(props: {
       const drawing = line && here && { id: '', map: here.uiMapID, kind: 'line' as const, color, points: line }
       paint(ctx, at, dot, drawing ? [...drawnHere, drawing] : drawnHere)
     },
-    [enemies, patrols, pulls, selected, highlight, killed, packs, drawnHere, line, color, here],
+    [enemies, patrols, pulls, selected, highlight, killed, states, packs, drawnHere, line, color, here],
   )
   /** A drawing tool's press on the map: a line follows it and ends with it, a marker or a note (with its text) goes
    * where it ends, and Erase takes the drawing it lands on. */
