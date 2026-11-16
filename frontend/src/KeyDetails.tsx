@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from 'react'
+import { FixNext } from './FixNext'
 import { reviewURL, type KeyForces, type KeyGhost, type KeyReview as Review, type KeyTrack, type KeyView } from './api'
 import { chestLabel, clock, oddsText, pullTitle, resultText, routeLine, share, versusBest } from './format'
 import { DamageGraph } from './DamageGraph'
@@ -17,9 +18,6 @@ import { ReportLinks } from './ReportLinks'
 import { Tabs } from './Tabs'
 import { type Seeker } from './Seek'
 import { tip } from './tipAttrs'
-
-/** The Route tab's place in the key's tabs: a running key with a route opens on it. */
-const ROUTE_TAB = 3
 
 /** The result's icon, so it doesn't rest on colour alone. */
 const resultIcon: Record<KeyView['status'], string> = {
@@ -66,19 +64,22 @@ export function KeyDetails({
   const tabs = useMemo(
     () => [
       {
+        id: 'priority',
         name: `Priority targets ${key.pulls.filter((p) => p.late).length}/${key.pulls.length}`,
         body: <PriorityLedger keyView={key} />,
       },
       {
+        id: 'buffs',
         name: `Buffs ${new Set(key.buffGaps?.map((g) => g.buff)).size}`,
         body: <BuffGaps gaps={key.buffGaps ?? []} endMS={clockMS} players={key.players.length} seek={seek} />,
       },
       {
+        id: 'bosses',
         name: 'Bosses',
         body: <BossList keyView={key} track={track} topBosses={review?.topBosses} onSeek={show} />,
       },
       // A running key's route is compared again as its track grows, but only while its tab is open (a saved key's once).
-      { name: 'Route', body: <KeyRoute keyView={key} track={routeOpen || key.status !== 'running' ? track : null} seek={seek} /> },
+      { id: 'route', name: 'Route', body: <KeyRoute keyView={key} track={routeOpen || key.status !== 'running' ? track : null} seek={seek} /> },
       ...fightTabs(
         { ...key, lanes: key.lanes ?? [] },
         `Deaths ${key.deaths.length} (+${clock(key.penaltyMS)})`,
@@ -187,16 +188,7 @@ export function KeyDetails({
         </p>
       )}
 
-      {key.status !== 'running' && key.suggestions && key.suggestions.length > 0 && (
-        <section className="panel attention">
-          <h2>Fix next key</h2>
-          <ol className="fix-next">
-            {key.suggestions.map((s) => (
-              <li key={s}>{s}</li>
-            ))}
-          </ol>
-        </section>
-      )}
+      {key.status !== 'running' && <FixNext title="Fix next key" items={key.suggestions ?? []} />}
       {key.status !== 'running' && (
         <KeyReview keyView={key} justEnded={justEnded} onReview={setReview} />
       )}
@@ -241,9 +233,9 @@ export function KeyDetails({
       </section>
 
       <Tabs
-        initial={key.route ? ROUTE_TAB : 0}
+        initial={key.route ? 'route' : undefined}
         tabs={tabs}
-        onOpen={(i) => setRouteOpen(i === ROUTE_TAB)}
+        onOpen={(id) => setRouteOpen(id === 'route')}
       />
       <p className="muted small">{key.players.join(' · ')}</p>
     </div>
@@ -260,7 +252,7 @@ function meterWindows(key: KeyView, track: KeyTrack | null, at: number, end: num
     return [{ title: pullTitle(key, end), from: last.startMS, to: last.endMS, saved: last }, { ...whole, to: end }]
   }
   const started = track.pulls.filter((p) => p.startMS <= at)
-  const pull = started[started.length - 1] ?? { startMS: 0, endMS: 0 } // before the first pull: "Pull 1" from 0
+  const pull = started.at(-1) ?? { startMS: 0, endMS: 0 } // before the first pull: "Pull 1" from 0
   const to = pull.endMS > 0 && pull.endMS < at ? pull.endMS : at
   return [{ title: `Pull ${Math.max(1, started.length)}`, from: pull.startMS, to, saved: last }, whole]
 }

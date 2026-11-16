@@ -1,5 +1,5 @@
 import type { KeySummary, RaidNight, SettingsView } from './api'
-import { chestLabel, clock, counted, groupBy } from './format'
+import { chestLabel, clock, counted } from './format'
 
 /** How long the game may go without writing a log before the card says logging may be off. */
 export const WAITING_STALE_MS = 30 * 60_000
@@ -30,7 +30,7 @@ export function stateLine(view: Pick<SettingsView, 'logsDir' | 'logsDirFound' | 
 /** Tonight's raid pulls by boss: a kill, else the best wipe's percentage, each opening the pull that shows it. */
 export function raidTonight(nights: RaidNight[], today: string, open: (start: number) => void): TonightRow[] {
   const pulls = nights.find((n) => n.night === today)?.pulls ?? []
-  const byBoss = groupBy(pulls, (p) => `${p.boss} ${p.difficulty}`)
+  const byBoss = Map.groupBy(pulls, (p) => `${p.boss} ${p.difficulty}`)
   return [...byBoss].map(([boss, group]) => {
     const kill = group.find((p) => p.kill)
     const best = kill ?? group.filter((p) => p.bossPct >= 0).sort((a, b) => a.bossPct - b.bossPct)[0] ?? group[0]

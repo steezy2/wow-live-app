@@ -5,6 +5,7 @@ import { Cover, Spell } from './Spell'
 import { RecapRow } from './HitRecap'
 import { Avoidable, BigHits, KickLedger, SpikeLedger } from './KeyLedgers'
 import { recapOf } from './replay'
+import type { TabItem } from './Tabs'
 import { When, Who, type Seeker } from './Seek'
 
 /** What a fight's tabs read: a key's view, or a raid pull's lists; avoidableHits missing in pulls saved before Nov
@@ -32,12 +33,6 @@ export function pullFightData(pull: RaidPull): FightData | null {
   }
 }
 
-/** A tab: its name and what it shows. */
-export interface FightTab {
-  name: string
-  body: ReactNode
-}
-
 /** The tabs a key and a raid pull share, in order: Deaths (named deathsName), Interrupts, Must-stops, Spikes, Big
  * hits, Avoidable, Defensives and potions, CC; group names the cooldowns that cover a spike. With seek, a row's time
  * moves the replay and a name focuses the player. With the fight's track, a death or big hit opens its recap. */
@@ -47,11 +42,12 @@ export function fightTabs(
   group: 'party' | 'raid',
   seek?: Seeker,
   track?: KeyTrack | null,
-): FightTab[] {
+): TabItem[] {
   const cc = data.casts.filter((c) => c.kind === 'cc')
   const pressed = data.casts.filter((c) => c.kind !== 'cc')
   return [
     {
+      id: 'deaths',
       name: deathsName,
       body: (
         <ul className="list scroll">
@@ -71,6 +67,7 @@ export function fightTabs(
       ),
     },
     {
+      id: 'interrupts',
       name: `Interrupts ${data.interrupts.length}`,
       body: (
         <>
@@ -79,7 +76,7 @@ export function fightTabs(
             {countBy(data.interrupts.map((i) => `${i.player} (${i.kick || 'kick'})`))}
           </p>
           <ul className="list scroll">
-            {[...data.interrupts].reverse().map((i, n) => (
+            {data.interrupts.toReversed().map((i, n) => (
               <li key={n}>
                 <span>
                   <Who player={i.player} seek={seek} /> {i.kick && `${i.kick} → `}
@@ -95,16 +92,19 @@ export function fightTabs(
       ),
     },
     {
+      id: 'must-stops',
       name: `Must-stops ${data.stops.filter((s) => s.outcome !== 'went off').length}/${data.stops.length}`,
       body: <KickLedger data={data} seek={seek} />,
     },
-    { name: `Spikes ${data.spikes.length}`, body: <SpikeLedger data={data} group={group} seek={seek} /> },
-    { name: `Big hits ${data.bigHits?.length ?? 0}`, body: <BigHits data={data} seek={seek} track={track} /> },
+    { id: 'spikes', name: `Spikes ${data.spikes.length}`, body: <SpikeLedger data={data} group={group} seek={seek} /> },
+    { id: 'big-hits', name: `Big hits ${data.bigHits?.length ?? 0}`, body: <BigHits data={data} seek={seek} track={track} /> },
     {
+      id: 'avoidable',
       name: `Avoidable ${new Set(data.avoidableHits?.map((h) => h.ability)).size}`,
       body: <Avoidable data={data} seek={seek} />,
     },
     {
+      id: 'defensives',
       name: 'Defensives and potions',
       body: (
         <div className="cards compact">
@@ -135,6 +135,7 @@ export function fightTabs(
       ),
     },
     {
+      id: 'cc',
       name: `CC ${cc.length}`,
       body: (
         <>

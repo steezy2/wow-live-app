@@ -1,4 +1,6 @@
 import type { BuffGap, KeyMeterRow, KeyTrack } from './api'
+import { SavedBefore } from './SavedBefore'
+import { Tiles } from './Tiles'
 import { buffUptimes, cooldownLanes } from './events'
 import { amount, coverOf } from './format'
 import type { FightData } from './KeyTabs'
@@ -43,18 +45,11 @@ export function PlayerReview(props: {
   const spikes = data.spikes.filter((s) => s.members.some((m) => m.player === player))
   return (
     <>
-      <div className="recap-tiles">
-        {tiles.map(([value, label]) => (
-          <div key={label} className="card small">
-            <b>{value}</b>
-            <span className="muted small">{label}</span>
-          </div>
-        ))}
-      </div>
+      <Tiles tiles={tiles} />
       <section className="panel">
         <h2>Cooldowns</h2>
         {lanes === null ? (
-          <p className="muted">Not recorded for this fight: <i>Read old logs</i> fills it in.</p>
+          <SavedBefore what="cooldowns" />
         ) : lanes.length === 0 ? (
           <p className="muted">Nothing cast at most once a minute.</p>
         ) : (
@@ -81,7 +76,7 @@ export function PlayerReview(props: {
       <section className="panel">
         <h2>Buff uptime</h2>
         {buffs === null ? (
-          <p className="muted">Not recorded for this fight: <i>Read old logs</i> fills it in.</p>
+          <SavedBefore what="buffs" />
         ) : (
           <ul className="list">
             {buffs.slice(0, BUFF_ROWS).map((b) => (

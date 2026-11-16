@@ -9,12 +9,12 @@ import {
   type KeyTrack,
   type KeyView,
   type RouteCompare,
-  type RouteView,
 } from './api'
 import { counted } from './format'
 import { RouteMap } from './RouteMap'
 import { enemyKey, PULL_COLORS, pullMobs, useDungeonMap, useMobs } from './routes'
 import { When, type Seeker } from './Seek'
+import { useFetched } from './useFetched'
 
 /** Makes a route of the pulls the key made (a new route, the dungeon's starred one when it has none), then reports it. */
 function RecordRoute({ keyView: key, onRecorded }: { keyView: KeyView; onRecorded: () => void }) {
@@ -51,20 +51,15 @@ function RecordRoute({ keyView: key, onRecorded }: { keyView: KeyView; onRecorde
  * kills off the route by key pull and the route pulls with nothing killed. With seek, a time moves the replay. A
  * running key's comparison is read again as its track changes (a null track, not at all). */
 export function KeyRoute({ keyView: key, track, seek }: { keyView: KeyView; track: KeyTrack | null; seek?: Seeker }) {
-  const [routes, setRoutes] = useState<RouteView[]>([])
   const [id, setID] = useState<string>()
   const [compare, setCompare] = useState<RouteCompare | null>()
   const [error, setError] = useState('')
   const [fetched, setFetched] = useState(0) // up one when a route is recorded, to read the comparison again
+  const routes = useFetched(String(key.mapID), (signal) => fetchRoutes(key.mapID, signal)).data ?? []
   const dungeon = useDungeonMap(key.mapID)
   const mobs = useMobs(key.mapID, key.level, '')
   const byNPC = useMemo(() => new Map(mobs?.mobs.map((m) => [m.npc, m])), [mobs])
   const enemyByKey = useMemo(() => new Map(dungeon?.enemies.map((e) => [enemyKey(e), e])), [dungeon])
-  useEffect(() => {
-    const controller = new AbortController()
-    fetchRoutes(key.mapID, controller.signal).then(setRoutes, () => undefined)
-    return () => controller.abort()
-  }, [key.mapID])
   useEffect(() => {
     const controller = new AbortController()
     fetchKeyRoute(key.start, id, controller.signal).then(

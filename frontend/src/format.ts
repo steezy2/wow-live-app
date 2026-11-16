@@ -81,7 +81,7 @@ export function counted(n: number, word: string): string {
 }
 
 /** The days a log list shows one by one; older logs share one group. */
-export const RECENT_LOG_DAYS = 5
+const RECENT_LOG_DAYS = 5
 
 /** Logs grouped by the day they were written (local time) for the last RECENT_LOG_DAYS days, then one group for
  * everything older; the list's order is kept, so newest first stays so. */
@@ -163,13 +163,6 @@ export function sizeText(bytes: number): string {
   return bytes >= 1e6 ? `${Math.round(bytes / 1e6)} MB` : `${Math.ceil(bytes / 1e3)} KB`
 }
 
-/** Items grouped by a key, the groups in the order their keys first came (Map.groupBy, past this build's ES2020). */
-export function groupBy<T>(items: T[], key: (item: T) => string): Map<string, T[]> {
-  const groups = new Map<string, T[]>()
-  items.forEach((item) => groups.get(key(item))?.push(item) ?? groups.set(key(item), [item]))
-  return groups
-}
-
 const DAY_MS = 86_400_000
 /** Past this many days the side panel groups by month instead of by week, so a season's lists stay short. */
 const MONTH_LABEL_DAYS = 56
@@ -189,6 +182,9 @@ export function periodLabel(ms: number, now = Date.now()): string {
   day.setDate(day.getDate() - ((day.getDay() + 6) % 7))
   return `Week of ${day.toLocaleDateString([], { month: 'short', day: 'numeric' })}`
 }
+
+/** Whether a side panel group label (periodLabel's) is a week, whose items carry a date of their own. */
+export const isWeekLabel = (label: string): boolean => label.startsWith('Week of')
 
 /** An import's state in a line at now (ms): how far it got, what it saved, the points, and why it stopped or waits. */
 export function importProgress(s: ImportStatus, now: number): string {

@@ -4,7 +4,6 @@ import {
   groupLogsByDay,
   clock,
   coverOf,
-  errorText,
   importKindText,
   importProgress,
   importTotal,
@@ -15,7 +14,6 @@ import {
   rowValue,
   resultText,
   routeLine,
-  versus,
   versusBest,
   withRealm,
 } from './format'
@@ -171,14 +169,6 @@ describe('withRealm', () => {
   })
 })
 
-describe('versus', () => {
-  it('signs the difference', () => {
-    expect(versus(90_000, 30_000)).toBe('+1:00')
-    expect(versus(30_000, 60_000)).toBe('-0:30')
-    expect(versus(30_000, 30_000)).toBe('0:00')
-  })
-})
-
 describe('routeLine', () => {
   const step = (number: number) => ({ number, pct: 12.4, totalPct: 58.1, color: '3eff3e', forces: 0, total: 0 })
   it.each([
@@ -229,9 +219,3 @@ describe('groupLogsByDay', () => {
   })
 })
 
-describe('errorText', () => {
-  it.each([
-    ['an Error says its message', new Error('boom'), 'boom'],
-    ['anything else is written out', 'plain', 'plain'],
-  ])('%s', (_, err, want) => expect(errorText(err)).toBe(want))
-})

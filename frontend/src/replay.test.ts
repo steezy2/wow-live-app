@@ -8,7 +8,6 @@ import {
   floorsOf,
   healthAfter,
   indexAfter,
-  healthAt,
   lastAt,
   meterBetween,
   MIN_FLOOR_POINTS,
@@ -42,17 +41,6 @@ describe('valueAt', () => {
     ['a number the point lacks', 30, 'h', 0],
   ] as const)('%s', (_, t, kind, want) => {
     expect(valueAt(points as never, t, kind)).toBe(want)
-  })
-})
-
-describe('healthAt', () => {
-  const points = [{ ...at(10, 1), hp: 100 }, { ...at(20, 2), hp: 60 }, at(30, 3)]
-  it.each([
-    [5, undefined],
-    [25, 60],
-    [35, undefined],
-  ])('at %i', (now, hp) => {
-    expect(healthAt(points, now)).toBe(hp)
   })
 })
 

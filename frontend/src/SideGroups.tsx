@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react'
-import { groupBy, periodLabel } from './format'
+import { periodLabel } from './format'
 
 /** The side panel's items grouped by day, or by week past the last 7 days, each group a dropdown headed by its label
  * and count; the newest group and the one holding the picked item start open, and a group the user opened or closed
@@ -12,7 +12,7 @@ export function SideGroups<T>({ items, time, count, isSelected, children }: {
   children: (group: T[], label: string) => ReactNode
 }) {
   const [chosen, setChosen] = useState<Map<string, boolean>>(new Map())
-  return [...groupBy(items, (item) => periodLabel(time(item)))].map(([label, group], i) => (
+  return [...Map.groupBy(items, (item) => periodLabel(time(item)))].map(([label, group], i) => (
     <details
       key={label}
       className="side-group"

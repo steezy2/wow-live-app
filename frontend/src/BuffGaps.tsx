@@ -1,6 +1,5 @@
 import { Fragment } from 'react'
 import { type BuffGap } from './api'
-import { groupBy } from './format'
 import { When, Who, type Seeker } from './Seek'
 import { Spell } from './Spell'
 
@@ -9,7 +8,7 @@ import { Spell } from './Spell'
  * its end. endMS is the fight's length and players how many were in it. */
 export function BuffGaps(props: { gaps: BuffGap[]; endMS: number; players: number; seek?: Seeker }) {
   const { gaps, endMS, players, seek } = props
-  const buffs = [...groupBy(gaps, (g) => g.buff)].sort(([, a], [, b]) => b.length - a.length)
+  const buffs = [...Map.groupBy(gaps, (g) => g.buff)].sort(([, a], [, b]) => b.length - a.length)
   const whole = (g: BuffGap) => g.fromMS === 0 && g.toMS >= endMS
   return (
     <ul className="list scroll buff-gaps small">

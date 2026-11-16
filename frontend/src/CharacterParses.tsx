@@ -1,10 +1,10 @@
-import { fetchCharacterParses } from './api'
+import { fetchCharacterParses, type FightKind } from './api'
 import { counted } from './format'
 import { useFetched } from './useFetched'
 
 /** The Recap's panel of the saved character's Warcraft Logs parses this season in Mythic+ dungeons or raid bosses
  * (kind): best and median, runs and spec, with a link to its page; nothing while there's no character. */
-export function CharacterParses({ character, kind }: { character: string; kind: 'mplus' | 'raid' }) {
+export function CharacterParses({ character, kind }: { character: string; kind: FightKind }) {
   const { data: parses, error: problem } = useFetched(character || null, fetchCharacterParses)
   if (!character || (!parses && !problem)) return null
   const shown = parses?.parses.filter((p) => p.kind === kind) ?? []

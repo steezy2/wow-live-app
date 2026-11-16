@@ -9,19 +9,20 @@ import {
   type RecapMPlus,
   type RecapKeyCounts,
   type RecapKeyRow,
-  type RecapPeriod,
   type RecapRaid,
   type RecapTopTime,
+  type FightKind,
 } from './api'
 import { CharacterParses } from './CharacterParses'
 import { classColors } from './classColors'
 import { Skeleton } from './Skeleton'
 import { useDelayed } from './useDelayed'
+import { useFetched } from './useFetched'
 import { amount, clock, counted, errorText, realmName, versus, withRealm } from './format'
 import { Tabs } from './Tabs'
 import { Tiles } from './Tiles'
 
-type Open = (kind: 'mplus' | 'raid', start: number) => void
+type Open = (kind: FightKind, start: number) => void
 
 /** The Recap tab for the character picked in the top bar (all of them when none): a period picked with chips (this
  * month by default), then Mythic+ and raid on tabs of their own, each read as a story: tiles, cards, facts that open
@@ -29,7 +30,7 @@ type Open = (kind: 'mplus' | 'raid', start: number) => void
  * is theirs or everyone's. */
 export function Recap({ character, parsesFor, onOpen }: { character?: Character; parsesFor: string; onOpen: Open }) {
   const id = character?.id ?? ''
-  const [periods, setPeriods] = useState<RecapPeriod[]>([])
+  const { data: periods = [], error: periodsError } = useFetched('periods', fetchRecapPeriods)
   const [label, setLabel] = useState('')
   // The last answer, for the period and character it was asked for (key): a recap or why it failed. It stays on
   // screen while the next one loads, so the tabs keep the one picked.
@@ -37,13 +38,6 @@ export function Recap({ character, parsesFor, onOpen }: { character?: Character;
   const [top, setTop] = useState<{ key?: string; times?: RecapTopTime[] | null }>({})
   const period = periods.find((p) => p.label === label) ?? periods[0]
   const key = period && `${period.label} ${id}`
-  useEffect(() => {
-    const controller = new AbortController()
-    fetchRecapPeriods(controller.signal).then(setPeriods, (err: unknown) => {
-      if (!controller.signal.aborted) setAnswer({ error: errorText(err) })
-    })
-    return () => controller.abort()
-  }, [])
   useEffect(() => {
     if (!period) return
     const controller = new AbortController()
@@ -78,13 +72,14 @@ export function Recap({ character, parsesFor, onOpen }: { character?: Character;
           </button>
         ))}
       </div>
-      {answer.error && !loading ? (
-        <p className="warning">{answer.error}</p>
+      {(answer.error ?? periodsError) && !loading ? (
+        <p className="warning">{answer.error ?? periodsError}</p>
       ) : answer.recap ? (
         <Tabs
-          initial={answer.recap.mplus.keys === 0 && answer.recap.raid.pulls > 0 ? 1 : 0}
+          initial={answer.recap.mplus.keys === 0 && answer.recap.raid.pulls > 0 ? 'raid' : 'mplus'}
           tabs={[
             {
+              id: 'mplus',
               name: 'Mythic+',
               body: (
                 <>
@@ -94,6 +89,7 @@ export function Recap({ character, parsesFor, onOpen }: { character?: Character;
               ),
             },
             {
+              id: 'raid',
               name: 'Raid',
               body: (
                 <>

@@ -15,7 +15,7 @@ export const eventKinds = ['death', 'defensive', 'raid cooldown', 'potion', 'int
 export type EventKind = (typeof eventKinds)[number]
 
 /** One line of the Events feed: who did it (or who it happened to) and what, at a moment. */
-export interface FightEvent {
+interface FightEvent {
   clockMS: number
   kind: EventKind
   player: string
