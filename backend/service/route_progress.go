@@ -63,9 +63,9 @@ func kills(track models.KeyTrack) []kill {
 }
 
 // matchEnemies is the map enemy (an index in enemies) each kill was, in death order, or -1 for a kill off the map: the
-// pairs of a kill and an enemy of its NPC on its floor within matchYards are taken closest first, so a pack's far kill
+// pairs of a kill and an enemy of its NPC on its floor within maxYards are taken closest first, so a pack's far kill
 // doesn't take the enemy a nearer kill stood at.
-func matchEnemies(enemies []models.RouteEnemy, kills []kill) []int {
+func matchEnemies(enemies []models.RouteEnemy, kills []kill, maxYards float64) []int {
 	type pair struct {
 		kill, enemy int
 		yards       float64
@@ -73,7 +73,7 @@ func matchEnemies(enemies []models.RouteEnemy, kills []kill) []int {
 	var pairs []pair
 	for i, k := range kills {
 		for j, e := range enemies {
-			if d := math.Hypot(e.X-k.at.X, e.Y-k.at.Y); e.NPC == k.npc && e.Map == k.at.Map && d <= matchYards {
+			if d := math.Hypot(e.X-k.at.X, e.Y-k.at.Y); e.NPC == k.npc && e.Map == k.at.Map && d <= maxYards {
 				pairs = append(pairs, pair{i, j, d})
 			}
 		}
@@ -113,7 +113,7 @@ func MatchKills(route models.RouteView, facts models.DungeonFacts, track models.
 		return off[keyPull]
 	}
 	all := kills(track)
-	for i, at := range matchEnemies(facts.Enemies, all) {
+	for i, at := range matchEnemies(facts.Enemies, all, matchYards) {
 		keyPull := keyPullAt(track.Pulls, all[i].at.ClockMS)
 		if at < 0 {
 			if n := facts.Forces.NPCs[all[i].npc]; n > 0 {
@@ -170,31 +170,128 @@ func MatchKills(route models.RouteView, facts models.DungeonFacts, track models.
 	return p
 }
 
-// recordPulls are the route pulls a key made: the map enemies its kills matched (matchEnemies) grouped by the key pull
-// they died in, in pull order. Kills before the first pull join it.
-func recordPulls(facts models.DungeonFacts, track models.KeyTrack) [][]models.EnemyRef {
+// madePull is the map enemies one key pull killed (KeyPull an index in the track's Pulls).
+type madePull struct {
+	KeyPull int
+	Enemies []models.EnemyRef
+}
+
+// madePulls are the pulls a key made: each kill takes the nearest map enemy of its NPC on its floor that no closer
+// kill took (a recording has no plan to hold the kill to, so a slightly different pull still counts), grouped by the
+// key pull it died in, in pull order. Kills before the first pull join it. Dropped counts the kills worth forces that no
+// enemy was left for.
+func madePulls(facts models.DungeonFacts, track models.KeyTrack) (pulls []madePull, dropped int) {
 	all := kills(track)
 	byPull := map[int][]models.EnemyRef{}
-	for i, at := range matchEnemies(facts.Enemies, all) {
+	for i, at := range matchEnemies(facts.Enemies, all, math.Inf(1)) {
 		if at < 0 {
+			if facts.Forces.NPCs[all[i].npc] > 0 {
+				dropped++
+			}
 			continue
 		}
+		e := facts.Enemies[at]
 		pull := max(keyPullAt(track.Pulls, all[i].at.ClockMS), 0)
-		byPull[pull] = append(byPull[pull], models.EnemyRef{Index: facts.Enemies[at].Index, Clone: facts.Enemies[at].Clone})
+		byPull[pull] = append(byPull[pull], models.EnemyRef{Index: e.Index, Clone: e.Clone})
 	}
-	out := [][]models.EnemyRef{}
 	for _, pull := range slices.Sorted(maps.Keys(byPull)) {
-		out = append(out, byPull[pull])
+		pulls = append(pulls, madePull{pull, byPull[pull]})
+	}
+	return pulls, dropped
+}
+
+// enemyForces is the forces each map enemy gives.
+func enemyForces(facts models.DungeonFacts) map[models.EnemyRef]int {
+	out := map[models.EnemyRef]int{}
+	for _, e := range facts.Enemies {
+		out[models.EnemyRef{Index: e.Index, Clone: e.Clone}] = e.Count
 	}
 	return out
 }
 
+// recordPulls are madePulls as the pulls of a route to record, with the forces share they hold.
+func recordPulls(facts models.DungeonFacts, track models.KeyTrack) models.RecordedRoute {
+	made, dropped := madePulls(facts, track)
+	count, forces := enemyForces(facts), 0
+	out := models.RecordedRoute{Pulls: [][]models.EnemyRef{}, Dropped: dropped}
+	for _, m := range made {
+		out.Pulls = append(out.Pulls, m.Enemies)
+		for _, ref := range m.Enemies {
+			forces += count[ref]
+		}
+	}
+	out.Pct = share(forces, facts.Forces.Total)
+	return out
+}
+
+// buildRun is how a key's own pulls (madePulls) sit against a route: each key pull's route pull is the one most of its
+// enemies are in, and it matches that pull, differs from it (enemies of other pulls killed in it, or of the pull not
+// killed in it) or is off the route. Unseen are the route's enemies no key pull killed, by route pull; they are not
+// known missed, since the log can fail to show a death.
+func buildRun(route models.RouteView, facts models.DungeonFacts, track models.KeyTrack) models.RouteRun {
+	made, _ := madePulls(facts, track)
+	count := enemyForces(facts)
+	planOf := map[models.EnemyRef]int{}
+	for i, pull := range route.Pulls {
+		for _, ref := range pull.Enemies {
+			planOf[ref] = i
+		}
+	}
+	run := models.RouteRun{Pulls: []models.RunPull{}, Unseen: []models.RouteMiss{}}
+	killed := map[models.EnemyRef]bool{}
+	for _, m := range made {
+		overlap := map[int]int{}
+		forces := 0
+		for _, ref := range m.Enemies {
+			killed[ref] = true
+			forces += count[ref]
+			if i, ok := planOf[ref]; ok {
+				overlap[i]++
+			}
+		}
+		rp := models.RunPull{KeyPull: m.KeyPull, ClockMS: pullStart(track.Pulls, m.KeyPull), Enemies: m.Enemies, Forces: forces,
+			Pct: share(forces, facts.Forces.Total), Plan: -1, State: models.RunOff}
+		for _, i := range slices.Sorted(maps.Keys(overlap)) {
+			if rp.Plan < 0 || overlap[i] > overlap[rp.Plan] {
+				rp.Plan = i
+			}
+		}
+		if rp.Plan >= 0 {
+			rp.State = models.RunMatches
+			rp.Extra = len(m.Enemies) - overlap[rp.Plan]
+			for _, ref := range route.Pulls[rp.Plan].Enemies {
+				if !slices.Contains(m.Enemies, ref) {
+					rp.Missing++
+				}
+			}
+			if rp.Extra > 0 || rp.Missing > 0 {
+				rp.State = models.RunDiffers
+			}
+		}
+		run.Pulls = append(run.Pulls, rp)
+	}
+	for i, pull := range route.Pulls {
+		miss := models.RouteMiss{Pull: i, Enemies: []models.EnemyRef{}}
+		for _, ref := range pull.Enemies {
+			if !killed[ref] {
+				miss.Enemies = append(miss.Enemies, ref)
+				miss.Forces += count[ref]
+			}
+		}
+		if len(miss.Enemies) > 0 {
+			miss.Pct = share(miss.Forces, facts.Forces.Total)
+			run.Unseen = append(run.Unseen, miss)
+		}
+	}
+	return run
+}
+
 // Recorded is the pulls a key made as route pulls' enemies, for a route recorded from it (ErrNoSuchKey for an unknown
 // key); none for a key saved before mob positions were kept.
-func (r *Routes) Recorded(start int64) ([][]models.EnemyRef, error) {
+func (r *Routes) Recorded(start int64) (models.RecordedRoute, error) {
 	mapID, track, err := r.Track(start)
 	if err != nil {
-		return nil, err
+		return models.RecordedRoute{}, err
 	}
 	return recordPulls(r.Facts[mapID], track), nil
 }
@@ -202,10 +299,7 @@ func (r *Routes) Recorded(start int64) ([][]models.EnemyRef, error) {
 // markPulls gives each route pull its state and finds the missed pulls and how far the forces trail the plan; forces
 // are the key's kills' forces by route pull.
 func markPulls(p *models.RouteProgress, route models.RouteView, facts models.DungeonFacts, forces []int) {
-	count := map[models.EnemyRef]int{}
-	for _, e := range facts.Enemies {
-		count[models.EnemyRef{Index: e.Index, Clone: e.Clone}] = e.Count
-	}
+	count := enemyForces(facts)
 	killed := map[models.EnemyRef]bool{}
 	for _, ref := range p.Kills {
 		killed[ref] = true
@@ -261,9 +355,9 @@ func keyPullAt(pulls []models.PullSpan, clockMS int64) int {
 	return i - 1
 }
 
-// pullStart is a key pull's start on the key's clock, 0 for none (-1).
+// pullStart is a key pull's start on the key's clock, 0 for none (-1, or a track with no pulls).
 func pullStart(pulls []models.PullSpan, keyPull int) int64 {
-	if keyPull < 0 {
+	if keyPull < 0 || keyPull >= len(pulls) {
 		return 0
 	}
 	return pulls[keyPull].StartMS
@@ -291,7 +385,7 @@ func (r *Routes) Compare(start int64, id string) (models.RouteCompare, error) {
 	}
 	view := r.view(route)
 	return models.RouteCompare{Route: view, RouteProgress: MatchKills(view, r.Facts[mapID], track),
-		NoMobs: track.Mobs == nil}, nil
+		Run: buildRun(view, r.Facts[mapID], track), NoMobs: track.Mobs == nil}, nil
 }
 
 // Live is the key's dungeon's starred route followed with the kills so far; nil unless the key is running and the

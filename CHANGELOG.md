@@ -4,6 +4,10 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 
 ## [Unreleased]
 
+### Changed
+- **A finished key's Route tab shows what was pulled**: the map draws the key's own pulls (the plan only as faint dashed outlines) and each pull is listed against the route pull it is closest to: *Plan pull N* when it matches, *N extra, M not killed* when it differs, *Not in the route* otherwise. Planned enemies the log never showed dying are listed as *not seen in the log*, not as missed. A running key's tab is as before. `GET /api/mplus/keys/{start}/route` has the new `run`.
+- **Record route keeps every kill**: a kill pulled differently from the map (more than 30 yards from an enemy of its NPC) used to be dropped; now it takes the nearest unused enemy of its NPC on its floor, so the recorded route holds what was pulled. `GET /api/mplus/keys/{start}/recorded-route` returns `{pulls, pct, dropped}`, and the page says the forces share recorded and the kills not on the map. The route's name has the key's date.
+
 ## [0.4.7] - 2026-11-16
 
 ### Added

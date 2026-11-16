@@ -2220,6 +2220,19 @@ definitions:
           type: string
         type: array
     type: object
+  models.RecordedRoute:
+    properties:
+      dropped:
+        type: integer
+      pct:
+        type: number
+      pulls:
+        items:
+          items:
+            $ref: '#/definitions/models.EnemyRef'
+          type: array
+        type: array
+    type: object
   models.ReportLink:
     properties:
       code:
@@ -2305,6 +2318,8 @@ definitions:
         type: array
       route:
         $ref: '#/definitions/models.RouteView'
+      run:
+        $ref: '#/definitions/models.RouteRun'
       skipped:
         items:
           type: integer
@@ -2434,6 +2449,17 @@ definitions:
       totalPct:
         type: number
     type: object
+  models.RouteRun:
+    properties:
+      pulls:
+        items:
+          $ref: '#/definitions/models.RunPull'
+        type: array
+      unseen:
+        items:
+          $ref: '#/definitions/models.RouteMiss'
+        type: array
+    type: object
   models.RouteStep:
     properties:
       color:
@@ -2510,6 +2536,30 @@ definitions:
       text:
         type: string
       why:
+        type: string
+    type: object
+  models.RunPull:
+    properties:
+      clockMS:
+        type: integer
+      enemies:
+        items:
+          $ref: '#/definitions/models.EnemyRef'
+        type: array
+      extra:
+        type: integer
+      forces:
+        type: integer
+      keyPull:
+        type: integer
+      missing:
+        type: integer
+      pct:
+        type: number
+      plan:
+        type: integer
+      state:
+        description: RunMatches, RunDiffers or RunOff
         type: string
     type: object
   models.SavedRoute:
@@ -3010,9 +3060,10 @@ paths:
   /api/mplus/keys/{start}/recorded-route:
     get:
       description: |-
-        The key's kills matched to map enemies as KeyRoute does, grouped by the key pull they died in, in
-        order. The page makes a route of them (POST /api/mplus/routes, then PUT with colors). Empty for a
-        key saved before mob positions were kept.
+        Each kill takes the nearest map enemy of its NPC on its floor, grouped by the key pull it died in, in
+        order, with the forces share they hold and the kills worth forces that no enemy was left for. The page
+        makes a route of them (POST /api/mplus/routes, then PUT with colors). No pulls for a key saved before
+        mob positions were kept.
       parameters:
       - description: the key's start (ms since the epoch)
         in: path
@@ -3025,11 +3076,7 @@ paths:
         "200":
           description: OK
           schema:
-            items:
-              items:
-                $ref: '#/definitions/models.EnemyRef'
-              type: array
-            type: array
+            $ref: '#/definitions/models.RecordedRoute'
         "400":
           description: Bad Request
           schema:
