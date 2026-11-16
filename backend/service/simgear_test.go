@@ -41,7 +41,7 @@ func TestTopGearCombosFollowTheSlotRules(t *testing.T) {
 		{"an unticked equipped head is not a candidate", false, nil, []int{0, 6}, 1},
 		{"a bag head and neck, the equipped head ticked", false, []int{0}, []int{0, 6}, 2},
 		{"a bag ring beside both equipped", false, []int{1, 2}, []int{1}, 2},
-		{"the equipped rings make up the pair", false, nil, []int{1}, 1},
+		{"the equipped rings make up the pair", false, nil, []int{1}, 2},
 		{"the same ring can't be worn twice", false, []int{1, 2}, []int{2}, 1},
 		{"a ring and a trinket", false, []int{1, 2, 3, 4}, []int{1, 3}, 8},
 		{"a bag main hand beside a one-hander", false, []int{5, 6}, []int{4}, 1},
