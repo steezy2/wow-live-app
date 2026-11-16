@@ -204,7 +204,12 @@ func markPulls(p *models.RouteProgress, route models.RouteView, facts models.Dun
 	for _, o := range p.Off {
 		have += o.Forces
 	}
-	planned, actual := route.Pulls[p.Last].TotalPct, share(have, facts.Forces.Total)
+	// a pull still being killed is not behind plan yet: plan only up to the pull before it
+	last := route.Pulls[p.Last]
+	planned, actual := last.TotalPct, share(have, facts.Forces.Total)
+	if !p.Pulls[p.Last].Done {
+		planned -= last.Pct
+	}
 	if planned-actual >= behindPct {
 		p.Behind = &models.RouteBehind{PlannedPct: planned, ActualPct: actual}
 	}

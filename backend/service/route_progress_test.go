@@ -151,6 +151,16 @@ func TestRouteStates(t *testing.T) {
 	}
 }
 
+func TestRouteBehindIgnoresPullInProgress(t *testing.T) {
+	enemies := []models.RouteEnemy{{Index: 1, Clone: 1, NPC: 1, Count: 5, Map: 1}, {Index: 2, Clone: 1, NPC: 2, Count: 5, X: 100, Map: 1}}
+	facts := models.DungeonFacts{Forces: models.Forces{Total: 100, NPCs: map[int]int{1: 5, 2: 5}}, Enemies: enemies}
+	track := models.KeyTrack{Mobs: map[string]models.MobTrail{mobGUID(1, 1): died(0, 0, 1, 1000)}}
+	p := progressOf(facts, track, []models.EnemyRef{{Index: 1, Clone: 1}, {Index: 2, Clone: 1}})
+	if p.Behind != nil {
+		t.Fatalf("half a pull killed is behind plan: %+v", p.Behind)
+	}
+}
+
 // routeTrack is a key's track where the enemies of newRoutes at these x died, a second apart.
 func routeTrack(xs ...float64) models.KeyTrack {
 	track := models.KeyTrack{Mobs: map[string]models.MobTrail{}}
