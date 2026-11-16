@@ -4,6 +4,9 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 
 ## [Unreleased]
 
+### Fixed
+- **Forces**: a finished key no longer reads "100% · 546/551" when the log missed a mob's death; the count shows only when it adds up.
+
 ## [0.4.9] - 2026-11-16
 
 ### Changed

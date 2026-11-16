@@ -259,3 +259,9 @@ export function rowValue(value: number, unit: string): string {
       return value.toFixed(0)
   }
 }
+
+/** The " · 546/551" after a key's forces, or '' when there is no count or the key reads 100% on kills that add up to
+ * less (the game finished it, so the count missed a mob). */
+export function forcesCount({ count, total, pct }: { count: number; total: number; pct: number }): string {
+  return count > 0 && (pct < 100 || count >= total) ? ` · ${count}/${total}` : ''
+}
