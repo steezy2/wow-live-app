@@ -10,11 +10,20 @@ import {
   type KeyView,
   type RouteCompare,
   type RouteView,
+  type RunPull,
 } from './api'
 import { counted } from './format'
 import { RouteMap } from './RouteMap'
 import { enemyKey, PULL_COLORS, pullMobs, useDungeonMap, useMobs } from './routes'
 import { When, type Seeker } from './Seek'
+
+/** How a pull of the key sits against the plan, in words. */
+function runLabel(p: RunPull): string {
+  if (p.state === 'off') return 'Not in the route'
+  if (p.state === 'matches') return `Plan pull ${p.plan + 1}`
+  const differences = [p.extra && `${p.extra} extra`, p.missing && `${p.missing} not killed`].filter(Boolean)
+  return `Plan pull ${p.plan + 1}: ${differences.join(', ')}`
+}
 
 /** Makes a route of the pulls the key made (a new route, the dungeon's starred one when it has none), then reports it. */
 function RecordRoute({ keyView: key, onRecorded }: { keyView: KeyView; onRecorded: () => void }) {
@@ -22,15 +31,16 @@ function RecordRoute({ keyView: key, onRecorded }: { keyView: KeyView; onRecorde
   const record = async () => {
     setState('busy')
     try {
-      const pulls = await fetchRecordedRoute(key.start)
+      const { pulls, pct, dropped } = await fetchRecordedRoute(key.start)
       if (pulls.length === 0) return setState("No kills on the map to record: read this key's log again.")
-      const name = `${key.dungeon} +${key.level} recorded`
+      const name = `${key.dungeon} +${key.level} recorded ${new Date(key.start).toLocaleDateString()}`
       const route = await createRoute(key.mapID, name)
       const colored = pulls.map((enemies, i) => ({ color: PULL_COLORS[i % PULL_COLORS.length], enemies }))
       await saveRoute(route.id, { name, drawings: [], pulls: colored }).catch((err: Error) =>
         deleteRoute(route.id).then(() => Promise.reject(err)),
       ) // no empty route is left behind
-      setState(`Recorded as “${name}” (see the Routes tab).`)
+      const gaps = dropped ? `, ${counted(dropped, 'kill')} not on the map` : ''
+      setState(`Recorded as “${name}”: ${counted(pulls.length, 'pull')}, ${pct.toFixed(1)}% forces${gaps}. Edit and export it on the Routes tab.`)
       onRecorded()
     } catch (err) {
       setState((err as Error).message)
@@ -46,10 +56,12 @@ function RecordRoute({ keyView: key, onRecorded }: { keyView: KeyView; onRecorde
   )
 }
 
-/** A key next to a route of its dungeon (the starred one until another is picked): the route's map with the enemies
- * the key killed ticked, each route pull's planned forces, when the key pulled it and how much of it died, then the
- * kills off the route by key pull and the route pulls with nothing killed. With seek, a time moves the replay. A
- * running key's comparison is read again as its track changes (a null track, not at all). */
+/** A key next to a route of its dungeon (the starred one until another is picked). A finished key shows its own pulls
+ * on the map over the plan's faint outlines, each against the route pull it is closest to (matches, differs by some
+ * enemies, or not in the route), then the planned enemies the log never showed dying. A running key shows the route's
+ * map with the enemies killed ticked, each route pull's planned forces, when it was pulled and how much of it died,
+ * then the kills off the route and the route pulls not pulled. With seek, a time moves the replay. A running key's
+ * comparison is read again as its track changes (a null track, not at all). */
 export function KeyRoute({ keyView: key, track, seek }: { keyView: KeyView; track: KeyTrack | null; seek?: Seeker }) {
   const [routes, setRoutes] = useState<RouteView[]>([])
   const [id, setID] = useState<string>()
@@ -59,6 +71,10 @@ export function KeyRoute({ keyView: key, track, seek }: { keyView: KeyView; trac
   const dungeon = useDungeonMap(key.mapID)
   const mobs = useMobs(key.mapID, key.level, '')
   const byNPC = useMemo(() => new Map(mobs?.mobs.map((m) => [m.npc, m])), [mobs])
+  const mine = useMemo(
+    () => (compare?.run.pulls ?? []).map((p, i) => ({ color: PULL_COLORS[i % PULL_COLORS.length], enemies: p.enemies })),
+    [compare],
+  )
   const enemyByKey = useMemo(() => new Map(dungeon?.enemies.map((e) => [enemyKey(e), e])), [dungeon])
   useEffect(() => {
     const controller = new AbortController()
@@ -89,6 +105,7 @@ export function KeyRoute({ keyView: key, track, seek }: { keyView: KeyView; trac
   }
   const { route, noMobs } = compare
   const running = key.status === 'running' && !noMobs
+  const showRun = !running && !noMobs
   return (
     <div>
       <p>
@@ -131,64 +148,110 @@ export function KeyRoute({ keyView: key, track, seek }: { keyView: KeyView; trac
               .join(', ')}
           </p>
         ))}
-      <div className="route-view">
-        <RouteMap
-          mapID={route.mapID}
-          dungeon={dungeon}
-          pulls={route.pulls}
-          drawings={route.drawings}
-          killed={noMobs ? undefined : compare.kills}
-          states={running ? compare.pulls.map((p) => p.state) : undefined}
-        />
-        <ol className="route-pulls">
-          <li className="muted small">
-            <span>Pull</span>
-            <span>Planned</span>
-            <span>Pulled at</span>
-            <span>Killed</span>
-          </li>
-          {route.pulls.map((p, i) => {
-            const done = noMobs ? undefined : compare.pulls[i]
-            return (
-              <li key={i} className={running && done?.state === 'missed' ? 'warning' : undefined}>
-                <span className="route-swatch" style={{ background: `#${p.color}` }}>
-                  {i + 1}
-                </span>
-                <span className="muted">
-                  {p.pct.toFixed(1)}%{running && done?.state === 'next' && ' · next'}
-                </span>
-                <span>{done && done.keyPull >= 0 && <When ms={done.clockMS} seek={seek} />}</span>
-                <span className={done?.done ? 'good' : undefined}>{done && `${done.killed}/${done.of}`}</span>
-              </li>
-            )
-          })}
-        </ol>
-      </div>
-      {!noMobs && (
+      {showRun ? (
         <>
-          <h3>Off the route</h3>
+          <div className="route-view">
+            <RouteMap mapID={route.mapID} dungeon={dungeon} pulls={mine} ghost={route.pulls} drawings={route.drawings} />
+            <ol className="route-pulls">
+              <li className="muted small">
+                <span>Pull</span>
+                <span>Forces</span>
+                <span>Pulled at</span>
+                <span>Against the plan</span>
+              </li>
+              {compare.run.pulls.map((p, i) => (
+                <li key={p.keyPull}>
+                  <span className="route-swatch" style={{ background: `#${mine[i].color}` }}>
+                    {i + 1}
+                  </span>
+                  <span className="muted">{p.pct.toFixed(1)}%</span>
+                  <span>
+                    <When ms={p.clockMS} seek={seek} />
+                  </span>
+                  <span className={p.state === 'matches' ? 'good' : undefined}>{runLabel(p)}</span>
+                </li>
+              ))}
+            </ol>
+          </div>
+          <h3>Planned, not seen in the log</h3>
           <ul className="list">
-            {compare.off.map((o) => (
-              <li key={o.keyPull}>
+            {compare.run.unseen.map((m) => (
+              <li key={m.pull}>
                 <span>
-                  {o.keyPull >= 0 ? `Pull ${o.keyPull + 1}` : 'Before the first pull'}:{' '}
-                  {counted(o.enemies.length + o.offMap, 'kill')}
-                  {o.offMap > 0 && <span className="muted"> ({o.offMap} not on the map)</span>}
+                  Plan pull {m.pull + 1}:{' '}
+                  {pullMobs(m.enemies, enemyByKey, byNPC)
+                    .groups.map((g) => `${g.enemies.length}× ${g.name}`)
+                    .join(', ')}
                 </span>
-                <span className="muted">
-                  {o.pct.toFixed(1)}% · <When ms={o.clockMS} seek={seek} />
-                </span>
+                <span className="muted">{m.pct.toFixed(1)}%</span>
               </li>
             ))}
-            {compare.off.length === 0 && <li className="muted">None</li>}
+            {compare.run.unseen.length === 0 && <li className="muted">None</li>}
           </ul>
-          {compare.skipped.length > 0 && (
-            <p className="muted">
-              {key.status === 'running' ? 'Not pulled yet' : 'Skipped'}: pull{compare.skipped.length > 1 && 's'}{' '}
-              {compare.skipped.map((i) => i + 1).join(', ')}
-            </p>
-          )}
+          <p className="muted small">The log can fail to show a mob dying, so these may have been killed.</p>
         </>
+      ) : (
+        <>
+      <div className="route-view">
+          <RouteMap
+            mapID={route.mapID}
+            dungeon={dungeon}
+            pulls={route.pulls}
+            drawings={route.drawings}
+            killed={noMobs ? undefined : compare.kills}
+            states={running ? compare.pulls.map((p) => p.state) : undefined}
+          />
+          <ol className="route-pulls">
+            <li className="muted small">
+              <span>Pull</span>
+              <span>Planned</span>
+              <span>Pulled at</span>
+              <span>Killed</span>
+            </li>
+            {route.pulls.map((p, i) => {
+              const done = noMobs ? undefined : compare.pulls[i]
+              return (
+                <li key={i} className={running && done?.state === 'missed' ? 'warning' : undefined}>
+                  <span className="route-swatch" style={{ background: `#${p.color}` }}>
+                    {i + 1}
+                  </span>
+                  <span className="muted">
+                    {p.pct.toFixed(1)}%{running && done?.state === 'next' && ' · next'}
+                  </span>
+                  <span>{done && done.keyPull >= 0 && <When ms={done.clockMS} seek={seek} />}</span>
+                  <span className={done?.done ? 'good' : undefined}>{done && `${done.killed}/${done.of}`}</span>
+                </li>
+              )
+            })}
+          </ol>
+        </div>
+        {!noMobs && (
+          <>
+            <h3>Off the route</h3>
+            <ul className="list">
+              {compare.off.map((o) => (
+                <li key={o.keyPull}>
+                  <span>
+                    {o.keyPull >= 0 ? `Pull ${o.keyPull + 1}` : 'Before the first pull'}:{' '}
+                    {counted(o.enemies.length + o.offMap, 'kill')}
+                    {o.offMap > 0 && <span className="muted"> ({o.offMap} not on the map)</span>}
+                  </span>
+                  <span className="muted">
+                    {o.pct.toFixed(1)}% · <When ms={o.clockMS} seek={seek} />
+                  </span>
+                </li>
+              ))}
+              {compare.off.length === 0 && <li className="muted">None</li>}
+            </ul>
+            {compare.skipped.length > 0 && (
+              <p className="muted">
+                {key.status === 'running' ? 'Not pulled yet' : 'Skipped'}: pull{compare.skipped.length > 1 && 's'}{' '}
+                {compare.skipped.map((i) => i + 1).join(', ')}
+              </p>
+            )}
+          </>
+        )}
+          </>
       )}
     </div>
   )

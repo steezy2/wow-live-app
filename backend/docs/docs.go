@@ -478,7 +478,7 @@ const docTemplate = `{
         },
         "/api/mplus/keys/{start}/recorded-route": {
             "get": {
-                "description": "The key's kills matched to map enemies as KeyRoute does, grouped by the key pull they died in, in\norder. The page makes a route of them (POST /api/mplus/routes, then PUT with colors). Empty for a\nkey saved before mob positions were kept.",
+                "description": "Each kill takes the nearest map enemy of its NPC on its floor, grouped by the key pull it died in, in\norder, with the forces share they hold and the kills worth forces that no enemy was left for. The page\nmakes a route of them (POST /api/mplus/routes, then PUT with colors). No pulls for a key saved before\nmob positions were kept.",
                 "produces": [
                     "application/json"
                 ],
@@ -499,13 +499,7 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "type": "array",
-                            "items": {
-                                "type": "array",
-                                "items": {
-                                    "$ref": "#/definitions/models.EnemyRef"
-                                }
-                            }
+                            "$ref": "#/definitions/models.RecordedRoute"
                         }
                     },
                     "400": {
@@ -5418,6 +5412,26 @@ const docTemplate = `{
                 }
             }
         },
+        "models.RecordedRoute": {
+            "type": "object",
+            "properties": {
+                "dropped": {
+                    "type": "integer"
+                },
+                "pct": {
+                    "type": "number"
+                },
+                "pulls": {
+                    "type": "array",
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/definitions/models.EnemyRef"
+                        }
+                    }
+                }
+            }
+        },
         "models.ReportLink": {
             "type": "object",
             "properties": {
@@ -5539,6 +5553,9 @@ const docTemplate = `{
                 },
                 "route": {
                     "$ref": "#/definitions/models.RouteView"
+                },
+                "run": {
+                    "$ref": "#/definitions/models.RouteRun"
                 },
                 "skipped": {
                     "type": "array",
@@ -5733,6 +5750,23 @@ const docTemplate = `{
                 }
             }
         },
+        "models.RouteRun": {
+            "type": "object",
+            "properties": {
+                "pulls": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.RunPull"
+                    }
+                },
+                "unseen": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.RouteMiss"
+                    }
+                }
+            }
+        },
         "models.RouteStep": {
             "type": "object",
             "properties": {
@@ -5843,6 +5877,42 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "why": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.RunPull": {
+            "type": "object",
+            "properties": {
+                "clockMS": {
+                    "type": "integer"
+                },
+                "enemies": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.EnemyRef"
+                    }
+                },
+                "extra": {
+                    "type": "integer"
+                },
+                "forces": {
+                    "type": "integer"
+                },
+                "keyPull": {
+                    "type": "integer"
+                },
+                "missing": {
+                    "type": "integer"
+                },
+                "pct": {
+                    "type": "number"
+                },
+                "plan": {
+                    "type": "integer"
+                },
+                "state": {
+                    "description": "RunMatches, RunDiffers or RunOff",
                     "type": "string"
                 }
             }

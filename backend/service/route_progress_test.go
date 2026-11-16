@@ -241,19 +241,55 @@ func TestLiveRoute(t *testing.T) {
 }
 
 func TestRecordPulls(t *testing.T) {
-	facts := models.DungeonFacts{Enemies: []models.RouteEnemy{
-		{Index: 1, Clone: 1, NPC: 100, Map: 1},
-		{Index: 1, Clone: 2, NPC: 100, X: 100, Map: 1},
-		{Index: 2, Clone: 1, NPC: 200, X: 200, Map: 1},
-	}}
+	facts := models.DungeonFacts{
+		Forces: models.Forces{Total: 10, NPCs: map[int]int{100: 1, 200: 3, 300: 2}},
+		Enemies: []models.RouteEnemy{
+			{Index: 1, Clone: 1, NPC: 100, Map: 1, Count: 1},
+			{Index: 1, Clone: 2, NPC: 100, X: 100, Map: 1, Count: 1},
+			{Index: 2, Clone: 1, NPC: 200, X: 200, Map: 1, Count: 3},
+		}}
 	track := models.KeyTrack{
 		Pulls: []models.PullSpan{{StartMS: 500}, {StartMS: 5000}},
 		Mobs: map[string]models.MobTrail{
-			mobGUID(100, 1): died(0, 0, 1, 1000), mobGUID(100, 2): died(100, 0, 1, 6000), mobGUID(200, 1): died(200, 0, 1, 7000),
-			mobGUID(300, 1): died(0, 0, 1, 1500), // not on the map
+			mobGUID(100, 1): died(0, 0, 1, 1000), mobGUID(100, 2): died(100, 0, 1, 6000),
+			mobGUID(200, 1): died(900, 0, 1, 7000), // a different pull: far from its enemy, still that enemy
+			mobGUID(300, 1): died(0, 0, 1, 1500),   // not on the map
 		}}
-	want := [][]models.EnemyRef{{{Index: 1, Clone: 1}}, {{Index: 1, Clone: 2}, {Index: 2, Clone: 1}}}
+	want := models.RecordedRoute{Pulls: [][]models.EnemyRef{{{Index: 1, Clone: 1}}, {{Index: 1, Clone: 2}, {Index: 2, Clone: 1}}},
+		Pct: 50, Dropped: 1}
 	if got := recordPulls(facts, track); !reflect.DeepEqual(got, want) {
-		t.Fatalf("pulls %v; want %v", got, want)
+		t.Fatalf("recorded %+v; want %+v", got, want)
+	}
+}
+
+func TestBuildRun(t *testing.T) {
+	ref := func(index int) models.EnemyRef { return models.EnemyRef{Index: index, Clone: 1} }
+	var enemies []models.RouteEnemy
+	for i := 1; i <= 6; i++ {
+		enemies = append(enemies, models.RouteEnemy{Index: i, Clone: 1, NPC: i, Count: 5, X: float64(i * 100), Map: 1})
+	}
+	facts := models.DungeonFacts{Forces: models.Forces{Total: 100, NPCs: map[int]int{1: 5, 2: 5, 3: 5, 4: 5, 5: 5, 6: 5, 9: 5}},
+		Enemies: enemies}
+	view := (&Routes{Facts: map[int]models.DungeonFacts{1: facts}}).view(models.Route{MapID: 1, Pulls: []models.RoutePull{
+		{Enemies: []models.EnemyRef{ref(1), ref(2)}}, {Enemies: []models.EnemyRef{ref(3), ref(4)}}, {Enemies: []models.EnemyRef{ref(5)}}}})
+	track := models.KeyTrack{
+		Pulls: []models.PullSpan{{StartMS: 0}, {StartMS: 10_000}, {StartMS: 20_000}},
+		Mobs: map[string]models.MobTrail{
+			mobGUID(1, 1): died(100, 0, 1, 1000), mobGUID(2, 1): died(200, 0, 1, 2000), // the first pull as planned
+			mobGUID(3, 1): died(300, 0, 1, 11_000), mobGUID(5, 1): died(500, 0, 1, 12_000), // 3 of pull 2, and pull 3's 5
+			mobGUID(6, 1): died(600, 0, 1, 21_000), // on the map, in no route pull
+			mobGUID(9, 1): died(900, 0, 1, 22_000), // worth forces, off the map
+		}}
+	want := models.RouteRun{
+		Pulls: []models.RunPull{
+			{KeyPull: 0, Enemies: []models.EnemyRef{ref(1), ref(2)}, Forces: 10, Pct: 10, Plan: 0, State: models.RunMatches},
+			{KeyPull: 1, ClockMS: 10_000, Enemies: []models.EnemyRef{ref(3), ref(5)}, Forces: 10, Pct: 10, Plan: 1, Extra: 1,
+				Missing: 1, State: models.RunDiffers},
+			{KeyPull: 2, ClockMS: 20_000, Enemies: []models.EnemyRef{ref(6)}, Forces: 5, Pct: 5, Plan: -1, State: models.RunOff},
+		},
+		Unseen: []models.RouteMiss{{Pull: 1, Enemies: []models.EnemyRef{ref(4)}, Forces: 5, Pct: 5}},
+	}
+	if got := buildRun(view, facts, track); !reflect.DeepEqual(got, want) {
+		t.Fatalf("run = %+v\nwant  %+v", got, want)
 	}
 }
