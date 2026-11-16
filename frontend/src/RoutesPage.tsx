@@ -22,12 +22,12 @@ import { MobMenu, PullMenu } from './MobMenu'
 import { RouteMap } from './RouteMap'
 import { tip } from './tipAttrs'
 import {
+  createRouteFrom,
   draftOf,
   edit,
   editorOf,
   enemyKey,
   mobActions,
-  createRouteFrom,
   packOf,
   patrolOf,
   pullForces,
@@ -75,7 +75,8 @@ export function RoutesPage({ visible, character }: { visible: boolean; character
   const [copied, setCopied] = useState('')
   const [notice, setNotice] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const [armed, setArmed] = useState<{ mapID: number; after: number | null } | null>(null) // `after`: the key that ended before
+  // The dungeon whose next key to end is recorded, and the key that had ended before it was armed (`after`).
+  const [armed, setArmed] = useState<{ mapID: number; after: number | null } | null>(null)
   const { endedHere } = useLiveKey()
   const fail = (err: unknown) => setError(errorText(err))
 
