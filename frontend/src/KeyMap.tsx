@@ -140,6 +140,11 @@ export function KeyMap(props: {
 
   const now = live ? clockMS : replay.at
   const floors = useMemo(() => floorsOf(track), [track])
+  // numbered by the dungeon's own floor order, as the route's map numbers them, not by where the party stood most
+  const floorButtons = useMemo(() => {
+    const number = (m: number) => dungeon.floors.findIndex((f) => f.uiMapID === m) + 1 || floors.indexOf(m) + 1
+    return floors.map((m): [number, number] => [m, number(m)]).sort((a, b) => a[1] - b[1])
+  }, [floors, dungeon])
   const followed = follow ? track?.players[follow] : undefined
   const upTo = follow && track ? abilitiesUpTo(track, key, follow, now) : undefined
   const current = (followed ? lastAt(followed, now)?.map : floor) ?? floors[0]
@@ -174,9 +179,9 @@ export function KeyMap(props: {
           ))}
         </select>
         {floors.length > 1 &&
-          floors.map((m, i) => (
+          floorButtons.map(([m, n]) => (
             <button key={m} aria-pressed={m === current} onClick={() => setFloor(m)} disabled={!!followed}>
-              Floor {i + 1}
+              Floor {n}
             </button>
           ))}
       </div>

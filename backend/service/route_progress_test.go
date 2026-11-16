@@ -13,9 +13,9 @@ import (
 // mobGUID is a creature GUID of an NPC (n tells units apart).
 func mobGUID(npc, n int) string { return fmt.Sprintf("Creature-0-1-2-3-%d-%08X", npc, n) }
 
-// died is a mob trail that ended at x, y on floor m at clockMS.
+// died is a mob trail that started at x, y on floor m and ended far from there (it ran to the party) at clockMS.
 func died(x, y float64, m int, clockMS int64) models.MobTrail {
-	return models.MobTrail{Points: []models.TrackPoint{{X: x - 30, Y: y, Map: m}, {X: x, Y: y, Map: m}}, Died: clockMS}
+	return models.MobTrail{Points: []models.TrackPoint{{X: x, Y: y, Map: m}, {X: x + 200, Y: y, Map: m}}, Died: clockMS}
 }
 
 // progressOf is MatchKills of a route (pulls of enemy refs) on a dungeon's facts.
@@ -42,12 +42,12 @@ func TestMatchKills(t *testing.T) {
 		kills  []models.EnemyRef
 		offMap int
 	}{
-		{"same NPC in two packs close together: each kill takes the nearest one left, in death order",
+		{"same NPC in two packs close together: the closest pairs match first",
 			models.KeyTrack{Mobs: map[string]models.MobTrail{
 				mobGUID(100, 1): died(4, 0, 1, 1000), mobGUID(100, 2): died(1, 0, 1, 2000)}},
-			[]models.EnemyRef{a, b}, 0},
+			[]models.EnemyRef{b, a}, 0},
 		{"out of reach is off the map",
-			models.KeyTrack{Mobs: map[string]models.MobTrail{mobGUID(100, 1): died(0, 30, 1, 1000)}},
+			models.KeyTrack{Mobs: map[string]models.MobTrail{mobGUID(100, 1): died(0, 40, 1, 1000)}},
 			[]models.EnemyRef{}, 1},
 		{"another floor is off the map",
 			models.KeyTrack{Mobs: map[string]models.MobTrail{mobGUID(200, 1): died(100, 100, 1, 1000)}},
