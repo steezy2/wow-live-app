@@ -2265,13 +2265,31 @@ definitions:
       value:
         type: number
     type: object
+  models.RouteBehind:
+    properties:
+      actualPct:
+        type: number
+      plannedPct:
+        type: number
+    type: object
   models.RouteCompare:
     properties:
+      behind:
+        $ref: '#/definitions/models.RouteBehind'
       current:
         type: integer
       kills:
         items:
           $ref: '#/definitions/models.EnemyRef'
+        type: array
+      last:
+        description: |-
+          Last is the highest route pull with a kill (-1 for none); Missed the unfinished pulls before it, and Behind how
+          far the key's forces trail the route's plan at Last (nil unless by a worthwhile margin).
+        type: integer
+      missed:
+        items:
+          $ref: '#/definitions/models.RouteMiss'
         type: array
       next:
         type: integer
@@ -2327,14 +2345,33 @@ definitions:
     type: object
   models.RouteLive:
     properties:
+      behind:
+        description: forces trail the plan
+        type: boolean
       current:
         $ref: '#/definitions/models.RouteStep'
       forcesPct:
         type: number
+      missed:
+        description: pulls missed so far
+        type: integer
       name:
         type: string
       next:
         $ref: '#/definitions/models.RouteStep'
+    type: object
+  models.RouteMiss:
+    properties:
+      enemies:
+        items:
+          $ref: '#/definitions/models.EnemyRef'
+        type: array
+      forces:
+        type: integer
+      pct:
+        type: number
+      pull:
+        type: integer
     type: object
   models.RouteOff:
     properties:
@@ -2375,6 +2412,9 @@ definitions:
         type: integer
       of:
         type: integer
+      state:
+        description: PullDone, PullMissed, PullNext or PullLater
+        type: string
     type: object
   models.RoutePullView:
     properties:

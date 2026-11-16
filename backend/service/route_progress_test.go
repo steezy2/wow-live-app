@@ -91,15 +91,73 @@ func TestRouteProgress(t *testing.T) {
 	got := progressOf(facts, track, []models.EnemyRef{ref(1), ref(2)}, []models.EnemyRef{ref(3)}, []models.EnemyRef{ref(4)})
 	want := models.RouteProgress{
 		Pulls: []models.RoutePullProgress{
-			{Killed: 1, Of: 2, Done: true, KeyPull: 0},
-			{Killed: 0, Of: 1, KeyPull: -1},
-			{Killed: 1, Of: 1, Done: true, KeyPull: 1, ClockMS: 20_000},
+			{Killed: 1, Of: 2, Done: true, KeyPull: 0, State: models.PullDone},
+			{Killed: 0, Of: 1, KeyPull: -1, State: models.PullMissed},
+			{Killed: 1, Of: 1, Done: true, KeyPull: 1, ClockMS: 20_000, State: models.PullDone},
 		},
-		Current: 2, Next: 1, Skipped: []int{1}, Kills: []models.EnemyRef{ref(1), ref(4), ref(5)},
+		Current: 2, Next: 1, Skipped: []int{1}, Last: 2,
+		Missed: []models.RouteMiss{{Pull: 1, Enemies: []models.EnemyRef{ref(3)}, Forces: 5, Pct: 5}},
+		Behind: &models.RouteBehind{PlannedPct: 20, ActualPct: 18}, Kills: []models.EnemyRef{ref(1), ref(4), ref(5)},
 		Off: []models.RouteOff{{KeyPull: 1, ClockMS: 20_000, Enemies: []models.EnemyRef{ref(5)}, OffMap: 1, Forces: 5, Pct: 5}},
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("progress = %+v\nwant       %+v", got, want)
+	}
+}
+
+func TestRouteStates(t *testing.T) {
+	ref := func(index int) models.EnemyRef { return models.EnemyRef{Index: index, Clone: 1} }
+	var enemies []models.RouteEnemy
+	var pulls [][]models.EnemyRef
+	for i := 1; i <= 5; i++ {
+		enemies = append(enemies, models.RouteEnemy{Index: i, Clone: 1, NPC: i, Count: 5, X: float64(i * 100), Map: 1})
+		pulls = append(pulls, []models.EnemyRef{ref(i)})
+	}
+	facts := models.DungeonFacts{Forces: models.Forces{Total: 100, NPCs: map[int]int{1: 5, 2: 5, 3: 5, 4: 5, 5: 5}}, Enemies: enemies}
+	track := func(kills ...int) models.KeyTrack {
+		t := models.KeyTrack{Mobs: map[string]models.MobTrail{}}
+		for n, i := range kills {
+			t.Mobs[mobGUID(i, 1)] = died(float64(i*100), 0, 1, int64(n+1)*1000)
+		}
+		return t
+	}
+	const d, m, n, l = models.PullDone, models.PullMissed, models.PullNext, models.PullLater
+	for _, tc := range []struct {
+		name   string
+		kills  []int
+		states []string
+		missed []int // pull indexes
+		behind bool
+	}{
+		{"nothing killed: the first two are next", nil, []string{n, n, l, l, l}, nil, false},
+		{"mid-route: the two after the last done", []int{1, 2}, []string{d, d, n, n, l}, nil, false},
+		{"a skipped pull is missed and not next", []int{1, 3}, []string{d, m, d, n, n}, []int{1}, true},
+		{"every pull done", []int{1, 2, 3, 4, 5}, []string{d, d, d, d, d}, nil, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			p := progressOf(facts, track(tc.kills...), pulls...)
+			var states []string
+			for _, pp := range p.Pulls {
+				states = append(states, pp.State)
+			}
+			var missed []int
+			for _, x := range p.Missed {
+				missed = append(missed, x.Pull)
+			}
+			if !slices.Equal(states, tc.states) || !slices.Equal(missed, tc.missed) || (p.Behind != nil) != tc.behind {
+				t.Fatalf("states %v, missed %v, behind %v; want %v, %v, %v", states, missed, p.Behind, tc.states, tc.missed, tc.behind)
+			}
+		})
+	}
+}
+
+func TestRouteBehindIgnoresPullInProgress(t *testing.T) {
+	enemies := []models.RouteEnemy{{Index: 1, Clone: 1, NPC: 1, Count: 5, Map: 1}, {Index: 2, Clone: 1, NPC: 2, Count: 5, X: 100, Map: 1}}
+	facts := models.DungeonFacts{Forces: models.Forces{Total: 100, NPCs: map[int]int{1: 5, 2: 5}}, Enemies: enemies}
+	track := models.KeyTrack{Mobs: map[string]models.MobTrail{mobGUID(1, 1): died(0, 0, 1, 1000)}}
+	p := progressOf(facts, track, []models.EnemyRef{{Index: 1, Clone: 1}, {Index: 2, Clone: 1}})
+	if p.Behind != nil {
+		t.Fatalf("half a pull killed is behind plan: %+v", p.Behind)
 	}
 }
 

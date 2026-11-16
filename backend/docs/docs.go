@@ -5430,9 +5430,23 @@ const docTemplate = `{
                 }
             }
         },
+        "models.RouteBehind": {
+            "type": "object",
+            "properties": {
+                "actualPct": {
+                    "type": "number"
+                },
+                "plannedPct": {
+                    "type": "number"
+                }
+            }
+        },
         "models.RouteCompare": {
             "type": "object",
             "properties": {
+                "behind": {
+                    "$ref": "#/definitions/models.RouteBehind"
+                },
                 "current": {
                     "type": "integer"
                 },
@@ -5440,6 +5454,16 @@ const docTemplate = `{
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/models.EnemyRef"
+                    }
+                },
+                "last": {
+                    "description": "Last is the highest route pull with a kill (-1 for none); Missed the unfinished pulls before it, and Behind how\nfar the key's forces trail the route's plan at Last (nil unless by a worthwhile margin).",
+                    "type": "integer"
+                },
+                "missed": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.RouteMiss"
                     }
                 },
                 "next": {
@@ -5522,17 +5546,45 @@ const docTemplate = `{
         "models.RouteLive": {
             "type": "object",
             "properties": {
+                "behind": {
+                    "description": "forces trail the plan",
+                    "type": "boolean"
+                },
                 "current": {
                     "$ref": "#/definitions/models.RouteStep"
                 },
                 "forcesPct": {
                     "type": "number"
                 },
+                "missed": {
+                    "description": "pulls missed so far",
+                    "type": "integer"
+                },
                 "name": {
                     "type": "string"
                 },
                 "next": {
                     "$ref": "#/definitions/models.RouteStep"
+                }
+            }
+        },
+        "models.RouteMiss": {
+            "type": "object",
+            "properties": {
+                "enemies": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.EnemyRef"
+                    }
+                },
+                "forces": {
+                    "type": "integer"
+                },
+                "pct": {
+                    "type": "number"
+                },
+                "pull": {
+                    "type": "integer"
                 }
             }
         },
@@ -5594,6 +5646,10 @@ const docTemplate = `{
                 },
                 "of": {
                     "type": "integer"
+                },
+                "state": {
+                    "description": "PullDone, PullMissed, PullNext or PullLater",
+                    "type": "string"
                 }
             }
         },

@@ -16,6 +16,11 @@ const (
 	matchYards = 20.0
 	// pullDonePct is the share of a route pull's forces (in percent) that makes it done when not every enemy died.
 	pullDonePct = 80
+	// livePullsAhead is how many unfinished pulls after the last one reached are shown as next: a fight's kills reach
+	// the log only when it ends.
+	livePullsAhead = 2
+	// behindPct is how many points of forces the key may trail the route's plan before it is flagged.
+	behindPct = 1.0
 )
 
 // kill is a mob's death: its GUID, its NPC and where it died, with when on the key's clock (ClockMS).
@@ -86,7 +91,7 @@ func MatchKills(route models.RouteView, facts models.DungeonFacts, track models.
 		}
 	}
 	p := models.RouteProgress{Pulls: make([]models.RoutePullProgress, len(route.Pulls)), Current: -1, Next: -1,
-		Off: []models.RouteOff{}, Skipped: []int{}, Kills: []models.EnemyRef{}}
+		Off: []models.RouteOff{}, Skipped: []int{}, Kills: []models.EnemyRef{}, Last: -1, Missed: []models.RouteMiss{}}
 	forces := make([]int, len(route.Pulls))
 	byKeyPull := make([]map[int]int, len(route.Pulls)) // each route pull's kills by key pull
 	off := map[int]*models.RouteOff{}
@@ -142,13 +147,72 @@ func MatchKills(route models.RouteView, facts models.DungeonFacts, track models.
 		if pp.Killed == 0 && pp.Of > 0 {
 			p.Skipped = append(p.Skipped, i)
 		}
+		if pp.Killed > 0 {
+			p.Last = i
+		}
 	}
 	for _, keyPull := range slices.Sorted(maps.Keys(off)) {
 		o := *off[keyPull]
 		o.Pct = share(o.Forces, facts.Forces.Total)
 		p.Off = append(p.Off, o)
 	}
+	markPulls(&p, route, facts, forces)
 	return p
+}
+
+// markPulls gives each route pull its state and finds the missed pulls and how far the forces trail the plan; forces
+// are the key's kills' forces by route pull.
+func markPulls(p *models.RouteProgress, route models.RouteView, facts models.DungeonFacts, forces []int) {
+	count := map[models.EnemyRef]int{}
+	for _, e := range facts.Enemies {
+		count[models.EnemyRef{Index: e.Index, Clone: e.Clone}] = e.Count
+	}
+	killed := map[models.EnemyRef]bool{}
+	for _, ref := range p.Kills {
+		killed[ref] = true
+	}
+	ahead := 0
+	for i := range p.Pulls {
+		pp := &p.Pulls[i]
+		switch {
+		case pp.Done:
+			pp.State = models.PullDone
+		case i < p.Last:
+			pp.State = models.PullMissed
+			m := models.RouteMiss{Pull: i, Enemies: []models.EnemyRef{}}
+			for _, ref := range route.Pulls[i].Enemies {
+				if !killed[ref] {
+					m.Enemies = append(m.Enemies, ref)
+					m.Forces += count[ref]
+				}
+			}
+			m.Pct = share(m.Forces, facts.Forces.Total)
+			p.Missed = append(p.Missed, m)
+		case ahead < livePullsAhead:
+			pp.State, ahead = models.PullNext, ahead+1
+		default:
+			pp.State = models.PullLater
+		}
+	}
+	if p.Last < 0 {
+		return
+	}
+	have := 0
+	for _, n := range forces {
+		have += n
+	}
+	for _, o := range p.Off {
+		have += o.Forces
+	}
+	// a pull still being killed is not behind plan yet: plan only up to the pull before it
+	last := route.Pulls[p.Last]
+	planned, actual := last.TotalPct, share(have, facts.Forces.Total)
+	if !p.Pulls[p.Last].Done {
+		planned -= last.Pct
+	}
+	if planned-actual >= behindPct {
+		p.Behind = &models.RouteBehind{PlannedPct: planned, ActualPct: actual}
+	}
 }
 
 // keyPullAt is the key pull (an index in pulls) a mob dying at clockMS died in: the last one started by then, -1 before
@@ -216,7 +280,8 @@ func (r *Routes) Live(key models.KeyView) (*models.RouteLive, error) {
 		}
 		return &models.RouteStep{Number: i + 1, RoutePullView: view.Pulls[i]}
 	}
-	return &models.RouteLive{Name: view.Name, Current: step(p.Current), Next: step(p.Next), ForcesPct: view.TotalPct}, nil
+	return &models.RouteLive{Name: view.Name, Current: step(p.Current), Next: step(p.Next), ForcesPct: view.TotalPct,
+		Missed: len(p.Missed), Behind: p.Behind != nil}, nil
 }
 
 // starred is a dungeon's starred route; ErrNoSuchRoute when it has none.
