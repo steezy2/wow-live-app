@@ -53,7 +53,9 @@ func (f *fakeKeys) DungeonMap(int) (models.DungeonMap, error) { return models.Du
 func (f *fakeKeys) Abandon() bool                             { return f.ok }
 
 // Mobs answers with the level asked for, so a test sees what the handler passed.
-func (f *fakeKeys) Mobs(_, level int) models.DungeonMobs { return models.DungeonMobs{Level: level} }
+func (f *fakeKeys) Mobs(_, level int, _ string) models.DungeonMobs {
+	return models.DungeonMobs{Level: level}
+}
 
 func (f *fakeKeys) DeleteSaved(start int64) error {
 	if start != 7 && start != 0 {
@@ -183,13 +185,15 @@ func TestPagesAndUnknownAPIPaths(t *testing.T) {
 		t.Fatalf("unknown API path: %d, want 404", w.Code)
 	}
 	for _, tc := range []struct {
-		name, host, origin, site string
-		code                     int
+		name, host, origin, site, mode string
+		code                           int
 	}{
-		{"another host name", "evil.example:8080", "", "", http.StatusMisdirectedRequest},
-		{"another website's page", "localhost:8080", "https://evil.example", "", http.StatusForbidden},
-		{"another website's image", "localhost:8080", "", "cross-site", http.StatusForbidden},
-		{"this site's page", "localhost:8080", "http://localhost:8080", "same-origin", http.StatusNoContent},
+		{"another host name", "evil.example:8080", "", "", "", http.StatusMisdirectedRequest},
+		{"another website's page", "localhost:8080", "https://evil.example", "", "", http.StatusForbidden},
+		{"another website's image", "localhost:8080", "", "cross-site", "", http.StatusForbidden},
+		{"another port's page", "localhost:8080", "", "same-site", "", http.StatusForbidden},
+		{"this site's page", "localhost:8080", "http://localhost:8080", "same-origin", "", http.StatusNoContent},
+		{"another website's frame of the API", "localhost:8080", "", "cross-site", "navigate", http.StatusForbidden},
 	} {
 		r := httptest.NewRequest(http.MethodDelete, "/api/mplus/keys", nil)
 		r.Host = tc.host
@@ -198,6 +202,7 @@ func TestPagesAndUnknownAPIPaths(t *testing.T) {
 		}
 		if tc.site != "" {
 			r.Header.Set("Sec-Fetch-Site", tc.site)
+			r.Header.Set("Sec-Fetch-Mode", tc.mode)
 		}
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, r)

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { archiveLogs, deleteLogs, fetchLogFiles, type LogFile, type LogSource } from './api'
-import { counted, groupLogsByDay, sizeText } from './format'
+import { counted, errorText, groupLogsByDay, sizeText } from './format'
 import { track, useNote } from './note'
 import { useNow } from './useLiveKey'
 import { NoteLine } from './NoteLine'
@@ -29,7 +29,7 @@ export function CombatLogs({ reading, onChanged }: { reading: boolean; onChanged
     if (busy) return
     const controller = new AbortController()
     fetchLogFiles(controller.signal).then(show, (err: unknown) => {
-      if (!controller.signal.aborted) setNote({ error: err instanceof Error ? err.message : String(err) })
+      if (!controller.signal.aborted) setNote({ error: errorText(err) })
     })
     return () => controller.abort()
   }, [busy, setNote])

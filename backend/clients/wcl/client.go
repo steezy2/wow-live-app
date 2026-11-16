@@ -13,6 +13,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -20,6 +21,9 @@ import (
 	"wow-live/backend/clients/cachefile"
 	"wow-live/backend/models"
 )
+
+// reportCode is what a Warcraft Logs report's code looks like; one that isn't is never put in a file name.
+var reportCode = regexp.MustCompile(`^[A-Za-z0-9]+$`)
 
 const (
 	TokenURL = "https://www.warcraftlogs.com/oauth/token"

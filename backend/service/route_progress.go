@@ -145,7 +145,7 @@ func MatchKills(route models.RouteView, facts models.DungeonFacts, track models.
 	}
 	for _, keyPull := range slices.Sorted(maps.Keys(off)) {
 		o := *off[keyPull]
-		o.Pct = forcesPct(o.Forces, facts.Forces.Total)
+		o.Pct = share(o.Forces, facts.Forces.Total)
 		p.Off = append(p.Off, o)
 	}
 	return p

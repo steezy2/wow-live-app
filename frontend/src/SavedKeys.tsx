@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { deleteSavedKeys, fetchSavedKeys, type KeySummary } from './api'
-import { chestLabel, clock, counted } from './format'
+import { chestLabel, clock, counted, errorText } from './format'
 import { ReportTag } from './ReportLinks'
 import { SideGroups } from './SideGroups'
 import { Skeleton } from './Skeleton'
@@ -21,7 +21,7 @@ export function SavedKeys({ selected, onSelect, refresh, character }: {
     () =>
       fetchSavedKeys(character)
         .then(setKeys)
-        .catch((err: unknown) => setError(err instanceof Error ? err.message : String(err))),
+        .catch((err: unknown) => setError(errorText(err))),
     [character],
   )
   useEffect(() => void load(), [refresh, load])
@@ -33,7 +33,7 @@ export function SavedKeys({ selected, onSelect, refresh, character }: {
         if (!start || start === selected) onSelect(null)
         return load()
       })
-      .catch((err: unknown) => setError(err instanceof Error ? err.message : String(err)))
+      .catch((err: unknown) => setError(errorText(err)))
   }
 
   return (

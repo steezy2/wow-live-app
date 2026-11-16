@@ -1,4 +1,4 @@
-import { type ReactNode, useCallback, useEffect, useMemo, useState } from 'react'
+import { type ReactNode, useCallback, useMemo, useState } from 'react'
 import {
   fetchRaidPull,
   fetchSavedKey,
@@ -26,6 +26,7 @@ import { ComparePlayer } from './ComparePlayer'
 import { PlayerReview } from './PlayerReview'
 import { Skeleton } from './Skeleton'
 import { Tabs } from './Tabs'
+import { useFetched } from './useFetched'
 
 /** The review page's tabs, by their name in the address (?tab=). */
 const TABS = ['overview', 'player', 'deaths', 'interrupts', 'events', 'timeline', 'compare'] as const
@@ -65,18 +66,11 @@ const noop = () => undefined
 /** A finished key's (kind mplus) or raid pull's (raid) full review, read from its start: the long version of what the
  * key and pull pages show, in tabs. The tab and player are the address's query. */
 export function ReviewPage({ kind, start }: { kind: 'mplus' | 'raid'; start: number }) {
-  const [saved, setSaved] = useState<KeyView | RaidPull | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  useEffect(() => {
-    const controller = new AbortController()
-    const read = kind === 'mplus' ? fetchSavedKey : fetchRaidPull
-    read(start, controller.signal).then(setSaved, (err: unknown) => {
-      if (!controller.signal.aborted) setError(err instanceof Error ? err.message : String(err))
-    })
-    return () => controller.abort()
-  }, [kind, start])
+  const { data: saved, error } = useFetched<KeyView | RaidPull>(`${kind}:${start}`, (signal) =>
+    kind === 'mplus' ? fetchSavedKey(start, signal) : fetchRaidPull(start, signal),
+  )
   if (error) return <p className="warning">{error}</p>
-  if (saved?.start !== start) return <Skeleton height={480} />
+  if (!saved) return <Skeleton height={480} />
   return kind === 'mplus' ? <KeyFight view={saved as KeyView} /> : <PullFight pull={saved as RaidPull} />
 }
 

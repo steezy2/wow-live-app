@@ -11,7 +11,7 @@ import {
   type RaidPull,
   type TrackPoint,
 } from './api'
-import { valueAt } from './format'
+import { errorText, valueAt } from './format'
 
 /** A move between two track points faster than this (yards per second) is a jump (a teleport, a release, a portal),
  * drawn as one in a trail, not as a walk. */
@@ -158,7 +158,7 @@ export function useRaidTrack(start: number): { track: KeyTrack | null | undefine
   useEffect(() => {
     const controller = new AbortController()
     fetchRaidTrack(start, controller.signal).then(setTrack, (err: unknown) => {
-      if (!controller.signal.aborted) setError(err instanceof Error ? err.message : String(err))
+      if (!controller.signal.aborted) setError(errorText(err))
     })
     return () => controller.abort()
   }, [start])

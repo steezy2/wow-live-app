@@ -257,8 +257,10 @@ func (m MPlus) DungeonMap(c *gin.Context) {
 	c.JSON(http.StatusOK, dungeon)
 }
 
-// MobsQuery is the key level to scale a dungeon's mobs to; 0 (left out) for the default.
+// MobsQuery is the key level to scale a dungeon's mobs to; 0 (left out) for the default, and the character whose
+// newest key sets it.
 type MobsQuery struct {
+	CharacterQuery
 	Level int `form:"level"`
 }
 
@@ -268,13 +270,14 @@ type MobsQuery struct {
 //	@Description	Each NPC's name, type, class, flags and spells (Mythic Dungeon Tools, Keystone.guru) and its health
 //	@Description	at the level, as Keystone.guru scales it: 7% a level through +10 and 10% a level after, Fortified
 //	@Description	on trash and Tyrannical on bosses from +10, trash 5% lower up to +5. No source has a mob's own
-//	@Description	damage: damageMult is the level's multiplier over +1. The level defaults to the owner's newest saved
-//	@Description	key in the dungeon, else 10. No mobs for a reference file written before they were kept.
+//	@Description	damage: damageMult is the level's multiplier over +1. The level defaults to the character's newest
+//	@Description	saved key in the dungeon, else 10. No mobs for a reference file written before they were kept.
 //	@Tags			mplus
 //	@Produce		json
 //	@Param			mapID	path		int	true	"the dungeon's map ID (challenge mode ID)"
-//	@Param			level	query		int	false	"the key level, 2 to 40"
-//	@Success		200		{object}	models.DungeonMobs
+//	@Param			level		query		int		false	"the key level, 2 to 40"
+//	@Param			character	query		string	false	"Name-Realm whose newest key sets the default level"
+//	@Success		200			{object}	models.DungeonMobs
 //	@Failure		400		{object}	ErrorResponse
 //	@Router			/api/mplus/dungeons/{mapID}/mobs [get]
 func (m MPlus) DungeonMobs(c *gin.Context) {
@@ -288,7 +291,7 @@ func (m MPlus) DungeonMobs(c *gin.Context) {
 			Error: fmt.Sprintf("level must be a key level from %d to %d", service.MinMobLevel, service.MaxMobLevel)})
 		return
 	}
-	c.JSON(http.StatusOK, m.Keys.Mobs(ids[0], q.Level))
+	c.JSON(http.StatusOK, m.Keys.Mobs(ids[0], q.Level, q.Character))
 }
 
 // Tile godoc

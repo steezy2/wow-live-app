@@ -24,6 +24,8 @@ import { SavedKeys } from './SavedKeys'
 import { SettingsPage } from './SettingsPage'
 import { Skeleton } from './Skeleton'
 
+import { errorText } from './format'
+
 /** The longest the splash stays up waiting for the settings and the characters. */
 const SPLASH_MAX_MS = 2000
 
@@ -147,7 +149,7 @@ export default function App() {
       </nav>
       {routesSeen && (
         <div hidden={section !== 'routes'}>
-          <RoutesPage visible={section === 'routes'} />
+          <RoutesPage visible={section === 'routes'} character={character} />
         </div>
       )}
       {section === null ? (
@@ -201,7 +203,7 @@ function SavedKey({ start }: { start: number }) {
       fetchSavedKey(start, controller.signal)
         .then(setKey)
         .catch((err: unknown) => {
-          if (!controller.signal.aborted) setError(err instanceof Error ? err.message : String(err))
+          if (!controller.signal.aborted) setError(errorText(err))
         })
     const off = subscribe(() => void read())
     return () => {

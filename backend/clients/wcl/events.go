@@ -88,6 +88,9 @@ type eventPage struct {
 
 // fightMeta is a report fight's metadata, from the page cache when it's there.
 func (c *Client) fightMeta(ctx context.Context, code string, fightID int) (fightMeta, error) {
+	if !reportCode.MatchString(code) {
+		return fightMeta{}, fmt.Errorf("%q is not a report code", code)
+	}
 	var data struct {
 		ReportData struct {
 			Report *fightMeta `json:"report"`

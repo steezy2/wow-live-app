@@ -16,7 +16,7 @@ import {
   type RouteView,
   type SavedRoute,
 } from './api'
-import { amount, counted } from './format'
+import { amount, counted, errorText } from './format'
 import { MobMenu, PullMenu } from './MobMenu'
 import { RouteMap } from './RouteMap'
 import { tip } from './tipAttrs'
@@ -24,6 +24,7 @@ import {
   draftOf,
   edit,
   editorOf,
+  enemyKey,
   mobActions,
   packOf,
   patrolOf,
@@ -58,7 +59,7 @@ const percent = (n: number) => (Number.isFinite(n) ? `${n.toFixed(1)}%` : '–')
  * is highlighted on the map). A route copies back as a string for Mythic
  * Dungeon Tools' Import. The page stays mounted while hidden, and reads the routes and MDT's saves again each time it
  * becomes visible. */
-export function RoutesPage({ visible }: { visible: boolean }) {
+export function RoutesPage({ visible, character }: { visible: boolean; character: string }) {
   const [dungeons, setDungeons] = useState<RouteDungeon[]>([])
   const [routes, setRoutes] = useState<RouteView[]>([])
   const [saves, setSaves] = useState<SavedRoute[]>([])
@@ -70,7 +71,7 @@ export function RoutesPage({ visible }: { visible: boolean }) {
   const [copied, setCopied] = useState('')
   const [notice, setNotice] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const fail = (err: unknown) => setError(err instanceof Error ? err.message : String(err))
+  const fail = (err: unknown) => setError(errorText(err))
 
   const load = useCallback(
     () => Promise.all([fetchRoutes(), fetchSavedRoutes()]).then(([r, s]) => (setRoutes(r), setSaves(s))),
@@ -97,8 +98,9 @@ export function RoutesPage({ visible }: { visible: boolean }) {
   }, [shownID, opened])
   const map = useDungeonMap(dungeon)
   const [levelPick, setLevelPick] = useState<{ mapID: number; level: number } | null>(null)
-  const mobs = useMobs(dungeon, levelPick?.mapID === dungeon ? levelPick.level : null)
+  const mobs = useMobs(dungeon, levelPick?.mapID === dungeon ? levelPick.level : null, character)
   const byNPC = useMemo(() => new Map(mobs?.mobs.map((m) => [m.npc, m])), [mobs])
+  const enemyByKey = useMemo(() => new Map(map?.enemies.map((e) => [enemyKey(e), e])), [map])
   const [menu, setMenu] = useState<Menu | null>(null)
   const closeMenu = () => setMenu(null)
   const [hovered, setHovered] = useState(-1)
@@ -327,7 +329,7 @@ export function RoutesPage({ visible }: { visible: boolean }) {
                     <span>Running</span>
                   </li>
                   {rows.map((p, i) => {
-                    const { groups, health } = pullMobs(draft.pulls[i]?.enemies ?? [], map?.enemies ?? [], byNPC)
+                    const { groups, health } = pullMobs(draft.pulls[i]?.enemies ?? [], enemyByKey, byNPC)
                     return (
                       <li
                         key={i}

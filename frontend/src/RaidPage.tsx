@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { fetchRaidNights, fetchRaidPull, reviewURL, subscribe, type KeyTrack, type RaidNight, type RaidPull, type RaidPullSummary } from './api'
-import { clock, counted, groupBy, progressText } from './format'
+import { clock, counted, errorText, groupBy, progressText } from './format'
 import { defense, raidOffense } from './meterColumns'
 import { MeterCard } from './MeterCards'
 import { ReportLinks, ReportTag } from './ReportLinks'
@@ -131,7 +131,7 @@ function SavedPull({ start }: { start: number }) {
       fetchRaidPull(start, controller.signal)
         .then(setPull)
         .catch((err: unknown) => {
-          if (!controller.signal.aborted) setError(err instanceof Error ? err.message : String(err))
+          if (!controller.signal.aborted) setError(errorText(err))
         })
     const off = subscribe(() => void read())
     return () => {

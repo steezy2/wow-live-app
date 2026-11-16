@@ -44,9 +44,11 @@ test('subscribe reads now and on each change, polls while the stream is down and
   expect(source.closed).toBe(true)
 })
 
-test('fetchSpell asks once for an answer, keeps an unknown ability, and asks again after a failure', async () => {
+test('fetchSpell asks once for an answer, keeps an unknown spell ID, and asks again after a failure or an unknown name', async () => {
   const answers = [
     new Response(JSON.stringify({ id: 1, name: 'Alter Time', description: 'x' })),
+    new Response('{}', { status: 404 }),
+    new Response('{}', { status: 404 }),
     new Response('{}', { status: 404 }),
     new Response('{}', { status: 502 }),
     new Response(JSON.stringify({ id: 3, name: 'Barkskin', description: 'y' })),
@@ -55,22 +57,27 @@ test('fetchSpell asks once for an answer, keeps an unknown ability, and asks aga
   vi.stubGlobal('fetch', fetchMock)
   expect((await fetchSpell('Alter Time'))?.id).toBe(1)
   expect((await fetchSpell('Alter Time'))?.id).toBe(1)
-  expect(await fetchSpell('Septic Spatter')).toBeNull()
-  expect(await fetchSpell('Septic Spatter')).toBeNull()
+  expect(await fetchSpell(999)).toBeNull()
+  expect(await fetchSpell(999)).toBeNull()
   expect(fetchMock).toHaveBeenCalledTimes(2)
+  expect(await fetchSpell('Septic Spatter')).toBeNull() // the log may show it later
+  expect(await fetchSpell('Septic Spatter')).toBeNull()
+  expect(fetchMock).toHaveBeenCalledTimes(4)
   expect(await fetchSpell('Barkskin')).toBeNull()
   expect((await fetchSpell('Barkskin'))?.id).toBe(3)
-  expect(fetchMock).toHaveBeenCalledTimes(4)
+  expect(fetchMock).toHaveBeenCalledTimes(6)
 })
 
-test('fetchMobs asks for the level picked, or the default with none', async () => {
+test('fetchMobs asks for the level and character picked, or the default with none', async () => {
   const fetchMock = vi.fn(async () => new Response('{}'))
   vi.stubGlobal('fetch', fetchMock)
-  await fetchMobs(1015, null)
-  await fetchMobs(1015, 17)
+  await fetchMobs(1015, null, '')
+  await fetchMobs(1015, 17, '')
+  await fetchMobs(1015, null, 'Mage-Realm')
   expect(fetchMock.mock.calls.map((c) => (c as unknown[])[0])).toEqual([
     '/api/mplus/dungeons/1015/mobs',
     '/api/mplus/dungeons/1015/mobs?level=17',
+    '/api/mplus/dungeons/1015/mobs?character=Mage-Realm',
   ])
 })
 

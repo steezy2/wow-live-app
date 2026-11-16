@@ -53,18 +53,20 @@ type RouteUpdate struct {
 }
 
 // Route is a planned route through a dungeon, as kept in its file. MDT is the Mythic Dungeon Tools preset it came
-// from (CBOR, MDTPreset.Raw), and MDTDrawings the preset's drawings the import couldn't take, both kept so an export
-// still carries what the app doesn't edit; empty for a route made in the app.
+// from (CBOR, MDTPreset.Raw), MDTDrawings the preset's drawings the import couldn't take and MDTImported the ones it
+// took as MDT wrote them, by drawing id, all kept so an export still carries what the app doesn't edit; empty for a
+// route made in the app.
 type Route struct {
-	ID          string       `json:"id"` // the preset's uid when it has one
-	Name        string       `json:"name"`
-	MapID       int          `json:"mapID"`
-	Starred     bool         `json:"starred"` // the dungeon's route the live page and key comparison use
-	Pulls       []RoutePull  `json:"pulls"`
-	Drawings    []Drawing    `json:"drawings,omitempty"` // absent in a route saved before drawings
-	MDT         []byte       `json:"mdt,omitempty"`
-	MDTDrawings []MDTDrawing `json:"mdtDrawings,omitempty"`
-	Updated     int64        `json:"updated"` // ms since the epoch
+	ID          string                `json:"id"` // the preset's uid when it has one
+	Name        string                `json:"name"`
+	MapID       int                   `json:"mapID"`
+	Starred     bool                  `json:"starred"` // the dungeon's route the live page and key comparison use
+	Pulls       []RoutePull           `json:"pulls"`
+	Drawings    []Drawing             `json:"drawings,omitempty"` // absent in a route saved before drawings
+	MDT         []byte                `json:"mdt,omitempty"`
+	MDTDrawings []MDTDrawing          `json:"mdtDrawings,omitempty"`
+	MDTImported map[string]MDTDrawing `json:"mdtImported,omitempty"`
+	Updated     int64                 `json:"updated"` // ms since the epoch
 }
 
 // RoutePullView is a route's pull with its forces: what its enemies give, the running total to it, and both as a

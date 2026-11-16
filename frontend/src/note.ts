@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useSyncExternalStore } from 'react'
 
+import { errorText } from './format'
+
 /** A settings section's state after its last action: busy (what's happening), done, or the error. */
 export type Note = { busy?: string; done?: string; error?: string } | null
 
@@ -57,7 +59,7 @@ export function track<T>(call: Promise<T>, setNote: (n: Note) => void, busy: str
       return v
     },
     (err: unknown) => {
-      setNote({ error: err instanceof Error ? err.message : String(err) })
+      setNote({ error: errorText(err) })
       throw err
     },
   )

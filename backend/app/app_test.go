@@ -129,6 +129,17 @@ func TestArchiveThenReadEverythingAgain(t *testing.T) {
 			t.Errorf("Learn(all %v) read %d (%v), want %d", tc.all, read, err, tc.want)
 		}
 	}
+	learnedPath := filepath.Join(s.opts.Cache, "learned.json")
+	stopped := readLearned(learnedPath)
+	stopped.Partial = true // a read that stopped after the game's logs: the archive is read again, once
+	if err := cachefile.WriteJSON(learnedPath, stopped); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []int{1, 0} {
+		if read, _, err := s.Learn(false); err != nil || read != want {
+			t.Errorf("Learn after a stopped read: read %d (%v), want %d", read, err, want)
+		}
+	}
 	if files, err = s.DeleteLogs(models.LogSourceGame, []string{old}); err != nil || len(files) != 1 || files[0].Archived {
 		t.Fatalf("after deleting: %+v, %v", files, err)
 	}

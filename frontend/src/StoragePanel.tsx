@@ -1,7 +1,7 @@
 import { type FormEvent, useCallback, useEffect, useState } from 'react'
 import { fetchStorage, readOldKeys, savedSettings, saveSettings, type SettingsView, type Storage } from './api'
 import { CombatLogs } from './CombatLogs'
-import { sizeText } from './format'
+import { errorText, sizeText } from './format'
 import { track, useNote } from './note'
 import { NoteLine } from './NoteLine'
 import { Skeleton } from './Skeleton'
@@ -45,7 +45,7 @@ export function StoragePanel({ view, onSaved }: { view: SettingsView; onSaved: (
   useEffect(() => {
     const controller = new AbortController()
     fetchStorage(controller.signal).then(setStorage, (err: unknown) => {
-      if (!controller.signal.aborted) setError(err instanceof Error ? err.message : String(err))
+      if (!controller.signal.aborted) setError(errorText(err))
     })
     return () => controller.abort()
   }, [stamp])

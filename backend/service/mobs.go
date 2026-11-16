@@ -58,23 +58,17 @@ func scaleMob(m models.DungeonMob, level int) models.DungeonMob {
 }
 
 // MobCasts is whether a mob in the reference file casts the spell.
-func (k *LogTracker) MobCasts(id int) bool {
-	for _, f := range k.facts {
-		for _, m := range f.Mobs {
-			if slices.ContainsFunc(m.Spells, func(s models.MobSpell) bool { return s.ID == id }) {
-				return true
-			}
-		}
-	}
-	return false
-}
+func (k *LogTracker) MobCasts(id int) bool { return k.mobSpells[id] }
 
-// Mobs is the dungeon's mobs at a key level, by NPC ID; level 0 is the default: the level of the newest saved key in
-// the dungeon, else defaultMobLevel. A dungeon the reference file has no mobs for has none.
-func (k *LogTracker) Mobs(mapID, level int) models.DungeonMobs {
+// Mobs is the dungeon's mobs at a key level, by NPC ID; level 0 is the default: the level of the newest key character
+// saved in the dungeon ("" for every character, see loggedBy), else defaultMobLevel. A dungeon the reference file has
+// no mobs for has none.
+func (k *LogTracker) Mobs(mapID, level int, character string) models.DungeonMobs {
 	k.mu.RLock()
 	def := defaultMobLevel
-	if i := slices.IndexFunc(k.history, func(key models.Key) bool { return key.MapID == mapID }); i >= 0 {
+	if i := slices.IndexFunc(k.history, func(key models.Key) bool {
+		return key.MapID == mapID && loggedBy(key.Logger, key.Realms, character)
+	}); i >= 0 {
 		def = k.history[i].Level
 	}
 	k.mu.RUnlock()

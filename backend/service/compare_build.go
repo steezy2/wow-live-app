@@ -91,14 +91,6 @@ func rateOf(p models.RankedPlayer, metric string) float64 {
 	return float64(total) / (float64(max(1, p.DurationMS)) / 1000)
 }
 
-// med is the median of values, 0 for none.
-func med(values []float64) float64 {
-	if len(values) == 0 {
-		return 0
-	}
-	return median(values)
-}
-
 // pointer is a pointer to v.
 func pointer(v float64) *float64 { return &v }
 
@@ -108,7 +100,7 @@ func medianOf(runs []models.RankedPlayer, f func(models.RankedPlayer) float64) f
 	for i, r := range runs {
 		values[i] = f(r)
 	}
-	return med(values)
+	return median(values)
 }
 
 // statRow is one of a player's numbers against their other runs and the top logs by f.
@@ -230,7 +222,7 @@ func abilityRows(in compareInput, best int) (rows []models.CompareRow, onlyYou, 
 			}
 		}
 		youRate := perMinute(you[k].casts, in.you.DurationMS)
-		topMed := med(topRates)
+		topMed := median(topRates)
 		youUsed, topUsed := you[k].casts > 0 || you[k].done > 0, len(top) > 0 && float64(used) >= presentShare*float64(len(top))
 		switch {
 		case !youUsed && topUsed:
@@ -249,7 +241,7 @@ func abilityRows(in compareInput, best int) (rows []models.CompareRow, onlyYou, 
 		}
 		row.You, row.Top = youRate*scale, topMed*scale
 		if len(mine) > 0 {
-			row.Yours = pointer(med(castRate(mine, func(i int) int64 { return in.yours[i].DurationMS })) * scale)
+			row.Yours = pointer(median(castRate(mine, func(i int) int64 { return in.yours[i].DurationMS })) * scale)
 		}
 		if best < len(top) {
 			row.Best = perMinute(top[best][k].casts, in.top[best].DurationMS) * scale
@@ -346,14 +338,14 @@ func buffRows(in compareInput, best int) ([]models.CompareRow, []costedLine) {
 			tops[i] = t[k]
 		}
 		if len(tops) > 0 {
-			row.Top = med(tops)
+			row.Top = median(tops)
 		}
 		if len(mine) > 0 {
 			ys := make([]float64, len(mine))
 			for i, m := range mine {
 				ys[i] = m[k]
 			}
-			row.Yours = pointer(med(ys))
+			row.Yours = pointer(median(ys))
 		}
 		if best < len(top) {
 			row.Best = top[best][k]

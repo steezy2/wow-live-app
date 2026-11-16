@@ -13,30 +13,28 @@ import {
   type RouteView,
 } from './api'
 import { groupBy } from './format'
+import { useFetched } from './useFetched'
+import type { DrawTool } from './DrawTools'
 import type { Yards } from './KeyMap'
 
 /** A dungeon's map with its floors and route enemies, null while it's read or without a dungeon. */
 export function useDungeonMap(mapID: number | null): DungeonMap | null {
-  const [read, setRead] = useState<{ mapID: number; map: DungeonMap } | null>(null)
-  useEffect(() => {
-    if (mapID === null) return
-    const controller = new AbortController()
-    fetchDungeonMap(mapID, controller.signal).then((map) => setRead({ mapID, map }), () => undefined)
-    return () => controller.abort()
-  }, [mapID])
-  return read?.mapID === mapID ? read.map : null // never the last dungeon's while this one is read
+  const { data } = useFetched(mapID === null ? null : String(mapID), (signal, key) =>
+    fetchDungeonMap(Number(key), signal),
+  )
+  return data ?? null // never the last dungeon's while this one is read
 }
 
-/** A dungeon's mobs at a key level (null: the level of the owner's newest key there), null until the dungeon's first
- * answer; a new level keeps the last answer until its own comes, never another dungeon's. */
-export function useMobs(mapID: number | null, level: number | null): DungeonMobs | null {
+/** A dungeon's mobs at a key level (null: the level of the character's newest key there), null until the dungeon's
+ * first answer; a new level or character keeps the last answer until its own comes, never another dungeon's. */
+export function useMobs(mapID: number | null, level: number | null, character: string): DungeonMobs | null {
   const [read, setRead] = useState<{ mapID: number; mobs: DungeonMobs } | null>(null)
   useEffect(() => {
     if (mapID === null) return
     const controller = new AbortController()
-    fetchMobs(mapID, level, controller.signal).then((mobs) => setRead({ mapID, mobs }), () => undefined)
+    fetchMobs(mapID, level, character, controller.signal).then((mobs) => setRead({ mapID, mobs }), () => undefined)
     return () => controller.abort()
-  }, [mapID, level])
+  }, [mapID, level, character])
   return read?.mapID === mapID ? read.mobs : null
 }
 
@@ -45,14 +43,16 @@ export const mobName = (npc: number, mob?: DungeonMob): string => mob?.name ?? `
 
 /** A pull's mobs grouped by name, most first ("3× Name"), and their health at the key level summed (0 without
  * mobs). */
-export function pullMobs(pull: EnemyRef[], enemies: RouteEnemy[], mobs: Map<number, DungeonMob>) {
-  const byKey = new Map(enemies.map((e) => [enemyKey(e), e]))
+export function pullMobs(pull: EnemyRef[], byKey: Map<string, RouteEnemy>, mobs: Map<number, DungeonMob>) {
   const its = pull.flatMap((ref) => byKey.get(enemyKey(ref)) ?? [])
   const groups = [...groupBy(its, (e) => mobName(e.npc, mobs.get(e.npc)))]
     .map(([name, of]) => ({ name, enemies: of }))
     .sort((a, b) => b.enemies.length - a.enemies.length)
   return { groups, health: its.reduce((sum, e) => sum + (mobs.get(e.npc)?.health ?? 0), 0) }
 }
+
+/** Whether the drawing tool puts a drawing on the route (Select and Erase don't). */
+export const addsDrawing = (tool: DrawTool): boolean => tool !== 'select' && tool !== 'erase'
 
 /** An enemy's key in a lookup: its Mythic Dungeon Tools enemy and clone index. */
 export const enemyKey = (e: EnemyRef): string => `${e.index}:${e.clone}`
@@ -292,7 +292,8 @@ function convexHull(points: [number, number][]): [number, number][] {
   return sorted.length < 3 ? sorted : [...half(sorted), ...half([...sorted].reverse())]
 }
 
-type Point = [number, number]
+/** A point on a map, [x, y]. */
+export type Point = [number, number]
 
 /** How far point p is from the segment a to b. */
 function fromSegment(p: Point, a: Point, b: Point): number {

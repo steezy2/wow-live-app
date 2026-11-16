@@ -152,7 +152,7 @@ const docTemplate = `{
         },
         "/api/mplus/dungeons/{mapID}/mobs": {
             "get": {
-                "description": "Each NPC's name, type, class, flags and spells (Mythic Dungeon Tools, Keystone.guru) and its health\nat the level, as Keystone.guru scales it: 7% a level through +10 and 10% a level after, Fortified\non trash and Tyrannical on bosses from +10, trash 5% lower up to +5. No source has a mob's own\ndamage: damageMult is the level's multiplier over +1. The level defaults to the owner's newest saved\nkey in the dungeon, else 10. No mobs for a reference file written before they were kept.",
+                "description": "Each NPC's name, type, class, flags and spells (Mythic Dungeon Tools, Keystone.guru) and its health\nat the level, as Keystone.guru scales it: 7% a level through +10 and 10% a level after, Fortified\non trash and Tyrannical on bosses from +10, trash 5% lower up to +5. No source has a mob's own\ndamage: damageMult is the level's multiplier over +1. The level defaults to the character's newest\nsaved key in the dungeon, else 10. No mobs for a reference file written before they were kept.",
                 "produces": [
                     "application/json"
                 ],
@@ -172,6 +172,12 @@ const docTemplate = `{
                         "type": "integer",
                         "description": "the key level, 2 to 40",
                         "name": "level",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Name-Realm whose newest key sets the default level",
+                        "name": "character",
                         "in": "query"
                     }
                 ],
