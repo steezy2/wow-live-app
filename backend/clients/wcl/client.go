@@ -4,6 +4,7 @@ package wcl
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -27,8 +28,8 @@ const (
 	Mythic = 5
 )
 
-// RetryWaits are the pauses before each retry when Warcraft Logs times out (it's slow at peak times).
-var RetryWaits = []time.Duration{10 * time.Second, 30 * time.Second}
+// retryWaits are the pauses before each retry when Warcraft Logs times out (it's slow at peak times).
+var retryWaits = []time.Duration{10 * time.Second, 30 * time.Second}
 
 // ErrRateLimited means the account's hourly points are used up until the hour resets.
 var ErrRateLimited = models.ErrRateLimited
@@ -92,16 +93,9 @@ func (c *Client) sleep(ctx context.Context, d time.Duration) error {
 	}
 }
 
-func orDefault(value, fallback string) string {
-	if value != "" {
-		return value
-	}
-	return fallback
-}
-
 // fetchToken gets a client-credentials token for the client.
 func (c *Client) fetchToken(ctx context.Context) (string, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, orDefault(c.TokenURL, TokenURL),
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, cmp.Or(c.TokenURL, TokenURL),
 		strings.NewReader("grant_type=client_credentials"))
 	if err != nil {
 		return "", fmt.Errorf("building token request: %w", err)
@@ -159,7 +153,7 @@ func (c *Client) Query(ctx context.Context, gql string, variables map[string]any
 	}
 	waits := c.Waits
 	if waits == nil {
-		waits = RetryWaits
+		waits = retryWaits
 	}
 	for attempt := 1; ; attempt++ {
 		data, retry, err := c.post(ctx, body)
@@ -185,7 +179,7 @@ func (c *Client) post(ctx context.Context, body []byte) ([]byte, bool, error) {
 	if err != nil {
 		return nil, false, err
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, orDefault(c.APIURL, APIURL), bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, cmp.Or(c.APIURL, APIURL), bytes.NewReader(body))
 	if err != nil {
 		return nil, false, fmt.Errorf("building query request: %w", err)
 	}
@@ -207,6 +201,11 @@ func (c *Client) post(ctx context.Context, body []byte) ([]byte, bool, error) {
 	switch {
 	case resp.StatusCode == http.StatusTooManyRequests:
 		return nil, false, ErrRateLimited
+	case resp.StatusCode == http.StatusUnauthorized:
+		c.mu.Lock() // the token expired or was revoked: the next query fetches a new one
+		c.token = ""
+		c.mu.Unlock()
+		return nil, false, fmt.Errorf("querying Warcraft Logs: %s; try again", resp.Status)
 	case resp.StatusCode == http.StatusGatewayTimeout:
 		return nil, true, fmt.Errorf("querying Warcraft Logs: %s", resp.Status)
 	case resp.StatusCode != http.StatusOK:
@@ -264,9 +263,9 @@ func (c *Client) Test(ctx context.Context, creds Credentials) (models.RateLimit,
 	return probe.RateLimit(ctx)
 }
 
-// PointsLine is one line of logs/points.log, e.g. "2026-11-03 23:01 sim used 12.4, 380.1 of 1000 spent this
+// pointsLine is one line of logs/points.log, e.g. "2026-11-03 23:01 sim used 12.4, 380.1 of 1000 spent this
 // hour". The used count shows "?" when the hour reset mid-run.
-func PointsLine(when time.Time, script string, start float64, budget models.RateLimit) string {
+func pointsLine(when time.Time, script string, start float64, budget models.RateLimit) string {
 	used := budget.PointsSpentThisHour - start
 	usedText := "?"
 	if used >= 0 {
@@ -282,6 +281,6 @@ func (c *Client) LogPoints(ctx context.Context, logFile, script string, start fl
 	if err != nil {
 		return "", err
 	}
-	line := PointsLine(c.now(), script, start, budget)
+	line := pointsLine(c.now(), script, start, budget)
 	return line, cachefile.AppendLine(logFile, line)
 }

@@ -253,7 +253,7 @@ func (k *LogTracker) add(line models.LogLine) {
 	switch line.Event {
 	case "ZONE_CHANGE":
 		if len(f) > 0 && f[0] != run.instance {
-			k.closeCurrent(k.lastAt, "abandoned", 0)
+			k.closeCurrent(k.lastAt, models.StatusAbandoned, 0)
 		}
 	case "COMBATANT_INFO":
 		if len(f) > 0 && run.auras[f[0]] == nil {
@@ -301,7 +301,7 @@ func (k *LogTracker) Abandon() bool {
 	if run == nil || run.raid != nil {
 		return false
 	}
-	k.closeCurrent(k.lastAt, "abandoned", 0)
+	k.closeCurrent(k.lastAt, models.StatusAbandoned, 0)
 	k.left = run
 	k.version++
 	return true
@@ -336,7 +336,7 @@ func (k *LogTracker) hold(line models.LogLine) bool {
 	}
 	held := append(k.held, line)
 	k.left, k.held = nil, nil
-	run.key.Status, run.key.End = "running", 0
+	run.key.Status, run.key.End = models.StatusRunning, 0
 	if n := len(run.track.Pulls); n > 0 {
 		run.track.Pulls[n-1].EndMS = 0
 	}
@@ -404,10 +404,10 @@ func advancedAt(event string) int {
 // start opens a key: CHALLENGE_MODE_START,"Voidscar Arena",2923,585,17,[9,10,147].
 func (k *LogTracker) start(line models.LogLine) {
 	f := line.Fields
-	k.closeCurrent(k.lastAt, "abandoned", 0)
+	k.closeCurrent(k.lastAt, models.StatusAbandoned, 0)
 	mapID := atoi(f[2])
-	run := newRun(models.Key{Dungeon: f[0], MapID: mapID, Level: atoi(f[3]), Start: line.Time, Status: "running",
-		TimerMS: k.timers[mapID]}, f[1])
+	run := newRun(models.Key{Dungeon: f[0], MapID: mapID, Level: atoi(f[3]), Start: line.Time,
+		Status: models.StatusRunning, TimerMS: k.timers[mapID]}, f[1])
 	if facts, ok := k.facts[mapID]; ok {
 		run.facts, run.key.Reference = &facts, true
 		run.key.Forces = &models.KeyForces{Total: facts.Forces.Total, At: []models.ForcesPoint{}}
@@ -445,17 +445,19 @@ func newRun(key models.Key, instance string) *keyRun {
 	return run
 }
 
-// end closes the running key: CHALLENGE_MODE_END,2923,1,17,1686807,... (timed or not, level, the game's time).
+// end closes the running key: CHALLENGE_MODE_END,2923,1,17,1686807,... (completed or not, level, the game's time).
+// The flag is 1 for any completed key, even one over the timer, so the timer decides timed or depleted.
 // 0,0,0 is logged before the next key starts, so a key still running then was abandoned.
 func (k *LogTracker) end(line models.LogLine) {
 	f := line.Fields
-	at, status, final := k.lastAt, "abandoned", int64(atoi(f[3]))
+	at, status, final := k.lastAt, models.StatusAbandoned, int64(atoi(f[3]))
+	overTimer := k.current != nil && k.current.key.TimerMS > 0 && final > k.current.key.TimerMS
 	switch {
 	case final == 0:
-	case f[1] == "1":
-		at, status = line.Time, "timed"
+	case f[1] == "1" && !overTimer:
+		at, status = line.Time, models.StatusTimed
 	default:
-		at, status = line.Time, "depleted"
+		at, status = line.Time, models.StatusDepleted
 	}
 	k.closeCurrent(at, status, final)
 }

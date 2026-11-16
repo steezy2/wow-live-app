@@ -45,16 +45,10 @@ type ParseSource interface {
 	CharacterParses(ctx context.Context, region, slug, name string, zones models.WCLZones) (models.CharacterParses, error)
 }
 
-// KeyLister lists the saved keys.
-type KeyLister interface {
-	List() ([]models.Key, error)
-}
-
-// Characters checks the character Settings keeps, guesses it from the saved keys, and reads its parses (none
+// Characters checks the character Settings keeps and reads its parses (none
 // without Logs).
 type Characters struct {
 	Realms RealmSource
-	Keys   KeyLister
 	Logs   ParseSource
 	Bosses []string // the raid's boss names, to find its Warcraft Logs zone
 }
@@ -94,19 +88,6 @@ func (c Characters) Resolve(ctx context.Context, region, character string) (name
 		return "", "", fmt.Errorf("realm %q: %w", realm, ErrBadCharacter)
 	}
 	return name, slug, nil
-}
-
-// Guess is the character ("Name-Realm", or a bare name for keys saved before realms were kept) whose game wrote most
-// saved keys' logs ("" for none).
-func (c Characters) Guess() string {
-	keys, err := c.Keys.List()
-	if err != nil {
-		return ""
-	}
-	if played := playedCharacters(keys, nil, ""); len(played) > 0 {
-		return played[0].ID
-	}
-	return ""
 }
 
 // matchReports is the report fights that are saved keys and raid pulls. A fight is a candidate for a key when it has

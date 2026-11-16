@@ -660,6 +660,9 @@ button {
 .review-table th:first-child,
 .review-table td:first-child {
   text-align: left;
+  position: sticky;
+  left: 0;
+  background: var(--panel);
 }
 
 .review-table th:not(:first-child),
@@ -682,14 +685,6 @@ button {
 
 .review-table td.good {
   color: var(--good);
-}
-
-/* The name stays in view when the table scrolls sideways. */
-.review-table th:first-child,
-.review-table td:first-child {
-  position: sticky;
-  left: 0;
-  background: var(--panel);
 }
 
 /* A faint rule before a group of columns (offense, defense, consumables, deaths): KeyReview.tsx sets the class. */
@@ -851,7 +846,7 @@ button {
   color: var(--muted);
 }
 
-.settings .actions {
+:is(.settings, .home-data) .actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -865,10 +860,11 @@ button {
   color: var(--text);
 }
 
-/* Settings' fields and buttons look like what they are: boxed, the main action filled, a destructive one red. */
-.settings input:not([type='checkbox'], [type='range']),
-.settings select,
-.settings button {
+/* Fields and buttons in Settings and Home's data panel look like what they are: boxed, the main action filled, a
+ * destructive one red. */
+:is(.settings, .home-data) input:not([type='checkbox'], [type='range']),
+:is(.settings, .home-data) select,
+:is(.settings, .home-data) button {
   font: inherit;
   color: var(--text);
   background: var(--bg);
@@ -877,44 +873,44 @@ button {
   padding: var(--s2) var(--s3);
 }
 
-.settings input[type='checkbox'],
-.settings input[type='range'] {
+:is(.settings, .home-data) input[type='checkbox'],
+:is(.settings, .home-data) input[type='range'] {
   accent-color: var(--accent);
 }
 
-.settings button {
+:is(.settings, .home-data) button {
   background: var(--panel-2);
   font-weight: 600;
 }
 
-.settings button:hover:not(:disabled),
-.settings button[aria-pressed='true'] {
+:is(.settings, .home-data) button:hover:not(:disabled),
+:is(.settings, .home-data) button[aria-pressed='true'] {
   border-color: var(--accent);
 }
 
-.settings button[type='submit'] {
+:is(.settings, .home-data) button[type='submit'] {
   background: var(--accent);
   border-color: var(--accent);
 }
 
-.settings button[type='submit']:hover:not(:disabled) {
+:is(.settings, .home-data) button[type='submit']:hover:not(:disabled) {
   filter: brightness(1.1);
 }
 
-.settings button.danger {
+:is(.settings, .home-data) button.danger {
   color: var(--bad);
 }
 
-.settings button.danger:hover:not(:disabled) {
+:is(.settings, .home-data) button.danger:hover:not(:disabled) {
   border-color: var(--bad);
 }
 
-.settings button:disabled {
+:is(.settings, .home-data) button:disabled {
   opacity: 0.5;
   cursor: default;
 }
 
-.settings :is(input, select, button):focus-visible {
+:is(.settings, .home-data) :is(input, select, button):focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
@@ -1568,9 +1564,6 @@ button.link {
   height: 6px;
   margin-bottom: var(--s2);
   background: var(--panel-2);
-}
-.card.small.per-key .card-row {
-  grid-template-columns: 1fr 4em 4em;
 }
 .recap-times {
   display: grid;

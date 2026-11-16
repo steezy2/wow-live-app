@@ -1,7 +1,7 @@
 # Microsoft Store listing
 
 The text and images for the Store page (Partner Center > WoW Live > Store listings > English). This file is the one
-source of truth for them: change it here, then paste into Partner Center with the next submission. Matches 0.4.1.
+source of truth for them: change it here, then paste into Partner Center with the next submission. Matches 0.4.3.
 
 Rules for the copy: lead with what the player gets, not how it works; say "M+" and "raid" in the first two lines
 (that's all the page shows before *Read more*); no Blizzard logos, art or class icons; no claim the app doesn't make.
@@ -34,6 +34,8 @@ AFTER EVERY KEY
 • Damage spikes that name what hit the party, and a "Fix next key" list: late priority targets, missed kicks,
   Bloodlusts and deaths that cost the timer.
 • A replay on the dungeon's map with a timeline of pulls, deaths, Bloodlust and cooldowns, synced to the meters.
+• A full review page with a tab per player, deaths, events and a comparison against the top logs.
+• Routes: import a Mythic Dungeon Tools route, edit it, follow it live and see which pulls you skipped.
 
 RAID
 • After each pull: how far it got, the early deaths and why, and what went wrong by mechanic (soaks, tethers, adds,
@@ -48,7 +50,7 @@ YOUR SEASON
 
 PRIVATE AND SAFE
 It isn't an addon and doesn't touch the game: it only reads the log file the game writes on your PC. No account, no
-ads, no tracking, and nothing from your combat log leaves your PC.
+ads, no tracking, and your combat log never leaves your PC.
 
 GET STARTED IN A MINUTE
 1. In the game, turn on Advanced Combat Logging (Options > System > Network).
@@ -75,7 +77,8 @@ Dungeon maps are Keystone.guru's and raid maps Warcraft Logs'.
 10. Raid pulls: how far it got, early deaths and mechanics failed, by raider
 11. A Recap of your season per character, Mythic+ and Raid apart, with your parses
 12. Reads old combat logs and imports from Warcraft Logs
-13. No addon, nothing uploaded, nothing from your log leaves your PC
+13. Routes: import a Mythic Dungeon Tools route, follow it live and compare it with the key
+14. No addon, no upload of your combat log
 
 ## Search terms (up to 7)
 

@@ -27,8 +27,7 @@ func (r *raidRun) mark(kind, name string, m models.RaidMark) {
 
 // lanes is a finished pull's timeline: the marks seen as they happened (avoidable hits, stacks past the limit,
 // expected pickups, phase changes, made stretches here) and the deaths, Bloodlust and cooldowns (stretches while their
-// buff lasted), potions,
-// damage spike, soaks and adds from the pull's facts, each lane's marks in order.
+// buff lasted), potions, damage spike, soaks and adds from the pull's facts, each lane's marks in order.
 func (k *LogTracker) lanes(run *keyRun, p models.RaidPull, end int64) []models.RaidLane {
 	r := run.raid
 	marks := maps.Clone(r.marks)

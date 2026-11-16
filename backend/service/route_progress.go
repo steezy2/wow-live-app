@@ -12,10 +12,10 @@ import (
 
 // How a key's kills are put on a route; tune after the owner's first keys.
 const (
-	// MatchYards is how far from a map enemy's place a mob of its NPC can die and still be that enemy.
-	MatchYards = 20.0
-	// PullDonePct is the share of a route pull's forces (in percent) that makes it done when not every enemy died.
-	PullDonePct = 80
+	// matchYards is how far from a map enemy's place a mob of its NPC can die and still be that enemy.
+	matchYards = 20.0
+	// pullDonePct is the share of a route pull's forces (in percent) that makes it done when not every enemy died.
+	pullDonePct = 80
 )
 
 // kill is a mob's death: its GUID, its NPC and where it died, with when on the key's clock (ClockMS).
@@ -57,13 +57,13 @@ func kills(track models.KeyTrack) []kill {
 }
 
 // matchEnemies is the map enemy (an index in enemies) each kill was, in death order: the nearest one not taken yet with
-// the kill's NPC on its floor within MatchYards, or -1 for a kill off the map.
+// the kill's NPC on its floor within matchYards, or -1 for a kill off the map.
 func matchEnemies(enemies []models.RouteEnemy, kills []kill) []int {
 	taken := make([]bool, len(enemies))
 	out := make([]int, len(kills))
 	for i, k := range kills {
 		out[i] = -1
-		best := MatchYards
+		best := matchYards
 		for j, e := range enemies {
 			if d := math.Hypot(e.X-k.at.X, e.Y-k.at.Y); !taken[j] && e.NPC == k.npc && e.Map == k.at.Map && d <= best {
 				out[i], best = j, d
@@ -129,7 +129,7 @@ func MatchKills(route models.RouteView, facts models.DungeonFacts, track models.
 	for i, pull := range route.Pulls {
 		pp := &p.Pulls[i]
 		pp.Of, pp.KeyPull = len(pull.Enemies), -1
-		pp.Done = pp.Killed == pp.Of || pull.Forces > 0 && forces[i]*100 >= PullDonePct*pull.Forces
+		pp.Done = pp.Killed == pp.Of || pull.Forces > 0 && forces[i]*100 >= pullDonePct*pull.Forces
 		for keyPull, n := range byKeyPull[i] {
 			if most := byKeyPull[i][pp.KeyPull]; n > most || n == most && keyPull < pp.KeyPull {
 				pp.KeyPull = keyPull
@@ -194,7 +194,7 @@ func (r *Routes) Compare(start int64, id string) (models.RouteCompare, error) {
 // Live is the key's dungeon's starred route followed with the kills so far; nil unless the key is running and the
 // dungeon has a route.
 func (r *Routes) Live(key models.KeyView) (*models.RouteLive, error) {
-	if key.Status != "running" {
+	if key.Status != models.StatusRunning {
 		return nil, nil
 	}
 	route, err := r.starred(key.MapID)

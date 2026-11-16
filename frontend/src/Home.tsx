@@ -173,7 +173,9 @@ function AtAGlance({ character }: { character: string }) {
       .then(([period]) =>
         fetchRecap(period, character, controller.signal).then((recap) => setAnswer({ label: period.label, recap })),
       )
-      .catch(() => undefined)
+      .catch((error) => {
+        if (!controller.signal.aborted) console.error('recap', error)
+      })
     return () => controller.abort()
   }, [character])
   if (!answer) return <Skeleton height={96} lines={2} />

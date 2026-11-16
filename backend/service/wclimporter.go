@@ -73,7 +73,9 @@ type Importer struct {
 	RemoveImported func() error
 	Bosses         []string // the raid's boss names, to find its Warcraft Logs zone
 	Dir            string   // the import's folder (<cache>\wcl-import)
-	Now            func() time.Time
+	// Write saves v as JSON at path, never leaving half a file (cachefile.WriteJSON).
+	Write func(path string, v any) error
+	Now   func() time.Time
 	// Wait sleeps for d or until ctx ends (replaceable in tests).
 	Wait func(ctx context.Context, d time.Duration) error
 
@@ -493,21 +495,9 @@ func (im *Importer) readFile(name string, out any) error {
 	return nil
 }
 
-// writeFile saves v as the file name in the import's folder, beside as .tmp first, then over the old one, so a crash
-// never leaves half a file.
+// writeFile saves v as the file name in the import's folder.
 func (im *Importer) writeFile(name string, v any) error {
-	data, err := json.Marshal(v)
-	if err != nil {
-		return fmt.Errorf("saving the import's %s: %w", name, err)
-	}
-	path := filepath.Join(im.Dir, name)
-	if err = os.MkdirAll(im.Dir, 0o755); err == nil {
-		err = os.WriteFile(path+".tmp", data, 0o644)
-	}
-	if err == nil {
-		err = os.Rename(path+".tmp", path)
-	}
-	if err != nil {
+	if err := im.Write(filepath.Join(im.Dir, name), v); err != nil {
 		return fmt.Errorf("saving the import's %s: %w", name, err)
 	}
 	return nil

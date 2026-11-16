@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"path/filepath"
 	"slices"
 	"strings"
 
@@ -42,11 +41,10 @@ type LogFolder interface {
 	Storage() (models.Storage, error)
 }
 
-// Characters checks the character setting and guesses it from the saved keys (service.Characters); Resolve's errors
+// Characters checks the character setting and reads its parses (service.Characters); Resolve's errors
 // wrap service.ErrBadCharacter for a character that doesn't fit, models.ErrNoCredentials without Warcraft Logs keys.
 type Characters interface {
 	Resolve(ctx context.Context, region, character string) (name, slug string, err error)
-	Guess() string
 	Parses(ctx context.Context, region, character string) (models.CharacterParses, error)
 }
 
@@ -72,7 +70,7 @@ type SettingsAPI struct {
 // LogNames names the logs to archive or delete, as LogFiles lists them, and their source (the game's, the default, or
 // Warcraft Logs imports).
 type LogNames struct {
-	Names  []string `json:"names" binding:"required,min=1"`
+	Names  []string `json:"names" binding:"required,min=1,unique"`
 	Source string   `json:"source" binding:"omitempty,oneof=game wcl" enums:"game,wcl"`
 }
 
@@ -256,19 +254,19 @@ func (s SettingsAPI) Put(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, ErrorResponse{Error: service.ErrBadSettings.Error()})
 		return
 	}
-	next.LogsDir = filepath.Clean(next.LogsDir)
+	next = service.CleanSettings(next)
 	if err := service.ValidateSettings(next); err != nil {
 		c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 		return
 	}
 	before := s.Settings.Get().Settings
-	next.Character = strings.TrimSpace(next.Character)
-	if next.Character != "" && (next.Character != before.Character || next.Region != before.Region) {
+	if service.CharacterNeedsCheck(before, next) {
 		if _, _, err := s.Characters.Resolve(c.Request.Context(), next.Region, next.Character); characterFailed(c, err) {
 			return
 		}
 	}
 	if err := s.Settings.Save(next); err != nil {
+		log.Printf("saving the settings: %v", err)
 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "couldn't save the settings"})
 		return
 	}
@@ -297,9 +295,7 @@ func characterFailed(c *gin.Context, err error) bool {
 
 // view is the settings with the choices to pick from.
 func (s SettingsAPI) view() models.SettingsView {
-	view := service.SettingsChoices(s.Settings.Get())
-	view.CharacterGuess = s.Characters.Guess()
-	return view
+	return service.SettingsChoices(s.Settings.Get())
 }
 
 // KeysStatus godoc
@@ -367,6 +363,7 @@ func (s SettingsAPI) TestKeys(c *gin.Context) {
 //	@Router		/api/settings/warcraftlogs [delete]
 func (s SettingsAPI) RemoveKeys(c *gin.Context) {
 	if err := s.Keys.Remove(); err != nil {
+		log.Printf("removing the Warcraft Logs keys: %v", err)
 		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "couldn't remove the keys"})
 		return
 	}

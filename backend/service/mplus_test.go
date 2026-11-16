@@ -53,7 +53,7 @@ func newTracker(t *testing.T, timers map[int]int64) *LogTracker {
 	}
 	rules.Kicks.Names = []string{"Wind Shear"}
 	rules.CC.Names = []string{"Capacitor Totem"}
-	// Voidscar Arena's avoidable list has Light Bolt, so TestKeyStep2's hit counts as avoidable.
+	// Voidscar Arena's avoidable list has Light Bolt, so TestShortKeyIsReadAndSaved's hit counts as avoidable.
 	// The Radiant Spellsower (NPC 245336) is a quarter of the forces. Den of Nalorakk's (586) mob 3 is a boss.
 	facts := map[int]models.DungeonFacts{586: {Minibosses: []int{245331, 245332}, Bosses: []int{245333}}, 585: {Avoidable: []int{1238063}, MustStop: []int{1238063}, Dispel: []int{1234846},
 		Floors: []models.DungeonFloor{{RaidMap: models.RaidMap{UIMapID: 2610}, Tiles: "midnight/voidscar_arena/1"}},
@@ -160,10 +160,10 @@ func TestADeathsDefensiveIsOnlyTheirOwn(t *testing.T) {
 	}
 }
 
-// TestKeyStep2 reads one short key: an interrupt, a pet's hit counted to its owner, a heal, a dispel, an avoidable
+// TestShortKeyIsReadAndSaved reads one short key: an interrupt, a pet's hit counted to its owner, a heal, a dispel, an avoidable
 // hit taken, a defensive just before a death, the buffs each player lacked at the start, and the key saved when it
 // ends.
-func TestKeyStep2(t *testing.T) {
+func TestShortKeyIsReadAndSaved(t *testing.T) {
 	keys := newTracker(t, nil)
 	const shaman = `Player-76-0000BBBB,"Testshaman-Sargeras-US",0x512,0x80000000`
 	const petGUID = "Creature-0-3019-3004-1081-95072-00006A951E"
@@ -268,7 +268,7 @@ func TestKeyStep2(t *testing.T) {
 		sky[0].ToMS <= sky[0].FromMS {
 		t.Fatalf("buffs = %+v, %v; want the shaman's own Skyfury as one stretch to the end", track.Buffs, err)
 	}
-	if me := track.Players["Testmage"]; err != nil || len(me) == 0 || me[0].X != 1599.81 || me[0].Map != 2610 ||
+	if me := track.Players["Testmage"]; err != nil || len(me) == 0 || me[0].X != 1599.81 || me[0].Map != 2610 || me[0].HP != 100 ||
 		len(track.Deaths) != 1 || track.Deaths[0].Name != "Radiant Spellsower" || track.Classes["Testmage"] != "Mage" ||
 		len(track.Meters["Testmage"]) == 0 {
 		t.Fatalf("track = %+v, %v; want the mage's position and the mob's death", track, err)
@@ -277,7 +277,7 @@ func TestKeyStep2(t *testing.T) {
 		t.Fatalf("mobs = %+v; want the Spellsower's trail", track.Mobs)
 	}
 	for _, m := range track.Mobs {
-		if m.Name != "Radiant Spellsower" || len(m.Points) == 0 || m.Points[0].Name != "" || m.Died != track.Deaths[0].ClockMS {
+		if m.Name != "Radiant Spellsower" || len(m.Points) == 0 || m.Points[0].Name != "" || m.Points[0].HP != 100 || m.Died != track.Deaths[0].ClockMS {
 			t.Fatalf("mob trail = %+v; want the name and unnamed points ending at its death %d", m, track.Deaths[0].ClockMS)
 		}
 	}
@@ -519,6 +519,15 @@ func TestAKeyEndedByMistakeKeepsItsTimedEnd(t *testing.T) {
 	feed(t, keys, "11/3/2026 23:13:00.000-7  CHALLENGE_MODE_END,2923,1,17,1300000,0.000000,0.000000")
 	if got, _ := keys.Latest(0); got.Status != "timed" || got.FinalMS != 1_300_000 {
 		t.Fatalf("timed a minute after Abandon: %s in %d ms; want it timed in 21:40", got.Status, got.FinalMS)
+	}
+}
+
+// TestAKeyFinishedOverTheTimerIsDepleted: the log's success flag is 1 for any completed key, so the timer decides.
+func TestAKeyFinishedOverTheTimerIsDepleted(t *testing.T) {
+	keys, _ := silentKey(t)
+	feed(t, keys, "11/3/2026 23:20:00.000-7  CHALLENGE_MODE_END,2923,1,17,2070000,0.000000,0.000000")
+	if got, _ := keys.Latest(0); got.Status != "depleted" || got.FinalMS != 2_070_000 {
+		t.Fatalf("finished 4:30 over: %s in %d ms; want depleted", got.Status, got.FinalMS)
 	}
 }
 

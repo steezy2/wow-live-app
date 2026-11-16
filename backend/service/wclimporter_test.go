@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"wow-live/backend/clients/cachefile"
 	"wow-live/backend/models"
 )
 
@@ -64,6 +65,7 @@ type testImporter struct {
 func newTestImporter(t *testing.T, budgets []models.RateLimit, fail ...error) *testImporter {
 	ti := &testImporter{}
 	ti.Importer = &Importer{Source: &fakeReports{budgets: budgets}, Characters: Characters{Realms: fakeRealms{}},
+		Write: cachefile.WriteJSON,
 		Fetch: func(_ context.Context, ref models.FightRef, _ string) (string, error) {
 			ti.mu.Lock()
 			defer ti.mu.Unlock()

@@ -3,14 +3,17 @@ import type { HitRecap, KeyTrack, RaidPull, TrackPoint } from './api'
 import {
   abilitiesBetween,
   abilitiesUpTo,
+  damageIntoEnemy,
   enemyName,
   floorsOf,
   healthAfter,
   indexAfter,
+  healthAt,
   lastAt,
   meterBetween,
   MIN_FLOOR_POINTS,
   positionAt,
+  UNSEEN_MS,
 } from './replay'
 
 const at = (t: number, x: number, map = 1): TrackPoint => ({ t, x, y: 0, map })
@@ -25,6 +28,17 @@ describe('indexAfter', () => {
     ['duplicate times', [at(10, 0), at(20, 1), at(20, 2), at(30, 0)], 20, 3],
   ])('%s', (_, points, now, i) => {
     expect(indexAfter(points, now)).toBe(i)
+  })
+})
+
+describe('healthAt', () => {
+  const points = [{ ...at(10, 1), hp: 100 }, { ...at(20, 2), hp: 60 }, at(30, 3)]
+  it.each([
+    [5, undefined],
+    [25, 60],
+    [35, undefined],
+  ])('at %i', (now, hp) => {
+    expect(healthAt(points, now)).toBe(hp)
   })
 })
 
@@ -47,9 +61,10 @@ describe('positionAt', () => {
   it.each([
     ['between two points', [at(0, 0), at(1000, 10)], 500, 5],
     ['past the last point', [at(0, 0), at(1000, 10)], 2000, 10],
-    ['across a gap the unit was not seen in', [at(0, 0), at(10_000, 10)], 5000, 0],
+    ['across a gap up to UNSEEN_MS', [at(0, 0), at(UNSEEN_MS, 10)], UNSEEN_MS / 2, 5],
+    ['across a gap the unit was not seen in', [at(0, 0), at(UNSEEN_MS + 1, 10)], 5000, 0],
     ['across a map change', [at(0, 0), at(1000, 10, 2)], 500, 0],
-    ['across a jump', [at(0, 0), at(1000, 100)], 500, 0],
+    ['across a fast move', [at(0, 0), at(1000, 100)], 500, 50],
   ])('%s', (_, points, now, x) => {
     expect(positionAt(points, now)?.x).toBe(x)
   })
@@ -181,5 +196,23 @@ describe('healthAfter', () => {
   })
   it('knows nothing without a known point or max HP', () => {
     expect(healthAfter(recap([{ t: 1, k: 'damage', a: 'Melee', s: '', n: 100 }]))[0].pct).toBeUndefined()
+  })
+})
+
+describe('damageIntoEnemy', () => {
+  const track = {
+    abilityTimes: [10_000, 20_000],
+    targetSeries: {
+      Kaz: [{ a: 'Boss', p: [[10_000, 60, 0, 0], [20_000, 40, 0, 0]] }],
+      Mia: [{ a: 'Boss', p: [[10_000, 100, 0, 0]] }, { a: 'Add', p: [[10_000, 5, 0, 0]] }],
+    },
+  } as unknown as KeyTrack
+  it('adds each player\'s damage into the named enemy up to the moment, most first', () => {
+    expect(damageIntoEnemy(track, 'Boss', 15_000)).toEqual([
+      { player: 'Mia', damage: 100 },
+      { player: 'Kaz', damage: 80 },
+    ])
+    expect(damageIntoEnemy(track, 'Add', 5_000)).toEqual([{ player: 'Mia', damage: 2.5 }])
+    expect(damageIntoEnemy(track, 'Nobody', 15_000)).toEqual([])
   })
 })

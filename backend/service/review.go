@@ -83,8 +83,8 @@ func (r Reviewer) Review(ctx context.Context, start int64) (models.KeyReview, er
 	length := lengthMS(key)
 	baselines := map[string]map[string][]models.MPlusRanking{}
 	var similar []models.MPlusRanking
-	for player, specID := range key.Specs {
-		spec, ok := specs[specID]
+	for _, player := range slices.Sorted(maps.Keys(key.Specs)) {
+		spec, ok := specs[key.Specs[player]]
 		if !ok || encounter == 0 {
 			continue
 		}
@@ -101,7 +101,7 @@ func (r Reviewer) Review(ctx context.Context, start int64) (models.KeyReview, er
 	}
 	var taken []float64 // the similar runs' party damage taken per second
 	bossMS := map[string][]int64{}
-	slices.SortFunc(similar, func(a, b models.MPlusRanking) int {
+	slices.SortStableFunc(similar, func(a, b models.MPlusRanking) int {
 		return cmp.Compare(abs(a.DurationMS-length), abs(b.DurationMS-length))
 	})
 	seen := map[string]bool{}

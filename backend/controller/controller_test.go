@@ -15,6 +15,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gin-gonic/gin"
+
 	"wow-live/backend/models"
 	"wow-live/backend/service"
 )
@@ -274,7 +276,7 @@ type fakeSettings struct{ saved *models.Settings }
 func (f fakeSettings) Get() models.SettingsView     { return models.SettingsView{Settings: *f.saved} }
 func (f fakeSettings) Save(s models.Settings) error { *f.saved = s; return nil }
 
-// fakeCharacters knows one character, Testmage-Somerealm, and guesses Testrogue.
+// fakeCharacters knows one character, Testmage-Somerealm.
 type fakeCharacters struct{ err error }
 
 func (f fakeCharacters) Resolve(_ context.Context, _, character string) (string, string, error) {
@@ -283,7 +285,6 @@ func (f fakeCharacters) Resolve(_ context.Context, _, character string) (string,
 	}
 	return "Testmage", "some-realm", f.err
 }
-func (fakeCharacters) Guess() string { return "Testrogue" }
 func (f fakeCharacters) Parses(context.Context, string, string) (models.CharacterParses, error) {
 	return models.CharacterParses{}, f.err
 }
@@ -313,7 +314,7 @@ func TestCharacterIsSavedOnlyWhenWarcraftLogsKnowsItsRealm(t *testing.T) {
 		var got models.SettingsView
 		json.Unmarshal(w.Body.Bytes(), &got)
 		if w.Code != tc.code || (tc.code == http.StatusOK) != (saved.Region == "us") ||
-			tc.code == http.StatusOK && (got.CharacterGuess != "Testrogue" || saved.Character != strings.TrimSpace(tc.character)) {
+			tc.code == http.StatusOK && saved.Character != strings.TrimSpace(tc.character) {
 			t.Errorf("%q (%v): %d %s, saved %+v; want %d", tc.character, tc.err, w.Code, w.Body, saved, tc.code)
 		}
 	}
@@ -701,5 +702,35 @@ func TestMobsEndpointPassesTheLevelAndRefusesOneOutOfRange(t *testing.T) {
 		if w.Code != tc.code || tc.code == http.StatusOK && (json.Unmarshal(w.Body.Bytes(), &got) != nil || got.Level != tc.level) {
 			t.Errorf("%s: %d %s; want %d at level %d", tc.url, w.Code, w.Body, tc.code, tc.level)
 		}
+	}
+}
+
+func TestWCLAnswerMapsErrorsToStatuses(t *testing.T) {
+	for name, tc := range map[string]struct {
+		err  error
+		want int
+	}{
+		"ok":                 {nil, http.StatusOK},
+		"no key":             {service.ErrNoSuchKey, http.StatusNotFound},
+		"no pull":            {fmt.Errorf("reading: %w", service.ErrNoSuchPull), http.StatusNotFound},
+		"no player":          {service.ErrNoSuchPlayer, http.StatusNotFound},
+		"still running":      {service.ErrKeyRunning, http.StatusConflict},
+		"no top logs":        {service.ErrNoTopLogs, http.StatusUnprocessableEntity},
+		"no points":          {service.ErrNoPoints, http.StatusTooManyRequests},
+		"no credentials":     {models.ErrNoCredentials, http.StatusServiceUnavailable},
+		"bad credentials":    {models.ErrBadCredentials, http.StatusServiceUnavailable},
+		"warcraft logs down": {errors.New("boom"), http.StatusBadGateway},
+	} {
+		t.Run(name, func(t *testing.T) {
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			wclAnswer(c, "test", struct{}{}, tc.err)
+			if w.Code != tc.want {
+				t.Fatalf("status = %d, want %d", w.Code, tc.want)
+			}
+			if tc.want == http.StatusBadGateway && strings.Contains(w.Body.String(), "boom") {
+				t.Fatalf("the 502 leaks the error: %s", w.Body)
+			}
+		})
 	}
 }

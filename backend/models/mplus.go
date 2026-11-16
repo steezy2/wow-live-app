@@ -1,5 +1,13 @@
 package models
 
+// The values of Key.Status: a key in progress, finished in time or over it, or left without an end in the log.
+const (
+	StatusRunning   = "running"
+	StatusTimed     = "timed"
+	StatusDepleted  = "depleted"
+	StatusAbandoned = "abandoned"
+)
+
 // Key is one Mythic+ run as the combat log shows it: the dungeon, level and affixes, when it started (ms since the
 // epoch, also its ID once saved), how it ended, and what happened on the key's clock.
 type Key struct {
@@ -322,7 +330,7 @@ type TrackPoint struct {
 	Y       float64 `json:"y"`
 	Map     int     `json:"map"`
 	Name    string  `json:"name,omitempty"`
-	HP      float64 `json:"hp,omitempty"` // a raid boss's or add's health left (%), 0 when unknown
+	HP      float64 `json:"hp,omitempty"` // a player's, boss's, add's or mob's health left (%), 0 when unknown
 }
 
 // KeyStop is a must-stop cast (the dungeon file's mustStop list) and its outcome: interrupted (By the player, IntoMS
@@ -697,9 +705,6 @@ type SettingsView struct {
 	MinOpacity     int      `json:"minOpacity"`
 	// MaxAutoDays is the most days each of Auto's fields takes.
 	MaxAutoDays int `json:"maxAutoDays"`
-	// CharacterGuess is the name of the character that wrote most saved keys' logs, to prefill Character with ("" for
-	// none); the logs don't name its realm.
-	CharacterGuess string `json:"characterGuess"`
 }
 
 // The sources of a LogFile: the game's combat log folder (and its archive), or the Warcraft Logs imports.

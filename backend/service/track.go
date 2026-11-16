@@ -42,11 +42,13 @@ func (k *LogTracker) position(at int64, event string, f []string) {
 		return
 	}
 	p := models.TrackPoint{ClockMS: k.clockAt(at), X: x, Y: y, Map: atoi(f[i+16])}
+	hp := healthPct(atoi(f[i+2]), atoi(f[i+3]))
 	switch {
 	case slices.Contains(run.party, guid):
 		if at-run.sampled[guid] >= trackEveryMS {
 			run.sampled[guid] = at
 			name := k.names[guid]
+			p.HP = hp
 			run.track.Players[name] = append(run.track.Players[name], p)
 		}
 	case creature(guid):
@@ -64,18 +66,24 @@ func (k *LogTracker) position(at int64, event string, f []string) {
 		switch {
 		case watched && at-run.sampled[guid] >= trackEveryMS:
 			run.sampled[guid] = at
-			if hp, maxHP := atoi(f[i+2]), atoi(f[i+3]); maxHP > 0 {
-				p.HP = math.Round(1000*float64(hp)/float64(maxHP)) / 10
-			}
+			p.HP = hp
 			run.track.Bosses[guid] = append(run.track.Bosses[guid], p)
 		case !watched && run.track.Bosses[guid] == nil && hostileActor(guid, f) && at-run.sampled[guid] >= mobEveryMS:
 			run.sampled[guid] = at
 			m := run.track.Mobs[guid]
 			m.Name = p.Name
-			m.Points = append(m.Points, models.TrackPoint{ClockMS: p.ClockMS, X: x, Y: y, Map: p.Map})
+			m.Points = append(m.Points, models.TrackPoint{ClockMS: p.ClockMS, X: x, Y: y, Map: p.Map, HP: hp})
 			run.track.Mobs[guid] = m
 		}
 	}
+}
+
+// healthPct is a unit's health in % (one decimal), 0 when its max is unknown.
+func healthPct(hp, maxHP int) float64 {
+	if maxHP <= 0 {
+		return 0
+	}
+	return math.Round(1000*float64(hp)/float64(maxHP)) / 10
 }
 
 // meterEveryMS: how often the replay's meters are sampled.
@@ -245,9 +253,10 @@ func (k *LogTracker) trackOf(run *keyRun) models.KeyTrack {
 	}
 	t.Bosses = bossTrails(run.track.Bosses)
 	if len(run.track.Mobs) > 0 {
-		t.Mobs = mobTrails(run.track.Mobs, run.key.Status == "running") // the live map shows only the mobs still up
+		// the live map shows only the mobs still up
+		t.Mobs = mobTrails(run.track.Mobs, run.key.Status == models.StatusRunning)
 	}
-	if run.key.Status != "running" { // the focus bars and casts are for the replay of a finished run
+	if run.key.Status != models.StatusRunning { // the focus bars and casts are for the replay of a finished run
 		t.AbilityTimes = list(run.track.AbilityTimes)
 		t.Casts = map[string][]models.TrackCast{}
 		for name, casts := range run.track.Casts {

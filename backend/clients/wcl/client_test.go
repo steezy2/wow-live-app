@@ -86,6 +86,20 @@ func TestRateLimitIsAnError(t *testing.T) {
 	}
 }
 
+func TestAnExpiredTokenIsFetchedAgain(t *testing.T) {
+	f := newFake(t, status(http.StatusUnauthorized), data(`{"ok": true}`))
+	c := f.client(t)
+	if err := c.Query(context.Background(), "{ ok }", nil, nil); err == nil {
+		t.Fatal("want the 401 as an error")
+	}
+	if err := c.Query(context.Background(), "{ ok }", nil, nil); err != nil {
+		t.Fatalf("the next query = %v", err)
+	}
+	if len(f.tokens) != 2 {
+		t.Fatalf("tokens fetched = %d, want 2", len(f.tokens))
+	}
+}
+
 func TestGraphQLErrorsAreReported(t *testing.T) {
 	f := newFake(t, func(w http.ResponseWriter, _, _ string) {
 		io.WriteString(w, `{"errors": [{"message": "Unknown report"}]}`)

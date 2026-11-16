@@ -28,6 +28,7 @@ definitions:
           type: string
         minItems: 1
         type: array
+        uniqueItems: true
       source:
         enum:
         - game
@@ -2525,11 +2526,6 @@ definitions:
           Character is the player's own character as "Name-Realm" (the realm as the player writes it), whose Warcraft
           Logs reports can be imported; empty for none.
         type: string
-      characterGuess:
-        description: |-
-          CharacterGuess is the name of the character that wrote most saved keys' logs, to prefill Character with ("" for
-          none); the logs don't name its realm.
-        type: string
       lastLogMS:
         type: integer
       logsDir:
@@ -2627,7 +2623,7 @@ definitions:
   models.TrackPoint:
     properties:
       hp:
-        description: a raid boss's or add's health left (%), 0 when unknown
+        description: a player's, boss's, add's or mob's health left (%), 0 when unknown
         type: number
       map:
         type: integer

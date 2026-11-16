@@ -385,25 +385,11 @@ func (m MPlus) review(c *gin.Context, get func(int64) (models.KeyReview, error))
 		return
 	}
 	if m.Reviews == nil {
-		c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "no Warcraft Logs credentials in .env"})
+		c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: noWCLKeys})
 		return
 	}
 	review, err := get(start)
-	switch {
-	case err == nil:
-		c.JSON(http.StatusOK, review)
-	case errors.Is(err, service.ErrNoSuchKey):
-		c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
-	case errors.Is(err, service.ErrKeyRunning):
-		c.JSON(http.StatusConflict, ErrorResponse{Error: err.Error()})
-	case errors.Is(err, service.ErrNoPoints):
-		c.JSON(http.StatusTooManyRequests, ErrorResponse{Error: err.Error()})
-	case errors.Is(err, models.ErrNoCredentials), errors.Is(err, models.ErrBadCredentials):
-		c.JSON(http.StatusServiceUnavailable, ErrorResponse{Error: "no working Warcraft Logs keys: add them in Settings"})
-	default:
-		log.Printf("key review: %v", err)
-		c.JSON(http.StatusBadGateway, ErrorResponse{Error: "Warcraft Logs failed; try again later"})
-	}
+	wclAnswer(c, "key review", review, err)
 }
 
 // DeleteSaved godoc
@@ -452,14 +438,14 @@ func startParam(c *gin.Context) (int64, bool) {
 	return start, true
 }
 
-// respondError answers 404 for a key that isn't there, else 500 without the internal error text.
+// respondError answers 404 for a saved key or pull that isn't there, else 500 without the internal error text.
 func respondError(c *gin.Context, err error) {
-	if errors.Is(err, service.ErrNoSuchKey) {
+	if errors.Is(err, service.ErrNoSuchKey) || errors.Is(err, service.ErrNoSuchPull) {
 		c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 		return
 	}
-	log.Printf("saved keys: %v", err)
-	c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "couldn't read or change the saved keys"})
+	log.Printf("saved keys and pulls: %v", err)
+	c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "couldn't read or change the saved keys and pulls"})
 }
 
 // RouteRequest is the body of a new route: a Mythic Dungeon Tools export string, the uid of a route in its saved

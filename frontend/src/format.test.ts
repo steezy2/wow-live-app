@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   causesText,
+  groupLogsByDay,
   clock,
   coverOf,
   importKindText,
@@ -17,6 +18,7 @@ import {
   versusBest,
   withRealm,
 } from './format'
+import type { LogFile } from './api'
 
 describe('clock', () => {
   it('shows minutes and seconds, hours past an hour, and a sign when negative', () => {
@@ -206,5 +208,16 @@ describe('versusBest', () => {
     [120_000, 0, ''],
   ])('%i against best %i', (ms, best, want) => {
     expect(versusBest(ms, best)).toBe(want)
+  })
+})
+
+describe('groupLogsByDay', () => {
+  const now = new Date(2026, 10, 14, 15).getTime()
+  const log = (daysAgo: number, hour = 9) =>
+    ({ name: `${daysAgo}-${hour}`, writtenMS: new Date(2026, 10, 14 - daysAgo, hour).getTime() }) as LogFile
+  it('puts one day in one group and everything past five days in the last', () => {
+    const groups = groupLogsByDay([log(0, 12), log(0, 8), log(1), log(5), log(6), log(40)], now)
+    expect(groups.map((g) => g.files.map((f) => f.name))).toEqual([['0-12', '0-8'], ['1-9'], ['5-9'], ['6-9', '40-9']])
+    expect(groups[3].label).toBe('Older than 5 days')
   })
 })

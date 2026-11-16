@@ -1,7 +1,7 @@
 // The site's API (backend/controller, spec at /swagger/index.html). This is the only file that knows its URLs.
 
 /** A keystone affix. */
-export interface Affix {
+interface Affix {
   id: number
   name: string
 }
@@ -19,7 +19,7 @@ export interface KeyDeath {
 }
 
 /** A boss fight on the key's clock; endMS is missing while it's on. */
-export interface KeyBoss {
+interface KeyBoss {
   name: string
   startMS: number
   endMS?: number
@@ -51,7 +51,7 @@ export interface KeyCast {
 
 /** A must-stop cast and what happened to it: interrupted (by a player, intoMS into the cast), stopped (by a debuff,
  * or "" when it just didn't finish), went off, or the mob died first. */
-export interface KeyStop {
+interface KeyStop {
   pull: number
   clockMS: number
   mob: string
@@ -123,7 +123,7 @@ export interface RecapEvent {
 }
 
 /** An ability that hit the party during a spike (models.SpikeCause): who cast it ('' when the log names no one). */
-export interface SpikeCause {
+interface SpikeCause {
   ability: string
   source: string
   damage: number
@@ -161,7 +161,7 @@ export interface KeyMeterRow {
 /** A trash pull with minibosses (twice the pull's median health, or its one big mob): the share of damage into them
  * in its first 10 s, their share of the pack's health, where each fell in the kill order (order of of; 0 if
  * it didn't die), and whether one died after most of the pack. */
-export interface KeyPull {
+interface KeyPull {
   pull: number
   clockMS: number
   openingPct: number
@@ -182,7 +182,7 @@ export interface KeyMeter {
 }
 
 /** What a player lacked at the key's start. */
-export interface KeyBuffCheck {
+interface KeyBuffCheck {
   player: string
   missing: string[]
 }
@@ -197,7 +197,7 @@ export interface KeyGhost {
 
 /** The expected final time from earlier runs of the dungeon: the median and 20th to 80th percentile, the upgrade the
  * median gives, the share of runs pointing at each result (index 0 depleted to 3), and the best run boss by boss. */
-export interface KeyProjection {
+interface KeyProjection {
   finalMS: number
   lowMS: number
   highMS: number
@@ -319,7 +319,7 @@ export interface TrackPoint {
   y: number
   map: number
   name?: string
-  /** A raid boss's or add's health left (%). */
+  /** A player's, raid boss's, add's or mob's health left (%); missing in tracks saved before it was kept. */
   hp?: number
 }
 
@@ -633,7 +633,7 @@ export interface RoutePull {
 }
 
 /** A route's pull with the forces its enemies give, the running total to it, and both as a percent of the total. */
-export interface RoutePullView extends RoutePull {
+interface RoutePullView extends RoutePull {
   forces: number
   total: number
   pct: number
@@ -694,7 +694,7 @@ export async function importRoute(code: string): Promise<RouteView> {
 }
 
 /** One route pull's progress in a key: how many of its enemies died, and the key pull that killed most of them. */
-export interface RoutePullProgress {
+interface RoutePullProgress {
   killed: number
   of: number
   done: boolean
@@ -704,7 +704,7 @@ export interface RoutePullProgress {
 }
 
 /** Kills that were in no route pull, grouped by the key pull they died in (-1 before the first pull). */
-export interface RouteOff {
+interface RouteOff {
   keyPull: number
   clockMS: number
   enemies: EnemyRef[]
@@ -727,7 +727,7 @@ export interface RouteCompare {
 }
 
 /** A route pull with its number (from 1). */
-export interface RouteStep extends RoutePullView {
+interface RouteStep extends RoutePullView {
   number: number
 }
 
@@ -936,8 +936,6 @@ export interface SettingsView extends Settings {
   overlayShows: OverlaySettings['show'][]
   overlayColumns: OverlayColumn[]
   minOpacity: number
-  /** The name of the character whose game wrote most saved keys, for the character's placeholder; "" for none. */
-  characterGuess: string
   /** The most days an auto rule takes. */
   maxAutoDays: number
 }
@@ -1135,7 +1133,7 @@ export interface RecapDungeon {
 }
 
 /** A recap line that opens its key (mplus) or pull (raid) by its start. */
-export interface RecapFact {
+interface RecapFact {
   text: string
   kind: 'mplus' | 'raid'
   start: number
@@ -1210,7 +1208,7 @@ export async function fetchRecapTopTimes(
 }
 
 /** What an ability does (models.SpellInfo). */
-export interface SpellInfo {
+interface SpellInfo {
   id: number
   name: string
   /** "2 min cooldown", empty for none. */
@@ -1257,7 +1255,7 @@ export interface CharacterParses {
 }
 
 /** The character's best and median parse (0-100) in a dungeon or raid boss (models.CharacterParse). */
-export interface CharacterParse {
+interface CharacterParse {
   kind: 'mplus' | 'raid'
   encounter: string
   best: number
@@ -1277,7 +1275,7 @@ export async function removeImported(): Promise<void> {
 }
 
 /** How many logs a read of the log folder read, and how many keys are saved (controller.OldKeys). */
-export interface OldKeys {
+interface OldKeys {
   read: number
   saved: number
 }
@@ -1352,7 +1350,7 @@ export interface RaidPullSummary {
 }
 
 /** A raider's death in a raid pull: the M+ death with whether it was early (before the wipe). */
-export interface RaidDeath extends KeyDeath {
+interface RaidDeath extends KeyDeath {
   early: boolean
 }
 
@@ -1528,7 +1526,7 @@ export interface CompareRow {
 }
 
 /** A top log in a player review, linked to its Warcraft Logs fight. */
-export interface CompareLog {
+interface CompareLog {
   name: string
   server: string
   code: string
@@ -1569,10 +1567,7 @@ export async function fetchCompare(
   player: string,
   signal?: AbortSignal,
 ): Promise<PlayerCompare | null> {
-  const response = await fetch(compareURL(kind, start, player), { signal })
-  if (response.status === 404) return null
-  if (!response.ok) throw await failure(response)
-  return (await response.json()) as PlayerCompare
+  return jsonOrNull<PlayerCompare>(compareURL(kind, start, player), signal)
 }
 
 /** Reviews a player against Warcraft Logs' top logs (spends points); the stored review when there is one. */

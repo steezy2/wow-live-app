@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"wow-live/backend/clients/cachefile"
 	"wow-live/backend/clients/combatlog"
 	"wow-live/backend/clients/wcl"
 	"wow-live/backend/models"
@@ -74,6 +75,7 @@ func (s *Site) imports() ([]models.LogFile, error) {
 		}
 		info, err := os.Stat(path)
 		if err != nil {
+			log.Printf("leaving out an imported fight: %v", err)
 			continue
 		}
 		files = append(files, models.LogFile{Name: z.Name, Source: models.LogSourceWCL, Report: &link, Path: path,
@@ -92,7 +94,7 @@ func (s *Site) Storage() (models.Storage, error) {
 		{"wclImport", filepath.Join(s.opts.Cache, wcl.ImportDir)},
 		{"archive", filepath.Join(dir, combatlog.ArchiveDir)},
 	} {
-		bytes, err := service.FolderBytes(f.dir)
+		bytes, err := cachefile.FolderBytes(f.dir)
 		if err != nil {
 			return models.Storage{}, err
 		}
@@ -102,7 +104,7 @@ func (s *Site) Storage() (models.Storage, error) {
 	if err != nil {
 		return models.Storage{}, err
 	}
-	bytes, err := service.FilesBytes(logs)
+	bytes, err := cachefile.FilesBytes(logs)
 	if err != nil {
 		return models.Storage{}, err
 	}

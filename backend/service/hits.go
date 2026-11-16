@@ -98,11 +98,10 @@ func (w *hitWatch) hpAfter(event string, f []string, guid, player string) float6
 		return 0
 	}
 	hp, maxHP := atoi(f[i+2]), atoi(f[i+3])
-	if maxHP <= 0 {
-		return 0
+	if maxHP > 0 {
+		w.maxHP[player] = int64(maxHP)
 	}
-	w.maxHP[player] = int64(maxHP)
-	return math.Round(1000*float64(hp)/float64(maxHP)) / 10
+	return healthPct(hp, maxHP)
 }
 
 // recapMS is how long a recap is, 0 without rules.
