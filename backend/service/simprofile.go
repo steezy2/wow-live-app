@@ -189,9 +189,9 @@ func SimInput(p models.SimProfile) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "%s=%q\nlevel=%d\nrace=%s\nregion=%s\nserver=%s\nspec=%s\ntalents=%s\n",
 		p.Class, p.Name, p.Level, p.Race, p.Region, p.Server, p.Spec, p.Talents)
-	for key, value := range map[string]string{"role": p.Role, "professions": p.Professions, "omnium_talents": p.Omnium} {
-		if value != "" {
-			fmt.Fprintf(&b, "%s=%s\n", key, value)
+	for _, field := range [][2]string{{"role", p.Role}, {"professions", p.Professions}, {"omnium_talents", p.Omnium}} {
+		if field[1] != "" {
+			fmt.Fprintf(&b, "%s=%s\n", field[0], field[1])
 		}
 	}
 	for _, item := range p.Equipped {
