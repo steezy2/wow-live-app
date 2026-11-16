@@ -10,7 +10,7 @@ import (
 )
 
 func TestSaveListDeleteClear(t *testing.T) {
-	s := Store{Dir: filepath.Join(t.TempDir(), "local-keys")}
+	s := NewStore(filepath.Join(t.TempDir(), "local-keys"))
 	if keys, err := s.List(); err != nil || len(keys) != 0 {
 		t.Fatalf("empty store: %v, %v", keys, err)
 	}

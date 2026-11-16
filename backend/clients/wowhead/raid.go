@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"html"
-	"os"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -134,14 +133,8 @@ func ParseItemSet(page string) (models.ItemSet, error) {
 // page downloads a Wowhead page into the cache (reused for a day) and returns it.
 func (c Client) page(ctx context.Context, path, file string) (string, error) {
 	file = filepath.Join(c.CacheDir, file)
-	if err := cachefile.Fresh(ctx, c.HTTP, c.base()+path, file, maxAge); err != nil {
-		return "", err
-	}
-	data, err := os.ReadFile(file)
-	if err != nil {
-		return "", fmt.Errorf("reading %s: %w", file, err)
-	}
-	return string(data), nil
+	data, err := cachefile.Fresh(ctx, c.HTTP, c.base()+path, file, maxAge)
+	return string(data), err
 }
 
 func (c Client) base() string {

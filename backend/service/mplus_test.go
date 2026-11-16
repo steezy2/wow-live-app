@@ -302,8 +302,11 @@ func TestShortKeyIsReadAndSaved(t *testing.T) {
 		t.Fatalf("track casts %+v, abilities %+v, times %v; want the totem cast and the barrage's 5000 in stretches",
 			track.Casts["Testshaman"], track.Abilities["Testmage"], track.AbilityTimes)
 	}
-	if m, err := keys.DungeonMap(585); err != nil || len(m.Walked) == 0 || len(m.Floors) != 1 {
-		t.Fatalf("dungeon map = %+v, %v; want the saved track's squares and the dungeon file's floor", m, err)
+	if walked, err := keys.walked(585); err != nil || len(walked) == 0 {
+		t.Fatalf("walked = %v, %v; want the saved track's squares", walked, err)
+	}
+	if m, err := keys.DungeonMap(585); err != nil || len(m.Walked) != 0 || len(m.Floors) != 1 {
+		t.Fatalf("dungeon map = %+v, %v; want the dungeon file's tiled floor and no walked squares", m, err)
 	}
 }
 

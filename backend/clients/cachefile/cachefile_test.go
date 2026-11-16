@@ -18,7 +18,7 @@ func TestFreshTooBig(t *testing.T) {
 	}))
 	defer server.Close()
 	path := filepath.Join(t.TempDir(), "big")
-	if err := Fresh(context.Background(), nil, server.URL, path, 0); !errors.Is(err, ErrTooBig) {
+	if _, err := Fresh(context.Background(), nil, server.URL, path, 0); !errors.Is(err, ErrTooBig) {
 		t.Fatalf("err = %v, want ErrTooBig", err)
 	}
 	if _, err := os.Stat(path); !errors.Is(err, os.ErrNotExist) {
@@ -39,10 +39,35 @@ func TestFreshKeepsStaleCopyWhenDownloadFails(t *testing.T) {
 	if err := os.Chtimes(path, old, old); err != nil {
 		t.Fatal(err)
 	}
-	if err := Fresh(context.Background(), nil, server.URL, path, time.Hour); err != nil {
-		t.Fatalf("a stale copy should stand in while the site is down: %v", err)
+	if data, err := Fresh(context.Background(), nil, server.URL, path, time.Hour); err != nil || string(data) != "old" {
+		t.Fatalf("a stale copy should stand in while the site is down: %q, %v", data, err)
 	}
-	if err := Fresh(context.Background(), nil, server.URL, filepath.Join(t.TempDir(), "none"), time.Hour); err == nil {
+	if _, err := Fresh(context.Background(), nil, server.URL, filepath.Join(t.TempDir(), "none"), time.Hour); err == nil {
 		t.Fatal("with no copy at all the failure must surface")
+	}
+}
+
+func TestFreshReturnsTheDownloadThenTheKeptFile(t *testing.T) {
+	hits := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		hits++
+		w.Write([]byte("body"))
+	}))
+	defer server.Close()
+	path := filepath.Join(t.TempDir(), "kept")
+	for range 2 {
+		data, err := Fresh(context.Background(), nil, server.URL, path, Forever)
+		if err != nil || string(data) != "body" {
+			t.Fatalf("Fresh = %q, %v; want body", data, err)
+		}
+	}
+	if hits != 1 {
+		t.Errorf("downloaded %d times, want once", hits)
+	}
+}
+
+func TestReadJSONMissingWrapsNotExist(t *testing.T) {
+	if _, err := ReadJSON[map[string]int](filepath.Join(t.TempDir(), "none.json")); !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("err = %v, want os.ErrNotExist", err)
 	}
 }

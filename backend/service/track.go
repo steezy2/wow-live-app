@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"wow-live/backend/clients/combatlog"
 	"wow-live/backend/models"
 )
 
@@ -21,12 +22,6 @@ const (
 	// walkedGrid is the size in yards of the squares the walked area is drawn in.
 	walkedGrid = 3.0
 )
-
-// savedRun is a finished key and its track, waiting to be saved.
-type savedRun struct {
-	key   models.Key
-	track models.KeyTrack
-}
 
 // position keeps where the actor in a line's advanced-logging block was (x, y and map at offsets 14 to 16 of the
 // block): a party member about once a second for the map, and every mob's last place for where it dies.
@@ -192,7 +187,7 @@ func (k *LogTracker) trackCast(at int64, event string, f []string) {
 	switch {
 	case slices.Contains(run.party, f[0]):
 		casts, who = run.track.Casts, k.names[f[0]]
-	case creature(f[0]) && hasFlag(f[2], hostileFlag):
+	case creature(f[0]) && hasFlag(f[2], combatlog.FlagHostile):
 		if run.track.MobCasts == nil {
 			run.track.MobCasts = map[string][]models.TrackCast{}
 		}
@@ -223,7 +218,7 @@ func creature(guid string) bool {
 
 // hostileActor is whether the advanced-logging block's actor is the line's hostile source or target.
 func hostileActor(guid string, f []string) bool {
-	return (guid == f[0] && hasFlag(f[2], hostileFlag)) || (guid == f[4] && hasFlag(f[6], hostileFlag))
+	return (guid == f[0] && hasFlag(f[2], combatlog.FlagHostile)) || (guid == f[4] && hasFlag(f[6], combatlog.FlagHostile))
 }
 
 // mobDeathAt puts a mob's death on the map where it was last seen, and ends its trail there.
@@ -368,12 +363,20 @@ func (k *LogTracker) RouteTrack(start int64) (int, models.KeyTrack, error) {
 	return mapID, track, err
 }
 
-// DungeonMap is a dungeon's floors with Keystone.guru tiles (from the dungeon file) and where parties have walked in
-// its saved runs, one point per walkedGrid square (Name and ClockMS empty): the shape drawn for floors without tiles.
+// DungeonMap is a dungeon's floors with Keystone.guru tiles (from the dungeon file) and, when a floor has none (or
+// the dungeon file has no floors), where parties have walked in its saved runs, one point per walkedGrid square
+// (Name and ClockMS empty): the shape drawn for floors without tiles.
 func (k *LogTracker) DungeonMap(mapID int) (models.DungeonMap, error) {
-	walked, err := k.walked(mapID)
-	return models.DungeonMap{Floors: list(k.facts[mapID].Floors), TilesPerSide: tilesPerSide, Walked: walked,
-		Enemies: list(k.facts[mapID].Enemies), Patrols: list(k.facts[mapID].Patrols)}, err
+	floors := k.facts[mapID].Floors
+	var walked []models.TrackPoint
+	if len(floors) == 0 || slices.ContainsFunc(floors, func(f models.DungeonFloor) bool { return f.Tiles == "" }) {
+		var err error
+		if walked, err = k.walked(mapID); err != nil {
+			return models.DungeonMap{}, err
+		}
+	}
+	return models.DungeonMap{Floors: list(floors), TilesPerSide: tilesPerSide, Walked: list(walked),
+		Enemies: list(k.facts[mapID].Enemies), Patrols: list(k.facts[mapID].Patrols)}, nil
 }
 
 func (k *LogTracker) walked(mapID int) ([]models.TrackPoint, error) {

@@ -28,8 +28,6 @@ var reportCode = regexp.MustCompile(`^[A-Za-z0-9]+$`)
 const (
 	TokenURL = "https://www.warcraftlogs.com/oauth/token"
 	APIURL   = "https://www.warcraftlogs.com/api/v2/client"
-	// Mythic is Warcraft Logs' difficulty number for mythic raids.
-	Mythic = 5
 )
 
 // retryWaits are the pauses before each retry when Warcraft Logs times out (it's slow at peak times).

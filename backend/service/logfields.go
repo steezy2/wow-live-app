@@ -4,18 +4,18 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"wow-live/backend/clients/combatlog"
 )
+
+// keyDifficulty is the Mythic+ difficulty in the combat log's ENCOUNTER lines.
+var keyDifficulty = strconv.Itoa(combatlog.MPlusDifficulty)
 
 const (
 	// advancedFields is the length of the actor block advanced logging adds (GUID, owner, health, max health,
 	// attack and spell power, armor, absorb, two stat fields, power type, power, max power, cost, x, y, map,
 	// facing, level).
 	advancedFields = 19
-	// friendlyFlag and hostileFlag are the unit-flag bits for "friendly" and "hostile to the logger".
-	friendlyFlag = 0x10
-	hostileFlag  = 0x40
-	// mineFlag is the unit-flag bit for the logger's own character and pets.
-	mineFlag = 0x1
 	// physicalSchool is the spell school of melee swings, which the log gives no school for.
 	physicalSchool = 0x1
 )

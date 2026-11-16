@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strings"
 
+	"wow-live/backend/clients/combatlog"
 	"wow-live/backend/models"
 )
 
@@ -20,6 +21,8 @@ const (
 	comparePages = 3
 	// yourKeysLevels is how far a key's level may be from this key's for it to be one of the player's own similar runs.
 	yourKeysLevels = 2
+	// yourRunsMax is how many of the player's own similar runs (the newest) a review reads, as each is a track decoded.
+	yourRunsMax = 10
 	// minComparePoints: a review isn't run with fewer points left this hour: its measured cost (compareLogs times 8,
 	// and the rankings) plus 20%.
 	minComparePoints = 200
@@ -30,9 +33,6 @@ var ErrNoSuchPlayer = errors.New("no such player in that fight")
 
 // ErrNoTopLogs is returned when no top log could be read to compare with (none ranked, or each one failed).
 var ErrNoTopLogs = errors.New("no top Warcraft Logs run could be read to compare with")
-
-// raidDifficulty is Warcraft Logs' number for a raid difficulty; LFR isn't ranked.
-var raidDifficulty = map[string]int{"Mythic": 5, "Heroic": 4, "Normal": 3}
 
 // Comparer reviews one player of a finished key or raid pull against their own similar runs, the top Warcraft Logs
 // logs of their spec and their own parses, keeping each review in the store.
@@ -177,21 +177,24 @@ func (c Comparer) load(kind models.FightKind, start int64, player string) (fight
 		if !ok {
 			return fightRun{}, ErrNoSuchPlayer
 		}
-		if raidDifficulty[pull.Difficulty] == 0 {
+		if combatlog.RankedDifficultyWCL(pull.Difficulty) == 0 {
 			return fightRun{}, fmt.Errorf("%w: Warcraft Logs ranks no %s pulls", ErrNoTopLogs, pull.Difficulty)
 		}
-		_, pulls := c.Keys.History()
-		f := fightRun{kind: kind, start: start, end: pull.End, encounter: pull.Boss, boss: raidDifficulty[pull.Difficulty],
+		track, err := readTrack(c.Keys.RaidTrack, start, ErrNoSuchPull)
+		if err != nil {
+			return fightRun{}, err
+		}
+		f := fightRun{kind: kind, start: start, end: pull.End, encounter: pull.Boss, boss: combatlog.RankedDifficultyWCL(pull.Difficulty),
 			character: character(player, pull.Realms), spec: spec, partial: !pull.Kill,
-			local: c.pullPlayer(pull, player)}
+			local: pullPlayer(pull, track, player), casts: track.Casts[player], buffs: track.Buffs[player]}
+		_, pulls := c.Keys.History()
 		for _, p := range similarPulls(pulls, pull, player) {
-			f.yours = append(f.yours, c.pullPlayer(p, player))
+			t, err := readTrack(c.Keys.RaidTrack, p.Start, ErrNoSuchPull)
+			if err != nil {
+				return fightRun{}, err
+			}
+			f.yours = append(f.yours, pullPlayer(p, t, player))
 		}
-		track, err := c.Keys.RaidTrack(start)
-		if err != nil && !errors.Is(err, ErrNoSuchPull) {
-			return fightRun{}, fmt.Errorf("reading the pull's track: %w", err)
-		}
-		f.casts, f.buffs = track.Casts[player], track.Buffs[player]
 		return f, nil
 	}
 	key, _, err := c.Keys.finished(start)
@@ -202,19 +205,31 @@ func (c Comparer) load(kind models.FightKind, start int64, player string) (fight
 	if !ok {
 		return fightRun{}, ErrNoSuchPlayer
 	}
-	keys, _ := c.Keys.History()
+	track, err := readTrack(c.Keys.Track, start, ErrNoSuchKey)
+	if err != nil {
+		return fightRun{}, err
+	}
 	f := fightRun{kind: kind, start: start, end: key.End, encounter: key.Dungeon, level: key.Level,
 		character: character(player, key.Realms), spec: spec, partial: key.Status == models.StatusAbandoned,
-		local: c.keyPlayer(key, player)}
+		local: keyPlayer(key, track, player), casts: track.Casts[player], buffs: track.Buffs[player]}
+	keys, _ := c.Keys.History()
 	for _, k := range similarKeys(keys, key, player) {
-		f.yours = append(f.yours, c.keyPlayer(k, player))
+		t, err := readTrack(c.Keys.Track, k.Start, ErrNoSuchKey)
+		if err != nil {
+			return fightRun{}, err
+		}
+		f.yours = append(f.yours, keyPlayer(k, t, player))
 	}
-	track, err := c.Keys.Track(start)
-	if err != nil && !errors.Is(err, ErrNoSuchKey) {
-		return fightRun{}, fmt.Errorf("reading the key's track: %w", err)
-	}
-	f.casts, f.buffs = track.Casts[player], track.Buffs[player]
 	return f, nil
+}
+
+// readTrack reads a saved fight's track with read; a fight saved without one (the error wraps none) has an empty one.
+func readTrack(read func(int64) (models.KeyTrack, error), start int64, none error) (models.KeyTrack, error) {
+	track, err := read(start)
+	if err != nil && !errors.Is(err, none) {
+		return track, fmt.Errorf("reading a track: %w", err)
+	}
+	return track, nil
 }
 
 // character is "Name-Realm" for a player whose realm the fight kept, else the bare name.
@@ -228,10 +243,11 @@ func character(player string, realms map[string]string) string {
 // similarKeys are a player's own earlier or later runs like key: its dungeon, a level within yourKeysLevels, the same
 // spec for that player, this key excluded, and abilities saved (older keys would read as no casts at all).
 func similarKeys(keys []models.Key, key models.Key, player string) []models.Key {
-	return slices.DeleteFunc(slices.Clone(keys), func(k models.Key) bool {
+	similar := slices.DeleteFunc(slices.Clone(keys), func(k models.Key) bool {
 		return k.MapID != key.MapID || abs(int64(k.Level-key.Level)) > yourKeysLevels ||
 			!otherRunSameSpec(player, key.Start, k.Start, key.Specs, k.Specs, len(k.Abilities))
 	})
+	return similar[:min(len(similar), yourRunsMax)]
 }
 
 // otherRunSameSpec is whether a saved run (start, specs, abilities saved) is another run than the one reviewed where
@@ -242,20 +258,19 @@ func otherRunSameSpec(player string, start, otherStart int64, specs, otherSpecs 
 
 // similarPulls are a raider's other pulls of the same boss and difficulty in the same spec, with abilities saved.
 func similarPulls(pulls []models.RaidPull, pull models.RaidPull, player string) []models.RaidPull {
-	return slices.DeleteFunc(slices.Clone(pulls), func(p models.RaidPull) bool {
+	similar := slices.DeleteFunc(slices.Clone(pulls), func(p models.RaidPull) bool {
 		return p.Boss != pull.Boss || p.Difficulty != pull.Difficulty ||
 			!otherRunSameSpec(player, pull.Start, p.Start, pull.Specs, p.Specs, len(p.Abilities))
 	})
+	return similar[:min(len(similar), yourRunsMax)]
 }
 
-// keyPlayer is a player's numbers in a key, and pullPlayer in a raid pull.
-func (c Comparer) keyPlayer(key models.Key, player string) models.RankedPlayer {
-	track, _ := c.Keys.Track(key.Start)
+// keyPlayer is a player's numbers in a key (with its track), and pullPlayer in a raid pull.
+func keyPlayer(key models.Key, track models.KeyTrack, player string) models.RankedPlayer {
 	return localPlayer(lengthMS(key), key.Overall, key.Abilities, nil, key.Deaths, track, player)
 }
 
-func (c Comparer) pullPlayer(pull models.RaidPull, player string) models.RankedPlayer {
-	track, _ := c.Keys.RaidTrack(pull.Start)
+func pullPlayer(pull models.RaidPull, track models.KeyTrack, player string) models.RankedPlayer {
 	deaths := make([]models.KeyDeath, len(pull.Deaths))
 	for i, d := range pull.Deaths {
 		deaths[i] = d.KeyDeath

@@ -117,8 +117,6 @@ const (
 	noUnit = "0000000000000000,nil,0x80000000,0x80000000"
 	// noGUID is the empty GUID, as advanced logging's owner of a unit that has none.
 	noGUID = "0000000000000000"
-	// mplusDifficulty is the game's difficulty ID for Mythic+ in ZONE_CHANGE and ENCOUNTER lines.
-	mplusDifficulty = 8
 	// meleeAbility is Warcraft Logs' ability ID for melee swings, which the log writes as SWING_ lines.
 	meleeAbility = 1
 	// autoShot is a hunter's Auto Shot, which the log writes as RANGE_ lines.
@@ -126,16 +124,7 @@ const (
 	// maxEnvironmentAbility: Warcraft Logs numbers the environment's damage (Falling is 3) below any spell ID. A
 	// sourceless hit with a real spell (a boss's lingering debuff) stays a SPELL_ line.
 	maxEnvironmentAbility = 100
-	// Unit flags: the game's type, control, reaction and affiliation bits.
-	flagMine, flagParty, flagRaid        = 0x1, 0x2, 0x4
-	flagFriendly, flagHostile            = 0x10, 0x40
-	flagOutsider                         = 0x8
-	flagPlayerControl, flagNPCControl    = 0x100, 0x200
-	flagPlayerType, flagNPCType, flagPet = 0x400, 0x800, 0x1000
 )
-
-// logDifficulties is the game's difficulty ID for each of Warcraft Logs' raid difficulties.
-var logDifficulties = map[int]int{1: 17, 3: 14, 4: 15, Mythic: 16}
 
 // missTypes is the combat log's miss type for each of Warcraft Logs' hit types that misses.
 var missTypes = map[int]string{0: "MISS", 7: "DODGE", 8: "PARRY", 9: "DEFLECT", 10: "IMMUNE", 12: "REFLECT",
@@ -307,19 +296,19 @@ func newLogWriter(meta fightMeta, opts FightOptions, w io.Writer) (*logWriter, e
 		if fight.KeystoneBonus > 0 {
 			timed = 1
 		}
-		lw.mark(start, true, zone+strconv.Itoa(mplusDifficulty))
+		lw.mark(start, true, zone+strconv.Itoa(combatlog.MPlusDifficulty))
 		lw.mark(start, true, fmt.Sprintf(`CHALLENGE_MODE_START,%q,%d,%d,%d,[%s]`, dungeon.Name, gameZone.ID, mapID,
 			fight.KeystoneLevel, strings.Join(affixes, ",")))
 		for _, p := range fight.DungeonPulls {
 			if p.EncounterID != 0 {
-				lw.encounter(p, mplusDifficulty, fight.Size, gameZone.ID)
+				lw.encounter(p, combatlog.MPlusDifficulty, fight.Size, gameZone.ID)
 			}
 		}
 		lw.mark(end, false, fmt.Sprintf(`CHALLENGE_MODE_END,%d,%d,%d,%d,0.000000,0.000000`, gameZone.ID, timed,
 			fight.KeystoneLevel, fight.KeystoneTime))
 	} else {
-		difficulty, ok := logDifficulties[fight.Difficulty]
-		if fight.EncounterID == 0 || !ok {
+		difficulty := combatlog.RaidDifficultyByWCL(fight.Difficulty).ID
+		if fight.EncounterID == 0 || difficulty == 0 {
 			return nil, fmt.Errorf("fight %d is neither a key nor a raid boss pull", fight.ID)
 		}
 		lw.mark(start, true, fmt.Sprintf(`ZONE_CHANGE,%d,%q,%d`, gameZone.ID, gameZone.Name, difficulty))
@@ -336,9 +325,9 @@ func newLogWriter(meta fightMeta, opts FightOptions, w io.Writer) (*logWriter, e
 // Pet-/Creature-0-0-0-<actor>-<NPC ID>-<instance>, flagged by who they are to the logger.
 func (lw *logWriter) addUnits(meta fightMeta, logger string) {
 	fight := meta.Fights[0]
-	affiliation := flagParty
+	affiliation := combatlog.FlagParty
 	if fight.Size > 5 {
-		affiliation = flagRaid
+		affiliation = combatlog.FlagRaid
 	}
 	friendly, hostilePet := map[int]bool{}, map[int]bool{}
 	for _, a := range fight.FriendlyNPCs {
@@ -357,27 +346,27 @@ func (lw *logWriter) addUnits(meta fightMeta, logger string) {
 		u := unitInfo{name: a.Name, owner: a.PetOwner}
 		who := affiliation
 		if mine[a.ID] || mine[a.PetOwner] {
-			who = flagMine
+			who = combatlog.FlagMine
 		}
 		switch a.Type {
 		case "Player":
 			u.guid = fmt.Sprintf("Player-0-%d", a.ID)
 			u.name = a.Name + "-" + strings.ReplaceAll(a.Server, " ", "") + "-" + meta.Region.CompactName
-			u.flags = flagPlayerType | flagPlayerControl | flagFriendly | who
+			u.flags = combatlog.FlagPlayerType | combatlog.FlagPlayerControl | combatlog.FlagFriendly | who
 		case "Pet":
 			u.guid, u.creature = fmt.Sprintf("Pet-0-0-0-%d-%d", a.ID, a.GameID), true
-			u.flags = flagPet | flagPlayerControl | flagFriendly | who
+			u.flags = combatlog.FlagPet | combatlog.FlagPlayerControl | combatlog.FlagFriendly | who
 			if hostilePet[a.ID] {
-				u.flags = flagPet | flagNPCControl | flagHostile | flagOutsider
+				u.flags = combatlog.FlagPet | combatlog.FlagNPCControl | combatlog.FlagHostile | combatlog.FlagOutsider
 			}
 		default:
 			if a.ID < 0 { // the environment
 				continue
 			}
 			u.guid, u.creature = fmt.Sprintf("Creature-0-0-0-%d-%d", a.ID, a.GameID), true
-			u.flags = flagNPCType | flagNPCControl | flagHostile | flagOutsider
+			u.flags = combatlog.FlagNPCType | combatlog.FlagNPCControl | combatlog.FlagHostile | combatlog.FlagOutsider
 			if friendly[a.ID] {
-				u.flags ^= flagHostile | flagFriendly
+				u.flags ^= combatlog.FlagHostile | combatlog.FlagFriendly
 			}
 		}
 		lw.units[a.ID] = u

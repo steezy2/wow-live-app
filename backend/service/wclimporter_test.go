@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"wow-live/backend/clients/cachefile"
+	"wow-live/backend/clients/importstore"
 	"wow-live/backend/models"
 )
 
@@ -65,7 +65,6 @@ type testImporter struct {
 func newTestImporter(t *testing.T, budgets []models.RateLimit, fail ...error) *testImporter {
 	ti := &testImporter{}
 	ti.Importer = &Importer{Source: &fakeReports{budgets: budgets}, Characters: Characters{Realms: fakeRealms{}},
-		Write: cachefile.WriteJSON,
 		Fetch: func(_ context.Context, ref models.FightRef, _ string) (string, error) {
 			ti.mu.Lock()
 			defer ti.mu.Unlock()
@@ -86,7 +85,7 @@ func newTestImporter(t *testing.T, budgets []models.RateLimit, fail ...error) *t
 		Link:    func(map[int64]models.ReportLink, map[int64]models.ReportLink) (int, error) { return 0, nil },
 		Prepare: func() error { return nil },
 		Count:   func() int { return 0 },
-		Dir:     t.TempDir(),
+		Files:   importstore.Store{Dir: t.TempDir()},
 		Now:     func() time.Time { return time.UnixMilli(1_000_000) },
 		Wait: func(_ context.Context, d time.Duration) error {
 			ti.mu.Lock()
@@ -195,7 +194,7 @@ func TestImportResumesFromItsState(t *testing.T) {
 		ti := newTestImporter(t, []models.RateLimit{plenty})
 		st := importState{Region: "us", Character: "Testmage-Area52", Kinds: tc.kinds,
 			Done: []models.ReportLink{key(1).ReportLink}, Fights: []models.FightRef{key(1), key(2), kill}}
-		if err := ti.writeFile(importStateFile, st); err != nil {
+		if err := ti.Files.Write(importStateFile, st); err != nil {
 			t.Fatal(err)
 		}
 		if err := ti.Resume(); err != nil {
@@ -239,7 +238,7 @@ func TestFindKeepsWhatItFoundUntilAnImportStarts(t *testing.T) {
 	}
 	ti.finish()
 	restarted := newTestImporter(t, []models.RateLimit{plenty})
-	restarted.Dir = ti.Dir
+	restarted.Files = ti.Files
 	if err := restarted.Resume(); err != nil {
 		t.Fatal(err)
 	}
@@ -285,7 +284,7 @@ func TestFindIsBusyWhileAnImportRuns(t *testing.T) {
 
 func TestABusyStartKeepsTheFightsFound(t *testing.T) {
 	ti := newTestImporter(t, []models.RateLimit{plenty})
-	if err := ti.writeFile(importPlanFile, models.ImportPlan{Character: "Testmage-Area52"}); err != nil {
+	if err := ti.Files.Write(importPlanFile, models.ImportPlan{Character: "Testmage-Area52"}); err != nil {
 		t.Fatal(err)
 	}
 	release := make(chan struct{})
@@ -294,7 +293,7 @@ func TestABusyStartKeepsTheFightsFound(t *testing.T) {
 		t.Fatal(err)
 	}
 	err := ti.Start(context.Background(), "us", "Testmage-Area52", keysOnly)
-	_, statErr := os.Stat(filepath.Join(ti.Dir, importPlanFile))
+	_, statErr := os.Stat(filepath.Join(ti.Files.(importstore.Store).Dir, importPlanFile))
 	close(release)
 	ti.finish()
 	if !errors.Is(err, ErrBusy) || statErr != nil {
@@ -316,8 +315,8 @@ func TestReloadKeepsWhatEndedButIsNotSavedYet(t *testing.T) {
 	k, pulls := newRaidTracker(t)
 	k.store.(*memStore).keys = []models.Key{{Start: 1}}
 	pulls.pulls = []models.RaidPull{{Start: 3, Meter: fightingMeter()}}
-	k.unsaved = []savedRun{{key: models.Key{Start: 2}}, {key: models.Key{Start: 1}}}
-	k.unsavedPulls = []savedPull{{pull: models.RaidPull{Start: 4}}}
+	k.unsaved = []savedFight[models.Key]{{fight: models.Key{Start: 2}}, {fight: models.Key{Start: 1}}}
+	k.unsavedPulls = []savedFight[models.RaidPull]{{fight: models.RaidPull{Start: 4}}}
 	if err := k.Reload(); err != nil {
 		t.Fatal(err)
 	}
@@ -358,8 +357,6 @@ func TestTheLocalCopyOfAKeyWins(t *testing.T) {
 	local := models.Key{Start: 60_000, Dungeon: "Testvault", Level: 12}
 	imported := models.Key{Start: 118_400, Dungeon: "Testvault", Level: 12, Imported: true}
 	other := models.Key{Start: 120_000, Dungeon: "Testvault", Level: 13, Imported: true}
-	isImported := func(k models.Key) bool { return k.Imported }
-	start := func(k models.Key) int64 { return k.Start }
 	for _, tc := range []struct {
 		name     string
 		saving   models.Key
@@ -373,7 +370,7 @@ func TestTheLocalCopyOfAKeyWins(t *testing.T) {
 		var mu sync.RWMutex
 		list := []models.Key{local, imported, other} // the tracker lists a key it's saving
 		var deleted []int64
-		skip, err := keepLocal(&mu, &list, tc.saving, sameKey, isImported, start, func(s int64) error {
+		skip, err := keepLocal(&mu, &list, tc.saving, sameKey, func(s int64) error {
 			deleted = append(deleted, s)
 			return nil
 		})
@@ -414,7 +411,7 @@ func TestAStoppedImportDoesntResumeAfterARestart(t *testing.T) {
 	}
 	ti.finish()
 	var st importState
-	if err := ti.readFile(importStateFile, &st); err != nil || len(st.left()) != 0 {
+	if err := ti.Files.Read(importStateFile, &st); err != nil || len(st.left()) != 0 {
 		t.Errorf("state %+v (%v): want no fights left to resume", st, err)
 	}
 }

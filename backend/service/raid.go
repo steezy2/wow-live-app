@@ -10,14 +10,12 @@ import (
 	"strings"
 	"time"
 
+	"wow-live/backend/clients/combatlog"
 	"wow-live/backend/models"
 )
 
 // ErrNoSuchPull is returned for a raid pull that isn't saved.
 var ErrNoSuchPull = errors.New("no saved raid pull starts then")
-
-// raidDifficulties are the combat log's raid difficulty IDs and their names.
-var raidDifficulties = map[string]string{"14": "Normal", "15": "Heroic", "16": "Mythic", "17": "LFR"}
 
 // RaidLinger is how long the overlay keeps the last raid pull up between pulls, unless a new pull starts first.
 const RaidLinger = 5 * time.Minute
@@ -158,7 +156,7 @@ func (k *LogTracker) EnableRaid(rules models.RaidRules, bosses map[string]models
 
 // savedPulls is the store's pulls that were fought.
 func savedPulls(store models.PullStore) ([]models.RaidPull, error) {
-	pulls, err := store.ListPulls()
+	pulls, err := store.List()
 	if err != nil {
 		return nil, fmt.Errorf("reading saved raid pulls: %w", err)
 	}
@@ -182,7 +180,7 @@ func (k *LogTracker) startPull(line models.LogLine) {
 	boss := k.raid.bosses[f[1]]
 	run.facts = &models.DungeonFacts{Name: f[1], Avoidable: boss.Avoidable, Soak: boss.Soak, Dispel: boss.Dispel,
 		MustStop: boss.MustStop}
-	run.raid = &raidRun{difficulty: raidDifficulties[f[2]], boss: boss, phases: k.raid.rules.Phases[f[1]],
+	run.raid = &raidRun{difficulty: combatlog.RaidDifficultyByLogID(f[2]).Name, boss: boss, phases: k.raid.rules.Phases[f[1]],
 		units: map[string]*raidUnit{}, soaks: map[int]*soakTally{}, stacks: map[int]map[string]int{},
 		priority: map[string]int64{}, lustEnds: map[int64]int64{}, marks: map[lane][]models.RaidMark{},
 		causes: map[int]*causeAt{}, lostAt: map[spellOn]int64{}, landedAt: map[spellOn]int64{},
@@ -207,7 +205,7 @@ func (k *LogTracker) raidLine(line models.LogLine) bool {
 		return true
 	case "ENCOUNTER_START": // the last pull never logged its end
 		k.finishPull(false)
-		if len(f) >= 5 && raidDifficulties[f[2]] != "" {
+		if len(f) >= 5 && combatlog.RaidDifficultyByLogID(f[2]).Name != "" {
 			k.startPull(line)
 		}
 		return true
@@ -239,7 +237,7 @@ func (k *LogTracker) raidLine(line models.LogLine) bool {
 	}
 	window := k.raid.rules.Soaks.WindowMS
 	if line.Event == "SPELL_CAST_START" || line.Event == "SPELL_CAST_SUCCESS" || line.Event == "SPELL_CAST_FAILED" {
-		if len(f) > 8 && hasFlag(f[2], hostileFlag) {
+		if len(f) > 8 && hasFlag(f[2], combatlog.FlagHostile) {
 			r.cause(atoi(f[8]), at, "", window)
 			if line.Event == "SPELL_CAST_SUCCESS" {
 				r.closeWaves(atoi(f[8]), run.clock(at), k.raiders(run))
@@ -504,7 +502,7 @@ func (k *LogTracker) raidUnits(at int64, event string, f []string) {
 	r := k.current.raid
 	for _, i := range []int{0, 4} {
 		guid := f[i]
-		if (strings.HasPrefix(guid, "Creature-") || strings.HasPrefix(guid, "Vehicle-")) && hasFlag(f[i+2], hostileFlag) &&
+		if (strings.HasPrefix(guid, "Creature-") || strings.HasPrefix(guid, "Vehicle-")) && hasFlag(f[i+2], combatlog.FlagHostile) &&
 			r.units[guid] == nil {
 			r.units[guid] = &raidUnit{name: f[i+1], seen: at,
 				spawn: r.spawnOf(f[i+1], at, k.current.clock(at), k.spells)}
@@ -582,21 +580,8 @@ func (k *LogTracker) finishPull(kill bool) {
 		return
 	}
 	addKit(k.raid.kit, LearnKit(run.casts))
-	if i := slices.IndexFunc(k.pulls, func(p models.RaidPull) bool {
-		return p.Start == pull.Start && p.Imported == pull.Imported
-	}); i >= 0 {
-		pull.Report = cmp.Or(pull.Report, k.pulls[i].Report) // a report linked since stays
-		k.pulls[i] = pull
-	} else {
-		k.pulls = append([]models.RaidPull{pull}, k.pulls...)
-	}
-	k.unsavedPulls = append(k.unsavedPulls, savedPull{pull, k.trackOf(run)})
-}
-
-// savedPull is a finished raid pull and its track, waiting to be saved.
-type savedPull struct {
-	pull  models.RaidPull
-	track models.KeyTrack
+	upsert(&k.pulls, pull)
+	k.unsavedPulls = append(k.unsavedPulls, savedFight[models.RaidPull]{pull, k.trackOf(run)})
 }
 
 // raidPull is a finished run as the raid overview shows it, from the run's key view (deaths, meters, dispels,

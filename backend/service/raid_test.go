@@ -26,9 +26,9 @@ type memPulls struct {
 	tracks map[int64]models.KeyTrack
 }
 
-func (m *memPulls) SavePull(p models.RaidPull) error      { m.pulls = append(m.pulls, p); return nil }
-func (m *memPulls) ListPulls() ([]models.RaidPull, error) { return m.pulls, nil }
-func (m *memPulls) DeletePull(start int64) error {
+func (m *memPulls) Save(p models.RaidPull) error     { m.pulls = append(m.pulls, p); return nil }
+func (m *memPulls) List() ([]models.RaidPull, error) { return m.pulls, nil }
+func (m *memPulls) Delete(start int64) error {
 	m.pulls = slices.DeleteFunc(m.pulls, func(p models.RaidPull) bool { return p.Start == start })
 	return nil
 }
