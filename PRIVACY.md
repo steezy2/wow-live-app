@@ -1,6 +1,6 @@
 # WoW Live privacy policy
 
-Last updated: November 13, 2026
+Last updated: November 15, 2026
 
 WoW Live runs on your PC and has no accounts, analytics, ads or tracking. The developer receives no data from it.
 
@@ -18,6 +18,7 @@ WoW Live downloads public game data. None of these requests include anything fro
 - **Raider.IO** (raider.io): the season's dungeon timers and this week's affixes, for your region.
 - **Keystone.guru**, through GitHub (raw.githubusercontent.com) and assets.keystone.guru: dungeon map images.
 - **Wowhead** (nether.wowhead.com): the text of a spell, when you hover its name.
+- **simulationcraft.org**, only when you press the Sim tab's download button: the SimulationCraft program (`simc.exe`, about 115 MB) and the list of its builds, over plain HTTP, which that site doesn't offer securely. A sim runs on your PC and sends nothing about the character you paste.
 - **Warcraft Logs' image server** (assets.rpglogs.com): raid room map images, for the raid replay.
 
 As with any web request, those sites can see your IP address. Each request names WoW Live and its GitHub page.

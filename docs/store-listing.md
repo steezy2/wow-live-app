@@ -43,6 +43,11 @@ RAID
   dispels, avoidable hits), with a short list of what to fix on the next pull.
 • A replay of the pull on the room's map, raid cooldowns and potions, missing flasks, food and Vantus Runes.
 
+SIMS
+• Paste the export of the SimulationCraft addon and sim your character on your PC: a Quick Sim, Top Gear for the gear
+  you carry, and a Droptimizer for what the season's raid and dungeons drop.
+• Uses SimulationCraft, downloaded the first time you ask for a sim. Nothing about your character is sent anywhere.
+
 YOUR SEASON
 • A Recap for each of your characters, Mythic+ and Raid apart: keys timed, highest key, your fastest and closest
   runs, the ability that kills you most, who you ran with, your times against the top runs and your Warcraft Logs
@@ -80,6 +85,7 @@ Dungeon maps are Keystone.guru's and raid maps Warcraft Logs'.
 12. Reads old combat logs and imports from Warcraft Logs
 13. Routes: import a Mythic Dungeon Tools route, edit and draw on it, follow it live and compare it with the key
 14. No addon, no upload of your combat log
+15. Character sims on your PC with SimulationCraft: Quick Sim, Top Gear and a Droptimizer
 
 ## Search terms (up to 7)
 
