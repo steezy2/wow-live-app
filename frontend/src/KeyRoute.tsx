@@ -1,11 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
-  createRoute,
-  deleteRoute,
   fetchKeyRoute,
-  fetchRecordedRoute,
   fetchRoutes,
-  saveRoute,
   type KeyTrack,
   type KeyView,
   type RouteCompare,
@@ -14,7 +10,7 @@ import {
 } from './api'
 import { counted } from './format'
 import { RouteMap } from './RouteMap'
-import { enemyKey, PULL_COLORS, pullMobs, useDungeonMap, useMobs } from './routes'
+import { enemyKey, PULL_COLORS, pullMobs, recordKeyRoute, useDungeonMap, useMobs } from './routes'
 import { When, type Seeker } from './Seek'
 
 /** How a pull of the key sits against the plan, in words. */
@@ -31,24 +27,16 @@ function RecordRoute({ keyView: key, onRecorded }: { keyView: KeyView; onRecorde
   const record = async () => {
     setState('busy')
     try {
-      const { pulls, pct, dropped } = await fetchRecordedRoute(key.start)
-      if (pulls.length === 0) return setState("No kills on the map to record: read this key's log again.")
-      const name = `${key.dungeon} +${key.level} recorded ${new Date(key.start).toLocaleDateString()}`
-      const route = await createRoute(key.mapID, name)
-      const colored = pulls.map((enemies, i) => ({ color: PULL_COLORS[i % PULL_COLORS.length], enemies }))
-      await saveRoute(route.id, { name, drawings: [], pulls: colored }).catch((err: Error) =>
-        deleteRoute(route.id).then(() => Promise.reject(err)),
-      ) // no empty route is left behind
-      const gaps = dropped ? `, ${counted(dropped, 'kill')} not on the map` : ''
-      setState(`Recorded as “${name}”: ${counted(pulls.length, 'pull')}, ${pct.toFixed(1)}% forces${gaps}. Edit and export it on the Routes tab.`)
-      onRecorded()
+      const { recorded, message } = await recordKeyRoute(key)
+      setState(message)
+      if (recorded) onRecorded()
     } catch (err) {
       setState((err as Error).message)
     }
   }
   return (
     <p>
-      <button onClick={record} disabled={state === 'busy' || state.startsWith('Recorded')}>
+      <button className="action" onClick={record} disabled={state === 'busy' || state.startsWith('Recorded')}>
         Record route
       </button>{' '}
       {state !== 'idle' && state !== 'busy' && <span className="muted">{state}</span>}

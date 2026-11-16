@@ -4,6 +4,12 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 
 ## [Unreleased]
 
+### Changed
+- **Routes tab**: typing a new name offers *Save as new route* (the original stays as it was) and *Rename* (saves over it); *Delete route* is beside them. *From MDT's saves* lists only the picked dungeon's routes.
+
+### Added
+- **Record next run as new route** on the Routes tab: arm it for a dungeon and the next key that ends there is recorded as a route, as *Record route* does on a finished key. *Record route* and this button are filled buttons now.
+
 ## [0.4.8] - 2026-11-16
 
 ### Changed
