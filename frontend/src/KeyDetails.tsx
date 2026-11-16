@@ -18,6 +18,9 @@ import { Tabs } from './Tabs'
 import { type Seeker } from './Seek'
 import { tip } from './tipAttrs'
 
+/** The Route tab's place in the key's tabs: a running key with a route opens on it. */
+const ROUTE_TAB = 3
+
 /** The result's icon, so it doesn't rest on colour alone. */
 const resultIcon: Record<KeyView['status'], string> = {
   running: '',
@@ -217,6 +220,7 @@ export function KeyDetails({
       </section>
 
       <Tabs
+        initial={key.route ? ROUTE_TAB : 0}
         tabs={[
           {
             name: `Priority targets ${key.pulls.filter((p) => p.late).length}/${key.pulls.length}`,

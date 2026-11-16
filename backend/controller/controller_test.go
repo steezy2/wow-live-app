@@ -613,6 +613,7 @@ func (f *fakePlanner) Compare(start int64, id string) (models.RouteCompare, erro
 	}
 	return models.RouteCompare{}, f.known(id)
 }
+func (f *fakePlanner) Recorded(int64) ([][]models.EnemyRef, error)    { return nil, nil }
 func (f *fakePlanner) Live(models.KeyView) (*models.RouteLive, error) { return nil, nil }
 
 func TestRoutesAnswerBadIDsBeforeTouchingFiles(t *testing.T) {

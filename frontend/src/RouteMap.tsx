@@ -37,6 +37,14 @@ const DONE = '#6b8f71'
 const MISSED = '#e5484d'
 /** How faded a pull still far ahead is drawn. */
 const LATER_ALPHA = 0.35
+/** The colors that run along the outline of a live key's current and next pulls, and how fast (yards a second, in
+ * dots). */
+const RUNNERS = ['#ffffff', '#ffd23f', '#3ec6ff', '#ff5ca8']
+const RUN_SPEED = 5
+/** What a live key's map calls its next pulls, in order, instead of their numbers. */
+const LIVE_WORDS = ['Current', 'Next']
+/** Whether the page asks for no motion. */
+const STILL = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
 /** Characters a note's line holds before it wraps. */
 const NOTE_LINE = 28
 
@@ -91,6 +99,21 @@ function paint(ctx: CanvasRenderingContext2D, at: (p: Yards) => Point, dot: numb
   })
 }
 
+/** Strokes the path just traced with RUNNERS' colors in dashes that run along it. */
+function runAlong(ctx: CanvasRenderingContext2D, dot: number, width: number) {
+  const run = dot * 2
+  const phase = STILL ? 0 : (performance.now() / 1000) * dot * RUN_SPEED
+  ctx.lineWidth = width
+  RUNNERS.forEach((color, i) => {
+    ctx.setLineDash([run, run * (RUNNERS.length - 1)])
+    ctx.lineDashOffset = -(phase + i * run)
+    ctx.strokeStyle = color
+    ctx.stroke()
+  })
+  ctx.setLineDash([])
+  ctx.lineDashOffset = 0
+}
+
 /** Traces points as a path, closed unless told otherwise (a hull is, a patrol back and forth isn't). */
 function trace(ctx: CanvasRenderingContext2D, points: [number, number][], closed = true) {
   ctx.beginPath()
@@ -134,6 +157,8 @@ export function RouteMap(props: {
   const [text, setText] = useState('')
   const [line, setLine] = useState<Point[] | null>(null) // the line being drawn
   const drawn = useRef<Point[]>([]) // the same, for the press's end
+  const animated = !STILL && !!states?.includes('next') // the outline runs, so the map draws every frame
+  const frameClock = useCallback(() => performance.now(), [])
   const full = (drawings?.length ?? 0) >= (limits?.drawings ?? Infinity)
   const tool = full && addsDrawing(picked) ? 'select' : picked // a full route leaves a tool that would add
   const frame = useRef(0) // the animation frame that shows the line so far
@@ -154,6 +179,7 @@ export function RouteMap(props: {
   const overlay = useCallback<Overlay>(
     (ctx, at, dot, hit) => {
       const pullOf = pullIndexes(pulls)
+      const liveOrder = pulls.map((_, i) => i).filter((i) => states?.[i] === 'next')
       const shade = (pull: number | undefined) => (pull !== undefined && states?.[pull] === 'later' ? LATER_ALPHA : 1)
       const colorOf = (pull: number) => (states?.[pull] === 'done' ? DONE : `#${pulls[pull].color}`)
       const outline = (group: RouteEnemy[]) => pullHull(group.map((e) => at(e)), dot * 2.5)
@@ -186,6 +212,7 @@ export function RouteMap(props: {
         const bold = pull === selected || pull === highlight || states?.[pull] === 'next' || states?.[pull] === 'missed'
         ctx.lineWidth = bold ? dot / 1.5 : dot / 4
         ctx.stroke()
+        if (states?.[pull] === 'next') runAlong(ctx, dot, dot / 1.2)
         ctx.globalAlpha = 1
       })
       ctx.setLineDash([dot * 1.5, dot])
@@ -232,9 +259,11 @@ export function RouteMap(props: {
       ctx.lineWidth = dot / 2
       pullCentres(enemies, pulls).forEach((c) => {
         const [x, y] = at(c)
-        ctx.strokeText(String(c.pull + 1), x, y)
+        const label = String(c.pull + 1)
+        const word = states?.[c.pull] === 'next' ? LIVE_WORDS[liveOrder.indexOf(c.pull)] : undefined
+        ctx.strokeText(word ?? label, x, y)
         ctx.fillStyle = '#fff'
-        ctx.fillText(String(c.pull + 1), x, y)
+        ctx.fillText(word ?? label, x, y)
       })
       const drawing = line && here && { id: '', map: here.uiMapID, kind: 'line' as const, color, points: line }
       paint(ctx, at, dot, drawing ? [...drawnHere, drawing] : drawnHere)
@@ -332,6 +361,7 @@ export function RouteMap(props: {
         onPickEnemy={onEnemy && pick}
         onContext={onContext && context}
         tipOf={mobs && tipOf}
+        clock={animated ? frameClock : undefined}
         onStroke={onDraw && tool !== 'select' ? stroke : undefined}
       />
       <p className="muted small">

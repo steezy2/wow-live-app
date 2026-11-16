@@ -17,6 +17,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
@@ -45,6 +46,11 @@ type Client struct {
 	Raw      string
 	Assets   string
 }
+
+// swappedFloors are the dungeons whose floors Keystone.guru has under each other's ui_map_id: the combat log's kills
+// stand on the enemies of the floor with the other ID (checked against logs: all of Ruby Life Pools' kills), so the
+// IDs are exchanged. Keyed by challenge mode ID.
+var swappedFloors = map[int][2]int{399: {2094, 2095}}
 
 // Dungeon is what Keystone.guru has for a dungeon: its instance ID, its floors with in-game bounds (overview floors
 // without bounds left out) and the enemy forces a key needs, from its newest mapping.
@@ -108,6 +114,11 @@ func (c Client) Dungeons(ctx context.Context) (map[int]Dungeon, error) {
 		floors, err := c.withTiles(ctx, dungeon.Floors)
 		if err != nil {
 			return nil, err
+		}
+		for i, f := range floors {
+			if pair, ok := swappedFloors[*d.ChallengeModeID]; ok && slices.Contains(pair[:], f.UIMapID) {
+				floors[i].UIMapID = pair[0] + pair[1] - f.UIMapID
+			}
 		}
 		dungeon.Floors = floors
 		out[*d.ChallengeModeID] = dungeon
