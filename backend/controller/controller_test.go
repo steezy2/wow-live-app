@@ -183,17 +183,21 @@ func TestPagesAndUnknownAPIPaths(t *testing.T) {
 		t.Fatalf("unknown API path: %d, want 404", w.Code)
 	}
 	for _, tc := range []struct {
-		name, host, origin string
-		code               int
+		name, host, origin, site string
+		code                     int
 	}{
-		{"another host name", "evil.example:8080", "", http.StatusMisdirectedRequest},
-		{"another website's page", "localhost:8080", "https://evil.example", http.StatusForbidden},
-		{"this site's page", "localhost:8080", "http://localhost:8080", http.StatusNoContent},
+		{"another host name", "evil.example:8080", "", "", http.StatusMisdirectedRequest},
+		{"another website's page", "localhost:8080", "https://evil.example", "", http.StatusForbidden},
+		{"another website's image", "localhost:8080", "", "cross-site", http.StatusForbidden},
+		{"this site's page", "localhost:8080", "http://localhost:8080", "same-origin", http.StatusNoContent},
 	} {
 		r := httptest.NewRequest(http.MethodDelete, "/api/mplus/keys", nil)
 		r.Host = tc.host
 		if tc.origin != "" {
 			r.Header.Set("Origin", tc.origin)
+		}
+		if tc.site != "" {
+			r.Header.Set("Sec-Fetch-Site", tc.site)
 		}
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, r)

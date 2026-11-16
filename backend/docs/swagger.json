@@ -2613,10 +2613,6 @@
         "models.DungeonMob": {
             "type": "object",
             "properties": {
-                "aggressiveness": {
-                    "description": "\"aggressive\", \"unfriendly\", \"neutral\", \"awakened\"",
-                    "type": "string"
-                },
                 "boss": {
                     "type": "boolean"
                 },
@@ -2661,6 +2657,14 @@
                     "type": "number"
                 },
                 "level": {
+                    "type": "integer"
+                },
+                "maxLevel": {
+                    "description": "and the highest",
+                    "type": "integer"
+                },
+                "minLevel": {
+                    "description": "the lowest key level the endpoint scales to",
                     "type": "integer"
                 },
                 "mobs": {

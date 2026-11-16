@@ -5,7 +5,7 @@
     "maps": "github.com/Wotuu/keystone.guru dungeon data: floor bounds, forces totals, where enemies stand and patrols only; the site fetches the tiles",
     "mobs": "names and spells from Mythic Dungeon Tools; level, type, class, base health and flags from github.com/Wotuu/keystone.guru's npcs.json",
     "spells": "Wowhead dungeon overviews (each dungeon's guide), interrupts checked against Mythic Dungeon Tools",
-    "written": "2026-11-14"
+    "written": "2026-11-15"
   },
   "dungeons": {
     "249": {
@@ -1115,7 +1115,6 @@
           "type": "Undead",
           "class": "Elite",
           "health": 5513534,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -1141,7 +1140,6 @@
           "type": "Aberration",
           "class": "Normal",
           "health": 340110,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -1161,7 +1159,6 @@
           "type": "Undead",
           "class": "Elite",
           "health": 3243255,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -1180,7 +1177,6 @@
           "type": "Undead",
           "class": "Elite",
           "health": 5189208,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -1209,7 +1205,6 @@
           "type": "Undead",
           "class": "Elite",
           "health": 4864883,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -1234,7 +1229,6 @@
           "type": "Undead",
           "class": "Elite",
           "health": 3243255,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -1260,7 +1254,6 @@
           "type": "Undead",
           "class": "Elite",
           "health": 5189208,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -1287,7 +1280,6 @@
           "type": "Undead",
           "class": "Elite",
           "health": 7783811,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -1314,7 +1306,6 @@
           "class": "Boss",
           "boss": true,
           "health": 20432506,
-          "aggressiveness": "aggressive",
           "flags": [
             "dangerous"
           ],
@@ -1349,7 +1340,6 @@
           "type": "Undead",
           "class": "Elite",
           "health": 3891906,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -1372,7 +1362,6 @@
           "type": "Undead",
           "class": "Elite",
           "health": 3243255,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -1391,7 +1380,6 @@
           "type": "Undead",
           "class": "Elite",
           "health": 2918930,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -1416,7 +1404,6 @@
           "type": "Undead",
           "class": "Elite",
           "health": 6486509,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -1439,7 +1426,6 @@
           "type": "Undead",
           "class": "Elite",
           "health": 3243255,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -1463,7 +1449,6 @@
           "class": "Boss",
           "boss": true,
           "health": 20432506,
-          "aggressiveness": "aggressive",
           "flags": [
             "dangerous"
           ],
@@ -1492,7 +1477,6 @@
           "type": "Aberration",
           "class": "Elite",
           "health": 291893,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -1514,7 +1498,6 @@
           "type": "Totem",
           "class": "Elite",
           "health": 324326,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -1536,7 +1519,6 @@
           "type": "Totem",
           "class": "Elite",
           "health": 324326,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -1558,7 +1540,6 @@
           "type": "Totem",
           "class": "Elite",
           "health": 324326,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -1581,7 +1562,6 @@
           "class": "Final boss",
           "boss": true,
           "health": 29189294,
-          "aggressiveness": "aggressive",
           "flags": [
             "dangerous"
           ],
@@ -1612,7 +1592,6 @@
           "level": 334,
           "class": "Elite",
           "health": 648651,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -1627,7 +1606,6 @@
           "class": "Boss",
           "boss": true,
           "health": 32432549,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -1653,7 +1631,6 @@
           "type": "Undead",
           "class": "Elite",
           "health": 4540557,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -1676,7 +1653,6 @@
           "type": "Undead",
           "class": "Elite",
           "health": 5270289,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -1697,7 +1673,6 @@
           "type": "Undead",
           "class": "Elite",
           "health": 7783811,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -1723,7 +1698,6 @@
           "type": "Undead",
           "class": "Elite",
           "health": 7783811,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -1753,7 +1727,6 @@
           "type": "Undead",
           "class": "Elite",
           "health": 8432462,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -1776,7 +1749,6 @@
           "type": "Undead",
           "class": "Elite",
           "health": 3243255,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -1795,7 +1767,6 @@
           "type": "Undead",
           "class": "Elite",
           "health": 5189208,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -1824,7 +1795,6 @@
           "type": "Undead",
           "class": "Elite",
           "health": 3243255,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -1847,7 +1817,6 @@
           "type": "Totem",
           "class": "Elite",
           "health": 6487,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -1861,7 +1830,6 @@
           "type": "Undead",
           "class": "Elite",
           "health": 5837859,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -1890,7 +1858,6 @@
           "type": "Aberration",
           "class": "Normal",
           "health": 1945953,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -1912,7 +1879,6 @@
           "type": "Humanoid",
           "class": "Elite",
           "health": 8432462,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -1938,7 +1904,6 @@
           "type": "Aberration",
           "class": "Elite",
           "health": 243242,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -1959,7 +1924,6 @@
           "class": "Boss",
           "boss": true,
           "health": 7783812,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -1983,7 +1947,6 @@
           "class": "Boss",
           "boss": true,
           "health": 9729765,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -2011,7 +1974,6 @@
           "class": "Boss",
           "boss": true,
           "health": 5189208,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -2037,7 +1999,6 @@
           "type": "Undead",
           "class": "Elite",
           "health": 3243255,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -2057,7 +2018,6 @@
           "type": "Undead",
           "class": "Elite",
           "health": 3243255,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -3496,7 +3456,6 @@
           "class": "Boss",
           "boss": true,
           "health": 14918973,
-          "aggressiveness": "aggressive",
           "flags": [
             "dangerous"
           ],
@@ -3538,7 +3497,6 @@
           "class": "Final boss",
           "boss": true,
           "health": 25946039,
-          "aggressiveness": "aggressive",
           "flags": [
             "dangerous"
           ]
@@ -3550,7 +3508,6 @@
           "type": "Humanoid",
           "class": "Elite",
           "health": 3243255,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -3573,7 +3530,6 @@
           "type": "Beast",
           "class": "Elite",
           "health": 540542,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -3592,7 +3548,6 @@
           "type": "Beast",
           "class": "Elite",
           "health": 1686493,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -3612,7 +3567,6 @@
           "type": "Beast",
           "class": "Elite",
           "health": 3567581,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -3634,7 +3588,6 @@
           "type": "Beast",
           "class": "Elite",
           "health": 307716,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -3648,7 +3601,6 @@
           "type": "Humanoid",
           "class": "Elite",
           "health": 3243255,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -3679,7 +3631,6 @@
           "type": "Humanoid",
           "class": "Elite",
           "health": 3567581,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -3701,7 +3652,6 @@
           "type": "Humanoid",
           "class": "Elite",
           "health": 3243255,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -3724,7 +3674,6 @@
           "type": "Beast",
           "class": "Normal",
           "health": 2594604,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -3743,7 +3692,6 @@
           "type": "Humanoid",
           "class": "Elite",
           "health": 5189208,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -3771,7 +3719,6 @@
           "type": "Beast",
           "class": "Elite",
           "health": 4216232,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -3793,7 +3740,6 @@
           "type": "Elemental",
           "class": "Elite",
           "health": 3243255,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -3815,7 +3761,6 @@
           "type": "Humanoid",
           "class": "Elite",
           "health": 2918930,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -3835,7 +3780,6 @@
           "type": "Humanoid",
           "class": "Elite",
           "health": 5837859,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -3858,7 +3802,6 @@
           "type": "Humanoid",
           "class": "Elite",
           "health": 6486510,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -3883,7 +3826,6 @@
           "type": "Elemental",
           "class": "Elite",
           "health": 21621699,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -3897,7 +3839,6 @@
           "type": "Beast",
           "class": "Elite",
           "health": 3243255,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -3917,7 +3858,6 @@
           "type": "Beast",
           "class": "Elite",
           "health": 3243255,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -3939,7 +3879,6 @@
           "type": "Humanoid",
           "class": "Elite",
           "health": 648651,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -3953,7 +3892,6 @@
           "type": "Elemental",
           "class": "Elite",
           "health": 5189208,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -3979,7 +3917,6 @@
           "type": "Humanoid",
           "class": "Elite",
           "health": 4864883,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -4008,7 +3945,6 @@
           "type": "Humanoid",
           "class": "Elite",
           "health": 439629,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -4027,7 +3963,6 @@
           "type": "Elemental",
           "class": "Elite",
           "health": 3243255,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -4049,7 +3984,6 @@
           "type": "Humanoid",
           "class": "Elite",
           "health": 972977,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -4068,7 +4002,6 @@
           "type": "Elemental",
           "class": "Elite",
           "health": 10000,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -4082,7 +4015,6 @@
           "type": "Humanoid",
           "class": "Elite",
           "health": 3243255,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -4104,7 +4036,6 @@
           "type": "Humanoid",
           "class": "Elite",
           "health": 3243255,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -4123,7 +4054,6 @@
           "level": 90,
           "class": "Elite",
           "health": 287585,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -4143,7 +4073,6 @@
           "class": "Boss",
           "boss": true,
           "health": 9729765,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -4173,7 +4102,6 @@
           "class": "Boss",
           "boss": true,
           "health": 9729765,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -4205,7 +4133,6 @@
           "type": "Humanoid",
           "class": "Elite",
           "health": 10000,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -4227,7 +4154,6 @@
           "type": "Beast",
           "class": "Elite",
           "health": 1297302,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -4242,7 +4168,6 @@
           "class": "Boss",
           "boss": true,
           "health": 20756831,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -4265,7 +4190,6 @@
           "type": "Beast",
           "class": "Elite",
           "health": 810814,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -4279,7 +4203,6 @@
           "type": "Humanoid",
           "class": "Elite",
           "health": 648651,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -4293,7 +4216,6 @@
           "type": "Humanoid",
           "class": "Elite",
           "health": 1135139,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -4315,7 +4237,6 @@
           "type": "Elemental",
           "class": "Elite",
           "health": 2043251,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -4339,7 +4260,6 @@
           "level": 90,
           "class": "Elite",
           "health": 330722,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -4367,7 +4287,6 @@
           "type": "Humanoid",
           "class": "Elite",
           "health": 5189208,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -4386,7 +4305,6 @@
           "type": "Humanoid",
           "class": "Elite",
           "health": 2821632,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -4412,7 +4330,6 @@
           "type": "Humanoid",
           "class": "Elite",
           "health": 583786,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -4433,7 +4350,6 @@
           "level": 90,
           "class": "Elite",
           "health": 10000,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -4447,7 +4363,6 @@
           "type": "Humanoid",
           "class": "Elite",
           "health": 1945953,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -6125,7 +6040,6 @@
           "type": "Dragonkin",
           "class": "Normal",
           "health": 1297302,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -6146,7 +6060,6 @@
           "class": "Boss",
           "boss": true,
           "health": 9729765,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -6170,7 +6083,6 @@
           "type": "Humanoid",
           "class": "Elite",
           "health": 3891906,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -6192,7 +6104,6 @@
           "type": "Elemental",
           "class": "Elite",
           "health": 3567581,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -6215,7 +6126,6 @@
           "type": "Humanoid",
           "class": "Elite",
           "health": 3243255,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -6242,7 +6152,6 @@
           "type": "Elemental",
           "class": "Elite",
           "health": 6486510,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -6271,7 +6180,6 @@
           "class": "Boss",
           "boss": true,
           "health": 19459530,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -6314,7 +6222,6 @@
           "class": "Boss",
           "boss": true,
           "health": 20756831,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -6346,7 +6253,6 @@
           "type": "Elemental",
           "class": "Elite",
           "health": 2594604,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -6372,7 +6278,6 @@
           "type": "Dragonkin",
           "class": "Elite",
           "health": 972977,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -6392,7 +6297,6 @@
           "type": "Elemental",
           "class": "Elite",
           "health": 7135161,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -6422,7 +6326,6 @@
           "type": "Elemental",
           "class": "Normal",
           "health": 648651,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -6441,7 +6344,6 @@
           "type": "Humanoid",
           "class": "Elite",
           "health": 3567581,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -6464,7 +6366,6 @@
           "type": "Humanoid",
           "class": "Elite",
           "health": 2918930,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -6488,7 +6389,6 @@
           "class": "Boss",
           "boss": true,
           "health": 12973020,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -6515,7 +6415,6 @@
           "class": "Boss",
           "boss": true,
           "health": 14594648,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -6545,7 +6444,6 @@
           "type": "Elemental",
           "class": "Elite",
           "health": 648651,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -6564,7 +6462,6 @@
           "type": "Humanoid",
           "class": "Elite",
           "health": 10740817,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -6593,7 +6490,6 @@
           "type": "Elemental",
           "class": "Normal",
           "health": 1621628,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -6617,7 +6513,6 @@
           "class": "Boss",
           "boss": true,
           "health": 6486510,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -6644,7 +6539,6 @@
           "class": "Boss",
           "boss": true,
           "health": 9729765,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -6672,7 +6566,6 @@
           "class": "Boss",
           "boss": true,
           "health": 8432463,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -6702,7 +6595,6 @@
           "type": "Humanoid",
           "class": "Elite",
           "health": 3567581,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -6721,7 +6613,6 @@
           "type": "Humanoid",
           "class": "Elite",
           "health": 5189208,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -9613,7 +9504,6 @@
           "class": "Boss",
           "boss": true,
           "health": 43783942,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -9643,7 +9533,6 @@
           "class": "Boss",
           "boss": true,
           "health": 43783942,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -9674,7 +9563,6 @@
           "class": "Boss",
           "boss": true,
           "health": 43783942,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -9702,7 +9590,6 @@
           "level": 90,
           "class": "Elite",
           "health": 10000,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -9722,7 +9609,6 @@
           "class": "Boss",
           "boss": true,
           "health": 22702784,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -9763,7 +9649,6 @@
           "type": "Humanoid",
           "class": "Elite",
           "health": 2918930,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -9794,7 +9679,6 @@
           "type": "Humanoid",
           "class": "Elite",
           "health": 3243254,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -9813,7 +9697,6 @@
           "type": "Elemental",
           "class": "Elite",
           "health": 3081092,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -9836,7 +9719,6 @@
           "type": "Humanoid",
           "class": "Elite",
           "health": 5189207,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -9861,7 +9743,6 @@
           "type": "Elemental",
           "class": "Elite",
           "health": 648651,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -9881,7 +9762,6 @@
           "type": "Elemental",
           "class": "Elite",
           "health": 3243254,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -9904,7 +9784,6 @@
           "type": "Elemental",
           "class": "Elite",
           "health": 3243254,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -9926,7 +9805,6 @@
           "type": "Elemental",
           "class": "Elite",
           "health": 3891906,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -9949,7 +9827,6 @@
           "type": "Elemental",
           "class": "Elite",
           "health": 6162185,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -9971,7 +9848,6 @@
           "type": "Beast",
           "class": "Elite",
           "health": 324326,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -9995,7 +9871,6 @@
           "class": "Boss",
           "boss": true,
           "health": 20432506,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -10055,7 +9930,6 @@
           "type": "Beast",
           "class": "Elite",
           "health": 648651,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -10080,7 +9954,6 @@
           "type": "Beast",
           "class": "Elite",
           "health": 648651,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -10102,7 +9975,6 @@
           "type": "Elemental",
           "class": "Elite",
           "health": 5675695,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -10128,7 +10000,6 @@
           "class": "Boss",
           "boss": true,
           "health": 22702784,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -10169,7 +10040,6 @@
           "type": "Elemental",
           "class": "Elite",
           "health": 1297302,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -10195,7 +10065,6 @@
           "type": "Elemental",
           "class": "Elite",
           "health": 9729764,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -10223,7 +10092,6 @@
           "type": "Beast",
           "class": "Elite",
           "health": 648651,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -10242,7 +10110,6 @@
           "type": "Elemental",
           "class": "Elite",
           "health": 648651,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -10260,7 +10127,6 @@
           "level": 90,
           "class": "Elite",
           "health": 486488,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -10280,7 +10146,6 @@
           "type": "Elemental",
           "class": "Elite",
           "health": 5837858,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -12577,7 +12442,6 @@
           "type": "Humanoid",
           "class": "Elite",
           "health": 3891906,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -12601,7 +12465,6 @@
           "class": "Boss",
           "boss": true,
           "health": 20432506,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -12634,7 +12497,6 @@
           "class": "Boss",
           "boss": true,
           "health": 20432506,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -12672,7 +12534,6 @@
           "type": "Beast",
           "class": "Elite",
           "health": 1135139,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -12695,7 +12556,6 @@
           "class": "Boss",
           "boss": true,
           "health": 23351436,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -12727,7 +12587,6 @@
           "type": "Humanoid",
           "class": "Elite",
           "health": 3567581,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -12750,7 +12609,6 @@
           "type": "Beast",
           "class": "Elite",
           "health": 648651,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -12769,7 +12627,6 @@
           "type": "Beast",
           "class": "Elite",
           "health": 3081092,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -12789,7 +12646,6 @@
           "type": "Beast",
           "class": "Elite",
           "health": 3405418,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -12808,7 +12664,6 @@
           "type": "Dragonkin",
           "class": "Elite",
           "health": 2918930,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -12831,7 +12686,6 @@
           "type": "Humanoid",
           "class": "Elite",
           "health": 3243255,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -12853,7 +12707,6 @@
           "type": "Humanoid",
           "class": "Elite",
           "health": 3405418,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -12875,7 +12728,6 @@
           "type": "Humanoid",
           "class": "Elite",
           "health": 2918930,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -12894,7 +12746,6 @@
           "type": "Beast",
           "class": "Elite",
           "health": 5837859,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -12919,7 +12770,6 @@
           "type": "Humanoid",
           "class": "Elite",
           "health": 7135161,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -12950,7 +12800,6 @@
           "type": "Aberration",
           "class": "Elite",
           "health": 3632446,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -12973,7 +12822,6 @@
           "type": "Beast",
           "class": "Elite",
           "health": 8756789,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -12998,7 +12846,6 @@
           "level": 90,
           "class": "Elite",
           "health": 6487,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -13017,7 +12864,6 @@
           "type": "Dragonkin",
           "class": "Elite",
           "health": 3243255,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -13040,7 +12886,6 @@
           "type": "Beast",
           "class": "Elite",
           "health": 3567581,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -13060,7 +12905,6 @@
           "type": "Beast",
           "class": "Elite",
           "health": 1945953,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -13088,7 +12932,6 @@
           "type": "Beast",
           "class": "Elite",
           "health": 3891906,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -13107,7 +12950,6 @@
           "type": "Humanoid",
           "class": "Elite",
           "health": 5675696,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -13129,7 +12971,6 @@
           "type": "Humanoid",
           "class": "Elite",
           "health": 5513534,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -13152,7 +12993,6 @@
           "type": "Aberration",
           "class": "Elite",
           "health": 1297302,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -13171,7 +13011,6 @@
           "type": "Humanoid",
           "class": "Elite",
           "health": 648651,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -13192,7 +13031,6 @@
           "level": 90,
           "class": "Elite",
           "health": 10000,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -13210,7 +13048,6 @@
           "level": 334,
           "class": "Elite",
           "health": 540543,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -13229,7 +13066,6 @@
           "type": "Beast",
           "class": "Elite",
           "health": 5189208,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -13251,7 +13087,6 @@
           "type": "Humanoid",
           "class": "Elite",
           "health": 8432463,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -13285,7 +13120,6 @@
           "type": "Humanoid",
           "class": "Elite",
           "health": 7459487,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -13322,7 +13156,6 @@
           "type": "Humanoid",
           "class": "Elite",
           "health": 6227050,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -15524,7 +15357,6 @@
           "type": "Beast",
           "class": "Elite",
           "health": 3729743,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -15546,7 +15378,6 @@
           "type": "Beast",
           "class": "Elite",
           "health": 778381,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -15566,7 +15397,6 @@
           "class": "Boss",
           "boss": true,
           "health": 22702784,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -15619,7 +15449,6 @@
           "type": "Humanoid",
           "class": "Elite",
           "health": 3243255,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -15644,7 +15473,6 @@
           "type": "Humanoid",
           "class": "Elite",
           "health": 2918930,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -15669,7 +15497,6 @@
           "type": "Beast",
           "class": "Elite",
           "health": 2918930,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -15688,7 +15515,6 @@
           "type": "Undead",
           "class": "Elite",
           "health": 6486510,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -15710,7 +15536,6 @@
           "type": "Beast",
           "class": "Elite",
           "health": 3567581,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -15730,7 +15555,6 @@
           "type": "Beast",
           "class": "Elite",
           "health": 2789199,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -15752,7 +15576,6 @@
           "type": "Elemental",
           "class": "Elite",
           "health": 3081092,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -15775,7 +15598,6 @@
           "type": "Elemental",
           "class": "Elite",
           "health": 2918930,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -15795,7 +15617,6 @@
           "class": "Boss",
           "boss": true,
           "health": 20432506,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -15827,7 +15648,6 @@
           "level": 90,
           "class": "Elite",
           "health": 428857,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -15846,7 +15666,6 @@
           "type": "Elemental",
           "class": "Elite",
           "health": 810814,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -15875,7 +15694,6 @@
           "type": "Humanoid",
           "class": "Elite",
           "health": 7783812,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -15906,7 +15724,6 @@
           "level": 90,
           "class": "Elite",
           "health": 537461,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -15925,7 +15742,6 @@
           "type": "Humanoid",
           "class": "Elite",
           "health": 2918930,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -15949,7 +15765,6 @@
           "type": "Humanoid",
           "class": "Elite",
           "health": 3243255,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -15968,7 +15783,6 @@
           "type": "Humanoid",
           "class": "Elite",
           "health": 3081092,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -15997,7 +15811,6 @@
           "type": "Beast",
           "class": "Elite",
           "health": 5513534,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -16019,7 +15832,6 @@
           "type": "Humanoid",
           "class": "Elite",
           "health": 698700,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -16041,7 +15853,6 @@
           "type": "Beast",
           "class": "Elite",
           "health": 2594604,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -16062,7 +15873,6 @@
           "level": 90,
           "class": "Elite",
           "health": 421623,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -16081,7 +15891,6 @@
           "type": "Beast",
           "class": "Elite",
           "health": 2918930,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -16107,7 +15916,6 @@
           "type": "Undead",
           "class": "Elite",
           "health": 4864883,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -16130,7 +15938,6 @@
           "class": "Boss",
           "boss": true,
           "health": 21016293,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -16168,7 +15975,6 @@
           "type": "Humanoid",
           "class": "Elite",
           "health": 1621628,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -16200,7 +16006,6 @@
           "class": "Boss",
           "boss": true,
           "health": 3378390,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -16222,7 +16027,6 @@
           "level": 90,
           "class": "Elite",
           "health": 6487,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -16241,7 +16045,6 @@
           "type": "Elemental",
           "class": "Elite",
           "health": 3243255,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -16259,7 +16062,6 @@
           "level": 90,
           "class": "Elite",
           "health": 648651,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -16277,7 +16079,6 @@
           "level": 90,
           "class": "Elite",
           "health": 64865,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -18712,7 +18513,6 @@
           "class": "Boss",
           "boss": true,
           "health": 22702784,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -18745,7 +18545,6 @@
           "class": "Boss",
           "boss": true,
           "health": 19459530,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -18781,7 +18580,6 @@
           "class": "Boss",
           "boss": true,
           "health": 22702784,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -18815,7 +18613,6 @@
           "class": "Boss",
           "boss": true,
           "health": 7783812,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -18846,7 +18643,6 @@
           "class": "Boss",
           "boss": true,
           "health": 16864926,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -18892,7 +18688,6 @@
           "type": "Demon",
           "class": "Elite",
           "health": 1945953,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -18911,7 +18706,6 @@
           "type": "Demon",
           "class": "Elite",
           "health": 486488,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -18930,7 +18724,6 @@
           "level": 90,
           "class": "Elite",
           "health": 649,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -18956,7 +18749,6 @@
           "type": "Humanoid",
           "class": "Elite",
           "health": 648651,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -18978,7 +18770,6 @@
           "type": "Humanoid",
           "class": "Elite",
           "health": 648651,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -19003,7 +18794,6 @@
           "type": "Demon",
           "class": "Elite",
           "health": 1621628,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -19022,7 +18812,6 @@
           "type": "Demon",
           "class": "Elite",
           "health": 3405418,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -19045,7 +18834,6 @@
           "type": "Humanoid",
           "class": "Elite",
           "health": 5027045,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -19070,7 +18858,6 @@
           "type": "Demon",
           "class": "Elite",
           "health": 3405418,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -19093,7 +18880,6 @@
           "type": "Humanoid",
           "class": "Elite",
           "health": 2918930,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -19116,7 +18902,6 @@
           "type": "Mechanical",
           "class": "Elite",
           "health": 8432463,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -19144,7 +18929,6 @@
           "type": "Demon",
           "class": "Elite",
           "health": 5513534,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -19168,7 +18952,6 @@
           "level": 90,
           "class": "Elite",
           "health": 972977,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -19190,7 +18973,6 @@
           "type": "Humanoid",
           "class": "Elite",
           "health": 648651,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -19209,7 +18991,6 @@
           "type": "Humanoid",
           "class": "Elite",
           "health": 5189208,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -19231,7 +19012,6 @@
           "type": "Humanoid",
           "class": "Elite",
           "health": 1945953,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -19250,7 +19030,6 @@
           "type": "Demon",
           "class": "Elite",
           "health": 2270279,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -19271,7 +19050,6 @@
           "type": "Humanoid",
           "class": "Elite",
           "health": 2854064,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -19295,7 +19073,6 @@
           "type": "Beast",
           "class": "Elite",
           "health": 1297302,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -19318,7 +19095,6 @@
           "type": "Humanoid",
           "class": "Elite",
           "health": 10000,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -19337,7 +19113,6 @@
           "type": "Humanoid",
           "class": "Elite",
           "health": 2918930,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -19359,7 +19134,6 @@
           "type": "Humanoid",
           "class": "Elite",
           "health": 648651,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -19379,7 +19153,6 @@
           "type": "Humanoid",
           "class": "Elite",
           "health": 2270279,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -19404,7 +19177,6 @@
           "type": "Humanoid",
           "class": "Elite",
           "health": 3243255,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -19423,7 +19195,6 @@
           "type": "Beast",
           "class": "Elite",
           "health": 4540557,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -19456,7 +19227,6 @@
           "type": "Humanoid",
           "class": "Elite",
           "health": 6486510,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -19485,7 +19255,6 @@
           "type": "Demon",
           "class": "Elite",
           "health": 259460,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -19508,7 +19277,6 @@
           "type": "Demon",
           "class": "Elite",
           "health": 2703424,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -19530,7 +19298,6 @@
           "type": "Humanoid",
           "class": "Elite",
           "health": 648651,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -19549,7 +19316,6 @@
           "type": "Humanoid",
           "class": "Elite",
           "health": 7783812,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -19574,7 +19340,6 @@
           "type": "Humanoid",
           "class": "Elite",
           "health": 648651,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -19594,7 +19359,6 @@
           "type": "Beast",
           "class": "Elite",
           "health": 648651,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -19617,7 +19381,6 @@
           "type": "Humanoid",
           "class": "Elite",
           "health": 5189210,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -19637,7 +19400,6 @@
           "type": "Demon",
           "class": "Elite",
           "health": 2270279,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -19658,7 +19420,6 @@
           "type": "Humanoid",
           "class": "Elite",
           "health": 648651,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -19692,7 +19453,6 @@
           "type": "Demon",
           "class": "Elite",
           "health": 10000,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -21453,7 +21213,6 @@
           "class": "Boss",
           "boss": true,
           "health": 20367641,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -21504,7 +21263,6 @@
           "class": "Boss",
           "boss": true,
           "health": 29189294,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -21567,7 +21325,6 @@
           "class": "Boss",
           "boss": true,
           "health": 25946039,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -21605,7 +21362,6 @@
           "type": "Beast",
           "class": "Elite",
           "health": 1945953,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -21627,7 +21383,6 @@
           "type": "Beast",
           "class": "Elite",
           "health": 3243255,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -21646,7 +21401,6 @@
           "type": "Humanoid",
           "class": "Elite",
           "health": 3567581,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -21668,7 +21422,6 @@
           "type": "Beast",
           "class": "Elite",
           "health": 5513534,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -21694,7 +21447,6 @@
           "type": "Beast",
           "class": "Elite",
           "health": 972977,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -21713,7 +21465,6 @@
           "type": "Humanoid",
           "class": "Elite",
           "health": 2918930,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -21749,7 +21500,6 @@
           "type": "Beast",
           "class": "Elite",
           "health": 2918930,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -21772,7 +21522,6 @@
           "type": "Beast",
           "class": "Elite",
           "health": 9081114,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -21803,7 +21552,6 @@
           "type": "Beast",
           "class": "Elite",
           "health": 5513534,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -21825,7 +21573,6 @@
           "type": "Beast",
           "class": "Elite",
           "health": 32432549,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -21857,7 +21604,6 @@
           "type": "Humanoid",
           "class": "Elite",
           "health": 4864883,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -21890,7 +21636,6 @@
           "type": "Elemental",
           "class": "Elite",
           "health": 1297302,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -21908,7 +21653,6 @@
           "level": 90,
           "class": "Elite",
           "health": 648651,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -21927,7 +21671,6 @@
           "type": "Beast",
           "class": "Elite",
           "health": 10000,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -21946,7 +21689,6 @@
           "type": "Humanoid",
           "class": "Elite",
           "health": 5189208,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -21974,7 +21716,6 @@
           "type": "Humanoid",
           "class": "Elite",
           "health": 5189208,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -21993,7 +21734,6 @@
           "type": "Beast",
           "class": "Elite",
           "health": 32432550,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",
@@ -22015,7 +21755,6 @@
           "type": "Humanoid",
           "class": "Elite",
           "health": 3243255,
-          "aggressiveness": "aggressive",
           "flags": [
             "bolstering",
             "bursting",

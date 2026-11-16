@@ -13,8 +13,8 @@ const TOOLS: { tool: DrawTool; label: string; hint: string; adds?: boolean }[] =
 ]
 
 /** The route map's drawing toolbar: the tools, the color the next drawing gets (the pull colors, picked while a tool
- * that adds one is on, always shown so the map doesn't jump), and the Note tool's text. With `full` (the route has its most drawings) only Select and Erase
- * work. */
+ * that adds one is on, always shown so the map doesn't jump), and the Note tool's text. With `full` (the route has
+ * its most drawings) only Select and Erase work. */
 export function DrawTools(props: {
   tool: DrawTool
   onTool: (tool: DrawTool) => void

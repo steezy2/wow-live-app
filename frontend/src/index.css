@@ -1681,6 +1681,10 @@ button.link {
   text-align: left;
 }
 
+.route-pulls li:not(:first-child) {
+  cursor: pointer;
+}
+
 .route-swatch {
   display: inline-block;
   width: 1.6rem;
@@ -1711,17 +1715,6 @@ button.link {
 }
 
 /* The route map's draw tools (DrawTools.tsx): while one is on, a press draws and a drag doesn't move the map. */
-.draw-tools {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--s1);
-}
-
-.draw-tools .route-swatch {
-  height: 1.4rem;
-}
-
 .map-canvas.drawing,
 .replay .map-canvas.drawing {
   cursor: crosshair;
@@ -1787,6 +1780,7 @@ button.route-swatch[aria-pressed='true'] {
 .mob-badges,
 .mob-spells li,
 .pull-colors,
+.draw-tools,
 .menu-actions {
   display: flex;
   flex-wrap: wrap;
@@ -1794,6 +1788,7 @@ button.route-swatch[aria-pressed='true'] {
   gap: var(--s1);
 }
 
+.draw-tools .route-swatch,
 .pull-colors .route-swatch {
   height: 1.4rem;
 }

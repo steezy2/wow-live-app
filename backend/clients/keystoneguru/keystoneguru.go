@@ -235,20 +235,19 @@ var (
 
 // NPCs is every NPC in Keystone.guru's npcs.json by NPC ID, without a name (its file has translation keys only):
 // level, type, classification (Boss set for a boss or final boss), the live game's base health (scaled by the row's
-// percentage), aggressiveness and the flags set, in the order DungeonMob lists them.
+// percentage) and the flags set, in the order DungeonMob lists them.
 func (c Client) NPCs(ctx context.Context) (map[int]models.DungeonMob, error) {
 	var npcs []struct {
-		ID             int    `json:"id"`
-		Level          int    `json:"level"`
-		Type           int    `json:"npc_type_id"`
-		Classification int    `json:"classification_id"`
-		Aggressiveness string `json:"aggressiveness"`
-		Bolstering     int    `json:"bolstering"`
-		Bursting       int    `json:"bursting"`
-		Sanguine       int    `json:"sanguine"`
-		Dangerous      int    `json:"dangerous"`
-		Truesight      int    `json:"truesight"`
-		RunsAway       int    `json:"runs_away_in_fear"`
+		ID             int `json:"id"`
+		Level          int `json:"level"`
+		Type           int `json:"npc_type_id"`
+		Classification int `json:"classification_id"`
+		Bolstering     int `json:"bolstering"`
+		Bursting       int `json:"bursting"`
+		Sanguine       int `json:"sanguine"`
+		Dangerous      int `json:"dangerous"`
+		Truesight      int `json:"truesight"`
+		RunsAway       int `json:"runs_away_in_fear"`
 		Healths        []struct {
 			GameVersion int      `json:"game_version_id"`
 			Health      float64  `json:"health"`
@@ -261,8 +260,7 @@ func (c Client) NPCs(ctx context.Context) (map[int]models.DungeonMob, error) {
 	out := make(map[int]models.DungeonMob, len(npcs))
 	for _, n := range npcs {
 		mob := models.DungeonMob{NPC: n.ID, Level: n.Level, Type: npcTypes[n.Type],
-			Class: npcClassifications[n.Classification], Boss: n.Classification == 3 || n.Classification == 4,
-			Aggressiveness: n.Aggressiveness}
+			Class: npcClassifications[n.Classification], Boss: n.Classification == 3 || n.Classification == 4}
 		for _, h := range n.Healths {
 			if h.GameVersion != retail {
 				continue
