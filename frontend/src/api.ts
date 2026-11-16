@@ -878,9 +878,9 @@ export function onAppEvent(name: string, callback: (data: unknown) => void): () 
   }
 }
 
-/** Calls onChange once now and whenever the site says the keys changed (and in a browser when the stream reopens). In the desktop app the notices are Wails
- * events; in a browser, the site's event stream, polling every FALLBACK_POLL_MS while it's down (the browser keeps
- * retrying it). While the page is hidden (a window in the tray) a change waits and is read once when it shows again.
+/** Calls notify once now and whenever the site says the keys changed (and in a browser when the stream reopens). In
+ * the desktop app the notices are Wails events; in a browser, the site's event stream, polling every FALLBACK_POLL_MS
+ * while it's down (the browser keeps retrying it). While the page is hidden (a window in the tray) a change waits and is read once when it shows again.
  * Returns the unsubscribe. */
 export function subscribe(notify: () => void): () => void {
   let missed = false

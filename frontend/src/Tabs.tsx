@@ -10,7 +10,7 @@ export function Tabs(props: {
   onOpen?: (index: number) => void
 }) {
   const { tabs, initial = 0, onOpen } = props
-  const [picked, setOpen] = useState(initial)
+  const [picked, setPicked] = useState(initial)
   const open = props.open ?? picked
   return (
     <section className="tabs">
@@ -21,7 +21,7 @@ export function Tabs(props: {
             role="tab"
             aria-selected={i === open}
             onClick={() => {
-              setOpen(i)
+              setPicked(i)
               onOpen?.(i)
             }}
           >

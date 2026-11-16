@@ -18,9 +18,6 @@ import { Tabs } from './Tabs'
 import { type Seeker } from './Seek'
 import { tip } from './tipAttrs'
 
-/** The Route tab's place in the key's tabs. */
-const ROUTE_TAB = 3
-
 /** The result's icon, so it doesn't rest on colour alone. */
 const resultIcon: Record<KeyView['status'], string> = {
   running: '',
@@ -77,8 +74,8 @@ export function KeyDetails({
         name: 'Bosses',
         body: <BossList keyView={key} track={track} topBosses={review?.topBosses} onSeek={show} />,
       },
-      // A running key's route is compared again as its track grows, but only while its tab is open.
-      { name: 'Route', body: <KeyRoute keyView={key} track={routeOpen ? track : null} seek={seek} /> },
+      // A running key's route is compared again as its track grows, but only while its tab is open (a saved key's once).
+      { name: 'Route', body: <KeyRoute keyView={key} track={routeOpen || key.status !== 'running' ? track : null} seek={seek} /> },
       ...fightTabs(
         { ...key, lanes: key.lanes ?? [] },
         `Deaths ${key.deaths.length} (+${clock(key.penaltyMS)})`,
@@ -240,7 +237,7 @@ export function KeyDetails({
         <KeyMap keyView={key} clockMS={clockMS} track={track} replay={replay} focus={focus} onFocus={setFocus} />
       </section>
 
-      <Tabs tabs={tabs} onOpen={(i) => setRouteOpen(i === ROUTE_TAB)} />
+      <Tabs tabs={tabs} onOpen={(i) => setRouteOpen(tabs[i].name === 'Route')} />
       <p className="muted small">{key.players.join(' · ')}</p>
     </div>
   )
