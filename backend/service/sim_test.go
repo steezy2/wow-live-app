@@ -188,6 +188,35 @@ func TestSimsRunOneAtATimeAndCancel(t *testing.T) {
 	}
 }
 
+func TestSimsRemoveDeletesAFinishedSim(t *testing.T) {
+	s := newTestSims(t, "ok")
+	started, err := s.Start(simRequest(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	waitSim(t, s, started.ID)
+	if err := s.Remove(started.ID); err != nil {
+		t.Fatal(err)
+	}
+	if list, _ := s.List(); len(list) != 0 {
+		t.Errorf("a removed sim is still listed: %+v", list)
+	}
+}
+
+func TestSimsStopWhenTheAppQuits(t *testing.T) {
+	s := newTestSims(t, "hang")
+	ctx, quit := context.WithCancel(context.Background())
+	s.Ctx = ctx
+	started, err := s.Start(simRequest(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	quit()
+	if sim := waitSim(t, s, started.ID); sim.State != models.SimCancelled {
+		t.Errorf("state = %q, want cancelled", sim.State)
+	}
+}
+
 func TestSimsShowWhySimcFailed(t *testing.T) {
 	s := newTestSims(t, "fail")
 	started, err := s.Start(simRequest(t))

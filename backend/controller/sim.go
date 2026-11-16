@@ -117,6 +117,7 @@ func (a SimAPI) ParseProfile(c *gin.Context) {
 //	@Success		202		{object}	models.Sim
 //	@Failure		400		{object}	ErrorResponse	"options outside the choices, or not an export"
 //	@Failure		409		{object}	ErrorResponse	"a sim or a download is running, or no engine is installed"
+//	@Failure		500		{object}	ErrorResponse
 //	@Router			/api/sim [post]
 func (a SimAPI) Start(c *gin.Context) {
 	var req models.SimRequest
