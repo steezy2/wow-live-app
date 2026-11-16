@@ -4,6 +4,8 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 
 ## [Unreleased]
 
+## [0.4.9] - 2026-11-16
+
 ### Changed
 - **Routes tab**: typing a new name offers *Save as new route* (the original stays as it was) and *Rename* (saves over it); *Delete route* is beside them. *From MDT's saves* lists only the picked dungeon's routes.
 
