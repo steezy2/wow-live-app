@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
   createRoute,
+  deleteRoute,
   fetchKeyRoute,
   fetchRecordedRoute,
   fetchRoutes,
   saveRoute,
-  type KeyTrack, type KeyView, type RouteCompare,
+  type KeyTrack,
+  type KeyView,
+  type RouteCompare,
   type RouteView,
 } from './api'
 import { counted } from './format'
@@ -23,11 +26,10 @@ function RecordRoute({ keyView: key, onRecorded }: { keyView: KeyView; onRecorde
       if (pulls.length === 0) return setState("No kills on the map to record: read this key's log again.")
       const name = `${key.dungeon} +${key.level} recorded`
       const route = await createRoute(key.mapID, name)
-      await saveRoute(route.id, {
-        name,
-        drawings: [],
-        pulls: pulls.map((enemies, i) => ({ color: PULL_COLORS[i % PULL_COLORS.length], enemies })),
-      })
+      const colored = pulls.map((enemies, i) => ({ color: PULL_COLORS[i % PULL_COLORS.length], enemies }))
+      await saveRoute(route.id, { name, drawings: [], pulls: colored }).catch((err: Error) =>
+        deleteRoute(route.id).then(() => Promise.reject(err)),
+      ) // no empty route is left behind
       setState(`Recorded as “${name}” (see the Routes tab).`)
       onRecorded()
     } catch (err) {
@@ -36,7 +38,7 @@ function RecordRoute({ keyView: key, onRecorded }: { keyView: KeyView; onRecorde
   }
   return (
     <p>
-      <button onClick={record} disabled={state === 'busy'}>
+      <button onClick={record} disabled={state === 'busy' || state.startsWith('Recorded')}>
         Record route
       </button>{' '}
       {state !== 'idle' && state !== 'busy' && <span className="muted">{state}</span>}

@@ -158,7 +158,7 @@ export function RouteMap(props: {
   const [line, setLine] = useState<Point[] | null>(null) // the line being drawn
   const drawn = useRef<Point[]>([]) // the same, for the press's end
   const animated = !STILL && !!states?.includes('next') // the outline runs, so the map draws every frame
-  const now = useCallback(() => performance.now(), [])
+  const frameClock = useCallback(() => performance.now(), [])
   const full = (drawings?.length ?? 0) >= (limits?.drawings ?? Infinity)
   const tool = full && addsDrawing(picked) ? 'select' : picked // a full route leaves a tool that would add
   const frame = useRef(0) // the animation frame that shows the line so far
@@ -361,7 +361,7 @@ export function RouteMap(props: {
         onPickEnemy={onEnemy && pick}
         onContext={onContext && context}
         tipOf={mobs && tipOf}
-        clock={animated ? now : undefined}
+        clock={animated ? frameClock : undefined}
         onStroke={onDraw && tool !== 'select' ? stroke : undefined}
       />
       <p className="muted small">
