@@ -14,6 +14,7 @@ import {
   MIN_FLOOR_POINTS,
   positionAt,
   UNSEEN_MS,
+  valueAt,
 } from './replay'
 
 const at = (t: number, x: number, map = 1): TrackPoint => ({ t, x, y: 0, map })
@@ -28,6 +29,19 @@ describe('indexAfter', () => {
     ['duplicate times', [at(10, 0), at(20, 1), at(20, 2), at(30, 0)], 20, 3],
   ])('%s', (_, points, now, i) => {
     expect(indexAfter(points, now)).toBe(i)
+  })
+})
+
+describe('valueAt', () => {
+  const points = [{ t: 10, d: 5 }, { t: 20, d: 9, h: 2 }, { t: 30, d: 12 }]
+  it.each([
+    ['before the first point', 5, 'd', 0],
+    ['on a point', 20, 'd', 9],
+    ['between points', 25, 'd', 9],
+    ['after the last', 99, 'd', 12],
+    ['a number the point lacks', 30, 'h', 0],
+  ] as const)('%s', (_, t, kind, want) => {
+    expect(valueAt(points as never, t, kind)).toBe(want)
   })
 })
 

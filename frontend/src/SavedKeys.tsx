@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { deleteSavedKeys, fetchSavedKeys, type KeySummary } from './api'
 import { chestLabel, clock, counted, errorText } from './format'
 import { ReportTag } from './ReportLinks'
@@ -17,13 +17,13 @@ export function SavedKeys({ selected, onSelect, refresh, character }: {
 }) {
   const [keys, setKeys] = useState<KeySummary[] | null>(null) // null until first read; then the last list stays up while it is read again
   const [error, setError] = useState<string | null>(null)
-  const load = useCallback(
-    () =>
-      fetchSavedKeys(character)
-        .then(setKeys)
-        .catch((err: unknown) => setError(errorText(err))),
-    [character],
-  )
+  const asked = useRef(0)
+  const load = useCallback(() => {
+    const n = ++asked.current
+    return fetchSavedKeys(character)
+      .then((list) => n === asked.current && setKeys(list)) // an answer to an older ask never lands over a newer
+      .catch((err: unknown) => setError(errorText(err)))
+  }, [character])
   useEffect(() => void load(), [refresh, load])
 
   const remove = (start?: number) => {

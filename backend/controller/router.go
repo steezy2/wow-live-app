@@ -11,13 +11,10 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	swaggerFiles "github.com/swaggo/files"
-	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
 // Router is the site for hosts (LocalHosts, or the app's own): the API under /api (the raid overview's when raid
-// isn't nil), the settings and Warcraft Logs keys when settings isn't nil (the desktop app), its spec at
-// /swagger/index.html, and the built page from pages (frontend/dist, on disk or built into the app) for every other
+// isn't nil), the settings and Warcraft Logs keys when settings isn't nil (the desktop app), and the built page from pages (frontend/dist, on disk or built into the app) for every other
 // path, so the page's own routes load index.html. Only requests addressed to this PC by name are answered, so another
 // website can't read the API by pointing its domain at 127.0.0.1 (DNS rebinding), and requests sent by another
 // website's page (or an image or script it loads) are refused, so it can't spend points, delete keys or fill the
@@ -102,7 +99,6 @@ func Router(mplus MPlus, raid *Raid, settings *SettingsAPI, pages fs.FS, hosts .
 		api.DELETE("/settings/logs/archive", settings.DeleteLogs)
 		api.GET("/storage", settings.Storage)
 	}
-	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	r.NoRoute(func(c *gin.Context) {
 		if strings.HasPrefix(c.Request.URL.Path, "/api/") {
 			c.JSON(http.StatusNotFound, ErrorResponse{Error: "no such endpoint"})
@@ -113,6 +109,9 @@ func Router(mplus MPlus, raid *Raid, settings *SettingsAPI, pages fs.FS, hosts .
 			name = "index.html"
 		}
 		c.Header("Content-Security-Policy", pagePolicy)
+		if strings.HasPrefix(name, "assets/") { // the build names these by their content, so they never change
+			c.Header("Cache-Control", "public, max-age=31536000, immutable")
+		}
 		http.ServeFileFS(c.Writer, c.Request, pages, name)
 	})
 	return r

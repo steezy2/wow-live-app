@@ -18,6 +18,24 @@ class FakeEventSource {
   }
 }
 
+/** A page whose hidden flag the test sets; show() fires its visibilitychange listeners. */
+function stubPage() {
+  const page = {
+    hidden: false,
+    listeners: [] as (() => void)[],
+    addEventListener: (_type: string, listener: () => void) => page.listeners.push(listener),
+    removeEventListener: (_type: string, listener: () => void) => {
+      page.listeners = page.listeners.filter((l) => l !== listener)
+    },
+    show() {
+      page.hidden = false
+      page.listeners.forEach((listener) => listener())
+    },
+  }
+  vi.stubGlobal('document', page)
+  return page
+}
+
 afterEach(() => {
   vi.useRealTimers()
   vi.unstubAllGlobals()
@@ -27,6 +45,7 @@ test('subscribe reads now and on each change, polls while the stream is down and
   vi.useFakeTimers()
   vi.stubGlobal('EventSource', FakeEventSource)
   vi.stubGlobal('location', { host: 'localhost:8080' })
+  stubPage()
   const onChange = vi.fn()
   const unsubscribe = subscribe(onChange)
   const source = FakeEventSource.last
@@ -42,6 +61,23 @@ test('subscribe reads now and on each change, polls while the stream is down and
   expect(onChange).toHaveBeenCalledTimes(6)
   unsubscribe()
   expect(source.closed).toBe(true)
+})
+
+test('subscribe holds changes while the page is hidden and reads once when it shows', () => {
+  vi.stubGlobal('EventSource', FakeEventSource)
+  vi.stubGlobal('location', { host: 'localhost:8080' })
+  const page = stubPage()
+  page.hidden = true
+  const onChange = vi.fn()
+  const unsubscribe = subscribe(onChange)
+  FakeEventSource.last.listeners.forEach((listener) => listener())
+  FakeEventSource.last.listeners.forEach((listener) => listener())
+  expect(onChange).not.toHaveBeenCalled()
+  page.show()
+  page.show()
+  expect(onChange).toHaveBeenCalledTimes(1)
+  unsubscribe()
+  expect(page.listeners).toHaveLength(0)
 })
 
 test('fetchSpell asks once for an answer, keeps an unknown spell ID, and asks again after a failure or an unknown name', async () => {
