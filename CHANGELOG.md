@@ -4,6 +4,8 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 
 ## [Unreleased]
 
+## [0.4.7] - 2026-11-16
+
 ### Added
 - **Record route**: a key's Route tab has a *Record route* button that makes a new route (starred when the dungeon has none) from the pulls the key made: its kills matched to map enemies, grouped by the key pull they died in. `GET /api/mplus/keys/{start}/recorded-route` gives those pulls.
 
