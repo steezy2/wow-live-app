@@ -4,6 +4,8 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 
 ## [Unreleased]
 
+## [0.4.6] - 2026-11-15
+
 ### Added
 - **Live route tracker**: a running key's Route tab shows each pull of the route as done (muted green), next (the two unfinished pulls after the last one reached, in their colors with a "next" tag), later (faded) or missed (red outline: unfinished though a later pull was reached, with its unkilled mobs and forces listed), and a *Forces x% vs y% planned* line when the key trails the plan by 1 point or more. The log shows nothing inside a fight, so the pull in progress is the first unfinished one. The live header adds `· N missed` and `· forces behind plan`, and any route that plans under 100% forces says so. `GET /api/mplus/keys/{start}/route` returns each pull's `state` plus `last`, `missed` and `behind`; `GET /api/mplus/live`'s route adds `missed` and `behind`.
 - **Mob data** for the route editor: `reference/mplus-dungeons.json` now keeps each dungeon's mobs (`mobs`: name and spells with Interruptible/Magic from Mythic Dungeon Tools; level, type, class, base health and affix flags from Keystone.guru's `npcs.json`). `GET /api/mplus/dungeons/{mapID}/mobs?level=N` scales them to a key level (2 to 40, by default the top bar character's newest saved key there, else 10) the way Keystone.guru does: 7% a level through +10, 10% a level after, Fortified on trash and Tyrannical on bosses from +10, trash 5% lower up to +5. It matched every mob in a +17 Temple of Sethraliss log to the point. No source has a mob's own damage, so it gives the level's damage multiplier only. `GET /api/spells?id=` explains the spell of a dungeon mob by its ID (404 for any other).
