@@ -36,9 +36,10 @@ function Splash() {
 }
 
 /** The site: its sections along the top (Home, M+ Live, Routes, Raid, Recap, and Settings in the desktop app) and the
- * character picker, whose pick (Settings' character at first, else all) the saved keys, raid nights and recap show;
- * M+ Live has the saved keys on the side and the live key or the one picked from them. The app shows a splash until
- * the settings and characters are read (at most SPLASH_MAX_MS), then opens on Home. */
+ * character picker, whose pick (Settings' character at first, all when M+ Live is first opened, then the last one) the
+ * saved keys, raid nights and recap show; M+ Live has the saved keys on the side and the live key or the one picked
+ * from them. The app shows a splash until the settings and characters are read (at most SPLASH_MAX_MS), then opens on
+ * Home. */
 export default function App() {
   const [selected, setSelected] = useState<number | null>(null)
   const [refresh, setRefresh] = useState(0)
@@ -63,6 +64,7 @@ export default function App() {
   const ready = (settingsRead && charactersRead && savedKeys !== null) || splashOver
   const section = picking ?? (ready ? 'home' : null)
   if (section === 'routes' && !routesSeen) setRoutesSeen(true)
+  if (section === 'mplus' && picked === null) setPicked('') // the first M+ open shows all; after that the pick stays
   useEffect(() => {
     const timer = setTimeout(() => setSplashOver(true), SPLASH_MAX_MS)
     return () => clearTimeout(timer)
