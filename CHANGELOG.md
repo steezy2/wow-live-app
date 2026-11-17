@@ -4,6 +4,8 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-11-16
+
 ### Changed
 - The app always opens on **Home** (it was M+ Live, or Settings when the log folder was missing; Home's guide already shows a missing log folder).
 - `npm audit fix` in `frontend/` bumps `minimatch` (a dev-only denial-of-service advisory reached through ESLint); `npm audit` now reports 0 vulnerabilities.
