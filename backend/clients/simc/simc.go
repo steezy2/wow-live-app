@@ -53,7 +53,9 @@ type Client struct {
 type manifest struct {
 	File    string `json:"file"` // the nightly's file name, which names its commit
 	BuiltMS int64  `json:"builtMS"`
-	SHA256  string `json:"sha256"` // of simc.exe
+	SHA256  string `json:"sha256"`  // of simc.exe
+	Version string `json:"version"` // what simc printed when the job ran it ("1210-01"), so the app need not
+	Patch   string `json:"patch"`   // run the new file to know (a first run can wait on a virus scan)
 }
 
 func (c Client) base() string {
@@ -89,7 +91,7 @@ func (c Client) Install(ctx context.Context) (models.SimEngine, error) {
 		return models.SimEngine{}, err
 	}
 	return c.replace(ctx, func(dest string) error { return download(ctx, c.base()+exeName, dest, m.SHA256) },
-		models.SimEngine{File: m.File, BuiltMS: m.BuiltMS})
+		models.SimEngine{File: m.File, BuiltMS: m.BuiltMS, Version: m.Version, Patch: m.Patch})
 }
 
 // UseFile makes the simc.exe at src (a path the owner chose) the engine: it is copied into Dir and must be a program
@@ -104,7 +106,7 @@ func (c Client) UseFile(ctx context.Context, src string) (models.SimEngine, erro
 }
 
 // replace puts the program fetch writes in place of the installed one, once it checks out, and saves what is known of
-// it (engine's File and BuiltMS, plus the version and patch it prints and its size).
+// it (engine's File and BuiltMS, plus its size and, unless engine already has them, the version and patch it prints).
 func (c Client) replace(ctx context.Context, fetch func(dest string) error,
 	engine models.SimEngine) (models.SimEngine, error) {
 	if err := os.MkdirAll(c.Dir, 0o755); err != nil {
@@ -118,9 +120,11 @@ func (c Client) replace(ctx context.Context, fetch func(dest string) error,
 	if err := checkProgram(next); err != nil {
 		return models.SimEngine{}, err
 	}
-	version, patch, err := runBanner(ctx, next)
-	if err != nil {
-		return models.SimEngine{}, fmt.Errorf("checking %s: %w", engine.File, err)
+	if engine.Version == "" {
+		var err error
+		if engine.Version, engine.Patch, err = runBanner(ctx, next); err != nil {
+			return models.SimEngine{}, fmt.Errorf("checking %s: %w", engine.File, err)
+		}
 	}
 	if err := os.Rename(next, c.Path()); err != nil {
 		return models.SimEngine{}, fmt.Errorf("replacing %s (is a sim running?): %w", c.Path(), err)
@@ -129,7 +133,7 @@ func (c Client) replace(ctx context.Context, fetch func(dest string) error,
 	if err != nil {
 		return models.SimEngine{}, fmt.Errorf("measuring %s: %w", c.Path(), err)
 	}
-	engine.Installed, engine.Version, engine.Patch, engine.Size = true, version, patch, info.Size()
+	engine.Installed, engine.Size = true, info.Size()
 	if err := cachefile.WriteJSON(c.infoPath(), engine); err != nil {
 		return models.SimEngine{}, err
 	}
@@ -235,8 +239,12 @@ func checkProgram(file string) error {
 	return nil
 }
 
+// bannerWaits is how long runBanner waits before each new try: the first run of a new file can be held up by a virus
+// scan.
+var bannerWaits = []time.Duration{3 * time.Second, 10 * time.Second, 30 * time.Second}
+
 // runBanner runs exe without an input, which makes simc print its version and game patch, and returns them. It tries
-// twice: the first run of a new file can be held up by a virus scan.
+// again after each of bannerWaits.
 func runBanner(ctx context.Context, exe string) (version, patch string, err error) {
 	for attempt := 1; ; attempt++ {
 		started := time.Now()
@@ -247,10 +255,10 @@ func runBanner(ctx context.Context, exe string) (version, patch string, err erro
 		}
 		err = fmt.Errorf("it printed no SimulationCraft version (attempt %d: %v after %s, timed out %v, it said %q)", attempt,
 			runErr, time.Since(started).Round(time.Millisecond), timedOut, strings.TrimSpace(out[:min(len(out), 200)]))
-		if attempt == 2 || ctx.Err() != nil {
+		if attempt > len(bannerWaits) || ctx.Err() != nil {
 			return "", "", err
 		}
-		time.Sleep(3 * time.Second)
+		time.Sleep(bannerWaits[attempt-1])
 	}
 }
 

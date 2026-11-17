@@ -44,7 +44,7 @@ jobs:
       - name: Skip when the release already has it
         run: |
           current=$(gh release download simc-engine --repo "$GITHUB_REPOSITORY" --pattern engine.json --output - 2>/dev/null \
-            | jq -r .file || true)
+            | jq -r 'select((.version // "") != "") | .file' || true) # a release without a version is published again
           if [ "$current" = "$file" ]; then echo "skip=true" >> "$GITHUB_ENV"; echo "$file is already published"; fi
       - name: Check it runs
         if: env.skip != 'true'
@@ -54,12 +54,14 @@ jobs:
           cp "$exe" simc.exe
           ./simc.exe 2>&1 | tee banner.txt || true
           grep -q 'SimulationCraft .* for World of Warcraft' banner.txt
+          echo "version=$(sed -n 's/.*SimulationCraft \([^ ]*\) for World of Warcraft.*/\1/p' banner.txt | head -1)" >> "$GITHUB_ENV"
+          echo "patch=$(sed -n 's/.*for World of Warcraft \([^ ]*\).*/\1/p' banner.txt | head -1)" >> "$GITHUB_ENV"
       - name: Publish
         if: env.skip != 'true'
         run: |
           sum=$(sha256sum simc.exe | cut -d' ' -f1)
-          jq -n --arg file "$file" --argjson built "$built" --arg sha "$sum" \
-            '{file: $file, builtMS: $built, sha256: $sha}' > engine.json
+          jq -n --arg file "$file" --argjson built "$built" --arg sha "$sum" --arg version "$version" \
+            --arg patch "$patch" '{file: $file, builtMS: $built, sha256: $sha, version: $version, patch: $patch}' > engine.json
           commit=${file%-win64.7z}; commit=${commit##*.}
           notes="SimulationCraft nightly \`$file\` (source: https://github.com/simulationcraft/simc/commit/$commit), unchanged,"
           notes="$notes from simulationcraft/simc-publish's Actions artifact, whose sha256 matched GitHub's. GPL-3.0."
