@@ -5,11 +5,11 @@ import (
 	"strconv"
 	"strings"
 
-	"wow-live/backend/clients/combatlog"
+	"wow-live/backend/models"
 )
 
 // keyDifficulty is the Mythic+ difficulty in the combat log's ENCOUNTER lines.
-var keyDifficulty = strconv.Itoa(combatlog.MPlusDifficulty)
+var keyDifficulty = strconv.Itoa(models.MPlusDifficulty)
 
 const (
 	// advancedFields is the length of the actor block advanced logging adds (GUID, owner, health, max health,

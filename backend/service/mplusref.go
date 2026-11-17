@@ -8,7 +8,6 @@ import (
 	"slices"
 	"strings"
 
-	"wow-live/backend/clients/combatlog"
 	"wow-live/backend/models"
 )
 
@@ -345,7 +344,7 @@ func (h *HitCounter) Add(line models.LogLine) {
 	case line.Event == "CHALLENGE_MODE_START" && len(f) >= 3:
 		h.mapID, h.raid, h.party, h.hits = atoi(f[2]), false, nil, map[int]map[string]int{}
 	case line.Event == "ENCOUNTER_START" && h.hits == nil && len(f) >= 3 &&
-		combatlog.RaidDifficultyByLogID(f[2]).Name != "":
+		models.RaidDifficultyByLogID(f[2]).Name != "":
 		h.mapID, h.raid, h.party, h.hits = atoi(f[0]), true, nil, map[int]map[string]int{}
 		h.Encounters[h.mapID] = f[1]
 	case h.hits == nil:
@@ -357,7 +356,7 @@ func (h *HitCounter) Add(line models.LogLine) {
 		if parts := strings.Split(f[4], "-"); len(parts) > 5 {
 			h.Kills[[2]int{h.mapID, atoi(parts[5])}]++
 		}
-	case line.Event == "SPELL_DAMAGE" && len(f) > 9 && hasFlag(f[2], combatlog.FlagHostile) &&
+	case line.Event == "SPELL_DAMAGE" && len(f) > 9 && hasFlag(f[2], models.FlagHostile) &&
 		slices.Contains(h.party, f[4]):
 		spell := atoi(f[8])
 		if h.hits[spell] == nil {

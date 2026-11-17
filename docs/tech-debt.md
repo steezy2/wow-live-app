@@ -25,6 +25,7 @@ the same change; move it to **Done** (with the PR) when it lands. Size: S under 
 | 17 | No size or speed budget is checked in CI | `Makefile`, CI | The exe (21.7 MB), the JS bundle (405 kB, 128 kB gzipped) and Learn's peak memory (327 MB on 2.2 GB of logs) were measured by hand once. A CI step that fails past a margin keeps them from creeping back | S-M |
 | 18 | The app's idle memory and start-up time are unmeasured | `cmd/app` | Only Learn was measured. Record private bytes at idle, after loading a night's log and after a replay, and the time to first paint, so later changes have a baseline | S |
 | 19 | Repeated fetches are shared one by one | `api.ts` callers | Only the dungeon map and spells share an in-flight request. Audit pages that fetch the same URL (keys, routes, mobs) and share them in one place | S-M |
+| 34 | `controller_test.go` repeats its request and router setup (16 `httptest.NewRecorder()` calls) | `controller_test.go` | `serve()` and `newRouter()` helpers (about -60 lines) | S |
 
 ## To check in the running app (PR #77)
 
@@ -43,4 +44,4 @@ the same change; move it to **Done** (with the PR) when it lands. Size: S under 
 - Frontend dry-up (`chore/frontend-dry`): `useFetched` for the fetches that don't keep their last answer, `<FixNext>`, `<Tiles>`, `<SavedBefore>`, `disc()`, tab ids and the ARIA tabs pattern, replay hot spots, CSS tokens, ES2024 target, `FightKind`, wrapper tests cut (`CHANGELOG.md`). Left: `MPlusLive`, `RaidPage`, `WaitingCard` (it re-reads on `subscribe`) and `useMobs` keep their last answer while the next one loads (a list that never flashes empty), `ComparePlayer` sets its answer from the run button too; the lane labels (10 px on fixed 14 px lanes) and the tile numbers (1.6rem) keep their own sizes.
 - Lint and CI hold the rules (item 12, and 30 and 31 of the review): `max-len` 120, `golangci-lint` (`lll`, `errcheck`, `staticcheck`, `unused`), the `swag` diff check and a Windows job; stale docs fixed.
 - PR #77: Learn peak memory 1,019 MB → 327 MB, exe 41 MB → 21.7 MB, replay seek and idle work (`CHANGELOG.md`).
-- Backend DRY (items 20 to 25, `chore/backend-dry`): `Key` / `RaidPull` twin code (upsert, save, link, remove, `keystore.Folder[T]`), `cachefile.Fresh` bytes and `ReadJSON[T]`, one `config.Load`, one combat-log constants table, fewer track decodes in `Comparer` and `DungeonMap`, `Importer` files behind `importstore` and `service.SaveSettings`.
+- Backend DRY (items 20 to 25, `chore/backend-dry`): `Key` / `RaidPull` twin code (upsert, save, link, remove, `keystore.Folder[T]`), `cachefile.Fresh` bytes and `ReadJSON[T]`, one `config.Load`, one combat-log constants table, fewer track decodes in `Comparer`, `Importer` files behind `importstore` and `service.SaveSettings`.

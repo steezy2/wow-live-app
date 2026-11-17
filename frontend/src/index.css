@@ -269,7 +269,7 @@ button {
   align-items: stretch;
   border-radius: 4px;
   text-align: left;
-  padding: var(--s2) var(--s2);
+  padding: var(--s2);
 }
 
 .item.active,

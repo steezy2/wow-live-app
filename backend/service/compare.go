@@ -12,7 +12,6 @@ import (
 	"strings"
 	"sync"
 
-	"wow-live/backend/clients/combatlog"
 	"wow-live/backend/models"
 )
 
@@ -251,7 +250,7 @@ func (c Comparer) load(kind models.FightKind, start int64, player string) (fight
 		if !ok {
 			return fightRun{}, ErrNoSuchPlayer
 		}
-		if combatlog.RankedDifficultyWCL(pull.Difficulty) == 0 {
+		if models.RankedDifficultyWCL(pull.Difficulty) == 0 {
 			return fightRun{}, fmt.Errorf("%w: Warcraft Logs ranks no %s pulls", ErrNoTopLogs, pull.Difficulty)
 		}
 		track, err := readTrack(c.Keys.RaidTrack, start, ErrNoSuchPull)
@@ -259,7 +258,7 @@ func (c Comparer) load(kind models.FightKind, start int64, player string) (fight
 			return fightRun{}, err
 		}
 		f := fightRun{kind: kind, start: start, end: pull.End, encounter: pull.Boss,
-			boss:      combatlog.RankedDifficultyWCL(pull.Difficulty),
+			boss:      models.RankedDifficultyWCL(pull.Difficulty),
 			character: character(player, pull.Realms), spec: spec, specID: pull.Specs[player], partial: !pull.Kill,
 			local: pullPlayer(pull, track, player), casts: track.Casts[player], buffs: track.Buffs[player]}
 		f.local.Talents = pull.Talents[player]

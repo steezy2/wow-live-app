@@ -79,7 +79,7 @@ func run() error {
 	// Made first, so a second copy hands over to the running one and exits before it reads a log or resumes an
 	// import. The page is served once Run starts, by then from site.
 	var site *app.Site
-	var show func()
+	var showWindow atomic.Pointer[func()] // set once the window exists, read from Wails' goroutine
 	wails := application.New(application.Options{Name: name,
 		Assets: application.AssetOptions{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			site.Handler.ServeHTTP(w, r)
@@ -87,8 +87,8 @@ func run() error {
 		Windows: application.WindowsOptions{WebviewUserDataPath: filepath.Join(data, "webview")},
 		SingleInstance: &application.SingleInstanceOptions{UniqueID: "wow-live.app",
 			OnSecondInstanceLaunch: func(application.SecondInstanceData) {
-				if show != nil { // a second copy started before the window exists
-					show()
+				if f := showWindow.Load(); f != nil { // a second copy started before the window exists
+					(*f)()
 				}
 			}}})
 	opts, err := carried()
@@ -134,10 +134,11 @@ func run() error {
 			e.Cancel()
 		}
 	})
-	show = func() {
+	show := func() {
 		window.Show()
 		window.Focus()
 	}
+	showWindow.Store(&show)
 	// See-through takes WebView2's composition hosting without Wails' frameless decorations, and click-through
 	// switched on once the page is up: a window made click-through at creation is layered, which paints the page's
 	// transparent parts white (tried Nov 8).

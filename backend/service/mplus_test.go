@@ -23,7 +23,7 @@ type memStore struct {
 }
 
 func (m *memStore) Save(k models.Key) error     { m.keys = append(m.keys, k); return nil }
-func (m *memStore) List() ([]models.Key, error) { return m.keys, nil }
+func (m *memStore) List() ([]models.Key, error) { return slices.Clone(m.keys), nil }
 func (m *memStore) Delete(start int64) error {
 	m.keys = slices.DeleteFunc(m.keys, func(k models.Key) bool { return k.Start == start })
 	return nil
@@ -312,11 +312,8 @@ func TestShortKeyIsReadAndSaved(t *testing.T) {
 		t.Fatalf("track casts %+v, abilities %+v, times %v; want the totem cast and the barrage's 5000 in stretches",
 			track.Casts["Testshaman"], track.Abilities["Testmage"], track.AbilityTimes)
 	}
-	if walked, err := keys.walked(585); err != nil || len(walked) == 0 {
-		t.Fatalf("walked = %v, %v; want the saved track's squares", walked, err)
-	}
-	if m, err := keys.DungeonMap(585); err != nil || len(m.Walked) != 0 || len(m.Floors) != 1 {
-		t.Fatalf("dungeon map = %+v, %v; want the dungeon file's tiled floor and no walked squares", m, err)
+	if m, err := keys.DungeonMap(585); err != nil || len(m.Walked) == 0 || len(m.Floors) != 1 {
+		t.Fatalf("dungeon map = %+v, %v; want the dungeon file's floor and the saved track's squares", m, err)
 	}
 }
 

@@ -9,7 +9,6 @@ import (
 	"strings"
 	"sync"
 
-	"wow-live/backend/clients/combatlog"
 	"wow-live/backend/models"
 )
 
@@ -255,7 +254,7 @@ func (k *LogTracker) add(line models.LogLine) {
 		k.finishBigHits(run, line.Time, false)
 	}
 	if run == nil && line.Event == "ENCOUNTER_START" && k.raid != nil && len(f) >= 5 &&
-		combatlog.RaidDifficultyByLogID(f[2]).Name != "" {
+		models.RaidDifficultyByLogID(f[2]).Name != "" {
 		k.startPull(line)
 		return
 	}
@@ -380,7 +379,7 @@ func (k *LogTracker) learn(at int64, event string, f []string) {
 				k.names[f[i]], k.realms[f[i]] = name, realm
 				k.renames++
 			}
-			if hasFlag(f[i+2], combatlog.FlagMine) {
+			if hasFlag(f[i+2], models.FlagMine) {
 				k.logger = f[i]
 			}
 		}
@@ -530,7 +529,7 @@ func (k *LogTracker) kill(at int64, f []string) {
 	run, guid := k.current, f[4]
 	npc := npcOf(guid)
 	count, listed := run.facts.Forces.NPCs[npc]
-	if !listed && npc != 0 && hasFlag(f[6], combatlog.FlagHostile) && !slices.Contains(run.facts.Bosses, npc) {
+	if !listed && npc != 0 && hasFlag(f[6], models.FlagHostile) && !slices.Contains(run.facts.Bosses, npc) {
 		u := run.uncounted[npc]
 		if u == nil {
 			u = &models.UncountedNPC{NPC: npc, Name: f[5]}
@@ -621,7 +620,7 @@ func (k *LogTracker) event(at int64, event string, f []string) {
 		}
 	case "SPELL_DISPEL", "SPELL_STOLEN":
 		if src != "" {
-			ally := hasFlag(f[6], combatlog.FlagFriendly)
+			ally := hasFlag(f[6], models.FlagFriendly)
 			k.tally(src, func(r *models.KeyMeterRow) {
 				if ally {
 					r.Dispels++
@@ -638,7 +637,7 @@ func (k *LogTracker) event(at int64, event string, f []string) {
 		"SPELL_PERIODIC_MISSED", "SWING_MISSED", "RANGE_MISSED":
 		k.damage(at, event, f, src, dst)
 	case "SWING_DAMAGE_LANDED": // a swing's second line, which its support lines follow in the game's log
-		if src != "" && hasFlag(f[6], combatlog.FlagHostile) {
+		if src != "" && hasFlag(f[6], models.FlagHostile) {
 			run.lastDealt = [2]string{f[0], "Melee"}
 		}
 	case "SPELL_DAMAGE_SUPPORT", "SPELL_PERIODIC_DAMAGE_SUPPORT", "RANGE_DAMAGE_SUPPORT", "SWING_DAMAGE_LANDED_SUPPORT":
@@ -699,15 +698,15 @@ func (k *LogTracker) damage(at int64, event string, f []string, src, dst string)
 	if strings.HasPrefix(f[4], "Player-") {
 		run.recent[f[4]] = hitAt{ability: ability, source: source}
 	}
-	dealt := src != "" && hasFlag(f[6], combatlog.FlagHostile)
-	if dealt || (dst != "" && hasFlag(f[2], combatlog.FlagHostile)) {
+	dealt := src != "" && hasFlag(f[6], models.FlagHostile)
+	if dealt || (dst != "" && hasFlag(f[2], models.FlagHostile)) {
 		k.keepPull(at)
 	}
 	if dealt {
 		k.deal(at, f, src, ability, amount).Hits++
 		run.lastDealt = [2]string{f[0], ability}
 	}
-	if hasFlag(f[6], combatlog.FlagFriendly) && slices.Contains(run.party, f[4]) {
+	if hasFlag(f[6], models.FlagFriendly) && slices.Contains(run.party, f[4]) {
 		avoidable := event == "SPELL_DAMAGE" && run.facts != nil && slices.Contains(run.facts.Avoidable, atoi(f[8]))
 		name := k.names[f[4]]
 		if run.taken[name] == nil {
@@ -851,7 +850,7 @@ func (k *LogTracker) player(guid, flags string) string {
 	if owner, ok := k.owners[guid]; ok {
 		guid = owner
 	}
-	if hasFlag(flags, combatlog.FlagFriendly) && slices.Contains(k.current.party, guid) {
+	if hasFlag(flags, models.FlagFriendly) && slices.Contains(k.current.party, guid) {
 		return k.names[guid]
 	}
 	return ""

@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"wow-live/backend/clients/combatlog"
 	"wow-live/backend/models"
 )
 
@@ -180,7 +179,7 @@ func (k *LogTracker) startPull(line models.LogLine) {
 	boss := k.raid.bosses[f[1]]
 	run.facts = &models.DungeonFacts{Name: f[1], Avoidable: boss.Avoidable, Soak: boss.Soak, Dispel: boss.Dispel,
 		MustStop: boss.MustStop}
-	run.raid = &raidRun{difficulty: combatlog.RaidDifficultyByLogID(f[2]).Name, boss: boss,
+	run.raid = &raidRun{difficulty: models.RaidDifficultyByLogID(f[2]).Name, boss: boss,
 		phases: k.raid.rules.Phases[f[1]],
 		units:  map[string]*raidUnit{}, soaks: map[int]*soakTally{}, stacks: map[int]map[string]int{},
 		priority: map[string]int64{}, lustEnds: map[int64]int64{}, marks: map[lane][]models.RaidMark{},
@@ -206,7 +205,7 @@ func (k *LogTracker) raidLine(line models.LogLine) bool {
 		return true
 	case "ENCOUNTER_START": // the last pull never logged its end
 		k.finishPull(false)
-		if len(f) >= 5 && combatlog.RaidDifficultyByLogID(f[2]).Name != "" {
+		if len(f) >= 5 && models.RaidDifficultyByLogID(f[2]).Name != "" {
 			k.startPull(line)
 		}
 		return true
@@ -238,7 +237,7 @@ func (k *LogTracker) raidLine(line models.LogLine) bool {
 	}
 	window := k.raid.rules.Soaks.WindowMS
 	if line.Event == "SPELL_CAST_START" || line.Event == "SPELL_CAST_SUCCESS" || line.Event == "SPELL_CAST_FAILED" {
-		if len(f) > 8 && hasFlag(f[2], combatlog.FlagHostile) {
+		if len(f) > 8 && hasFlag(f[2], models.FlagHostile) {
 			r.cause(atoi(f[8]), at, "", window)
 			if line.Event == "SPELL_CAST_SUCCESS" {
 				r.closeWaves(atoi(f[8]), run.clock(at), k.raiders(run))
@@ -504,7 +503,7 @@ func (k *LogTracker) raidUnits(at int64, event string, f []string) {
 	for _, i := range []int{0, 4} {
 		guid := f[i]
 		if (strings.HasPrefix(guid, "Creature-") || strings.HasPrefix(guid, "Vehicle-")) &&
-			hasFlag(f[i+2], combatlog.FlagHostile) &&
+			hasFlag(f[i+2], models.FlagHostile) &&
 			r.units[guid] == nil {
 			r.units[guid] = &raidUnit{name: f[i+1], seen: at,
 				spawn: r.spawnOf(f[i+1], at, k.current.clock(at), k.spells)}
