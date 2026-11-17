@@ -200,6 +200,14 @@ func rankedPlayer(tables map[string]table, durationMS int64) models.RankedPlayer
 	}
 	p.Deaths = len(tables["deaths"].Data.Entries)
 	for _, a := range tables["buffs"].Data.Auras {
+		// A buff with several spell IDs is listed once per ID: the longest is the buff's uptime (a lower bound, never
+		// the sum, which passes 100%).
+		if i := slices.IndexFunc(p.Buffs, func(b models.RankedBuff) bool { return b.Name == a.Name }); i >= 0 {
+			if a.TotalUptime > p.Buffs[i].UptimeMS {
+				p.Buffs[i].ID, p.Buffs[i].UptimeMS = a.GUID, a.TotalUptime
+			}
+			continue
+		}
 		p.Buffs = append(p.Buffs, models.RankedBuff{ID: a.GUID, Name: a.Name, UptimeMS: a.TotalUptime})
 	}
 	for _, a := range abilities {

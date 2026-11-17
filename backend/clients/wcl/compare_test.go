@@ -29,6 +29,19 @@ func TestRankedPlayerReadsTheTables(t *testing.T) {
 	}
 }
 
+func TestRankedPlayerListsABuffWithSeveralSpellIDsOnce(t *testing.T) {
+	var tables map[string]table
+	raw := `{"buffs": {"data": {"auras": [{"guid": 1244329, "name": "Overpowered Missiles", "totalUptime": 10000},
+		{"guid": 1277009, "name": "Overpowered Missiles", "totalUptime": 2400}]}}}`
+	if err := json.Unmarshal([]byte(raw), &tables); err != nil {
+		t.Fatal(err)
+	}
+	want := []models.RankedBuff{{ID: 1244329, Name: "Overpowered Missiles", UptimeMS: 10000}}
+	if got := rankedPlayer(tables, 10_000).Buffs; !reflect.DeepEqual(got, want) {
+		t.Errorf("buffs = %+v, want %+v (not 124%%)", got, want)
+	}
+}
+
 func TestFindActor(t *testing.T) {
 	actors := []playerActor{{1, "Mage", "Sargeras"}, {2, "Mage", "Area-52"}, {3, "Solo", "Sargeras"}}
 	tests := []struct {

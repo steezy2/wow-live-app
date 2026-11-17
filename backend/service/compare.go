@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/fs"
 	"log"
+	"maps"
 	"slices"
 	"strings"
 
@@ -286,10 +287,29 @@ func localPlayer(durationMS int64, meter models.KeyMeter, abilities []models.Key
 				Healing: a.Healing, Casts: a.Casts, Hits: a.Hits})
 		}
 	}
-	for _, s := range track.Buffs[player] {
-		p.Buffs = append(p.Buffs, models.RankedBuff{ID: s.ID, Name: s.Name, UptimeMS: s.ToMS - s.FromMS})
-	}
+	p.Buffs = buffUptimes(track.Buffs[player])
 	return p
+}
+
+// buffUptimes is one buff per name with the time any of its stretches was up: a buff with several spell IDs, or a
+// refresh while up, would otherwise count the same time twice and read over 100%.
+func buffUptimes(spans []models.BuffSpan) []models.RankedBuff {
+	byName := map[string][]models.BuffSpan{}
+	for _, s := range spans {
+		byName[s.Name] = append(byName[s.Name], s)
+	}
+	out := []models.RankedBuff{}
+	for _, name := range slices.Sorted(maps.Keys(byName)) {
+		group := byName[name]
+		slices.SortFunc(group, func(a, b models.BuffSpan) int { return cmp.Compare(a.FromMS, b.FromMS) })
+		up, end := int64(0), int64(0)
+		for _, s := range group {
+			up += max(0, s.ToMS-max(s.FromMS, end))
+			end = max(end, s.ToMS)
+		}
+		out = append(out, models.RankedBuff{ID: group[0].ID, Name: name, UptimeMS: up})
+	}
+	return out
 }
 
 // topRuns is the ranked runs to compare with: up to compareLogs of the spec's rankings for the dungeon at the key's

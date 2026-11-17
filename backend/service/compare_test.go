@@ -100,6 +100,17 @@ func TestBuildCompareRowsAndAdvice(t *testing.T) {
 	}
 }
 
+func TestBuffUptimesCountsOverlappingStretchesOnce(t *testing.T) {
+	spans := []models.BuffSpan{{ID: 1, Name: "Missiles", FromMS: 0, ToMS: 10_000}, {ID: 2, Name: "Missiles", FromMS: 5_000, ToMS: 12_000},
+		{ID: 1, Name: "Missiles", FromMS: 20_000, ToMS: 25_000}, {ID: 3, Name: "Orb", FromMS: 0, ToMS: 4_000}}
+	want := []models.RankedBuff{{ID: 3, Name: "Orb", UptimeMS: 4_000}, {ID: 1, Name: "Missiles", UptimeMS: 17_000}}
+	got := buffUptimes(spans)
+	slices.SortFunc(got, func(a, b models.RankedBuff) int { return strings.Compare(b.Name, a.Name) })
+	if !slices.Equal(got, want) {
+		t.Errorf("buffUptimes = %+v, want %+v", got, want)
+	}
+}
+
 func TestVerdictAgainstYourUsualNeedsTwoRuns(t *testing.T) {
 	usual := func() models.RankedPlayer {
 		return models.RankedPlayer{DurationMS: 300_000, Damage: 270_000_000, ActiveMS: 270_000}
