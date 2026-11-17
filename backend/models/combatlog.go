@@ -1,4 +1,4 @@
-package combatlog
+package models
 
 import (
 	"slices"

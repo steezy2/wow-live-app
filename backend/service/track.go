@@ -10,7 +10,6 @@ import (
 	"strconv"
 	"strings"
 
-	"wow-live/backend/clients/combatlog"
 	"wow-live/backend/models"
 )
 
@@ -187,7 +186,7 @@ func (k *LogTracker) trackCast(at int64, event string, f []string) {
 	switch {
 	case slices.Contains(run.party, f[0]):
 		casts, who = run.track.Casts, k.names[f[0]]
-	case creature(f[0]) && hasFlag(f[2], combatlog.FlagHostile):
+	case creature(f[0]) && hasFlag(f[2], models.FlagHostile):
 		if run.track.MobCasts == nil {
 			run.track.MobCasts = map[string][]models.TrackCast{}
 		}
@@ -218,7 +217,7 @@ func creature(guid string) bool {
 
 // hostileActor is whether the advanced-logging block's actor is the line's hostile source or target.
 func hostileActor(guid string, f []string) bool {
-	return (guid == f[0] && hasFlag(f[2], combatlog.FlagHostile)) || (guid == f[4] && hasFlag(f[6], combatlog.FlagHostile))
+	return (guid == f[0] && hasFlag(f[2], models.FlagHostile)) || (guid == f[4] && hasFlag(f[6], models.FlagHostile))
 }
 
 // mobDeathAt puts a mob's death on the map where it was last seen, and ends its trail there.

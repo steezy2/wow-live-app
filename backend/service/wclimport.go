@@ -10,7 +10,6 @@ import (
 	"strings"
 	"unicode"
 
-	"wow-live/backend/clients/combatlog"
 	"wow-live/backend/models"
 )
 
@@ -105,7 +104,7 @@ func matchReports(keys []models.Key, pulls []models.RaidPull, reports []models.C
 	for _, p := range pulls {
 		wanted := func(f models.ReportFight) bool {
 			return f.KeystoneLevel == 0 && f.EncounterID == encounters[p.Boss] && f.EncounterID != 0 &&
-				combatlog.RaidDifficultyByWCL(f.Difficulty).Name == p.Difficulty && f.Kill == p.Kill &&
+				models.RaidDifficultyByWCL(f.Difficulty).Name == p.Difficulty && f.Kill == p.Kill &&
 				2*sharedPlayers(f.Players, p.Players) >= len(p.Players)
 		}
 		sameFights(found, reports, p.Start, p.End-p.Start, wanted)
