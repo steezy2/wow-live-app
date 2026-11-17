@@ -60,6 +60,12 @@ definitions:
       name:
         type: string
     type: object
+  controller.SimEngineFile:
+    properties:
+      path:
+        example: C:/Tools/simc/simc.exe
+        type: string
+    type: object
   controller.SimExport:
     properties:
       export:
@@ -4541,9 +4547,19 @@ paths:
       tags:
       - sim
     post:
+      consumes:
+      - application/json
       description: |-
-        Downloads the newest Windows nightly (about 115 MB) from simulationcraft.org, plain HTTP with no
-        checksum, in the background and keeps simc.exe from it; poll the engine's status.
+        With no body, downloads the newest simc.exe (about 116 MB) from this app's own GitHub release over
+        HTTPS, checked against the sha256 in the release's engine.json; the release is rebuilt weekly from
+        SimulationCraft's official nightly. With a path, copies that simc.exe instead. Runs in the background:
+        poll the engine's status.
+      parameters:
+      - description: the path of a simc.exe to use
+        in: body
+        name: body
+        schema:
+          $ref: '#/definitions/controller.SimEngineFile'
       produces:
       - application/json
       responses:
@@ -4552,10 +4568,11 @@ paths:
           schema:
             $ref: '#/definitions/models.SimEngineStatus'
         "409":
-          description: a sim or a download is running
+          description: a sim or an install is running
           schema:
             $ref: '#/definitions/controller.ErrorResponse'
-      summary: Download or update the SimulationCraft engine
+      summary: Download or update the SimulationCraft engine, or use one the owner
+        has
       tags:
       - sim
   /api/sim/profile:

@@ -1,67 +1,64 @@
-// Package simc finds and installs SimulationCraft's simc.exe, the engine the app runs sims with: the newest Windows
-// nightly from simulationcraft.org (a 7z of about 115 MB), of which only simc.exe is kept.
+// Package simc installs SimulationCraft's simc.exe, the engine the app runs sims with. It comes from this
+// repository's own release (built weekly by .github/workflows/simc.yml, which takes the newest official Windows nightly
+// from simulationcraft/simc-publish and checks it against GitHub's digest), over HTTPS and checked against the sha256
+// in the release's engine.json. simulationcraft.org's own list is plain HTTP with no checksum, so the app never uses it.
+// The owner can also point the app at a simc.exe of their own (UseFile).
 package simc
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
-	"io/fs"
 	"net/http"
 	"os"
 	"os/exec"
-	"path"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"time"
-
-	"github.com/bodgit/sevenzip"
 
 	"wow-live/backend/clients/cachefile"
 	"wow-live/backend/models"
 )
 
 const (
-	// maxEngineBytes bounds the download and the extracted simc.exe (115 MB and 116 MB in November 2026). It's above
-	// cachefile.MaxDownload, which reads a body into memory; this one is streamed to disk.
+	// maxEngineBytes bounds the download and any simc.exe taken in (about 116 MB in November 2026).
 	maxEngineBytes = 256 << 20
 	// exeName is the program kept in Client.Dir.
 	exeName = "simc.exe"
 	// downloadTimeout bounds the whole download, a few minutes on a slow line.
 	downloadTimeout = 15 * time.Minute
-	// listTimeout bounds reading the list of nightlies and running the new program once.
+	// listTimeout bounds reading the manifest and running the new program once.
 	listTimeout = 30 * time.Second
+	// releaseBase is where the weekly job publishes simc.exe and engine.json (a release with a fixed tag).
+	releaseBase = "https://github.com/steezy2/wow-live-app/releases/download/simc-engine/"
 )
 
-var (
-	// nightly is one row of the nightly list: a Windows build's file name and its time (UTC).
-	nightly = regexp.MustCompile(`<a href="(simc-[0-9a-z.]+-win64\.7z)">[^<]*</a></td><td align="right">(\d{4}-\d\d-\d\d \d\d:\d\d)`)
-	// banner is the line simc prints when run without an input.
-	banner = regexp.MustCompile(`SimulationCraft (\S+) for World of Warcraft (\S+)`)
-)
+// banner is the line simc prints when run without an input.
+var banner = regexp.MustCompile(`SimulationCraft (\S+) for World of Warcraft (\S+)`)
 
-// Client installs simc.exe into Dir, from Base (the nightly list; simulationcraft.org's when empty). The site serves
-// plain HTTP only (its HTTPS certificate names another host) and lists no checksum, so Install checks what it can
-// of the file itself.
+// Client installs simc.exe into Dir, from Base (the release's address; this repository's when empty).
 type Client struct {
 	Dir  string
 	Base string
 }
 
-// Build is a nightly on offer: its file name, address and build time (ms since the epoch).
-type Build struct {
-	File    string
-	URL     string
-	BuiltMS int64
+// manifest is the release's engine.json: what the weekly job found out about the simc.exe it published.
+type manifest struct {
+	File    string `json:"file"` // the nightly's file name, which names its commit
+	BuiltMS int64  `json:"builtMS"`
+	SHA256  string `json:"sha256"` // of simc.exe
 }
 
 func (c Client) base() string {
 	if c.Base != "" {
 		return c.Base
 	}
-	return "http://downloads.simulationcraft.org/nightly/"
+	return releaseBase
 }
 
 // Path is where simc.exe is kept once installed.
@@ -69,7 +66,7 @@ func (c Client) Path() string { return filepath.Join(c.Dir, exeName) }
 
 func (c Client) infoPath() string { return filepath.Join(c.Dir, "engine.json") }
 
-// Installed is the engine in Dir; its Installed is false until Install has run.
+// Installed is the engine in Dir; its Installed is false until Install or UseFile has run.
 func (c Client) Installed() models.SimEngine {
 	var e models.SimEngine
 	if _, err := os.Stat(c.Path()); err != nil {
@@ -82,33 +79,78 @@ func (c Client) Installed() models.SimEngine {
 	return e
 }
 
-// Latest is the newest Windows nightly on the list (the list is sorted newest first).
-func (c Client) Latest(ctx context.Context) (Build, error) {
-	ctx, cancel := context.WithTimeout(ctx, listTimeout)
-	defer cancel()
-	body, err := get(ctx, c.base()+"?C=M;O=D")
+// Install downloads the release's simc.exe, checks its sha256 against the manifest's and that it is a program that
+// names its version, and replaces the installed one with it.
+func (c Client) Install(ctx context.Context) (models.SimEngine, error) {
+	m, err := c.manifest(ctx)
 	if err != nil {
-		return Build{}, fmt.Errorf("reading the nightly list: %w", err)
+		return models.SimEngine{}, err
 	}
-	defer body.Close()
-	page, err := io.ReadAll(io.LimitReader(body, 1<<20))
-	if err != nil {
-		return Build{}, fmt.Errorf("reading the nightly list: %w", err)
-	}
-	return parseNightly(string(page), c.base())
+	return c.replace(ctx, func(dest string) error { return download(ctx, c.base()+exeName, dest, m.SHA256) },
+		models.SimEngine{File: m.File, BuiltMS: m.BuiltMS})
 }
 
-// parseNightly is the first Windows build in the list's page.
-func parseNightly(page, base string) (Build, error) {
-	m := nightly.FindStringSubmatch(page)
-	if m == nil {
-		return Build{}, errors.New("no Windows build in the nightly list")
+// UseFile makes the simc.exe at src (a path the owner chose) the engine: it is copied into Dir and must be a program
+// that names its version. Its build time is the file's.
+func (c Client) UseFile(ctx context.Context, src string) (models.SimEngine, error) {
+	info, err := os.Stat(src)
+	if err != nil || !info.Mode().IsRegular() || !strings.EqualFold(filepath.Ext(src), ".exe") {
+		return models.SimEngine{}, fmt.Errorf("%s is not a program (.exe) file", src)
 	}
-	built, err := time.Parse("2006-01-02 15:04", m[2])
+	return c.replace(ctx, func(dest string) error { return copyFile(src, dest) },
+		models.SimEngine{File: filepath.Base(src), BuiltMS: info.ModTime().UnixMilli()})
+}
+
+// replace puts the program fetch writes in place of the installed one, once it checks out, and saves what is known of
+// it (engine's File and BuiltMS, plus the version and patch it prints and its size).
+func (c Client) replace(ctx context.Context, fetch func(dest string) error,
+	engine models.SimEngine) (models.SimEngine, error) {
+	if err := os.MkdirAll(c.Dir, 0o755); err != nil {
+		return models.SimEngine{}, fmt.Errorf("making %s: %w", c.Dir, err)
+	}
+	next := filepath.Join(c.Dir, "simc-new.exe")
+	defer os.Remove(next)
+	if err := fetch(next); err != nil {
+		return models.SimEngine{}, err
+	}
+	if err := checkProgram(next); err != nil {
+		return models.SimEngine{}, err
+	}
+	version, patch, err := runBanner(ctx, next)
 	if err != nil {
-		return Build{}, fmt.Errorf("reading the time of %s: %w", m[1], err)
+		return models.SimEngine{}, fmt.Errorf("checking %s: %w", engine.File, err)
 	}
-	return Build{File: m[1], URL: base + m[1], BuiltMS: built.UnixMilli()}, nil
+	if err := os.Rename(next, c.Path()); err != nil {
+		return models.SimEngine{}, fmt.Errorf("replacing %s (is a sim running?): %w", c.Path(), err)
+	}
+	info, err := os.Stat(c.Path())
+	if err != nil {
+		return models.SimEngine{}, fmt.Errorf("measuring %s: %w", c.Path(), err)
+	}
+	engine.Installed, engine.Version, engine.Patch, engine.Size = true, version, patch, info.Size()
+	if err := cachefile.WriteJSON(c.infoPath(), engine); err != nil {
+		return models.SimEngine{}, err
+	}
+	return engine, nil
+}
+
+// manifest reads the release's engine.json.
+func (c Client) manifest(ctx context.Context) (manifest, error) {
+	ctx, cancel := context.WithTimeout(ctx, listTimeout)
+	defer cancel()
+	body, err := get(ctx, c.base()+"engine.json")
+	if err != nil {
+		return manifest{}, err
+	}
+	defer body.Close()
+	var m manifest
+	if err := json.NewDecoder(io.LimitReader(body, 1<<16)).Decode(&m); err != nil {
+		return manifest{}, fmt.Errorf("reading the engine's manifest: %w", err)
+	}
+	if len(m.SHA256) != sha256.Size*2 || m.File == "" {
+		return manifest{}, errors.New("the engine's manifest names no file or checksum")
+	}
+	return m, nil
 }
 
 func get(ctx context.Context, url string) (io.ReadCloser, error) {
@@ -128,47 +170,8 @@ func get(ctx context.Context, url string) (io.ReadCloser, error) {
 	return resp.Body, nil
 }
 
-// Install downloads the newest nightly, takes simc.exe out of it, checks that it is a program that names its
-// version and replaces the installed one with it. The 7z is deleted either way.
-func (c Client) Install(ctx context.Context) (models.SimEngine, error) {
-	build, err := c.Latest(ctx)
-	if err != nil {
-		return models.SimEngine{}, err
-	}
-	if err := os.MkdirAll(c.Dir, 0o755); err != nil {
-		return models.SimEngine{}, fmt.Errorf("making %s: %w", c.Dir, err)
-	}
-	archive := filepath.Join(c.Dir, "engine.7z.part")
-	defer os.Remove(archive)
-	if err := download(ctx, build.URL, archive); err != nil {
-		return models.SimEngine{}, err
-	}
-	next := filepath.Join(c.Dir, "simc-new.exe")
-	defer os.Remove(next)
-	if err := extractExe(archive, next); err != nil {
-		return models.SimEngine{}, fmt.Errorf("unpacking %s: %w", build.File, err)
-	}
-	version, patch, err := runBanner(ctx, next)
-	if err != nil {
-		return models.SimEngine{}, fmt.Errorf("checking %s: %w", build.File, err)
-	}
-	if err := os.Rename(next, c.Path()); err != nil {
-		return models.SimEngine{}, fmt.Errorf("replacing %s (is a sim running?): %w", c.Path(), err)
-	}
-	info, err := os.Stat(c.Path())
-	if err != nil {
-		return models.SimEngine{}, fmt.Errorf("measuring %s: %w", c.Path(), err)
-	}
-	engine := models.SimEngine{Installed: true, File: build.File, Version: version, Patch: patch, BuiltMS: build.BuiltMS,
-		Size: info.Size()}
-	if err := cachefile.WriteJSON(c.infoPath(), engine); err != nil {
-		return models.SimEngine{}, err
-	}
-	return engine, nil
-}
-
-// download streams url into dest, refusing a file over maxEngineBytes.
-func download(ctx context.Context, url, dest string) error {
+// download streams url into dest, refusing a file over maxEngineBytes or whose sha256 is not wantSHA.
+func download(ctx context.Context, url, dest, wantSHA string) error {
 	ctx, cancel := context.WithTimeout(ctx, downloadTimeout)
 	defer cancel()
 	body, err := get(ctx, url)
@@ -176,63 +179,44 @@ func download(ctx context.Context, url, dest string) error {
 		return err
 	}
 	defer body.Close()
-	f, err := os.Create(dest)
+	sum, err := writeLimited(body, dest)
 	if err != nil {
-		return fmt.Errorf("creating %s: %w", dest, err)
-	}
-	n, copyErr := io.Copy(f, io.LimitReader(body, maxEngineBytes+1))
-	if err := errors.Join(copyErr, f.Close()); err != nil {
 		return fmt.Errorf("downloading %s: %w", url, err)
 	}
-	if n > maxEngineBytes {
-		return fmt.Errorf("downloading %s: over %d MB", url, maxEngineBytes>>20)
+	if !strings.EqualFold(sum, wantSHA) {
+		return fmt.Errorf("downloading %s: its sha256 is %s, not the manifest's %s", url, sum, wantSHA)
 	}
 	return nil
 }
 
-// extractExe writes simc.exe from the 7z at archive to dest.
-func extractExe(archive, dest string) error {
-	r, err := sevenzip.OpenReader(archive)
+// copyFile copies the program at src to dest, refusing one over maxEngineBytes.
+func copyFile(src, dest string) error {
+	in, err := os.Open(src)
 	if err != nil {
-		return fmt.Errorf("opening the 7z: %w", err)
+		return fmt.Errorf("opening %s: %w", src, err)
 	}
-	defer r.Close()
-	return copyExe(r, dest)
+	defer in.Close()
+	if _, err := writeLimited(in, dest); err != nil {
+		return fmt.Errorf("copying %s: %w", src, err)
+	}
+	return nil
 }
 
-// copyExe copies the first simc.exe in fsys (at its top or one folder down) to dest, as a program (an "MZ" header)
-// of at most maxEngineBytes. dest is the only file written, so no name inside the archive decides where anything goes.
-func copyExe(fsys fs.FS, dest string) error {
-	var found string
-	_ = fs.WalkDir(fsys, ".", func(name string, d fs.DirEntry, err error) error {
-		if err != nil || found != "" {
-			return fs.SkipAll
-		}
-		if !d.IsDir() && path.Base(name) == exeName && path.Dir(path.Dir(name)) == "." {
-			found = name
-		}
-		return nil
-	})
-	if found == "" {
-		return fmt.Errorf("no %s inside", exeName)
-	}
-	src, err := fsys.Open(found)
+// writeLimited writes r to dest (at most maxEngineBytes) and returns the sha256 of what it wrote, in hex.
+func writeLimited(r io.Reader, dest string) (string, error) {
+	f, err := os.Create(dest)
 	if err != nil {
-		return fmt.Errorf("opening %s: %w", found, err)
+		return "", fmt.Errorf("creating %s: %w", dest, err)
 	}
-	defer src.Close()
-	out, err := os.Create(dest)
-	if err != nil {
-		return fmt.Errorf("creating %s: %w", dest, err)
-	}
-	n, copyErr := io.Copy(out, io.LimitReader(src, maxEngineBytes+1))
-	if err := errors.Join(copyErr, out.Close()); err != nil {
-		return fmt.Errorf("writing %s: %w", dest, err)
+	sum := sha256.New()
+	n, copyErr := io.Copy(io.MultiWriter(f, sum), io.LimitReader(r, maxEngineBytes+1))
+	if err := errors.Join(copyErr, f.Close()); err != nil {
+		return "", err
 	}
 	if n > maxEngineBytes {
-		return fmt.Errorf("%s is over %d MB", exeName, maxEngineBytes>>20)
+		return "", fmt.Errorf("over %d MB", maxEngineBytes>>20)
 	}
-	return checkProgram(dest)
+	return hex.EncodeToString(sum.Sum(nil)), nil
 }
 
 // checkProgram is nil when the file starts with "MZ", as every Windows program does.
