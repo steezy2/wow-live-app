@@ -17,6 +17,8 @@ It's not an addon and doesn't touch the game: it only reads the combat log file 
 
 ![A player's run against the top logs of their spec, with what to work on (sample data)](docs/store/compare.png)
 
+![A planned route's pulls on the dungeon's map, with the forces of each](docs/store/routes.png)
+
 ![The key replayed on the dungeon's map](docs/store/5-replay.png)
 
 ![The Recap: keys timed, each dungeon's best time and who you ran with](docs/store/6-recap.png)
