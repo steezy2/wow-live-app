@@ -33,11 +33,12 @@ func hasFlag(flags string, bit int64) bool {
 
 // splitName splits "Testmage-Illidan-US" into the name and realm Warcraft Logs shows.
 func splitName(full string) (string, string) {
-	parts := strings.SplitN(full, "-", 3)
-	if len(parts) < 2 {
+	name, rest, ok := strings.Cut(full, "-")
+	if !ok {
 		return full, ""
 	}
-	return parts[0], parts[1]
+	realm, _, _ := strings.Cut(rest, "-")
+	return name, realm
 }
 
 // unitName is a line's unit name, "" for none ("nil": the environment, or an effect without a source).

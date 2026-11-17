@@ -60,18 +60,19 @@ type LogTracker struct {
 	kinds        map[string]string
 	everyday     map[string]consumable // flask and food, the consumables every key and pull asks for (read-only)
 	store        models.KeyStore
-	facts        map[int]models.DungeonFacts // by map ID, from reference/mplus-dungeons.json
-	mobSpells    map[int]bool                // the spell IDs the facts' mobs cast
-	spells       map[int]string              // spell ID -> name, from every line seen
-	spellIDs     map[string]int              // ability name -> spell ID: the one cast, else the first seen
-	schools      map[string]int              // ability name -> spell school (a bit per school), from every line seen
-	logger       string                      // GUID of the player whose game writes the log
-	specs        map[string]int              // player GUID -> spec, from COMBATANT_INFO
-	owners       map[string]string           // pet GUID -> owner GUID
-	names        map[string]string           // player GUID -> name
-	realms       map[string]string           // player GUID -> realm
-	up           map[[2]string]int64         // (player GUID, defensive) -> when the buff went up, in a key or not
-	history      []models.Key                // saved keys, newest first
+	facts        map[int]models.DungeonFacts    // by map ID, from reference/mplus-dungeons.json
+	mobSpells    map[int]bool                   // the spell IDs the facts' mobs cast
+	spells       map[int]string                 // spell ID -> name, from every line seen
+	spellIDs     map[string]int                 // ability name -> spell ID: the one cast, else the first seen
+	schools      map[string]int                 // ability name -> spell school (a bit per school), from every line seen
+	logger       string                         // GUID of the player whose game writes the log
+	specs        map[string]int                 // player GUID -> spec, from COMBATANT_INFO
+	talents      map[string][]models.TalentPick // player GUID -> talents, from COMBATANT_INFO
+	owners       map[string]string              // pet GUID -> owner GUID
+	names        map[string]string              // player GUID -> name
+	realms       map[string]string              // player GUID -> realm
+	up           map[[2]string]int64            // (player GUID, defensive) -> when the buff went up, in a key or not
+	history      []models.Key                   // saved keys, newest first
 	unsaved      []savedRun
 	lastTrack    *models.KeyTrack
 	current      *keyRun
@@ -176,7 +177,7 @@ func NewLogTracker(timers map[int]int64, affixes map[int]string, rules models.MP
 	c := rules.Consumables
 	return &LogTracker{timers: timers, affixes: affixes, rules: rules, kinds: kinds, facts: facts, mobSpells: mobSpells, store: store,
 		history: history, everyday: map[string]consumable{"flask": {patterns: c.Flask}, "food": {patterns: c.Food}},
-		spells: map[int]string{}, spellIDs: map[string]int{}, schools: map[string]int{"Melee": physicalSchool}, specs: map[string]int{},
+		spells: map[int]string{}, spellIDs: map[string]int{}, schools: map[string]int{"Melee": physicalSchool}, specs: map[string]int{}, talents: map[string][]models.TalentPick{},
 		owners: map[string]string{}, names: map[string]string{}, realms: map[string]string{},
 		up: map[[2]string]int64{}, top: map[[2]int][]int64{}, asked: map[[2]int]bool{}}, nil
 }
@@ -359,8 +360,9 @@ func (k *LogTracker) hold(line models.LogLine) bool {
 // learn keeps what every line tells about names, specs, spell names, pets (from summons and advanced logging's owner
 // field) and defensive buffs, in keys or not, so COMBATANT_INFO's aura IDs get names from lines seen elsewhere.
 func (k *LogTracker) learn(at int64, event string, f []string) {
-	if event == "COMBATANT_INFO" && len(f) >= 25 {
+	if event == "COMBATANT_INFO" && len(f) >= 26 {
 		k.specs[f[0]] = atoi(f[24])
+		k.talents[f[0]] = talentPicks(f[25])
 		return
 	}
 	if len(f) < 8 {
@@ -991,6 +993,27 @@ func itemIDs(f []string) []int {
 		ids = append(ids, atoi(m[1]))
 	}
 	return ids
+}
+
+// talentPicks reads COMBATANT_INFO's talent list, "[(node,entry,rank),...]".
+func talentPicks(list string) []models.TalentPick {
+	nums := strings.FieldsFunc(list, func(r rune) bool { return r < '0' || r > '9' })
+	picks := make([]models.TalentPick, 0, len(nums)/3)
+	for i := 0; i+2 < len(nums); i += 3 {
+		picks = append(picks, models.TalentPick{NodeID: atoi(nums[i]), EntryID: atoi(nums[i+1]), Rank: atoi(nums[i+2])})
+	}
+	return picks
+}
+
+// partyTalents is the talents of the party's players by name.
+func (k *LogTracker) partyTalents(party []string) map[string][]models.TalentPick {
+	out := map[string][]models.TalentPick{}
+	for _, guid := range party {
+		if len(k.talents[guid]) > 0 {
+			out[k.names[guid]] = k.talents[guid]
+		}
+	}
+	return out
 }
 
 // listField is COMBATANT_INFO's bracketed field n from the end (0: the last), or "" when it has fewer.

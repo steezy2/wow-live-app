@@ -19,6 +19,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gin-gonic/gin"
+
 	"wow-live/backend/clients/cachefile"
 	"wow-live/backend/clients/combatlog"
 	"wow-live/backend/clients/keystoneguru"
@@ -60,6 +62,7 @@ type Options struct {
 	SpecRules models.SpecRules            // from spec-rules.toml
 	Bosses    map[string]models.RaidBoss  // from reference/raid-bosses.json
 	Tier      map[string][]int            // each class's tier items, from reference/raid-bosses.json
+	Talents   map[int]models.TalentTree   // each spec's talent tree, from reference/talent-trees.json
 	Baselines models.MPlusBaselines       // Warcraft Logs; nil means no key reviews
 	Pages     fs.FS                       // the built page
 	Hosts     []string                    // the names the page reaches the site by, for the router's host check
@@ -80,7 +83,7 @@ type FightImporter interface {
 type Site struct {
 	Keys     *service.LogTracker
 	Changes  *service.Changes
-	Handler  http.Handler
+	Handler  *gin.Engine
 	Import   *service.Importer // nil without Settings and Warcraft Logs
 	opts     Options
 	reviews  controller.Reviews
@@ -126,7 +129,7 @@ func Start(ctx context.Context, opts Options) (*Site, error) {
 		s.reviews, s.topRuns = reviewer, reviewer.TopRuns
 		if baselines, ok := opts.Baselines.(models.CompareBaselines); ok {
 			s.compares = service.Comparer{Keys: keys, Baselines: baselines, Store: store,
-				Characters: characters, Region: opts.Region, Rules: opts.SpecRules}
+				Characters: characters, Region: opts.Region, Rules: opts.SpecRules, Talents: opts.Talents}
 		}
 	}
 	tiles := service.MapTiles{Facts: opts.Dungeons,
@@ -141,10 +144,11 @@ func Start(ctx context.Context, opts Options) (*Site, error) {
 	if opts.LogsDir != nil {
 		planner.Saves = func() ([]models.MDTPreset, error) { return mdt.SavedRoutes(opts.LogsDir()) }
 	}
-	spells := &service.Spells{Keys: keys, Source: wowhead.Client{CacheDir: filepath.Join(opts.Cache, "wowhead"),
+	spells := &service.Spells{Keys: keys, Talents: opts.Talents, Source: wowhead.Client{CacheDir: filepath.Join(opts.Cache, "wowhead"),
 		HTTP: &http.Client{Timeout: spellTimeout}}}
 	s.Handler = controller.Router(controller.MPlus{Keys: keys, Reviews: s.reviews, Compares: s.compares, Changes: s.Changes,
-		Now: opts.Now, Tiles: tiles, Recaps: recaps,
+		Now: opts.Now, Tiles: tiles, Recaps: recaps, Talents: opts.Talents,
+		Icons:  wowhead.Client{CacheDir: filepath.Join(opts.Cache, "wowhead")},
 		Spells: spells, Planner: planner}, &controller.Raid{Compares: s.compares, Pulls: keys, Maps: raidMaps, Now: opts.Now}, opts.Settings,
 		opts.Pages, opts.Hosts...)
 	return s, nil
@@ -241,7 +245,7 @@ func add(keys *service.LogTracker, lines []string) {
 
 // readerVersion is the version of what Learn saves from a log. Bump it with any change that saves new key or raid pull
 // fields, so the next Learn reads every log again.
-const readerVersion = 19
+const readerVersion = 20
 
 // learned is learned.json: the logs Learn has read and the reader that read them, so it reads only new or changed
 // logs next time.
@@ -369,10 +373,22 @@ func (s *Site) readImportedZips() (int, error) {
 	return read, nil
 }
 
+// saveEvery is how many lines readInto reads between saving what ended, so a long log's finished keys and pulls (with
+// their tracks) don't all wait in memory until its end.
+const saveEvery = 100_000
+
 // readInto reads one log (each reads it, a log or a zip) into keys and saves what ended in it.
 func (s *Site) readInto(keys *service.LogTracker, path string, each func(string, func(models.LogLine)) error) error {
-	if err := each(path, keys.Add); err != nil {
-		return err
+	lines := 0
+	var saveErr error // the first failure to save, returned once the log is read
+	err := each(path, func(l models.LogLine) {
+		keys.Add(l)
+		if lines++; lines%saveEvery == 0 && saveErr == nil {
+			_, saveErr = keys.SaveFinished()
+		}
+	})
+	if err != nil || saveErr != nil {
+		return cmp.Or(err, saveErr)
 	}
 	if _, err := keys.SaveFinished(); err != nil {
 		return err

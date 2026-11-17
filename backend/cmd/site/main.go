@@ -31,6 +31,9 @@ import (
 	"sync"
 	"time"
 
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
+
 	"wow-live/backend/app"
 	"wow-live/backend/clients/combatlog"
 	"wow-live/backend/clients/wcl"
@@ -88,6 +91,10 @@ func run(port int, replay string, key int, speed float64, learn bool, region str
 	if err != nil {
 		log.Printf("no raid boss mechanics, so raid pulls show deaths and meters only: %v", err)
 	}
+	talents, err := config.LoadTalentTrees(config.TalentTreesPath(root))
+	if err != nil {
+		log.Printf("no talent trees, so a player review shows no talent tree: %v", err)
+	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 	clock := &replayClock{speed: speed}
@@ -97,7 +104,7 @@ func run(port int, replay string, key int, speed float64, learn bool, region str
 	}
 	opts := app.Options{Cache: config.CachePath(root), DelayLog: config.DelayLogPath(root), LogsDir: config.LogsDir,
 		Region: region, Rules: rules, Dungeons: ref.Dungeons, RaidRules: raidRules, SpecRules: specRules, Bosses: raid.Bosses,
-		Tier: raid.Tier, Pages: os.DirFS(pages),
+		Tier: raid.Tier, Talents: talents, Pages: os.DirFS(pages),
 		Hosts: controller.LocalHosts(port), Now: clock.Now}
 	if logs, err := wcl.New(opts.Cache); err != nil {
 		log.Printf("no key reviews: %v", err)
@@ -121,6 +128,7 @@ func run(port int, replay string, key int, speed float64, learn bool, region str
 			}
 		}()
 	}
+	site.Handler.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 	server := &http.Server{Addr: fmt.Sprintf("127.0.0.1:%d", port), ReadHeaderTimeout: 5 * time.Second,
 		Handler: site.Handler}
 	go func() {
