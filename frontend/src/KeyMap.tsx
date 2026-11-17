@@ -265,6 +265,7 @@ export type Overlay = (
   at: (p: Yards) => [number, number],
   dot: number,
   hit: (id: string, x: number, y: number, r: number) => void,
+  css: Record<'muted' | 'text' | 'bad' | 'warn' | 'accent', string>,
 ) => void
 
 /** The map itself: the backdrop, each player's trail and dot in their class colour (a cross where they died), a raid
@@ -459,7 +460,7 @@ export function MapCanvas(props: {
       const ring = (x: number, y: number, r: number) => {
         disc(ctx, x, y, r, null, css.text, dot / 3)
       }
-      overlay?.(ctx, at, dot, (id, x, y, r) => dots.current.push({ id, enemy: true, x, y, r }))
+      overlay?.(ctx, at, dot, (id, x, y, r) => dots.current.push({ id, enemy: true, x, y, r }), css)
       ctx.fillStyle = css.bad
       track.deaths
         .filter((d) => d.map === floor && d.t <= now)

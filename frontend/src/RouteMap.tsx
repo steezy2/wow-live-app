@@ -183,10 +183,7 @@ export function RouteMap(props: {
   const drawnHere = useMemo(() => drawings?.filter((d) => d.map === here?.uiMapID) ?? [], [drawings, here])
   // MapCanvas restarts its draw loop when the overlay changes, so it changes only with what it draws
   const overlay = useCallback<Overlay>(
-    (ctx, at, dot, hit) => {
-      const style = getComputedStyle(ctx.canvas)
-      const unpulled = style.getPropertyValue('--muted') // what an enemy in no pull is filled with
-      const missed = style.getPropertyValue('--bad') // a missed pull's outline
+    (ctx, at, dot, hit, { muted: unpulled, bad: missed }) => { // unpulled enemies' fill, a missed pull's outline
       const pullOf = pullIndexes(pulls)
       const liveOrder = pulls.map((_, i) => i).filter((i) => states?.[i] === 'next')
       const shade = (pull: number | undefined) => (pull !== undefined && states?.[pull] === 'later' ? LATER_ALPHA : 1)

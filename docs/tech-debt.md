@@ -28,6 +28,7 @@ the same change; move it to **Done** (with the PR) when it lands. Size: S under 
 | 19 | Repeated fetches are shared one by one | `api.ts` callers | Only the dungeon map and spells share an in-flight request. Audit pages that fetch the same URL (keys, routes, mobs) and share them in one place | S-M |
 | 30 | Lint and CI don't enforce the rules: 120 columns (about 160 lines over, in about 30 files), `swag` output being regenerated, `cmd/app`'s Windows tests (only run on tags), `staticcheck` | `eslint.config.js`, `.github/workflows` | A max-len rule, `golangci-lint` with `lll`, `unused`, `errcheck`; `swag init` then `git diff --exit-code`; a windows-latest job. Replaces 12 | S |
 | 31 | Stale docs: README's review tabs and "Missing buffs" card, `spec-rules.toml` in the layout notes and `build.sh`, `cmd/app/embed/README.md`, the `cmd/site` API description, `store-listing.md` ("matches 0.4.3"), no `[0.4.4]` heading | `README.md`, `CHANGELOG.md`, `docs/store-listing.md`, `cmd/` | Fix in one docs PR | XS |
+| 34 | `controller_test.go` repeats its request and router setup (16 `httptest.NewRecorder()` calls) | `controller_test.go` | `serve()` and `newRouter()` helpers (about -60 lines) | S |
 
 ## To check in the running app (PR #77)
 
