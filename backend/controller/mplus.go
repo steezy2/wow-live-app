@@ -28,7 +28,10 @@ type MPlus struct {
 	Recaps   Recaps
 	Planner  Planner
 	Spells   Spells
-	Now      func() time.Time
+	// Talents are the spec talent trees by spec ID; Icons their icons.
+	Talents map[int]models.TalentTree
+	Icons   Icons
+	Now     func() time.Time
 }
 
 // Planner keeps the owner's planned routes (service.Routes).
@@ -45,7 +48,7 @@ type Planner interface {
 	Delete(id string) error
 	Export(id string) (string, error)
 	Compare(start int64, id string) (models.RouteCompare, error)
-	Recorded(start int64) ([][]models.EnemyRef, error)
+	Recorded(start int64) (models.RecordedRoute, error)
 	Live(key models.KeyView) (*models.RouteLive, error)
 }
 
@@ -123,13 +126,14 @@ func (m MPlus) KeyRoute(c *gin.Context) {
 // RecordedRoute godoc
 //
 //	@Summary		The pulls a key made, as the enemies of a route to record from it
-//	@Description	The key's kills matched to map enemies as KeyRoute does, grouped by the key pull they died in, in
-//	@Description	order. The page makes a route of them (POST /api/mplus/routes, then PUT with colors). Empty for a
-//	@Description	key saved before mob positions were kept.
+//	@Description	Each kill takes the nearest map enemy of its NPC on its floor, grouped by the key pull it died in, in
+//	@Description	order, with the forces share they hold and the kills worth forces that no enemy was left for. The page
+//	@Description	makes a route of them (POST /api/mplus/routes, then PUT with colors). No pulls for a key saved before
+//	@Description	mob positions were kept.
 //	@Tags			mplus
 //	@Produce		json
 //	@Param			start	path		int	true	"the key's start (ms since the epoch)"
-//	@Success		200		{array}		[]models.EnemyRef
+//	@Success		200		{object}	models.RecordedRoute
 //	@Failure		400		{object}	ErrorResponse
 //	@Failure		404		{object}	ErrorResponse	"no such key"
 //	@Failure		500		{object}	ErrorResponse

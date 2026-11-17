@@ -343,18 +343,9 @@ func (im *Importer) fights(ctx context.Context, region, character, name, slug st
 	if err != nil {
 		return nil, err
 	}
-	var reports []models.CharacterReport
-	for page := 1; ; page++ {
-		got, more, err := im.Source.RecentReports(ctx, region, slug, name, page)
-		if err != nil {
-			return nil, err
-		}
-		reports = append(reports, got...)
-		if !more || !slices.ContainsFunc(got, func(r models.CharacterReport) bool {
-			return r.ZoneID == zones.MPlusID || r.ZoneID == zones.RaidID
-		}) {
-			break
-		}
+	reports, err := im.recentReports(ctx, region, slug, name, zones)
+	if err != nil {
+		return nil, err
 	}
 	keys, pulls, err := im.Saved()
 	if err != nil {
@@ -370,6 +361,46 @@ func (im *Importer) fights(ctx context.Context, region, character, name, slug st
 	return slices.DeleteFunc(PickFights(reports, zones, character, keys, pulls), func(f models.FightRef) bool {
 		return slices.Contains(done, f.ReportLink)
 	}), nil
+}
+
+// recentReports is the character's reports back to the first page with none of this season's. The next page is asked
+// while the one before is read, since each is a slow query: a page past the last one needed is wasted, but only the
+// one in flight when the walk stops.
+func (im *Importer) recentReports(ctx context.Context, region, slug, name string, zones models.WCLZones) (
+	[]models.CharacterReport, error) {
+	type page struct {
+		reports []models.CharacterReport
+		more    bool
+		err     error
+	}
+	ctx, stop := context.WithCancel(ctx)
+	defer stop()
+	ask := func(n int) <-chan page {
+		ch := make(chan page, 1)
+		go func() {
+			got, more, err := im.Source.RecentReports(ctx, region, slug, name, n)
+			ch <- page{got, more, err}
+		}()
+		return ch
+	}
+	var reports []models.CharacterReport
+	current, next := ask(1), ask(2)
+	for n := 1; ; n++ {
+		p := <-current
+		if p.err != nil {
+			return nil, p.err
+		}
+		reports = append(reports, p.reports...)
+		if !p.more || !slices.ContainsFunc(p.reports, func(r models.CharacterReport) bool {
+			return r.ZoneID == zones.MPlusID || r.ZoneID == zones.RaidID
+		}) {
+			return reports, nil
+		}
+		current = next
+		if next = nil; n+2 <= models.MaxReportPages {
+			next = ask(n + 2)
+		}
+	}
 }
 
 // fetchAll fetches st's fights left, newest first, saving the state after each.

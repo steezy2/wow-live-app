@@ -30,6 +30,19 @@ func TestRankedPlayerReadsTheTables(t *testing.T) {
 	}
 }
 
+func TestRankedPlayerListsABuffWithSeveralSpellIDsOnce(t *testing.T) {
+	var tables map[string]table
+	raw := `{"buffs": {"data": {"auras": [{"guid": 1244329, "name": "Overpowered Missiles", "totalUptime": 10000},
+		{"guid": 1277009, "name": "Overpowered Missiles", "totalUptime": 2400}]}}}`
+	if err := json.Unmarshal([]byte(raw), &tables); err != nil {
+		t.Fatal(err)
+	}
+	want := []models.RankedBuff{{ID: 1244329, Name: "Overpowered Missiles", UptimeMS: 10000}}
+	if got := rankedPlayer(tables, 10_000).Buffs; !reflect.DeepEqual(got, want) {
+		t.Errorf("buffs = %+v, want %+v (not 124%%)", got, want)
+	}
+}
+
 func TestFindActor(t *testing.T) {
 	actors := []playerActor{{1, "Mage", "Sargeras"}, {2, "Mage", "Area-52"}, {3, "Solo", "Sargeras"}}
 	tests := []struct {
@@ -46,5 +59,21 @@ func TestFindActor(t *testing.T) {
 		if got, ok := findActor(actors, tc.name, tc.server); got != tc.want || ok != tc.ok {
 			t.Errorf("findActor(%s, %s) = %d, %v; want %d, %v", tc.name, tc.server, got, ok, tc.want, tc.ok)
 		}
+	}
+}
+
+func TestTalentsOfTakesTheActorsCombatantInfo(t *testing.T) {
+	var events []event
+	raw := `[{"type":"combatantinfo","sourceID":2,"talentTree":[{"id":9,"rank":1,"nodeID":8}]},
+		{"type":"combatantinfo","sourceID":3,"talentTree":[{"id":20,"rank":2,"nodeID":10}]},{"type":"cast","sourceID":3}]`
+	if err := json.Unmarshal([]byte(raw), &events); err != nil {
+		t.Fatal(err)
+	}
+	want := []models.TalentPick{{NodeID: 10, EntryID: 20, Rank: 2}}
+	if got := talentsOf(events, 3); !reflect.DeepEqual(got, want) {
+		t.Errorf("talentsOf = %+v, want %+v", got, want)
+	}
+	if got := talentsOf(events, 4); got != nil {
+		t.Errorf("talentsOf for an actor with none = %+v, want nil", got)
 	}
 }

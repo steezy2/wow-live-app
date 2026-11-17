@@ -133,6 +133,14 @@ type RouteMiss struct {
 	Pct     float64    `json:"pct"`
 }
 
+// RecordedRoute is the pulls a key made as route pulls' enemies, the percent of the dungeon's forces they hold, and
+// how many kills worth forces had no enemy of their NPC left on their floor (Dropped).
+type RecordedRoute struct {
+	Pulls   [][]EnemyRef `json:"pulls"`
+	Pct     float64      `json:"pct"`
+	Dropped int          `json:"dropped"`
+}
+
 // RouteBehind is the forces percent the route planned up to the last pull reached next to the percent the key has.
 type RouteBehind struct {
 	PlannedPct float64 `json:"plannedPct"`
@@ -163,12 +171,42 @@ type RouteOff struct {
 	Pct     float64    `json:"pct"`
 }
 
+// How a key's own pull sits against the route: it matches a route pull, differs from it, or is off the route.
+const (
+	RunMatches = "matches"
+	RunDiffers = "differs"
+	RunOff     = "off"
+)
+
+// RunPull is a pull a key made: the map enemies it killed with their forces, the route pull (an index, -1 for none)
+// most of them are in, how many of its enemies are in other route pulls (Extra) and how many of that route pull's
+// enemies it did not kill (Missing), and the resulting State. ClockMS is the key pull's start.
+type RunPull struct {
+	KeyPull int        `json:"keyPull"`
+	ClockMS int64      `json:"clockMS"`
+	Enemies []EnemyRef `json:"enemies"`
+	Forces  int        `json:"forces"`
+	Pct     float64    `json:"pct"`
+	Plan    int        `json:"plan"`
+	Extra   int        `json:"extra"`
+	Missing int        `json:"missing"`
+	State   string     `json:"state"` // RunMatches, RunDiffers or RunOff
+}
+
+// RouteRun is the pulls a key made against a route, and the route's enemies no key pull killed by route pull (Unseen:
+// the log did not show them die, which is not the same as the key missing them).
+type RouteRun struct {
+	Pulls  []RunPull   `json:"pulls"`
+	Unseen []RouteMiss `json:"unseen"`
+}
+
 // RouteCompare is a route (its pulls with their enemies) next to how a key went along it. NoMobs is a key saved before
 // mob positions were kept (Nov 11): only the route can be shown, until its log is read again.
 type RouteCompare struct {
 	Route RouteView `json:"route"`
 	RouteProgress
-	NoMobs bool `json:"noMobs"`
+	Run    RouteRun `json:"run"`
+	NoMobs bool     `json:"noMobs"`
 }
 
 // RouteStep is a route's pull with its number from 1, as the live page names it.

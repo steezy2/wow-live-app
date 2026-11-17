@@ -10,6 +10,10 @@ import (
 // CharacterURL is where characters are on Warcraft Logs; add "region/realm-slug/name".
 const CharacterURL = "https://www.warcraftlogs.com/character/"
 
+// MaxReportPages is the last page of a character's recent reports Warcraft Logs serves ("The page argument must be a
+// value between 1 and 5"), so a listing holds at most the newest 150 reports.
+const MaxReportPages = 5
+
 // ReportListMaxAge is how long a fetched report list is reused, so the tools in one run share one search.
 const ReportListMaxAge = 10 * time.Minute
 

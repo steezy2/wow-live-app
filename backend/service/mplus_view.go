@@ -198,6 +198,7 @@ func (k *LogTracker) details(run *keyRun, at int64) models.Key {
 		key.Deaths[i].Defensive, key.Deaths[i].Used, key.Deaths[i].Ready = d.Defensive, d.Used, list(d.Ready)
 	}
 	key.Players, key.Specs, key.Realms = []string{}, map[string]int{}, map[string]string{}
+	key.Talents = k.partyTalents(run.party)
 	for _, guid := range run.party {
 		key.Players = append(key.Players, k.names[guid])
 		key.Specs[k.names[guid]] = k.specs[guid]

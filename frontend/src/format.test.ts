@@ -13,6 +13,7 @@ import {
   progressText,
   rowValue,
   resultText,
+  forcesCount,
   routeLine,
   versusBest,
   withRealm,
@@ -221,3 +222,13 @@ describe('groupLogsByDay', () => {
   })
 })
 
+describe('forcesCount', () => {
+  it.each([
+    ['a running key', { count: 300, total: 551, pct: 54.4 }, ' · 300/551'],
+    ['an overshoot', { count: 557, total: 551, pct: 101.1 }, ' · 557/551'],
+    ['a finished key whose kills fall short (the game finished it at 100%)', { count: 546, total: 551, pct: 100 }, ''],
+    ['a key saved before the count existed', { count: 0, total: 551, pct: 100 }, ''],
+  ])('%s', (_, forces, want) => {
+    expect(forcesCount(forces)).toBe(want)
+  })
+})

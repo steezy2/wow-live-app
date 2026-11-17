@@ -2,9 +2,13 @@ package wcl
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
+	"log"
 	"slices"
 	"strings"
+	"sync"
 
 	"wow-live/backend/models"
 )
@@ -99,6 +103,7 @@ type table struct {
 	Data struct {
 		TotalTime int64 `json:"totalTime"`
 		Entries   []struct {
+			ID         int    `json:"id"`
 			GUID       int    `json:"guid"`
 			Name       string `json:"name"`
 			Total      int64  `json:"total"`
@@ -114,8 +119,9 @@ type table struct {
 }
 
 // RunPlayer is one player's numbers in a report fight (found by name on server): all of it, or its first windowMS.
-// Two queries, both kept for good: the fight's span and its players, then one with a table each for the player's
-// damage, healing, casts, buffs on themselves, damage taken and deaths.
+// Three queries, all kept for good: the fight's span and its players, one with a table each for the player's damage,
+// healing, casts, buffs on themselves, damage taken from friendly sources and deaths, and the enemies' hits
+// (takenFromEnemies).
 func (c *Client) RunPlayer(ctx context.Context, code string, fightID int, name, server string, windowMS int64) (
 	models.RankedPlayer, error) {
 	var who struct {
@@ -164,10 +170,99 @@ func (c *Client) RunPlayer(ctx context.Context, code string, fightID int, name, 
 		deaths: table(dataType: Deaths, targetID: $a, ` + args + `) } } }`
 	file := fmt.Sprintf("player-%s-%d-%d-%d.json", code, fightID, actor, to-from)
 	vars := map[string]any{"r": code, "f": fightID, "a": actor, "from": from, "to": to}
-	if err := c.cachedQuery(ctx, file, 0, gql, vars, &data); err != nil {
+	// The tables, the enemies' hits and the talents are three queries that don't need each other: ask them together.
+	var (
+		wg        sync.WaitGroup
+		taken     int64
+		takenErr  error
+		talents   []models.TalentPick
+		talentErr error
+	)
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		taken, takenErr = c.takenFromEnemies(ctx, code, fightID, actor, from, to)
+	}()
+	go func() {
+		defer wg.Done()
+		talents, talentErr = c.playerTalents(ctx, code, fightID, actor, from, to)
+	}()
+	tablesErr := c.cachedQuery(ctx, file, 0, gql, vars, &data)
+	wg.Wait()
+	if err := errors.Join(tablesErr, takenErr); err != nil {
 		return models.RankedPlayer{}, err
 	}
-	return rankedPlayer(data.ReportData.Report, to-from), nil
+	if talentErr != nil {
+		log.Printf("reading the talents of %s in %s#%d: %v", name, code, fightID, talentErr)
+	}
+	player := rankedPlayer(data.ReportData.Report, to-from)
+	player.Taken += taken
+	player.Talents = talents
+	return player, nil
+}
+
+// takenFromEnemies is the damage a player took from enemies in a report fight. The damage taken table asked for one
+// target lists only what friendly sources did to them (a mage's own Refraction); the table of every friendly target
+// has the enemies' hits, so this reads it for the fight and takes the player's entry. One query a fight, kept for good.
+func (c *Client) takenFromEnemies(ctx context.Context, code string, fightID, actor int, from, to int64) (int64, error) {
+	var data struct {
+		ReportData struct {
+			Report struct {
+				Taken table `json:"taken"`
+			} `json:"report"`
+		} `json:"reportData"`
+	}
+	gql := `query($r: String!, $f: Int!, $from: Float!, $to: Float!) { reportData { report(code: $r) {
+		taken: table(dataType: DamageTaken, fightIDs: [$f], startTime: $from, endTime: $to) } } }`
+	if err := c.cachedQuery(ctx, fmt.Sprintf("taken-%s-%d-%d.json", code, fightID, to-from), 0, gql,
+		map[string]any{"r": code, "f": fightID, "from": from, "to": to}, &data); err != nil {
+		return 0, err
+	}
+	for _, e := range data.ReportData.Report.Taken.Data.Entries {
+		if e.ID == actor {
+			return e.Total, nil
+		}
+	}
+	return 0, nil
+}
+
+// playerTalents is the talents a player took in a report fight, from the fight's combatantinfo events (the game
+// writes them as the fight starts). One cheap query a fight, kept for good.
+func (c *Client) playerTalents(ctx context.Context, code string, fightID, actor int, from, to int64) (
+	[]models.TalentPick, error) {
+	var data struct {
+		ReportData struct {
+			Report struct {
+				Events eventPage `json:"events"`
+			} `json:"report"`
+		} `json:"reportData"`
+	}
+	gql := `query($r: String!, $f: Int!, $from: Float!, $to: Float!) { reportData { report(code: $r) {
+		events(dataType: CombatantInfo, fightIDs: [$f], startTime: $from, endTime: $to, limit: 100) { data } } } }`
+	if err := c.cachedQuery(ctx, fmt.Sprintf("talents-%s-%d.json", code, fightID), 0, gql,
+		map[string]any{"r": code, "f": fightID, "from": from, "to": to}, &data); err != nil {
+		return nil, err
+	}
+	var events []event
+	if err := json.Unmarshal(data.ReportData.Report.Events.Data, &events); err != nil {
+		return nil, fmt.Errorf("reading combatant events: %w", err)
+	}
+	return talentsOf(events, actor), nil
+}
+
+// talentsOf is the talents the combatantinfo event of the actor lists, nil when it has none.
+func talentsOf(events []event, actor int) []models.TalentPick {
+	for _, e := range events {
+		if e.Type != "combatantinfo" || e.SourceID != actor {
+			continue
+		}
+		picks := make([]models.TalentPick, len(e.TalentTree))
+		for i, t := range e.TalentTree {
+			picks[i] = models.TalentPick{NodeID: t.NodeID, EntryID: t.ID, Rank: t.Rank}
+		}
+		return picks
+	}
+	return nil
 }
 
 // rankedPlayer reads the six tables of a player's stretch into their numbers: abilities by spell ID with the hits of
@@ -200,6 +295,14 @@ func rankedPlayer(tables map[string]table, durationMS int64) models.RankedPlayer
 	}
 	p.Deaths = len(tables["deaths"].Data.Entries)
 	for _, a := range tables["buffs"].Data.Auras {
+		// A buff with several spell IDs is listed once per ID: the longest is the buff's uptime (a lower bound, never
+		// the sum, which passes 100%).
+		if i := slices.IndexFunc(p.Buffs, func(b models.RankedBuff) bool { return b.Name == a.Name }); i >= 0 {
+			if a.TotalUptime > p.Buffs[i].UptimeMS {
+				p.Buffs[i].ID, p.Buffs[i].UptimeMS = a.GUID, a.TotalUptime
+			}
+			continue
+		}
 		p.Buffs = append(p.Buffs, models.RankedBuff{ID: a.GUID, Name: a.Name, UptimeMS: a.TotalUptime})
 	}
 	for _, a := range abilities {

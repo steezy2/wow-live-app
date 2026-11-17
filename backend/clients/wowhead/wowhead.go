@@ -28,6 +28,7 @@ type Client struct {
 	HTTP     *http.Client
 	CacheDir string
 	BaseURL  string
+	IconURL  string // where icons are fetched from; wow.zamimg.com when empty
 }
 
 // Guide is the dungeon overview for a Raider.IO dungeon slug ("den-of-nalorakk").

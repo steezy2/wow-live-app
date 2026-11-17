@@ -11,25 +11,27 @@ const (
 // Key is one Mythic+ run as the combat log shows it: the dungeon, level and affixes, when it started (ms since the
 // epoch, also its ID once saved), how it ended, and what happened on the key's clock.
 type Key struct {
-	Dungeon     string         `json:"dungeon"`
-	MapID       int            `json:"mapID"`
-	Level       int            `json:"level"`
-	Affixes     []Affix        `json:"affixes"`
-	Start       int64          `json:"start"`
-	End         int64          `json:"end,omitempty"`
-	Status      string         `json:"status" enums:"running,timed,depleted,abandoned"`
-	FinalMS     int64          `json:"finalMS,omitempty"` // the game's own time for the key, once it ends
-	TimerMS     int64          `json:"timerMS,omitempty"` // the dungeon's time limit; 0 when Raider.IO doesn't list it
-	Deaths      []KeyDeath     `json:"deaths"`
-	Bosses      []KeyBoss      `json:"bosses"`
-	Players     []string       `json:"players"`
-	Specs       map[string]int `json:"specs"` // player -> specialization ID, from COMBATANT_INFO
-	Interrupts  []KeyInterrupt `json:"interrupts"`
-	Casts       []KeyCast      `json:"casts"`
-	Stops       []KeyStop      `json:"stops"`       // must-stop casts and what happened to each
-	WastedKicks []KeyCast      `json:"wastedKicks"` // kicks that interrupted nothing
-	Debuffs     []KeyDispel    `json:"debuffs"`     // dispellable debuffs on the party and how fast they came off
-	Spikes      []KeySpike     `json:"spikes"`      // the worst bursts of party damage taken, worst first
+	Dungeon string         `json:"dungeon"`
+	MapID   int            `json:"mapID"`
+	Level   int            `json:"level"`
+	Affixes []Affix        `json:"affixes"`
+	Start   int64          `json:"start"`
+	End     int64          `json:"end,omitempty"`
+	Status  string         `json:"status" enums:"running,timed,depleted,abandoned"`
+	FinalMS int64          `json:"finalMS,omitempty"` // the game's own time for the key, once it ends
+	TimerMS int64          `json:"timerMS,omitempty"` // the dungeon's time limit; 0 when Raider.IO doesn't list it
+	Deaths  []KeyDeath     `json:"deaths"`
+	Bosses  []KeyBoss      `json:"bosses"`
+	Players []string       `json:"players"`
+	Specs   map[string]int `json:"specs"` // player -> specialization ID, from COMBATANT_INFO
+	// Talents is each player's talents from COMBATANT_INFO; missing in keys saved before Nov 17.
+	Talents     map[string][]TalentPick `json:"talents,omitempty"`
+	Interrupts  []KeyInterrupt          `json:"interrupts"`
+	Casts       []KeyCast               `json:"casts"`
+	Stops       []KeyStop               `json:"stops"`       // must-stop casts and what happened to each
+	WastedKicks []KeyCast               `json:"wastedKicks"` // kicks that interrupted nothing
+	Debuffs     []KeyDispel             `json:"debuffs"`     // dispellable debuffs on the party and how fast they came off
+	Spikes      []KeySpike              `json:"spikes"`      // the worst bursts of party damage taken, worst first
 	// BigHits is each time a player took a big share of their health fast, in order; missing in keys saved before
 	// Nov 12.
 	BigHits []KeyBigHit `json:"bigHits,omitempty"`

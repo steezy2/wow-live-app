@@ -2,6 +2,7 @@ package wowhead
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -75,5 +76,32 @@ func TestSpellDownloadsOnceAndKeepsIt(t *testing.T) {
 	}
 	if _, err := c.Spell(context.Background(), 1); err == nil {
 		t.Error("a spell Wowhead doesn't have read; want an error")
+	}
+}
+
+func TestIconIsDownloadedOnceAndRefusesOddNames(t *testing.T) {
+	asked := 0
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		asked++
+		if r.URL.Path != "/images/wow/icons/medium/spell_nature_starfall.jpg" {
+			http.NotFound(w, r)
+			return
+		}
+		w.Write([]byte("jpeg"))
+	}))
+	defer server.Close()
+	c := Client{CacheDir: t.TempDir(), IconURL: server.URL}
+	for range 2 {
+		if img, err := c.Icon(context.Background(), "spell_nature_starfall"); err != nil || string(img) != "jpeg" {
+			t.Fatalf("Icon = %q, %v; want the image", img, err)
+		}
+	}
+	if asked != 1 {
+		t.Errorf("asked %d times, want 1 (kept after the first)", asked)
+	}
+	for _, name := range []string{"../etc/passwd", "Spell", "nope_missing"} {
+		if _, err := c.Icon(context.Background(), name); !errors.Is(err, models.ErrNoSuchIcon) {
+			t.Errorf("Icon(%q) = %v, want ErrNoSuchIcon", name, err)
+		}
 	}
 }

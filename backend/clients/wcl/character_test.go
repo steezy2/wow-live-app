@@ -2,6 +2,9 @@ package wcl
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -78,8 +81,8 @@ func TestRecentReportsAskOnlyForTheFightsOfReportsNewOrGrown(t *testing.T) {
 func TestRecentReportsStopAtTheLastPageWarcraftLogsServes(t *testing.T) {
 	f := newFake(t, data(`{"characterData": {"character": {"recentReports": {"has_more_pages": true, "data": []}}}}`))
 	if _, more, err := f.client(t).RecentReports(context.Background(), "us", "somerealm", "Testmage",
-		maxReportPages); err != nil || more {
-		t.Fatalf("page %d: more %v, %v; want no page after it", maxReportPages, more, err)
+		models.MaxReportPages); err != nil || more {
+		t.Fatalf("page %d: more %v, %v; want no page after it", models.MaxReportPages, more, err)
 	}
 }
 
@@ -105,5 +108,39 @@ func TestCharacterParsesKeepRankedEncountersByKind(t *testing.T) {
 	got, err = c.CharacterParses(context.Background(), "us", "some-realm", "Nobody", models.WCLZones{MPlusID: 1})
 	if err != nil || got.Found || len(got.Parses) != 0 {
 		t.Fatalf("CharacterParses of an unknown character = %+v, %v; want not found", got, err)
+	}
+}
+
+func TestRecentReportsAskForManyReportsFightsInSeveralQueries(t *testing.T) {
+	var codes, reportData []string
+	for i := range 10 {
+		codes = append(codes, fmt.Sprintf(`{"code": "r%d", "startTime": 0, "endTime": 5000}`, i))
+	}
+	answer := func(w http.ResponseWriter, body, _ string) { // each fights query is answered for the reports it names
+		var q struct {
+			Variables map[string]string `json:"variables"`
+		}
+		json.Unmarshal([]byte(body), &q)
+		reportData = nil
+		for n := range q.Variables {
+			code := q.Variables[n]
+			reportData = append(reportData, fmt.Sprintf(`"r%s": {"fights": [{"id": %s}]}`, strings.TrimPrefix(n, "c"),
+				strings.TrimPrefix(code, "r")))
+		}
+		io.WriteString(w, `{"data": {"reportData": {`+strings.Join(reportData, ",")+`}}}`)
+	}
+	f := newFake(t, data(`{"characterData": {"character": {"recentReports": {"data": [`+strings.Join(codes, ",")+`]}}}}`),
+		answer, answer)
+	reports, _, err := f.client(t).RecentReports(context.Background(), "us", "somerealm", "Testmage", 1)
+	if err != nil || len(reports) != 10 {
+		t.Fatalf("RecentReports = %d reports, %v; want 10", len(reports), err)
+	}
+	for i, r := range reports {
+		if len(r.Fights) != 1 || r.Fights[0].ID != i {
+			t.Errorf("report r%d has fights %+v, want its own fight %d", i, r.Fights, i)
+		}
+	}
+	if len(f.queries) != 3 {
+		t.Errorf("%d queries, want the list and two fights queries of 8 and 2 reports", len(f.queries))
 	}
 }
