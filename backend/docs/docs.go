@@ -2234,14 +2234,27 @@ const docTemplate = `{
                 }
             },
             "post": {
-                "description": "Downloads the newest Windows nightly (about 115 MB) from simulationcraft.org, plain HTTP with no\nchecksum, in the background and keeps simc.exe from it; poll the engine's status.",
+                "description": "With no body, downloads the newest simc.exe (about 116 MB) from this app's own GitHub release over\nHTTPS, checked against the sha256 in the release's engine.json; the release is rebuilt weekly from\nSimulationCraft's official nightly. With a path, copies that simc.exe instead. Runs in the background:\npoll the engine's status.",
+                "consumes": [
+                    "application/json"
+                ],
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "sim"
                 ],
-                "summary": "Download or update the SimulationCraft engine",
+                "summary": "Download or update the SimulationCraft engine, or use one the owner has",
+                "parameters": [
+                    {
+                        "description": "the path of a simc.exe to use",
+                        "name": "body",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/controller.SimEngineFile"
+                        }
+                    }
+                ],
                 "responses": {
                     "202": {
                         "description": "Accepted",
@@ -2250,7 +2263,7 @@ const docTemplate = `{
                         }
                     },
                     "409": {
-                        "description": "a sim or a download is running",
+                        "description": "a sim or an install is running",
                         "schema": {
                             "$ref": "#/definitions/controller.ErrorResponse"
                         }
@@ -2538,6 +2551,15 @@ const docTemplate = `{
                 },
                 "name": {
                     "type": "string"
+                }
+            }
+        },
+        "controller.SimEngineFile": {
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "example": "C:/Tools/simc/simc.exe"
                 }
             }
         },
