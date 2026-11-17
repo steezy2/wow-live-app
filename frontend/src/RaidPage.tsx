@@ -1,6 +1,16 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { fetchRaidNights, fetchRaidPull, reviewURL, subscribe, type KeyTrack, type RaidNight, type RaidPull, type RaidPullSummary } from './api'
-import { clock, counted, errorText, groupBy, progressText } from './format'
+import { FixNext } from './FixNext'
+import { SavedBefore } from './SavedBefore'
+import {
+  fetchRaidNights,
+  fetchRaidPull,
+  reviewURL,
+  type KeyTrack,
+  type RaidNight,
+  type RaidPull,
+  type RaidPullSummary,
+} from './api'
+import { clock, counted, isWeekLabel, progressText } from './format'
 import { defense, raidOffense } from './meterColumns'
 import { MeterCard } from './MeterCards'
 import { ReportLinks, ReportTag } from './ReportLinks'
@@ -8,13 +18,14 @@ import { fightTabs, pullFightData } from './KeyTabs'
 import { PlayerTable } from './PlayerTable'
 import { BuffGaps } from './BuffGaps'
 import { EarlyDeaths, Mechanics } from './RaidCards'
-import { FightMeters, NoAbilities } from './FightMeters'
+import { FightMeters } from './FightMeters'
 import { Name, type Seeker } from './Seek'
 import { SideGroups } from './SideGroups'
 import { RaidReplay } from './RaidReplay'
 import { topMeter, useRaidTrack, useReplay } from './replay'
 import { Tabs } from './Tabs'
 import { useNow, useRaidLive } from './useLiveKey'
+import { useSaved } from './useSaved'
 import { Skeleton } from './Skeleton'
 import { tip } from './tipAttrs'
 import { WaitingCard } from './WaitingCard'
@@ -60,8 +71,8 @@ export function RaidPage({ initial = null, character }: { initial?: number | nul
           {(group, label) =>
             group.map((n) => (
               <section key={n.night}>
-                {label.startsWith('Week of') && <h2>{new Date(nightTime(n)).toLocaleDateString()}</h2>}
-                {[...groupBy(n.pulls, (p) => `${p.boss} ${p.difficulty}`)].map(([boss, pulls]) => (
+                {isWeekLabel(label) && <h2>{new Date(nightTime(n)).toLocaleDateString()}</h2>}
+                {[...Map.groupBy(n.pulls, (p) => `${p.boss} ${p.difficulty}`)].map(([boss, pulls]) => (
                   <div key={boss} className="boss-pulls">
                     <h3 className="muted small">
                       {boss} <Imported pulls={pulls} />
@@ -121,24 +132,10 @@ function nightTime(n: RaidNight): number {
   return new Date(`${n.night}T12:00`).getTime()
 }
 
-/** A saved pull, read again when the saved keys and pulls change (a report linked to it, say). */
+/** A saved pull. */
 function SavedPull({ start }: { start: number }) {
-  const [pull, setPull] = useState<RaidPull | null>(null) // the previous pull stays up, dimmed, while this one is read
-  const [error, setError] = useState<string | null>(null)
-  useEffect(() => {
-    const controller = new AbortController()
-    const read = () =>
-      fetchRaidPull(start, controller.signal)
-        .then(setPull)
-        .catch((err: unknown) => {
-          if (!controller.signal.aborted) setError(errorText(err))
-        })
-    const off = subscribe(() => void read())
-    return () => {
-      controller.abort()
-      off()
-    }
-  }, [start])
+  // the previous pull stays up, dimmed, while this one is read
+  const { data: pull, error } = useSaved(start, fetchRaidPull)
   if (error) return <p className="warning">{error}</p>
   if (!pull) return <Skeleton height={480} />
   return (
@@ -173,7 +170,7 @@ function classesOf(pull: RaidPull): Record<string, string> {
  * pull. The replay's clock and the focused raider are the page's: a time in a card moves the replay there and
  * brings it into view, and a raider picked anywhere (the map, a meter, the graph, a name) is focused everywhere. Shown
  * with the pull's start as its key, so both start over with each pull. */
-export function RaidPullView({ pull }: { pull: RaidPull }) {
+function RaidPullView({ pull }: { pull: RaidPull }) {
   const replay = useReplay(pull.durationMS, pull.durationMS)
   const { track, error } = useRaidTrack(pull.start)
   const [focus, setFocus] = useState('')
@@ -205,16 +202,7 @@ export function RaidPullView({ pull }: { pull: RaidPull }) {
         </p>
       </section>
 
-      {pull.suggestions.length > 0 && (
-        <section className="panel attention">
-          <h2>Fix next pull</h2>
-          <ol className="fix-next">
-            {pull.suggestions.map((s) => (
-              <li key={s}>{s}</li>
-            ))}
-          </ol>
-        </section>
-      )}
+      <FixNext title="Fix next pull" items={pull.suggestions} />
 
       <div className="raid-columns">
         <EarlyDeaths pull={pull} track={track ?? null} classes={classes} onSeek={show} onFocus={setFocus} />
@@ -310,13 +298,15 @@ export function RaidOverlayCard({ pull, rows = 0 }: { pull: RaidPull; rows?: num
 /** Under the meters: every raider's pull in one table, and the tabs a key has (deaths, interrupts, must-stops, spikes,
  * big hits, avoidable, defensives and potions, CC) with the buffs missing through the pull; a pull saved before they
  * were kept says how to fill them in. Memoized, so a replay tick doesn't rebuild the tabs. */
-const PullTabs = memo(function PullTabs({ pull, seek, track }: { pull: RaidPull; seek: Seeker; track: KeyTrack | null }) {
+const PullTabs = memo(function PullTabs(props: { pull: RaidPull; seek: Seeker; track: KeyTrack | null }) {
+  const { pull, seek, track } = props
   const data = pullFightData(pull)
-  if (!data) return <NoAbilities />
+  if (!data) return <SavedBefore what="abilities" />
   const tabs = fightTabs(data, `Deaths ${pull.deaths.length}`, 'raid', seek, track)
   const missing = new Set(pull.buffGaps?.map((g) => g.buff)).size
   if (missing > 0) {
     tabs.push({
+      id: 'buffs',
       name: `Buffs ${missing}`,
       body: <BuffGaps gaps={pull.buffGaps ?? []} endMS={pull.durationMS} players={pull.players.length} seek={seek} />,
     })

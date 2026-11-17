@@ -2,11 +2,11 @@
 package wago
 
 import (
+	"bytes"
 	"cmp"
 	"context"
 	"encoding/csv"
 	"fmt"
-	"os"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -27,15 +27,11 @@ type Client struct {
 func (c Client) MapBounds(ctx context.Context, uiMapIDs []int) (map[int]models.RaidMap, error) {
 	path := filepath.Join(c.CacheDir, "UiMapAssignment.csv")
 	url := cmp.Or(c.Base, "https://wago.tools") + "/db2/UiMapAssignment/csv"
-	if err := cachefile.Fresh(ctx, nil, url, path, 7*24*time.Hour); err != nil {
+	data, err := cachefile.Fresh(ctx, nil, url, path, 7*24*time.Hour)
+	if err != nil {
 		return nil, fmt.Errorf("wago.tools UiMapAssignment: %w", err)
 	}
-	file, err := os.Open(path)
-	if err != nil {
-		return nil, fmt.Errorf("reading %s: %w", path, err)
-	}
-	defer file.Close()
-	rows, err := csv.NewReader(file).ReadAll()
+	rows, err := csv.NewReader(bytes.NewReader(data)).ReadAll()
 	if err != nil || len(rows) == 0 {
 		return nil, fmt.Errorf("reading %s: %w", path, cmp.Or(err, fmt.Errorf("no rows")))
 	}

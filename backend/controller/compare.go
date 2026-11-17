@@ -104,7 +104,7 @@ func compare(c *gin.Context, compares Compares, kind models.FightKind, run bool)
 }
 
 // noWCLKeys is the answer when the site has no Warcraft Logs credentials at all.
-const noWCLKeys = "no Warcraft Logs credentials in .env"
+const noWCLKeys = "no Warcraft Logs credentials saved"
 
 // wclAnswer answers with body, or maps a review's or comparer's error to a status (502 for Warcraft Logs failing,
 // without its text, logged as doing).
@@ -112,7 +112,8 @@ func wclAnswer(c *gin.Context, doing string, body any, err error) {
 	switch {
 	case err == nil:
 		c.JSON(http.StatusOK, body)
-	case errors.Is(err, service.ErrNoSuchKey), errors.Is(err, service.ErrNoSuchPull), errors.Is(err, service.ErrNoSuchPlayer):
+	case errors.Is(err, service.ErrNoSuchKey), errors.Is(err, service.ErrNoSuchPull), errors.Is(err,
+		service.ErrNoSuchPlayer):
 		c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	case errors.Is(err, service.ErrKeyRunning):
 		c.JSON(http.StatusConflict, ErrorResponse{Error: err.Error()})

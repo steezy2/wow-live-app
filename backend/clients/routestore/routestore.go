@@ -1,9 +1,9 @@
-// Package routestore keeps planned routes as JSON files in a folder (logs/cache/routes/), one per route, named by its id.
+// Package routestore keeps planned routes as JSON files in a folder (logs/cache/routes/), one per route, named by its
+// id.
 package routestore
 
 import (
 	"cmp"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -30,19 +30,11 @@ func (s Store) Save(route models.Route) error {
 
 // Get reads a route; the error wraps os.ErrNotExist when there's none.
 func (s Store) Get(id string) (models.Route, error) {
-	var r models.Route
 	path, err := s.path(id)
 	if err != nil {
-		return r, err
+		return models.Route{}, err
 	}
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return r, fmt.Errorf("reading a route: %w", err)
-	}
-	if err := json.Unmarshal(data, &r); err != nil {
-		return r, fmt.Errorf("reading a route: %w", err)
-	}
-	return r, nil
+	return cachefile.ReadJSON[models.Route](path)
 }
 
 // List is every route, newest first; a missing folder is no routes.

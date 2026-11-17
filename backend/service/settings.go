@@ -1,6 +1,8 @@
 package service
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"slices"
@@ -25,31 +27,67 @@ const (
 	maxAutoDays = 365
 )
 
-// ErrBadSettings is a settings request that breaks the rules of ValidateSettings; its text says what to send.
+// ErrBadSettings is a settings request that breaks the rules of validateSettings; its text says what to send.
 var ErrBadSettings = fmt.Errorf("send a full log folder path, a region (%s), when overlay shows (%s), its opacity "+
 	"(%d to 100), its rows (0 or more), its columns (%s) and the auto rule's days (0 to %d)",
 	strings.Join(regions, ", "), strings.Join(overlayShows, ", "), minOpacity, strings.Join(overlayColumns, ", "),
 	maxAutoDays)
 
-// CleanSettings is s with its log folder path cleaned and its character trimmed, as every save stores them.
-func CleanSettings(s models.Settings) models.Settings {
+// ErrSavingSettings is returned (wrapped) by SaveSettings when the settings couldn't be written.
+var ErrSavingSettings = errors.New("couldn't save the settings")
+
+// SettingsStore is the desktop app's saved settings (app.Settings).
+type SettingsStore interface {
+	Get() models.SettingsView
+	Save(models.Settings) error
+}
+
+// CharacterResolver checks a character against Warcraft Logs (Characters.Resolve).
+type CharacterResolver interface {
+	Resolve(ctx context.Context, region, character string) (name, slug string, err error)
+}
+
+// SaveSettings cleans and validates next, checks its character when it is a new one (the errors are Resolve's) and
+// saves it in store; it says whether the character changed, which makes an import's fights the old character's. The
+// error is ErrBadSettings for settings that break the rules and wraps ErrSavingSettings when the save failed.
+func SaveSettings(ctx context.Context, store SettingsStore, characters CharacterResolver,
+	next models.Settings) (characterChanged bool, err error) {
+	next = cleanSettings(next)
+	if err := validateSettings(next); err != nil {
+		return false, err
+	}
+	before := store.Get().Settings
+	if characterNeedsCheck(before, next) {
+		if _, _, err := characters.Resolve(ctx, next.Region, next.Character); err != nil {
+			return false, err
+		}
+	}
+	if err := store.Save(next); err != nil {
+		return false, fmt.Errorf("%w: %w", ErrSavingSettings, err)
+	}
+	return next.Character != before.Character, nil
+}
+
+// cleanSettings is s with its log folder path cleaned and its character trimmed, as every save stores them.
+func cleanSettings(s models.Settings) models.Settings {
 	s.LogsDir = filepath.Clean(s.LogsDir)
 	s.Character = strings.TrimSpace(s.Character)
 	return s
 }
 
-// CharacterNeedsCheck is whether saving next over before sets a character Warcraft Logs must still confirm: a new
+// characterNeedsCheck is whether saving next over before sets a character Warcraft Logs must still confirm: a new
 // one, or the same one in another region.
-func CharacterNeedsCheck(before, next models.Settings) bool {
+func characterNeedsCheck(before, next models.Settings) bool {
 	return next.Character != "" && (next.Character != before.Character || next.Region != before.Region)
 }
 
-// ValidateSettings is nil when s is within the choices SettingsChoices serves, else ErrBadSettings.
-func ValidateSettings(s models.Settings) error {
+// validateSettings is nil when s is within the choices SettingsChoices serves, else ErrBadSettings.
+func validateSettings(s models.Settings) error {
 	o, auto := s.Overlay, s.Auto
 	if !filepath.IsAbs(s.LogsDir) || !slices.Contains(regions, s.Region) || !slices.Contains(overlayShows, o.Show) ||
 		o.Opacity < minOpacity || o.Opacity > 100 || o.Rows < 0 ||
 		slices.ContainsFunc(o.Columns, func(c string) bool { return !slices.Contains(overlayColumns, c) }) ||
+		len(slices.Compact(slices.Sorted(slices.Values(o.Columns)))) != len(o.Columns) ||
 		!autoDays(auto.ArchiveGameLogsDays) || !autoDays(auto.DeleteImportsDays) {
 		return ErrBadSettings
 	}

@@ -46,8 +46,9 @@ type Key struct {
 	// AvoidableHits is each player's avoidable damage by ability, most first.
 	AvoidableHits []KeyHit `json:"avoidableHits"`
 	// Pulls is each pull that had priority mobs, in order.
-	Pulls     []KeyPull      `json:"pulls"`
-	Reference bool           `json:"reference"`        // reference/mplus-dungeons.json has the dungeon (avoidable list, forces)
+	Pulls []KeyPull `json:"pulls"`
+	// reference/mplus-dungeons.json has the dungeon (avoidable list, forces)
+	Reference bool           `json:"reference"`
 	Forces    *KeyForces     `json:"forces,omitempty"` // nil when the dungeon file doesn't have the dungeon
 	LastPull  KeyMeter       `json:"lastPull"`
 	Overall   KeyMeter       `json:"overall"`
@@ -213,9 +214,10 @@ type ReviewMetric struct {
 	Top       float64 `json:"top"`
 	Usual     float64 `json:"usual"`
 	PartyRank int     `json:"partyRank"`
-	Amount    bool    `json:"amount"`              // shown shortened ("2.1M"), else as a whole number
-	Help      string  `json:"help"`                // what the metric counts, for the page to show on hover
-	Group     bool    `json:"group,omitempty"`     // it starts a new group of columns (offense, defense, consumables, deaths)
+	Amount    bool    `json:"amount"` // shown shortened ("2.1M"), else as a whole number
+	Help      string  `json:"help"`   // what the metric counts, for the page to show on hover
+	// it starts a new group of columns (offense, defense, consumables, deaths)
+	Group     bool    `json:"group,omitempty"`
 	Total     float64 `json:"total,omitempty"`     // DPS and HPS: the key's damage or healing in all
 	TotalName string  `json:"totalName,omitempty"` // what Total is: "damage" or "healing"
 }
@@ -492,8 +494,8 @@ type KeyGhost struct {
 
 // KeyForces is a key's enemy forces: the count killed of the dungeon's total, and its share (it can pass 100; 100 once
 // a key is finished, since the game needs it), each counted kill's share (saved with the key), the pace against
-// your best run at the level (running keys only, when there is one), whether a finished key's kills fell short enough that the dungeon file
-// needs checking, and the enemies that died without being in the dungeon file at all.
+// your best run at the level (running keys only, when there is one), whether a finished key's kills fell short enough
+// that the dungeon file needs checking, and the enemies that died without being in the dungeon file at all.
 type KeyForces struct {
 	Count      int            `json:"count"`
 	Total      int            `json:"total"`

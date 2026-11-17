@@ -164,7 +164,7 @@ export function RoutesPage({ visible, character }: { visible: boolean; character
       .catch(fail)
   const total = dungeons.find((d) => d.mapID === dungeon)?.forcesTotal
   const rows = dirty ? pullForces(draft.pulls, map?.enemies ?? [], total) : route?.pulls
-  const last = rows?.[rows.length - 1]
+  const last = rows?.at(-1)
 
   return (
     <div className="layout">

@@ -20,7 +20,8 @@ var reviewedKey = models.Key{Start: 2, MapID: 585, Level: 12, Status: "timed", F
 	Overall: models.KeyMeter{Rows: []models.KeyMeterRow{
 		{Player: "Mage", DPS: 100_000, Interrupts: 2, DamageTaken: 30_000_000, Avoidable: 4_000_000,
 			Damage: 150_000_000, PriorityDamage: 30_000_000},
-		{Player: "Shaman", HPS: 50_000, Healing: 75_000_000, Interrupts: 9, Dispels: 6, DamageTaken: 20_000_000, Avoidable: 1_000_000}}},
+		{Player: "Shaman", HPS: 50_000, Healing: 75_000_000, Interrupts: 9, Dispels: 6, DamageTaken: 20_000_000,
+			Avoidable: 1_000_000}}},
 	Deaths: []models.KeyDeath{{Player: "Mage", ClockMS: 723_000, Ability: "Light Bolt", Ready: []string{"Ice Block"}}},
 	Stops:  []models.KeyStop{{Outcome: "went off"}, {Outcome: "went off"}, {Outcome: "interrupted", By: "Shaman"}},
 	AvoidableHits: []models.KeyHit{{Player: "Mage", Ability: "Burrow", Damage: 4_000_000},
@@ -39,7 +40,8 @@ func TestBuildReview(t *testing.T) {
 	mage, shaman := got.Players[0], got.Players[1]
 	// Everyone gets DPS then HPS with their totals, each against its own top runs.
 	if m, s := mage.Metrics, shaman.Metrics; m[0].Name != "DPS" || m[0].Top != 105_000 || m[0].Total != 150_000_000 ||
-		m[1].Name != "HPS" || m[1].Top != 5_000 || s[1].Top != 0 || s[0].Name != "DPS" || s[1].Name != "HPS" || s[1].Total != 75_000_000 ||
+		m[1].Name != "HPS" || m[1].Top != 5_000 || s[1].Top != 0 || s[0].Name != "DPS" || s[1].Name != "HPS" ||
+		s[1].Total != 75_000_000 ||
 		s[1].TotalName != "healing" {
 		t.Fatalf("metrics = %+v, %+v; want DPS and HPS first with totals, the mage's against 105k and 5k", m[:2], s[:2])
 	}
@@ -146,7 +148,8 @@ type fakeBaselines struct {
 func (f *fakeBaselines) MPlusEncounters(context.Context) (map[string]int, error) {
 	return map[string]int{"Voidscar Arena": 12923}, nil
 }
-func (f *fakeBaselines) MPlusRankings(context.Context, int, int, string, string, string) ([]models.MPlusRanking, error) {
+func (f *fakeBaselines) MPlusRankings(context.Context, int, int, string, string, string) ([]models.MPlusRanking,
+	error) {
 	f.asks++
 	return []models.MPlusRanking{{Amount: 1, DurationMS: 1_500_000, Code: "x", FightID: 1}}, nil
 }
@@ -243,9 +246,11 @@ func TestUnusedDefensive(t *testing.T) {
 		members []models.KeySpikeMember
 		want    string
 	}{
-		{"hardest hit used one", []models.KeySpikeMember{{Player: "A", Defensive: "Ice Block", Ready: []string{"Alter Time"}}}, ""},
+		{"hardest hit used one", []models.KeySpikeMember{{Player: "A", Defensive: "Ice Block",
+			Ready: []string{"Alter Time"}}}, ""},
 		{"hardest hit had one ready", []models.KeySpikeMember{{Player: "A", Ready: []string{"Ice Block"}}}, "Ice Block"},
-		{"only someone else had one ready", []models.KeySpikeMember{{Player: "A"}, {Player: "B", Ready: []string{"Barkskin"}}}, ""},
+		{"only someone else had one ready", []models.KeySpikeMember{{Player: "A"},
+			{Player: "B", Ready: []string{"Barkskin"}}}, ""},
 	} {
 		if got := unusedDefensive(models.KeySpike{Members: tc.members}); got != tc.want {
 			t.Errorf("%s: %q, want %q", tc.name, got, tc.want)

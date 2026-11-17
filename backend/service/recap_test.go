@@ -103,10 +103,12 @@ func TestRecapKeyRows(t *testing.T) {
 			You:   models.RecapKeyYou{DPS: -1, HPS: -1, RecapKeyCounts: models.RecapKeyCounts{PriorityPct: -1}}, // no meter row
 			Party: models.RecapKeyCounts{PriorityPct: -1}},
 		{Start: 50 * minute, Dungeon: "Skyreach", Level: 11, Status: "depleted",
-			You:   models.RecapKeyYou{DPS: -1, HPS: -1, RecapKeyCounts: models.RecapKeyCounts{Kicks: -1, CC: -1, Dispels: -1, PriorityPct: -1}},
+			You: models.RecapKeyYou{DPS: -1, HPS: -1,
+				RecapKeyCounts: models.RecapKeyCounts{Kicks: -1, CC: -1, Dispels: -1, PriorityPct: -1}},
 			Party: models.RecapKeyCounts{Dispels: 3, PriorityPct: -1}},
 		{Start: 0, Dungeon: "Skyreach", Level: 10, Status: "timed",
-			You:   models.RecapKeyYou{DPS: 900, HPS: 50, RecapKeyCounts: models.RecapKeyCounts{Kicks: 1, CC: 1, Dispels: 2, PriorityPct: 40}},
+			You: models.RecapKeyYou{DPS: 900, HPS: 50,
+				RecapKeyCounts: models.RecapKeyCounts{Kicks: 1, CC: 1, Dispels: 2, PriorityPct: 40}},
 			Party: models.RecapKeyCounts{Kicks: 3, CC: 1, Dispels: 3, PriorityPct: 15}}}
 	if !reflect.DeepEqual(got[:3], want) {
 		t.Errorf("rows = %+v\nwant %+v", got[:3], want)
@@ -174,7 +176,8 @@ func TestRecapPeriods(t *testing.T) {
 	now := time.Date(2026, 11, 12, 10, 0, 0, 0, time.UTC)
 	labels := func(err error) []string {
 		var got []string
-		for _, p := range (Recaps{Season: fakeSeason{err}, Now: func() time.Time { return now }}).Periods(context.Background()) {
+		for _, p := range (Recaps{Season: fakeSeason{err},
+			Now: func() time.Time { return now }}).Periods(context.Background()) {
 			got = append(got, p.Label)
 			if p.Label == "Last month" && (p.From != time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC).UnixMilli() ||
 				p.To != time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC).UnixMilli()) {
@@ -183,7 +186,8 @@ func TestRecapPeriods(t *testing.T) {
 		}
 		return got
 	}
-	if got := labels(nil); !reflect.DeepEqual(got, []string{"This month", "Last month", "This season", "This year", "All time"}) {
+	if got := labels(nil); !reflect.DeepEqual(got,
+		[]string{"This month", "Last month", "This season", "This year", "All time"}) {
 		t.Errorf("periods = %v", got)
 	}
 	if got := labels(errors.New("down")); len(got) != 4 {
@@ -201,13 +205,15 @@ func TestRecapTopTimes(t *testing.T) {
 	for i := range times {
 		times[i] = int64(20+i) * minute
 	}
-	got, err := Recaps{Saved: saved, Logs: &fakeBaselines{topTimes: times}}.TopTimes(context.Background(), 0, 999*minute, "")
+	got, err := Recaps{Saved: saved, Logs: &fakeBaselines{topTimes: times}}.TopTimes(context.Background(), 0, 999*minute,
+		"")
 	// At +12, the highest level timed: the depleted +14 and the abandoned +16 don't count.
 	want := []models.RecapTopTime{{Dungeon: "Voidscar Arena", Level: 12, MedianMS: 24*minute + 30_000, Runs: 10}}
 	if err != nil || !reflect.DeepEqual(got, want) {
 		t.Errorf("top times = %+v, %v; want %+v", got, err, want)
 	}
-	few, _ := Recaps{Saved: saved, Logs: &fakeBaselines{topTimes: times[:3]}}.TopTimes(context.Background(), 0, 999*minute, "")
+	few, _ := Recaps{Saved: saved, Logs: &fakeBaselines{topTimes: times[:3]}}.TopTimes(context.Background(), 0, 999*minute,
+		"")
 	if len(few) != 1 || few[0].MedianMS != 0 || few[0].Runs != 3 {
 		t.Errorf("top times over 3 runs = %+v; want no median", few)
 	}
@@ -216,7 +222,8 @@ func TestRecapTopTimes(t *testing.T) {
 	if err != nil || len(failed) != 0 {
 		t.Errorf("top times when Warcraft Logs fails = %+v, %v; want the dungeon left out", failed, err)
 	}
-	if _, err := (Recaps{Saved: saved}).TopTimes(context.Background(), 0, 1, ""); !errors.Is(err, models.ErrNoCredentials) {
+	if _, err := (Recaps{Saved: saved}).TopTimes(context.Background(), 0, 1, ""); !errors.Is(err,
+		models.ErrNoCredentials) {
 		t.Errorf("without Logs: %v; want ErrNoCredentials", err)
 	}
 }

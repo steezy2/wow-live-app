@@ -57,24 +57,11 @@ type RaidSource interface {
 	RaidTrack(start int64) (KeyTrack, error)
 }
 
-// PullStore keeps finished raid pulls and their tracks, each under its start time; ListPulls is every saved pull,
-// newest first, and DeletePull removes one with its track. Track fails with fs.ErrNotExist for a pull saved without one.
-type PullStore interface {
-	SavePull(pull RaidPull) error
-	SaveTrack(start int64, track KeyTrack) error
-	ListPulls() ([]RaidPull, error)
-	Track(start int64) (KeyTrack, error)
-	DeletePull(start int64) error
-}
+// PullStore keeps finished raid pulls and their tracks.
+type PullStore = FightStore[RaidPull]
 
-// KeyStore keeps finished Mythic+ keys and their tracks, each under its start time. Track fails with
-// fs.ErrNotExist for a key saved without one.
+// KeyStore keeps finished Mythic+ keys and their tracks, and can clear them all.
 type KeyStore interface {
-	Save(key Key) error
-	SaveTrack(start int64, track KeyTrack) error
-	// List is every saved key, newest first.
-	List() ([]Key, error)
-	Track(start int64) (KeyTrack, error)
-	Delete(start int64) error
+	FightStore[Key]
 	Clear() error
 }

@@ -4,9 +4,7 @@ import (
 	"cmp"
 	"context"
 	"fmt"
-	"os"
 	"path/filepath"
-	"time"
 
 	"wow-live/backend/clients/cachefile"
 )
@@ -22,12 +20,9 @@ type MapImages struct {
 func (m MapImages) Image(ctx context.Context, uiMapID int) ([]byte, error) {
 	path := filepath.Join(m.CacheDir, fmt.Sprintf("%d.png", uiMapID))
 	url := fmt.Sprintf("%s/img/warcraft/maps/%d-map.png", cmp.Or(m.Base, "https://assets.rpglogs.com"), uiMapID)
-	if err := cachefile.Fresh(ctx, nil, url, path, 100*365*24*time.Hour); err != nil {
-		return nil, fmt.Errorf("Warcraft Logs map: %w", err)
-	}
-	data, err := os.ReadFile(path)
+	data, err := cachefile.Fresh(ctx, nil, url, path, cachefile.Forever)
 	if err != nil {
-		return nil, fmt.Errorf("reading %s: %w", path, err)
+		return nil, fmt.Errorf("Warcraft Logs map: %w", err)
 	}
 	return data, nil
 }

@@ -2710,8 +2710,7 @@ const docTemplate = `{
                     "items": {
                         "type": "array",
                         "items": {
-                            "type": "integer",
-                            "format": "int64"
+                            "type": "integer"
                         }
                     }
                 }
@@ -2967,8 +2966,7 @@ const docTemplate = `{
                     "items": {
                         "type": "array",
                         "items": {
-                            "type": "number",
-                            "format": "float64"
+                            "type": "number"
                         }
                     }
                 },
@@ -3751,8 +3749,7 @@ const docTemplate = `{
                     "description": "TopBosses is how long each boss took in the similar top runs (the median, by boss name; missing in reviews\nsaved before Nov 11).",
                     "type": "object",
                     "additionalProperties": {
-                        "type": "integer",
-                        "format": "int64"
+                        "type": "integer"
                     }
                 }
             }
@@ -4060,8 +4057,7 @@ const docTemplate = `{
                     "description": "Activity is each player's share of their time alive in pulls with a cast going or a hit landing (in %).",
                     "type": "object",
                     "additionalProperties": {
-                        "type": "number",
-                        "format": "float64"
+                        "type": "number"
                     }
                 },
                 "affixes": {
@@ -4080,8 +4076,7 @@ const docTemplate = `{
                 "bestBosses": {
                     "type": "object",
                     "additionalProperties": {
-                        "type": "integer",
-                        "format": "int64"
+                        "type": "integer"
                     }
                 },
                 "bestFinalMS": {
@@ -4562,8 +4557,7 @@ const docTemplate = `{
                     "items": {
                         "type": "array",
                         "items": {
-                            "type": "number",
-                            "format": "float64"
+                            "type": "number"
                         }
                     }
                 }
@@ -5002,8 +4996,7 @@ const docTemplate = `{
                 "activity": {
                     "type": "object",
                     "additionalProperties": {
-                        "type": "number",
-                        "format": "float64"
+                        "type": "number"
                     }
                 },
                 "adds": {
@@ -7020,7 +7013,7 @@ var SwaggerInfo = &swag.Spec{
 	BasePath:         "/",
 	Schemes:          []string{},
 	Title:            "WoW Live API",
-	Description:      "The site's API: the live Mythic+ key read from the combat log.",
+	Description:      "The site's API: the live Mythic+ key and raid pull read from the combat log, their saved keys and pulls and reviews, planned routes, the recap, and the settings.",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",
