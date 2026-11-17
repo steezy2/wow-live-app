@@ -4,6 +4,8 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 
 ## [Unreleased]
 
+## [0.5.3] - 2026-11-17
+
 ### Changed
 - **The M+ Live bottom tabs are as tall as the raid page's** (640 px lists instead of 320 px), so the other tabs match the bigger Route.
 - **Clicking a boss shows the party's meter cards on it**, and a click on a player drills into two cards: their damage by spell over their damage into each enemy, and their healing by spell over the damage they took.
