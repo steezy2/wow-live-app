@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io/fs"
 	"sync"
 	"testing"
@@ -17,6 +18,7 @@ type fakeLogs struct {
 	left    float64
 	windows []int64
 	fail    bool
+	limited bool // every log read hits the rate limit
 }
 
 func (f *fakeLogs) MPlusEncounters(context.Context) (map[string]int, error) {
@@ -35,6 +37,9 @@ func (f *fakeLogs) RunPlayer(_ context.Context, _ string, _ int, _, _ string, wi
 	f.mu.Lock()
 	f.windows = append(f.windows, window)
 	f.mu.Unlock()
+	if f.limited {
+		return models.RankedPlayer{}, fmt.Errorf("reading: %w", models.ErrRateLimited)
+	}
 	if f.fail {
 		return models.RankedPlayer{}, errors.New("report gone")
 	}
@@ -117,6 +122,14 @@ func TestRunStopsForTooFewPointsAndForLogsThatCantBeRead(t *testing.T) {
 	}
 	if _, err := c.Run(context.Background(), models.FightMPlus, 1000, "Nobody"); !errors.Is(err, ErrNoSuchPlayer) {
 		t.Errorf("an unknown player: %v, want ErrNoSuchPlayer", err)
+	}
+}
+
+func TestRunEndsAtOnceOnARateLimitAndStoresNothing(t *testing.T) {
+	c, _, store := comparerOf(t, &fakeLogs{left: 1000, limited: true})
+	if _, err := c.Run(context.Background(), models.FightMPlus, 1000, "Testmage"); !errors.Is(err, models.ErrRateLimited) ||
+		len(store.reviews) != 0 {
+		t.Errorf("with the rate limit hit: %v, %d stored; want ErrRateLimited and nothing stored", err, len(store.reviews))
 	}
 }
 

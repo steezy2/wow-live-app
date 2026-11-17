@@ -1,9 +1,9 @@
 package wcl
 
 import (
-	"cmp"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"slices"
@@ -189,7 +189,7 @@ func (c *Client) RunPlayer(ctx context.Context, code string, fightID int, name, 
 	}()
 	tablesErr := c.cachedQuery(ctx, file, 0, gql, vars, &data)
 	wg.Wait()
-	if err := cmp.Or(tablesErr, takenErr); err != nil {
+	if err := errors.Join(tablesErr, takenErr); err != nil {
 		return models.RankedPlayer{}, err
 	}
 	if talentErr != nil {

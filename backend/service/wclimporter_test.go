@@ -457,3 +457,14 @@ func TestRecentReportsWalkPagesAheadAndStopAfterTheLastOfThisSeason(t *testing.T
 		t.Errorf("asked pages %v, want 1 and 2 together first", source.asked)
 	}
 }
+
+func TestRecentReportsNeverAskPastTheLastPageWarcraftLogsServes(t *testing.T) {
+	source := &pagedReports{pages: [][]int{{55}, {55}, {55}, {55}, {55}}}
+	im := &Importer{Source: source}
+	if _, err := im.recentReports(context.Background(), "us", "slug", "Name", models.WCLZones{MPlusID: 55}); err != nil {
+		t.Fatal(err)
+	}
+	if slices.Contains(source.asked, models.MaxReportPages+1) {
+		t.Errorf("asked pages %v, want none past page %d", source.asked, models.MaxReportPages)
+	}
+}

@@ -69,12 +69,8 @@ func (c *Client) Realms(ctx context.Context, region string) (map[string]string, 
 	}
 }
 
-// maxReportPages is the last page of a character's recent reports Warcraft Logs serves ("The page argument must be a
-// value between 1 and 5"), so a listing holds at most the newest 150 reports.
-const maxReportPages = 5
-
 // RecentReports is one page (30) of the reports a character appears in, newest first, and whether another page
-// follows (never after maxReportPages). Players are named from each report's player list. The page's list is cached
+// follows (never after models.MaxReportPages). Players are named from each report's player list. The page's list is cached
 // for models.ReportListMaxAge and each report's fights and players until its end moves (a report still being logged),
 // since they cost most of the points: so listing again only spends points on new or grown reports.
 func (c *Client) RecentReports(ctx context.Context, region, slug, name string, page int) (
@@ -122,7 +118,7 @@ func (c *Client) RecentReports(ctx context.Context, region, slug, name string, p
 	if err := c.addFights(ctx, reports); err != nil {
 		return nil, false, fmt.Errorf("listing %s's fights: %w", name, err)
 	}
-	return reports, character.RecentReports.HasMore && page < maxReportPages, nil
+	return reports, character.RecentReports.HasMore && page < models.MaxReportPages, nil
 }
 
 // reportFights is a report's fights and players, as Warcraft Logs answers them, cached with the report's end.

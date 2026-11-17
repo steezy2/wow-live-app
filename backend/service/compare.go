@@ -187,7 +187,12 @@ func (c Comparer) readTop(ctx context.Context, f fightRun, runs []models.RankedR
 			case errors.Is(err, models.ErrRateLimited) || errors.Is(err, models.ErrNoCredentials) ||
 				errors.Is(err, models.ErrBadCredentials) || ctx.Err() != nil:
 				mu.Lock()
-				fatal = cmp.Or(fatal, err, ctx.Err())
+				if fatal == nil {
+					fatal = err
+					if fatal == nil {
+						fatal = ctx.Err()
+					}
+				}
 				mu.Unlock()
 				stop()
 			case err != nil:

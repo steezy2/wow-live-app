@@ -33,7 +33,7 @@ export function TalentCompare({ compare }: { compare: PlayerCompare }) {
       </section>
     )
   }
-  if (!tree) return null
+  if (!tree || tree.specID !== talents.specID) return null // none yet, or the last spec's
   return <TalentPanel tree={tree} talents={talents} player={compare.player} />
 }
 

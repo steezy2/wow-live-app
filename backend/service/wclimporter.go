@@ -390,7 +390,10 @@ func (im *Importer) recentReports(ctx context.Context, region, slug, name string
 		}) {
 			return reports, nil
 		}
-		current, next = next, ask(n+2)
+		current = next
+		if next = nil; n+2 <= models.MaxReportPages {
+			next = ask(n + 2)
+		}
 	}
 }
 
