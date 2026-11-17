@@ -289,7 +289,8 @@ func carried() (app.Options, error) {
 		return app.Options{}, fmt.Errorf("the built-in files: %w", err)
 	}
 	return app.Options{Pages: pages, Rules: loaded.Rules, Dungeons: loaded.Dungeons, RaidRules: loaded.RaidRules,
-		SpecRules: loaded.SpecRules, Bosses: loaded.Bosses, Tier: loaded.Tier, Talents: loaded.Talents}, nil
+		SpecRules: loaded.SpecRules, Bosses: loaded.Bosses, Tier: loaded.Tier, Talents: loaded.Talents,
+		Drops: loaded.Drops}, nil
 }
 
 // follow reads the log folder in the background until the returned stop is called.
