@@ -18,6 +18,7 @@ export function BossList(props: {
   keyView: KeyView
   track: KeyTrack | null
   topBosses?: Record<string, number>
+  /** Moves the replay to a boss's start; it doesn't scroll the page. */
   onSeek: (clockMS: number) => void
 }) {
   const { keyView: key, track, topBosses, onSeek } = props
@@ -41,6 +42,7 @@ export function BossList(props: {
               aria-expanded={open === id}
               onClick={() => {
                 setOpen(open === id ? '' : id)
+                setFocus('')
                 onSeek(b.startMS)
               }}
             >
@@ -87,7 +89,7 @@ export function BossList(props: {
                       group="party"
                       classes={track.classes}
                       focus={focus}
-                      onFocus={setFocus}
+                      onFocus={key.status === 'running' ? undefined : setFocus}
                     />
                   </div>
                 )}
