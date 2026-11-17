@@ -39,7 +39,8 @@ func lateText(pulls []models.KeyPull) string {
 	if worst.AfterMS == 0 {
 		return fmt.Sprintf("Priority target died last of its pack in %d of %d pulls", late, len(pulls))
 	}
-	return fmt.Sprintf("Priority target died late in %d of %d pulls, last up to %.0f s after the rest of its pack (pull %d)",
+	return fmt.Sprintf("Priority target died late in %d of %d pulls, last up to %.0f s after the rest of its "+
+		"pack (pull %d)",
 		late, len(pulls), math.Ceil(float64(worst.AfterMS)/1000), worstPull) // up: under a second still reads as 1 s
 }
 
@@ -68,7 +69,8 @@ func lowPriorityText(key models.Key) string {
 	if lowestPct >= lowPriorityPct && lowestPct >= lowPriorityOfAverage*average {
 		return ""
 	}
-	return fmt.Sprintf("%s put %.0f%% of their damage into priority targets (party %.0f%%)", lowest.Player, lowestPct, average)
+	return fmt.Sprintf("%s put %.0f%% of their damage into priority targets (party %.0f%%)", lowest.Player, lowestPct,
+		average)
 }
 
 // keyLanes is a key's timeline for the replay's lanes, from its facts: its pulls (red when a miniboss died after most
@@ -96,7 +98,8 @@ func keyLanes(key models.Key, pulls []models.PullSpan) []models.RaidLane {
 			Bad: true})
 	}
 	for _, t := range key.Lusts {
-		add("lust", "Bloodlust", models.RaidMark{ClockMS: t, EndMS: t + lustBuffMS, Text: "Bloodlust", Bad: !potionWithLust(key, "", t)})
+		add("lust", "Bloodlust", models.RaidMark{ClockMS: t, EndMS: t + lustBuffMS, Text: "Bloodlust",
+			Bad: !potionWithLust(key, "", t)})
 	}
 	for _, c := range key.Casts {
 		text := c.Player + " · " + c.Ability
@@ -134,8 +137,8 @@ func pullsLane(key models.Key) []models.RaidMark {
 }
 
 // keySuggestions is what to fix next key, in this order and at most rules.Most: deaths to one ability, damage spikes a
-// defensive could have covered, the slowest pull against the same pull in the best timed run of the dungeon at the level
-// (best, nil without one; only when both runs have the same number of pulls), must-stop casts that went off, a
+// defensive could have covered, the slowest pull against the same pull in the best timed run of the dungeon at the
+// level (best, nil without one; only when both runs have the same number of pulls), must-stop casts that went off, a
 // Bloodlust few took a combat potion with, damage spikes with no party cooldown, the longest wait between pulls, and
 // priority targets that died after most of their pack, and a DPS who put little damage into priority targets. Each
 // line names a time on the key's clock where it has one.

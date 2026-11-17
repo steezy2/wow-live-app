@@ -1,7 +1,8 @@
 // Package simc installs SimulationCraft's simc.exe, the engine the app runs sims with. It comes from this
 // repository's own release (built weekly by .github/workflows/simc.yml, which takes the newest official Windows nightly
-// from simulationcraft/simc-publish and checks it against GitHub's digest), over HTTPS and checked against the sha256
-// in the release's engine.json. simulationcraft.org's own list is plain HTTP with no checksum, so the app never uses it.
+// from simulationcraft/simc-publish and checks it against GitHub's digest), over HTTPS and checked against the
+// sha256 in the release's engine.json. simulationcraft.org's own list is plain HTTP with no checksum, so the app never
+// uses it.
 // The owner can also point the app at a simc.exe of their own (UseFile).
 package simc
 

@@ -56,7 +56,7 @@ const zoneLine = "11/10/2026 19:02:11.000-7  ZONE_CHANGE,2805,\"Ula'tek\",16\n"
 // testSite is a site on a log folder of its own, whose folder Learn reads through dir (so a test can change it).
 func testSite(t *testing.T, dir *string) *Site {
 	t.Helper()
-	store := keystore.Store{Dir: filepath.Join(t.TempDir(), "local-keys")}
+	store := keystore.NewStore(filepath.Join(t.TempDir(), "local-keys"))
 	newKeys := func() (*service.LogTracker, error) {
 		return service.NewLogTracker(nil, nil, models.MPlusRules{}, nil, store)
 	}

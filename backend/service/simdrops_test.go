@@ -18,7 +18,8 @@ func testDrops() models.SimDrops {
 		Specs: map[int]models.SimSpec{1: {Class: "shaman", Spec: "elemental"}, 2: {Class: "warrior", Spec: "arms"}},
 		Raids: []models.DropSource{{Name: "Raid", Bosses: []models.DropBoss{{Name: "Boss",
 			Levels: &models.DifficultyLevels{LFR: 100, Normal: 110, Heroic: 120, Mythic: 130},
-			Items: []models.DropItem{{ID: 1, Name: "Ring", Slot: "finger"}, {ID: 2, Name: "Chest", Slot: "chest", Specs: []int{2}},
+			Items: []models.DropItem{{ID: 1, Name: "Ring", Slot: "finger"},
+				{ID: 2, Name: "Chest", Slot: "chest", Specs: []int{2}},
 				{ID: 3, Name: "Staff", Slot: "two_hand", Specs: []int{1}}, {ID: 4, Name: "Wand", Slot: "one_hand"}}}}}},
 		Dungeons: []models.DropSource{{Name: "Dungeon", Bosses: []models.DropBoss{{Name: "Last",
 			Items: []models.DropItem{{ID: 5, Name: "Trinket", Slot: "trinket", Specs: []int{1}}}}}}},
@@ -35,8 +36,10 @@ func TestDropCombosFollowTheSpecAndDifficulty(t *testing.T) {
 		key        int
 		want       []string // each combo's slots and the item level of what goes in
 	}{
-		{"heroic raid and a +10", "heroic", 10, []string{"finger1:120", "finger2:120", "main_hand:120", "main_hand:120", "trinket1:105", "trinket2:105"}},
-		{"lfr raid and mythic 0", "lfr", 0, []string{"finger1:100", "finger2:100", "main_hand:100", "main_hand:100", "trinket1:90", "trinket2:90"}},
+		{"heroic raid and a +10", "heroic", 10,
+			[]string{"finger1:120", "finger2:120", "main_hand:120", "main_hand:120", "trinket1:105", "trinket2:105"}},
+		{"lfr raid and mythic 0", "lfr", 0,
+			[]string{"finger1:100", "finger2:100", "main_hand:100", "main_hand:100", "trinket1:90", "trinket2:90"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -103,7 +106,8 @@ func TestGearResultsKeepARingsBetterSlot(t *testing.T) {
 	combos, _ := dropCombos(p, testDrops(), "heroic", 0)
 	sets := []simSetJSON{{Name: "drop1", Mean: 90}, {Name: "drop2", Mean: 110}, {Name: "drop3", Mean: 100}}
 	rows := gearResults(sets, 100, combos)
-	if len(rows) != 2 || rows[0].Swaps[0].Slot != "finger2" || rows[0].Gain != 10 || rows[0].Source != "Raid" || rows[0].Boss != "Boss" {
+	if len(rows) != 2 || rows[0].Swaps[0].Slot != "finger2" || rows[0].Gain != 10 || rows[0].Source != "Raid" ||
+		rows[0].Boss != "Boss" {
 		t.Errorf("rows %+v: want the ring's better slot once, then the other drop", rows)
 	}
 }

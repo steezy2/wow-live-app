@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 	"path/filepath"
 	"time"
 
@@ -20,12 +19,9 @@ const itemMaxAge = 30 * 24 * time.Hour
 func (c Client) Item(ctx context.Context, id int) (models.SimItemInfo, error) {
 	file := filepath.Join(c.CacheDir, fmt.Sprintf("item-%d.json", id))
 	url := fmt.Sprintf("%s/tooltip/item/%d?dataEnv=1&locale=0", cmp.Or(c.BaseURL, "https://nether.wowhead.com"), id)
-	if err := cachefile.Fresh(ctx, c.HTTP, url, file, itemMaxAge); err != nil {
-		return models.SimItemInfo{}, err
-	}
-	data, err := os.ReadFile(file)
+	data, err := cachefile.Fresh(ctx, c.HTTP, url, file, itemMaxAge)
 	if err != nil {
-		return models.SimItemInfo{}, fmt.Errorf("reading %s: %w", file, err)
+		return models.SimItemInfo{}, err
 	}
 	info, err := ParseItem(data)
 	info.ID = id

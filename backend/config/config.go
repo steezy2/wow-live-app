@@ -90,14 +90,40 @@ const RaidRulesFile = "raid-rules.toml"
 // SpecRulesFile holds the per-spec rules a player review checks at the repo's root; the app builds it in.
 const SpecRulesFile = "spec-rules.toml"
 
-// LoadSpecRules reads SpecRulesFile under root.
-func LoadSpecRules(root string) (models.SpecRules, error) {
-	return loadTOML[models.SpecRules](filepath.Join(root, SpecRulesFile))
+// Loaded is what the app reads at start: the rules and the generated reference files.
+type Loaded struct {
+	Rules     models.MPlusRules
+	RaidRules models.RaidRules
+	SpecRules models.SpecRules
+	Dungeons  map[int]models.DungeonFacts
+	Bosses    map[string]models.RaidBoss
+	Tier      map[string][]int
+	Talents   map[int]models.TalentTree
+	Drops     models.SimDrops
+	SimRef    models.SimReference
+	// RefErr is a reference file that wouldn't load: cmd/site goes on without it, the app (which builds both in) stops.
+	RefErr error
 }
 
-// LoadRules reads RulesFile under root.
-func LoadRules(root string) (models.MPlusRules, error) {
-	return loadTOML[models.MPlusRules](filepath.Join(root, RulesFile))
+// Load reads the rules and the reference files from fsys, laid out as in the repo (RulesFile at the top,
+// reference/ below); the app's built-in copy has the same layout. Only a bad rules file fails Load itself.
+func Load(fsys fs.FS) (Loaded, error) {
+	var l Loaded
+	err := errors.Join(DecodeTOML(fsys, RulesFile, &l.Rules), DecodeTOML(fsys, RaidRulesFile, &l.RaidRules),
+		DecodeTOML(fsys, SpecRulesFile, &l.SpecRules))
+	if err != nil {
+		return l, err
+	}
+	dungeons, dungeonsErr := loadJSON[models.MPlusReference](fsys, "reference/mplus-dungeons.json", "mplusref")
+	raid, raidErr := loadJSON[models.RaidReference](fsys, "reference/raid-bosses.json", "raidref")
+	talents, talentsErr := loadJSON[models.TalentTrees](fsys, "reference/talent-trees.json", "talentref")
+	var dropsErr error
+	l.Drops, dropsErr = loadJSON[models.SimDrops](fsys, "reference/sim-drops.json", "simref")
+	var optionsErr error
+	l.SimRef, optionsErr = loadJSON[models.SimReference](fsys, "reference/sim-options.json", "simoptref")
+	l.Dungeons, l.Bosses, l.Tier, l.Talents = dungeons.Dungeons, raid.Bosses, raid.Tier, talents.BySpec()
+	l.RefErr = errors.Join(dungeonsErr, raidErr, talentsErr, dropsErr, optionsErr)
+	return l, nil
 }
 
 // LoadRaidRules reads RaidRulesFile under root.
@@ -150,15 +176,9 @@ func TalentTreesPath(root string) string {
 	return filepath.Join(root, "reference", "talent-trees.json")
 }
 
-// LoadTalentTrees reads the talent trees by spec ID (TalentTreesPath).
-func LoadTalentTrees(path string) (map[int]models.TalentTree, error) {
-	file, err := loadJSON[models.TalentTrees](path, "talentref")
-	return file.BySpec(), err
-}
-
 // LoadReference reads the season's dungeon facts (ReferencePath).
 func LoadReference(path string) (models.MPlusReference, error) {
-	return loadJSON[models.MPlusReference](path, "mplusref")
+	return loadJSON[models.MPlusReference](os.DirFS(filepath.Dir(path)), filepath.Base(path), "mplusref")
 }
 
 // RaidMechanicsPath is the hand-kept boss mechanics cmd/raidref merges into the raid reference.
@@ -173,7 +193,7 @@ func LoadRaidMechanics(path string) (models.RaidMechanics, error) {
 
 // LoadRaidReference reads the raid's boss mechanics (RaidReferencePath).
 func LoadRaidReference(path string) (models.RaidReference, error) {
-	return loadJSON[models.RaidReference](path, "raidref")
+	return loadJSON[models.RaidReference](os.DirFS(filepath.Dir(path)), filepath.Base(path), "raidref")
 }
 
 // SimDropsPath is the Droptimizer's gear, written by cmd/simref.
@@ -198,14 +218,14 @@ func LoadSimDropLevels(path string) (models.SimDropLevels, error) {
 }
 
 // loadJSON reads a generated reference file, saying which command writes it when it's missing.
-func loadJSON[T any](path, command string) (T, error) {
+func loadJSON[T any](fsys fs.FS, name, command string) (T, error) {
 	var v T
-	data, err := os.ReadFile(path)
+	data, err := fs.ReadFile(fsys, name)
 	if err != nil {
-		return v, fmt.Errorf("reading %s (run go run ./cmd/%s): %w", path, command, err)
+		return v, fmt.Errorf("reading %s (run go run ./cmd/%s): %w", name, command, err)
 	}
 	if err := json.Unmarshal(data, &v); err != nil {
-		return v, fmt.Errorf("reading %s: %w", path, err)
+		return v, fmt.Errorf("reading %s: %w", name, err)
 	}
 	return v, nil
 }

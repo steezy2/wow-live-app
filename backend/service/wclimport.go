@@ -8,7 +8,6 @@ import (
 	"maps"
 	"slices"
 	"strings"
-	"sync"
 	"unicode"
 
 	"wow-live/backend/models"
@@ -30,9 +29,6 @@ const (
 
 // ErrBadCharacter means a character isn't "Name-Realm" with a name of 2 to 12 letters and a realm Warcraft Logs knows.
 var ErrBadCharacter = errors.New("a character is a name of 2 to 12 letters, a dash and a realm Warcraft Logs knows")
-
-// raidDifficultyNames are Warcraft Logs' raid difficulty numbers as RaidPull.Difficulty names them.
-var raidDifficultyNames = map[int]string{1: "LFR", 3: "Normal", 4: "Heroic", 5: "Mythic"}
 
 // RealmSource lists a region's realms by normalized name (models.NormalizeRealm) to Warcraft Logs' slug.
 type RealmSource interface {
@@ -108,7 +104,7 @@ func matchReports(keys []models.Key, pulls []models.RaidPull, reports []models.C
 	for _, p := range pulls {
 		wanted := func(f models.ReportFight) bool {
 			return f.KeystoneLevel == 0 && f.EncounterID == encounters[p.Boss] && f.EncounterID != 0 &&
-				raidDifficultyNames[f.Difficulty] == p.Difficulty && f.Kill == p.Kill &&
+				models.RaidDifficultyByWCL(f.Difficulty).Name == p.Difficulty && f.Kill == p.Kill &&
 				2*sharedPlayers(f.Players, p.Players) >= len(p.Players)
 		}
 		sameFights(found, reports, p.Start, p.End-p.Start, wanted)
@@ -133,24 +129,29 @@ func ReportLinks(reports []models.CharacterReport, encounters map[string]int, ke
 		}
 		return links[0], true
 	}
-	keyLinks, pullLinks = map[int64]models.ReportLink{}, map[int64]models.ReportLink{}
-	for _, k := range keys {
-		if k.Imported || k.Report != nil {
-			continue
-		}
-		if link, ok := newest(matchReports([]models.Key{k}, nil, reports, encounters)); ok {
-			keyLinks[k.Start] = link
-		}
-	}
-	for _, p := range pulls {
-		if p.Imported || p.Report != nil {
-			continue
-		}
-		if link, ok := newest(matchReports(nil, []models.RaidPull{p}, reports, encounters)); ok {
-			pullLinks[p.Start] = link
-		}
-	}
+	keyLinks = newestLinks(keys, newest, func(k models.Key) map[models.ReportLink]bool {
+		return matchReports([]models.Key{k}, nil, reports, encounters)
+	})
+	pullLinks = newestLinks(pulls, newest, func(p models.RaidPull) map[models.ReportLink]bool {
+		return matchReports(nil, []models.RaidPull{p}, reports, encounters)
+	})
 	return keyLinks, pullLinks
+}
+
+// newestLinks is the link newest picks from the report fights match finds for each fight of list that isn't
+// imported or linked yet, by start time.
+func newestLinks[T models.SavedFight[T]](list []T, newest func(map[models.ReportLink]bool) (models.ReportLink, bool),
+	match func(T) map[models.ReportLink]bool) map[int64]models.ReportLink {
+	links := map[int64]models.ReportLink{}
+	for _, fight := range list {
+		if fight.FromWCL() || fight.LinkedReport() != nil {
+			continue
+		}
+		if link, ok := newest(match(fight)); ok {
+			links[fight.FightStart()] = link
+		}
+	}
+	return links
 }
 
 // sameFights adds to found, in each report, the fight wanted says yes to whose start and length are within
@@ -232,7 +233,8 @@ func PickFights(reports []models.CharacterReport, zones models.WCLZones, charact
 	var picked []models.FightRef
 	for i, c := range candidates {
 		copied := slices.ContainsFunc(candidates[:i], func(o candidate) bool { // the same fight in another report
-			return o.ref.Code != c.ref.Code && o.fight.EncounterID == c.fight.EncounterID && o.fight.KeystoneLevel == c.fight.KeystoneLevel &&
+			return o.ref.Code != c.ref.Code && o.fight.EncounterID == c.fight.EncounterID &&
+				o.fight.KeystoneLevel == c.fight.KeystoneLevel &&
 				o.fight.Difficulty == c.fight.Difficulty && o.fight.Kill == c.fight.Kill &&
 				abs(o.ref.StartMS-c.ref.StartMS) <= matchSlackMS && abs(length(o)-length(c)) <= copyLengthMS
 		})
@@ -252,82 +254,78 @@ func (k *LogTracker) SetSource(link *models.ReportLink) {
 }
 
 // LinkReports saves each Warcraft Logs fight in keyLinks and pullLinks (by start time, from ReportLinks) as its
-// saved key's or raid pull's Report, and says how many it linked; one linked already keeps its link.
+// saved key's or raid pull's Report, and says how many it linked; one linked already keeps its link. The files are
+// written outside the tracker's lock, so the live reader isn't held up by a first import's many writes.
 func (k *LogTracker) LinkReports(keyLinks, pullLinks map[int64]models.ReportLink) (n int, err error) {
-	k.mu.Lock()
-	defer k.mu.Unlock()
+	k.mu.RLock()
+	keys := unlinked(k.history, keyLinks)
+	var pulls []models.RaidPull
+	if k.raid != nil {
+		pulls = unlinked(k.pulls, pullLinks)
+	}
+	k.mu.RUnlock()
+	var (
+		savedKeys  []models.Key
+		savedPulls []models.RaidPull
+	)
 	defer func() {
-		if n > 0 {
+		k.mu.Lock()
+		defer k.mu.Unlock()
+		for _, start := range applyLinks(k.history, savedKeys) { // deleted while its file was being written
+			err = errors.Join(err, k.store.Delete(start))
+		}
+		for _, start := range applyLinks(k.pulls, savedPulls) {
+			err = errors.Join(err, k.raid.store.Delete(start))
+		}
+		if n = len(savedKeys) + len(savedPulls); n > 0 {
 			k.version++
 		}
 	}()
-	for i, key := range k.history {
-		if link, ok := keyLinks[key.Start]; ok && !key.Imported && key.Report == nil {
-			key.Report = &link
-			if err := k.store.Save(key); err != nil {
-				return n, fmt.Errorf("linking a key to its report: %w", err)
-			}
-			k.history[i] = key
-			n++
+	for _, key := range keys {
+		if err := k.store.Save(key); err != nil {
+			return 0, fmt.Errorf("linking a key to its report: %w", err)
 		}
+		savedKeys = append(savedKeys, key)
 	}
-	if k.raid != nil {
-		for i, p := range k.pulls {
-			if link, ok := pullLinks[p.Start]; ok && !p.Imported && p.Report == nil {
-				p.Report = &link
-				if err := k.raid.store.SavePull(p); err != nil {
-					return n, fmt.Errorf("linking a raid pull to its report: %w", err)
-				}
-				k.pulls[i] = p
-				n++
-			}
+	for _, p := range pulls {
+		if err := k.raid.store.Save(p); err != nil {
+			return 0, fmt.Errorf("linking a raid pull to its report: %w", err)
 		}
+		savedPulls = append(savedPulls, p)
 	}
-	return n, nil
+	return 0, nil
 }
 
 // ImportedCount is how many saved keys and raid pulls came from Warcraft Logs.
 func (k *LogTracker) ImportedCount() int {
 	k.mu.RLock()
 	defer k.mu.RUnlock()
-	n := 0
-	for _, key := range k.history {
-		if key.Imported {
-			n++
-		}
-	}
-	for _, p := range k.pulls {
-		if p.Imported {
-			n++
-		}
-	}
-	return n
+	return len(importedStarts(k.history)) + len(importedStarts(k.pulls))
 }
 
-// RemoveImported deletes every saved key and raid pull that came from Warcraft Logs.
-func (k *LogTracker) RemoveImported() error {
-	k.mu.Lock()
-	defer k.mu.Unlock()
-	for _, key := range k.history {
-		if key.Imported {
-			if err := k.store.Delete(key.Start); err != nil {
-				return fmt.Errorf("removing imported keys: %w", err)
-			}
-		}
+// RemoveImported deletes every saved key and raid pull that came from Warcraft Logs. The files go outside the
+// tracker's lock; what was deleted leaves the lists even when a later delete fails.
+func (k *LogTracker) RemoveImported() (err error) {
+	k.mu.RLock()
+	keys, pulls := importedStarts(k.history), importedStarts(k.pulls)
+	k.mu.RUnlock()
+	var gone, gonePulls []int64
+	defer func() {
+		k.mu.Lock()
+		defer k.mu.Unlock()
+		dropImported(&k.history, gone)
+		dropImported(&k.pulls, gonePulls)
+		k.version++
+	}()
+	if gone, err = deleteAll(keys, k.store.Delete); err != nil {
+		return fmt.Errorf("removing imported keys: %w", err)
 	}
-	k.history = slices.DeleteFunc(k.history, func(key models.Key) bool { return key.Imported })
-	k.version++
-	if k.raid == nil {
+	if len(pulls) == 0 {
 		return nil
 	}
-	for _, p := range k.pulls {
-		if p.Imported {
-			if err := k.raid.store.DeletePull(p.Start); err != nil {
-				return fmt.Errorf("removing imported raid pulls: %w", err)
-			}
-		}
+	if gonePulls, err = deleteAll(pulls, k.raid.store.Delete); err != nil {
+		return fmt.Errorf("removing imported raid pulls: %w", err)
 	}
-	k.pulls = slices.DeleteFunc(k.pulls, func(p models.RaidPull) bool { return p.Imported })
 	return nil
 }
 
@@ -342,30 +340,4 @@ func sameKey(a, b models.Key) bool {
 func samePull(a, b models.RaidPull) bool {
 	return a.Imported != b.Imported && a.Boss == b.Boss && a.Difficulty == b.Difficulty && a.Kill == b.Kill &&
 		abs(a.Start-b.Start) <= matchSlackMS
-}
-
-// keepLocal settles an item read both from a local log and from Warcraft Logs, before item is saved: the local copy
-// wins. An imported item with a local twin in list is taken off it and not saved (true); a local one's imported
-// twins are deleted (del) and taken off. mu is the tracker's lock.
-func keepLocal[T any](mu *sync.RWMutex, list *[]T, item T, same func(a, b T) bool, imported func(T) bool,
-	start func(T) int64, del func(int64) error) (bool, error) {
-	mu.Lock()
-	defer mu.Unlock()
-	twin := func(other T) bool { return same(item, other) }
-	if imported(item) {
-		if !slices.ContainsFunc(*list, twin) {
-			return false, nil
-		}
-		*list = slices.DeleteFunc(*list, func(other T) bool { return start(other) == start(item) && imported(other) })
-		return true, nil
-	}
-	for _, other := range *list {
-		if twin(other) {
-			if err := del(start(other)); err != nil {
-				return false, fmt.Errorf("deleting an imported copy: %w", err)
-			}
-		}
-	}
-	*list = slices.DeleteFunc(*list, twin)
-	return false, nil
 }

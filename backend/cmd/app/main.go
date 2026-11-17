@@ -8,7 +8,6 @@ package main
 import (
 	"context"
 	"embed"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -49,8 +48,9 @@ const (
 	overlayW, overlayH, overlayMargin = 420, 340, 24
 )
 
-// files are what build.sh puts in: the built page (dist/), mplus.toml and raid-rules.toml (the rules),
-// mplus-dungeons.json and raid-bosses.json (the reference files) and the tray's icon.ico (from cmd/appicon).
+// files are what build.sh puts in: the built page (dist/), mplus.toml, raid-rules.toml and spec-rules.toml (the rules),
+// reference/mplus-dungeons.json and reference/raid-bosses.json (the reference files) and the tray's icon.ico (from
+// cmd/appicon).
 //
 //go:embed embed
 var files embed.FS
@@ -79,14 +79,18 @@ func run() error {
 	// Made first, so a second copy hands over to the running one and exits before it reads a log or resumes an
 	// import. The page is served once Run starts, by then from site.
 	var site *app.Site
-	var show func()
+	var showWindow atomic.Pointer[func()] // set once the window exists, read from Wails' goroutine
 	wails := application.New(application.Options{Name: name,
 		Assets: application.AssetOptions{Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			site.Handler.ServeHTTP(w, r)
 		})},
 		Windows: application.WindowsOptions{WebviewUserDataPath: filepath.Join(data, "webview")},
 		SingleInstance: &application.SingleInstanceOptions{UniqueID: "wow-live.app",
-			OnSecondInstanceLaunch: func(application.SecondInstanceData) { show() }}})
+			OnSecondInstanceLaunch: func(application.SecondInstanceData) {
+				if f := showWindow.Load(); f != nil { // a second copy started before the window exists
+					(*f)()
+				}
+			}}})
 	opts, err := carried()
 	if err != nil {
 		return err
@@ -130,10 +134,11 @@ func run() error {
 			e.Cancel()
 		}
 	})
-	show = func() {
+	show := func() {
 		window.Show()
 		window.Focus()
 	}
+	showWindow.Store(&show)
 	// See-through takes WebView2's composition hosting without Wails' frameless decorations, and click-through
 	// switched on once the page is up: a window made click-through at creation is layered, which paints the page's
 	// transparent parts white (tried Nov 8).
@@ -275,58 +280,17 @@ func carried() (app.Options, error) {
 	if err != nil {
 		return app.Options{}, err
 	}
-	opts := app.Options{Pages: pages}
-	if err := config.DecodeTOML(files, "embed/"+config.RulesFile, &opts.Rules); err != nil {
-		return opts, fmt.Errorf("the built-in M+ rules: %w", err)
-	}
-	reference, err := files.ReadFile("embed/mplus-dungeons.json")
+	built, err := fs.Sub(files, "embed")
 	if err != nil {
-		return opts, err
+		return app.Options{}, err
 	}
-	var ref models.MPlusReference
-	if err := json.Unmarshal(reference, &ref); err != nil {
-		return opts, fmt.Errorf("reading the built-in dungeon facts: %w", err)
+	loaded, err := config.Load(built)
+	if err := errors.Join(err, loaded.RefErr); err != nil {
+		return app.Options{}, fmt.Errorf("the built-in files: %w", err)
 	}
-	opts.Dungeons = ref.Dungeons
-	if err := config.DecodeTOML(files, "embed/"+config.RaidRulesFile, &opts.RaidRules); err != nil {
-		return opts, fmt.Errorf("the built-in raid rules: %w", err)
-	}
-	if err := config.DecodeTOML(files, "embed/"+config.SpecRulesFile, &opts.SpecRules); err != nil {
-		return opts, fmt.Errorf("the built-in spec rules: %w", err)
-	}
-	bosses, err := files.ReadFile("embed/raid-bosses.json")
-	if err != nil {
-		return opts, err
-	}
-	var raid models.RaidReference
-	if err := json.Unmarshal(bosses, &raid); err != nil {
-		return opts, fmt.Errorf("reading the built-in raid bosses: %w", err)
-	}
-	opts.Bosses, opts.Tier = raid.Bosses, raid.Tier
-	trees, err := files.ReadFile("embed/talent-trees.json")
-	if err != nil {
-		return opts, err
-	}
-	var talents models.TalentTrees
-	if err := json.Unmarshal(trees, &talents); err != nil {
-		return opts, fmt.Errorf("reading the built-in talent trees: %w", err)
-	}
-	opts.Talents = talents.BySpec()
-	drops, err := files.ReadFile("embed/sim-drops.json")
-	if err != nil {
-		return opts, err
-	}
-	if err := json.Unmarshal(drops, &opts.Drops); err != nil {
-		return opts, fmt.Errorf("reading the built-in sim drops: %w", err)
-	}
-	simOptions, err := files.ReadFile("embed/sim-options.json")
-	if err != nil {
-		return opts, err
-	}
-	if err := json.Unmarshal(simOptions, &opts.SimRef); err != nil {
-		return opts, fmt.Errorf("reading the built-in sim options: %w", err)
-	}
-	return opts, nil
+	return app.Options{Pages: pages, Rules: loaded.Rules, Dungeons: loaded.Dungeons, RaidRules: loaded.RaidRules,
+		SpecRules: loaded.SpecRules, Bosses: loaded.Bosses, Tier: loaded.Tier, Talents: loaded.Talents,
+		Drops: loaded.Drops, SimRef: loaded.SimRef}, nil
 }
 
 // follow reads the log folder in the background until the returned stop is called.

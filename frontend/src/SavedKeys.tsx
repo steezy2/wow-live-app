@@ -15,7 +15,8 @@ export function SavedKeys({ selected, onSelect, refresh, character }: {
   refresh: number
   character: string
 }) {
-  const [keys, setKeys] = useState<KeySummary[] | null>(null) // null until first read; then the last list stays up while it is read again
+  // null until first read; then the last list stays up while it is read again
+  const [keys, setKeys] = useState<KeySummary[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const asked = useRef(0)
   const load = useCallback(() => {

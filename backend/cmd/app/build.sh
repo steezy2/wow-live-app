@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
-# Builds WoW Live (bin/WoW Live.exe): the page, the icon (cmd/appicon), then the app with the page, the M+ and raid
-# rules, the season's dungeon facts, the raid's boss mechanics, the talent trees and the icon built in. Run from anywhere, in Git Bash
-# on Windows.
+# Builds WoW Live (bin/WoW Live.exe): the page, the icon (cmd/appicon), then the app with the page, the M+, raid and
+# spec rules, the season's dungeon facts, the raid's boss mechanics, the talent trees and the icon built in. Run from
+# anywhere, in Git Bash on Windows.
 set -euo pipefail
 repo="$(cd "$(dirname "$0")/../../.." && pwd)"
 (cd "$repo/frontend" && npm ci && npm run build)
 embed="$repo/backend/cmd/app/embed"
 rm -rf "$embed/dist"
 cp -r "$repo/frontend/dist" "$embed/dist"
-cp "$repo/mplus.toml" "$repo/raid-rules.toml" "$repo/spec-rules.toml" "$repo/reference/mplus-dungeons.json" \
-  "$repo/reference/raid-bosses.json" "$repo/reference/talent-trees.json" "$repo/reference/sim-drops.json" \
-  "$repo/reference/sim-options.json" "$embed/"
+cp "$repo/mplus.toml" "$repo/raid-rules.toml" "$repo/spec-rules.toml" "$embed/"
+mkdir -p "$embed/reference"
+cp "$repo/reference/mplus-dungeons.json" "$repo/reference/raid-bosses.json" "$repo/reference/talent-trees.json"   "$repo/reference/sim-drops.json" "$repo/reference/sim-options.json" "$embed/reference/"
 cd "$repo/backend" && go run ./cmd/appicon
 go build -trimpath -ldflags "-H windowsgui -s -w" -o "$repo/bin/WoW Live.exe" ./cmd/app
 echo "built $repo/bin/WoW Live.exe"

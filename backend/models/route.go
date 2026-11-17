@@ -91,7 +91,8 @@ type RouteView struct {
 	Limits   DrawingLimits   `json:"limits"`
 	TotalPct float64         `json:"totalPct"`
 	Updated  int64           `json:"updated"`
-	Dropped  int             `json:"dropped,omitempty"` // an import's enemies that Mythic Dungeon Tools knows and this map doesn't
+	// an import's enemies that Mythic Dungeon Tools knows and this map doesn't
+	Dropped int `json:"dropped,omitempty"`
 	// DroppedDrawings counts an import's drawings the app can't show (kept for the export).
 	DroppedDrawings int `json:"droppedDrawings,omitempty"`
 }
@@ -177,9 +178,9 @@ const (
 	RunOff     = "off"
 )
 
-// RunPull is a pull a key made: the map enemies it killed with their forces, the route pull (an index, -1 for none) most
-// of them are in, how many of its enemies are in other route pulls (Extra) and how many of that route pull's enemies it
-// did not kill (Missing), and the resulting State. ClockMS is the key pull's start.
+// RunPull is a pull a key made: the map enemies it killed with their forces, the route pull (an index, -1 for none)
+// most of them are in, how many of its enemies are in other route pulls (Extra) and how many of that route pull's
+// enemies it did not kill (Missing), and the resulting State. ClockMS is the key pull's start.
 type RunPull struct {
 	KeyPull int        `json:"keyPull"`
 	ClockMS int64      `json:"clockMS"`

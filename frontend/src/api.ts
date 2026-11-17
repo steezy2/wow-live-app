@@ -804,7 +804,8 @@ export async function fetchKeyRoute(start: number, id?: string, signal?: AbortSi
   return jsonOrNull<RouteCompare>(`/api/mplus/keys/${start}/route${query}`, signal)
 }
 
-/** The pulls a key made as the enemies of route pulls, the forces share they hold and the kills no enemy was left for. */
+/** The pulls a key made as the enemies of route pulls, the forces share they hold and the kills no enemy was left
+ * for. */
 export interface RecordedRoute {
   pulls: EnemyRef[][]
   pct: number
@@ -914,8 +915,8 @@ export function onAppEvent(name: string, callback: (data: unknown) => void): () 
 
 /** Calls notify once now and whenever the site says the keys changed (and in a browser when the stream reopens). In
  * the desktop app the notices are Wails events; in a browser, the site's event stream, polling every FALLBACK_POLL_MS
- * while it's down (the browser keeps retrying it). While the page is hidden (a window in the tray) a change waits and is read once when it shows again.
- * Returns the unsubscribe. */
+ * while it's down (the browser keeps retrying it). While the page is hidden (a window in the tray) a change waits and
+ * is read once when it shows again. Returns the unsubscribe. */
 export function subscribe(notify: () => void): () => void {
   let missed = false
   const onChange = () => {
@@ -964,9 +965,12 @@ function subscribeToChanges(onChange: () => void): () => void {
   }
 }
 
+/** What a saved fight is: a Mythic+ key or a raid pull. */
+export type FightKind = 'mplus' | 'raid'
+
 /** The full review page of a finished key or raid pull (its start), on a tab and, for the Player and Compare tabs, a
  * player: /review/mplus/{start}?tab=…&player=…. */
-export function reviewURL(kind: 'mplus' | 'raid', start: number, tab = '', player = ''): string {
+export function reviewURL(kind: FightKind, start: number, tab = '', player = ''): string {
   const query = new URLSearchParams()
   if (tab) query.set('tab', tab)
   if (player) query.set('player', player)
@@ -1003,7 +1007,8 @@ export interface Settings {
   overlay: OverlaySettings
   /** The character Warcraft Logs reports are imported for, "Name-Realm"; "" for none. */
   character: string
-  /** The auto rules, in days (0 for off): archive the game's logs read and this old, delete imports this long after they were imported. */
+  /** The auto rules, in days (0 for off): archive the game's logs read and this old, delete imports this long after
+   * they were imported. */
   auto: { archiveGameLogsDays: number; deleteImportsDays: number }
   /** The Home tab's setup guide is done or dismissed. */
   setupDone: boolean
@@ -1020,7 +1025,16 @@ export interface OverlaySettings {
   clickThrough: boolean
 }
 /** A column the overlay's cards can show (the settings' overlayColumns). */
-export type OverlayColumn = 'dps' | 'hps' | 'kicks' | 'pullDps' | 'taken' | 'avoidable' | 'priority' | 'dispels' | 'deaths'
+export type OverlayColumn =
+  | 'dps'
+  | 'hps'
+  | 'kicks'
+  | 'pullDps'
+  | 'taken'
+  | 'avoidable'
+  | 'priority'
+  | 'dispels'
+  | 'deaths'
 export interface SettingsView extends Settings {
   logsDirFound: boolean
   lastLogMS: number
@@ -1146,7 +1160,7 @@ export async function stopImport(): Promise<ImportStatus> {
 }
 
 /** A period the Recap tab offers, with its span in ms since the epoch (models.RecapPeriod). */
-export interface RecapPeriod {
+interface RecapPeriod {
   label: string
   from: number
   to: number
@@ -1227,7 +1241,7 @@ export interface RecapDungeon {
 /** A recap line that opens its key (mplus) or pull (raid) by its start. */
 interface RecapFact {
   text: string
-  kind: 'mplus' | 'raid'
+  kind: FightKind
   start: number
 }
 
@@ -1311,8 +1325,8 @@ interface SpellInfo {
 const spellAnswers = new Map<string, Promise<SpellInfo | null>>()
 
 /** What an ability does, by the name the combat log gives it or a spell ID, or null when it can't be told. Answers are
- * kept, so a hover asks once; an unknown spell ID (404) is kept too, but a failed lookup, or a name the log hasn't shown
- * yet, is asked again next time. */
+ * kept, so a hover asks once; an unknown spell ID (404) is kept too, but a failed lookup, or a name the log hasn't
+ * shown yet, is asked again next time. */
 export function fetchSpell(spell: string | number): Promise<SpellInfo | null> {
   const key = typeof spell === 'number' ? `#${spell}` : spell
   let answer = spellAnswers.get(key)
@@ -1349,7 +1363,7 @@ export interface CharacterParses {
 
 /** The character's best and median parse (0-100) in a dungeon or raid boss (models.CharacterParse). */
 interface CharacterParse {
-  kind: 'mplus' | 'raid'
+  kind: FightKind
   encounter: string
   best: number
   median: number
@@ -1416,7 +1430,10 @@ export async function deleteLogs(names: string[], source: LogSource = 'game'): P
 
 /** What the app keeps on disk, by folder (models.Storage). */
 export interface Storage {
-  folders: { name: 'localKeys' | 'raidPulls' | 'wclImport' | 'archive' | 'simEngine' | 'sims' | 'gameLogs'; bytes: number }[]
+  folders: {
+    name: 'localKeys' | 'raidPulls' | 'wclImport' | 'archive' | 'simEngine' | 'sims' | 'gameLogs'
+    bytes: number
+  }[]
 }
 
 export async function fetchStorage(signal?: AbortSignal): Promise<Storage> {
@@ -1628,7 +1645,8 @@ interface CompareLog {
   amount: number
 }
 
-/** A talent a player took: the tree node, the entry chosen in it (a node with a choice holds two) and the ranks bought. */
+/** A talent a player took: the tree node, the entry chosen in it (a node with a choice holds two) and the ranks
+ * bought. */
 export interface TalentPick {
   n: number
   e: number
@@ -1688,7 +1706,7 @@ export async function fetchTalentTree(specID: number, signal?: AbortSignal): Pro
 /** A player's run against their own similar runs, the top Warcraft Logs logs of their spec and their parses
  * (models.PlayerCompare). */
 export interface PlayerCompare {
-  kind: 'mplus' | 'raid'
+  kind: FightKind
   start: number
   player: string
   spec: string
@@ -1714,7 +1732,7 @@ export interface PlayerCompare {
 
 /** A player's stored review of a finished key or raid pull, or null when none was made yet. */
 export async function fetchCompare(
-  kind: 'mplus' | 'raid',
+  kind: FightKind,
   start: number,
   player: string,
   signal?: AbortSignal,
@@ -1723,11 +1741,11 @@ export async function fetchCompare(
 }
 
 /** Reviews a player against Warcraft Logs' top logs (spends points); the stored review when there is one. */
-export async function runCompare(kind: 'mplus' | 'raid', start: number, player: string): Promise<PlayerCompare> {
+export async function runCompare(kind: FightKind, start: number, player: string): Promise<PlayerCompare> {
   return (await (await call(compareURL(kind, start, player), { method: 'POST' })).json()) as PlayerCompare
 }
 
-function compareURL(kind: 'mplus' | 'raid', start: number, player: string): string {
+function compareURL(kind: FightKind, start: number, player: string): string {
   const path = kind === 'mplus' ? `mplus/keys/${start}` : `raid/pulls/${start}`
   return `/api/${path}/players/${encodeURIComponent(player)}/compare`
 }
@@ -1831,7 +1849,8 @@ export interface SimCompare {
 }
 
 /** A sim to start: the export is read again by the app, `equipped` and `bags` are indexes into the profile read from
- * it. `omnium` is the Omnium Folio's picks as the export writes them, sent only when they differ from the export's. */
+ * it. `omnium` is the Omnium Folio's picks as the export writes them, sent only when they differ from the
+ * export's. */
 export interface SimRequest {
   kind: SimKind
   export: string
@@ -1935,7 +1954,8 @@ export interface SimSwap {
   in?: SimItem
 }
 
-/** One gear combination (Top Gear) or drop (Droptimizer): its DPS, its gain over the equipped gear and where a drop is from. */
+/** One gear combination (Top Gear) or drop (Droptimizer): its DPS, its gain over the equipped gear and where a drop is
+ * from. */
 export interface SimCombo {
   dps: number
   dpsError: number

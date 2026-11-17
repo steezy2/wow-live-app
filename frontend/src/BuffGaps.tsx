@@ -1,15 +1,14 @@
 import { Fragment } from 'react'
 import { type BuffGap } from './api'
-import { groupBy } from './format'
 import { When, Who, type Seeker } from './Seek'
 import { Spell } from './Spell'
 
 /** What a key or raid pull lacked, a line per buff (the most players first), for a tab: who lacked it the whole fight
- * ("everyone" when all did), then each shorter gap as a player and its start (a time that moves the replay with seek) to
- * its end. endMS is the fight's length and players how many were in it. */
+ * ("everyone" when all did), then each shorter gap as a player and its start (a time that moves the replay with seek)
+ * to its end. endMS is the fight's length and players how many were in it. */
 export function BuffGaps(props: { gaps: BuffGap[]; endMS: number; players: number; seek?: Seeker }) {
   const { gaps, endMS, players, seek } = props
-  const buffs = [...groupBy(gaps, (g) => g.buff)].sort(([, a], [, b]) => b.length - a.length)
+  const buffs = [...Map.groupBy(gaps, (g) => g.buff)].sort(([, a], [, b]) => b.length - a.length)
   const whole = (g: BuffGap) => g.fromMS === 0 && g.toMS >= endMS
   return (
     <ul className="list scroll buff-gaps small">

@@ -28,7 +28,8 @@ func TestDungeonsKeepsMappedFloorsWithSafeTileFoldersAndTheNewestMappingsForcesA
 		}
 		_, _ = w.Write([]byte(`[
 		 {"id": 7, "challenge_mode_id": 250, "key": "templeofsethraliss", "name": "dungeons.bfa.temple.name", "floors": [
-		   {"index": 1, "ui_map_id": 1038, "ingame_min_x": -2789.58, "ingame_max_x": -3916.67, "ingame_min_y": 3187.5, "ingame_max_y": 3937.5},
+		   {"index": 1, "ui_map_id": 1038, "ingame_min_x": -2789.58, "ingame_max_x": -3916.67, "ingame_min_y": 3187.5,
+		     "ingame_max_y": 3937.5},
 		   {"index": 3, "ui_map_id": 0, "ingame_min_x": 0, "ingame_max_x": 0, "ingame_min_y": 0, "ingame_max_y": 0}]},
 		 {"id": 8, "challenge_mode_id": 1, "key": "../../evil", "name": "dungeons.bfa.x.name", "floors": [
 		   {"index": 1, "ui_map_id": 5, "ingame_min_x": 1, "ingame_max_x": 2, "ingame_min_y": 1, "ingame_max_y": 2}]}]`))
@@ -93,7 +94,8 @@ func TestNPCsNameTypesAndClassesAndKeepTheLiveGamesHealthAndSetFlags(t *testing.
 		_, _ = w.Write([]byte(`[
 		 {"id": 262530, "level": 92, "npc_type_id": 8, "classification_id": 4,
 		  "bolstering": 0, "bursting": 0, "sanguine": 0, "dangerous": 1, "truesight": 1, "runs_away_in_fear": 0,
-		  "npc_healths": [{"game_version_id": 4, "health": 1}, {"game_version_id": 1, "health": 9729765, "percentage": null}]},
+		  "npc_healths": [{"game_version_id": 4, "health": 1},
+		    {"game_version_id": 1, "health": 9729765, "percentage": null}]},
 		 {"id": 7, "level": null, "npc_type_id": 100, "classification_id": 2,
 		  "bolstering": 1, "bursting": 1, "sanguine": 1, "dangerous": 0, "truesight": 0, "runs_away_in_fear": 1,
 		  "npc_healths": [{"game_version_id": 1, "health": 1000, "percentage": 30}]}]`))
@@ -126,10 +128,14 @@ func TestAFloorWithoutTilesTakesThoseOfItsTwinAndAFloorWithNoneGoes(t *testing.T
 		case strings.Contains(r.URL.Path, "/tiles_webp/"):
 			_, _ = w.Write([]byte("webp"))
 		default:
-			_, _ = w.Write([]byte(`[{"id": 9, "challenge_mode_id": 586, "key": "den", "name": "dungeons.midnight.den.name", "floors": [
-			  {"index": 1, "ui_map_id": 2513, "ingame_min_x": 5350, "ingame_max_x": 4406, "ingame_min_y": 4500, "ingame_max_y": 5129},
-			  {"index": 2, "ui_map_id": 2514, "ingame_min_x": 5856, "ingame_max_x": 4731, "ingame_min_y": 4014, "ingame_max_y": 4764},
-			  {"index": 3, "ui_map_id": 2564, "ingame_min_x": 5350, "ingame_max_x": 4406, "ingame_min_y": 4500, "ingame_max_y": 5129},
+			_, _ = w.Write([]byte(`[{"id": 9, "challenge_mode_id": 586, "key": "den",
+			  "name": "dungeons.midnight.den.name", "floors": [
+			  {"index": 1, "ui_map_id": 2513, "ingame_min_x": 5350, "ingame_max_x": 4406, "ingame_min_y": 4500,
+			    "ingame_max_y": 5129},
+			  {"index": 2, "ui_map_id": 2514, "ingame_min_x": 5856, "ingame_max_x": 4731, "ingame_min_y": 4014,
+			    "ingame_max_y": 4764},
+			  {"index": 3, "ui_map_id": 2564, "ingame_min_x": 5350, "ingame_max_x": 4406, "ingame_min_y": 4500,
+			    "ingame_max_y": 5129},
 			  {"index": 4, "ui_map_id": 2600, "ingame_min_x": 1, "ingame_max_x": 2, "ingame_min_y": 1, "ingame_max_y": 2}]}]`))
 		}
 	}))

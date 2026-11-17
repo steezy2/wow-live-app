@@ -30,7 +30,37 @@ jobs:
           unformatted=$(gofmt -l .)
           if [ -n "$unformatted" ]; then echo "Not gofmt'd:"; echo "$unformatted"; exit 1; fi
       - run: go vet ./...
+      - uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.15.0
+          working-directory: backend
       - run: go test ./...
+      - name: API spec is up to date
+        run: |
+          go install github.com/swaggo/swag/cmd/swag@v1.16.4 # the version backend/docs was generated with (make swag)
+          swag init -g cmd/site/main.go -o docs --parseInternal
+          git diff --exit-code -- docs
+
+  # The desktop app's files build only on Windows, so its tests (main.go's wiring, the windows, the tray) run here.
+  app-windows:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Embed the page and rules (cmd/app needs them to compile)
+        shell: bash
+        run: bash backend/cmd/app/build.sh
+      - run: go test ./cmd/app
+        working-directory: backend
 
   frontend:
     runs-on: ubuntu-latest

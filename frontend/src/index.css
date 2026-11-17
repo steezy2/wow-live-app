@@ -52,7 +52,7 @@ html {
 }
 
 .small {
-  font-size: 0.85rem;
+  font-size: var(--t-small);
 }
 
 .warning {
@@ -62,7 +62,7 @@ html {
 .title {
   display: flex;
   align-items: baseline;
-  gap: 12px;
+  gap: var(--s3);
 }
 
 h1 {
@@ -81,9 +81,9 @@ h2 {
 
 .status {
   text-transform: uppercase;
-  font-size: 0.75rem;
+  font-size: var(--t-small);
   letter-spacing: 0.08em;
-  padding: 2px 8px;
+  padding: 2px var(--s2);
   border-radius: 4px;
   background: var(--panel);
 }
@@ -100,8 +100,8 @@ h2 {
 .clock {
   display: flex;
   align-items: baseline;
-  gap: 8px;
-  margin: 16px 0 8px;
+  gap: var(--s2);
+  margin: var(--s4) 0 var(--s2);
 }
 
 .big {
@@ -207,17 +207,17 @@ h2 {
 .list li {
   display: flex;
   justify-content: space-between;
-  padding: 6px 10px;
+  padding: var(--s2) var(--s3);
   background: var(--panel);
   border-radius: 4px;
-  margin-bottom: 4px;
+  margin-bottom: var(--s1);
   font-variant-numeric: tabular-nums;
 }
 
 /* Missing buffs: a wrapped line of names and times per buff. */
 .list.buff-gaps li {
   display: block;
-  padding: 3px 8px;
+  padding: 3px var(--s2);
   margin-bottom: 2px;
 }
 
@@ -231,10 +231,10 @@ h2 {
 .side {
   background: var(--panel);
   border-right: 1px solid var(--border);
-  padding: 16px;
+  padding: var(--s4);
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--s2);
   overflow-y: auto;
   box-sizing: border-box; /* the padding is inside the max-height, or the list's end hangs below the window */
   max-height: calc(100vh - var(--nav));
@@ -243,17 +243,17 @@ h2 {
 }
 
 .side h2 {
-  margin-top: 16px;
+  margin-top: var(--s4);
 }
 
 .side-group summary {
   cursor: pointer;
   font-weight: 600;
-  padding: 6px 0;
+  padding: var(--s2) 0;
 }
 
 .side-group[open] > summary {
-  margin-bottom: 4px;
+  margin-bottom: var(--s1);
 }
 
 button {
@@ -269,7 +269,7 @@ button {
   align-items: stretch;
   border-radius: 4px;
   text-align: left;
-  padding: 6px 8px;
+  padding: var(--s2);
 }
 
 .item.active,
@@ -287,7 +287,7 @@ button {
 
 .delete {
   color: var(--muted);
-  padding: 0 4px;
+  padding: 0 var(--s1);
 }
 
 .delete:hover,
@@ -296,7 +296,7 @@ button {
 }
 
 .clear {
-  margin-top: 12px;
+  margin-top: var(--s3);
   color: var(--muted);
   text-align: left;
 }
@@ -305,12 +305,12 @@ button {
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 8px 12px;
-  margin-top: 16px;
+  padding: var(--s2) var(--s3);
+  margin-top: var(--s4);
 }
 
 .panel p {
-  margin: 4px 0;
+  margin: var(--s1) 0;
 }
 
 .list li.stack {
@@ -332,8 +332,8 @@ button {
 }
 
 .result {
-  margin: 16px 0 8px;
-  padding: 12px 16px;
+  margin: var(--s4) 0 var(--s2);
+  padding: var(--s3) var(--s4);
   border-radius: 6px;
   background: var(--panel);
   font-size: 1.6rem;
@@ -593,7 +593,7 @@ button {
   color: var(--text);
   border: 1px solid var(--panel);
   border-radius: 4px;
-  padding: 2px 4px;
+  padding: 2px var(--s1);
 }
 
 .map-controls button[aria-pressed='true'] {
@@ -629,7 +629,7 @@ button {
 .map-marks {
   position: relative;
   height: 6px;
-  margin: 0 8px;
+  margin: 0 var(--s2);
 }
 
 /* A table wider than its panel (the review's metrics) scrolls sideways inside it. */
@@ -876,7 +876,7 @@ button {
 .settings label.inline {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--s2);
   color: var(--text);
 }
 
@@ -953,7 +953,7 @@ html:has(.overlay) {
   --t-clock: 1.5rem;
   box-sizing: border-box;
   border-radius: 8px;
-  font-size: 0.78rem;
+  font-size: var(--t-small);
   line-height: 1.25;
   background: color-mix(in srgb, var(--bg) var(--overlay-bg, 75%), transparent); /* the opacity setting */
 }
@@ -966,7 +966,7 @@ html:has(.overlay) {
   align-content: start;
   display: grid;
   gap: 2px;
-  padding: 4px;
+  padding: var(--s1);
 }
 
 .overlay-wrap {
@@ -1006,7 +1006,7 @@ html:has(.overlay) {
 }
 
 .overlay .card h2 {
-  font-size: 0.78rem;
+  font-size: var(--t-small);
   margin: 0;
 }
 
@@ -1024,7 +1024,7 @@ html:has(.overlay) {
 .overlay-meters {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
-  gap: 4px;
+  gap: var(--s1);
 }
 
 .overlay-meters .card {
@@ -1054,7 +1054,7 @@ html:has(.overlay) {
 .graph-axis {
   stroke: var(--border);
   fill: var(--muted);
-  font-size: 12px;
+  font-size: var(--t-small);
 }
 
 .graph-axis text,
@@ -1091,7 +1091,7 @@ span.graph-taken {
 }
 
 .raid-head h1 {
-  margin-bottom: 4px;
+  margin-bottom: var(--s1);
 }
 
 .raid-head p {
@@ -1175,7 +1175,7 @@ span.graph-taken {
 }
 
 .mechanic-times[open] > summary {
-  margin-bottom: 4px;
+  margin-bottom: var(--s1);
 }
 
 .mechanic-group h3,
@@ -1498,8 +1498,8 @@ span.graph-damage {
   border: 1px solid var(--muted);
   border-radius: 3px;
   color: var(--muted);
-  font-size: 0.7rem;
-  padding: 0 4px;
+  font-size: var(--t-small);
+  padding: 0 var(--s1);
   text-decoration: none;
   white-space: nowrap;
 }
@@ -1578,7 +1578,7 @@ button.link {
 /* A recap card's title, and its times against the top runs as label and value rows. */
 .cards.compact h3 {
   margin: 0 0 var(--s2);
-  font-size: 1rem;
+  font-size: var(--t-body);
 }
 .bar.thin {
   height: 6px;
@@ -1618,7 +1618,7 @@ button.link {
 /* A hit's recap: the rows are time, ability, amount and health after. */
 .recap-rows {
   list-style: none;
-  margin: 4px 0 0;
+  margin: var(--s1) 0 0;
   padding: 0;
   font-size: var(--t-small);
   font-variant-numeric: tabular-nums;
@@ -1931,7 +1931,7 @@ button.route-swatch[aria-pressed='true'] {
 
 .storage-sizes dt {
   color: var(--muted);
-  font-size: 0.85rem;
+  font-size: var(--t-small);
 }
 
 .storage-sizes dd {

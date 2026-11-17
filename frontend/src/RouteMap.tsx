@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { disc } from './disc'
 import type {
   Drawing,
   DrawingLimits,
@@ -13,7 +14,7 @@ import type {
 } from './api'
 import { DrawTools, type DrawTool } from './DrawTools'
 import { amount, counted } from './format'
-import { MapCanvas, type Overlay, type Yards } from './KeyMap'
+import { MapCanvas, type Backdrop, type Overlay, type Yards } from './KeyMap'
 import {
   addsDrawing,
   drawingAt,
@@ -28,13 +29,11 @@ import {
   type Edit,
 } from './routes'
 
-/** A dungeon's map draws no party. */
+/** A dungeon's map draws no party: no track and no deaths (one array, so the map's draw doesn't start over). */
+const NO_DEATHS: { player: string; clockMS: number }[] = []
 const NO_TRACK: KeyTrack = { players: {}, classes: {}, deaths: [], meters: {} }
-/** What an enemy in no pull is filled with. */
-const UNPULLED = '#8a93a6'
-/** A done pull's color and a missed pull's outline on a live key's map. */
+/** A done pull's color on a live key's map. */
 const DONE = '#6b8f71'
-const MISSED = '#e5484d'
 /** How faded a pull still far ahead is drawn. */
 const LATER_ALPHA = 0.35
 /** The colors that run along the outline of a live key's current and next pulls, and how fast (yards a second, in
@@ -171,6 +170,11 @@ export function RouteMap(props: {
     [dungeon],
   )
   const here = floors.find((f) => f.uiMapID === floor) ?? floors[0]
+  const perSide = dungeon?.tilesPerSide ?? 0
+  const backdrop = useMemo<Backdrop | undefined>(
+    () => here && { kind: 'tiles', floor: here, mapID, perSide },
+    [here, mapID, perSide],
+  )
   const enemies = useMemo(() => dungeon?.enemies.filter((e) => e.map === here?.uiMapID) ?? [], [dungeon, here])
   const patrols = useMemo(
     () => (walks && dungeon?.patrols.filter((p) => p.map === here?.uiMapID)) || [],
@@ -179,7 +183,7 @@ export function RouteMap(props: {
   const drawnHere = useMemo(() => drawings?.filter((d) => d.map === here?.uiMapID) ?? [], [drawings, here])
   // MapCanvas restarts its draw loop when the overlay changes, so it changes only with what it draws
   const overlay = useCallback<Overlay>(
-    (ctx, at, dot, hit) => {
+    (ctx, at, dot, hit, { muted: unpulled, bad: missed }) => { // unpulled enemies' fill, a missed pull's outline
       const pullOf = pullIndexes(pulls)
       const liveOrder = pulls.map((_, i) => i).filter((i) => states?.[i] === 'next')
       const shade = (pull: number | undefined) => (pull !== undefined && states?.[pull] === 'later' ? LATER_ALPHA : 1)
@@ -196,7 +200,7 @@ export function RouteMap(props: {
       if (ghost) {
         const ghostOf = pullIndexes(ghost)
         ctx.setLineDash([dot / 2, dot / 2])
-        ctx.strokeStyle = UNPULLED
+        ctx.strokeStyle = unpulled
         ctx.lineWidth = dot / 4
         groups((e) => ghostOf.get(enemyKey(e))).forEach((group) => {
           trace(ctx, outline(group))
@@ -206,7 +210,7 @@ export function RouteMap(props: {
       }
       if (packs) {
         ctx.setLineDash([dot, dot])
-        ctx.strokeStyle = UNPULLED
+        ctx.strokeStyle = unpulled
         ctx.lineWidth = dot / 4
         groups((e) => (e.pack && !pullOf.has(enemyKey(e)) ? e.pack : undefined)).forEach((group) => {
           if (group.length < 2) return
@@ -221,7 +225,7 @@ export function RouteMap(props: {
         ctx.fillStyle = colorOf(pull)
         ctx.fill()
         ctx.globalAlpha = 0.9 * shade(pull)
-        ctx.strokeStyle = states?.[pull] === 'missed' ? MISSED : ctx.fillStyle
+        ctx.strokeStyle = states?.[pull] === 'missed' ? missed : ctx.fillStyle
         const bold = pull === selected || pull === highlight || states?.[pull] === 'next' || states?.[pull] === 'missed'
         ctx.lineWidth = bold ? dot / 1.5 : dot / 4
         ctx.stroke()
@@ -236,19 +240,14 @@ export function RouteMap(props: {
         ctx.stroke()
       })
       ctx.setLineDash([])
-      ctx.lineWidth = dot / 5
       enemies.forEach((e) => {
         const pull = pullOf.get(enemyKey(e))
         const [x, y] = at(e)
         const r = e.boss ? dot * 1.4 : dot * 0.8
         hit(enemyKey(e), x, y, r)
-        ctx.fillStyle = pull === undefined ? UNPULLED : colorOf(pull)
-        ctx.strokeStyle = pull !== undefined && pull === selected ? '#fff' : '#000'
         ctx.globalAlpha = shade(pull)
-        ctx.beginPath()
-        ctx.arc(x, y, r, 0, 2 * Math.PI)
-        ctx.fill()
-        ctx.stroke()
+        const outline = pull !== undefined && pull === selected ? '#fff' : '#000'
+        disc(ctx, x, y, r, pull === undefined ? unpulled : colorOf(pull), outline, dot / 5)
         ctx.globalAlpha = 1
       })
       const dead = new Set(killed?.map(enemyKey))
@@ -331,7 +330,7 @@ export function RouteMap(props: {
     return { head, text: `${health}${counted(enemy.count, 'force')}` }
   }
 
-  if (!here) return <p className="muted">{dungeon ? 'No map for this dungeon.' : 'Loading…'}</p>
+  if (!here || !backdrop) return <p className="muted">{dungeon ? 'No map for this dungeon.' : 'Loading…'}</p>
   return (
     <section className="map">
       <div className="map-controls">
@@ -365,11 +364,11 @@ export function RouteMap(props: {
       <MapCanvas
         key={here.uiMapID}
         track={NO_TRACK}
-        backdrop={{ kind: 'tiles', floor: here, mapID, perSide: dungeon?.tilesPerSide ?? 0 }}
+        backdrop={backdrop}
         floor={here.uiMapID}
         now={0}
         trailMS={0}
-        deaths={[]}
+        deaths={NO_DEATHS}
         overlay={overlay}
         onPickEnemy={onEnemy && pick}
         onContext={onContext && context}

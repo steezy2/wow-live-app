@@ -20,18 +20,21 @@ const stats = ",StatModifier_bonusStat_0,StatModifier_bonusStat_1,StatModifier_b
 // tables is a raid (season 37), a dungeon on map 1762 and an older raid, with a plate helm, a strength axe, a ring,
 // a trophy and a helm the journal shows in season 34 only.
 var tables = map[string]string{
-	"JournalInstance":  "Name_lang,ID,MapID\nAbyss,1,3004\nRest,2,1762\nOld,3,99\n",
-	"JournalEncounter": "Name_lang,ID,JournalInstanceID,OrderIndex\nUla'tek,10,1,2\nNek'zali,11,1,1\nSerpent,20,2,1\nOld,30,3,1\n",
+	"JournalInstance": "Name_lang,ID,MapID\nAbyss,1,3004\nRest,2,1762\nOld,3,99\n",
+	"JournalEncounter": "Name_lang,ID,JournalInstanceID,OrderIndex\nUla'tek,10,1,2\nNek'zali,11,1,1\n" +
+		"Serpent,20,2,1\nOld,30,3,1\n",
 	"JournalEncounterItem": "JournalEncounterID,ItemID,DisplaySeasonID\n" +
 		"10,100,0\n10,100,0\n10,101,37\n11,102,0\n10,103,34\n20,104,0\n30,105,0\n",
 	"Item": "ID,ClassID,SubclassID,InventoryType\n100,4,4,1\n101,20,0,0\n102,2,0,13\n103,4,4,1\n104,4,0,11\n105,4,1,1\n",
 	"ItemSparse": "Display_lang,ID,AllowableClass" + stats + "Helm,100,-1,74,7,0,0,0,0,0,0,0,0\n" +
 		"Trophy,101,-1,0,0,0,0,0,0,0,0,0,0\nAxe,102,-1,4,7,0,0,0,0,0,0,0,0\nOld Helm,103,-1,74,0,0,0,0,0,0,0,0,0\n" +
 		"Ring,104,-1,7,32,0,0,0,0,0,0,0,0\nHood,105,-1,5,0,0,0,0,0,0,0,0,0\n",
-	"ItemSpecOverride":  "ItemID,SpecID\n",
-	"ItemSpec":          "ItemType,PrimaryStat,SecondaryStat,SpecializationID\n4,2,40,71\n4,0,40,65\n5,2,7,71\n5,40,7,259\n",
-	"ChrClasses":        "Name_lang,ID\nWarrior,1\nPaladin,2\nRogue,4\n",
-	"ChrSpecialization": "Name_lang,ID,ClassID,OrderIndex\nArms,71,1,0\nHoly,65,2,0\nAssassination,259,4,0\nInitial,1446,1,4\n",
+	"ItemSpecOverride": "ItemID,SpecID\n",
+	"ItemSpec": "ItemType,PrimaryStat,SecondaryStat,SpecializationID\n4,2,40,71\n4,0,40,65\n5,2,7,71\n" +
+		"5,40,7,259\n",
+	"ChrClasses": "Name_lang,ID\nWarrior,1\nPaladin,2\nRogue,4\n",
+	"ChrSpecialization": "Name_lang,ID,ClassID,OrderIndex\nArms,71,1,0\nHoly,65,2,0\nAssassination,259,4,0\n" +
+		"Initial,1446,1,4\n",
 }
 
 var levels = models.SimDropLevels{Season: "s2", DisplaySeason: 37, Raid: []models.RaidDropGroup{
@@ -62,7 +65,8 @@ func TestDropsAreTheSeasonsGearWithTheSpecsThatLootIt(t *testing.T) {
 	levels := `"levels":{"lfr":1,"normal":2,"heroic":3,"mythic":4}`
 	want := `[{"instanceID":1,"mapID":3004,"name":"Abyss","bosses":[` +
 		`{"name":"Nek'zali",` + levels + `,"items":[{"id":102,"name":"Axe","slot":"one_hand","specs":[71]}]},` +
-		`{"name":"Ula'tek",` + levels + `,"items":[{"id":100,"name":"Helm","slot":"head","armor":"plate","specs":[65,71]}]}]}]` +
+		`{"name":"Ula'tek",` + levels +
+		`,"items":[{"id":100,"name":"Helm","slot":"head","armor":"plate","specs":[65,71]}]}]}]` +
 		`[{"instanceID":2,"mapID":1762,"name":"Rest","bosses":[` +
 		`{"name":"Serpent","items":[{"id":104,"name":"Ring","slot":"finger"}]}]}]`
 	raids, _ := cachefile.Marshal(drops.Raids)

@@ -7,21 +7,20 @@ import {
   fetchSavedKeys,
   savedSettings,
   saveSettings,
-  type KeySummary,
-  type RaidPullSummary,
-  type Recap,
   type SettingsView,
+  type FightKind,
 } from './api'
 import { guideMet, guideSteps, showGuide } from './guide'
 import { Skeleton } from './Skeleton'
 import { StoragePanel } from './StoragePanel'
 import { Tiles } from './Tiles'
+import { useFetched } from './useFetched'
 import { stateLine } from './waiting'
 import { useLiveKey, useNow, useRaidLive } from './useLiveKey'
 
 /** Opens a saved key or raid pull, or a Settings panel (an element id; none for the top). */
-export interface HomeActions {
-  onOpen: (kind: 'mplus' | 'raid', start: number) => void
+interface HomeActions {
+  onOpen: (kind: FightKind, start: number) => void
   onSettings: (anchor?: string) => void
   onRecap: () => void
 }
@@ -136,17 +135,8 @@ function Status({ view }: { view: SettingsView }) {
 
 /** Links to the last saved key and raid pull, the Recap and Settings' overlay panel. */
 function QuickLinks({ character, onOpen, onSettings, onRecap }: HomeActions & { character: string }) {
-  const [key, setKey] = useState<KeySummary | null>(null)
-  const [pull, setPull] = useState<RaidPullSummary | null>(null)
-  useEffect(() => {
-    const controller = new AbortController()
-    fetchSavedKeys(character, controller.signal).then((keys) => setKey(keys[0] ?? null), () => undefined)
-    fetchRaidNights(character, controller.signal).then(
-      (nights) => setPull(nights[0]?.pulls[0] ?? null),
-      () => undefined,
-    )
-    return () => controller.abort()
-  }, [character])
+  const key = useFetched(`keys:${character}`, (signal) => fetchSavedKeys(character, signal)).data?.[0]
+  const pull = useFetched(`pulls:${character}`, (signal) => fetchRaidNights(character, signal)).data?.[0]?.pulls[0]
   return (
     <section className="panel">
       <h2>Quick links</h2>
@@ -164,20 +154,13 @@ function QuickLinks({ character, onOpen, onSettings, onRecap }: HomeActions & { 
   )
 }
 
-/** The current period's keys, timed share, pulls and kills for the character in the top bar, as the Recap counts them. */
+/** The current period's keys, timed share, pulls and kills for the character in the top bar, as the Recap counts
+ * them. */
 function AtAGlance({ character }: { character: string }) {
-  const [answer, setAnswer] = useState<{ label: string; recap: Recap } | null>(null)
-  useEffect(() => {
-    const controller = new AbortController()
-    fetchRecapPeriods(controller.signal)
-      .then(([period]) =>
-        fetchRecap(period, character, controller.signal).then((recap) => setAnswer({ label: period.label, recap })),
-      )
-      .catch((error) => {
-        if (!controller.signal.aborted) console.error('recap', error)
-      })
-    return () => controller.abort()
-  }, [character])
+  const { data: answer } = useFetched(character, async (signal) => {
+    const [period] = await fetchRecapPeriods(signal)
+    return { label: period.label, recap: await fetchRecap(period, character, signal) }
+  })
   if (!answer) return <Skeleton height={96} lines={2} />
   const { mplus, raid } = answer.recap
   return (
