@@ -45,3 +45,11 @@ func TestIsReviewURL(t *testing.T) {
 		}
 	}
 }
+
+func TestTheOverlayWindowTakesTheContentsShape(t *testing.T) {
+	for _, tc := range []struct{ width, want int }{{400, 300}, {200, 150}, {401, 301}} {
+		if got := fitHeight(tc.width, 400, 300); got != tc.want {
+			t.Errorf("width %d: height %d, want %d", tc.width, got, tc.want)
+		}
+	}
+}

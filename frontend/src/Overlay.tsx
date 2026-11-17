@@ -3,10 +3,13 @@ import { abilityViews, raidTargets } from './abilities'
 import {
   fetchSettings,
   onAppEvent,
+  overlayShape,
   type KeyDeath,
+  type KeyTrack,
   type KeyView,
   type OverlayColumn,
   type OverlaySettings,
+  type RaidPull,
   type Settings,
 } from './api'
 import { classColors } from './classColors'
@@ -15,10 +18,10 @@ import { Skeleton } from './Skeleton'
 import { chestLabel, clock, pullTitle, resultText, routeLine } from './format'
 import { HitRecapView } from './HitRecap'
 import { ForcesBar, TimerBar } from './KeyDetails'
-import { overlayColumn, overlayIds } from './meterColumns'
+import { healersOnly, overlayColumn, overlayIds } from './meterColumns'
 import { MeterCard } from './MeterCards'
 import { RaidOverlayCard } from './RaidPage'
-import { abilitiesBetween, recapOf, useTrack } from './replay'
+import { abilitiesBetween, recapOf, useRaidTrack, useTrack } from './replay'
 import { useLiveKey, useOverlayMoving, useRaidLive } from './useLiveKey'
 
 /** How many of a player's abilities (and enemies) the overlay's breakdown lists. */
@@ -33,16 +36,21 @@ const FIT_MIN = 0.5
 const FIT_MAX = 2
 
 /** Scales the overlay to its window with CSS zoom on root: the content's size at zoom 1 (its measured size divided
- * by the current zoom) against the window's, so nothing scrolls. Returns the refs for the root and the content. */
+ * by the current zoom) against the window's, so nothing scrolls. The app holds the window to that size's shape (told
+ * with overlayShape), so no side is left spare. Returns the refs for the root and the content. */
 function useFitZoom() {
   const root = useRef<HTMLDivElement>(null)
   const content = useRef<HTMLDivElement>(null)
   useEffect(() => {
+    let told = ''
     const fit = () => {
       if (!root.current || !content.current) return
       const zoom = Number(root.current.style.zoom) || 1
       const { width, height } = content.current.getBoundingClientRect()
       if (!width || !height) return
+      const shape = [Math.round(width / zoom), Math.round(height / zoom)]
+      if (shape.join() !== told) overlayShape(shape[0], shape[1])
+      told = shape.join()
       const next = Math.min(window.innerWidth / (width / zoom), window.innerHeight / (height / zoom))
       const clamped = Math.min(FIT_MAX, Math.max(FIT_MIN, next))
       if (Math.abs(clamped - zoom) > 0.005) root.current.style.zoom = String(clamped)
@@ -92,9 +100,11 @@ export function Overlay() {
       style={{ '--overlay-bg': `${settings?.opacity ?? 0}%` } as CSSProperties}
     >
       <div ref={content} className="overlay-fit">
-        {moving && <p className="small">Drag to move, drag an edge to resize; Ctrl+Alt+O or Settings when done.</p>}
+        {moving && (
+          <p className="small overlay-wrap">Drag to move, drag a corner to resize; Ctrl+Alt+O or Settings when done.</p>
+        )}
         {!settings ? null : raid?.betweenPulls && raid.last ? (
-          <RaidOverlayCard pull={raid.last} rows={settings.rows} />
+          <OverlayRaid key={raid.last.start} pull={raid.last} settings={settings} />
         ) : key ? (
           <OverlayKey keyView={key} clockMS={clockMS} settings={settings} />
         ) : (
@@ -124,7 +134,8 @@ function OverlayKey(props: { keyView: KeyView; clockMS: number; settings: Overla
   const last = key.lastPull
   const pullDeaths = key.deaths.filter((d) => d.clockMS >= last.startMS && d.clockMS <= last.endMS)
   const columns = (ids: OverlayColumn[], deaths: KeyDeath[]) => ids.map((id) => overlayColumn(id, last, deaths))
-  const ids = overlayIds(settings.columns, settings.oneCard)
+  const ids = overlayIds(settings.columns, settings.rankBy, settings.oneCard)
+  const [fresh, dismissFresh] = useFreshDeath(key.deaths, settings.deathRecapSeconds, latestDeath, false)
   return (
     <>
       <div className="overlay-clock">
@@ -160,6 +171,8 @@ function OverlayKey(props: { keyView: KeyView; clockMS: number; settings: Overla
         {key.route && <p className="small overlay-wrap">{routeLine(key.route)}</p>}
         {deathsOpen ? (
           <DeathsDrill keyView={key} onBack={closeDeaths} />
+        ) : fresh ? (
+          <KeyRecap keyView={key} death={fresh} onBack={dismissFresh} />
         ) : focus ? (
           <Breakdown
             keyView={key}
@@ -169,6 +182,18 @@ function OverlayKey(props: { keyView: KeyView; clockMS: number; settings: Overla
             to={picked.whole ? clockMS : key.lastPull.endMS}
             onBack={back}
           />
+        ) : settings.splitCards ? (
+          (settings.rankBy === 'hps' ? (['hps', 'dps'] as const) : (['dps', 'hps'] as const)).map((by) => (
+            <MeterCard
+              key={by}
+              title={by.toUpperCase()}
+              meter={by === 'hps' ? healersOnly(key.overall) : key.overall}
+              columns={columns(overlayIds(settings.columns, by, false), key.deaths)}
+              rows={settings.rows}
+              dense
+              onPick={pickWhole}
+            />
+          ))
         ) : settings.oneCard ? (
           <MeterCard
             title={`${pullTitle(key, clockMS)} · key`}
@@ -201,6 +226,70 @@ function OverlayKey(props: { keyView: KeyView; clockMS: number; settings: Overla
       </div>
     </>
   )
+}
+
+/** The raid overlay between pulls: the pull's card, in place of which a death's recap shows when one of its lines
+ * was clicked, or for the settings' seconds after the pull ends (the first death's; a raid log is written in batches,
+ * so there is no newest one to show live). */
+function OverlayRaid({ pull, settings }: { pull: RaidPull; settings: OverlaySettings }) {
+  const [fresh, dismiss] = useFreshDeath(pull.deaths, settings.deathRecapSeconds, firstDeath, true)
+  const [picked, setPicked] = useState<RaidPull['deaths'][number]>()
+  const death = picked ?? fresh
+  if (!death) return <RaidOverlayCard pull={pull} settings={settings} onPickDeath={setPicked} />
+  return <RaidRecap pull={pull} death={death} onBack={picked ? () => setPicked(undefined) : dismiss} />
+}
+
+/** The newest and the oldest of a list of deaths. */
+const latestDeath = <D,>(deaths: D[]) => deaths[deaths.length - 1]
+const firstDeath = <D,>(deaths: D[]) => deaths[0]
+
+/** The death to show a recap of without a click: once deaths has grown (at first, with fromStart, from none), pick's
+ * choice stays up for seconds (0 is off) or until dismissed. */
+function useFreshDeath<D>(deaths: D[], seconds: number, pick: (deaths: D[]) => D, fromStart: boolean) {
+  const seen = useRef(fromStart ? 0 : deaths.length)
+  const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const [fresh, setFresh] = useState<D>()
+  const count = deaths.length
+  useEffect(() => {
+    const grew = count > seen.current
+    seen.current = count
+    if (!grew || !seconds) return
+    setFresh(pick(deaths))
+    clearTimeout(timer.current)
+    timer.current = setTimeout(() => setFresh(undefined), seconds * 1000)
+    // deaths is read when it grows only: a new array each poll mustn't restart the timer
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [count, seconds])
+  useEffect(() => () => clearTimeout(timer.current), [])
+  const dismiss = useCallback(() => setFresh(undefined), [])
+  return [fresh, dismiss] as const
+}
+
+/** A death's recap card: back goes to the meters. */
+function RecapDrill(props: { title: string; death: KeyDeath; track: KeyTrack | null | undefined; onBack: () => void }) {
+  const { title, death, track, onBack } = props
+  return (
+    <Drill title={title} heading={deathText(death)} onBack={onBack}>
+      <RecapBody track={track} death={death} />
+    </Drill>
+  )
+}
+
+/** The death's recap rows from the track, or why there are none. */
+function RecapBody({ track, death }: { track: KeyTrack | null | undefined; death: KeyDeath }) {
+  const recap = recapOf(track, death.player, death.clockMS)
+  if (recap) return <HitRecapView recap={recap} ready={death.ready} limit={OVERLAY_RECAP_ROWS} />
+  return track ? <p className="muted">No recap for this death</p> : <Skeleton height={64} />
+}
+
+function KeyRecap(props: { keyView: KeyView; death: KeyDeath; onBack: () => void }) {
+  const track = useTrack(props.keyView.start, props.keyView.status === 'running')
+  return <RecapDrill title="Key" death={props.death} track={track} onBack={props.onBack} />
+}
+
+function RaidRecap(props: { pull: RaidPull; death: KeyDeath; onBack: () => void }) {
+  const { track } = useRaidTrack(props.pull.start)
+  return <RecapDrill title={`Pull ${props.pull.number}`} death={props.death} track={track} onBack={props.onBack} />
 }
 
 /** A player's top abilities from the key's clock from to to (the last pull, or the whole key so far), from the live
@@ -272,15 +361,10 @@ function DeathsDrill({ keyView: key, onBack }: { keyView: KeyView; onBack: () =>
   const track = useTrack(key.start, key.status === 'running')
   const [picked, setPicked] = useState<KeyDeath>()
   const back = useCallback(() => (picked ? setPicked(undefined) : onBack()), [picked, onBack])
-  const recap = picked && recapOf(track, picked.player, picked.clockMS)
   return (
     <Drill title={picked ? 'Deaths' : 'Key'} heading={picked ? deathText(picked) : 'Deaths'} onBack={back}>
       {picked ? (
-        recap ? (
-          <HitRecapView recap={recap} ready={picked.ready} limit={OVERLAY_RECAP_ROWS} />
-        ) : (
-          track ? <p className="muted">No recap for this death</p> : <Skeleton height={64} />
-        )
+        <RecapBody track={track} death={picked} />
       ) : (
         <ul className="list">
           {key.deaths.toReversed().map((d, i) => (

@@ -2423,7 +2423,8 @@ const docTemplate = `{
                     "items": {
                         "type": "array",
                         "items": {
-                            "type": "integer"
+                            "type": "integer",
+                            "format": "int64"
                         }
                     }
                 }
@@ -2679,7 +2680,8 @@ const docTemplate = `{
                     "items": {
                         "type": "array",
                         "items": {
-                            "type": "number"
+                            "type": "number",
+                            "format": "float64"
                         }
                     }
                 },
@@ -3462,7 +3464,8 @@ const docTemplate = `{
                     "description": "TopBosses is how long each boss took in the similar top runs (the median, by boss name; missing in reviews\nsaved before Nov 11).",
                     "type": "object",
                     "additionalProperties": {
-                        "type": "integer"
+                        "type": "integer",
+                        "format": "int64"
                     }
                 }
             }
@@ -3770,7 +3773,8 @@ const docTemplate = `{
                     "description": "Activity is each player's share of their time alive in pulls with a cast going or a hit landing (in %).",
                     "type": "object",
                     "additionalProperties": {
-                        "type": "number"
+                        "type": "number",
+                        "format": "float64"
                     }
                 },
                 "affixes": {
@@ -3789,7 +3793,8 @@ const docTemplate = `{
                 "bestBosses": {
                     "type": "object",
                     "additionalProperties": {
-                        "type": "integer"
+                        "type": "integer",
+                        "format": "int64"
                     }
                 },
                 "bestFinalMS": {
@@ -4199,6 +4204,32 @@ const docTemplate = `{
                 }
             }
         },
+        "models.OverlayPreset": {
+            "type": "object",
+            "properties": {
+                "columns": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                },
+                "oneCard": {
+                    "type": "boolean"
+                },
+                "raidOneCard": {
+                    "type": "boolean"
+                },
+                "rows": {
+                    "type": "integer"
+                },
+                "splitCards": {
+                    "type": "boolean"
+                }
+            }
+        },
         "models.OverlaySettings": {
             "type": "object",
             "properties": {
@@ -4223,6 +4254,12 @@ const docTemplate = `{
                         ]
                     }
                 },
+                "deathRecapSeconds": {
+                    "description": "DeathRecapSeconds is how long a new death's recap shows over the cards without a click; 0 is off.",
+                    "type": "integer",
+                    "maximum": 60,
+                    "minimum": 0
+                },
                 "oneCard": {
                     "description": "OneCard shows the pull and the whole key in one card instead of two, one above the other (the default).",
                     "type": "boolean"
@@ -4231,6 +4268,17 @@ const docTemplate = `{
                     "type": "integer",
                     "maximum": 100,
                     "minimum": 0
+                },
+                "raidOneCard": {
+                    "type": "boolean"
+                },
+                "rankBy": {
+                    "description": "RankBy is what the cards order their rows and fill their bars by: dps (the default) or hps.",
+                    "type": "string",
+                    "enum": [
+                        "dps",
+                        "hps"
+                    ]
                 },
                 "rows": {
                     "description": "Rows is how many players each card shows, the top ones (0 for everyone); Columns the cards' columns in order\n(saving none sets DPS, HPS and kicks).",
@@ -4244,6 +4292,10 @@ const docTemplate = `{
                         "always",
                         "off"
                     ]
+                },
+                "splitCards": {
+                    "description": "SplitCards shows a DPS card and an HPS card (healers only) of the key instead of the pull and key cards, which\nOneCard then no longer applies to; RaidOneCard shows the raid overlay's pull in one ranked card instead of its\nDamage and Healing cards (the default).",
+                    "type": "boolean"
                 }
             }
         },
@@ -4270,7 +4322,8 @@ const docTemplate = `{
                     "items": {
                         "type": "array",
                         "items": {
-                            "type": "number"
+                            "type": "number",
+                            "format": "float64"
                         }
                     }
                 }
@@ -4709,7 +4762,8 @@ const docTemplate = `{
                 "activity": {
                     "type": "object",
                     "additionalProperties": {
-                        "type": "number"
+                        "type": "number",
+                        "format": "float64"
                     }
                 },
                 "adds": {
@@ -6128,7 +6182,13 @@ const docTemplate = `{
                     "description": "MaxAutoDays is the most days each of Auto's fields takes.",
                     "type": "integer"
                 },
+                "maxRecapSeconds": {
+                    "type": "integer"
+                },
                 "minOpacity": {
+                    "type": "integer"
+                },
+                "minRecapSeconds": {
                     "type": "integer"
                 },
                 "overlay": {
@@ -6136,6 +6196,19 @@ const docTemplate = `{
                 },
                 "overlayColumns": {
                     "description": "OverlayColumns are the columns the overlay's cards can show.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "overlayPresets": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.OverlayPreset"
+                    }
+                },
+                "overlayRanks": {
+                    "description": "OverlayRanks are what the cards can rank by, OverlayPresets the layouts to pick from, and MinRecapSeconds and\nMaxRecapSeconds the least and most a death's recap shows (0 turns it off).",
                     "type": "array",
                     "items": {
                         "type": "string"

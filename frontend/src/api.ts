@@ -997,6 +997,10 @@ export function moveOverlay(on?: boolean): void {
 export function resetOverlay(): void {
   emitAppEvent('overlay-reset')
 }
+/** Tells the desktop app the overlay content's size at zoom 1, so it holds the window to that shape. */
+export function overlayShape(width: number, height: number): void {
+  emitAppEvent('overlay-shape', [width, height])
+}
 
 /** The desktop app's settings, with whether the log folder exists, when the game last wrote a log there (0 for
  * never) and the choices to pick from; null outside the app. The app sends the saved settings as the 'settings'
@@ -1023,6 +1027,19 @@ export interface OverlaySettings {
   columns: OverlayColumn[]
   /** Clicks go through the overlay to the game; off, a click on a player shows their abilities in the pull. */
   clickThrough: boolean
+  /** What the cards order their rows and fill their bars by. */
+  rankBy: RankBy
+  /** A DPS card and an HPS card of the key in place of the pull and key cards; the raid overlay's pull in one ranked
+   * card in place of its Damage and Healing cards. */
+  splitCards: boolean
+  raidOneCard: boolean
+  /** Seconds a new death's recap shows over the cards without a click; 0 is off. */
+  deathRecapSeconds: number
+}
+export type RankBy = 'dps' | 'hps'
+/** A named layout of the overlay's cards the Settings page fills in with one click. */
+export type OverlayPreset = Pick<OverlaySettings, 'oneCard' | 'splitCards' | 'raidOneCard' | 'rows' | 'columns'> & {
+  name: string
 }
 /** A column the overlay's cards can show (the settings' overlayColumns). */
 export type OverlayColumn =
@@ -1041,6 +1058,11 @@ export interface SettingsView extends Settings {
   regions: Settings['region'][]
   overlayShows: OverlaySettings['show'][]
   overlayColumns: OverlayColumn[]
+  overlayRanks: RankBy[]
+  overlayPresets: OverlayPreset[]
+  /** The least and most seconds a death's recap shows (0 turns it off). */
+  minRecapSeconds: number
+  maxRecapSeconds: number
   minOpacity: number
   /** The most days an auto rule takes. */
   maxAutoDays: number

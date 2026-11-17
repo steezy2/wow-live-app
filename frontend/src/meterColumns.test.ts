@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { KeyMeter, OverlayColumn } from './api'
-import { OVERLAY_LABELS, overlayColumn, overlayIds, cardGrid } from './meterColumns'
+import { OVERLAY_LABELS, healersOnly, overlayColumn, overlayIds, cardGrid } from './meterColumns'
 
 const meter = { rows: [] } as unknown as KeyMeter
 
@@ -12,12 +12,24 @@ describe('overlayColumn', () => {
 })
 
 describe('overlayIds', () => {
-  const chosen: OverlayColumn[] = ['dps', 'pullDps', 'kicks']
-  it('puts Pull DPS first for one card', () => {
-    expect(overlayIds(chosen, true)).toEqual(['pullDps', 'dps', 'kicks'])
+  const chosen: OverlayColumn[] = ['dps', 'hps', 'pullDps', 'kicks']
+  it.each([
+    ['dps', true, ['pullDps', 'dps', 'hps', 'kicks']],
+    ['dps', false, ['dps', 'hps', 'kicks']],
+    ['hps', true, ['hps', 'dps', 'kicks']],
+    ['hps', false, ['hps', 'dps', 'kicks']],
+  ] as const)('ranked by %s, Pull DPS %s', (rankBy, pullDps, want) => {
+    expect(overlayIds(chosen, rankBy, pullDps)).toEqual(want)
   })
-  it('drops Pull DPS from the two cards', () => {
-    expect(overlayIds(chosen, false)).toEqual(['dps', 'kicks'])
+  it('adds the column it ranks by when it was not chosen', () => {
+    expect(overlayIds(['kicks'], 'hps', false)).toEqual(['hps', 'kicks'])
+  })
+})
+
+describe('healersOnly', () => {
+  it('keeps the players who healed', () => {
+    const rows = [{ player: 'a', hps: 0 }, { player: 'b', hps: 5 }]
+    expect(healersOnly({ rows } as unknown as KeyMeter).rows.map((r) => r.player)).toEqual(['b'])
   })
 })
 

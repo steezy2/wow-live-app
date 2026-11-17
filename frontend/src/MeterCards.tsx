@@ -30,7 +30,7 @@ export function MeterCard({
   dense?: boolean
 }) {
   const [by, setBy] = useState(columns[0].label)
-  const first = columns.find((c) => c.label === by) ?? columns[0]
+  const first = (sortable && columns.find((c) => c.label === by)) || columns[0]
   const sorted = [...meter.rows].sort((a, b) => first.value(b) - first.value(a))
   const rows = limit > 0 ? sorted.slice(0, limit) : sorted
   const top = Math.max(1, ...rows.map(first.value))

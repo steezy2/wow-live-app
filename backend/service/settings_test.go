@@ -34,14 +34,48 @@ func TestCharacterNeedsCheck(t *testing.T) {
 }
 
 func TestValidateSettingsRejectsADuplicateColumn(t *testing.T) {
-	s := models.Settings{LogsDir: t.TempDir(), Region: "us", Overlay: models.OverlaySettings{Show: "keys", Opacity: 100,
-		Columns: []string{"dps", "hps"}}}
+	s := models.Settings{LogsDir: t.TempDir(), Region: "us", Overlay: models.OverlaySettings{Show: "keys",
+		Opacity: 100, RankBy: "dps", Columns: []string{"dps", "hps"}}}
 	if err := validateSettings(s); err != nil {
 		t.Fatalf("two different columns: %v", err)
 	}
 	s.Overlay.Columns = []string{"dps", "dps"}
 	if err := validateSettings(s); err == nil {
 		t.Error("a column twice was accepted")
+	}
+}
+
+func TestValidateSettingsOverlayChoices(t *testing.T) {
+	for name, tc := range map[string]struct {
+		change func(*models.OverlaySettings)
+		ok     bool
+	}{
+		"rank by hps":      {func(o *models.OverlaySettings) { o.RankBy = "hps" }, true},
+		"no rank":          {func(o *models.OverlaySettings) { o.RankBy = "" }, false},
+		"unknown rank":     {func(o *models.OverlaySettings) { o.RankBy = "taken" }, false},
+		"recap off":        {func(o *models.OverlaySettings) { o.DeathRecapSeconds = 0 }, true},
+		"recap in range":   {func(o *models.OverlaySettings) { o.DeathRecapSeconds = maxRecapSeconds }, true},
+		"recap too short":  {func(o *models.OverlaySettings) { o.DeathRecapSeconds = minRecapSeconds - 1 }, false},
+		"recap too long":   {func(o *models.OverlaySettings) { o.DeathRecapSeconds = maxRecapSeconds + 1 }, false},
+		"recap below zero": {func(o *models.OverlaySettings) { o.DeathRecapSeconds = -1 }, false},
+	} {
+		s := models.Settings{LogsDir: t.TempDir(), Region: "us", Overlay: models.OverlaySettings{Show: "keys", Opacity: 100,
+			RankBy: "dps"}}
+		tc.change(&s.Overlay)
+		if err := validateSettings(s); (err == nil) != tc.ok {
+			t.Errorf("%s: got %v, want ok=%v", name, err, tc.ok)
+		}
+	}
+}
+
+func TestOverlayPresetsAreValid(t *testing.T) {
+	for _, p := range overlayPresets {
+		s := models.Settings{LogsDir: t.TempDir(), Region: "us", Overlay: models.OverlaySettings{Show: "keys", Opacity: 100,
+			RankBy: "dps", OneCard: p.OneCard, SplitCards: p.SplitCards, RaidOneCard: p.RaidOneCard, Rows: p.Rows,
+			Columns: p.Columns}}
+		if err := validateSettings(s); err != nil {
+			t.Errorf("%s: %v", p.Name, err)
+		}
 	}
 }
 
@@ -65,7 +99,7 @@ func (f resolveFunc) Resolve(ctx context.Context, region, character string) (str
 
 func TestSaveSettings(t *testing.T) {
 	good := models.Settings{LogsDir: filepath.Join(t.TempDir(), "Logs"), Region: "us",
-		Overlay: models.OverlaySettings{Show: "keys", Opacity: 50}}
+		Overlay: models.OverlaySettings{Show: "keys", Opacity: 50, RankBy: "dps"}}
 	known := resolveFunc(func(context.Context, string, string) (string, string, error) { return "Arnaud", "area-52", nil })
 	unknown := resolveFunc(func(context.Context, string, string) (string, string, error) {
 		return "", "", ErrBadCharacter

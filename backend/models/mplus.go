@@ -693,6 +693,25 @@ type OverlaySettings struct {
 	// ClickThrough lets clicks on the overlay through to the game; off (the default), a click on a player's row
 	// shows their abilities in the pull.
 	ClickThrough bool `json:"clickThrough"`
+	// RankBy is what the cards order their rows and fill their bars by: dps (the default) or hps.
+	RankBy string `json:"rankBy" enums:"dps,hps"`
+	// SplitCards shows a DPS card and an HPS card (healers only) of the key instead of the pull and key cards, which
+	// OneCard then no longer applies to; RaidOneCard shows the raid overlay's pull in one ranked card instead of its
+	// Damage and Healing cards (the default).
+	SplitCards  bool `json:"splitCards"`
+	RaidOneCard bool `json:"raidOneCard"`
+	// DeathRecapSeconds is how long a new death's recap shows over the cards without a click; 0 is off.
+	DeathRecapSeconds int `json:"deathRecapSeconds" minimum:"0" maximum:"60"`
+}
+
+// OverlayPreset is a named layout of the overlay's cards that the Settings page fills in with one click.
+type OverlayPreset struct {
+	Name        string   `json:"name"`
+	OneCard     bool     `json:"oneCard"`
+	SplitCards  bool     `json:"splitCards"`
+	RaidOneCard bool     `json:"raidOneCard"`
+	Rows        int      `json:"rows"`
+	Columns     []string `json:"columns"`
 }
 
 // SettingsView is the settings with what the page shows beside them: whether the log folder exists, when the game
@@ -706,7 +725,13 @@ type SettingsView struct {
 	OverlayShows []string `json:"overlayShows"`
 	// OverlayColumns are the columns the overlay's cards can show.
 	OverlayColumns []string `json:"overlayColumns"`
-	MinOpacity     int      `json:"minOpacity"`
+	// OverlayRanks are what the cards can rank by, OverlayPresets the layouts to pick from, and MinRecapSeconds and
+	// MaxRecapSeconds the least and most a death's recap shows (0 turns it off).
+	OverlayRanks    []string        `json:"overlayRanks"`
+	OverlayPresets  []OverlayPreset `json:"overlayPresets"`
+	MinRecapSeconds int             `json:"minRecapSeconds"`
+	MaxRecapSeconds int             `json:"maxRecapSeconds"`
+	MinOpacity      int             `json:"minOpacity"`
 	// MaxAutoDays is the most days each of Auto's fields takes.
 	MaxAutoDays int `json:"maxAutoDays"`
 }

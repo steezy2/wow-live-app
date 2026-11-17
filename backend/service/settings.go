@@ -18,20 +18,33 @@ var (
 	overlayShows = []string{"keys", "always", "off"}
 	// overlayColumns are the columns the overlay's cards can show (the page names them).
 	overlayColumns = []string{"dps", "hps", "kicks", "pullDps", "taken", "avoidable", "priority", "dispels", "deaths"}
+	// overlayRanks are what the overlay's cards can rank by.
+	overlayRanks = []string{"dps", "hps"}
+	// overlayPresets are the layouts the Settings page offers; each passes validateSettings.
+	overlayPresets = []models.OverlayPreset{
+		{Name: "Compact", OneCard: true, RaidOneCard: true, Rows: 5, Columns: []string{"dps", "hps"}},
+		{Name: "Standard", Columns: []string{"dps", "hps", "kicks"}},
+		{Name: "Full", SplitCards: true, Columns: slices.DeleteFunc(slices.Clone(overlayColumns),
+			func(c string) bool { return c == "pullDps" })},
+	}
 )
 
 const (
 	// minOpacity is the overlay background's least opacity in %: 0 leaves only the text over the game.
 	minOpacity = 0
+	// minRecapSeconds and maxRecapSeconds bound how long a death's recap shows over the overlay (0 turns it off).
+	minRecapSeconds = 3
+	maxRecapSeconds = 60
 	// maxAutoDays is the most days each of the auto rule's fields takes.
 	maxAutoDays = 365
 )
 
 // ErrBadSettings is a settings request that breaks the rules of validateSettings; its text says what to send.
 var ErrBadSettings = fmt.Errorf("send a full log folder path, a region (%s), when overlay shows (%s), its opacity "+
-	"(%d to 100), its rows (0 or more), its columns (%s) and the auto rule's days (0 to %d)",
+	"(%d to 100), its rows (0 or more), its columns (%s), what it ranks by (%s), "+
+	"its death recap's seconds (0 for off, else %d to %d) and the auto rule's days (0 to %d)",
 	strings.Join(regions, ", "), strings.Join(overlayShows, ", "), minOpacity, strings.Join(overlayColumns, ", "),
-	maxAutoDays)
+	strings.Join(overlayRanks, ", "), minRecapSeconds, maxRecapSeconds, maxAutoDays)
 
 // ErrSavingSettings is returned (wrapped) by SaveSettings when the settings couldn't be written.
 var ErrSavingSettings = errors.New("couldn't save the settings")
@@ -85,7 +98,8 @@ func characterNeedsCheck(before, next models.Settings) bool {
 func validateSettings(s models.Settings) error {
 	o, auto := s.Overlay, s.Auto
 	if !filepath.IsAbs(s.LogsDir) || !slices.Contains(regions, s.Region) || !slices.Contains(overlayShows, o.Show) ||
-		o.Opacity < minOpacity || o.Opacity > 100 || o.Rows < 0 ||
+		o.Opacity < minOpacity || o.Opacity > 100 || o.Rows < 0 || !slices.Contains(overlayRanks, o.RankBy) ||
+		o.DeathRecapSeconds != 0 && (o.DeathRecapSeconds < minRecapSeconds || o.DeathRecapSeconds > maxRecapSeconds) ||
 		slices.ContainsFunc(o.Columns, func(c string) bool { return !slices.Contains(overlayColumns, c) }) ||
 		len(slices.Compact(slices.Sorted(slices.Values(o.Columns)))) != len(o.Columns) ||
 		!autoDays(auto.ArchiveGameLogsDays) || !autoDays(auto.DeleteImportsDays) {
@@ -103,5 +117,7 @@ func autoDays(days int) bool {
 func SettingsChoices(view models.SettingsView) models.SettingsView {
 	view.Regions, view.OverlayShows, view.MinOpacity = regions, overlayShows, minOpacity
 	view.OverlayColumns, view.MaxAutoDays = overlayColumns, maxAutoDays
+	view.OverlayRanks, view.OverlayPresets = overlayRanks, overlayPresets
+	view.MinRecapSeconds, view.MaxRecapSeconds = minRecapSeconds, maxRecapSeconds
 	return view
 }
