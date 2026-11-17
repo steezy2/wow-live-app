@@ -44,7 +44,7 @@ jobs:
       - name: Skip when the release already has it
         run: |
           current=$(gh release download simc-engine --repo "$GITHUB_REPOSITORY" --pattern engine.json --output - 2>/dev/null \
-            | jq -r 'select(.version != "") | .file' || true) # a release without a version is published again
+            | jq -r 'select((.version // "") != "") | .file' || true) # a release without a version is published again
           if [ "$current" = "$file" ]; then echo "skip=true" >> "$GITHUB_ENV"; echo "$file is already published"; fi
       - name: Check it runs
         if: env.skip != 'true'
