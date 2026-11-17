@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"maps"
 	"slices"
+	"strings"
 	"sync"
 
 	"wow-live/backend/models"
@@ -191,9 +192,12 @@ func (k *LogTracker) DeleteSaved(start int64) error {
 func (k *LogTracker) details(run *keyRun, at int64) models.Key {
 	key := run.key
 	buffs := slices.Clone(run.buffs)
-	for open, from := range k.up {
+	// In key order, so which of two open defensives covers a death doesn't change between reads.
+	for _, open := range slices.SortedFunc(maps.Keys(k.up), func(a, b [2]string) int {
+		return cmp.Or(strings.Compare(a[0], b[0]), strings.Compare(a[1], b[1]))
+	}) {
 		if slices.Contains(run.party, open[0]) {
-			buffs = append(buffs, models.BuffUp{Fight: run.pull, Start: from, End: at, Player: k.names[open[0]],
+			buffs = append(buffs, models.BuffUp{Fight: run.pull, Start: k.up[open], End: at, Player: k.names[open[0]],
 				Ability: open[1]})
 		}
 	}

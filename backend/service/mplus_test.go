@@ -23,7 +23,7 @@ type memStore struct {
 }
 
 func (m *memStore) Save(k models.Key) error     { m.keys = append(m.keys, k); return nil }
-func (m *memStore) List() ([]models.Key, error) { return m.keys, nil }
+func (m *memStore) List() ([]models.Key, error) { return slices.Clone(m.keys), nil }
 func (m *memStore) Delete(start int64) error {
 	m.keys = slices.DeleteFunc(m.keys, func(k models.Key) bool { return k.Start == start })
 	return nil

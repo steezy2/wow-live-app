@@ -29,3 +29,15 @@ func TestCharacterNeedsCheck(t *testing.T) {
 		}
 	}
 }
+
+func TestValidateSettingsRejectsADuplicateColumn(t *testing.T) {
+	s := models.Settings{LogsDir: t.TempDir(), Region: "us", Overlay: models.OverlaySettings{Show: "keys", Opacity: 100,
+		Columns: []string{"dps", "hps"}}}
+	if err := ValidateSettings(s); err != nil {
+		t.Fatalf("two different columns: %v", err)
+	}
+	s.Overlay.Columns = []string{"dps", "dps"}
+	if err := ValidateSettings(s); err == nil {
+		t.Error("a column twice was accepted")
+	}
+}

@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestFreshTooBig(t *testing.T) {
@@ -22,5 +23,26 @@ func TestFreshTooBig(t *testing.T) {
 	}
 	if _, err := os.Stat(path); !errors.Is(err, os.ErrNotExist) {
 		t.Fatalf("a too-big download was written: %v", err)
+	}
+}
+
+func TestFreshKeepsStaleCopyWhenDownloadFails(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, "down", http.StatusBadGateway)
+	}))
+	defer server.Close()
+	path := filepath.Join(t.TempDir(), "cached")
+	if err := os.WriteFile(path, []byte("old"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	old := time.Now().Add(-48 * time.Hour)
+	if err := os.Chtimes(path, old, old); err != nil {
+		t.Fatal(err)
+	}
+	if err := Fresh(context.Background(), nil, server.URL, path, time.Hour); err != nil {
+		t.Fatalf("a stale copy should stand in while the site is down: %v", err)
+	}
+	if err := Fresh(context.Background(), nil, server.URL, filepath.Join(t.TempDir(), "none"), time.Hour); err == nil {
+		t.Fatal("with no copy at all the failure must surface")
 	}
 }

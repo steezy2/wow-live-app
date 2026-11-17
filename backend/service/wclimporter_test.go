@@ -312,6 +312,20 @@ func TestStartTurnsDownABadCharacter(t *testing.T) {
 	}
 }
 
+func TestReloadKeepsWhatEndedButIsNotSavedYet(t *testing.T) {
+	k, pulls := newRaidTracker(t)
+	k.store.(*memStore).keys = []models.Key{{Start: 1}}
+	pulls.pulls = []models.RaidPull{{Start: 3, Meter: fightingMeter()}}
+	k.unsaved = []savedRun{{key: models.Key{Start: 2}}, {key: models.Key{Start: 1}}}
+	k.unsavedPulls = []savedPull{{pull: models.RaidPull{Start: 4}}}
+	if err := k.Reload(); err != nil {
+		t.Fatal(err)
+	}
+	if len(k.history) != 2 || k.history[0].Start != 2 || len(k.pulls) != 2 || k.pulls[0].Start != 4 {
+		t.Errorf("history %+v, pulls %+v; want the unsaved key 2 and pull 4 on top of the saved ones", k.history, k.pulls)
+	}
+}
+
 func TestRemoveImportedKeepsLocalKeysAndPulls(t *testing.T) {
 	k, pulls := newRaidTracker(t)
 	keys := k.store.(*memStore)
@@ -332,6 +346,39 @@ func TestRemoveImportedKeepsLocalKeysAndPulls(t *testing.T) {
 	}
 	if n := k.ImportedCount(); n != 0 {
 		t.Errorf("%d imported after removing, want 0", n)
+	}
+}
+
+// failingDelete is a memStore whose Delete of one start fails.
+type failingDelete struct {
+	*memStore
+	fail int64
+}
+
+func (f failingDelete) Delete(start int64) error {
+	if start == f.fail {
+		return errors.New("disk full")
+	}
+	return f.memStore.Delete(start)
+}
+
+func TestRemoveImportedKeepsWhatItCouldNotDelete(t *testing.T) {
+	k, _ := newRaidTracker(t)
+	mem := k.store.(*memStore)
+	mem.keys = []models.Key{{Start: 1, Imported: true}, {Start: 2, Imported: true}}
+	k.store = failingDelete{mem, 2}
+	if err := k.Reload(); err != nil {
+		t.Fatal(err)
+	}
+	if err := k.RemoveImported(); err == nil {
+		t.Fatal("no error from the failed delete")
+	}
+	var starts []int64
+	for _, key := range k.history {
+		starts = append(starts, key.Start)
+	}
+	if !slices.Equal(starts, []int64{2}) {
+		t.Errorf("history starts %v, want only 2, whose file is still there", starts)
 	}
 }
 

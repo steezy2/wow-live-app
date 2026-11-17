@@ -46,6 +46,9 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 - The replay's floor buttons are numbered in the dungeon's own floor order, as the route map's are, not by where the party stood most (Voidscar Arena's route Floor 1 was the replay's Floor 3).
 
 ### Fixed
+- A key finished while Raider.IO can't be reached and its saved timers are over a week old is no longer saved as timed: the old timers are used. The same for the other sites' cached data.
+- A saved key or raid pull that failed to load no longer keeps its error up after the next one loads. The waiting card follows the log as it is written.
+- *Read old logs* saves the same files every time: open defensives, spikes and mass kills no longer depend on map order. A key or pull that ends while an import reloads the lists stays in them, and an import's file writes no longer hold up the live log reader. Hovering a spell and moving away no longer blocks it for a minute. The Recap counts an abandoned key's time like every other page. An empty overlay column list can be saved, and a column can't be picked twice. A second copy started while the app opens no longer crashes it.
 - A key's kills match the route far more often: a mob counts where it was first seen (a pulled mob runs to the party before it dies), up to 30 yards from its enemy, and the closest kill and enemy pair match first. On five saved keys' logs this took matches from about 40% to 80%.
 - **Ruby Life Pools** had its two floors' map IDs swapped against the combat log (every kill stood on the other floor's enemies), so nothing matched a route and its enemies drew on the wrong floor. `reference/mplus-dungeons.json` and the generator now use the log's IDs; a saved route's drawings there sit on the other floor and need drawing again. Every other dungeon's kills fall on their own floors.
 

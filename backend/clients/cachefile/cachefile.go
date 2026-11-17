@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -138,11 +139,23 @@ const UserAgent = "wow-live (https://github.com/steezy2/wow-live-app)"
 const downloadTimeout = 2 * time.Minute
 
 // Fresh makes sure path holds url's content no older than maxAge, downloading it (atomically) when it's missing or
-// stale. client may be nil.
+// stale. A stale copy stands in, with the failure logged, when the download fails but the site hasn't said the file is
+// gone. client may be nil.
 func Fresh(ctx context.Context, client *http.Client, url, path string, maxAge time.Duration) error {
-	if info, err := os.Stat(path); err == nil && time.Since(info.ModTime()) < maxAge {
+	info, statErr := os.Stat(path)
+	if statErr == nil && time.Since(info.ModTime()) < maxAge {
 		return nil
 	}
+	err := download(ctx, client, url, path)
+	if err != nil && statErr == nil && !errors.Is(err, ErrNotFound) {
+		log.Printf("using the stale %s: %v", filepath.Base(path), err)
+		return nil
+	}
+	return err
+}
+
+// download writes url's content to path, atomically.
+func download(ctx context.Context, client *http.Client, url, path string) error {
 	if client == nil {
 		client = &http.Client{Timeout: downloadTimeout}
 	}

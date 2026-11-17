@@ -252,38 +252,65 @@ func (k *LogTracker) SetSource(link *models.ReportLink) {
 }
 
 // LinkReports saves each Warcraft Logs fight in keyLinks and pullLinks (by start time, from ReportLinks) as its
-// saved key's or raid pull's Report, and says how many it linked; one linked already keeps its link.
+// saved key's or raid pull's Report, and says how many it linked; one linked already keeps its link. The files are
+// written outside the tracker's lock, so the live reader isn't held up by a first import's many writes.
 func (k *LogTracker) LinkReports(keyLinks, pullLinks map[int64]models.ReportLink) (n int, err error) {
-	k.mu.Lock()
-	defer k.mu.Unlock()
+	k.mu.RLock()
+	var keys []models.Key
+	for _, key := range k.history {
+		if link, ok := keyLinks[key.Start]; ok && !key.Imported && key.Report == nil {
+			key.Report = &link
+			keys = append(keys, key)
+		}
+	}
+	var pulls []models.RaidPull
+	if k.raid != nil {
+		for _, p := range k.pulls {
+			if link, ok := pullLinks[p.Start]; ok && !p.Imported && p.Report == nil {
+				p.Report = &link
+				pulls = append(pulls, p)
+			}
+		}
+	}
+	k.mu.RUnlock()
+	var (
+		savedKeys  []models.Key
+		savedPulls []models.RaidPull
+	)
 	defer func() {
-		if n > 0 {
+		k.mu.Lock()
+		defer k.mu.Unlock()
+		for _, key := range savedKeys {
+			if i := slices.IndexFunc(k.history, func(h models.Key) bool { return h.Start == key.Start && !h.Imported }); i >= 0 {
+				k.history[i].Report = key.Report
+			} else if e := k.store.Delete(key.Start); e != nil { // deleted while its file was being written
+				err = errors.Join(err, fmt.Errorf("removing a key deleted during linking: %w", e))
+			}
+		}
+		for _, p := range savedPulls {
+			if i := slices.IndexFunc(k.pulls, func(h models.RaidPull) bool { return h.Start == p.Start && !h.Imported }); i >= 0 {
+				k.pulls[i].Report = p.Report
+			} else if e := k.raid.store.DeletePull(p.Start); e != nil {
+				err = errors.Join(err, fmt.Errorf("removing a pull deleted during linking: %w", e))
+			}
+		}
+		if n = len(savedKeys) + len(savedPulls); n > 0 {
 			k.version++
 		}
 	}()
-	for i, key := range k.history {
-		if link, ok := keyLinks[key.Start]; ok && !key.Imported && key.Report == nil {
-			key.Report = &link
-			if err := k.store.Save(key); err != nil {
-				return n, fmt.Errorf("linking a key to its report: %w", err)
-			}
-			k.history[i] = key
-			n++
+	for _, key := range keys {
+		if err := k.store.Save(key); err != nil {
+			return 0, fmt.Errorf("linking a key to its report: %w", err)
 		}
+		savedKeys = append(savedKeys, key)
 	}
-	if k.raid != nil {
-		for i, p := range k.pulls {
-			if link, ok := pullLinks[p.Start]; ok && !p.Imported && p.Report == nil {
-				p.Report = &link
-				if err := k.raid.store.SavePull(p); err != nil {
-					return n, fmt.Errorf("linking a raid pull to its report: %w", err)
-				}
-				k.pulls[i] = p
-				n++
-			}
+	for _, p := range pulls {
+		if err := k.raid.store.SavePull(p); err != nil {
+			return 0, fmt.Errorf("linking a raid pull to its report: %w", err)
 		}
+		savedPulls = append(savedPulls, p)
 	}
-	return n, nil
+	return 0, nil
 }
 
 // ImportedCount is how many saved keys and raid pulls came from Warcraft Logs.
@@ -304,30 +331,42 @@ func (k *LogTracker) ImportedCount() int {
 	return n
 }
 
-// RemoveImported deletes every saved key and raid pull that came from Warcraft Logs.
-func (k *LogTracker) RemoveImported() error {
-	k.mu.Lock()
-	defer k.mu.Unlock()
+// RemoveImported deletes every saved key and raid pull that came from Warcraft Logs. The files go outside the
+// tracker's lock; what was deleted leaves the lists even when a later delete fails.
+func (k *LogTracker) RemoveImported() (err error) {
+	k.mu.RLock()
+	var keys, pulls []int64
 	for _, key := range k.history {
 		if key.Imported {
-			if err := k.store.Delete(key.Start); err != nil {
-				return fmt.Errorf("removing imported keys: %w", err)
-			}
+			keys = append(keys, key.Start)
 		}
-	}
-	k.history = slices.DeleteFunc(k.history, func(key models.Key) bool { return key.Imported })
-	k.version++
-	if k.raid == nil {
-		return nil
 	}
 	for _, p := range k.pulls {
 		if p.Imported {
-			if err := k.raid.store.DeletePull(p.Start); err != nil {
-				return fmt.Errorf("removing imported raid pulls: %w", err)
-			}
+			pulls = append(pulls, p.Start)
 		}
 	}
-	k.pulls = slices.DeleteFunc(k.pulls, func(p models.RaidPull) bool { return p.Imported })
+	k.mu.RUnlock()
+	var gone, gonePulls []int64
+	defer func() {
+		k.mu.Lock()
+		defer k.mu.Unlock()
+		k.history = slices.DeleteFunc(k.history, func(key models.Key) bool { return key.Imported && slices.Contains(gone, key.Start) })
+		k.pulls = slices.DeleteFunc(k.pulls, func(p models.RaidPull) bool { return p.Imported && slices.Contains(gonePulls, p.Start) })
+		k.version++
+	}()
+	for _, start := range keys {
+		if err := k.store.Delete(start); err != nil {
+			return fmt.Errorf("removing imported keys: %w", err)
+		}
+		gone = append(gone, start)
+	}
+	for _, start := range pulls {
+		if err := k.raid.store.DeletePull(start); err != nil {
+			return fmt.Errorf("removing imported raid pulls: %w", err)
+		}
+		gonePulls = append(gonePulls, start)
+	}
 	return nil
 }
 

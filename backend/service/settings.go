@@ -50,6 +50,7 @@ func ValidateSettings(s models.Settings) error {
 	if !filepath.IsAbs(s.LogsDir) || !slices.Contains(regions, s.Region) || !slices.Contains(overlayShows, o.Show) ||
 		o.Opacity < minOpacity || o.Opacity > 100 || o.Rows < 0 ||
 		slices.ContainsFunc(o.Columns, func(c string) bool { return !slices.Contains(overlayColumns, c) }) ||
+		len(slices.Compact(slices.Sorted(slices.Values(o.Columns)))) != len(o.Columns) ||
 		!autoDays(auto.ArchiveGameLogsDays) || !autoDays(auto.DeleteImportsDays) {
 		return ErrBadSettings
 	}
