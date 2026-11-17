@@ -56,6 +56,9 @@ type SimChoices struct {
 	Difficulties []string   `json:"difficulties"`
 	KeyLevels    []int      `json:"keyLevels"`
 	Defaults     SimOptions `json:"defaults"`
+	// DefaultDifficulty and DefaultKeyLevel are what the Droptimizer starts on.
+	DefaultDifficulty string `json:"defaultDifficulty" example:"heroic"`
+	DefaultKeyLevel   int    `json:"defaultKeyLevel" example:"10"`
 }
 
 // SimRequest starts a sim: its Kind (one of SimKinds), the pasted SimC export (parsed again on every request) and

@@ -45,6 +45,11 @@ RAID
   dispels, avoidable hits), with what to fix next pull.
 • A replay on the room's map, plus missing flasks, food and Vantus Runes.
 
+SIMS
+• Paste the export of the SimulationCraft addon and sim your character on your PC: a Quick Sim, Top Gear for the gear
+  you carry, and a Droptimizer for what the season's raid and dungeons drop.
+• Uses SimulationCraft, downloaded the first time you ask for a sim. Nothing about your character is sent anywhere.
+
 YOUR SEASON
 • A Recap per character: keys timed, your fastest and closest runs, the ability that kills you most, who you ran
   with and your Warcraft Logs parses. Read your old logs or import from Warcraft Logs.
@@ -92,6 +97,7 @@ Warcraft Logs', season timers Raider.IO's and spell text and icons Wowhead's.
 10. Routes: import a Mythic Dungeon Tools route and follow it live
 11. Reads old combat logs and imports from Warcraft Logs
 12. No addon, no account, your combat log never leaves your PC
+13. Character sims on your PC with SimulationCraft: Quick Sim, Top Gear and a Droptimizer
 
 ## Search terms (up to 7)
 

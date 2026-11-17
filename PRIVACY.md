@@ -18,6 +18,7 @@ WoW Live downloads public game data. None of these requests include anything fro
 - **Raider.IO** (raider.io): the season's dungeon timers and this week's affixes, for your region.
 - **Keystone.guru** (assets.keystone.guru): dungeon map images.
 - **Wowhead** (nether.wowhead.com and wow.zamimg.com): the text of a spell when you hover its name, and the icons of talents and spells.
+- **github.com** (this repository's `simc-engine` release), only when you press the Sim tab's download button: the SimulationCraft program (`simc.exe`, about 116 MB) and its checksum, over HTTPS; the app checks the file against the checksum before it keeps it. A sim runs on your PC and sends nothing about the character you paste.
 - **Warcraft Logs' image server** (assets.rpglogs.com): raid room map images, for the raid replay.
 
 As with any web request, those sites can see your IP address. Each request names WoW Live and its GitHub page.

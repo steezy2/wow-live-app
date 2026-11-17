@@ -21,6 +21,7 @@ import { Recap } from './Recap'
 import { RoutesPage } from './RoutesPage'
 import { SavedKeys } from './SavedKeys'
 import { SettingsPage } from './SettingsPage'
+import { Sim } from './Sim'
 import { Skeleton } from './Skeleton'
 import { useSaved } from './useSaved'
 
@@ -28,18 +29,18 @@ import { useSaved } from './useSaved'
 /** The longest the splash stays up waiting for the settings and the characters. */
 const SPLASH_MAX_MS = 2000
 
-type Section = 'home' | 'mplus' | 'routes' | 'raid' | 'recap' | 'settings'
+type Section = 'home' | 'mplus' | 'routes' | 'raid' | 'recap' | 'sim' | 'settings'
 
 /** Shown in place of the page until the settings and characters are read; the same markup as index.html's splash. */
 function Splash() {
   return <div className="splash" role="status">WoW Live</div>
 }
 
-/** The site: its sections along the top (Home, M+ Live, Routes, Raid, Recap, and Settings in the desktop app) and the
- * character picker, whose pick (Settings' character at first, all when M+ Live is first opened, then the last one) the
- * saved keys, raid nights and recap show; M+ Live has the saved keys on the side and the live key or the one picked
- * from them. The app shows a splash until the settings and characters are read (at most SPLASH_MAX_MS), then opens on
- * Home. */
+/** The site: its sections along the top (Home, M+ Live, Routes, Raid, Recap, and Sim and Settings in the desktop app)
+ * and the character picker, whose pick (Settings' character at first, all when M+ Live is first opened, then the last
+ * one) the saved keys, raid nights and recap show; M+ Live has the saved keys on the side and the live key or the one
+ * picked from them. The app shows a splash until the settings and characters are read (at most SPLASH_MAX_MS), then
+ * opens on Home. */
 export default function App() {
   const [selected, setSelected] = useState<number | null>(null)
   const [refresh, setRefresh] = useState(0)
@@ -134,6 +135,7 @@ export default function App() {
         <button {...tab('routes')}>Routes</button>
         <button {...tab('raid')}>Raid</button>
         <button {...tab('recap')}>Recap</button>
+        {settings && <button {...tab('sim')}>Sim</button>}
         {(settings || !settingsRead) && (
           <button {...tab('settings')} disabled={!settings}>
             Settings
@@ -171,6 +173,8 @@ export default function App() {
         </main>
       ) : section === 'routes' ? null : section === 'raid' ? (
         <RaidPage key={raidPull} initial={raidPull} character={character} />
+      ) : settings && section === 'sim' ? (
+        <Sim />
       ) : section === 'recap' ? (
         <main className="page">
           <Recap character={characters.find((c) => c.id === character)} parsesFor={preferred} onOpen={open} />
