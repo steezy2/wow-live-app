@@ -78,9 +78,9 @@ func TestSpellsInfoDoesNotBlameTheSpellForACancelledAsk(t *testing.T) {
 	}
 }
 
-// TestSpellsMobSpellRefusesAnIDNoMobCasts: only a spell a dungeon mob casts is looked up, so the endpoint can't be made
-// to fetch every spell there is.
-func TestSpellsMobSpellRefusesAnIDNoMobCasts(t *testing.T) {
+// TestSpellsReferenceSpellRefusesAnIDNoMobCastsOrTalents: only a spell a dungeon mob casts or a talent gives is looked
+// up, so the endpoint can't be made to fetch every spell there is.
+func TestSpellsReferenceSpellRefusesAnIDNoMobCastsOrTalents(t *testing.T) {
 	facts := map[int]models.DungeonFacts{250: {Mobs: map[int]models.DungeonMob{
 		1: {NPC: 1, Spells: []models.MobSpell{{ID: 1}}}}}}
 	keys, err := NewLogTracker(nil, nil, models.MPlusRules{}, facts, &memStore{})
@@ -88,11 +88,15 @@ func TestSpellsMobSpellRefusesAnIDNoMobCasts(t *testing.T) {
 		t.Fatal(err)
 	}
 	source := &fakeSpells{}
-	spells := &Spells{Keys: keys, Source: source}
-	if _, err := spells.MobSpell(context.Background(), 2); !errors.Is(err, ErrUnknownSpell) || len(source.asked) != 0 {
+	spells := &Spells{Keys: keys, Source: source, Talents: map[int]models.TalentTree{62: {Nodes: []models.TalentNode{
+		{Entries: []models.TalentEntry{{SpellID: 3}}}}}}}
+	if _, err := spells.ReferenceSpell(context.Background(), 2); !errors.Is(err, ErrUnknownSpell) || len(source.asked) != 0 {
 		t.Errorf("a spell no mob casts: err = %v, asked %v; want ErrUnknownSpell and no ask", err, source.asked)
 	}
-	if _, err := spells.MobSpell(context.Background(), 1); err != nil || len(source.asked) != 1 {
+	if _, err := spells.ReferenceSpell(context.Background(), 1); err != nil || len(source.asked) != 1 {
 		t.Errorf("a mob's spell: err = %v, asked %v; want one ask", err, source.asked)
+	}
+	if _, err := spells.ReferenceSpell(context.Background(), 3); err != nil || len(source.asked) != 2 {
+		t.Errorf("a talent's spell: err = %v, asked %v; want a second ask", err, source.asked)
 	}
 }
