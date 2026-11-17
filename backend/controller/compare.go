@@ -112,7 +112,8 @@ func wclAnswer(c *gin.Context, doing string, body any, err error) {
 	switch {
 	case err == nil:
 		c.JSON(http.StatusOK, body)
-	case errors.Is(err, service.ErrNoSuchKey), errors.Is(err, service.ErrNoSuchPull), errors.Is(err, service.ErrNoSuchPlayer):
+	case errors.Is(err, service.ErrNoSuchKey), errors.Is(err, service.ErrNoSuchPull), errors.Is(err,
+		service.ErrNoSuchPlayer):
 		c.JSON(http.StatusNotFound, ErrorResponse{Error: err.Error()})
 	case errors.Is(err, service.ErrKeyRunning):
 		c.JSON(http.StatusConflict, ErrorResponse{Error: err.Error()})

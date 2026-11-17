@@ -86,8 +86,9 @@ type Site struct {
 	reviews  controller.Reviews
 	compares controller.Compares
 	topRuns  func(ctx context.Context, key models.Key) ([]int64, error) // nil without Warcraft Logs
-	newKeys  func() (*service.LogTracker, error)                        // another tracker on the same saved keys, for Learn
-	logJob   sync.Mutex                                                 // one read, archive or delete of logs at a time
+	// another tracker on the same saved keys, for Learn
+	newKeys func() (*service.LogTracker, error)
+	logJob  sync.Mutex // one read, archive or delete of logs at a time
 }
 
 // Start builds the site from opts. Follow, Learn or a replay then feed it the game's log.
@@ -139,12 +140,12 @@ func Start(ctx context.Context, opts Options) (*Site, error) {
 	if opts.LogsDir != nil {
 		planner.Saves = func() ([]models.MDTPreset, error) { return mdt.SavedRoutes(opts.LogsDir()) }
 	}
-	spells := &service.Spells{Keys: keys, Talents: opts.Talents, Source: wowhead.Client{CacheDir: filepath.Join(opts.Cache, "wowhead"),
-		HTTP: &http.Client{Timeout: spellTimeout}}}
-	s.Handler = controller.Router(controller.MPlus{Keys: keys, Reviews: s.reviews, Compares: s.compares, Changes: s.Changes,
-		Now: opts.Now, Tiles: tiles, Recaps: recaps, Talents: opts.Talents,
-		Icons:  wowhead.Client{CacheDir: filepath.Join(opts.Cache, "wowhead")},
-		Spells: spells, Planner: planner}, &controller.Raid{Compares: s.compares, Pulls: keys, Maps: raidMaps, Now: opts.Now}, opts.Settings,
+	spells := &service.Spells{Keys: keys, Talents: opts.Talents,
+		Source: wowhead.Client{CacheDir: filepath.Join(opts.Cache, "wowhead"), HTTP: &http.Client{Timeout: spellTimeout}}}
+	s.Handler = controller.Router(controller.MPlus{Keys: keys, Reviews: s.reviews, Compares: s.compares,
+		Changes: s.Changes, Now: opts.Now, Tiles: tiles, Recaps: recaps, Talents: opts.Talents,
+		Icons: wowhead.Client{CacheDir: filepath.Join(opts.Cache, "wowhead")}, Spells: spells, Planner: planner},
+		&controller.Raid{Compares: s.compares, Pulls: keys, Maps: raidMaps, Now: opts.Now}, opts.Settings,
 		opts.Pages, opts.Hosts...)
 	return s, nil
 }

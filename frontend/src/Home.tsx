@@ -154,7 +154,8 @@ function QuickLinks({ character, onOpen, onSettings, onRecap }: HomeActions & { 
   )
 }
 
-/** The current period's keys, timed share, pulls and kills for the character in the top bar, as the Recap counts them. */
+/** The current period's keys, timed share, pulls and kills for the character in the top bar, as the Recap counts
+ * them. */
 function AtAGlance({ character }: { character: string }) {
   const { data: answer } = useFetched(character, async (signal) => {
     const [period] = await fetchRecapPeriods(signal)

@@ -99,7 +99,8 @@ func (c Comparer) fightEnd(kind models.FightKind, start int64) (int64, error) {
 }
 
 // Run is a player's review: the stored one, or a new one, which spends Warcraft Logs points.
-func (c Comparer) Run(ctx context.Context, kind models.FightKind, start int64, player string) (models.PlayerCompare, error) {
+func (c Comparer) Run(ctx context.Context, kind models.FightKind, start int64, player string) (models.PlayerCompare,
+	error) {
 	reviewing.Lock()
 	defer reviewing.Unlock()
 	if review, err := c.Cached(kind, start, player); err == nil {
@@ -256,7 +257,8 @@ func (c Comparer) load(kind models.FightKind, start int64, player string) (fight
 		if err != nil {
 			return fightRun{}, err
 		}
-		f := fightRun{kind: kind, start: start, end: pull.End, encounter: pull.Boss, boss: models.RankedDifficultyWCL(pull.Difficulty),
+		f := fightRun{kind: kind, start: start, end: pull.End, encounter: pull.Boss,
+			boss:      models.RankedDifficultyWCL(pull.Difficulty),
 			character: character(player, pull.Realms), spec: spec, specID: pull.Specs[player], partial: !pull.Kill,
 			local: pullPlayer(pull, track, player), casts: track.Casts[player], buffs: track.Buffs[player]}
 		f.local.Talents = pull.Talents[player]

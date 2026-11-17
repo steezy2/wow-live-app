@@ -1,0 +1,33 @@
+# Run by CI (golangci-lint v2) from backend/; gofmt, go vet and go test run beside it. lll holds the 120 columns,
+# errcheck skips the usual Close/Remove/Fprint calls (std-error-handling) and writes to a bufio.Writer or a response
+# (Flush reports the error), and staticcheck keeps its bug checks (SA, S1) without the style ones (ST, QF).
+version: "2"
+linters:
+  default: none
+  enable:
+    - errcheck
+    - staticcheck
+    - unused
+    - lll
+  settings:
+    lll:
+      line-length: 120
+      tab-width: 1
+    errcheck:
+      exclude-functions:
+        - (*bufio.Writer).WriteString
+        - (*bufio.Writer).WriteByte
+        - (net/http.ResponseWriter).Write
+        - io.WriteString
+    staticcheck:
+      checks: ["all", "-ST*", "-QF*", "-SA4018"] # SA4018: mdt.go makes a map key exist with d.Spells[spell] = d.Spells[spell]
+  exclusions:
+    presets:
+      - std-error-handling
+    rules:
+      - linters: [lll]
+        source: '^\s*//\s*@|enums:"' # swaggo annotations and a struct tag can't be wrapped
+      - path: ^docs/
+        linters: [lll]
+      - path: _test\.go
+        linters: [errcheck]

@@ -10,6 +10,8 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 - **Frontend dry-up** (about 60 lines fewer, tests included; the pages look alike apart from a few colour and spacing steps that now follow the tokens): `Home`, `KeyRoute`, `Recap` and the raid track read through `useFetched`; one `<FixNext>`, `<Tiles>`, `<SavedBefore>` (the "saved before … were kept" lines now share one wording), `PlayerPicker`, `disc()` and `FightKind` replace their copies. The replay does less per tick: the walked-floor bounds are computed once, `sumStretches` walks its stretches once instead of searching them for each, the route map's backdrop and deaths are stable, and the review page's still tabs are built only when what they show changes.
 - Tabs have ids instead of positions and name prefixes, and follow the ARIA tabs pattern (arrow keys, Home and End move between them, only the open one is in the tab order, each tab names its panel).
 - CSS spacing and font sizes come from the `--s` and `--t` tokens, and the route map's unpulled and missed colours from `--muted` and `--bad`. The TypeScript target is ES2024 (`Map.groupBy`, `toReversed`, `at`).
+- Code and CI only, no behavior change: CI also runs `golangci-lint` (`backend/.golangci.yml`: `lll` at 120 columns, `errcheck`, `staticcheck`, `unused`), checks that `backend/docs` is what `swag init` writes, and runs the desktop app's tests on Windows; ESLint's `max-len` holds the page's 120 columns. The lines over 120 columns were wrapped (about 50 in the page, 145 in the backend).
+- Docs: the README's review tabs (and the raid Buffs tab), `spec-rules.toml` in the layout notes, `build.sh`, `cmd/app` and its embed folder, the API description (now covers raid pulls, routes, the recap and the settings), the Store listing's version and the missing `[0.4.4]` heading.
 
 ## [0.5.0] - 2026-11-16
 
@@ -86,14 +88,21 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 - The replay's focused player and picked enemy show a health bar in their box (kept on the track now, so saved keys are read again).
 
 ### Fixed
-- A key finished over its timer is depleted, not timed (the log's success flag only says it was completed); saved keys are read again to fix it. A player review no longer drops an unreadable track silently; a key's avoidable hits, a pull's stacks and soaks and a review's similar runs keep one order when rebuilt; deleting a saved key tells open windows and the overlay; an expired Warcraft Logs token is fetched again instead of failing until restart; the page's inline script (blocked by its policy) is a file, so the overlay opens without a splash; the Home tab logs a failed recap; a repeated log name is refused.
+- A key finished over its timer is depleted, not timed (the log's success flag only says it was completed); saved keys are read again to fix it.
+
+### Changed
+- **Replay** moves players like Warcraft Logs': a dot glides in a straight line between two samples up to 10 s apart (however fast the move) and is hidden when its player hasn't been sampled for 10 s, instead of freezing and then jumping; a dead player's cross stays.
+
+## [0.4.4] - 2026-11-14
+
+### Fixed
+- A player review no longer drops an unreadable track silently; a key's avoidable hits, a pull's stacks and soaks and a review's similar runs keep one order when rebuilt; deleting a saved key tells open windows and the overlay; an expired Warcraft Logs token is fetched again instead of failing until restart; the page's inline script (blocked by its policy) is a file, so the overlay opens without a splash; the Home tab logs a failed recap; a repeated log name is refused.
 
 ### Changed
 - Code only, no behavior change: the settings' cleaning and character rule are `service.CleanSettings` and `CharacterNeedsCheck`; the import's files are written by `cachefile.WriteJSON`; one `wclAnswer` maps review and compare errors to statuses (and a raid pull's missing-pull 404 shares `respondError`); a key's status is `models.StatusRunning`, `StatusTimed`, `StatusDepleted`, `StatusAbandoned`; folder sizes moved to `clients/cachefile/size.go`; names only used in their own package are unexported. A player's parse reads the same everywhere (rounded down, as Warcraft Logs shows it).
 - The privacy policy and README say a reviewed player's name and realm go to Warcraft Logs; the Store listing matches 0.4.3.
 - **Home's combat logs** are grouped by the day they were written, the last 5 days one box each and everything older in one; a box picks all of its logs. *Read old logs* and *Read everything again* look like buttons.
 - **Import from Warcraft Logs** always suggests `Name-Realm` in the character box; `characterGuess` is gone from `/api/settings`.
-- **Replay** moves players like Warcraft Logs': a dot glides in a straight line between two samples up to 10 s apart (however fast the move) and is hidden when its player hasn't been sampled for 10 s, instead of freezing and then jumping; a dead player's cross stays.
 - **Replay**: a boss's name shows only once you pick it, names are outlined (a raider's in their class color, over their dot; an enemy's under it) and picking an enemy lists what each player has done to it (bottom right).
 
 ## [0.4.3] - 2026-11-13

@@ -17,7 +17,15 @@ const tree: TalentTree = {
   specID: 62,
   class: 'Mage',
   spec: 'Arcane',
-  nodes: [node(1, [10]), node(2, [20]), node(3, [30]), node(4, [40, 41]), node(5, [50]), node(6, [60], 'hero', 7), node(7, [70], 'hero', 8)],
+  nodes: [
+    node(1, [10]),
+    node(2, [20]),
+    node(3, [30]),
+    node(4, [40, 41]),
+    node(5, [50]),
+    node(6, [60], 'hero', 7),
+    node(7, [70], 'hero', 8),
+  ],
 }
 
 describe('readTree', () => {
@@ -39,7 +47,12 @@ describe('readTree', () => {
   })
 
   it('reads both hero trees', () => {
-    const talents: CompareTalents = { specID: 62, of: 4, you: [{ n: 1, e: 10, r: 1 }], top: [{ n: 7, e: 70, r: 1, taken: 4, most: true }] }
+    const talents: CompareTalents = {
+      specID: 62,
+      of: 4,
+      you: [{ n: 1, e: 10, r: 1 }],
+      top: [{ n: 7, e: 70, r: 1, taken: 4, most: true }],
+    }
     const state = Object.fromEntries(readTree(tree, talents).map((r) => [r.node.id, r.state]))
     expect(state).toMatchObject({ 6: 'unused', 7: 'missed' })
   })

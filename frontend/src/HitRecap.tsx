@@ -11,7 +11,8 @@ const sum = (events: RecapEvent[], kind: RecapEvent['k']) =>
   events.filter((e) => e.k === kind).reduce((n, e) => n + (e.n ?? 0), 0)
 
 /** One recap: a summary (taken, healed, shielded, buttons used, and what was ready) and the last events, newest at
- * the bottom with the time before the end, each filled green to their health after it (worked out from the damage and healing where the log gives none); limit keeps the newest ones. */
+ * the bottom with the time before the end, each filled green to their health after it (worked out from the damage and
+ * healing where the log gives none); limit keeps the newest ones. */
 export function HitRecapView(props: { recap: HitRecap; ready?: string[]; limit?: number }) {
   const { recap, ready, limit } = props
   const health = healthAfter(recap)

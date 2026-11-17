@@ -30,7 +30,9 @@ export function abilityViews(
     taken: taken
       .filter((h) => h.player === player)
       .map((h): AbilityRow => ({ name: h.ability, value: h.damage, school: h.school })),
-    casts: mine.filter((a) => a.casts > 0).map((a): AbilityRow => ({ name: a.ability, value: a.casts, school: a.school })),
+    casts: mine
+      .filter((a) => a.casts > 0)
+      .map((a): AbilityRow => ({ name: a.ability, value: a.casts, school: a.school })),
   }
 }
 

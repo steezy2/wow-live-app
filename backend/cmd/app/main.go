@@ -48,8 +48,9 @@ const (
 	overlayW, overlayH, overlayMargin = 420, 340, 24
 )
 
-// files are what build.sh puts in: the built page (dist/), mplus.toml and raid-rules.toml (the rules),
-// reference/mplus-dungeons.json and reference/raid-bosses.json (the reference files) and the tray's icon.ico (from cmd/appicon).
+// files are what build.sh puts in: the built page (dist/), mplus.toml, raid-rules.toml and spec-rules.toml (the rules),
+// reference/mplus-dungeons.json and reference/raid-bosses.json (the reference files) and the tray's icon.ico (from
+// cmd/appicon).
 //
 //go:embed embed
 var files embed.FS

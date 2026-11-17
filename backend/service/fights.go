@@ -76,7 +76,9 @@ func keepLocal[T models.SavedFight[T]](mu *sync.RWMutex, list *[]T, fight T, sam
 		if !slices.ContainsFunc(*list, twin) {
 			return false, nil
 		}
-		*list = slices.DeleteFunc(*list, func(other T) bool { return other.FightStart() == fight.FightStart() && other.FromWCL() })
+		*list = slices.DeleteFunc(*list, func(other T) bool {
+			return other.FightStart() == fight.FightStart() && other.FromWCL()
+		})
 		return true, nil
 	}
 	for _, other := range *list {

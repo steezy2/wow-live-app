@@ -18,13 +18,16 @@ page: deps ## Build the page into frontend/dist
 site: page ## Serve the page and API in a browser at http://localhost:8080
 	cd backend && go run ./cmd/site
 
-check: deps ## Run what CI runs: gofmt, go vet and go test, then eslint, vitest and the page's build
+check: deps ## Run CI's checks (not its spec diff or Windows job): gofmt, go vet, golangci-lint (when installed) and go test, then eslint, vitest and the build
 	cd backend && test -z "$$(gofmt -l . | tee /dev/stderr)" && go vet ./... && go test ./...
+	@if command -v golangci-lint >/dev/null; then cd backend && golangci-lint run; else echo "golangci-lint not installed: CI runs it"; fi
 	cd frontend && npm run lint && npm test && npm run build
 
 fmt: ## gofmt the backend
 	cd backend && gofmt -w .
 
+# CI's swag is `go install github.com/swaggo/swag/cmd/swag@v1.16.4` outside this module; one built from go.mod's
+# dependencies writes extra `format:` lines and fails CI's diff.
 swag: ## Regenerate the API spec (backend/docs) after changing an endpoint or its types
 	cd backend && swag init -g cmd/site/main.go -o docs --parseInternal
 

@@ -173,9 +173,11 @@ func NewLogTracker(timers map[int]int64, affixes map[int]string, rules models.MP
 		}
 	}
 	c := rules.Consumables
-	return &LogTracker{timers: timers, affixes: affixes, rules: rules, kinds: kinds, facts: facts, mobSpells: mobSpells, store: store,
-		history: history, everyday: map[string]consumable{"flask": {patterns: c.Flask}, "food": {patterns: c.Food}},
-		spells: map[int]string{}, spellIDs: map[string]int{}, schools: map[string]int{"Melee": physicalSchool}, specs: map[string]int{}, talents: map[string][]models.TalentPick{},
+	return &LogTracker{timers: timers, affixes: affixes, rules: rules, kinds: kinds, facts: facts, mobSpells: mobSpells,
+		store: store, history: history,
+		everyday: map[string]consumable{"flask": {patterns: c.Flask}, "food": {patterns: c.Food}},
+		spells:   map[int]string{}, spellIDs: map[string]int{}, schools: map[string]int{"Melee": physicalSchool},
+		specs: map[string]int{}, talents: map[string][]models.TalentPick{},
 		owners: map[string]string{}, names: map[string]string{}, realms: map[string]string{},
 		up: map[[2]string]int64{}, top: map[[2]int][]int64{}, asked: map[[2]int]bool{}}, nil
 }
@@ -227,7 +229,8 @@ func (k *LogTracker) Add(line models.LogLine) {
 func (k *LogTracker) add(line models.LogLine) {
 	defer func() { k.lastAt = line.Time }()
 	f := line.Fields
-	if k.current != nil && k.current.raid == nil || line.Event == "CHALLENGE_MODE_START" { // a raid pull bumps at its start and end
+	// a raid pull bumps at its start and end
+	if k.current != nil && k.current.raid == nil || line.Event == "CHALLENGE_MODE_START" {
 		k.version++
 	}
 	if run := k.current; run != nil && run.raid != nil && line.Time-k.lastAt > quietMS {
@@ -250,7 +253,8 @@ func (k *LogTracker) add(line models.LogLine) {
 	if run != nil {
 		k.finishBigHits(run, line.Time, false)
 	}
-	if run == nil && line.Event == "ENCOUNTER_START" && k.raid != nil && len(f) >= 5 && models.RaidDifficultyByLogID(f[2]).Name != "" {
+	if run == nil && line.Event == "ENCOUNTER_START" && k.raid != nil && len(f) >= 5 &&
+		models.RaidDifficultyByLogID(f[2]).Name != "" {
 		k.startPull(line)
 		return
 	}
@@ -445,7 +449,8 @@ func newRun(key models.Key, instance string) *keyRun {
 		track: models.KeyTrack{Players: map[string][]models.TrackPoint{}, Deaths: []models.TrackPoint{},
 			Meters: map[string][]models.MeterPoint{}, Bosses: map[string][]models.TrackPoint{},
 			Mobs: map[string]models.MobTrail{}},
-		auras: map[string][]int{}, gear: map[string][]int{}, total: map[string]*models.KeyMeterRow{}, inPull: map[string]*models.KeyMeterRow{},
+		auras: map[string][]int{}, gear: map[string][]int{}, total: map[string]*models.KeyMeterRow{},
+		inPull:    map[string]*models.KeyMeterRow{},
 		abilities: map[[2]string]*models.KeyAbility{}, takenBy: map[[2]string]int64{},
 		takenAt: map[int64]map[[2]string]*models.SpikeCause{}, hits: newHitWatch(),
 		sample: abilitySampler{every: mplusAbilityEveryMS, abilitiesWere: map[[2]string]models.KeyAbility{},
@@ -741,8 +746,9 @@ func (k *LogTracker) deal(at int64, f []string, player, ability string, amount i
 
 // support moves an Augmentation Evoker's share of a party member's hit on an enemy from that member (src, the
 // line's source or its owner) to the Evoker (the line's last field), as Warcraft Logs and Details credit it: the
-// game logs it right after the hit (a swing's after its SWING_DAMAGE_LANDED line), with the buff (Ebon Might, Prescience...) as the spell, which names the Evoker's
-// row. The enemy's damage taken stays as the hit counted it. An Evoker outside the group changes nothing.
+// game logs it right after the hit (a swing's after its SWING_DAMAGE_LANDED line), with the buff (Ebon Might,
+// Prescience...) as the spell, which names the Evoker's row. The enemy's damage taken stays as the hit counted it. An
+// Evoker outside the group changes nothing.
 func (k *LogTracker) support(at int64, f []string, src string) {
 	run, evoker := k.current, f[len(f)-1]
 	if !slices.Contains(run.party, evoker) || run.lastDealt[0] != f[0] { // lastDealt: a party hit on an enemy

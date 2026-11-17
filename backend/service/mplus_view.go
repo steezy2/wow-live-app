@@ -39,9 +39,9 @@ func (k *LogTracker) Latest(now int64) (models.KeyView, bool) {
 	return models.KeyView{}, false
 }
 
-// FirstRun is the running key when it's the first of its dungeon here (no finished runs saved) and its top Warcraft Logs runs
-// haven't been asked for: asking marks them, so they're fetched once a dungeon and level. False until COMBATANT_INFO
-// names the party's specs.
+// FirstRun is the running key when it's the first of its dungeon here (no finished runs saved) and its top Warcraft
+// Logs runs haven't been asked for: asking marks them, so they're fetched once a dungeon and level. False until
+// COMBATANT_INFO names the party's specs.
 func (k *LogTracker) FirstRun() (models.Key, bool) {
 	k.mu.Lock()
 	defer k.mu.Unlock()

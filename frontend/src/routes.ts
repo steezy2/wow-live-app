@@ -340,7 +340,9 @@ export function drawingAt(drawings: Drawing[], map: number, p: Point, reach: num
 /** Makes a route of the pulls a key made and says what was recorded, or why nothing was (`recorded` false). */
 export async function recordKeyRoute(key: KeyView): Promise<{ recorded: boolean; message: string }> {
   const { pulls, pct, dropped } = await fetchRecordedRoute(key.start)
-  if (pulls.length === 0) return { recorded: false, message: "No kills on the map to record: read this key's log again." }
+  if (pulls.length === 0) {
+    return { recorded: false, message: "No kills on the map to record: read this key's log again." }
+  }
   const name = `${key.dungeon} +${key.level} recorded ${new Date(key.start).toLocaleDateString()}`
   const colored = pulls.map((enemies, i) => ({ color: PULL_COLORS[i % PULL_COLORS.length], enemies }))
   await createRouteFrom(key.mapID, { name, drawings: [], pulls: colored })

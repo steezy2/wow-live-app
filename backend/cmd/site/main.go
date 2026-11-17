@@ -12,7 +12,7 @@
 //
 //	@title		WoW Live API
 //	@version	1
-//	@description	The site's API: the live Mythic+ key read from the combat log.
+//	@description	The site's API: the live Mythic+ key and raid pull read from the combat log, their saved keys and pulls and reviews, planned routes, the recap, and the settings.
 //	@BasePath	/
 package main
 
@@ -76,7 +76,8 @@ func run(port int, replay string, key int, speed float64, learn bool, region str
 		return err
 	}
 	if loaded.RefErr != nil {
-		log.Printf("no dungeon facts, raid boss mechanics or talent trees, so no avoidable damage, forces, raid mechanics or talent tree: %v", loaded.RefErr)
+		log.Printf("no dungeon facts, raid boss mechanics or talent trees, so no avoidable damage, forces, raid mechanics "+
+			"or talent tree: %v", loaded.RefErr)
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
@@ -87,7 +88,8 @@ func run(port int, replay string, key int, speed float64, learn bool, region str
 	}
 	opts := app.Options{Cache: config.CachePath(root), DelayLog: config.DelayLogPath(root), LogsDir: config.LogsDir,
 		Region: region, Rules: loaded.Rules, Dungeons: loaded.Dungeons, RaidRules: loaded.RaidRules,
-		SpecRules: loaded.SpecRules, Bosses: loaded.Bosses, Tier: loaded.Tier, Talents: loaded.Talents, Pages: os.DirFS(pages),
+		SpecRules: loaded.SpecRules, Bosses: loaded.Bosses, Tier: loaded.Tier, Talents: loaded.Talents,
+		Pages: os.DirFS(pages),
 		Hosts: controller.LocalHosts(port), Now: clock.Now}
 	if logs, err := wcl.New(opts.Cache); err != nil {
 		log.Printf("no key reviews: %v", err)

@@ -6,7 +6,15 @@ import { NoteLine } from './NoteLine'
 const CLIENTS_URL = 'https://www.warcraftlogs.com/api/clients'
 
 /** No keys saved. */
-const NO_KEYS: KeyStatus = { set: false, idEnd: '', testedMS: 0, works: false, pointsLeft: 0, limitPerHour: 0, problem: '' }
+const NO_KEYS: KeyStatus = {
+  set: false,
+  idEnd: '',
+  testedMS: 0,
+  works: false,
+  pointsLeft: 0,
+  limitPerHour: 0,
+  problem: '',
+}
 
 /** The Warcraft Logs client ID and secret the app reviews keys with: how to make them, a test before they're saved
  * (or "Save anyway"), and once saved only the ID's last 4 characters and the last test, with Test keys, Replace (which
@@ -52,7 +60,8 @@ export function WCLKeys() {
             {status.testedMS === 0
               ? 'Not tested since the app started'
               : status.works
-                ? `Works · ${Math.round(status.pointsLeft).toLocaleString()} of ${status.limitPerHour.toLocaleString()} points left this hour${tested}`
+                ? `Works · ${Math.round(status.pointsLeft).toLocaleString()} of ` +
+                  `${status.limitPerHour.toLocaleString()} points left this hour${tested}`
                 : `Failed: ${status.problem}${tested}`}
           </p>
           {removing ? (

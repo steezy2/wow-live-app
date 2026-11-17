@@ -179,7 +179,8 @@ func (k *LogTracker) spikeWindow(run *keyRun) int64 {
 
 // spikes is the run's worst bursts of party damage taken (the top spikeShare of spikeWindow stretches), worst first,
 // with each hit member's cover by the death rules and the party cooldowns used for it.
-func (k *LogTracker) spikes(run *keyRun, casts []models.KeyCast, buffs []models.BuffUp, kit models.Kit) []models.KeySpike {
+func (k *LogTracker) spikes(run *keyRun, casts []models.KeyCast, buffs []models.BuffUp,
+	kit models.Kit) []models.KeySpike {
 	party := map[int64]int64{}
 	for _, bySecond := range run.taken {
 		for s, n := range bySecond {
@@ -221,7 +222,8 @@ func (k *LogTracker) spikes(run *keyRun, casts []models.KeyCast, buffs []models.
 func (k *LogTracker) spike(run *keyRun, second, damage, span int64, casts []models.KeyCast, buffs []models.BuffUp,
 	kit models.Kit) models.KeySpike {
 	at := second * 1000
-	sp := models.KeySpike{ClockMS: k.clockAt(at), Seconds: span / 1000, Damage: damage, PartyCDs: []string{}, Members: []models.KeySpikeMember{}}
+	sp := models.KeySpike{ClockMS: k.clockAt(at), Seconds: span / 1000, Damage: damage, PartyCDs: []string{},
+		Members: []models.KeySpikeMember{}}
 	window := int64(k.rules.Defensives.WindowSeconds * 1000)
 	covers := func(c models.KeyCast) bool {
 		return (slices.Contains(k.rules.Defensives.Externals, c.Ability) ||

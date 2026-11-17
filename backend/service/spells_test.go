@@ -45,7 +45,8 @@ func TestSpellsInfoAsksForTheIDTheAbilityWasCastBy(t *testing.T) {
 // without asking again until spellRetry has passed.
 func TestSpellsInfoLeavesAFailedLookupAloneForAWhile(t *testing.T) {
 	keys := newTracker(t, nil)
-	feed(t, keys, at(2, `SPELL_CAST_SUCCESS,`+testPlayer+`,0000000000000000,nil,0x80000000,0x80000000,48792,"Icebound Fortitude",0x10`))
+	feed(t, keys,
+		at(2, `SPELL_CAST_SUCCESS,`+testPlayer+`,0000000000000000,nil,0x80000000,0x80000000,48792,"Icebound Fortitude",0x10`))
 	source := &fakeSpells{err: errors.New("down")}
 	spells := &Spells{Keys: keys, Source: source}
 	for i, want := range []error{source.err, ErrSpellDown} {
@@ -57,14 +58,16 @@ func TestSpellsInfoLeavesAFailedLookupAloneForAWhile(t *testing.T) {
 		t.Errorf("asked %v; want one ask", source.asked)
 	}
 	spells.failed[48792] = time.Now().Add(-2 * spellRetry)
-	if _, err := spells.Info(context.Background(), "Icebound Fortitude"); !errors.Is(err, source.err) || len(source.asked) != 2 {
+	if _, err := spells.Info(context.Background(), "Icebound Fortitude"); !errors.Is(err, source.err) ||
+		len(source.asked) != 2 {
 		t.Errorf("after the wait: err = %v, asked %v; want asked again", err, source.asked)
 	}
 }
 
 func TestSpellsInfoDoesNotBlameTheSpellForACancelledAsk(t *testing.T) {
 	keys := newTracker(t, nil)
-	feed(t, keys, at(2, `SPELL_CAST_SUCCESS,`+testPlayer+`,0000000000000000,nil,0x80000000,0x80000000,48792,"Icebound Fortitude",0x10`))
+	feed(t, keys,
+		at(2, `SPELL_CAST_SUCCESS,`+testPlayer+`,0000000000000000,nil,0x80000000,0x80000000,48792,"Icebound Fortitude",0x10`))
 	source := &fakeSpells{err: context.Canceled}
 	spells := &Spells{Keys: keys, Source: source}
 	ctx, cancel := context.WithCancel(context.Background())
@@ -90,7 +93,8 @@ func TestSpellsReferenceSpellRefusesAnIDNoMobCastsOrTalents(t *testing.T) {
 	source := &fakeSpells{}
 	spells := &Spells{Keys: keys, Source: source, Talents: map[int]models.TalentTree{62: {Nodes: []models.TalentNode{
 		{Entries: []models.TalentEntry{{SpellID: 3}}}}}}}
-	if _, err := spells.ReferenceSpell(context.Background(), 2); !errors.Is(err, ErrUnknownSpell) || len(source.asked) != 0 {
+	_, err = spells.ReferenceSpell(context.Background(), 2)
+	if !errors.Is(err, ErrUnknownSpell) || len(source.asked) != 0 {
 		t.Errorf("a spell no mob casts: err = %v, asked %v; want ErrUnknownSpell and no ask", err, source.asked)
 	}
 	if _, err := spells.ReferenceSpell(context.Background(), 1); err != nil || len(source.asked) != 1 {

@@ -140,8 +140,10 @@ func TestRaidPullDeathsMechanicsAndProgress(t *testing.T) {
 		t.Fatalf("avoidable = %+v, hits %+v; want one direct hit each with its damage, the tick left out", p.Avoidable,
 			p.AvoidableHits)
 	}
-	if len(p.Soaks) != 1 || fmt.Sprint(p.Soaks[0]) != "{Spectral Coils 1 1 1 0 [{30000 [Testpriest]}] [Testpriest]}" || len(p.Stacks) != 1 || p.Stacks[0].Limit != 5 || p.Stacks[0].Players[0].Count != 6 {
-		t.Fatalf("soaks = %+v, stacks = %+v; want one soak by one raider who then died to it, and 6 stacks of 5", p.Soaks, p.Stacks)
+	if len(p.Soaks) != 1 || fmt.Sprint(p.Soaks[0]) != "{Spectral Coils 1 1 1 0 [{30000 [Testpriest]}] [Testpriest]}" ||
+		len(p.Stacks) != 1 || p.Stacks[0].Limit != 5 || p.Stacks[0].Players[0].Count != 6 {
+		t.Fatalf("soaks = %+v, stacks = %+v; want one soak by one raider who then died to it, and 6 stacks of 5", p.Soaks,
+			p.Stacks)
 	}
 	if len(p.Cooldowns) != 1 || p.Cooldowns[0].Ability != "Tranquility" || p.Cooldowns[0].ClockMS != 5_000 ||
 		len(p.Priority) != 1 || p.Priority[0].Damage != 5_000 {
@@ -219,13 +221,15 @@ func TestSuggestionsPutWhatToFixFirst(t *testing.T) {
 	p := models.RaidPull{
 		Deaths: []models.RaidDeath{death("A", "Caustic Waves", true), death("B", "Caustic Waves", true, "Ice Block"),
 			death("C", "Melee", false)},
-		Avoidable: []models.RaidHits{{Ability: "Caustic Waves", Players: []models.PlayerCount{{Player: "A", Count: 1}, {Player: "B", Count: 2}}},
+		Avoidable: []models.RaidHits{{Ability: "Caustic Waves",
+			Players: []models.PlayerCount{{Player: "A", Count: 1}, {Player: "B", Count: 2}}},
 			{Ability: "Toxic Spill", Players: []models.PlayerCount{{Player: "D", Count: 1}}}},
 		Soaks:     []models.RaidSoak{{Ability: "Spectral Coils", Died: []string{"E"}}},
 		MassKills: []models.MassKill{{Ability: "Caustic Waves", Killed: 2, ClockMS: 61_000}},
 		Spikes:    []models.KeySpike{{ClockMS: 90_000, Damage: 7_200_000, PartyCDs: []string{}}},
-		Stacks: []models.RaidStacks{{Ability: "Eternal Venom", Limit: 5, Players: []models.PlayerCount{{Player: "F", Count: 6}, {Player: "G", Count: 5}},
-			Over: []string{"F"}}},
+		Stacks: []models.RaidStacks{{Ability: "Eternal Venom", Limit: 5,
+			Players: []models.PlayerCount{{Player: "F", Count: 6}, {Player: "G", Count: 5}},
+			Over:    []string{"F"}}},
 		WentOff: []models.KeyStop{{Spell: "Anguished Cry"}, {Spell: "Anguished Cry"}, {Spell: "Vicious Echoes", Wipe: true}},
 		Adds: []models.RaidAdd{{Name: "Blightscale Clutch", LongestMS: 30_000}, {Name: "Blightscale Viper",
 			Spawns: []models.RaidSpawn{{ClockMS: 75_000, Cause: "Caustic Waves", Players: []string{"H"}, Spawner: true},
@@ -383,7 +387,8 @@ func TestRaidPullKeepsAbilitiesTargetsAndHowLongBuffsLasted(t *testing.T) {
 		t.Fatal(err)
 	}
 	p := store.pulls[0]
-	if len(p.Abilities) != 2 || p.Abilities[0] != (models.KeyAbility{Player: "Testmage", Ability: "Arcane Barrage", ID: 44425,
+	if len(p.Abilities) != 2 || p.Abilities[0] != (models.KeyAbility{Player: "Testmage", Ability: "Arcane Barrage",
+		ID:     44425,
 		Damage: 5000, Hits: 1, School: 0x40}) || fmt.Sprint(p.Targets) != "[{Testmage Testboss 5000}]" {
 		t.Fatalf("abilities = %+v, targets = %+v; want the mage's arcane Arcane Barrage for 5000 into Testboss",
 			p.Abilities, p.Targets)
@@ -527,7 +532,8 @@ func TestRaidPullPickupsBreaksAndSpawns(t *testing.T) {
 	}
 	if got := fmt.Sprint(p.Breaks); got != "[{40000 Testmage Grasping Fangs Blight Vein 2 []} "+
 		"{50000 Testshaman Grasping Fangs  0 [Testmage]}]" {
-		t.Errorf("breaks = %s; want the first setting off Blight Vein on 2, the second nothing with the mage's right after it", got)
+		t.Errorf("breaks = %s; want the first setting off Blight Vein on 2, "+
+			"the second nothing with the mage's right after it", got)
 	}
 	spawns := map[string]string{}
 	for _, a := range p.Adds {
@@ -692,8 +698,8 @@ func TestRaidTrackKeepsBossHealthCastsAndAbilities(t *testing.T) {
 	if fmt.Sprint(hp) != "[40]" || fmt.Sprint(track.Health) != "["+bossGUID+"]" {
 		t.Errorf("boss health in the track = %v, shown %v; want the boss at 40%% in the box", hp, track.Health)
 	}
-	if got := fmt.Sprint(track.Casts["Testmage"]); got != "[{2000 Frostbolt 116 4000 false} {5000 Arcane Barrage 44425 0 false} "+
-		"{6000 Frostbolt 116 7000 true} {8000 Frostbolt 116 0 true}]" {
+	if got := fmt.Sprint(track.Casts["Testmage"]); got != "[{2000 Frostbolt 116 4000 false} "+
+		"{5000 Arcane Barrage 44425 0 false} {6000 Frostbolt 116 7000 true} {8000 Frostbolt 116 0 true}]" {
 		t.Errorf("casts = %s; want the Frostbolt from 2 to 4 s, the instant at 5 s, one interrupted at 7 s (not at the "+
 			"key pressed again) and one the pull cut", got)
 	}
@@ -739,8 +745,9 @@ func TestACombatPotionDrunkBeforeThePullCountsAtZero(t *testing.T) {
 	removed := func(s float64, unit string) string {
 		return raidAt(3, s, "SPELL_AURA_REMOVED,"+unit+","+unit+`,1236616,"Light's Potential",0x1,BUFF`)
 	}
-	startAura := raidAt(3, 0.6, "COMBATANT_INFO,"+priest+",1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,257,[],[],[],[],["+
-		priest+",1295132,1]")
+	startAura := raidAt(3, 0.6,
+		"COMBATANT_INFO,"+priest+",1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,257,[],[],[],[],["+
+			priest+",1295132,1]")
 	for _, c := range []struct {
 		name          string
 		before, extra []string
@@ -929,7 +936,8 @@ func TestViperSpawnerIsEggCarrier(t *testing.T) {
 	}
 	lines = append(lines, waves(10, "SPELL_DAMAGE", testPlayer), waves(10, "SPELL_DAMAGE", shamanUnit))
 	for s := 11.0; s <= 30; s++ { // the waves ticking on the two of them
-		lines = append(lines, waves(s, "SPELL_PERIODIC_DAMAGE", testPlayer), waves(s+0.5, "SPELL_PERIODIC_DAMAGE", shamanUnit))
+		lines = append(lines, waves(s, "SPELL_PERIODIC_DAMAGE", testPlayer),
+			waves(s+0.5, "SPELL_PERIODIC_DAMAGE", shamanUnit))
 	}
 	lines = append(lines,
 		viper(11.5, 6), // no egg broke, and the waves just hit two other raiders: nobody to name

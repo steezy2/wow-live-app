@@ -1,7 +1,15 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { FixNext } from './FixNext'
 import { SavedBefore } from './SavedBefore'
-import { fetchRaidNights, fetchRaidPull, reviewURL, type KeyTrack, type RaidNight, type RaidPull, type RaidPullSummary } from './api'
+import {
+  fetchRaidNights,
+  fetchRaidPull,
+  reviewURL,
+  type KeyTrack,
+  type RaidNight,
+  type RaidPull,
+  type RaidPullSummary,
+} from './api'
 import { clock, counted, isWeekLabel, progressText } from './format'
 import { defense, raidOffense } from './meterColumns'
 import { MeterCard } from './MeterCards'
@@ -126,7 +134,8 @@ function nightTime(n: RaidNight): number {
 
 /** A saved pull. */
 function SavedPull({ start }: { start: number }) {
-  const { data: pull, error } = useSaved(start, fetchRaidPull) // the previous pull stays up, dimmed, while this one is read
+  // the previous pull stays up, dimmed, while this one is read
+  const { data: pull, error } = useSaved(start, fetchRaidPull)
   if (error) return <p className="warning">{error}</p>
   if (!pull) return <Skeleton height={480} />
   return (
@@ -289,7 +298,8 @@ export function RaidOverlayCard({ pull, rows = 0 }: { pull: RaidPull; rows?: num
 /** Under the meters: every raider's pull in one table, and the tabs a key has (deaths, interrupts, must-stops, spikes,
  * big hits, avoidable, defensives and potions, CC) with the buffs missing through the pull; a pull saved before they
  * were kept says how to fill them in. Memoized, so a replay tick doesn't rebuild the tabs. */
-const PullTabs = memo(function PullTabs({ pull, seek, track }: { pull: RaidPull; seek: Seeker; track: KeyTrack | null }) {
+const PullTabs = memo(function PullTabs(props: { pull: RaidPull; seek: Seeker; track: KeyTrack | null }) {
+  const { pull, seek, track } = props
   const data = pullFightData(pull)
   if (!data) return <SavedBefore what="abilities" />
   const tabs = fightTabs(data, `Deaths ${pull.deaths.length}`, 'raid', seek, track)

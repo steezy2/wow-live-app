@@ -27,7 +27,8 @@ func TestParseLineReadsTimeEventAndFields(t *testing.T) {
 }
 
 func TestParseLineKeepsQuotedCommasAndBracketsInOneField(t *testing.T) {
-	line, err := ParseLine(`11/3/2026 19:14:54.254+1  COMBATANT_INFO,Player-76-0BFCA737,1,[(62085,80141,1),(62086,80142,1)],` +
+	line, err := ParseLine(`11/3/2026 19:14:54.254+1  COMBATANT_INFO,Player-76-0BFCA737,1,` +
+		`[(62085,80141,1),(62086,80142,1)],` +
 		`"Name, with comma",(1,2),63`)
 	if err != nil {
 		t.Fatal(err)

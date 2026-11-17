@@ -64,9 +64,12 @@ func (f resolveFunc) Resolve(ctx context.Context, region, character string) (str
 }
 
 func TestSaveSettings(t *testing.T) {
-	good := models.Settings{LogsDir: filepath.Join(t.TempDir(), "Logs"), Region: "us", Overlay: models.OverlaySettings{Show: "keys", Opacity: 50}}
+	good := models.Settings{LogsDir: filepath.Join(t.TempDir(), "Logs"), Region: "us",
+		Overlay: models.OverlaySettings{Show: "keys", Opacity: 50}}
 	known := resolveFunc(func(context.Context, string, string) (string, string, error) { return "Arnaud", "area-52", nil })
-	unknown := resolveFunc(func(context.Context, string, string) (string, string, error) { return "", "", ErrBadCharacter })
+	unknown := resolveFunc(func(context.Context, string, string) (string, string, error) {
+		return "", "", ErrBadCharacter
+	})
 	withCharacter := func(s models.Settings, c string) models.Settings { s.Character = c; return s }
 	for _, tc := range []struct {
 		name      string
@@ -79,8 +82,10 @@ func TestSaveSettings(t *testing.T) {
 	}{
 		{"a plain save", good, nil, nil, nil, true, false},
 		{"settings that break the rules", models.Settings{Region: "xx"}, nil, nil, ErrBadSettings, false, false},
-		{"a new character is checked and moves the import", withCharacter(good, "Arnaud-Area52"), known, nil, nil, true, true},
-		{"a character Warcraft Logs doesn't know", withCharacter(good, "Arnaud-Nowhere"), unknown, nil, ErrBadCharacter, false, false},
+		{"a new character is checked and moves the import", withCharacter(good, "Arnaud-Area52"), known, nil, nil, true,
+			true},
+		{"a character Warcraft Logs doesn't know", withCharacter(good, "Arnaud-Nowhere"), unknown, nil, ErrBadCharacter,
+			false, false},
 		{"a save that fails", good, nil, errors.New("disk full"), ErrSavingSettings, true, false},
 	} {
 		store := &memSettings{current: good, failure: tc.failure}

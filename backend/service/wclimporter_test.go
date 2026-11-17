@@ -469,7 +469,8 @@ type pagedReports struct {
 	asked []int
 }
 
-func (p *pagedReports) RecentReports(_ context.Context, _, _, _ string, page int) ([]models.CharacterReport, bool, error) {
+func (p *pagedReports) RecentReports(_ context.Context, _, _, _ string, page int) ([]models.CharacterReport, bool,
+	error) {
 	p.mu.Lock()
 	p.asked = append(p.asked, page)
 	p.mu.Unlock()
