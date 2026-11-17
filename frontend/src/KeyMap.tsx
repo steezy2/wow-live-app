@@ -167,14 +167,18 @@ export function KeyMap(props: {
     })),
   ]
 
-  if (!track || floors.length === 0) return <p className="muted">No positions yet (needs Advanced Combat Logging).</p>
+  const noPositions = 'No positions yet (needs Advanced Combat Logging).'
+  // A live key's map holds its place (controls, canvas, hint) while the track and its first positions come in, so the
+  // page below doesn't jump.
+  const waiting = live && floors.length === 0
+  if (!waiting && (!track || floors.length === 0)) return <p className="muted">{noPositions}</p>
   return (
     <section className="map">
       <div className="map-controls">
         {!live && <ReplayControls replay={replay} end={clockMS} marks={marks} trail={trail} setTrail={setTrail} />}
         <select value={follow} onChange={(e) => setFollow(e.target.value)} aria-label="follow">
           <option value="">Whole party</option>
-          {Object.keys(track.players).map((p) => (
+          {Object.keys(track?.players ?? {}).map((p) => (
             <option key={p}>{p}</option>
           ))}
         </select>
@@ -186,22 +190,28 @@ export function KeyMap(props: {
           ))}
       </div>
       <div className="map-stage">
-        <MapCanvas
-          key={current}
-          track={track}
-          backdrop={backdrop}
-          floor={current}
-          now={now}
-          clock={replay.playing ? replay.now : undefined}
-          trailMS={live ? LIVE_TRAIL_MS : trail}
-          deaths={key.deaths}
-          focus={follow}
-          onPick={setFollow}
-          enemy={enemy}
-          onPickEnemy={setEnemy}
-        />
-        <BossBox track={track} now={now} />
-        <FocusBoxes track={track} player={follow} enemy={enemy} taken={upTo?.taken} now={now} />
+        {track && !waiting ? (
+          <>
+            <MapCanvas
+              key={current}
+              track={track}
+              backdrop={backdrop}
+              floor={current}
+              now={now}
+              clock={replay.playing ? replay.now : undefined}
+              trailMS={live ? LIVE_TRAIL_MS : trail}
+              deaths={key.deaths}
+              focus={follow}
+              onPick={setFollow}
+              enemy={enemy}
+              onPickEnemy={setEnemy}
+            />
+            <BossBox track={track} now={now} />
+            <FocusBoxes track={track} player={follow} enemy={enemy} taken={upTo?.taken} now={now} />
+          </>
+        ) : (
+          <div className="map-waiting muted">{track && noPositions}</div>
+        )}
       </div>
       <p className="muted small">
         Scroll to zoom, drag to move, double click for the whole floor · click a player to follow them or an enemy for

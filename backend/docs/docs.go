@@ -4351,6 +4351,10 @@ const docTemplate = `{
                 "verdict": {
                     "type": "string"
                 },
+                "version": {
+                    "description": "Version is service.compareVersion when the review was made: one made by older code is read again.",
+                    "type": "integer"
+                },
                 "windowMS": {
                     "description": "WindowMS is how much of the top logs was read: 0 for all of it, else the fight's length (a wipe or an\nabandoned key is read over the same stretch).",
                     "type": "integer"
@@ -6282,6 +6286,10 @@ const docTemplate = `{
             "properties": {
                 "e": {
                     "type": "integer"
+                },
+                "most": {
+                    "description": "Most is whether most of the logs read took it (the share the compare calls a majority).",
+                    "type": "boolean"
                 },
                 "n": {
                     "type": "integer"

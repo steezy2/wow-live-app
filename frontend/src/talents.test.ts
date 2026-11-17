@@ -27,11 +27,11 @@ describe('readTree', () => {
       of: 10,
       you: [{ n: 1, e: 10, r: 1 }, { n: 3, e: 30, r: 1 }, { n: 4, e: 41, r: 1 }, { n: 6, e: 60, r: 1 }],
       top: [
-        { n: 1, e: 10, r: 1, taken: 9 },
-        { n: 2, e: 20, r: 1, taken: 8 },
-        { n: 3, e: 30, r: 1, taken: 2 },
-        { n: 4, e: 40, r: 1, taken: 7 },
-        { n: 5, e: 50, r: 1, taken: 4 },
+        { n: 1, e: 10, r: 1, taken: 9, most: true },
+        { n: 2, e: 20, r: 1, taken: 8, most: true },
+        { n: 3, e: 30, r: 1, taken: 2, most: false },
+        { n: 4, e: 40, r: 1, taken: 7, most: true },
+        { n: 5, e: 50, r: 1, taken: 4, most: false },
       ],
     }
     const state = Object.fromEntries(readTree(tree, talents).map((r) => [r.node.id, r.state]))
@@ -39,7 +39,7 @@ describe('readTree', () => {
   })
 
   it('draws the hero tree the top logs take when you took none', () => {
-    const talents: CompareTalents = { specID: 62, of: 4, you: [{ n: 1, e: 10, r: 1 }], top: [{ n: 7, e: 70, r: 1, taken: 4 }] }
+    const talents: CompareTalents = { specID: 62, of: 4, you: [{ n: 1, e: 10, r: 1 }], top: [{ n: 7, e: 70, r: 1, taken: 4, most: true }] }
     expect(readTree(tree, talents).map((r) => r.node.id)).toEqual([1, 2, 3, 4, 5, 7])
   })
 })

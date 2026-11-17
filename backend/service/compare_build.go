@@ -319,7 +319,7 @@ func buffRows(in compareInput, best int, passive map[string]bool) ([]models.Comp
 	up := func(p models.RankedPlayer) map[string]float64 {
 		out := map[string]float64{}
 		for _, b := range p.Buffs {
-			out[b.Name] += 100 * float64(b.UptimeMS) / float64(max(1, p.DurationMS))
+			out[b.Name] = min(100, out[b.Name]+100*float64(b.UptimeMS)/float64(max(1, p.DurationMS)))
 		}
 		return out
 	}
@@ -396,6 +396,7 @@ func talentCompare(in compareInput) *models.CompareTalents {
 	}
 	top := make([]models.TalentShare, 0, len(counts))
 	for _, k := range slices.SortedFunc(maps.Keys(counts), func(a, b [2]int) int { return cmp.Or(a[0]-b[0], a[1]-b[1]) }) {
+		counts[k].Most = float64(counts[k].Taken) >= presentShare*float64(of)
 		top = append(top, *counts[k])
 	}
 	you := in.you.Talents
@@ -422,7 +423,7 @@ func passiveNames(tree models.TalentTree, t *models.CompareTalents) map[string]b
 		out[names[p.EntryID]] = true
 	}
 	for _, s := range t.Top {
-		if float64(s.Taken) >= presentShare*float64(t.Of) {
+		if s.Most {
 			out[names[s.EntryID]] = true
 		}
 	}

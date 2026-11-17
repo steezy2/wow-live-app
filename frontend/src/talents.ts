@@ -16,9 +16,6 @@ export interface NodeRead {
   topRank: number
 }
 
-/** A talent is one the top logs take when this share of them took it (the backend's presentShare). */
-export const majorityShare = 0.5
-
 /** Reads each node of the drawn trees against your picks and the top logs': taken by both, missed (the top logs
  * mostly took it, you didn't), extra (you took it, they mostly didn't), at another rank, or unused by both. */
 export function readTree(tree: TalentTree, talents: CompareTalents): NodeRead[] {
@@ -29,7 +26,7 @@ export function readTree(tree: TalentTree, talents: CompareTalents): NodeRead[] 
       const entryIDs = new Set(node.entries.map((e) => e.id))
       const you = talents.you.find((p) => p.n === node.id)
       const top = talents.top
-        .filter((s) => s.n === node.id && entryIDs.has(s.e) && s.taken >= majorityShare * talents.of)
+        .filter((s) => s.n === node.id && entryIDs.has(s.e) && s.most)
         .sort((a, b) => b.taken - a.taken)[0]
       const read: NodeRead = { node, state: 'unused', youEntry: you?.e, youRank: you?.r ?? 0, topEntry: top?.e,
         topTaken: top?.taken ?? 0, topRank: top?.r ?? 0 }

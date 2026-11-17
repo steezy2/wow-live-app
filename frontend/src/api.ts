@@ -1638,6 +1638,8 @@ export interface TalentPick {
 /** A talent entry the top logs took: `taken` of the `of` logs read took it, at most at rank `r`. */
 export interface TalentShare extends TalentPick {
   taken: number
+  /** Most of the logs read took it. */
+  most: boolean
 }
 
 /** A player's talents against the top logs' (models.CompareTalents). */
