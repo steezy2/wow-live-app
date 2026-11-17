@@ -2,6 +2,7 @@ package controller
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -79,5 +80,42 @@ func TestSimAPIReadsAnExportWithoutRunningIt(t *testing.T) {
 	router.ServeHTTP(w, r)
 	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), `"class":"shaman"`) {
 		t.Errorf("%d %.200s", w.Code, w.Body)
+	}
+}
+
+// fakeItems knows the items whose ID is under 100.
+type fakeItems struct{}
+
+func (fakeItems) Item(_ context.Context, id int) (models.SimItemInfo, error) {
+	if id >= 100 {
+		return models.SimItemInfo{}, errors.New("unknown")
+	}
+	return models.SimItemInfo{ID: id, Name: "Item", Icon: "inv_x", Quality: 4}, nil
+}
+
+func TestSimAPIItemsLeaveOutWhatWowheadDoesNotKnow(t *testing.T) {
+	tests := []struct {
+		name, ids string
+		code, got int
+	}{
+		{"known and unknown", "1,500,2", http.StatusOK, 2},
+		{"not a number", "1,x", http.StatusBadRequest, 0},
+		{"none", "", http.StatusBadRequest, 0},
+		{"too many", strings.TrimSuffix(strings.Repeat("1,", maxItemLookups+1), ","), http.StatusBadRequest, 0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			router := Router(MPlus{Keys: &fakeKeys{}, Now: time.Now}, nil,
+				&SettingsAPI{Sim: &SimAPI{Runs: fakeSims{}, Items: fakeItems{}}}, os.DirFS(t.TempDir()), LocalHosts(8080)...)
+			r := httptest.NewRequest("GET", "/api/sim/items?ids="+tt.ids, nil)
+			r.Host = "localhost:8080"
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, r)
+			var items []models.SimItemInfo
+			_ = json.Unmarshal(w.Body.Bytes(), &items)
+			if w.Code != tt.code || len(items) != tt.got {
+				t.Errorf("%d with %d items (%.80s); want %d with %d", w.Code, len(items), w.Body, tt.code, tt.got)
+			}
+		})
 	}
 }

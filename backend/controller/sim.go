@@ -1,11 +1,16 @@
 package controller
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"io"
 	"io/fs"
 	"log"
 	"net/http"
+	"strconv"
+	"strings"
+	"sync"
 
 	"github.com/gin-gonic/gin"
 
@@ -29,9 +34,21 @@ type SimRuns interface {
 	Remove(id string) error
 }
 
+// SimItems names and draws the items of a pasted character (clients/wowhead).
+type SimItems interface {
+	Item(ctx context.Context, id int) (models.SimItemInfo, error)
+}
+
+// maxItemLookups bounds one items request: a character wears 16 pieces and carries a few dozen more.
+const maxItemLookups = 120
+
+// itemLookupsAtOnce is how many of them go to Wowhead side by side.
+const itemLookupsAtOnce = 6
+
 // SimAPI serves the sim page; only the desktop app does, since a browser can't download an engine to the PC.
 type SimAPI struct {
-	Runs SimRuns
+	Runs  SimRuns
+	Items SimItems
 }
 
 // SimExport is a pasted SimulationCraft addon export.
@@ -119,6 +136,56 @@ func (a SimAPI) ParseProfile(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, profile)
+}
+
+// ItemInfo godoc
+//
+//	@Summary		Names, icons and qualities of items
+//	@Description	Wowhead's name, icon (for GET /api/icons/{name}) and quality of each item ID, as many as it knows: an
+//	@Description	item it can't look up is left out, so the page draws it by its export name.
+//	@Tags			sim
+//	@Produce		json
+//	@Param			ids	query		string	true	"item IDs, comma separated (at most 120)"
+//	@Success		200	{array}		models.SimItemInfo
+//	@Failure		400	{object}	ErrorResponse	"no IDs, too many or not numbers"
+//	@Router			/api/sim/items [get]
+func (a SimAPI) ItemInfo(c *gin.Context) {
+	parts := strings.Split(c.Query("ids"), ",")
+	if len(parts) > maxItemLookups {
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: fmt.Sprintf("ask for at most %d items", maxItemLookups)})
+		return
+	}
+	ids := make([]int, len(parts))
+	for i, p := range parts {
+		id, err := strconv.Atoi(p)
+		if err != nil || id <= 0 {
+			c.JSON(http.StatusBadRequest, ErrorResponse{Error: "send item IDs as ids=212401,212402"})
+			return
+		}
+		ids[i] = id
+	}
+	found := make([]*models.SimItemInfo, len(ids))
+	var wg sync.WaitGroup
+	sem := make(chan struct{}, itemLookupsAtOnce)
+	for i, id := range ids {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+			if info, err := a.Items.Item(c.Request.Context(), id); err == nil {
+				found[i] = &info
+			}
+		}()
+	}
+	wg.Wait()
+	items := []models.SimItemInfo{}
+	for _, info := range found {
+		if info != nil {
+			items = append(items, *info)
+		}
+	}
+	c.JSON(http.StatusOK, items)
 }
 
 // Start godoc

@@ -173,3 +173,12 @@ type SimEngine struct {
 	BuiltMS   int64  `json:"builtMS,omitempty"`
 	Size      int64  `json:"size,omitempty"`
 }
+
+// SimItemInfo is what the Sim tab draws an item with: its name, its icon (a name for GET /api/icons/{name}) and its
+// quality (0 poor, 1 common, 2 uncommon, 3 rare, 4 epic, 5 legendary).
+type SimItemInfo struct {
+	ID      int    `json:"id" example:"212401"`
+	Name    string `json:"name" example:"Ansurek's Final Judgment"`
+	Icon    string `json:"icon" example:"inv_axe_1h_nerubianraid_d_01"`
+	Quality int    `json:"quality" example:"4"`
+}

@@ -1760,6 +1760,19 @@ export interface SimItem {
   opts?: Record<string, number[]>
 }
 
+/** An item's name, icon (an icon name for /api/icons) and quality (0 poor to 5 legendary), from Wowhead. */
+export interface SimItemInfo {
+  id: number
+  name: string
+  icon: string
+  quality: number
+}
+
+/** Names, icons and qualities of items; the ones Wowhead can't give are left out. */
+export async function fetchSimItems(ids: number[], signal?: AbortSignal): Promise<SimItemInfo[]> {
+  return json(`/api/sim/items?ids=${ids.join(',')}`, { signal })
+}
+
 /** A character read from a pasted SimulationCraft addon export. */
 export interface SimProfile {
   class: string

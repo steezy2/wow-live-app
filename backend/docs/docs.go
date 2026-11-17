@@ -2355,6 +2355,44 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/sim/items": {
+            "get": {
+                "description": "Wowhead's name, icon (for GET /api/icons/{name}) and quality of each item ID, as many as it knows: an\nitem it can't look up is left out, so the page draws it by its export name.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "sim"
+                ],
+                "summary": "Names, icons and qualities of items",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "item IDs, comma separated (at most 120)",
+                        "name": "ids",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.SimItemInfo"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "no IDs, too many or not numbers",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/sim/profile": {
             "post": {
                 "description": "The character, talents, equipped gear and carried gear in the export, so the page can show them.\nNothing is run or kept.",
@@ -6691,6 +6729,27 @@ const docTemplate = `{
                 },
                 "slot": {
                     "type": "string"
+                }
+            }
+        },
+        "models.SimItemInfo": {
+            "type": "object",
+            "properties": {
+                "icon": {
+                    "type": "string",
+                    "example": "inv_axe_1h_nerubianraid_d_01"
+                },
+                "id": {
+                    "type": "integer",
+                    "example": 212401
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Ansurek's Final Judgment"
+                },
+                "quality": {
+                    "type": "integer",
+                    "example": 4
                 }
             }
         },
