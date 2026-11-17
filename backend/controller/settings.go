@@ -16,12 +16,6 @@ import (
 	"wow-live/backend/service"
 )
 
-// Settings reads and saves the desktop app's settings (app.Settings); only the app serves them.
-type Settings interface {
-	Get() models.SettingsView
-	Save(models.Settings) error
-}
-
 // WCLKeys keeps the desktop app's Warcraft Logs keys (service.WCLKeys).
 type WCLKeys interface {
 	Status() models.KeyStatus
@@ -60,7 +54,7 @@ type Import interface {
 
 // SettingsAPI serves the desktop app's settings and Warcraft Logs keys, and the log folder's old logs.
 type SettingsAPI struct {
-	Settings   Settings
+	Settings   service.SettingsStore
 	Keys       WCLKeys
 	Logs       LogFolder  // set by app.Start
 	Characters Characters // set by app.Start

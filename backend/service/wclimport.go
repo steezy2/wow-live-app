@@ -10,7 +10,6 @@ import (
 	"strings"
 	"unicode"
 
-	"wow-live/backend/clients/combatlog"
 	"wow-live/backend/models"
 )
 
@@ -105,7 +104,7 @@ func matchReports(keys []models.Key, pulls []models.RaidPull, reports []models.C
 	for _, p := range pulls {
 		wanted := func(f models.ReportFight) bool {
 			return f.KeystoneLevel == 0 && f.EncounterID == encounters[p.Boss] && f.EncounterID != 0 &&
-				combatlog.RaidDifficultyByWCL(f.Difficulty).Name == p.Difficulty && f.Kill == p.Kill &&
+				models.RaidDifficultyByWCL(f.Difficulty).Name == p.Difficulty && f.Kill == p.Kill &&
 				2*sharedPlayers(f.Players, p.Players) >= len(p.Players)
 		}
 		sameFights(found, reports, p.Start, p.End-p.Start, wanted)
@@ -271,8 +270,12 @@ func (k *LogTracker) LinkReports(keyLinks, pullLinks map[int64]models.ReportLink
 	defer func() {
 		k.mu.Lock()
 		defer k.mu.Unlock()
-		applyLinks(k.history, savedKeys)
-		applyLinks(k.pulls, savedPulls)
+		for _, start := range applyLinks(k.history, savedKeys) { // deleted while its file was being written
+			err = errors.Join(err, k.store.Delete(start))
+		}
+		for _, start := range applyLinks(k.pulls, savedPulls) {
+			err = errors.Join(err, k.raid.store.Delete(start))
+		}
 		if n = len(savedKeys) + len(savedPulls); n > 0 {
 			k.version++
 		}
@@ -296,7 +299,7 @@ func (k *LogTracker) LinkReports(keyLinks, pullLinks map[int64]models.ReportLink
 func (k *LogTracker) ImportedCount() int {
 	k.mu.RLock()
 	defer k.mu.RUnlock()
-	return countImported(k.history) + countImported(k.pulls)
+	return len(importedStarts(k.history)) + len(importedStarts(k.pulls))
 }
 
 // RemoveImported deletes every saved key and raid pull that came from Warcraft Logs. The files go outside the
