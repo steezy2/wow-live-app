@@ -2393,6 +2393,66 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/sim/options": {
+            "get": {
+                "description": "The current expansion's flasks, food, potions, augment runes, weapon oils, enchants and gems, the\nupgrade tracks of the current seasons and the Omnium Folio's runes, from Raidbots' public game data\n(reference/sim-options.json). Names are the ones a sim request may send.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "sim"
+                ],
+                "summary": "What a sim can be given besides its gear",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.SimReference"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/sim/plan": {
+            "post": {
+                "description": "Counts them without starting the sim, so the page can show the cost (and that it is over the limit)\nbefore a run. Takes the same body as starting a Top Gear sim.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "sim"
+                ],
+                "summary": "How many gear combinations a Top Gear request would run",
+                "parameters": [
+                    {
+                        "description": "a Top Gear request",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.SimRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.SimPlan"
+                        }
+                    },
+                    "400": {
+                        "description": "not a Top Gear request, or items and variants that don't fit the export",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/sim/profile": {
             "post": {
                 "description": "The character, talents, equipped gear and carried gear in the export, so the page can show them.\nNothing is run or kept.",
@@ -6512,7 +6572,8 @@ const docTemplate = `{
                     "enum": [
                         "quick",
                         "topgear",
-                        "drops"
+                        "drops",
+                        "consumables"
                     ]
                 },
                 "options": {
@@ -6625,9 +6686,13 @@ const docTemplate = `{
                     }
                 },
                 "maxCombos": {
-                    "description": "MaxCombos is the most gear combinations a Top Gear sim runs; a request over it is refused.",
+                    "description": "MaxCombos is the most gear combinations a Top Gear sim runs; a request over it is refused. MaxCompare is the\nmost values a \"consumables\" sim tries.",
                     "type": "integer",
                     "example": 100
+                },
+                "maxCompare": {
+                    "type": "integer",
+                    "example": 40
                 },
                 "maxDrops": {
                     "description": "MaxDrops is the most drops a Droptimizer sims; Difficulties are the raid difficulties it can sim the raid at and\nKeyLevels the Mythic+ key levels it can sim dungeons at.",
@@ -6671,6 +6736,92 @@ const docTemplate = `{
                 }
             }
         },
+        "models.SimCompare": {
+            "type": "object",
+            "properties": {
+                "kind": {
+                    "type": "string",
+                    "example": "flask"
+                },
+                "values": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "models.SimConsumable": {
+            "type": "object",
+            "properties": {
+                "icon": {
+                    "type": "string"
+                },
+                "itemID": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Flask of the Shattered Sun (Quality 2)"
+                },
+                "quality": {
+                    "type": "integer"
+                },
+                "value": {
+                    "type": "string",
+                    "example": "flask_of_the_shattered_sun_2"
+                }
+            }
+        },
+        "models.SimConsumables": {
+            "type": "object",
+            "properties": {
+                "augment": {
+                    "type": "string"
+                },
+                "flask": {
+                    "type": "string"
+                },
+                "food": {
+                    "type": "string"
+                },
+                "potion": {
+                    "type": "string"
+                },
+                "weapon": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.SimEnchant": {
+            "type": "object",
+            "properties": {
+                "icon": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer",
+                    "example": 7964
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Amani Mastery"
+                },
+                "quality": {
+                    "type": "integer"
+                },
+                "slots": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "stats": {
+                    "type": "string",
+                    "example": "32 Int \u0026 70 Sta"
+                }
+            }
+        },
         "models.SimEngineStatus": {
             "type": "object",
             "properties": {
@@ -6706,6 +6857,29 @@ const docTemplate = `{
                 }
             }
         },
+        "models.SimGem": {
+            "type": "object",
+            "properties": {
+                "icon": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer",
+                    "example": 240883
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Quick Lapis"
+                },
+                "quality": {
+                    "type": "integer"
+                },
+                "stats": {
+                    "type": "string",
+                    "example": "11 Vers \u0026 4 Haste"
+                }
+            }
+        },
         "models.SimItem": {
             "type": "object",
             "properties": {
@@ -6717,6 +6891,10 @@ const docTemplate = `{
                 },
                 "name": {
                     "type": "string"
+                },
+                "note": {
+                    "type": "string",
+                    "example": "Myth 3/6, socket"
                 },
                 "opts": {
                     "type": "object",
@@ -6753,6 +6931,26 @@ const docTemplate = `{
                 }
             }
         },
+        "models.SimOptionRow": {
+            "type": "object",
+            "properties": {
+                "dps": {
+                    "type": "number"
+                },
+                "dpsError": {
+                    "type": "number"
+                },
+                "gain": {
+                    "type": "number"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "value": {
+                    "type": "string"
+                }
+            }
+        },
         "models.SimOptions": {
             "type": "object",
             "properties": {
@@ -6771,6 +6969,21 @@ const docTemplate = `{
                 "targets": {
                     "type": "integer",
                     "example": 1
+                }
+            }
+        },
+        "models.SimPlan": {
+            "type": "object",
+            "properties": {
+                "combos": {
+                    "type": "integer"
+                },
+                "max": {
+                    "type": "integer",
+                    "example": 100
+                },
+                "seconds": {
+                    "type": "integer"
                 }
             }
         },
@@ -6834,6 +7047,60 @@ const docTemplate = `{
                 }
             }
         },
+        "models.SimReference": {
+            "type": "object",
+            "properties": {
+                "build": {
+                    "description": "Build is the game build the data is of, and Source where it was read.",
+                    "type": "string",
+                    "example": "12.1.5.70783"
+                },
+                "consumables": {
+                    "description": "Consumables are the current expansion's, by kind (SimConsumableKinds).",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/definitions/models.SimConsumable"
+                        }
+                    }
+                },
+                "enchants": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.SimEnchant"
+                    }
+                },
+                "gems": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.SimGem"
+                    }
+                },
+                "omnium": {
+                    "description": "Omnium is the Omnium Folio's rune tree (nodes of one or more choices; picks are entry IDs).",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.TalentNode"
+                    }
+                },
+                "socketBonus": {
+                    "description": "SocketBonus is the bonus ID that gives an item one more socket.",
+                    "type": "integer",
+                    "example": 10397
+                },
+                "source": {
+                    "type": "string"
+                },
+                "upgrades": {
+                    "description": "Upgrades are the upgrade tracks of the current seasons: the bonus ID of each level of each.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.SimUpgradeTrack"
+                    }
+                }
+            }
+        },
         "models.SimRequest": {
             "type": "object",
             "required": [
@@ -6846,6 +7113,12 @@ const docTemplate = `{
                     "items": {
                         "type": "integer"
                     }
+                },
+                "compare": {
+                    "$ref": "#/definitions/models.SimCompare"
+                },
+                "consumables": {
+                    "$ref": "#/definitions/models.SimConsumables"
                 },
                 "difficulty": {
                     "type": "string",
@@ -6868,8 +7141,18 @@ const docTemplate = `{
                     "type": "string",
                     "example": "quick"
                 },
+                "omnium": {
+                    "type": "string",
+                    "example": "136822:1/136817:1"
+                },
                 "options": {
                     "$ref": "#/definitions/models.SimOptions"
+                },
+                "variants": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.SimVariant"
+                    }
                 }
             }
         },
@@ -6899,6 +7182,13 @@ const docTemplate = `{
                 },
                 "dpsError": {
                     "type": "number"
+                },
+                "options": {
+                    "description": "Options are a \"consumables\" sim's values, best first.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.SimOptionRow"
+                    }
                 }
             }
         },
@@ -6914,6 +7204,67 @@ const docTemplate = `{
                 "slot": {
                     "type": "string",
                     "example": "finger2"
+                }
+            }
+        },
+        "models.SimUpgradeLevel": {
+            "type": "object",
+            "properties": {
+                "bonusID": {
+                    "type": "integer",
+                    "example": 12849
+                },
+                "itemLevel": {
+                    "type": "integer",
+                    "example": 318
+                },
+                "level": {
+                    "type": "integer",
+                    "example": 1
+                }
+            }
+        },
+        "models.SimUpgradeTrack": {
+            "type": "object",
+            "properties": {
+                "group": {
+                    "type": "integer",
+                    "example": 618
+                },
+                "levels": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.SimUpgradeLevel"
+                    }
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Myth"
+                }
+            }
+        },
+        "models.SimVariant": {
+            "type": "object",
+            "properties": {
+                "enchant": {
+                    "type": "integer",
+                    "example": 7964
+                },
+                "gem": {
+                    "type": "integer",
+                    "example": 240883
+                },
+                "index": {
+                    "type": "integer"
+                },
+                "socket": {
+                    "type": "boolean"
+                },
+                "upgrade": {
+                    "type": "integer"
+                },
+                "worn": {
+                    "type": "boolean"
                 }
             }
         },
@@ -7031,12 +7382,13 @@ const docTemplate = `{
                     "type": "integer"
                 },
                 "tree": {
-                    "description": "Tree is \"class\", \"spec\" or \"hero\"; SubTree says which of the hero trees a hero node is in.",
+                    "description": "Tree is \"class\", \"spec\" or \"hero\" (\"omnium\" for the Omnium Folio's); SubTree says which of the hero trees a hero\nnode is in.",
                     "type": "string",
                     "enum": [
                         "class",
                         "spec",
-                        "hero"
+                        "hero",
+                        "omnium"
                     ]
                 },
                 "x": {

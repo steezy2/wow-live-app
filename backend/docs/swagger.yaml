@@ -2714,6 +2714,7 @@ definitions:
         - quick
         - topgear
         - drops
+        - consumables
         type: string
       options:
         $ref: '#/definitions/models.SimOptions'
@@ -2791,9 +2792,13 @@ definitions:
           type: integer
         type: array
       maxCombos:
-        description: MaxCombos is the most gear combinations a Top Gear sim runs;
-          a request over it is refused.
+        description: |-
+          MaxCombos is the most gear combinations a Top Gear sim runs; a request over it is refused. MaxCompare is the
+          most values a "consumables" sim tries.
         example: 100
+        type: integer
+      maxCompare:
+        example: 40
         type: integer
       maxDrops:
         description: |-
@@ -2825,6 +2830,64 @@ definitions:
           $ref: '#/definitions/models.SimSwap'
         type: array
     type: object
+  models.SimCompare:
+    properties:
+      kind:
+        example: flask
+        type: string
+      values:
+        items:
+          type: string
+        type: array
+    type: object
+  models.SimConsumable:
+    properties:
+      icon:
+        type: string
+      itemID:
+        type: integer
+      name:
+        example: Flask of the Shattered Sun (Quality 2)
+        type: string
+      quality:
+        type: integer
+      value:
+        example: flask_of_the_shattered_sun_2
+        type: string
+    type: object
+  models.SimConsumables:
+    properties:
+      augment:
+        type: string
+      flask:
+        type: string
+      food:
+        type: string
+      potion:
+        type: string
+      weapon:
+        type: string
+    type: object
+  models.SimEnchant:
+    properties:
+      icon:
+        type: string
+      id:
+        example: 7964
+        type: integer
+      name:
+        example: Amani Mastery
+        type: string
+      quality:
+        type: integer
+      slots:
+        items:
+          type: string
+        type: array
+      stats:
+        example: 32 Int & 70 Sta
+        type: string
+    type: object
   models.SimEngineStatus:
     properties:
       builtMS:
@@ -2849,6 +2912,22 @@ definitions:
         example: 1210-01
         type: string
     type: object
+  models.SimGem:
+    properties:
+      icon:
+        type: string
+      id:
+        example: 240883
+        type: integer
+      name:
+        example: Quick Lapis
+        type: string
+      quality:
+        type: integer
+      stats:
+        example: 11 Vers & 4 Haste
+        type: string
+    type: object
   models.SimItem:
     properties:
       id:
@@ -2856,6 +2935,9 @@ definitions:
       level:
         type: integer
       name:
+        type: string
+      note:
+        example: Myth 3/6, socket
         type: string
       opts:
         additionalProperties:
@@ -2881,6 +2963,19 @@ definitions:
         example: 4
         type: integer
     type: object
+  models.SimOptionRow:
+    properties:
+      dps:
+        type: number
+      dpsError:
+        type: number
+      gain:
+        type: number
+      name:
+        type: string
+      value:
+        type: string
+    type: object
   models.SimOptions:
     properties:
       accuracy:
@@ -2894,6 +2989,16 @@ definitions:
         type: integer
       targets:
         example: 1
+        type: integer
+    type: object
+  models.SimPlan:
+    properties:
+      combos:
+        type: integer
+      max:
+        example: 100
+        type: integer
+      seconds:
         type: integer
     type: object
   models.SimProfile:
@@ -2941,12 +3046,57 @@ definitions:
       talents:
         type: string
     type: object
+  models.SimReference:
+    properties:
+      build:
+        description: Build is the game build the data is of, and Source where it was
+          read.
+        example: 12.1.5.70783
+        type: string
+      consumables:
+        additionalProperties:
+          items:
+            $ref: '#/definitions/models.SimConsumable'
+          type: array
+        description: Consumables are the current expansion's, by kind (SimConsumableKinds).
+        type: object
+      enchants:
+        items:
+          $ref: '#/definitions/models.SimEnchant'
+        type: array
+      gems:
+        items:
+          $ref: '#/definitions/models.SimGem'
+        type: array
+      omnium:
+        description: Omnium is the Omnium Folio's rune tree (nodes of one or more
+          choices; picks are entry IDs).
+        items:
+          $ref: '#/definitions/models.TalentNode'
+        type: array
+      socketBonus:
+        description: SocketBonus is the bonus ID that gives an item one more socket.
+        example: 10397
+        type: integer
+      source:
+        type: string
+      upgrades:
+        description: 'Upgrades are the upgrade tracks of the current seasons: the
+          bonus ID of each level of each.'
+        items:
+          $ref: '#/definitions/models.SimUpgradeTrack'
+        type: array
+    type: object
   models.SimRequest:
     properties:
       bags:
         items:
           type: integer
         type: array
+      compare:
+        $ref: '#/definitions/models.SimCompare'
+      consumables:
+        $ref: '#/definitions/models.SimConsumables'
       difficulty:
         example: heroic
         type: string
@@ -2962,8 +3112,15 @@ definitions:
       kind:
         example: quick
         type: string
+      omnium:
+        example: 136822:1/136817:1
+        type: string
       options:
         $ref: '#/definitions/models.SimOptions'
+      variants:
+        items:
+          $ref: '#/definitions/models.SimVariant'
+        type: array
     required:
     - export
     - kind
@@ -2986,6 +3143,11 @@ definitions:
         type: number
       dpsError:
         type: number
+      options:
+        description: Options are a "consumables" sim's values, best first.
+        items:
+          $ref: '#/definitions/models.SimOptionRow'
+        type: array
     type: object
   models.SimSwap:
     properties:
@@ -2996,6 +3158,48 @@ definitions:
       slot:
         example: finger2
         type: string
+    type: object
+  models.SimUpgradeLevel:
+    properties:
+      bonusID:
+        example: 12849
+        type: integer
+      itemLevel:
+        example: 318
+        type: integer
+      level:
+        example: 1
+        type: integer
+    type: object
+  models.SimUpgradeTrack:
+    properties:
+      group:
+        example: 618
+        type: integer
+      levels:
+        items:
+          $ref: '#/definitions/models.SimUpgradeLevel'
+        type: array
+      name:
+        example: Myth
+        type: string
+    type: object
+  models.SimVariant:
+    properties:
+      enchant:
+        example: 7964
+        type: integer
+      gem:
+        example: 240883
+        type: integer
+      index:
+        type: integer
+      socket:
+        type: boolean
+      upgrade:
+        type: integer
+      worn:
+        type: boolean
     type: object
   models.SpellInfo:
     properties:
@@ -3074,12 +3278,14 @@ definitions:
       subTree:
         type: integer
       tree:
-        description: Tree is "class", "spec" or "hero"; SubTree says which of the
-          hero trees a hero node is in.
+        description: |-
+          Tree is "class", "spec" or "hero" ("omnium" for the Omnium Folio's); SubTree says which of the hero trees a hero
+          node is in.
         enum:
         - class
         - spec
         - hero
+        - omnium
         type: string
       x:
         description: the tree's own grid, in thousandths of a node
@@ -4891,6 +5097,51 @@ paths:
           schema:
             $ref: '#/definitions/controller.ErrorResponse'
       summary: Names, icons and qualities of items
+      tags:
+      - sim
+  /api/sim/options:
+    get:
+      description: |-
+        The current expansion's flasks, food, potions, augment runes, weapon oils, enchants and gems, the
+        upgrade tracks of the current seasons and the Omnium Folio's runes, from Raidbots' public game data
+        (reference/sim-options.json). Names are the ones a sim request may send.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.SimReference'
+      summary: What a sim can be given besides its gear
+      tags:
+      - sim
+  /api/sim/plan:
+    post:
+      consumes:
+      - application/json
+      description: |-
+        Counts them without starting the sim, so the page can show the cost (and that it is over the limit)
+        before a run. Takes the same body as starting a Top Gear sim.
+      parameters:
+      - description: a Top Gear request
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.SimRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.SimPlan'
+        "400":
+          description: not a Top Gear request, or items and variants that don't fit
+            the export
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+      summary: How many gear combinations a Top Gear request would run
       tags:
       - sim
   /api/sim/profile:

@@ -2459,3 +2459,100 @@ table.compare td:first-child {
     grid-column: 1 / -1;
   }
 }
+
+.sim-entry {
+  min-width: 0;
+}
+
+.sim-note {
+  font-size: var(--t-small);
+  color: var(--accent);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0 var(--s1);
+  white-space: nowrap;
+}
+
+.sim-variants {
+  margin: 0 0 var(--s1) 36px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s1) var(--s2);
+}
+
+.sim-variants details {
+  flex-basis: 100%;
+  min-width: 0;
+}
+
+.sim-variant-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s1);
+  font-size: var(--t-small);
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  padding: 0 var(--s2);
+}
+
+.sim-variant-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+  gap: var(--s2);
+  margin-top: var(--s1);
+  padding: var(--s2);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.sim-variant-form select {
+  width: 100%;
+  min-width: 0;
+}
+
+.sim-consumables {
+  display: grid;
+  gap: var(--s2);
+}
+
+.sim-consumables select,
+.sim-options select {
+  max-width: 100%;
+  width: 100%;
+}
+
+.sim-compare-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--s1) var(--s3);
+}
+
+.sim-omnium-tree {
+  display: grid;
+  gap: var(--s2);
+}
+
+.sim-omnium-node {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+}
+
+.sim .sim-rune {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+  background: var(--panel-2);
+  opacity: 0.55;
+}
+
+.sim .sim-rune.picked {
+  opacity: 1;
+  border-color: var(--accent);
+}

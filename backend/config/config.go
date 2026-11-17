@@ -100,6 +100,7 @@ type Loaded struct {
 	Tier      map[string][]int
 	Talents   map[int]models.TalentTree
 	Drops     models.SimDrops
+	SimRef    models.SimReference
 	// RefErr is a reference file that wouldn't load: cmd/site goes on without it, the app (which builds both in) stops.
 	RefErr error
 }
@@ -118,8 +119,10 @@ func Load(fsys fs.FS) (Loaded, error) {
 	talents, talentsErr := loadJSON[models.TalentTrees](fsys, "reference/talent-trees.json", "talentref")
 	var dropsErr error
 	l.Drops, dropsErr = loadJSON[models.SimDrops](fsys, "reference/sim-drops.json", "simref")
+	var optionsErr error
+	l.SimRef, optionsErr = loadJSON[models.SimReference](fsys, "reference/sim-options.json", "simoptref")
 	l.Dungeons, l.Bosses, l.Tier, l.Talents = dungeons.Dungeons, raid.Bosses, raid.Tier, talents.BySpec()
-	l.RefErr = errors.Join(dungeonsErr, raidErr, talentsErr, dropsErr)
+	l.RefErr = errors.Join(dungeonsErr, raidErr, talentsErr, dropsErr, optionsErr)
 	return l, nil
 }
 
@@ -196,6 +199,12 @@ func LoadRaidReference(path string) (models.RaidReference, error) {
 // SimDropsPath is the Droptimizer's gear, written by cmd/simref.
 func SimDropsPath(root string) string {
 	return filepath.Join(root, "reference", "sim-drops.json")
+}
+
+// SimOptionsPath is the Sim tab's consumables, enchants, gems, upgrade tracks and Omnium Folio, written by
+// cmd/simoptref.
+func SimOptionsPath(root string) string {
+	return filepath.Join(root, "reference", "sim-options.json")
 }
 
 // SimDropLevelsPath is the hand-kept item levels cmd/simref gives the Droptimizer's gear.

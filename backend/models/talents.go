@@ -32,8 +32,9 @@ type TalentTree struct {
 type TalentNode struct {
 	ID   int    `json:"id"`
 	Name string `json:"name"`
-	// Tree is "class", "spec" or "hero"; SubTree says which of the hero trees a hero node is in.
-	Tree     string        `json:"tree" enums:"class,spec,hero"`
+	// Tree is "class", "spec" or "hero" ("omnium" for the Omnium Folio's); SubTree says which of the hero trees a hero
+	// node is in.
+	Tree     string        `json:"tree" enums:"class,spec,hero,omnium"`
 	SubTree  int           `json:"subTree,omitempty"`
 	Choice   bool          `json:"choice,omitempty"`
 	X        int           `json:"x"` // the tree's own grid, in thousandths of a node

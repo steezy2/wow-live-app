@@ -64,6 +64,7 @@ type Options struct {
 	Tier      map[string][]int            // each class's tier items, from reference/raid-bosses.json
 	Talents   map[int]models.TalentTree   // each spec's talent tree, from reference/talent-trees.json
 	Drops     models.SimDrops             // the Droptimizer's gear, from reference/sim-drops.json
+	SimRef    models.SimReference         // the Sim tab's consumables, gems and more, from reference/sim-options.json
 	Baselines models.MPlusBaselines       // Warcraft Logs; nil means no key reviews
 	Pages     fs.FS                       // the built page
 	Hosts     []string                    // the names the page reaches the site by, for the router's host check
@@ -122,7 +123,7 @@ func Start(ctx context.Context, opts Options) (*Site, error) {
 		opts.Settings.Logs, opts.Settings.Characters = s, characters
 		opts.Settings.Sim = &controller.SimAPI{Runs: &service.Sims{
 			Engine: simc.Client{Dir: filepath.Join(opts.Cache, simEngineDir)},
-			Dir:    filepath.Join(opts.Cache, simsDir), Drops: opts.Drops, Now: opts.Now, Ctx: ctx},
+			Dir:    filepath.Join(opts.Cache, simsDir), Drops: opts.Drops, Ref: opts.SimRef, Now: opts.Now, Ctx: ctx},
 			Items: wowheadClient}
 		if opts.WCL != nil {
 			s.Import = s.importer(characters, store, pulls)

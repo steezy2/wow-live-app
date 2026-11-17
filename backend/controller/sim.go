@@ -26,6 +26,8 @@ const simBodyBytes = 128 << 10
 // fs.ErrNotExist for an ID that isn't a sim.
 type SimRuns interface {
 	Choices() models.SimChoices
+	Reference() models.SimReference
+	Plan(req models.SimRequest) (models.SimPlan, error)
 	EngineStatus() models.SimEngineStatus
 	InstallEngine(path string) error
 	Start(req models.SimRequest) (models.Sim, error)
@@ -186,6 +188,46 @@ func (a SimAPI) ItemInfo(c *gin.Context) {
 		}
 	}
 	c.JSON(http.StatusOK, items)
+}
+
+// Reference godoc
+//
+//	@Summary		What a sim can be given besides its gear
+//	@Description	The current expansion's flasks, food, potions, augment runes, weapon oils, enchants and gems, the
+//	@Description	upgrade tracks of the current seasons and the Omnium Folio's runes, from Raidbots' public game data
+//	@Description	(reference/sim-options.json). Names are the ones a sim request may send.
+//	@Tags			sim
+//	@Produce		json
+//	@Success		200	{object}	models.SimReference
+//	@Router			/api/sim/options [get]
+func (a SimAPI) Reference(c *gin.Context) {
+	c.JSON(http.StatusOK, a.Runs.Reference())
+}
+
+// Plan godoc
+//
+//	@Summary		How many gear combinations a Top Gear request would run
+//	@Description	Counts them without starting the sim, so the page can show the cost (and that it is over the limit)
+//	@Description	before a run. Takes the same body as starting a Top Gear sim.
+//	@Tags			sim
+//	@Accept			json
+//	@Produce		json
+//	@Param			body	body		models.SimRequest	true	"a Top Gear request"
+//	@Success		200		{object}	models.SimPlan
+//	@Failure		400		{object}	ErrorResponse	"not a Top Gear request, or items and variants that don't fit the export"
+//	@Router			/api/sim/plan [post]
+func (a SimAPI) Plan(c *gin.Context) {
+	var req models.SimRequest
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, simBodyBytes)
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "send a Top Gear request"})
+		return
+	}
+	plan, err := a.Runs.Plan(req)
+	if simFailed(c, err) {
+		return
+	}
+	c.JSON(http.StatusOK, plan)
 }
 
 // Start godoc
