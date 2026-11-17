@@ -60,3 +60,19 @@ func TestFindActor(t *testing.T) {
 		}
 	}
 }
+
+func TestTalentsOfTakesTheActorsCombatantInfo(t *testing.T) {
+	var events []event
+	raw := `[{"type":"combatantinfo","sourceID":2,"talentTree":[{"id":9,"rank":1,"nodeID":8}]},
+		{"type":"combatantinfo","sourceID":3,"talentTree":[{"id":20,"rank":2,"nodeID":10}]},{"type":"cast","sourceID":3}]`
+	if err := json.Unmarshal([]byte(raw), &events); err != nil {
+		t.Fatal(err)
+	}
+	want := []models.TalentPick{{NodeID: 10, EntryID: 20, Rank: 2}}
+	if got := talentsOf(events, 3); !reflect.DeepEqual(got, want) {
+		t.Errorf("talentsOf = %+v, want %+v", got, want)
+	}
+	if got := talentsOf(events, 4); got != nil {
+		t.Errorf("talentsOf for an actor with none = %+v, want nil", got)
+	}
+}

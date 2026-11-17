@@ -44,6 +44,8 @@ type Comparer struct {
 	Characters Characters
 	Region     string
 	Rules      models.SpecRules
+	// Talents are the spec trees by spec ID, to name the talents a review compares.
+	Talents map[int]models.TalentTree
 }
 
 // fightRun is the finished key or pull a review is of: what it was, the player's numbers in it and in their own
@@ -57,6 +59,7 @@ type fightRun struct {
 	boss      int    // a pull's difficulty in Warcraft Logs' numbers
 	character string // "Name-Realm", or the bare name when the realm isn't known
 	spec      specInfo
+	specID    int
 	// partial: the key was abandoned or the pull wiped, so the top logs are read over the same stretch.
 	partial bool
 	local   models.RankedPlayer
@@ -68,7 +71,7 @@ type fightRun struct {
 
 // compareVersion is the version of what a review holds. Bump it when a review's numbers or fields change, so the
 // reviews already stored (which would show the old ones) are read again.
-const compareVersion = 1
+const compareVersion = 2
 
 // Cached is a player's review if one was made by this version, and the fight didn't go on after it.
 func (c Comparer) Cached(kind models.FightKind, start int64, player string) (models.PlayerCompare, error) {
@@ -144,7 +147,8 @@ func (c Comparer) Run(ctx context.Context, kind models.FightKind, start int64, p
 	if len(top) == 0 {
 		return models.PlayerCompare{}, ErrNoTopLogs
 	}
-	in := compareInput{you: f.local, yours: f.yours, top: top, logs: logs, metric: mainMetric(f.spec), spec: f.spec}
+	in := compareInput{you: f.local, yours: f.yours, top: top, logs: logs, metric: mainMetric(f.spec), spec: f.spec,
+		specID: f.specID, tree: c.Talents[f.specID]}
 	parses, err := c.Characters.Parses(ctx, c.Region, f.character)
 	if err == nil {
 		in.parse = parseOf(parses, f.encounter, f.kind)
@@ -191,8 +195,9 @@ func (c Comparer) load(kind models.FightKind, start int64, player string) (fight
 		}
 		_, pulls := c.Keys.History()
 		f := fightRun{kind: kind, start: start, end: pull.End, encounter: pull.Boss, boss: raidDifficulty[pull.Difficulty],
-			character: character(player, pull.Realms), spec: spec, partial: !pull.Kill,
+			character: character(player, pull.Realms), spec: spec, specID: pull.Specs[player], partial: !pull.Kill,
 			local: c.pullPlayer(pull, player)}
+		f.local.Talents = pull.Talents[player]
 		for _, p := range similarPulls(pulls, pull, player) {
 			f.yours = append(f.yours, c.pullPlayer(p, player))
 		}
@@ -213,8 +218,9 @@ func (c Comparer) load(kind models.FightKind, start int64, player string) (fight
 	}
 	keys, _ := c.Keys.History()
 	f := fightRun{kind: kind, start: start, end: key.End, encounter: key.Dungeon, level: key.Level,
-		character: character(player, key.Realms), spec: spec, partial: key.Status == models.StatusAbandoned,
-		local: c.keyPlayer(key, player)}
+		character: character(player, key.Realms), spec: spec, specID: key.Specs[player],
+		partial: key.Status == models.StatusAbandoned, local: c.keyPlayer(key, player)}
+	f.local.Talents = key.Talents[player]
 	for _, k := range similarKeys(keys, key, player) {
 		f.yours = append(f.yours, c.keyPlayer(k, player))
 	}

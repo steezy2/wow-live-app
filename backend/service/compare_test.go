@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -150,5 +151,37 @@ func TestBaselineSaysWhichLogsTheyAre(t *testing.T) {
 		if got := tc.p.baseline("Arcane Mage", 300_000); got != tc.want {
 			t.Errorf("baseline = %q, want %q", got, tc.want)
 		}
+	}
+}
+
+func TestTalentCompareCountsWhoTookWhat(t *testing.T) {
+	logTook := func(picks ...models.TalentPick) models.RankedPlayer { return models.RankedPlayer{Talents: picks} }
+	orb, surge := models.TalentPick{NodeID: 1, EntryID: 10, Rank: 1}, models.TalentPick{NodeID: 2, EntryID: 20, Rank: 2}
+	in := compareInput{specID: 62, you: logTook(surge), top: []models.RankedPlayer{logTook(orb, surge), logTook(orb), {}}}
+	got := talentCompare(in)
+	want := &models.CompareTalents{SpecID: 62, You: []models.TalentPick{surge}, Of: 2,
+		Top: []models.TalentShare{{NodeID: 1, EntryID: 10, Rank: 1, Taken: 2, Most: true}, {NodeID: 2, EntryID: 20, Rank: 2, Taken: 1, Most: true}}}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("talentCompare = %+v, want %+v (a log without talents isn't counted)", got, want)
+	}
+	if got := talentCompare(compareInput{top: []models.RankedPlayer{{}}}); got != nil {
+		t.Errorf("talentCompare with no talents read = %+v, want nil", got)
+	}
+}
+
+func TestBuffRowsHideAlwaysOnTalentPassives(t *testing.T) {
+	tree := models.TalentTree{Nodes: []models.TalentNode{{ID: 1, Entries: []models.TalentEntry{{ID: 10, Name: "Charged Orb"}}}}}
+	run := func(orbMS, tempoMS int64) models.RankedPlayer {
+		return models.RankedPlayer{DurationMS: 100_000, Buffs: []models.RankedBuff{{Name: "Charged Orb", UptimeMS: orbMS},
+			{Name: "Arcane Tempo", UptimeMS: tempoMS}}, Talents: []models.TalentPick{{NodeID: 1, EntryID: 10, Rank: 1}}}
+	}
+	in := compareInput{you: run(0, 50_000), top: []models.RankedPlayer{run(100_000, 95_000), run(100_000, 95_000)},
+		logs: []models.CompareLog{{Amount: 1}, {Amount: 1}}, metric: "DPS", spec: specs[62], tree: tree}
+	var names []string
+	for _, b := range buildCompare(in).Buffs {
+		names = append(names, b.Name)
+	}
+	if !slices.Equal(names, []string{"Arcane Tempo"}) {
+		t.Errorf("buffs = %v, want only Arcane Tempo (Charged Orb is a talent that is always up)", names)
 	}
 }

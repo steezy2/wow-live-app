@@ -1959,3 +1959,65 @@ table.compare th:first-child,
 table.compare td:first-child {
   text-align: left;
 }
+
+.talent-tree {
+  width: 100%;
+  max-height: 520px;
+}
+
+.talent-link {
+  stroke: var(--border);
+  stroke-width: 2;
+}
+
+.talent-node circle {
+  fill: var(--panel-2);
+  stroke: var(--border);
+  stroke-width: 2;
+}
+
+.talent-node text {
+  fill: var(--text);
+  font-size: 11px;
+  pointer-events: none;
+}
+
+.talent-node.talent-both circle {
+  fill: color-mix(in srgb, var(--good) 35%, var(--panel-2));
+  stroke: var(--good);
+}
+
+.talent-node.talent-rank circle {
+  fill: color-mix(in srgb, var(--warn) 35%, var(--panel-2));
+  stroke: var(--warn);
+}
+
+.talent-node.talent-missed circle {
+  fill: color-mix(in srgb, var(--bad) 35%, var(--panel-2));
+  stroke: var(--bad);
+}
+
+.talent-node.talent-extra circle {
+  fill: color-mix(in srgb, var(--accent) 35%, var(--panel-2));
+  stroke: var(--accent);
+}
+
+.legend-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+}
+
+.legend-dot.talent-both {
+  border-color: var(--good);
+}
+
+.legend-dot.talent-missed {
+  border-color: var(--bad);
+}
+
+.legend-dot.talent-extra {
+  border-color: var(--accent);
+}

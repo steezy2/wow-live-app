@@ -4,7 +4,11 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 
 ## [Unreleased]
 
+### Added
+- **Compare talents**: a player review draws the spec's talent tree with what the top logs take that you didn't, what only you took and where you both agree, with how many of the top logs took each. Keys and pulls read from now on (or with *Read old logs*) keep their talents; older ones say so.
+
 ### Fixed
+- **Compare buffs**: always-on talent buffs (Charged Orb, Orb Barrage...) that read 100% for the top logs and 0% for you are left off the buff list.
 - **Compare damage taken**: the top logs' damage taken counted only hits from friendly sources (a mage's own Refraction), so it read about a tenth of yours; it now adds the enemies' hits, matching the key's own numbers within 0.3%. Reviews made before this are read again (run them once more).
 - **Compare buffs**: a buff with several spell IDs (Overpowered Missiles read 121% for the top logs) counts its time up once, so no buff passes 100%.
 - **Key page**: a running key's Replay map holds its place while the track loads, so the tabs below (Route) no longer jump when the map appears.
