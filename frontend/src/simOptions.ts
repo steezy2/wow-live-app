@@ -35,6 +35,7 @@ const groupKey = (slot: string) => slot.replace(/[12]$/, '')
  * groups left out. */
 export function gearGroups(equipped: SimItem[], bags: SimItem[]) {
   return SLOT_GROUPS.map(([key, label]) => ({
+    key,
     label,
     items: [
       ...equipped.flatMap((item, index) => (groupKey(item.slot) === key ? [{ item, index, worn: true }] : [])),
@@ -42,3 +43,26 @@ export function gearGroups(equipped: SimItem[], bags: SimItem[]) {
     ],
   })).filter((g) => g.items.length > 0)
 }
+
+/** The distinct item IDs of items, at most the 120 an items request takes. */
+export function itemIDs(items: SimItem[]): number[] {
+  return [...new Set(items.map((i) => i.id))].slice(0, 120)
+}
+
+/** The average item level of the worn items that have one, rounded (0 when none has). */
+export function averageLevel(equipped: SimItem[]): number {
+  const levels = equipped.flatMap((i) => (i.level ? [i.level] : []))
+  return levels.length ? Math.round(levels.reduce((a, b) => a + b, 0) / levels.length) : 0
+}
+
+/** How wide a gain's bar is, in percent of the best gain's (0 for a loss or when nothing gains). */
+export function gainShare(gain: number, best: number): number {
+  return best > 0 ? Math.min(100, Math.max(0, (gain / best) * 100)) : 0
+}
+
+/** The slot groups drawn down the left of the paper doll, down its right, and along the bottom (the weapons). */
+export const DOLL_COLUMNS: string[][] = [
+  ['head', 'neck', 'shoulder', 'back', 'chest', 'wrist'],
+  ['hands', 'waist', 'legs', 'feet', 'finger', 'trinket'],
+  ['main_hand', 'off_hand'],
+]

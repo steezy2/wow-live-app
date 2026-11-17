@@ -95,3 +95,14 @@ func TestIconIsDownloadedOnceAndRefusesOddNames(t *testing.T) {
 		}
 	}
 }
+
+func TestParseItemReadsNameIconAndQuality(t *testing.T) {
+	got, err := ParseItem([]byte(`{"name":"Ansurek's Final Judgment","quality":4,"icon":"inv_axe_1h_nerubianraid_d_01","tooltip":"x"}`))
+	want := models.SimItemInfo{Name: "Ansurek's Final Judgment", Icon: "inv_axe_1h_nerubianraid_d_01", Quality: 4}
+	if err != nil || got != want {
+		t.Errorf("item = %+v (%v); want %+v", got, err, want)
+	}
+	if _, err := ParseItem([]byte(`{"error":"not found"}`)); err == nil {
+		t.Error("an answer without an item should fail")
+	}
+}

@@ -2873,6 +2873,21 @@ definitions:
       slot:
         type: string
     type: object
+  models.SimItemInfo:
+    properties:
+      icon:
+        example: inv_axe_1h_nerubianraid_d_01
+        type: string
+      id:
+        example: 212401
+        type: integer
+      name:
+        example: Ansurek's Final Judgment
+        type: string
+      quality:
+        example: 4
+        type: integer
+    type: object
   models.SimOptions:
     properties:
       accuracy:
@@ -4854,6 +4869,33 @@ paths:
             $ref: '#/definitions/controller.ErrorResponse'
       summary: Download or update the SimulationCraft engine, or use one the owner
         has
+      tags:
+      - sim
+  /api/sim/items:
+    get:
+      description: |-
+        Wowhead's name, icon (for GET /api/icons/{name}) and quality of each item ID, as many as it knows: an
+        item it can't look up is left out, so the page draws it by its export name.
+      parameters:
+      - description: item IDs, comma separated (at most 120)
+        in: query
+        name: ids
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.SimItemInfo'
+            type: array
+        "400":
+          description: no IDs, too many or not numbers
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+      summary: Names, icons and qualities of items
       tags:
       - sim
   /api/sim/profile:

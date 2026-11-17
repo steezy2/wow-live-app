@@ -116,10 +116,12 @@ func Start(ctx context.Context, opts Options) (*Site, error) {
 	s := &Site{Keys: keys, Changes: &service.Changes{Every: pushEvery}, opts: opts, newKeys: newKeys}
 	characters := service.Characters{Realms: opts.Realms, Logs: opts.WCL,
 		Bosses: slices.Sorted(maps.Keys(opts.Bosses))}
+	wowheadClient := wowhead.Client{CacheDir: filepath.Join(opts.Cache, "wowhead")}
 	if opts.Settings != nil {
 		opts.Settings.Logs, opts.Settings.Characters = s, characters
 		opts.Settings.Sim = &controller.SimAPI{Runs: &service.Sims{Engine: simc.Client{Dir: filepath.Join(opts.Cache, simEngineDir)},
-			Dir: filepath.Join(opts.Cache, simsDir), Drops: opts.Drops, Now: opts.Now, Ctx: ctx}}
+			Dir: filepath.Join(opts.Cache, simsDir), Drops: opts.Drops, Now: opts.Now, Ctx: ctx},
+			Items: wowheadClient}
 		if opts.WCL != nil {
 			s.Import = s.importer(characters, store, pulls)
 			opts.Settings.Import = s.Import
@@ -149,7 +151,7 @@ func Start(ctx context.Context, opts Options) (*Site, error) {
 		HTTP: &http.Client{Timeout: spellTimeout}}}
 	s.Handler = controller.Router(controller.MPlus{Keys: keys, Reviews: s.reviews, Compares: s.compares, Changes: s.Changes,
 		Now: opts.Now, Tiles: tiles, Recaps: recaps, Talents: opts.Talents,
-		Icons:  wowhead.Client{CacheDir: filepath.Join(opts.Cache, "wowhead")},
+		Icons:  wowheadClient,
 		Spells: spells, Planner: planner}, &controller.Raid{Compares: s.compares, Pulls: keys, Maps: raidMaps, Now: opts.Now}, opts.Settings,
 		opts.Pages, opts.Hosts...)
 	return s, nil

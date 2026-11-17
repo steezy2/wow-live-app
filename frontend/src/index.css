@@ -2141,3 +2141,321 @@ table.compare td:first-child {
 .talent-jump:hover {
   text-decoration: underline;
 }
+
+/* The Sim tab: the engine bar, the paper-doll gear, the options beside it and the ranked results. */
+.sim.settings {
+  gap: var(--s4);
+  max-width: 1100px;
+}
+
+.sim > .panel,
+.sim > .sim-layout > .panel {
+  margin-top: 0;
+}
+
+.sim-engine-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+}
+
+.sim-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+}
+
+.sim-header h2 {
+  margin: 0;
+  font-size: var(--t-h1);
+}
+
+.sim-header p {
+  margin: 0;
+}
+
+.sim-header-stats {
+  display: flex;
+  align-items: center;
+  gap: var(--s4);
+  font-size: var(--t-h2);
+}
+
+.sim-tabs {
+  display: flex;
+  gap: var(--s1);
+  border-bottom: 1px solid var(--border);
+}
+
+.sim .sim-tabs button {
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: none;
+  color: var(--muted);
+  padding: var(--s2) var(--s4);
+}
+
+.sim .sim-tabs button.active {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+
+.sim-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: var(--s4);
+  align-items: start;
+}
+
+.sim-options {
+  position: sticky;
+  top: calc(var(--nav) + var(--s3));
+  display: grid;
+  gap: var(--s3);
+}
+
+.sim-options h2 {
+  margin: 0;
+}
+
+.sim .sim-run {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  font-size: var(--t-h2);
+  font-weight: 600;
+  padding: var(--s3) var(--s4);
+}
+
+.sim .sim-run:disabled {
+  opacity: 0.5;
+}
+
+.sim-progress {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s2);
+}
+
+.sim-doll {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s3);
+}
+
+.sim-doll-col {
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: var(--s2);
+}
+
+.sim-doll-col:last-child {
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.sim-slot {
+  min-width: 0;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: var(--s2) var(--s3);
+}
+
+.sim-slot h3 {
+  margin: 0 0 var(--s1);
+  font-size: var(--t-small);
+  font-weight: 500;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.sim .sim-pick {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  padding: 2px 0;
+  color: var(--text);
+}
+
+.sim-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+  min-width: 0;
+}
+
+.sim-item-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sim-worn {
+  font-size: var(--t-small);
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0 var(--s1);
+}
+
+/* An item's quality: its icon's frame and its name's colour (Blizzard's). */
+.sim-icon {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  box-sizing: border-box;
+  border: 2px solid currentColor;
+  border-radius: 4px;
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.sim-icon img {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.q0 {
+  color: #9d9d9d;
+}
+
+.q1 {
+  color: #e7eaf0;
+}
+
+.q2 {
+  color: #1eff00;
+}
+
+.q3 {
+  color: #0070dd;
+}
+
+.q4 {
+  color: #a335ee;
+}
+
+.q5 {
+  color: #ff8000;
+}
+
+.sim-dps {
+  font-size: var(--t-h1);
+}
+
+.sim-combos {
+  list-style: none;
+  margin: var(--s3) 0 0;
+  padding: 0;
+  display: grid;
+  gap: var(--s2);
+}
+
+.sim-combos li {
+  display: grid;
+  grid-template-columns: 28px 140px minmax(0, 1fr);
+  gap: var(--s3);
+  align-items: center;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: var(--s2) var(--s3);
+}
+
+.sim-rank {
+  color: var(--muted);
+  text-align: center;
+}
+
+.sim-gain {
+  display: grid;
+  gap: 2px;
+}
+
+.sim-gain > span:first-child {
+  font-size: var(--t-h2);
+  font-weight: 600;
+}
+
+.sim-gain-bar {
+  display: block;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+}
+
+.sim-gain-bar span {
+  display: block;
+  height: 100%;
+  background: var(--good);
+  border-radius: 2px;
+}
+
+.sim-swaps {
+  display: grid;
+  gap: var(--s1);
+}
+
+.sim-swap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s2);
+}
+
+.sim-swap-slot {
+  width: 64px;
+  text-transform: capitalize;
+}
+
+.sim-saved {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--s1);
+}
+
+.sim-saved li {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+}
+
+.sim-saved li > button.link {
+  flex: 1;
+  text-align: left;
+}
+
+@media (max-width: 900px) {
+  .sim-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sim-options {
+    position: static;
+  }
+
+  .sim-doll {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sim-combos li {
+    grid-template-columns: 28px minmax(0, 1fr);
+  }
+
+  .sim-swaps {
+    grid-column: 1 / -1;
+  }
+}
