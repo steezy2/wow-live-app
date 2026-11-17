@@ -362,20 +362,12 @@ func (k *LogTracker) RouteTrack(start int64) (int, models.KeyTrack, error) {
 	return mapID, track, err
 }
 
-// DungeonMap is a dungeon's floors with Keystone.guru tiles (from the dungeon file) and, when a floor has none (or
-// the dungeon file has no floors), where parties have walked in its saved runs, one point per walkedGrid square
-// (Name and ClockMS empty): the shape drawn for floors without tiles.
+// DungeonMap is a dungeon's floors with Keystone.guru tiles (from the dungeon file) and where parties have walked in
+// its saved runs, one point per walkedGrid square (Name and ClockMS empty): the shape drawn for floors without tiles.
 func (k *LogTracker) DungeonMap(mapID int) (models.DungeonMap, error) {
-	floors := k.facts[mapID].Floors
-	var walked []models.TrackPoint
-	if len(floors) == 0 || slices.ContainsFunc(floors, func(f models.DungeonFloor) bool { return f.Tiles == "" }) {
-		var err error
-		if walked, err = k.walked(mapID); err != nil {
-			return models.DungeonMap{}, err
-		}
-	}
-	return models.DungeonMap{Floors: list(floors), TilesPerSide: tilesPerSide, Walked: list(walked),
-		Enemies: list(k.facts[mapID].Enemies), Patrols: list(k.facts[mapID].Patrols)}, nil
+	walked, err := k.walked(mapID)
+	return models.DungeonMap{Floors: list(k.facts[mapID].Floors), TilesPerSide: tilesPerSide, Walked: list(walked),
+		Enemies: list(k.facts[mapID].Enemies), Patrols: list(k.facts[mapID].Patrols)}, err
 }
 
 func (k *LogTracker) walked(mapID int) ([]models.TrackPoint, error) {

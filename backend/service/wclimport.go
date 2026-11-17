@@ -299,7 +299,7 @@ func (k *LogTracker) LinkReports(keyLinks, pullLinks map[int64]models.ReportLink
 func (k *LogTracker) ImportedCount() int {
 	k.mu.RLock()
 	defer k.mu.RUnlock()
-	return countImported(k.history) + countImported(k.pulls)
+	return len(importedStarts(k.history)) + len(importedStarts(k.pulls))
 }
 
 // RemoveImported deletes every saved key and raid pull that came from Warcraft Logs. The files go outside the

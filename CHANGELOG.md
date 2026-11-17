@@ -6,7 +6,7 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 
 ### Changed
 - **Less duplicated backend code, same saved output** (a fresh `--learn` writes byte-identical keys and pulls): one `Fight` method set on `Key` and `RaidPull` behind one upsert, save, link and remove-imported path and one `keystore.Folder[T]`; `cachefile.Fresh` returns the bytes, with `ReadJSON[T]` and `Forever`; one `config.Load(fsys)` for `cmd/site` and the app's built-in files (`build.sh` now puts the reference files in `embed/reference/`); the combat log's unit flags and raid difficulties in one table (`clients/combatlog`) that the Warcraft Logs converter and the reader share; the Warcraft Logs import's files behind `clients/importstore`, and the settings save in `service.SaveSettings`.
-- A player review reads the player's newest 10 similar runs (not all), each track once, and fails on a track it can't read instead of leaving it out. The dungeon map reads the saved runs' tracks only when a floor has no tiles.
+- A player review reads the player's newest 10 similar runs (not all), each track once, and fails on a track it can't read instead of leaving it out.
 
 ## [0.5.0] - 2026-11-16
 

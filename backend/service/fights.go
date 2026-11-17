@@ -115,11 +115,6 @@ func applyLinks[T models.SavedFight[T]](list []T, linked []T) (gone []int64) {
 	return gone
 }
 
-// countImported is how many of list were imported from Warcraft Logs.
-func countImported[T models.SavedFight[T]](list []T) int {
-	return len(importedStarts(list))
-}
-
 // importedStarts are the start times of the fights of list imported from Warcraft Logs.
 func importedStarts[T models.SavedFight[T]](list []T) []int64 {
 	var starts []int64
