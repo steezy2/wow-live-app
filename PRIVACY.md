@@ -16,7 +16,7 @@ WoW Live downloads public game data. None of these requests include anything fro
 
 - **Warcraft Logs** (warcraftlogs.com), when you've entered API keys: top runs for a dungeon, key level and spec to compare against, and the name and realm of a character, to list its public reports and download their fights (when you import or look up your own runs) or to read its parses (when you run a player review, for the player you picked, who can be anyone in your group). See Warcraft Logs' own privacy policy.
 - **Raider.IO** (raider.io): the season's dungeon timers and this week's affixes, for your region.
-- **Keystone.guru** and **Mythic Dungeon Tools**, through GitHub (api.github.com, raw.githubusercontent.com) and assets.keystone.guru: dungeon map images, enemy patrols and each dungeon's enemies and routes.
+- **Keystone.guru** (assets.keystone.guru): dungeon map images.
 - **Wowhead** (nether.wowhead.com and wow.zamimg.com): the text of a spell when you hover its name, and the icons of talents and spells.
 - **Warcraft Logs' image server** (assets.rpglogs.com): raid room map images, for the raid replay.
 

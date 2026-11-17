@@ -29,8 +29,8 @@ DURING THE KEY
 AFTER EVERY KEY
 • Death recaps: the last 10 seconds before each death, with every hit, heal and shield, and the defensive that was
   still ready.
-• See how you compare: each player against the top runs of their spec on Warcraft Logs (DPS, kicks, deaths, potions,
-  buffs, talents), with up to four things to work on.
+• See how you compare: each player against the top runs of their spec on Warcraft Logs (DPS, abilities, buffs,
+  talents), with up to five things to work on.
 • A "Fix next key" list and a timeline of every pull, death, Bloodlust and cooldown.
 • A replay on the dungeon's map, synced to the meters.
 • Routes: import a Mythic Dungeon Tools route and see which pulls you skipped.
@@ -46,8 +46,8 @@ YOUR SEASON
 
 PRIVATE
 It isn't an addon and doesn't touch the game: it only reads the log file the game writes on your PC. No account, no
-ads, no tracking. Your combat log never leaves your PC; only a character name you ask it to look up goes to Warcraft
-Logs.
+ads, no tracking. Your combat log never leaves your PC; Warcraft Logs only sees the characters you look up or
+review.
 
 START IN A MINUTE
 1. In the game, turn on Advanced Combat Logging (Options > System > Network).
@@ -60,8 +60,8 @@ github.com/steezy2/wow-live-app
 
 World of Warcraft is a trademark of Blizzard Entertainment. WoW Live isn't affiliated with or endorsed by Blizzard,
 and the game's spell names, text and icons belong to Blizzard. Dungeon maps and patrols are Keystone.guru's, routes
-and enemies Mythic Dungeon Tools', raid maps and top runs Warcraft Logs', season timers Raider.IO's and spell text
-and icons Wowhead's.
+and enemies Mythic Dungeon Tools', talent trees Raidbots', raid map edges wago.tools', raid maps and top runs
+Warcraft Logs', season timers Raider.IO's and spell text and icons Wowhead's.
 
 ## Product features (up to 20, shown as a list)
 
@@ -97,7 +97,7 @@ payoff). Each screen shows one thing, large; crop to it rather than showing a wh
 | # | File | Headline | Screen | Status |
 |---|---|---|---|---|
 | 1 | `1-live.png` | Your Mythic+ key, live | Live page mid-key with the overlay over it | Made |
-| 2 | `4-death.png` | Every death, explained | A death recap: the health graph large over the hits and heals, the ready defensive named | Made (the last 10 seconds, health falling to 0%) |
+| 2 | `4-death.png` | Every death, explained | A death recap: each hit and heal as a health bar falling to 0%, the ready defensive named | Made (the last 10 seconds, health falling to 0%) |
 | 3 | `compare.png` | See how you stack up | Compare tab: verdict, the "work on" list, key stats and abilities against the top logs | Made, sample data |
 | 4 | `2-key.png` | Know why your key depleted | Fix next key and Timeline | Made |
 | 5 | `3-raid.png` | Fix the wipe before the next pull | A raid pull's Fix next pull and early deaths | Made |
@@ -120,10 +120,13 @@ Center's *Trailers* (1920 × 1080 MP4, with a 1920 × 1080 thumbnail).
 ## Before each submission
 
 - Privacy policy URL: `https://github.com/steezy2/wow-live-app/blob/main/PRIVACY.md`. It lists every host the app
-  calls (checked against the code on 2026-11-16: Warcraft Logs, Raider.IO, Keystone.guru and MDT through GitHub,
-  Wowhead and its icon host); add a new host there in the same change.
+  calls at runtime (checked against the code on 2026-11-16: Warcraft Logs and its image server, Raider.IO,
+  Keystone.guru's map tiles, Wowhead and its icon host); the build-time `cmd/` tools call others (GitHub, Raidbots,
+  wago.tools) that the app doesn't. Add a new runtime host there in the same change.
 - The manifest asks only for `internetClient` and `runFullTrust` (a desktop app). Don't add a capability the app
   doesn't use.
 - Licence: PolyForm Noncommercial 1.0.0 for the source; the Store copy is free. The credits above must match the
   Home tab's credit line and the README.
+- Keystone.guru's repository has no licence and its terms reserve all rights, so the maps and data are used
+  without a written permission. Ask the author (their GitHub issues or Discord) and keep the reply here.
 - Age rating: no user-generated content, no purchases, no ads.
