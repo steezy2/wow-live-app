@@ -35,7 +35,8 @@ type fakeImages struct{}
 func (fakeImages) Image(context.Context, int) ([]byte, error) { return []byte("png"), nil }
 
 func TestRaidMapsOnlyServeTheBossesRooms(t *testing.T) {
-	m := RaidMaps{Source: fakeImages{}, Bosses: map[string]models.RaidBoss{"Ula'tek": {Maps: []models.RaidMap{{UIMapID: 2610}}}}}
+	m := RaidMaps{Source: fakeImages{},
+		Bosses: map[string]models.RaidBoss{"Ula'tek": {Maps: []models.RaidMap{{UIMapID: 2610}}}}}
 	if img, err := m.Image(context.Background(), 2610); err != nil || string(img) != "png" {
 		t.Fatalf("a boss's room: %q, %v; want its image", img, err)
 	}

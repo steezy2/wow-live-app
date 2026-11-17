@@ -80,7 +80,7 @@ test('subscribe holds changes while the page is hidden and reads once when it sh
   expect(page.listeners).toHaveLength(0)
 })
 
-test('fetchSpell asks once for an answer, keeps an unknown spell ID, and asks again after a failure or an unknown name', async () => {
+test('fetchSpell asks once, keeps an unknown spell ID, and asks again after a failure or an unknown name', async () => {
   const answers = [
     new Response(JSON.stringify({ id: 1, name: 'Alter Time', description: 'x' })),
     new Response('{}', { status: 404 }),

@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { fetchSettings, type SettingsView } from './api'
+import { fetchSettings, subscribe, type SettingsView } from './api'
 import { useNow } from './useLiveKey'
 import { stateLine, type TonightRow } from './waiting'
 
@@ -23,8 +23,12 @@ export function WaitingCard({ title, hint, rows, children }: {
   const now = useNow(60_000)
   useEffect(() => {
     const controller = new AbortController()
-    fetchSettings(controller.signal).then(setView, () => undefined)
-    return () => controller.abort()
+    // Read again as the site reports changes, so "last wrote a log" follows the log while this card waits.
+    const off = subscribe(() => void fetchSettings(controller.signal).then(setView, () => undefined))
+    return () => {
+      controller.abort()
+      off()
+    }
   }, [])
   const line = stateLine(view, now)
   const loggingOn = !!line && !line.warn

@@ -9,7 +9,8 @@ import (
 
 // failedRules are the rules (a spec's, from spec-rules.toml) the player's own casts and buffs fell short of over a
 // fight of durationMS; a rule with nothing to measure (no such cast) is left out.
-func failedRules(rules []models.SpecRule, casts []models.TrackCast, buffs []models.BuffSpan, durationMS int64) []models.RuleResult {
+func failedRules(rules []models.SpecRule, casts []models.TrackCast, buffs []models.BuffSpan,
+	durationMS int64) []models.RuleResult {
 	failed := []models.RuleResult{}
 	for _, r := range rules {
 		share, ok := ruleShare(r, casts, buffs, durationMS)

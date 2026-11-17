@@ -70,9 +70,9 @@ func (c *Client) Realms(ctx context.Context, region string) (map[string]string, 
 }
 
 // RecentReports is one page (30) of the reports a character appears in, newest first, and whether another page
-// follows (never after models.MaxReportPages). Players are named from each report's player list. The page's list is cached
-// for models.ReportListMaxAge and each report's fights and players until its end moves (a report still being logged),
-// since they cost most of the points: so listing again only spends points on new or grown reports.
+// follows (never after models.MaxReportPages). Players are named from each report's player list. The page's list is
+// cached for models.ReportListMaxAge and each report's fights and players until its end moves (a report still being
+// logged), since they cost most of the points: so listing again only spends points on new or grown reports.
 func (c *Client) RecentReports(ctx context.Context, region, slug, name string, page int) (
 	[]models.CharacterReport, bool, error) {
 	var data struct {
@@ -269,7 +269,8 @@ func (c *Client) CharacterParses(ctx context.Context, region, slug, name string,
 	kinds := map[string]models.FightKind{}
 	var fields []string
 	vars := map[string]any{"n": name, "s": slug, "r": region}
-	for alias, zone := range map[string]int{string(models.FightMPlus): zones.MPlusID, string(models.FightRaid): zones.RaidID} {
+	for alias, zone := range map[string]int{string(models.FightMPlus): zones.MPlusID,
+		string(models.FightRaid): zones.RaidID} {
 		if zone != 0 {
 			fields = append(fields, fmt.Sprintf("%s: zoneRankings(zoneID: %d)", alias, zone))
 			kinds[alias] = models.FightKind(alias)

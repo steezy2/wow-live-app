@@ -1,7 +1,8 @@
 import { useState } from 'react'
+import { SavedBefore } from './SavedBefore'
 import type { KeyHit, KeyTrack, KeyView } from './api'
 import type { FightData } from './KeyTabs'
-import { amount, causesText, clock, coverOf, groupBy } from './format'
+import { amount, causesText, clock, coverOf } from './format'
 import { Cover, Spell } from './Spell'
 import { defense, offense } from './meterColumns'
 import { RecapRow } from './HitRecap'
@@ -212,9 +213,9 @@ export function SpikeLedger(props: { data: FightData; group: 'party' | 'raid'; s
  * death's). */
 export function BigHits({ data, seek, track }: { data: FightData; seek?: Seeker; track?: KeyTrack | null }) {
   if (!data.bigHits) {
-    return <p className="muted">Saved before big hits were kept: Read old logs in Settings fills it in</p>
+    return <SavedBefore what="big hits" />
   }
-  const hits = [...data.bigHits].reverse()
+  const hits = data.bigHits.toReversed()
   return (
     <ul className="list scroll">
       {hits.map((h) => (
@@ -245,14 +246,14 @@ const total = (hits: KeyHit[], pick: 'damage' | 'hits') => hits.reduce((n, h) =>
 export function Avoidable({ data, seek }: { data: FightData; seek?: Seeker }) {
   if (!data.reference) return <p className="muted">No avoidable list for this dungeon</p>
   if (!data.avoidableHits) {
-    return <p className="muted">Saved before avoidable damage was kept: Read old logs in Settings fills it in</p>
+    return <SavedBefore what="avoidable damage" />
   }
-  const byAbility = groupBy(data.avoidableHits, (h) => h.ability)
+  const byAbility = Map.groupBy(data.avoidableHits, (h) => h.ability)
   const first = (ability: string) =>
     data.lanes.find((l) => l.kind === 'avoidable' && l.name === ability)?.marks[0]?.clockMS
   const mostFirst = (a: [string, KeyHit[]], b: [string, KeyHit[]]) => total(b[1], 'damage') - total(a[1], 'damage')
   const abilities = [...byAbility].sort(mostFirst)
-  const players = [...groupBy(data.avoidableHits, (h) => h.player)].sort(mostFirst)
+  const players = [...Map.groupBy(data.avoidableHits, (h) => h.player)].sort(mostFirst)
   return (
     <>
       {players.length > 0 && (

@@ -12,7 +12,7 @@ import {
   type RaidPull,
   type TrackPoint,
 } from './api'
-import { errorText } from './format'
+import { useFetched } from './useFetched'
 
 /** A move between two track points faster than this (yards per second) is a jump (a teleport, a release, a portal),
  * drawn as one in a trail, not as a walk. */
@@ -133,7 +133,8 @@ export function enemyName(track: KeyTrack, guid: string): string {
   return track.bosses?.[guid]?.[0]?.name || track.mobs?.[guid]?.n || 'Enemy'
 }
 
-/** The player's recap ending at clockMS on the key's clock (a death's clockMS, a big hit's recapMS), if there is one. */
+/** The player's recap ending at clockMS on the key's clock (a death's clockMS, a big hit's recapMS), if there is
+ * one. */
 export function recapOf(track: KeyTrack | null | undefined, player: string, clockMS: number | undefined) {
   return track?.recaps?.find((r) => r.player === player && r.clockMS === clockMS)
 }
@@ -156,16 +157,8 @@ const EMPTY_ROW: KeyMeterRow = {
 
 /** A raid pull's track, read once: undefined while it loads, null for a pull saved without one. */
 export function useRaidTrack(start: number): { track: KeyTrack | null | undefined; error: string | null } {
-  const [track, setTrack] = useState<KeyTrack | null | undefined>(undefined)
-  const [error, setError] = useState<string | null>(null)
-  useEffect(() => {
-    const controller = new AbortController()
-    fetchRaidTrack(start, controller.signal).then(setTrack, (err: unknown) => {
-      if (!controller.signal.aborted) setError(errorText(err))
-    })
-    return () => controller.abort()
-  }, [start])
-  return { track, error }
+  const { data, error } = useFetched(String(start), (signal) => fetchRaidTrack(start, signal))
+  return { track: data, error: error ?? null }
 }
 
 /** A track's meters between two moments: each player's damage and healing (and per second), damage taken, and from
@@ -287,10 +280,17 @@ function schoolsOf(pull: Pick<RaidPull, 'abilities' | 'taken'>) {
 
 /** A series' [damage, healing, damage taken] up to a clock reading: a stretch (ending at one of ends, each starting
  * where the one before it ended) the moment is in counts for the share of it that has passed. */
-function sumStretches(points: [number, number, number, number][], ends: number[], now: number): [number, number, number] {
+function sumStretches(
+  points: [number, number, number, number][],
+  ends: number[],
+  now: number,
+): [number, number, number] {
   const sum: [number, number, number] = [0, 0, 0]
+  let j = 0 // the points come in the order of ends, so one pointer walks both
   for (const [end, d, h, t] of points) {
-    const from = ends[ends.indexOf(end) - 1] ?? 0
+    while (j < ends.length && ends[j] !== end) j++
+    const from = (j < ends.length && ends[j - 1]) || 0
+    if (j === ends.length) j = 0
     const share = end <= now ? 1 : Math.max(0, (now - from) / Math.max(1, end - from))
     if (share === 0) break
     ;[sum[0], sum[1], sum[2]] = [sum[0] + d * share, sum[1] + h * share, sum[2] + t * share]

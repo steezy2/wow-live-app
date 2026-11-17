@@ -32,8 +32,9 @@ func newRoutes(t *testing.T) *Routes {
 				{Index: 2, Clone: 1, NPC: 100, X: 200, Count: 20}, {Index: 3, Clone: 1, NPC: 100, X: 300, Count: 5}}},
 		586: {MDTIndex: 161},
 	}
-	return &Routes{Store: routestore.Store{Dir: t.TempDir()}, Facts: facts, Decode: mdt.DecodeRoute, Encode: mdt.EncodeRoute,
-		Now: func() time.Time { now = now.Add(time.Second); return now }}
+	return &Routes{Store: routestore.Store{Dir: t.TempDir()}, Facts: facts, Decode: mdt.DecodeRoute,
+		Encode: mdt.EncodeRoute,
+		Now:    func() time.Time { now = now.Add(time.Second); return now }}
 }
 
 func preset(uid string, dungeon int, pulls ...models.MDTPull) models.MDTPreset {
@@ -410,7 +411,8 @@ func TestMDTPlaneYards(t *testing.T) {
 		{[2]float64{65.5, -205.5}, [2]float64{1779.4, 2191.8}},
 		{[2]float64{201.1, -204.8}, [2]float64{1780.2, 2040.9}},
 	} {
-		got, kept, _ := r.importDrawings(voidscar, []models.MDTDrawing{{Sublevel: 3, Note: true, Points: [][2]float64{tc.mdt}}})
+		got, kept, _ := r.importDrawings(voidscar,
+			[]models.MDTDrawing{{Sublevel: 3, Note: true, Points: [][2]float64{tc.mdt}}})
 		if len(kept) > 0 || len(got) != 1 || got[0].Map != 2588 || got[0].Points[0] != tc.yards {
 			t.Errorf("MDT %v = %+v (kept %v); want a marker on 2588 at %v", tc.mdt, got, kept, tc.yards)
 		}

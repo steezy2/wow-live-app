@@ -33,7 +33,8 @@ func (f *fakeLogs) RankedRuns(context.Context, models.RankQuery, int) ([]models.
 		{DurationMS: 500_000, Code: "c", FightID: 3, Name: "C", Amount: 1e6}}, false, nil
 }
 
-func (f *fakeLogs) RunPlayer(_ context.Context, _ string, _ int, _, _ string, window int64) (models.RankedPlayer, error) {
+func (f *fakeLogs) RunPlayer(_ context.Context, _ string, _ int, _, _ string, window int64) (models.RankedPlayer,
+	error) {
 	f.mu.Lock()
 	f.windows = append(f.windows, window)
 	f.mu.Unlock()
@@ -91,7 +92,9 @@ func TestRunReadsAnAbandonedKeyOverTheSameStretchAndKeepsIt(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(baselines.windows) != 2 || baselines.windows[0] != 300_000 {
-		t.Errorf("windows = %v, want the 2 runs at least as long as the key (not the 200 s one) read over its first 300000 ms", baselines.windows)
+		t.Errorf("windows = %v, want the 2 runs at least as long as the key (not the 200 s one) "+
+			"read over its first 300000 ms",
+			baselines.windows)
 	}
 	if len(review.Logs) != 2 || review.Logs[0].Amount != 2e6 || review.Points != 99 {
 		t.Errorf("logs %+v, points %v; want the logs' rates over that stretch (2M/s, not the ranking's 1M) and 99 points",
@@ -127,8 +130,8 @@ func TestRunStopsForTooFewPointsAndForLogsThatCantBeRead(t *testing.T) {
 
 func TestRunEndsAtOnceOnARateLimitAndStoresNothing(t *testing.T) {
 	c, _, store := comparerOf(t, &fakeLogs{left: 1000, limited: true})
-	if _, err := c.Run(context.Background(), models.FightMPlus, 1000, "Testmage"); !errors.Is(err, models.ErrRateLimited) ||
-		len(store.reviews) != 0 {
+	_, err := c.Run(context.Background(), models.FightMPlus, 1000, "Testmage")
+	if !errors.Is(err, models.ErrRateLimited) || len(store.reviews) != 0 {
 		t.Errorf("with the rate limit hit: %v, %d stored; want ErrRateLimited and nothing stored", err, len(store.reviews))
 	}
 }

@@ -73,7 +73,8 @@ func (k *LogTracker) Mobs(mapID, level int, character string) models.DungeonMobs
 	}
 	k.mu.RUnlock()
 	level = cmp.Or(level, def)
-	out := models.DungeonMobs{Level: level, MinLevel: MinMobLevel, MaxLevel: MaxMobLevel, DamageMult: keyMult(level), Mobs: []models.DungeonMob{}}
+	out := models.DungeonMobs{Level: level, MinLevel: MinMobLevel, MaxLevel: MaxMobLevel, DamageMult: keyMult(level),
+		Mobs: []models.DungeonMob{}}
 	mobs := k.facts[mapID].Mobs
 	for _, npc := range slices.Sorted(maps.Keys(mobs)) {
 		out.Mobs = append(out.Mobs, scaleMob(mobs[npc], level))

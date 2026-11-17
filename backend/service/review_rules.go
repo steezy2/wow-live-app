@@ -69,8 +69,8 @@ var (
 )
 
 // buildReview reviews a finished key: each player's DPS and HPS against the top runs of their spec (baselines,
-// by player then metric name), their own earlier runs of the dungeon (history) and the party, with advice and one positive callout; and
-// the party's damage taken per second against similar top runs (taken).
+// by player then metric name), their own earlier runs of the dungeon (history) and the party, with advice and one
+// positive callout; and the party's damage taken per second against similar top runs (taken).
 func buildReview(key models.Key, history []models.Key, baselines map[string]map[string][]models.MPlusRanking,
 	taken []float64) models.KeyReview {
 	review := models.KeyReview{Start: key.Start, End: key.End, Players: []models.PlayerReview{},
@@ -290,7 +290,8 @@ var metricHelp = map[string]string{
 	"combat potions": "combat potions drunk over the key, a pre-pot included",
 	"health potions": "health potions drunk over the key",
 	"healthstones":   "healthstones used over the key",
-	"crowd control":  "stuns, incapacitates, fears, roots, knocks (up or back) and grips cast ([cc] in mplus.toml; an area stun counts once)",
+	"crowd control": "stuns, incapacitates, fears, roots, knocks (up or back) and grips cast " +
+		"([cc] in mplus.toml; an area stun counts once)",
 }
 
 // since reads a metric only from keys saved with it (Nov 8 on; older keys have no activity): NaN for older ones, so a

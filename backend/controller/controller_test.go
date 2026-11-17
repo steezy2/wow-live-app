@@ -91,7 +91,8 @@ func (fakeMaps) Image(_ context.Context, uiMapID int) ([]byte, error) {
 }
 
 func TestSavedKeysAndRaidPulls(t *testing.T) {
-	router := Router(MPlus{Keys: &fakeKeys{}, Now: time.Now}, &Raid{Pulls: fakeRaid{}, Maps: fakeMaps{}, Now: time.Now}, nil,
+	router := Router(MPlus{Keys: &fakeKeys{}, Now: time.Now}, &Raid{Pulls: fakeRaid{}, Maps: fakeMaps{}, Now: time.Now},
+		nil,
 		os.DirFS(t.TempDir()), LocalHosts(port)...)
 	for _, tc := range []struct {
 		method, path string
@@ -138,7 +139,8 @@ func TestLiveKeyIsReadAtNowOrNoContentBeforeAnyKey(t *testing.T) {
 	keys := &fakeKeys{key: models.KeyView{Key: models.Key{Dungeon: "Voidscar Arena", Level: 17}, ClockMS: 75_000},
 		ok: true}
 	now := time.UnixMilli(1_793_800_000_000)
-	router := Router(MPlus{Keys: keys, Planner: &fakePlanner{}, Now: func() time.Time { return now }}, nil, nil, os.DirFS(t.TempDir()), LocalHosts(port)...)
+	router := Router(MPlus{Keys: keys, Planner: &fakePlanner{}, Now: func() time.Time { return now }}, nil, nil,
+		os.DirFS(t.TempDir()), LocalHosts(port)...)
 	w := get(t, router, "/api/mplus/live")
 	var got models.KeyView
 	if err := json.Unmarshal(w.Body.Bytes(), &got); err != nil || w.Code != http.StatusOK ||
@@ -490,8 +492,10 @@ type fakeImport struct{ err error }
 func (f fakeImport) Start(context.Context, string, string, []models.ImportKind) error { return f.err }
 func (f fakeImport) Find(context.Context, string, string) error                       { return f.err }
 func (f fakeImport) Stop()                                                            {}
-func (f fakeImport) Status() models.ImportStatus                                      { return models.ImportStatus{State: "listing"} }
-func (f fakeImport) Remove() error                                                    { return f.err }
+func (f fakeImport) Status() models.ImportStatus {
+	return models.ImportStatus{State: "listing"}
+}
+func (f fakeImport) Remove() error { return f.err }
 
 func TestImportNeedsACharacterKindsAndOneImportAtATime(t *testing.T) {
 	const keys = `{"kinds": ["keys", "raidKills"]}`
@@ -721,7 +725,8 @@ func TestMobsEndpointPassesTheLevelAndRefusesOneOutOfRange(t *testing.T) {
 	} {
 		w := get(t, router, tc.url)
 		var got models.DungeonMobs
-		if w.Code != tc.code || tc.code == http.StatusOK && (json.Unmarshal(w.Body.Bytes(), &got) != nil || got.Level != tc.level) {
+		if w.Code != tc.code || tc.code == http.StatusOK &&
+			(json.Unmarshal(w.Body.Bytes(), &got) != nil || got.Level != tc.level) {
 			t.Errorf("%s: %d %s; want %d at level %d", tc.url, w.Code, w.Body, tc.code, tc.level)
 		}
 	}
