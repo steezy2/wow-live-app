@@ -28,6 +28,7 @@ import (
 	"wow-live/backend/clients/mdt"
 	"wow-live/backend/clients/raiderio"
 	"wow-live/backend/clients/routestore"
+	"wow-live/backend/clients/simc"
 	"wow-live/backend/clients/wcl"
 	"wow-live/backend/clients/wowhead"
 	"wow-live/backend/controller"
@@ -38,10 +39,12 @@ import (
 // pushEvery is the most often the page is told the keys changed, so a burst of lines is one notice.
 const pushEvery = 250 * time.Millisecond
 
-// The folders, in the cache, of the saved keys and the saved raid pulls.
+// The folders, in the cache, of the saved keys, the saved raid pulls, the sim engine and the saved sims.
 const (
 	localKeysDir = "local-keys"
 	raidPullsDir = "raid-pulls"
+	simEngineDir = "simc"
+	simsDir      = "sims"
 )
 
 // spellTimeout bounds one spell lookup on Wowhead, so a hover never waits on a site that is down.
@@ -115,6 +118,9 @@ func Start(ctx context.Context, opts Options) (*Site, error) {
 		Bosses: slices.Sorted(maps.Keys(opts.Bosses))}
 	if opts.Settings != nil {
 		opts.Settings.Logs, opts.Settings.Characters = s, characters
+		opts.Settings.Sim = &controller.SimAPI{Runs: &service.Sims{
+			Engine: simc.Client{Dir: filepath.Join(opts.Cache, simEngineDir)},
+			Dir:    filepath.Join(opts.Cache, simsDir), Now: opts.Now, Ctx: ctx}}
 		if opts.WCL != nil {
 			s.Import = s.importer(characters, store, pulls)
 			opts.Settings.Import = s.Import
