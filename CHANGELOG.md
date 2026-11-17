@@ -4,7 +4,21 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-11-16
+
 ### Changed
+- **M+ Live opens on All characters** the first time it is opened in a session, then the top bar keeps the last pick (it used to start on the Settings character).
+- **Store listing rewritten** shorter, with a Routes section and screenshot, with a new Compare screenshot (sample data) and a death recap showing health falling to 0%, leading with death recaps and the comparison with top runs; `docs/video-script.md` has a 50 s trailer and a 3 min walkthrough script.
+- **Credits**: the Home tab now carries the Blizzard disclaimer and credits for Keystone.guru, Mythic Dungeon Tools, Raidbots, wago.tools, Warcraft Logs, Raider.IO and Wowhead (the README said the page credited them); the Store manifest's description mentions raid pulls.
+
+### Fixed
+- **Privacy policy** lists `wow.zamimg.com` (spell and talent icons), which it missed, and drops the GitHub hosts: only the build-time `cmd/mplusref` calls them, the app doesn't.
+
+## [0.5.1] - 2026-11-16
+
+### Changed
+- The app always opens on **Home** (it was M+ Live, or Settings when the log folder was missing; Home's guide already shows a missing log folder).
+- `npm audit fix` in `frontend/` bumps `minimatch` (a dev-only denial-of-service advisory reached through ESLint); `npm audit` now reports 0 vulnerabilities.
 - **Less duplicated backend code, same saved output** (a fresh `--learn` writes byte-identical keys and pulls): one `Fight` method set on `Key` and `RaidPull` behind one upsert, save, link and remove-imported path and one `keystore.Folder[T]`; `cachefile.Fresh` returns the bytes, with `ReadJSON[T]` and `Forever`; one `config.Load(fsys)` for `cmd/site` and the app's built-in files (`build.sh` now puts the reference files in `embed/reference/`); the combat log's unit flags and raid difficulties in one table (`clients/combatlog`) that the Warcraft Logs converter and the reader share; the Warcraft Logs import's files behind `clients/importstore`, and the settings save in `service.SaveSettings`.
 - A player review reads the player's newest 10 similar runs (not all), each track once, and fails on a track it can't read instead of leaving it out.
 - **Frontend dry-up** (about 60 lines fewer, tests included; the pages look alike apart from a few colour and spacing steps that now follow the tokens): `Home`, `KeyRoute`, `Recap` and the raid track read through `useFetched`; one `<FixNext>`, `<Tiles>`, `<SavedBefore>` (the "saved before … were kept" lines now share one wording), `PlayerPicker`, `disc()` and `FightKind` replace their copies. The replay does less per tick: the walked-floor bounds are computed once, `sumStretches` walks its stretches once instead of searching them for each, the route map's backdrop and deaths are stable, and the review page's still tabs are built only when what they show changes.
