@@ -29,7 +29,8 @@ func progressOf(facts models.DungeonFacts, track models.KeyTrack, pulls ...[]mod
 }
 
 func TestMatchKills(t *testing.T) {
-	a, b, c := models.EnemyRef{Index: 1, Clone: 1}, models.EnemyRef{Index: 1, Clone: 2}, models.EnemyRef{Index: 2, Clone: 1}
+	a, b, c := models.EnemyRef{Index: 1, Clone: 1}, models.EnemyRef{Index: 1, Clone: 2}, models.EnemyRef{Index: 2,
+		Clone: 1}
 	facts := models.DungeonFacts{Forces: models.Forces{Total: 100, NPCs: map[int]int{100: 5, 200: 5}},
 		Enemies: []models.RouteEnemy{
 			{Index: 1, Clone: 1, NPC: 100, Count: 5, Pack: 1, Map: 1},
@@ -88,7 +89,8 @@ func TestRouteProgress(t *testing.T) {
 			mobGUID(7, 1): died(1000, 0, 1, 23_500),                        // worth nothing, off the map: left out
 			mobGUID(3, 1): {Points: []models.TrackPoint{{X: 200, Map: 1}}}, // pull 2's, still up
 		}}
-	got := progressOf(facts, track, []models.EnemyRef{ref(1), ref(2)}, []models.EnemyRef{ref(3)}, []models.EnemyRef{ref(4)})
+	got := progressOf(facts, track, []models.EnemyRef{ref(1), ref(2)}, []models.EnemyRef{ref(3)},
+		[]models.EnemyRef{ref(4)})
 	want := models.RouteProgress{
 		Pulls: []models.RoutePullProgress{
 			{Killed: 1, Of: 2, Done: true, KeyPull: 0, State: models.PullDone},
@@ -98,7 +100,8 @@ func TestRouteProgress(t *testing.T) {
 		Current: 2, Next: 1, Skipped: []int{1}, Last: 2,
 		Missed: []models.RouteMiss{{Pull: 1, Enemies: []models.EnemyRef{ref(3)}, Forces: 5, Pct: 5}},
 		Behind: &models.RouteBehind{PlannedPct: 20, ActualPct: 18}, Kills: []models.EnemyRef{ref(1), ref(4), ref(5)},
-		Off: []models.RouteOff{{KeyPull: 1, ClockMS: 20_000, Enemies: []models.EnemyRef{ref(5)}, OffMap: 1, Forces: 5, Pct: 5}},
+		Off: []models.RouteOff{{KeyPull: 1, ClockMS: 20_000, Enemies: []models.EnemyRef{ref(5)}, OffMap: 1, Forces: 5,
+			Pct: 5}},
 	}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("progress = %+v\nwant       %+v", got, want)
@@ -113,7 +116,8 @@ func TestRouteStates(t *testing.T) {
 		enemies = append(enemies, models.RouteEnemy{Index: i, Clone: 1, NPC: i, Count: 5, X: float64(i * 100), Map: 1})
 		pulls = append(pulls, []models.EnemyRef{ref(i)})
 	}
-	facts := models.DungeonFacts{Forces: models.Forces{Total: 100, NPCs: map[int]int{1: 5, 2: 5, 3: 5, 4: 5, 5: 5}}, Enemies: enemies}
+	facts := models.DungeonFacts{Forces: models.Forces{Total: 100, NPCs: map[int]int{1: 5, 2: 5, 3: 5, 4: 5, 5: 5}},
+		Enemies: enemies}
 	track := func(kills ...int) models.KeyTrack {
 		t := models.KeyTrack{Mobs: map[string]models.MobTrail{}}
 		for n, i := range kills {
@@ -145,14 +149,16 @@ func TestRouteStates(t *testing.T) {
 				missed = append(missed, x.Pull)
 			}
 			if !slices.Equal(states, tc.states) || !slices.Equal(missed, tc.missed) || (p.Behind != nil) != tc.behind {
-				t.Fatalf("states %v, missed %v, behind %v; want %v, %v, %v", states, missed, p.Behind, tc.states, tc.missed, tc.behind)
+				t.Fatalf("states %v, missed %v, behind %v; want %v, %v, %v", states, missed, p.Behind, tc.states, tc.missed,
+					tc.behind)
 			}
 		})
 	}
 }
 
 func TestRouteBehindIgnoresPullInProgress(t *testing.T) {
-	enemies := []models.RouteEnemy{{Index: 1, Clone: 1, NPC: 1, Count: 5, Map: 1}, {Index: 2, Clone: 1, NPC: 2, Count: 5, X: 100, Map: 1}}
+	enemies := []models.RouteEnemy{{Index: 1, Clone: 1, NPC: 1, Count: 5, Map: 1},
+		{Index: 2, Clone: 1, NPC: 2, Count: 5, X: 100, Map: 1}}
 	facts := models.DungeonFacts{Forces: models.Forces{Total: 100, NPCs: map[int]int{1: 5, 2: 5}}, Enemies: enemies}
 	track := models.KeyTrack{Mobs: map[string]models.MobTrail{mobGUID(1, 1): died(0, 0, 1, 1000)}}
 	p := progressOf(facts, track, []models.EnemyRef{{Index: 1, Clone: 1}, {Index: 2, Clone: 1}})
@@ -255,8 +261,9 @@ func TestRecordPulls(t *testing.T) {
 			mobGUID(200, 1): died(900, 0, 1, 7000), // a different pull: far from its enemy, still that enemy
 			mobGUID(300, 1): died(0, 0, 1, 1500),   // not on the map
 		}}
-	want := models.RecordedRoute{Pulls: [][]models.EnemyRef{{{Index: 1, Clone: 1}}, {{Index: 1, Clone: 2}, {Index: 2, Clone: 1}}},
-		Pct: 50, Dropped: 1}
+	want := models.RecordedRoute{
+		Pulls: [][]models.EnemyRef{{{Index: 1, Clone: 1}}, {{Index: 1, Clone: 2}, {Index: 2, Clone: 1}}},
+		Pct:   50, Dropped: 1}
 	if got := recordPulls(facts, track); !reflect.DeepEqual(got, want) {
 		t.Fatalf("recorded %+v; want %+v", got, want)
 	}
@@ -268,10 +275,12 @@ func TestBuildRun(t *testing.T) {
 	for i := 1; i <= 6; i++ {
 		enemies = append(enemies, models.RouteEnemy{Index: i, Clone: 1, NPC: i, Count: 5, X: float64(i * 100), Map: 1})
 	}
-	facts := models.DungeonFacts{Forces: models.Forces{Total: 100, NPCs: map[int]int{1: 5, 2: 5, 3: 5, 4: 5, 5: 5, 6: 5, 9: 5}},
+	facts := models.DungeonFacts{
+		Forces:  models.Forces{Total: 100, NPCs: map[int]int{1: 5, 2: 5, 3: 5, 4: 5, 5: 5, 6: 5, 9: 5}},
 		Enemies: enemies}
 	view := (&Routes{Facts: map[int]models.DungeonFacts{1: facts}}).view(models.Route{MapID: 1, Pulls: []models.RoutePull{
-		{Enemies: []models.EnemyRef{ref(1), ref(2)}}, {Enemies: []models.EnemyRef{ref(3), ref(4)}}, {Enemies: []models.EnemyRef{ref(5)}}}})
+		{Enemies: []models.EnemyRef{ref(1), ref(2)}}, {Enemies: []models.EnemyRef{ref(3), ref(4)}},
+		{Enemies: []models.EnemyRef{ref(5)}}}})
 	track := models.KeyTrack{
 		Pulls: []models.PullSpan{{StartMS: 0}, {StartMS: 10_000}, {StartMS: 20_000}},
 		Mobs: map[string]models.MobTrail{

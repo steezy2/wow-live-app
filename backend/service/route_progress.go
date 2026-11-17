@@ -178,8 +178,8 @@ type madePull struct {
 
 // madePulls are the pulls a key made: each kill takes the nearest map enemy of its NPC on its floor that no closer
 // kill took (a recording has no plan to hold the kill to, so a slightly different pull still counts), grouped by the
-// key pull it died in, in pull order. Kills before the first pull join it. Dropped counts the kills worth forces that no
-// enemy was left for.
+// key pull it died in, in pull order. Kills before the first pull join it. Dropped counts the kills worth forces that
+// no enemy was left for.
 func madePulls(facts models.DungeonFacts, track models.KeyTrack) (pulls []madePull, dropped int) {
 	all := kills(track)
 	byPull := map[int][]models.EnemyRef{}
@@ -249,8 +249,8 @@ func buildRun(route models.RouteView, facts models.DungeonFacts, track models.Ke
 				overlap[i]++
 			}
 		}
-		rp := models.RunPull{KeyPull: m.KeyPull, ClockMS: pullStart(track.Pulls, m.KeyPull), Enemies: m.Enemies, Forces: forces,
-			Pct: share(forces, facts.Forces.Total), Plan: -1, State: models.RunOff}
+		rp := models.RunPull{KeyPull: m.KeyPull, ClockMS: pullStart(track.Pulls, m.KeyPull), Enemies: m.Enemies,
+			Forces: forces, Pct: share(forces, facts.Forces.Total), Plan: -1, State: models.RunOff}
 		for _, i := range slices.Sorted(maps.Keys(overlap)) {
 			if rp.Plan < 0 || overlap[i] > overlap[rp.Plan] {
 				rp.Plan = i
@@ -351,7 +351,8 @@ func markPulls(p *models.RouteProgress, route models.RouteView, facts models.Dun
 // keyPullAt is the key pull (an index in pulls) a mob dying at clockMS died in: the last one started by then, -1 before
 // the first.
 func keyPullAt(pulls []models.PullSpan, clockMS int64) int {
-	i, _ := slices.BinarySearchFunc(pulls, clockMS+1, func(p models.PullSpan, t int64) int { return cmp.Compare(p.StartMS, t) })
+	i, _ := slices.BinarySearchFunc(pulls, clockMS+1,
+		func(p models.PullSpan, t int64) int { return cmp.Compare(p.StartMS, t) })
 	return i - 1
 }
 

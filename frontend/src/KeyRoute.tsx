@@ -5,13 +5,13 @@ import {
   type KeyTrack,
   type KeyView,
   type RouteCompare,
-  type RouteView,
   type RunPull,
 } from './api'
 import { counted } from './format'
 import { RouteMap } from './RouteMap'
 import { enemyKey, PULL_COLORS, pullMobs, recordKeyRoute, useDungeonMap, useMobs } from './routes'
 import { When, type Seeker } from './Seek'
+import { useFetched } from './useFetched'
 
 /** How a pull of the key sits against the plan, in words. */
 function runLabel(p: RunPull): string {
@@ -21,7 +21,8 @@ function runLabel(p: RunPull): string {
   return `Plan pull ${p.plan + 1}: ${differences.join(', ')}`
 }
 
-/** Makes a route of the pulls the key made (a new route, the dungeon's starred one when it has none), then reports it. */
+/** Makes a route of the pulls the key made (a new route, the dungeon's starred one when it has none), then reports
+ * it. */
 function RecordRoute({ keyView: key, onRecorded }: { keyView: KeyView; onRecorded: () => void }) {
   const [state, setState] = useState<'idle' | 'busy' | string>('idle')
   const record = async () => {
@@ -51,24 +52,20 @@ function RecordRoute({ keyView: key, onRecorded }: { keyView: KeyView; onRecorde
  * then the kills off the route and the route pulls not pulled. With seek, a time moves the replay. A running key's
  * comparison is read again as its track changes (a null track, not at all). */
 export function KeyRoute({ keyView: key, track, seek }: { keyView: KeyView; track: KeyTrack | null; seek?: Seeker }) {
-  const [routes, setRoutes] = useState<RouteView[]>([])
   const [id, setID] = useState<string>()
   const [compare, setCompare] = useState<RouteCompare | null>()
   const [error, setError] = useState('')
   const [fetched, setFetched] = useState(0) // up one when a route is recorded, to read the comparison again
+  const routes = useFetched(String(key.mapID), (signal) => fetchRoutes(key.mapID, signal)).data ?? []
   const dungeon = useDungeonMap(key.mapID)
   const mobs = useMobs(key.mapID, key.level, '')
   const byNPC = useMemo(() => new Map(mobs?.mobs.map((m) => [m.npc, m])), [mobs])
   const mine = useMemo(
-    () => (compare?.run.pulls ?? []).map((p, i) => ({ color: PULL_COLORS[i % PULL_COLORS.length], enemies: p.enemies })),
+    () =>
+      (compare?.run.pulls ?? []).map((p, i) => ({ color: PULL_COLORS[i % PULL_COLORS.length], enemies: p.enemies })),
     [compare],
   )
   const enemyByKey = useMemo(() => new Map(dungeon?.enemies.map((e) => [enemyKey(e), e])), [dungeon])
-  useEffect(() => {
-    const controller = new AbortController()
-    fetchRoutes(key.mapID, controller.signal).then(setRoutes, () => undefined)
-    return () => controller.abort()
-  }, [key.mapID])
   useEffect(() => {
     const controller = new AbortController()
     fetchKeyRoute(key.start, id, controller.signal).then(
@@ -84,8 +81,8 @@ export function KeyRoute({ keyView: key, track, seek }: { keyView: KeyView; trac
     return (
       <>
         <p className="muted">
-          No route for {key.dungeon} yet: import one from Mythic Dungeon Tools on the Routes tab, or record one from this
-          key.
+          No route for {key.dungeon} yet: import one from Mythic Dungeon Tools on the Routes tab, or record one from
+          this key.
         </p>
         <RecordRoute keyView={key} onRecorded={() => setFetched((n) => n + 1)} />
       </>
@@ -139,7 +136,13 @@ export function KeyRoute({ keyView: key, track, seek }: { keyView: KeyView; trac
       {showRun ? (
         <>
           <div className="route-view">
-            <RouteMap mapID={route.mapID} dungeon={dungeon} pulls={mine} ghost={route.pulls} drawings={route.drawings} />
+            <RouteMap
+              mapID={route.mapID}
+              dungeon={dungeon}
+              pulls={mine}
+              ghost={route.pulls}
+              drawings={route.drawings}
+            />
             <ol className="route-pulls">
               <li className="muted small">
                 <span>Pull</span>
@@ -233,8 +236,8 @@ export function KeyRoute({ keyView: key, track, seek }: { keyView: KeyView; trac
               </ul>
               {compare.skipped.length > 0 && (
                 <p className="muted">
-                  {key.status === 'running' ? 'Not pulled yet' : 'Skipped'}: pull{compare.skipped.length > 1 && 's'}{' '}
-                  {compare.skipped.map((i) => i + 1).join(', ')}
+                  {key.status === 'running' ? 'Not pulled yet' : 'Skipped'}: pull
+                  {compare.skipped.length > 1 && 's'} {compare.skipped.map((i) => i + 1).join(', ')}
                 </p>
               )}
             </>

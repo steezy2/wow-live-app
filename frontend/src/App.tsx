@@ -7,11 +7,10 @@ import {
   onAppEvent,
   savedSettings,
   saveSettings,
-  subscribe,
   type Character,
-  type KeyView,
   type Settings,
   type SettingsView,
+  type FightKind,
 } from './api'
 import { CharacterPicker } from './CharacterPicker'
 import { Home } from './Home'
@@ -24,8 +23,8 @@ import { SavedKeys } from './SavedKeys'
 import { SettingsPage } from './SettingsPage'
 import { Sim } from './Sim'
 import { Skeleton } from './Skeleton'
+import { useSaved } from './useSaved'
 
-import { errorText } from './format'
 
 /** The longest the splash stays up waiting for the settings and the characters. */
 const SPLASH_MAX_MS = 2000
@@ -45,10 +44,11 @@ function Splash() {
   return <div className="splash" role="status">WoW Live</div>
 }
 
-/** The site: its sections along the top (Home, M+ Live, Routes, Raid, Recap, and Sim and Settings in the desktop app) and the character
- * picker, whose pick (Settings' character at first, else all) the saved keys, raid nights and recap show; M+ Live has
- * the saved keys on the side and the live key or the one picked from them. The app shows a splash until the settings and
- * characters are read (at most SPLASH_MAX_MS), then opens on Home on the first run, or on Settings when it can't find the log folder. */
+/** The site: its sections along the top (Home, M+ Live, Routes, Raid, Recap, and Sim and Settings in the desktop app)
+ * and the character picker, whose pick (Settings' character at first, else all) the saved keys, raid nights and
+ * recap show; M+ Live has the saved keys on the side and the live key or the one picked from them. The app shows a splash until
+ * the settings and characters are read (at most SPLASH_MAX_MS), then opens on Home on the first run, or on Settings
+ * when it can't find the log folder. */
 export default function App() {
   const [selected, setSelected] = useState<number | null>(null)
   const [refresh, setRefresh] = useState(0)
@@ -56,11 +56,13 @@ export default function App() {
   const [settings, setSettings] = useState<SettingsView | null>(null)
   const [picking, setSection] = useState<Section | null>(null) // null until a tab is clicked or the first one is chosen
   const [charactersRead, setCharactersRead] = useState(false)
-  const [savedKeys, setSavedKeys] = useState<number | null>(null) // how many keys are saved, for the first section and the guide
+  // how many keys are saved, for the first section and the guide
+  const [savedKeys, setSavedKeys] = useState<number | null>(null)
   const [reopened, setReopened] = useState(false) // the setup guide was reopened from Settings
   const [anchor, setAnchor] = useState<string | undefined>() // the Settings panel to scroll to
   const [splashOver, setSplashOver] = useState(false)
-  const [settingsRead, setSettingsRead] = useState(false) // the settings answered, or there are none (the site without the app)
+  // the settings answered, or there are none (the site without the app)
+  const [settingsRead, setSettingsRead] = useState(false)
   const [first, setFirst] = useState<Section | null>(null) // the section opened on, chosen once
   // the Routes page stays mounted so unsaved edits survive a tab switch
   const [routesSeen, setRoutesSeen] = useState(false)
@@ -72,7 +74,8 @@ export default function App() {
   const ready = (settingsRead && charactersRead && savedKeys !== null) || splashOver
   const section = picking ?? first
   if (section === 'routes' && !routesSeen) setRoutesSeen(true)
-  if (ready && first === null) setFirst(firstSection(settings, savedKeys)) // chosen once, so later changes never move the page
+  // chosen once, so later changes never move the page
+  if (ready && first === null) setFirst(firstSection(settings, savedKeys))
   useEffect(() => {
     const timer = setTimeout(() => setSplashOver(true), SPLASH_MAX_MS)
     return () => clearTimeout(timer)
@@ -84,7 +87,8 @@ export default function App() {
       .then(setCharacters, () => undefined)
       .then(() => setCharactersRead(true))
     return () => controller.abort()
-  }, [settingsRead, splashOver, preferred, refresh, section]) // a section opened again may follow a raid pull or Read old logs
+    // a section opened again may follow a raid pull or Read old logs
+  }, [settingsRead, splashOver, preferred, refresh, section])
   useEffect(() => {
     const controller = new AbortController()
     fetchSavedKeys('', controller.signal).then((keys) => setSavedKeys(keys.length), () => undefined)
@@ -123,7 +127,7 @@ export default function App() {
       setRaidPull(null)
     },
   })
-  const open = (kind: 'mplus' | 'raid', start: number) => {
+  const open = (kind: FightKind, start: number) => {
     if (kind === 'raid') setRaidPull(start)
     else setSelected(start)
     setSection(kind)
@@ -189,7 +193,11 @@ export default function App() {
         <div className="layout">
           <SavedKeys selected={selected} onSelect={setSelected} refresh={refresh} character={character} />
           <main className="page">
-            {selected === null ? <MPlusLive onEnded={keyEnded} character={character} onOpen={setSelected} /> : <SavedKey start={selected} />}
+            {selected === null ? (
+              <MPlusLive onEnded={keyEnded} character={character} onOpen={setSelected} />
+            ) : (
+              <SavedKey start={selected} />
+            )}
           </main>
         </div>
       )}
@@ -197,24 +205,10 @@ export default function App() {
   )
 }
 
-/** A saved key, read again when the saved keys change (a report linked to it, say). */
+/** A saved key. */
 function SavedKey({ start }: { start: number }) {
-  const [key, setKey] = useState<KeyView | null>(null) // the previous key stays up, dimmed, while this one is read
-  const [error, setError] = useState<string | null>(null)
-  useEffect(() => {
-    const controller = new AbortController()
-    const read = () =>
-      fetchSavedKey(start, controller.signal)
-        .then(setKey)
-        .catch((err: unknown) => {
-          if (!controller.signal.aborted) setError(errorText(err))
-        })
-    const off = subscribe(() => void read())
-    return () => {
-      controller.abort()
-      off()
-    }
-  }, [start])
+  // the previous key stays up, dimmed, while this one is read
+  const { data: key, error } = useSaved(start, fetchSavedKey)
   if (error) return <p className="warning">{error}</p>
   if (!key) return <Skeleton height={480} />
   return (

@@ -283,7 +283,7 @@ function DeathsDrill({ keyView: key, onBack }: { keyView: KeyView; onBack: () =>
         )
       ) : (
         <ul className="list">
-          {[...key.deaths].reverse().map((d, i) => (
+          {key.deaths.toReversed().map((d, i) => (
             <li key={i}>
               <button className="row-button" onClick={() => setPicked(d)}>
                 {deathText(d)}

@@ -2,7 +2,6 @@ package service
 
 import (
 	"errors"
-	"fmt"
 	"io/fs"
 	"slices"
 	"strconv"
@@ -159,28 +158,17 @@ func pullSummary(p models.RaidPull) models.RaidPullSummary {
 // savePulls saves the raid pulls that ended since the last call, keeping the failed ones for the next (saveQueued),
 // so RaidTrack always finds a pull's track.
 func (k *LogTracker) savePulls() error {
-	return saveQueued(&k.mu, &k.unsavedPulls, func(p savedPull) error {
-		skip, err := keepLocal(&k.mu, &k.pulls, p.pull, samePull, func(pull models.RaidPull) bool { return pull.Imported },
-			func(pull models.RaidPull) int64 { return pull.Start }, k.raid.store.DeletePull)
-		if skip || err != nil {
-			return err
-		}
-		err = k.raid.store.SavePull(p.pull)
-		if err == nil {
-			err = k.raid.store.SaveTrack(p.pull.Start, p.track)
-		}
-		if err != nil {
-			return fmt.Errorf("saving the %s pull (retried after the next read): %w", p.pull.Boss, err)
-		}
-		return nil
-	})
+	_, err := saveFights(&k.mu, &k.unsavedPulls, &k.pulls, k.raid.store, samePull,
+		func(p models.RaidPull) string { return p.Boss + " pull" })
+	return err
 }
 
 // RaidTrack is a raid pull's replay track by its start time: one waiting to be saved or a saved
 // one's; ErrNoSuchPull when there's none.
 func (k *LogTracker) RaidTrack(start int64) (models.KeyTrack, error) {
 	k.mu.RLock()
-	if i := slices.IndexFunc(k.unsavedPulls, func(p savedPull) bool { return p.pull.Start == start }); i >= 0 {
+	if i := slices.IndexFunc(k.unsavedPulls,
+		func(p savedFight[models.RaidPull]) bool { return p.fight.Start == start }); i >= 0 {
 		defer k.mu.RUnlock()
 		return k.unsavedPulls[i].track, nil
 	}

@@ -18,8 +18,6 @@ const (
 	keyCountdownMS = 9_000
 	// deathPenaltyMS is the time each death adds to the key's clock.
 	deathPenaltyMS = 15_000
-	// keyDifficulty is the Mythic+ difficulty in the combat log's ENCOUNTER lines.
-	keyDifficulty = "8"
 	// plus2Share and plus3Share: a key upgrades by two or three levels when done in this share of its timer.
 	plus2Share = 0.8
 	plus3Share = 0.6
@@ -73,7 +71,7 @@ type LogTracker struct {
 	realms       map[string]string              // player GUID -> realm
 	up           map[[2]string]int64            // (player GUID, defensive) -> when the buff went up, in a key or not
 	history      []models.Key                   // saved keys, newest first
-	unsaved      []savedRun
+	unsaved      []savedFight[models.Key]
 	lastTrack    *models.KeyTrack
 	current      *keyRun
 	left         *keyRun          // a key Abandon closed, taken up again if the log goes on in it for resumeMS
@@ -85,7 +83,7 @@ type LogTracker struct {
 	lastAt       int64              // the time of the last line read before the one being read
 	raid         *raidSetup         // nil until EnableRaid: raid pulls aren't read
 	pulls        []models.RaidPull  // finished raid pulls, newest first
-	unsavedPulls []savedPull
+	unsavedPulls []savedFight[models.RaidPull]
 	source       *models.ReportLink // the Warcraft Logs fight the lines come from (SetSource), nil for the game's log
 	renames      int                // goes up whenever a player GUID's name changes, so keepPull marks the new name
 }
@@ -175,9 +173,11 @@ func NewLogTracker(timers map[int]int64, affixes map[int]string, rules models.MP
 		}
 	}
 	c := rules.Consumables
-	return &LogTracker{timers: timers, affixes: affixes, rules: rules, kinds: kinds, facts: facts, mobSpells: mobSpells, store: store,
-		history: history, everyday: map[string]consumable{"flask": {patterns: c.Flask}, "food": {patterns: c.Food}},
-		spells: map[int]string{}, spellIDs: map[string]int{}, schools: map[string]int{"Melee": physicalSchool}, specs: map[string]int{}, talents: map[string][]models.TalentPick{},
+	return &LogTracker{timers: timers, affixes: affixes, rules: rules, kinds: kinds, facts: facts, mobSpells: mobSpells,
+		store: store, history: history,
+		everyday: map[string]consumable{"flask": {patterns: c.Flask}, "food": {patterns: c.Food}},
+		spells:   map[int]string{}, spellIDs: map[string]int{}, schools: map[string]int{"Melee": physicalSchool},
+		specs: map[string]int{}, talents: map[string][]models.TalentPick{},
 		owners: map[string]string{}, names: map[string]string{}, realms: map[string]string{},
 		up: map[[2]string]int64{}, top: map[[2]int][]int64{}, asked: map[[2]int]bool{}}, nil
 }
@@ -197,6 +197,8 @@ func (k *LogTracker) Reload() error {
 	}
 	k.mu.Lock()
 	defer k.mu.Unlock()
+	// A key or pull that ended since the lists were read isn't saved yet; the fresh lists don't have it.
+	history, pulls = withUnsaved(history, k.unsaved), withUnsaved(pulls, k.unsavedPulls)
 	k.history, k.pulls = history, pulls
 	k.version++
 	return nil
@@ -227,7 +229,8 @@ func (k *LogTracker) Add(line models.LogLine) {
 func (k *LogTracker) add(line models.LogLine) {
 	defer func() { k.lastAt = line.Time }()
 	f := line.Fields
-	if k.current != nil && k.current.raid == nil || line.Event == "CHALLENGE_MODE_START" { // a raid pull bumps at its start and end
+	// a raid pull bumps at its start and end
+	if k.current != nil && k.current.raid == nil || line.Event == "CHALLENGE_MODE_START" {
 		k.version++
 	}
 	if run := k.current; run != nil && run.raid != nil && line.Time-k.lastAt > quietMS {
@@ -250,7 +253,8 @@ func (k *LogTracker) add(line models.LogLine) {
 	if run != nil {
 		k.finishBigHits(run, line.Time, false)
 	}
-	if run == nil && line.Event == "ENCOUNTER_START" && k.raid != nil && len(f) >= 5 && raidDifficulties[f[2]] != "" {
+	if run == nil && line.Event == "ENCOUNTER_START" && k.raid != nil && len(f) >= 5 &&
+		models.RaidDifficultyByLogID(f[2]).Name != "" {
 		k.startPull(line)
 		return
 	}
@@ -375,7 +379,7 @@ func (k *LogTracker) learn(at int64, event string, f []string) {
 				k.names[f[i]], k.realms[f[i]] = name, realm
 				k.renames++
 			}
-			if hasFlag(f[i+2], mineFlag) {
+			if hasFlag(f[i+2], models.FlagMine) {
 				k.logger = f[i]
 			}
 		}
@@ -445,7 +449,8 @@ func newRun(key models.Key, instance string) *keyRun {
 		track: models.KeyTrack{Players: map[string][]models.TrackPoint{}, Deaths: []models.TrackPoint{},
 			Meters: map[string][]models.MeterPoint{}, Bosses: map[string][]models.TrackPoint{},
 			Mobs: map[string]models.MobTrail{}},
-		auras: map[string][]int{}, gear: map[string][]int{}, total: map[string]*models.KeyMeterRow{}, inPull: map[string]*models.KeyMeterRow{},
+		auras: map[string][]int{}, gear: map[string][]int{}, total: map[string]*models.KeyMeterRow{},
+		inPull:    map[string]*models.KeyMeterRow{},
 		abilities: map[[2]string]*models.KeyAbility{}, takenBy: map[[2]string]int64{},
 		takenAt: map[int64]map[[2]string]*models.SpikeCause{}, hits: newHitWatch(),
 		sample: abilitySampler{every: mplusAbilityEveryMS, abilitiesWere: map[[2]string]models.KeyAbility{},
@@ -497,15 +502,8 @@ func (k *LogTracker) closeCurrent(at int64, status string, final int64) {
 		return
 	}
 	// A restart reads the log again, so a key already saved replaces its copy instead of adding a second.
-	if i := slices.IndexFunc(k.history, func(h models.Key) bool {
-		return h.Start == key.Start && h.Imported == key.Imported
-	}); i >= 0 {
-		key.Report = cmp.Or(key.Report, k.history[i].Report) // a report linked since stays
-		k.history[i] = key
-	} else {
-		k.history = append([]models.Key{key}, k.history...)
-	}
-	k.unsaved = append(k.unsaved, savedRun{key, track})
+	upsert(&k.history, key)
+	k.unsaved = append(k.unsaved, savedFight[models.Key]{key, track})
 }
 
 // death records a player dying, killed by the last thing that hit them (absorbed hits too, as Warcraft Logs counts).
@@ -531,7 +529,7 @@ func (k *LogTracker) kill(at int64, f []string) {
 	run, guid := k.current, f[4]
 	npc := npcOf(guid)
 	count, listed := run.facts.Forces.NPCs[npc]
-	if !listed && npc != 0 && hasFlag(f[6], hostileFlag) && !slices.Contains(run.facts.Bosses, npc) {
+	if !listed && npc != 0 && hasFlag(f[6], models.FlagHostile) && !slices.Contains(run.facts.Bosses, npc) {
 		u := run.uncounted[npc]
 		if u == nil {
 			u = &models.UncountedNPC{NPC: npc, Name: f[5]}
@@ -622,7 +620,7 @@ func (k *LogTracker) event(at int64, event string, f []string) {
 		}
 	case "SPELL_DISPEL", "SPELL_STOLEN":
 		if src != "" {
-			ally := hasFlag(f[6], friendlyFlag)
+			ally := hasFlag(f[6], models.FlagFriendly)
 			k.tally(src, func(r *models.KeyMeterRow) {
 				if ally {
 					r.Dispels++
@@ -639,7 +637,7 @@ func (k *LogTracker) event(at int64, event string, f []string) {
 		"SPELL_PERIODIC_MISSED", "SWING_MISSED", "RANGE_MISSED":
 		k.damage(at, event, f, src, dst)
 	case "SWING_DAMAGE_LANDED": // a swing's second line, which its support lines follow in the game's log
-		if src != "" && hasFlag(f[6], hostileFlag) {
+		if src != "" && hasFlag(f[6], models.FlagHostile) {
 			run.lastDealt = [2]string{f[0], "Melee"}
 		}
 	case "SPELL_DAMAGE_SUPPORT", "SPELL_PERIODIC_DAMAGE_SUPPORT", "RANGE_DAMAGE_SUPPORT", "SWING_DAMAGE_LANDED_SUPPORT":
@@ -700,15 +698,15 @@ func (k *LogTracker) damage(at int64, event string, f []string, src, dst string)
 	if strings.HasPrefix(f[4], "Player-") {
 		run.recent[f[4]] = hitAt{ability: ability, source: source}
 	}
-	dealt := src != "" && hasFlag(f[6], hostileFlag)
-	if dealt || (dst != "" && hasFlag(f[2], hostileFlag)) {
+	dealt := src != "" && hasFlag(f[6], models.FlagHostile)
+	if dealt || (dst != "" && hasFlag(f[2], models.FlagHostile)) {
 		k.keepPull(at)
 	}
 	if dealt {
 		k.deal(at, f, src, ability, amount).Hits++
 		run.lastDealt = [2]string{f[0], ability}
 	}
-	if hasFlag(f[6], friendlyFlag) && slices.Contains(run.party, f[4]) {
+	if hasFlag(f[6], models.FlagFriendly) && slices.Contains(run.party, f[4]) {
 		avoidable := event == "SPELL_DAMAGE" && run.facts != nil && slices.Contains(run.facts.Avoidable, atoi(f[8]))
 		name := k.names[f[4]]
 		if run.taken[name] == nil {
@@ -748,8 +746,9 @@ func (k *LogTracker) deal(at int64, f []string, player, ability string, amount i
 
 // support moves an Augmentation Evoker's share of a party member's hit on an enemy from that member (src, the
 // line's source or its owner) to the Evoker (the line's last field), as Warcraft Logs and Details credit it: the
-// game logs it right after the hit (a swing's after its SWING_DAMAGE_LANDED line), with the buff (Ebon Might, Prescience...) as the spell, which names the Evoker's
-// row. The enemy's damage taken stays as the hit counted it. An Evoker outside the group changes nothing.
+// game logs it right after the hit (a swing's after its SWING_DAMAGE_LANDED line), with the buff (Ebon Might,
+// Prescience...) as the spell, which names the Evoker's row. The enemy's damage taken stays as the hit counted it. An
+// Evoker outside the group changes nothing.
 func (k *LogTracker) support(at int64, f []string, src string) {
 	run, evoker := k.current, f[len(f)-1]
 	if !slices.Contains(run.party, evoker) || run.lastDealt[0] != f[0] { // lastDealt: a party hit on an enemy
@@ -851,7 +850,7 @@ func (k *LogTracker) player(guid, flags string) string {
 	if owner, ok := k.owners[guid]; ok {
 		guid = owner
 	}
-	if hasFlag(flags, friendlyFlag) && slices.Contains(k.current.party, guid) {
+	if hasFlag(flags, models.FlagFriendly) && slices.Contains(k.current.party, guid) {
 		return k.names[guid]
 	}
 	return ""

@@ -3,7 +3,8 @@ import { NoteLine } from './NoteLine'
 import { track, useNote } from './note'
 import { tip } from './tipAttrs'
 
-/** The tag on a key or raid pull that is a Warcraft Logs fight (imported, or matched to a report): it opens it there. */
+/** The tag on a key or raid pull that is a Warcraft Logs fight (imported, or matched to a report): it opens it
+ * there. */
 export function ReportTag({ link, imported }: { link: ReportLink; imported?: boolean }) {
   const title = imported ? 'Imported from Warcraft Logs: open the fight' : 'On Warcraft Logs: open the fight'
   return (

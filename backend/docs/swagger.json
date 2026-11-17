@@ -1,7 +1,7 @@
 {
     "swagger": "2.0",
     "info": {
-        "description": "The site's API: the live Mythic+ key read from the combat log.",
+        "description": "The site's API: the live Mythic+ key and raid pull read from the combat log, their saved keys and pulls and reviews, planned routes, the recap, and the settings.",
         "title": "WoW Live API",
         "contact": {},
         "version": "1"
@@ -2703,8 +2703,7 @@
                     "items": {
                         "type": "array",
                         "items": {
-                            "type": "integer",
-                            "format": "int64"
+                            "type": "integer"
                         }
                     }
                 }
@@ -2960,8 +2959,7 @@
                     "items": {
                         "type": "array",
                         "items": {
-                            "type": "number",
-                            "format": "float64"
+                            "type": "number"
                         }
                     }
                 },
@@ -3744,8 +3742,7 @@
                     "description": "TopBosses is how long each boss took in the similar top runs (the median, by boss name; missing in reviews\nsaved before Nov 11).",
                     "type": "object",
                     "additionalProperties": {
-                        "type": "integer",
-                        "format": "int64"
+                        "type": "integer"
                     }
                 }
             }
@@ -4053,8 +4050,7 @@
                     "description": "Activity is each player's share of their time alive in pulls with a cast going or a hit landing (in %).",
                     "type": "object",
                     "additionalProperties": {
-                        "type": "number",
-                        "format": "float64"
+                        "type": "number"
                     }
                 },
                 "affixes": {
@@ -4073,8 +4069,7 @@
                 "bestBosses": {
                     "type": "object",
                     "additionalProperties": {
-                        "type": "integer",
-                        "format": "int64"
+                        "type": "integer"
                     }
                 },
                 "bestFinalMS": {
@@ -4555,8 +4550,7 @@
                     "items": {
                         "type": "array",
                         "items": {
-                            "type": "number",
-                            "format": "float64"
+                            "type": "number"
                         }
                     }
                 }
@@ -4995,8 +4989,7 @@
                 "activity": {
                     "type": "object",
                     "additionalProperties": {
-                        "type": "number",
-                        "format": "float64"
+                        "type": "number"
                     }
                 },
                 "adds": {

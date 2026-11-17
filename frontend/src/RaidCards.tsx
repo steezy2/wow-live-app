@@ -38,7 +38,8 @@ interface CardProps {
 
 /** The deaths before the wipe: when (a click shows it in the replay), who, to what and what covered it, each opening
  * its recap once the track is read; then each mass kill. */
-export const EarlyDeaths = memo(function EarlyDeaths({ pull, track, classes, onSeek, onFocus }: CardProps & { track: KeyTrack | null }) {
+export const EarlyDeaths = memo(function EarlyDeaths(props: CardProps & { track: KeyTrack | null }) {
+  const { pull, track, classes, onSeek, onFocus } = props
   const early = pull.deaths.filter((d) => d.early)
   return (
     <section className="panel">
@@ -233,7 +234,8 @@ export const Mechanics = memo(function Mechanics({ pull, classes, onSeek, onFocu
                     </summary>
                     {all.map((m, j) => (
                       <div key={j} className={`small${m.bad ? ' bad' : ''}`}>
-                        {m.at !== undefined && <At ms={m.at} onSeek={onSeek} />} <span className="muted">{m.detail}</span>
+                        {m.at !== undefined && <At ms={m.at} onSeek={onSeek} />}{' '}
+                        <span className="muted">{m.detail}</span>
                       </div>
                     ))}
                   </details>

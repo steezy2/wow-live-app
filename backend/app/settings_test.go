@@ -16,12 +16,19 @@ func TestSettingsFromAnOlderFileKeepDefaultsAndPlacesSurviveASave(t *testing.T) 
 	}
 	// no columns read as the default ones
 	overlay := models.OverlaySettings{Show: "keys", Opacity: 100, Columns: []string{"dps", "hps", "kicks"}}
-	s, err := LoadSettings(path, models.Settings{Region: "us", Overlay: models.OverlaySettings{Show: "keys", Opacity: 100}})
+	s, err := LoadSettings(path, models.Settings{Region: "us",
+		Overlay: models.OverlaySettings{Show: "keys", Opacity: 100}})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if got := s.Current(); got.Region != "eu" || !reflect.DeepEqual(got.Overlay, overlay) {
 		t.Fatalf("loaded %+v, want region eu and the default overlay", got)
+	}
+	if err := os.WriteFile(path, []byte(`{"overlay": {"columns": []}}`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if empty, err := LoadSettings(path, models.Settings{}); err != nil || len(empty.Current().Overlay.Columns) != 0 {
+		t.Fatalf("an empty column list was chosen: %+v, %v", empty.Current().Overlay.Columns, err)
 	}
 	place := Place{X: 10, Y: 20, W: 420, H: 340}
 	if err := s.SavePlace("overlay", place); err != nil {

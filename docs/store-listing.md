@@ -1,7 +1,7 @@
 # Microsoft Store listing
 
 The text and images for the Store page (Partner Center > WoW Live > Store listings > English). This file is the one
-source of truth for them: change it here, then paste into Partner Center with the next submission. Matches 0.4.3, plus the route editor (CHANGELOG [Unreleased]).
+source of truth for them: change it here, then paste into Partner Center with the next submission. Matches 0.4.7.
 
 Rules for the copy: lead with what the player gets, not how it works; say "M+" and "raid" in the first two lines
 (that's all the page shows before *Read more*); no Blizzard logos, art or class icons; no claim the app doesn't make.

@@ -83,7 +83,13 @@ function enemyHealth(track: KeyTrack, guid: string, now: number): number | undef
 
 /** A caster at the replay's moment: their health as a bar, what they're casting (with how far along) and their last
  * few casts, newest first, under their name in its colour. Nothing for a track without casts or health. */
-function CastBox(props: { title: string; color: string; casts: TrackCast[] | undefined; hp: number | undefined; now: number }) {
+function CastBox(props: {
+  title: string
+  color: string
+  casts: TrackCast[] | undefined
+  hp: number | undefined
+  now: number
+}) {
   const { title, color, casts, hp, now } = props
   if (!casts && hp === undefined) return null
   const started = (casts ?? []).filter((c) => c.t <= now)
@@ -137,8 +143,8 @@ function TakenBox({ taken }: { taken: AbilitiesUpTo['taken'] }) {
   )
 }
 
-/** What each player has done to the picked enemy (every enemy of its name) up to the replay's moment, the TAKEN_BOX_ROWS
- * who did the most, in their class's colour. Nothing before anyone hit it. */
+/** What each player has done to the picked enemy (every enemy of its name) up to the replay's moment, the
+ * TAKEN_BOX_ROWS who did the most, in their class's colour. Nothing before anyone hit it. */
 function EnemyDamageBox({ track, name, now }: { track: KeyTrack; name: string; now: number }) {
   const top = damageIntoEnemy(track, name, now).slice(0, TAKEN_BOX_ROWS)
   if (top.length === 0) return null

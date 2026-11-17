@@ -55,7 +55,10 @@ export function SettingsPage({
     )
       return
     const timer = setTimeout(() => {
-      const call = saveSettings({ ...savedSettings(view), overlay: { ...overlay, clickThrough: view.overlay.clickThrough } })
+      const call = saveSettings({
+        ...savedSettings(view),
+        overlay: { ...overlay, clickThrough: view.overlay.clickThrough },
+      })
       track(call, setOverlayNote, 'Saving…', () => 'Saved').then(onSaved, () => undefined)
     }, OVERLAY_SAVE_MS)
     return () => clearTimeout(timer)

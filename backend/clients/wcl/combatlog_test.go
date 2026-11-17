@@ -96,7 +96,7 @@ func TestImportFightResumesFromTheCachedPagesAfterARateLimit(t *testing.T) {
 }
 
 func TestAConvertedFightSavesTheKeyItWas(t *testing.T) {
-	store := keystore.Store{Dir: t.TempDir()}
+	store := keystore.NewStore(t.TempDir())
 	keys, err := service.NewLogTracker(nil, nil, models.MPlusRules{}, nil, store)
 	if err != nil {
 		t.Fatal(err)
@@ -135,7 +135,8 @@ func TestAConvertedFightSavesTheKeyItWas(t *testing.T) {
 	// Testmage's buffs added as an Evoker (Warcraft Logs' support heal and absorb events).
 	mage, priest := meter["Testmage"], meter["Testpriest"]
 	if mage.Damage != 1500 || mage.Interrupts != 1 || mage.Purges != 1 || priest.Damage != 250 ||
-		priest.Healing != 820 || mage.Healing != 130 || priest.Dispels != 1 || priest.DamageTaken != 9000 || mage.DamageTaken != 300 {
+		priest.Healing != 820 || mage.Healing != 130 || priest.Dispels != 1 || priest.DamageTaken != 9000 ||
+		mage.DamageTaken != 300 {
 		t.Fatalf("meter = %+v", meter)
 	}
 }
@@ -149,7 +150,8 @@ func TestEventsReadAmountsSentWithAFraction(t *testing.T) {
 }
 
 func TestDungeonOfFallsBackToTheInstanceForAKeyNamedByItsBosses(t *testing.T) {
-	dungeons := map[int]models.DungeonFacts{776: {Name: "Facts Without Instance"}, 777: {Name: "Test Hollow", InstanceID: 999},
+	dungeons := map[int]models.DungeonFacts{776: {Name: "Facts Without Instance"},
+		777: {Name: "Test Hollow", InstanceID: 999},
 		778: {Name: "Other Hollow", InstanceID: 1877}}
 	for _, tc := range []struct {
 		name  string
@@ -158,7 +160,8 @@ func TestDungeonOfFallsBackToTheInstanceForAKeyNamedByItsBosses(t *testing.T) {
 	}{
 		{"by name", fightInfo{Name: "Test Hollow", EncounterID: 61877}, 777},
 		{"by zone", fightInfo{Name: "Boss One / Boss Two / ... ", GameZone: idName{ID: 1877}}, 778},
-		{"by the encounter ID when the zone is missing", fightInfo{Name: "Boss One / Boss Two / ... ", EncounterID: 61877}, 778},
+		{"by the encounter ID when the zone is missing", fightInfo{Name: "Boss One / Boss Two / ... ", EncounterID: 61877},
+			778},
 		{"none", fightInfo{Name: "Boss One / Boss Two", EncounterID: 12813}, 0},
 		{"no instance", fightInfo{Name: "Boss One / Boss Two", EncounterID: 10000}, 0},
 	} {

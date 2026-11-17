@@ -14,7 +14,6 @@ import (
 	"log"
 	"math"
 	"net/http"
-	"os"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -300,12 +299,9 @@ func (c Client) NPCs(ctx context.Context) (map[int]models.DungeonMob, error) {
 func (c Client) getJSON(ctx context.Context, file string, out any) error {
 	url := cmp.Or(c.Raw, "https://raw.githubusercontent.com") + "/" + Repo + "/master/database/seeders/dungeondata/" + file
 	path := filepath.Join(c.CacheDir, file)
-	if err := cachefile.Fresh(ctx, c.HTTP, url, path, dataMaxAge); err != nil {
-		return fmt.Errorf("Keystone.guru %s: %w", file, err)
-	}
-	data, err := os.ReadFile(path)
+	data, err := cachefile.Fresh(ctx, c.HTTP, url, path, dataMaxAge)
 	if err != nil {
-		return fmt.Errorf("reading %s: %w", path, err)
+		return fmt.Errorf("Keystone.guru %s: %w", file, err)
 	}
 	if err := json.Unmarshal(data, out); err != nil {
 		return fmt.Errorf("reading Keystone.guru's %s: %w", file, err)
@@ -318,12 +314,9 @@ func (c Client) Tile(ctx context.Context, tiles string, x, y int) ([]byte, error
 	name := fmt.Sprintf("%d_%d.webp", x, y)
 	path := filepath.Join(c.CacheDir, "tiles", filepath.FromSlash(tiles), name)
 	url := fmt.Sprintf("%s/tiles_webp/%s/%d/%s", cmp.Or(c.Assets, "https://assets.keystone.guru"), tiles, zoom, name)
-	if err := cachefile.Fresh(ctx, c.HTTP, url, path, 100*365*24*time.Hour); err != nil {
-		return nil, fmt.Errorf("Keystone.guru tile: %w", err)
-	}
-	data, err := os.ReadFile(path)
+	data, err := cachefile.Fresh(ctx, c.HTTP, url, path, cachefile.Forever)
 	if err != nil {
-		return nil, fmt.Errorf("reading %s: %w", path, err)
+		return nil, fmt.Errorf("Keystone.guru tile: %w", err)
 	}
 	return data, nil
 }

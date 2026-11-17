@@ -91,7 +91,8 @@ func TestSpikesFindTheWorstBurst(t *testing.T) {
 			lines = append(lines, at(5, "SPELL_CAST_SUCCESS,"+shamanUnit+","+testPlayer+
 				`,33206,"Pain Suppression",0x2,`+advancedOf("Player-76-0000BBBB", "0000000000000000")))
 		}
-		lines = append(lines, fmt.Sprintf("11/4/2026 20:%02d:%02d.000-7  SPELL_DAMAGE,%s,%s,1238063,\"Light Bolt\",0x2,%s,%d,%d,-1,2,0,0,0,nil,nil,nil,ST",
+		lines = append(lines, fmt.Sprintf("11/4/2026 20:%02d:%02d.000-7  SPELL_DAMAGE,%s,%s,1238063,\"Light Bolt\",0x2,%s,"+
+			"%d,%d,-1,2,0,0,0,nil,nil,nil,ST",
 			s/60, s%60, mobUnit(1), testPlayer, advancedOf("Player-76-0000AAAA", "0000000000000000"), amount, amount))
 	}
 	fed := feed(t, keys, lines...)
