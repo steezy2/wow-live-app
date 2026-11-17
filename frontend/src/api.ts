@@ -1750,7 +1750,8 @@ function compareURL(kind: FightKind, start: number, player: string): string {
   return `/api/${path}/players/${encodeURIComponent(player)}/compare`
 }
 
-/** A piece of gear: its slot as simc names it, the name and item level the export gives, its item ID and its other numbers. */
+/** A piece of gear: its slot as simc names it, the name and item level the export gives, its item ID and its other
+ * numbers. */
 export interface SimItem {
   slot: string
   name?: string
@@ -1800,7 +1801,8 @@ export interface SimChoices {
 
 export type SimKind = 'quick' | 'topgear' | 'drops'
 
-/** A sim to start: the export is read again by the app, `equipped` and `bags` are indexes into the profile read from it. */
+/** A sim to start: the export is read again by the app, `equipped` and `bags` are indexes into the profile read from
+ * it. */
 export interface SimRequest {
   kind: SimKind
   export: string
@@ -1834,7 +1836,8 @@ export interface SimSwap {
   in?: SimItem
 }
 
-/** One gear combination (Top Gear) or drop (Droptimizer): its DPS, its gain over the equipped gear and where a drop is from. */
+/** One gear combination (Top Gear) or drop (Droptimizer): its DPS, its gain over the equipped gear and where a drop is
+ * from. */
 export interface SimCombo {
   dps: number
   dpsError: number

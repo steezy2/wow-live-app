@@ -46,9 +46,9 @@ function Splash() {
 
 /** The site: its sections along the top (Home, M+ Live, Routes, Raid, Recap, and Sim and Settings in the desktop app)
  * and the character picker, whose pick (Settings' character at first, else all) the saved keys, raid nights and
- * recap show; M+ Live has the saved keys on the side and the live key or the one picked from them. The app shows a splash until
- * the settings and characters are read (at most SPLASH_MAX_MS), then opens on Home on the first run, or on Settings
- * when it can't find the log folder. */
+ * recap show; M+ Live has the saved keys on the side and the live key or the one picked from them. The app shows a
+ * splash until the settings and characters are read (at most SPLASH_MAX_MS), then opens on Home on the first run, or
+ * on Settings when it can't find the log folder. */
 export default function App() {
   const [selected, setSelected] = useState<number | null>(null)
   const [refresh, setRefresh] = useState(0)
