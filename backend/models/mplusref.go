@@ -17,14 +17,16 @@ type DungeonFacts struct {
 	Forces     Forces         `json:"forces"`
 	Bosses     []int          `json:"bosses"`     // NPC IDs Mythic Dungeon Tools marks as bosses
 	Minibosses []int          `json:"minibosses"` // NPC IDs of trash worth at least twice the median forces count
-	MustStop   []int          `json:"mustStop"`   // the guide's important interrupts that Mythic Dungeon Tools marks interruptible
-	Avoidable  []int          `json:"avoidable"`  // the guide's Dodge, Avoid, Run Away and Hide tips
-	Soak       []int          `json:"soak"`       // the guide's Soak tips: shown, never counted as avoidable
-	Dispel     []int          `json:"dispel"`     // the guide's important dispels and Dispel tips (debuffs on players)
-	Purge      []int          `json:"purge"`      // the guide's important purges (buffs on enemies)
-	Review     []int          `json:"review"`     // interrupts the guide names that Mythic Dungeon Tools doesn't mark interruptible
-	MDTIndex   int            `json:"mdtIndex"`   // Mythic Dungeon Tools' dungeonIndex, which its routes name
-	Enemies    []RouteEnemy   `json:"enemies"`    // every enemy a route can pull, by (Index, Clone)
+	// the guide's important interrupts that Mythic Dungeon Tools marks interruptible
+	MustStop  []int `json:"mustStop"`
+	Avoidable []int `json:"avoidable"` // the guide's Dodge, Avoid, Run Away and Hide tips
+	Soak      []int `json:"soak"`      // the guide's Soak tips: shown, never counted as avoidable
+	Dispel    []int `json:"dispel"`    // the guide's important dispels and Dispel tips (debuffs on players)
+	Purge     []int `json:"purge"`     // the guide's important purges (buffs on enemies)
+	// interrupts the guide names that Mythic Dungeon Tools doesn't mark interruptible
+	Review   []int        `json:"review"`
+	MDTIndex int          `json:"mdtIndex"` // Mythic Dungeon Tools' dungeonIndex, which its routes name
+	Enemies  []RouteEnemy `json:"enemies"`  // every enemy a route can pull, by (Index, Clone)
 	// Mobs is each NPC Mythic Dungeon Tools lists, by NPC ID, health at +1 (absent in a file written before mobs).
 	Mobs map[int]DungeonMob `json:"mobs,omitempty"`
 	// Patrols is where enemies walk, from Keystone.guru (absent in a file written before patrols).

@@ -62,11 +62,8 @@ func TestTheRepoRulesFilesHaveNoUnknownKeys(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := LoadRules(root); err != nil {
-		t.Error(err)
-	}
-	if _, err := LoadRaidRules(root); err != nil {
-		t.Error(err)
+	if l, err := Load(os.DirFS(root)); err != nil || l.RefErr != nil {
+		t.Errorf("Load: %v, %v", err, l.RefErr)
 	}
 	if _, err := LoadRaidMechanics(RaidMechanicsPath(root)); err != nil {
 		t.Error(err)
@@ -94,11 +91,5 @@ at_least = 0.95
 	got := rules["Arcane Mage"].Rules
 	if len(got) != 2 || got[0].Kind != "with" || got[0].AtLeast != 0.9 || got[1].Buff != "Arcane Tempo" {
 		t.Errorf("rules = %+v, want the two Arcane Mage rules", got)
-	}
-}
-
-func TestShippedSpecRulesParse(t *testing.T) {
-	if _, err := LoadSpecRules(filepath.Join("..", "..")); err != nil {
-		t.Errorf("spec-rules.toml: %v", err)
 	}
 }

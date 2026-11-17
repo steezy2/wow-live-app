@@ -26,11 +26,13 @@ func TestSupportDamageMovesToTheEvoker(t *testing.T) {
 			[]models.KeyAbility{{Player: "Testmage", Ability: "Arcane Barrage", ID: 44425, Damage: 800, Hits: 1, School: 0x40},
 				{Player: "Testevoker", Ability: "Ebon Might", ID: 395296, Damage: 200, Hits: 1, School: 0xc}}},
 		{"an Evoker in another party", "Player-76-0000CCCC", nil, "", map[string]int64{"Testmage": 1000},
-			[]models.KeyAbility{{Player: "Testmage", Ability: "Arcane Barrage", ID: 44425, Damage: 1000, Hits: 1, School: 0x40}}},
+			[]models.KeyAbility{{Player: "Testmage", Ability: "Arcane Barrage", ID: 44425, Damage: 1000, Hits: 1,
+				School: 0x40}}},
 		{"not after its hit", "Player-76-0000BBBB", []string{at(3, `DAMAGE_SHIELD,`+testPlayer+`,`+mobUnit(3)+
 			`,17,"Thorns",0x8,`+advancedOf(boss, "0000000000000000")+`,5,5,-1,8,0,0,0,nil,nil,nil`)}, "",
 			map[string]int64{"Testmage": 1000},
-			[]models.KeyAbility{{Player: "Testmage", Ability: "Arcane Barrage", ID: 44425, Damage: 1000, Hits: 1, School: 0x40}}},
+			[]models.KeyAbility{{Player: "Testmage", Ability: "Arcane Barrage", ID: 44425, Damage: 1000, Hits: 1,
+				School: 0x40}}},
 		{"a swing, whose support follows SWING_DAMAGE_LANDED", "Player-76-0000BBBB", []string{
 			at(3, `SWING_DAMAGE,`+testPlayer+`,`+mobUnit(3)+`,`+advancedOf(boss, "0000000000000000")+
 				`,500,500,-1,1,0,0,0,nil,nil,nil`),

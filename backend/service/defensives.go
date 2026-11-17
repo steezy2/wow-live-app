@@ -51,8 +51,8 @@ func addKit(kit, other models.Kit) {
 const castToBuffMS = 1000
 
 // ClassifyDeaths sets each death's Defensive (the latest tracked cast in the window before it, or else a defensive
-// buff up at the death, Used when the player cast it) or else its Ready list (what the player carries and could still have used). casts cover the whole run, so an item used in one fight can still be on
-// cooldown in the next.
+// buff up at the death, Used when the player cast it) or else its Ready list (what the player carries and could still
+// have used). casts cover the whole run, so an item used in one fight can still be on cooldown in the next.
 func ClassifyDeaths(deaths []models.Death, casts []models.Cast, buffs []models.BuffUp, kit models.Kit, windowMS int64) {
 	for i := range deaths {
 		d := &deaths[i]

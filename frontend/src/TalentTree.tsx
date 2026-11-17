@@ -83,8 +83,14 @@ function TalentPanel({ tree, talents, player }: { tree: Tree; talents: CompareTa
           r.node.next.map((id) => {
             const to = byID.get(id)
             return to ? (
-              <line key={`${r.node.id}-${id}`} className="talent-link" x1={r.node.x / unit} y1={r.node.y / unit} x2={to.node.x / unit}
-                y2={to.node.y / unit} />
+              <line
+                key={`${r.node.id}-${id}`}
+                className="talent-link"
+                x1={r.node.x / unit}
+                y1={r.node.y / unit}
+                x2={to.node.x / unit}
+                y2={to.node.y / unit}
+              />
             ) : null
           }),
         )}
@@ -159,7 +165,17 @@ function nodeText(r: NodeRead, of: number): string {
 }
 
 /** A list of talents, each a button that finds it in the tree. */
-function Differences({ title, reads, of, onFind }: { title: string; reads: NodeRead[]; of: number; onFind: (id: number) => void }) {
+function Differences({
+  title,
+  reads,
+  of,
+  onFind,
+}: {
+  title: string
+  reads: NodeRead[]
+  of: number
+  onFind: (id: number) => void
+}) {
   if (reads.length === 0) return null
   return (
     <>

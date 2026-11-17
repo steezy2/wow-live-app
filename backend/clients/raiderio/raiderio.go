@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"os"
 	"path/filepath"
 	"time"
 
@@ -126,12 +125,9 @@ func (c Client) get(ctx context.Context, path string, params url.Values, file st
 		base = API
 	}
 	cached := filepath.Join(c.CacheDir, file)
-	if err := cachefile.Fresh(ctx, c.HTTP, base+"/"+path+"?"+params.Encode(), cached, maxAge); err != nil {
-		return fmt.Errorf("Raider.IO %s: %w", path, err)
-	}
-	data, err := os.ReadFile(cached)
+	data, err := cachefile.Fresh(ctx, c.HTTP, base+"/"+path+"?"+params.Encode(), cached, maxAge)
 	if err != nil {
-		return fmt.Errorf("reading %s: %w", cached, err)
+		return fmt.Errorf("Raider.IO %s: %w", path, err)
 	}
 	if err := json.Unmarshal(data, out); err != nil {
 		return fmt.Errorf("reading Raider.IO's %s answer: %w", path, err)

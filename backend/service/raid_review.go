@@ -80,7 +80,8 @@ func (k *LogTracker) lanes(run *keyRun, p models.RaidPull, end int64) []models.R
 	boss := r.bossUnits()
 	for _, guid := range slices.Sorted(maps.Keys(r.units)) {
 		u := r.units[guid]
-		if u.hit && boss[guid] == nil && slices.ContainsFunc(p.Adds, func(a models.RaidAdd) bool { return a.Name == u.name }) {
+		if u.hit && boss[guid] == nil && slices.ContainsFunc(p.Adds,
+			func(a models.RaidAdd) bool { return a.Name == u.name }) {
 			died := cmp.Or(u.died, end)
 			add("adds", u.name, models.RaidMark{ClockMS: run.clock(u.seen), EndMS: run.clock(died), Text: u.name,
 				Bad: u.died == 0})
@@ -119,10 +120,10 @@ func spikeRate(s models.KeySpike, rules models.SuggestionRules) string {
 // (a Viper from an egg, close to a wipe) with who spawned them or how many weren't picked up, deaths to what can be
 // dodged
 // or soaked, raiders who didn't pick up what everyone should, early deaths with a defensive ready, mass kills,
-// several early deaths to one other ability, an uncovered damage spike, stacks past the limit, casts that went off, slow dispels, adds that lived longer than
-// in the best pull, the most avoidable hits, less damage into the target to burst than the best pull, and in a pull long enough
-// for them, no Bloodlust and raiders without a combat potion; last, raid cooldowns stacked. best is nil for the best
-// pull itself.
+// several early deaths to one other ability, an uncovered damage spike, stacks past the limit, casts that went off,
+// slow dispels, adds that lived longer than in the best pull, the most avoidable hits, less damage into the target to
+// burst than the best pull, and in a pull long enough for them, no Bloodlust and raiders without a combat potion; last,
+// raid cooldowns stacked. best is nil for the best pull itself.
 func suggestions(p models.RaidPull, best *models.RaidPull, rules models.SuggestionRules) []string {
 	var out []string
 	say := func(format string, args ...any) { out = append(out, fmt.Sprintf(format, args...)) }

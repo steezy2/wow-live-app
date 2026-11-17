@@ -26,7 +26,8 @@ func TestTrackKeepsMobCasts(t *testing.T) {
 	cast(4_001, "SPELL_CAST_SUCCESS", mob, "0x10a48", "Shadow Slash")
 	cast(4_501, "SPELL_CAST_SUCCESS", "Creature-0-3019-3004-1081-95072-00006A951E", "0x1114", "Pulverize") // a pet
 	track := keys.trackOf(run)
-	if got := fmt.Sprint(track.MobCasts); got != "map["+mob+":[{1000 Void Bolt 1 2000 false} {3000 Void Bolt 1 3500 true} "+
+	if got := fmt.Sprint(track.MobCasts); got != "map["+mob+":[{1000 Void Bolt 1 2000 false} "+
+		"{3000 Void Bolt 1 3500 true} "+
 		"{4000 Shadow Slash 1 0 false}]]" {
 		t.Errorf("mob casts = %s; want the bolt from 1 to 2 s, one interrupted at 3.5 s and the instant, not the "+
 			"mage's or the pet's", got)

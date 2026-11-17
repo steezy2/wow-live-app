@@ -40,7 +40,8 @@ export function MPlusLive({ onEnded, character, onOpen }: {
 }
 
 /** Between keys: the waiting card, with what happened to the last key and today's keys, read again when a key ends. */
-function Waiting({ last, character, onOpen }: { last: KeyView | null; character: string; onOpen: (start: number) => void }) {
+function Waiting(props: { last: KeyView | null; character: string; onOpen: (start: number) => void }) {
+  const { last, character, onOpen } = props
   const [keys, setKeys] = useState<KeySummary[]>([])
   const lastStart = last?.start
   useEffect(() => {

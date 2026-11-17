@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"html"
-	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -29,12 +28,9 @@ var (
 func (c Client) Spell(ctx context.Context, id int) (models.SpellInfo, error) {
 	file := filepath.Join(c.CacheDir, fmt.Sprintf("spell-%d.json", id))
 	url := fmt.Sprintf("%s/tooltip/spell/%d?dataEnv=1&locale=0", cmp.Or(c.BaseURL, "https://nether.wowhead.com"), id)
-	if err := cachefile.Fresh(ctx, c.HTTP, url, file, spellMaxAge); err != nil {
-		return models.SpellInfo{}, err
-	}
-	data, err := os.ReadFile(file)
+	data, err := cachefile.Fresh(ctx, c.HTTP, url, file, spellMaxAge)
 	if err != nil {
-		return models.SpellInfo{}, fmt.Errorf("reading %s: %w", file, err)
+		return models.SpellInfo{}, err
 	}
 	info, err := ParseSpell(data)
 	info.ID = id

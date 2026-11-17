@@ -13,7 +13,8 @@ func TestRankedPlayerReadsTheTables(t *testing.T) {
 	raw := `{
 		"damage": {"data": {"entries": [{"guid": 1, "name": "Blast", "total": 900, "hitCount": 9}]}},
 		"healing": {"data": {"entries": [{"guid": 2, "name": "Barrier", "total": 50, "hitCount": 1}]}},
-		"casts": {"data": {"entries": [{"guid": 1, "name": "Blast", "hitCount": 12}, {"guid": 3, "name": "Surge", "hitCount": 2}]}},
+		"casts": {"data": {"entries": [{"guid": 1, "name": "Blast", "hitCount": 12},
+			{"guid": 3, "name": "Surge", "hitCount": 2}]}},
 		"buffs": {"data": {"auras": [{"guid": 7, "name": "Tempo", "totalUptime": 4000}]}},
 		"taken": {"data": {"entries": [{"total": 300, "activeTime": 8000}]}},
 		"deaths": {"data": {"entries": [{}, {}]}}}`

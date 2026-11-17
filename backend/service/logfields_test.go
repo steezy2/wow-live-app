@@ -4,7 +4,8 @@ import "testing"
 
 func TestSplitNameAndNPCOf(t *testing.T) {
 	for _, tc := range []struct{ full, name, realm string }{
-		{"Testmage-Illidan-US", "Testmage", "Illidan"}, {"Testmage-Illidan", "Testmage", "Illidan"}, {"Testmage", "Testmage", ""},
+		{"Testmage-Illidan-US", "Testmage", "Illidan"}, {"Testmage-Illidan", "Testmage", "Illidan"}, {"Testmage", "Testmage",
+			""},
 	} {
 		if name, realm := splitName(tc.full); name != tc.name || realm != tc.realm {
 			t.Errorf("splitName(%q) = %q, %q; want %q, %q", tc.full, name, realm, tc.name, tc.realm)

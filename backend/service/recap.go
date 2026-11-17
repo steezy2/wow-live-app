@@ -40,8 +40,8 @@ type Recaps struct {
 }
 
 // TopTimes is, for each dungeon character timed from from to to (as Recap), the median time of its top speed-ranked
-// Warcraft Logs runs at the highest level they timed it, in the recap's order, all asked for at once. A dungeon Warcraft
-// Logs fails on is left out (and logged); models.ErrNoCredentials or ErrBadCredentials without working Logs.
+// Warcraft Logs runs at the highest level they timed it, in the recap's order, all asked for at once. A dungeon
+// Warcraft Logs fails on is left out (and logged); models.ErrNoCredentials or ErrBadCredentials without working Logs.
 func (r Recaps) TopTimes(ctx context.Context, from, to int64, character string) ([]models.RecapTopTime, error) {
 	if r.Logs == nil {
 		return nil, models.ErrNoCredentials
@@ -142,7 +142,7 @@ func recapMPlus(keys []models.Key, you string) models.RecapMPlus {
 		KeyRows: keyRows(keys, you), Party: recapParty(keys, you)}
 	dungeons := map[string][]models.Key{}
 	for _, k := range keys {
-		rc.Keys, rc.TimeMS, rc.Deaths = rc.Keys+1, rc.TimeMS+keyLength(k), rc.Deaths+len(k.Deaths)
+		rc.Keys, rc.TimeMS, rc.Deaths = rc.Keys+1, rc.TimeMS+lengthMS(k), rc.Deaths+len(k.Deaths)
 		if k.Status == models.StatusTimed {
 			rc.Timed, rc.HighestTimed = rc.Timed+1, max(rc.HighestTimed, k.Level)
 		}
@@ -267,21 +267,14 @@ func recapParty(keys []models.Key, you string) []models.RecapMate {
 	return party[:min(len(party), recapMates)]
 }
 
-// keyLength is a key's time: the game's own once it ended, else from its start to its end.
-func keyLength(k models.Key) int64 {
-	if k.FinalMS > 0 {
-		return k.FinalMS
-	}
-	return k.End - k.Start
-}
-
 // recapYou is you in keys (nil for no one): the specs played, most first; the median DPS, or HPS in a healer spec,
 // per dungeon; the deaths and what killed you most.
 func recapYou(keys []models.Key, you string) *models.RecapYou {
 	if you == "" {
 		return nil
 	}
-	r := &models.RecapYou{Character: you, Specs: []string{}, Dungeons: []models.RecapRate{}, Killers: []models.RecapCount{}}
+	r := &models.RecapYou{Character: you, Specs: []string{}, Dungeons: []models.RecapRate{},
+		Killers: []models.RecapCount{}}
 	specCount, killers := map[string]int{}, map[string]int{}
 	rates := map[[2]string][]float64{} // (dungeon, metric) -> per key
 	for _, k := range keys {
@@ -410,8 +403,8 @@ func recapFacts(keys []models.Key) []models.RecapFact {
 		player, n := kicker(k)
 		add(k, "Most kicks in a key: %s, %d in %s", player, n, name(k))
 	}
-	if k, ok := best(func(k models.Key) float64 { return float64(keyLength(k)) }); ok {
-		add(k, "Longest key: %s, %s", name(k), clockText(keyLength(k)))
+	if k, ok := best(func(k models.Key) float64 { return float64(lengthMS(k)) }); ok {
+		add(k, "Longest key: %s, %s", name(k), clockText(lengthMS(k)))
 	}
 	first := map[string]int{} // dungeon -> its oldest key's level
 	for _, k := range keys {
@@ -436,7 +429,10 @@ func recapRaid(pulls []models.RaidPull, you string) models.RecapRaid {
 	bosses := []*models.RecapBoss{}
 	taken := map[*models.RecapBoss]map[string]int64{}
 	for _, p := range pulls {
-		i := slices.IndexFunc(bosses, func(b *models.RecapBoss) bool { return b.Boss == p.Boss && b.Difficulty == p.Difficulty })
+		i := slices.IndexFunc(bosses, func(b *models.RecapBoss) bool {
+			return b.Boss == p.Boss &&
+				b.Difficulty == p.Difficulty
+		})
 		if i < 0 {
 			bosses = append(bosses, &models.RecapBoss{Boss: p.Boss, Difficulty: p.Difficulty, BestWipePct: -1})
 			i = len(bosses) - 1
