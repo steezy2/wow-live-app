@@ -96,7 +96,7 @@ func TestImportFightResumesFromTheCachedPagesAfterARateLimit(t *testing.T) {
 }
 
 func TestAConvertedFightSavesTheKeyItWas(t *testing.T) {
-	store := keystore.Store{Dir: t.TempDir()}
+	store := keystore.NewStore(t.TempDir())
 	keys, err := service.NewLogTracker(nil, nil, models.MPlusRules{}, nil, store)
 	if err != nil {
 		t.Fatal(err)

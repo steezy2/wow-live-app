@@ -8,7 +8,6 @@ package main
 import (
 	"context"
 	"embed"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -50,7 +49,7 @@ const (
 )
 
 // files are what build.sh puts in: the built page (dist/), mplus.toml and raid-rules.toml (the rules),
-// mplus-dungeons.json and raid-bosses.json (the reference files) and the tray's icon.ico (from cmd/appicon).
+// reference/mplus-dungeons.json and reference/raid-bosses.json (the reference files) and the tray's icon.ico (from cmd/appicon).
 //
 //go:embed embed
 var files embed.FS
@@ -280,44 +279,16 @@ func carried() (app.Options, error) {
 	if err != nil {
 		return app.Options{}, err
 	}
-	opts := app.Options{Pages: pages}
-	if err := config.DecodeTOML(files, "embed/"+config.RulesFile, &opts.Rules); err != nil {
-		return opts, fmt.Errorf("the built-in M+ rules: %w", err)
-	}
-	reference, err := files.ReadFile("embed/mplus-dungeons.json")
+	built, err := fs.Sub(files, "embed")
 	if err != nil {
-		return opts, err
+		return app.Options{}, err
 	}
-	var ref models.MPlusReference
-	if err := json.Unmarshal(reference, &ref); err != nil {
-		return opts, fmt.Errorf("reading the built-in dungeon facts: %w", err)
+	loaded, err := config.Load(built)
+	if err := errors.Join(err, loaded.RefErr); err != nil {
+		return app.Options{}, fmt.Errorf("the built-in files: %w", err)
 	}
-	opts.Dungeons = ref.Dungeons
-	if err := config.DecodeTOML(files, "embed/"+config.RaidRulesFile, &opts.RaidRules); err != nil {
-		return opts, fmt.Errorf("the built-in raid rules: %w", err)
-	}
-	if err := config.DecodeTOML(files, "embed/"+config.SpecRulesFile, &opts.SpecRules); err != nil {
-		return opts, fmt.Errorf("the built-in spec rules: %w", err)
-	}
-	bosses, err := files.ReadFile("embed/raid-bosses.json")
-	if err != nil {
-		return opts, err
-	}
-	var raid models.RaidReference
-	if err := json.Unmarshal(bosses, &raid); err != nil {
-		return opts, fmt.Errorf("reading the built-in raid bosses: %w", err)
-	}
-	opts.Bosses, opts.Tier = raid.Bosses, raid.Tier
-	trees, err := files.ReadFile("embed/talent-trees.json")
-	if err != nil {
-		return opts, err
-	}
-	var talents models.TalentTrees
-	if err := json.Unmarshal(trees, &talents); err != nil {
-		return opts, fmt.Errorf("reading the built-in talent trees: %w", err)
-	}
-	opts.Talents = talents.BySpec()
-	return opts, nil
+	return app.Options{Pages: pages, Rules: loaded.Rules, Dungeons: loaded.Dungeons, RaidRules: loaded.RaidRules,
+		SpecRules: loaded.SpecRules, Bosses: loaded.Bosses, Tier: loaded.Tier, Talents: loaded.Talents}, nil
 }
 
 // follow reads the log folder in the background until the returned stop is called.

@@ -6,7 +6,6 @@ package app
 import (
 	"cmp"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -23,6 +22,7 @@ import (
 
 	"wow-live/backend/clients/cachefile"
 	"wow-live/backend/clients/combatlog"
+	"wow-live/backend/clients/importstore"
 	"wow-live/backend/clients/keystoneguru"
 	"wow-live/backend/clients/keystore"
 	"wow-live/backend/clients/mdt"
@@ -93,7 +93,7 @@ type Site struct {
 // Start builds the site from opts. Follow, Learn or a replay then feed it the game's log.
 func Start(ctx context.Context, opts Options) (*Site, error) {
 	timers, affixes := dungeonData(ctx, opts.Cache, opts.Region)
-	store := keystore.Store{Dir: filepath.Join(opts.Cache, localKeysDir)}
+	store := keystore.NewStore(filepath.Join(opts.Cache, localKeysDir))
 	pulls := keystore.Pulls{Dir: filepath.Join(opts.Cache, raidPullsDir)}
 	newKeys := func() (*service.LogTracker, error) {
 		keys, err := service.NewLogTracker(timers, affixes, opts.Rules, opts.Dungeons, store)
@@ -156,14 +156,13 @@ func (s *Site) importer(characters service.Characters, store keystore.Store, pul
 			return s.opts.WCL.ImportFight(ctx, ref.Code, ref.FightID,
 				wcl.FightOptions{Logger: character, Dungeons: s.opts.Dungeons})
 		},
-		Read:  s.readImported,
-		Write: cachefile.WriteJSON,
+		Read: s.readImported,
 		Saved: func() ([]models.Key, []models.RaidPull, error) {
 			keys, err := store.List()
 			if err != nil {
 				return nil, nil, err
 			}
-			saved, err := pulls.ListPulls()
+			saved, err := pulls.List()
 			return keys, saved, err
 		},
 		Link: func(keyLinks, pullLinks map[int64]models.ReportLink) (int, error) {
@@ -185,7 +184,7 @@ func (s *Site) importer(characters service.Characters, store keystore.Store, pul
 			return nil
 		},
 		Bosses: characters.Bosses,
-		Dir:    filepath.Join(s.opts.Cache, wcl.ImportDir),
+		Files:  importstore.Store{Dir: filepath.Join(s.opts.Cache, wcl.ImportDir)},
 		Now:    s.opts.Now,
 		Wait:   service.WaitFor,
 	}
@@ -408,16 +407,9 @@ func logEntry(path string) (learnedLog, error) {
 
 // readLearned is the learned.json at path; a missing, unreadable or odd one is nothing learned, so every log is read.
 func readLearned(path string) learned {
-	var l learned
-	data, err := os.ReadFile(path)
-	if err == nil {
-		err = json.Unmarshal(data, &l)
-	}
-	if err != nil {
-		if !errors.Is(err, os.ErrNotExist) {
-			log.Printf("reading every log again: %s: %v", path, err)
-		}
-		return learned{}
+	l, err := cachefile.ReadJSON[learned](path)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		log.Printf("reading every log again: %v", err)
 	}
 	return l
 }

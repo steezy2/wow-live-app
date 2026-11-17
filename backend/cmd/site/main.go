@@ -71,29 +71,12 @@ func run(port int, replay string, key int, speed float64, learn bool, region str
 	if err := config.LoadEnv(filepath.Join(root, ".env")); err != nil {
 		return err
 	}
-	rules, err := config.LoadRules(root)
+	loaded, err := config.Load(os.DirFS(root))
 	if err != nil {
 		return err
 	}
-	ref, err := config.LoadReference(config.ReferencePath(root))
-	if err != nil {
-		log.Printf("no dungeon facts, so no avoidable damage or forces: %v", err)
-	}
-	raidRules, err := config.LoadRaidRules(root)
-	if err != nil {
-		return err
-	}
-	specRules, err := config.LoadSpecRules(root)
-	if err != nil {
-		return err
-	}
-	raid, err := config.LoadRaidReference(config.RaidReferencePath(root))
-	if err != nil {
-		log.Printf("no raid boss mechanics, so raid pulls show deaths and meters only: %v", err)
-	}
-	talents, err := config.LoadTalentTrees(config.TalentTreesPath(root))
-	if err != nil {
-		log.Printf("no talent trees, so a player review shows no talent tree: %v", err)
+	if loaded.RefErr != nil {
+		log.Printf("no dungeon facts, raid boss mechanics or talent trees, so no avoidable damage, forces, raid mechanics or talent tree: %v", loaded.RefErr)
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
@@ -103,8 +86,8 @@ func run(port int, replay string, key int, speed float64, learn bool, region str
 		log.Printf("no built page in %s: run npm run build in frontend/ (the API still works)", pages)
 	}
 	opts := app.Options{Cache: config.CachePath(root), DelayLog: config.DelayLogPath(root), LogsDir: config.LogsDir,
-		Region: region, Rules: rules, Dungeons: ref.Dungeons, RaidRules: raidRules, SpecRules: specRules, Bosses: raid.Bosses,
-		Tier: raid.Tier, Talents: talents, Pages: os.DirFS(pages),
+		Region: region, Rules: loaded.Rules, Dungeons: loaded.Dungeons, RaidRules: loaded.RaidRules,
+		SpecRules: loaded.SpecRules, Bosses: loaded.Bosses, Tier: loaded.Tier, Talents: loaded.Talents, Pages: os.DirFS(pages),
 		Hosts: controller.LocalHosts(port), Now: clock.Now}
 	if logs, err := wcl.New(opts.Cache); err != nil {
 		log.Printf("no key reviews: %v", err)

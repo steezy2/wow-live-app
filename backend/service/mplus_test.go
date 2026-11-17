@@ -303,7 +303,7 @@ func TestShortKeyIsReadAndSaved(t *testing.T) {
 			track.Casts["Testshaman"], track.Abilities["Testmage"], track.AbilityTimes)
 	}
 	if m, err := keys.DungeonMap(585); err != nil || len(m.Walked) == 0 || len(m.Floors) != 1 {
-		t.Fatalf("dungeon map = %+v, %v; want the saved track's squares and the dungeon file's floor", m, err)
+		t.Fatalf("dungeon map = %+v, %v; want the dungeon file's floor and the saved track's squares", m, err)
 	}
 }
 

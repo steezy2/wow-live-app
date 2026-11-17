@@ -83,7 +83,7 @@ func (k *LogTracker) stopEvent(at int64, event string, f []string, src, dst stri
 	spell := atoi(f[8])
 	switch event {
 	case "SPELL_CAST_START":
-		if hasFlag(f[2], hostileFlag) && slices.Contains(run.facts.MustStop, spell) {
+		if hasFlag(f[2], models.FlagHostile) && slices.Contains(run.facts.MustStop, spell) {
 			if c, ok := run.casting[f[0]]; ok {
 				k.endCast(f[0], "stopped", c.cc, at)
 			}
@@ -93,7 +93,7 @@ func (k *LogTracker) stopEvent(at int64, event string, f []string, src, dst stri
 		if c, ok := run.casting[f[0]]; ok && c.spellID == spell {
 			k.endCast(f[0], "went off", "", at)
 		}
-		if src != "" && slices.Contains(k.rules.Kicks.Names, f[9]) && hasFlag(f[6], hostileFlag) &&
+		if src != "" && slices.Contains(k.rules.Kicks.Names, f[9]) && hasFlag(f[6], models.FlagHostile) &&
 			at-run.lastKick[src] > kickWindowMS {
 			run.kick = &pendingKick{at: at, player: src, spell: f[9]}
 		}

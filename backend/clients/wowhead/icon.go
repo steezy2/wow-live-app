@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"path/filepath"
 	"regexp"
 	"time"
@@ -28,14 +27,9 @@ func (c Client) Icon(ctx context.Context, name string) ([]byte, error) {
 	}
 	file := filepath.Join(c.CacheDir, "icons", name+".jpg")
 	url := fmt.Sprintf("%s/images/wow/icons/medium/%s.jpg", cmp.Or(c.IconURL, "https://wow.zamimg.com"), name)
-	if err := cachefile.Fresh(ctx, c.HTTP, url, file, iconMaxAge); errors.Is(err, cachefile.ErrNotFound) {
+	data, err := cachefile.Fresh(ctx, c.HTTP, url, file, iconMaxAge)
+	if errors.Is(err, cachefile.ErrNotFound) {
 		return nil, fmt.Errorf("%q: %w", name, models.ErrNoSuchIcon)
-	} else if err != nil {
-		return nil, err
 	}
-	data, err := os.ReadFile(file)
-	if err != nil {
-		return nil, fmt.Errorf("reading %s: %w", file, err)
-	}
-	return data, nil
+	return data, err
 }

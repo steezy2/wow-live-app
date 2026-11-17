@@ -22,12 +22,6 @@ const (
 	walkedGrid = 3.0
 )
 
-// savedRun is a finished key and its track, waiting to be saved.
-type savedRun struct {
-	key   models.Key
-	track models.KeyTrack
-}
-
 // position keeps where the actor in a line's advanced-logging block was (x, y and map at offsets 14 to 16 of the
 // block): a party member about once a second for the map, and every mob's last place for where it dies.
 func (k *LogTracker) position(at int64, event string, f []string) {
@@ -192,7 +186,7 @@ func (k *LogTracker) trackCast(at int64, event string, f []string) {
 	switch {
 	case slices.Contains(run.party, f[0]):
 		casts, who = run.track.Casts, k.names[f[0]]
-	case creature(f[0]) && hasFlag(f[2], hostileFlag):
+	case creature(f[0]) && hasFlag(f[2], models.FlagHostile):
 		if run.track.MobCasts == nil {
 			run.track.MobCasts = map[string][]models.TrackCast{}
 		}
@@ -223,7 +217,7 @@ func creature(guid string) bool {
 
 // hostileActor is whether the advanced-logging block's actor is the line's hostile source or target.
 func hostileActor(guid string, f []string) bool {
-	return (guid == f[0] && hasFlag(f[2], hostileFlag)) || (guid == f[4] && hasFlag(f[6], hostileFlag))
+	return (guid == f[0] && hasFlag(f[2], models.FlagHostile)) || (guid == f[4] && hasFlag(f[6], models.FlagHostile))
 }
 
 // mobDeathAt puts a mob's death on the map where it was last seen, and ends its trail there.
@@ -372,7 +366,7 @@ func (k *LogTracker) RouteTrack(start int64) (int, models.KeyTrack, error) {
 // its saved runs, one point per walkedGrid square (Name and ClockMS empty): the shape drawn for floors without tiles.
 func (k *LogTracker) DungeonMap(mapID int) (models.DungeonMap, error) {
 	walked, err := k.walked(mapID)
-	return models.DungeonMap{Floors: list(k.facts[mapID].Floors), TilesPerSide: tilesPerSide, Walked: walked,
+	return models.DungeonMap{Floors: list(k.facts[mapID].Floors), TilesPerSide: tilesPerSide, Walked: list(walked),
 		Enemies: list(k.facts[mapID].Enemies), Patrols: list(k.facts[mapID].Patrols)}, err
 }
 

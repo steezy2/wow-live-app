@@ -87,23 +87,8 @@ func (k *LogTracker) LastEnd() int64 {
 // SaveFinished saves the keys that ended since the last call (the log follower calls it after each read), and says
 // which (by start time).
 func (k *LogTracker) SaveFinished() ([]int64, error) {
-	var saved []int64
-	err := saveQueued(&k.mu, &k.unsaved, func(run savedRun) error {
-		skip, err := keepLocal(&k.mu, &k.history, run.key, sameKey, func(key models.Key) bool { return key.Imported },
-			func(key models.Key) int64 { return key.Start }, k.store.Delete)
-		if skip || err != nil {
-			return err
-		}
-		err = k.store.Save(run.key)
-		if err == nil {
-			err = k.store.SaveTrack(run.key.Start, run.track)
-		}
-		if err != nil {
-			return fmt.Errorf("saving the %s key (retried after the next read): %w", run.key.Dungeon, err)
-		}
-		saved = append(saved, run.key.Start)
-		return nil
-	})
+	saved, err := saveFights(&k.mu, &k.unsaved, &k.history, k.store, sameKey,
+		func(key models.Key) string { return key.Dungeon + " key" })
 	if err == nil && k.raid != nil {
 		err = k.savePulls()
 	}

@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -180,12 +179,9 @@ func (c Client) getJSON(ctx context.Context, url, file string, out any) error {
 
 func (c Client) get(ctx context.Context, url, file string) ([]byte, error) {
 	path := filepath.Join(c.CacheDir, file)
-	if err := cachefile.Fresh(ctx, c.HTTP, url, path, maxAge); err != nil {
-		return nil, fmt.Errorf("Mythic Dungeon Tools: %w", err)
-	}
-	data, err := os.ReadFile(path)
+	data, err := cachefile.Fresh(ctx, c.HTTP, url, path, maxAge)
 	if err != nil {
-		return nil, fmt.Errorf("reading %s: %w", path, err)
+		return nil, fmt.Errorf("Mythic Dungeon Tools: %w", err)
 	}
 	return data, nil
 }
