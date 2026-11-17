@@ -167,7 +167,12 @@ export function KeyMap(props: {
     })),
   ]
 
-  if (!track || floors.length === 0) return <p className="muted">No positions yet (needs Advanced Combat Logging).</p>
+  const noPositions = <>No positions yet (needs Advanced Combat Logging).</>
+  // A live key's map holds its place while the track and its first positions come in, so the page below doesn't jump.
+  if (!track || (live && floors.length === 0)) {
+    return <div className="map-waiting muted">{track && noPositions}</div>
+  }
+  if (floors.length === 0) return <p className="muted">{noPositions}</p>
   return (
     <section className="map">
       <div className="map-controls">

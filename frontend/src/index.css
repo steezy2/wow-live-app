@@ -811,6 +811,16 @@ button {
   object-fit: contain;
 }
 
+/* The map's place before its track is in: the canvas's 3:2 shape and height cap, so nothing below it moves. */
+.map-waiting {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 3 / 2;
+  max-height: calc(100vh - 140px);
+  background: var(--panel);
+  border-radius: 6px;
+}
+
 /* A boss fight's meter cards in its details (KeyLedgers.tsx), small and two across. */
 .replay-meters {
   display: grid;
