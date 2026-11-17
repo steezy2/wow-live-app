@@ -24,7 +24,7 @@ func (f fakeSims) Choices() models.SimChoices {
 	return models.SimChoices{FightStyles: []string{"Patchwerk"}}
 }
 func (f fakeSims) EngineStatus() models.SimEngineStatus { return models.SimEngineStatus{} }
-func (f fakeSims) InstallEngine() error                 { return f.err }
+func (f fakeSims) InstallEngine(string) error           { return f.err }
 func (f fakeSims) Get(string) (models.Sim, error)       { return models.Sim{}, f.err }
 func (f fakeSims) List() ([]models.Sim, error)          { return nil, f.err }
 func (f fakeSims) Remove(string) error                  { return f.err }

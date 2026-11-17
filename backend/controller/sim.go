@@ -2,6 +2,7 @@ package controller
 
 import (
 	"errors"
+	"io"
 	"io/fs"
 	"log"
 	"net/http"
@@ -21,7 +22,7 @@ const simBodyBytes = 128 << 10
 type SimRuns interface {
 	Choices() models.SimChoices
 	EngineStatus() models.SimEngineStatus
-	InstallEngine() error
+	InstallEngine(path string) error
 	Start(req models.SimRequest) (models.Sim, error)
 	Get(id string) (models.Sim, error)
 	List() ([]models.Sim, error)
@@ -49,6 +50,11 @@ func (a SimAPI) Choices(c *gin.Context) {
 	c.JSON(http.StatusOK, a.Runs.Choices())
 }
 
+// SimEngineFile is a simc.exe the owner has: its absolute path on this PC.
+type SimEngineFile struct {
+	Path string `json:"path" example:"C:/Tools/simc/simc.exe"`
+}
+
 // Engine godoc
 //
 //	@Summary		Whether the SimulationCraft engine is installed
@@ -64,16 +70,26 @@ func (a SimAPI) Engine(c *gin.Context) {
 
 // InstallEngine godoc
 //
-//	@Summary		Download or update the SimulationCraft engine
-//	@Description	Downloads the newest Windows nightly (about 115 MB) from simulationcraft.org, plain HTTP with no
-//	@Description	checksum, in the background and keeps simc.exe from it; poll the engine's status.
+//	@Summary		Download or update the SimulationCraft engine, or use one the owner has
+//	@Description	With no body, downloads the newest simc.exe (about 116 MB) from this app's own GitHub release over
+//	@Description	HTTPS, checked against the sha256 in the release's engine.json; the release is rebuilt weekly from
+//	@Description	SimulationCraft's official nightly. With a path, copies that simc.exe instead. Runs in the background:
+//	@Description	poll the engine's status.
 //	@Tags			sim
+//	@Accept			json
 //	@Produce		json
-//	@Success		202	{object}	models.SimEngineStatus
-//	@Failure		409	{object}	ErrorResponse	"a sim or a download is running"
+//	@Param			body	body		SimEngineFile	false	"the path of a simc.exe to use"
+//	@Success		202		{object}	models.SimEngineStatus
+//	@Failure		409		{object}	ErrorResponse	"a sim or an install is running"
 //	@Router			/api/sim/engine [post]
 func (a SimAPI) InstallEngine(c *gin.Context) {
-	if simFailed(c, a.Runs.InstallEngine()) {
+	var body SimEngineFile
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, simBodyBytes)
+	if err := c.ShouldBindJSON(&body); err != nil && !errors.Is(err, io.EOF) {
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "send nothing, or the path as {\"path\": \"C:\\...\\simc.exe\"}"})
+		return
+	}
+	if simFailed(c, a.Runs.InstallEngine(body.Path)) {
 		return
 	}
 	c.JSON(http.StatusAccepted, a.Runs.EngineStatus())

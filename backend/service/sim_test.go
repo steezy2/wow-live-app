@@ -63,6 +63,9 @@ func (f *fakeEngine) Installed() models.SimEngine {
 	return models.SimEngine{Installed: f.installed, BuiltMS: f.built.UnixMilli()}
 }
 func (f *fakeEngine) Install(context.Context) (models.SimEngine, error) { return f.Installed(), nil }
+func (f *fakeEngine) UseFile(context.Context, string) (models.SimEngine, error) {
+	return f.Installed(), nil
+}
 
 func newTestSims(t *testing.T, mode string) *Sims {
 	t.Helper()
@@ -166,7 +169,7 @@ func TestSimsRunOneAtATimeAndCancel(t *testing.T) {
 	if _, err := s.Start(simRequest(t)); !errors.Is(err, ErrSimBusy) {
 		t.Errorf("a second sim: err = %v, want ErrSimBusy", err)
 	}
-	if err := s.InstallEngine(); !errors.Is(err, ErrSimBusy) {
+	if err := s.InstallEngine(""); !errors.Is(err, ErrSimBusy) {
 		t.Errorf("a download during a sim: err = %v, want ErrSimBusy", err)
 	}
 	for deadline := time.Now().Add(5 * time.Second); time.Now().Before(deadline); time.Sleep(20 * time.Millisecond) {
