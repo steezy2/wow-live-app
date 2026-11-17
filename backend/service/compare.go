@@ -66,10 +66,17 @@ type fightRun struct {
 	buffs []models.BuffSpan
 }
 
-// Cached is a player's review if one was made, and the fight didn't go on after it.
+// compareVersion is the version of what a review holds. Bump it when a review's numbers or fields change, so the
+// reviews already stored (which would show the old ones) are read again.
+const compareVersion = 1
+
+// Cached is a player's review if one was made by this version, and the fight didn't go on after it.
 func (c Comparer) Cached(kind models.FightKind, start int64, player string) (models.PlayerCompare, error) {
 	review, err := c.Store.Compare(kind, start, player)
 	if errors.Is(err, fs.ErrNotExist) {
+		return review, ErrNoSuchKey
+	}
+	if err == nil && review.Version != compareVersion {
 		return review, ErrNoSuchKey
 	}
 	if end, ferr := c.fightEnd(kind, start); err == nil && ferr == nil && review.End != 0 && review.End != end {
@@ -144,6 +151,7 @@ func (c Comparer) Run(ctx context.Context, kind models.FightKind, start int64, p
 	}
 	review := buildCompare(in)
 	review.Rules = failedRules(c.Rules[f.spec.label()].Rules, f.casts, f.buffs, f.local.DurationMS)
+	review.Version = compareVersion
 	review.Kind, review.Start, review.End, review.Player, review.Spec = f.kind, f.start, f.end, player, f.spec.label()
 	review.WindowMS, review.Baseline = window, baseline
 	if err == nil {

@@ -124,3 +124,16 @@ func TestCachedIsReadAgainWhenTheKeyWentOn(t *testing.T) {
 		t.Errorf("cached after the key went on: %v, want ErrNoSuchKey", err)
 	}
 }
+
+func TestCachedIsReadAgainWhenMadeByAnOlderVersion(t *testing.T) {
+	c, _, store := comparerOf(t, &fakeLogs{left: 1000})
+	if _, err := c.Run(context.Background(), models.FightMPlus, 1000, "Testmage"); err != nil {
+		t.Fatal(err)
+	}
+	old := store.reviews["Testmage"]
+	old.Version = compareVersion - 1
+	store.reviews["Testmage"] = old
+	if _, err := c.Cached(models.FightMPlus, 1000, "Testmage"); !errors.Is(err, ErrNoSuchKey) {
+		t.Errorf("cached review of an older version: %v, want ErrNoSuchKey", err)
+	}
+}

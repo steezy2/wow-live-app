@@ -102,11 +102,13 @@ type CompareLog struct {
 // PlayerCompare is a player's run against three baselines: their own similar runs, the top Warcraft Logs logs of
 // their spec in a similar time, and their own parses there.
 type PlayerCompare struct {
-	Kind   FightKind `json:"kind" enums:"mplus,raid"`
-	Start  int64     `json:"start"`
-	End    int64     `json:"end"` // the fight's end when it was made: a key that went on afterwards is read again
-	Player string    `json:"player"`
-	Spec   string    `json:"spec"`
+	// Version is service.compareVersion when the review was made: one made by older code is read again.
+	Version int       `json:"version"`
+	Kind    FightKind `json:"kind" enums:"mplus,raid"`
+	Start   int64     `json:"start"`
+	End     int64     `json:"end"` // the fight's end when it was made: a key that went on afterwards is read again
+	Player  string    `json:"player"`
+	Spec    string    `json:"spec"`
 	// WindowMS is how much of the top logs was read: 0 for all of it, else the fight's length (a wipe or an
 	// abandoned key is read over the same stretch).
 	WindowMS int64 `json:"windowMS,omitempty"`
