@@ -275,7 +275,7 @@ func (k *LogTracker) LinkReports(keyLinks, pullLinks map[int64]models.ReportLink
 			err = errors.Join(err, k.store.Delete(start))
 		}
 		for _, start := range applyLinks(k.pulls, savedPulls) {
-			err = errors.Join(err, k.raid.store.DeletePull(start))
+			err = errors.Join(err, k.raid.store.Delete(start))
 		}
 		if n = len(savedKeys) + len(savedPulls); n > 0 {
 			k.version++
