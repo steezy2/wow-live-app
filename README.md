@@ -15,13 +15,17 @@ It's not an addon and doesn't touch the game: it only reads the combat log file 
 
 ![A death's last 10 seconds: each hit, each heal and the defensive still ready](docs/store/4-death.png)
 
+![A player's run against the top logs of their spec, with what to work on (sample data)](docs/store/compare.png)
+
+![A planned route's pulls on the dungeon's map, with the forces of each](docs/store/routes.png)
+
 ![The key replayed on the dungeon's map](docs/store/5-replay.png)
 
 ![The Recap: keys timed, each dungeon's best time and who you ran with](docs/store/6-recap.png)
 
 </details>
 
-*Screenshots from a replay of a real key, with the players' names made up.*
+*Screenshots from a replay of a real key, with the players' names made up (the comparison uses sample numbers).*
 
 ## Install
 
@@ -64,7 +68,7 @@ Settings, saved keys and raid pulls, and the log are in the Store package's own 
 - **Releases:** a `v*` tag packs `WoW Live.msix` (`backend/cmd/app/msix/pack.sh`) on GitHub Actions, with the identity from Partner Center's *Product identity* page in the repo's `MSIX_NAME`, `MSIX_PUBLISHER` and `MSIX_PUBLISHER_NAME` variables, keeps it on a release here and submits it to the Microsoft Store, which signs it (the `store` job, once the repo's `STORE_PRODUCT_ID` variable and the Entra secrets are set; it submits without an approval step, and fails while a submission made by hand in Partner Center is in progress).
 - **Icon:** `backend/cmd/appicon/icon.svg` (and `icon-small.svg` under 48 px), rendered to the committed PNGs by `render.sh`. Original art, no Blizzard logos.
 
-World of Warcraft is a trademark of Blizzard Entertainment; this project isn't affiliated with Blizzard. Dungeon maps are Keystone.guru's and raid maps Warcraft Logs', credited on the page.
+World of Warcraft is a trademark of Blizzard Entertainment; this project isn't affiliated with or endorsed by Blizzard, and the game's spell and talent icons, names and text it shows belong to Blizzard. Dungeon maps and patrols are Keystone.guru's, routes and enemies Mythic Dungeon Tools', talent trees Raidbots', raid map edges wago.tools', raid maps and top runs Warcraft Logs', season timers Raider.IO's and spell text and icons Wowhead's. The map images, timers, spell text and icons are downloaded as you use the app; the rest ships inside it. The Home tab credits them.
 
 ## Licence
 
