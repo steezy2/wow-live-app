@@ -32,7 +32,11 @@ export function SimGear(props: {
                           onChange={() => pick.onToggle(worn, index)}
                         />
                       )}
-                      <ItemLine item={item} info={info.get(item.id)} extra={worn && <span className="sim-worn">worn</span>} />
+                      <ItemLine
+                        item={item}
+                        info={info.get(item.id)}
+                        extra={worn && <span className="sim-worn">worn</span>}
+                      />
                     </label>
                   ))}
               </div>
