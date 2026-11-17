@@ -15,11 +15,17 @@ import (
 
 // engineServer serves a release holding body as simc.exe, with a manifest naming sum as its sha256.
 func engineServer(t *testing.T, body, sum string) *httptest.Server {
+	return engineServerOf(t, body, sum, "")
+}
+
+// engineServerOf is engineServer with a manifest that also says the program's version ("1210-01 12.1.5.70783").
+func engineServerOf(t *testing.T, body, sum, version string) *httptest.Server {
 	t.Helper()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/engine.json":
-			fmt.Fprintf(w, `{"file":"simc-1210.01.73a372b-win64.7z","builtMS":1,"sha256":%q}`, sum)
+			v, p, _ := strings.Cut(version, " ")
+			fmt.Fprintf(w, `{"file":"simc-1210.01.73a372b-win64.7z","builtMS":1,"sha256":%q,"version":%q,"patch":%q}`, sum, v, p)
 		case "/simc.exe":
 			w.Write([]byte(body))
 		default:
@@ -59,6 +65,19 @@ func TestInstallRefusesWhatIsNotAsTheManifestSays(t *testing.T) {
 				t.Errorf("a failed install left %v", left)
 			}
 		})
+	}
+}
+
+func TestInstallTrustsTheManifestsVersionWithoutRunningTheFile(t *testing.T) {
+	program := "MZ\x90\x00not really runnable"
+	srv := engineServerOf(t, program, sumOf(program), "1210-01 12.1.5.70783")
+	c := Client{Dir: t.TempDir(), Base: srv.URL + "/"}
+	got, err := c.Install(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !got.Installed || got.Version != "1210-01" || got.Patch != "12.1.5.70783" || c.Installed().Version != "1210-01" {
+		t.Errorf("Install = %+v, installed %+v; want the manifest's version kept", got, c.Installed())
 	}
 }
 
