@@ -6,7 +6,6 @@
 package simc
 
 import (
-	"cmp"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -236,17 +235,35 @@ func checkProgram(file string) error {
 	return nil
 }
 
-// runBanner runs exe without an input, which makes simc print its version and game patch, and returns them.
+// runBanner runs exe without an input, which makes simc print its version and game patch, and returns them. It tries
+// twice: the first run of a new file can be held up by a virus scan.
 func runBanner(ctx context.Context, exe string) (version, patch string, err error) {
+	for attempt := 1; ; attempt++ {
+		started := time.Now()
+		out, runErr, timedOut := bannerOutput(ctx, exe)
+		version, patch, ok := parseBanner(out)
+		if ok {
+			return version, patch, nil
+		}
+		err = fmt.Errorf("it printed no SimulationCraft version (attempt %d: %v after %s, timed out %v, it said %q)", attempt,
+			runErr, time.Since(started).Round(time.Millisecond), timedOut, strings.TrimSpace(out[:min(len(out), 200)]))
+		if attempt == 2 || ctx.Err() != nil {
+			return "", "", err
+		}
+		time.Sleep(3 * time.Second)
+	}
+}
+
+// bannerOutput is what exe prints on its own (stdout and stderr), how it ended (nil when it exited cleanly) and
+// whether bannerTimeout stopped it.
+func bannerOutput(ctx context.Context, exe string) (out string, runErr error, timedOut bool) {
 	ctx, cancel := context.WithTimeout(ctx, bannerTimeout)
 	defer cancel()
-	out, runErr := exec.CommandContext(ctx, exe).CombinedOutput() // it may exit with an error: there is nothing to sim
-	version, patch, ok := parseBanner(string(out))
-	if !ok {
-		return "", "", fmt.Errorf("it printed no SimulationCraft version (%v; it said %q)", cmp.Or(runErr, ctx.Err()),
-			strings.TrimSpace(string(out[:min(len(out), 200)])))
-	}
-	return version, patch, nil
+	cmd := exec.CommandContext(ctx, exe)
+	cmd.Dir = filepath.Dir(exe)
+	HideWindow(cmd)
+	raw, runErr := cmd.CombinedOutput() // it may exit with an error: there is nothing to sim
+	return string(raw), runErr, ctx.Err() != nil
 }
 
 // parseBanner is the version ("1210-01") and patch ("12.1.5.70529") of simc's first line.
