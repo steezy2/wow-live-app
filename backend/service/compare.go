@@ -10,6 +10,7 @@ import (
 	"maps"
 	"slices"
 	"strings"
+	"sync"
 
 	"wow-live/backend/models"
 )
@@ -124,33 +125,21 @@ func (c Comparer) Run(ctx context.Context, kind models.FightKind, start int64, p
 	if f.partial {
 		window = f.local.DurationMS
 	}
-	var top []models.RankedPlayer
-	var logs []models.CompareLog
-	for _, r := range runs {
-		p, err := c.Baselines.RunPlayer(ctx, r.Code, r.FightID, r.Name, r.Server, window)
-		if errors.Is(err, models.ErrRateLimited) || errors.Is(err, models.ErrNoCredentials) ||
-			errors.Is(err, models.ErrBadCredentials) || ctx.Err() != nil {
-			return models.PlayerCompare{}, err
-		}
-		if err != nil {
-			log.Printf("reading %s in %s#%d for a player review: %v", r.Name, r.Code, r.FightID, err)
-			continue
-		}
-		amount := r.Amount
-		if window > 0 { // the ranking's is over the whole fight
-			amount = rateOf(p, mainMetric(f.spec))
-		}
-		top = append(top, p)
-		logs = append(logs, models.CompareLog{Name: r.Name, Server: r.Server, Code: r.Code, FightID: r.FightID,
-			DurationMS: r.DurationMS, Amount: amount})
-	}
-	if len(top) == 0 {
-		return models.PlayerCompare{}, ErrNoTopLogs
+	parsing := make(chan error, 1) // the character's parses are one query that doesn't need the top logs: ask it with them
+	var parses models.CharacterParses
+	go func() {
+		var err error
+		parses, err = c.Characters.Parses(ctx, c.Region, f.character)
+		parsing <- err
+	}()
+	top, logs, err := c.readTop(ctx, f, runs, window)
+	perr := <-parsing
+	if err != nil {
+		return models.PlayerCompare{}, err
 	}
 	in := compareInput{you: f.local, yours: f.yours, top: top, logs: logs, metric: mainMetric(f.spec), spec: f.spec,
 		specID: f.specID, tree: c.Talents[f.specID]}
-	parses, err := c.Characters.Parses(ctx, c.Region, f.character)
-	if err == nil {
+	if perr == nil {
 		in.parse = parseOf(parses, f.encounter, f.kind)
 	}
 	review := buildCompare(in)
@@ -158,13 +147,76 @@ func (c Comparer) Run(ctx context.Context, kind models.FightKind, start int64, p
 	review.Version = compareVersion
 	review.Kind, review.Start, review.End, review.Player, review.Spec = f.kind, f.start, f.end, player, f.spec.label()
 	review.WindowMS, review.Baseline = window, baseline
-	if err == nil {
+	if perr == nil {
 		review.Parses = &parses
 	}
 	if after, err := c.Baselines.PointsLeft(ctx); err == nil {
 		review.Points = left - after - 1 // the second points check costs about 1
 	}
 	return review, c.Store.SaveCompare(review)
+}
+
+// compareWorkers is how many top logs are read at once: each is a few Warcraft Logs queries, so reading them one after
+// another waits on the network for most of a review.
+const compareWorkers = 5
+
+// readTop reads each ranked run's player (over window, 0 for all of it), compareWorkers at a time, and returns them
+// with their logs in ranking order, leaving out a log that can't be read. A rate limit, missing or bad credentials or
+// a stopped context end the review at once.
+func (c Comparer) readTop(ctx context.Context, f fightRun, runs []models.RankedRun, window int64) (
+	[]models.RankedPlayer, []models.CompareLog, error) {
+	ctx, stop := context.WithCancel(ctx)
+	defer stop()
+	players := make([]*models.RankedPlayer, len(runs))
+	var (
+		wg    sync.WaitGroup
+		mu    sync.Mutex
+		fatal error
+		slots = make(chan struct{}, compareWorkers)
+	)
+	for i, r := range runs {
+		wg.Add(1)
+		slots <- struct{}{}
+		go func() {
+			defer func() { <-slots; wg.Done() }()
+			p, err := c.Baselines.RunPlayer(ctx, r.Code, r.FightID, r.Name, r.Server, window)
+			switch {
+			case errors.Is(err, models.ErrRateLimited) || errors.Is(err, models.ErrNoCredentials) ||
+				errors.Is(err, models.ErrBadCredentials) || ctx.Err() != nil:
+				mu.Lock()
+				fatal = cmp.Or(fatal, err, ctx.Err())
+				mu.Unlock()
+				stop()
+			case err != nil:
+				log.Printf("reading %s in %s#%d for a player review: %v", r.Name, r.Code, r.FightID, err)
+			default:
+				players[i] = &p
+			}
+		}()
+	}
+	wg.Wait()
+	if fatal != nil {
+		return nil, nil, fatal
+	}
+	var top []models.RankedPlayer
+	var logs []models.CompareLog
+	for i, p := range players {
+		if p == nil {
+			continue
+		}
+		r := runs[i]
+		amount := r.Amount
+		if window > 0 { // the ranking's is over the whole fight
+			amount = rateOf(*p, mainMetric(f.spec))
+		}
+		top = append(top, *p)
+		logs = append(logs, models.CompareLog{Name: r.Name, Server: r.Server, Code: r.Code, FightID: r.FightID,
+			DurationMS: r.DurationMS, Amount: amount})
+	}
+	if len(top) == 0 {
+		return nil, nil, ErrNoTopLogs
+	}
+	return top, logs, nil
 }
 
 // parseOf is the character's parse of one dungeon or boss, nil when they have none there.

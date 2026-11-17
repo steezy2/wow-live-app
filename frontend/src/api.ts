@@ -1651,7 +1651,7 @@ export interface CompareTalents {
 }
 
 /** A talent an entry can hold, with its icon name. */
-interface TalentEntry {
+export interface TalentEntry {
   id: number
   spellID: number
   name: string

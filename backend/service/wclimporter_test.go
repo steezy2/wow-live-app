@@ -417,3 +417,43 @@ func TestASecondImportCountsOnlyItsOwnFights(t *testing.T) {
 		t.Errorf("status %+v, want the raid kill as 1 of 1 fight, not the keys done before", s)
 	}
 }
+
+// pagedReports serves a report list of pages (a page's zone IDs) and says which pages were asked.
+type pagedReports struct {
+	fakeReports
+	pages [][]int
+	asked []int
+}
+
+func (p *pagedReports) RecentReports(_ context.Context, _, _, _ string, page int) ([]models.CharacterReport, bool, error) {
+	p.mu.Lock()
+	p.asked = append(p.asked, page)
+	p.mu.Unlock()
+	if page > len(p.pages) {
+		return nil, false, errors.New("no such page")
+	}
+	var reports []models.CharacterReport
+	for i, zone := range p.pages[page-1] {
+		reports = append(reports, models.CharacterReport{Code: fmt.Sprintf("p%d-%d", page, i), ZoneID: zone})
+	}
+	return reports, page < len(p.pages), nil
+}
+
+func TestRecentReportsWalkPagesAheadAndStopAfterTheLastOfThisSeason(t *testing.T) {
+	source := &pagedReports{pages: [][]int{{55}, {55, 1}, {1}, {1}}}
+	im := &Importer{Source: source}
+	reports, err := im.recentReports(context.Background(), "us", "slug", "Name", models.WCLZones{MPlusID: 55, RaidID: 53})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var codes []string
+	for _, r := range reports {
+		codes = append(codes, r.Code)
+	}
+	if want := []string{"p1-0", "p2-0", "p2-1", "p3-0"}; !slices.Equal(codes, want) {
+		t.Errorf("reports %v, want %v: pages in order, up to the first without this season's", codes, want)
+	}
+	if first := slices.Sorted(slices.Values(source.asked[:2])); !slices.Equal(first, []int{1, 2}) {
+		t.Errorf("asked pages %v, want 1 and 2 together first", source.asked)
+	}
+}

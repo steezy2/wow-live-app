@@ -28,8 +28,9 @@ type MPlus struct {
 	Recaps   Recaps
 	Planner  Planner
 	Spells   Spells
-	// Talents are the spec talent trees by spec ID.
+	// Talents are the spec talent trees by spec ID; Icons their icons.
 	Talents map[int]models.TalentTree
+	Icons   Icons
 	Now     func() time.Time
 }
 

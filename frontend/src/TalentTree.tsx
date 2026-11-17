@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { fetchTalentTree, type CompareTalents, type PlayerCompare, type TalentTree as Tree } from './api'
-import { entryName, readTree, type NodeRead } from './talents'
-import { tip } from './tipAttrs'
+import { entryName, readTree, shownEntry, type NodeRead } from './talents'
+import { spellTip } from './tipAttrs'
 
 /** Grid units per pixel: the tree's own grid puts nodes 300-600 apart. */
 const unit = 20
@@ -54,6 +54,11 @@ function TalentPanel({ tree, talents, player }: { tree: Tree; talents: CompareTa
         role="img"
         aria-label={`${player}'s talents against the top ${talents.of} logs`}
       >
+        <defs>
+          <clipPath id="talent-icon" clipPathUnits="objectBoundingBox">
+            <circle cx={0.5} cy={0.5} r={0.5} />
+          </clipPath>
+        </defs>
         {reads.flatMap((r) =>
           r.node.next.map((id) => {
             const to = byID.get(id)
@@ -73,15 +78,23 @@ function TalentPanel({ tree, talents, player }: { tree: Tree; talents: CompareTa
   )
 }
 
-/** One node: a circle coloured by its state, its rank in it, and a hover saying who took what. */
+/** One node: its icon in a ring coloured by its state, its rank in it, and a hover saying what the talent does and
+ * who took it. */
 function Node({ read, of }: { read: NodeRead; of: number }) {
   const { node, state } = read
+  const cx = node.x / unit
+  const cy = node.y / unit
+  const entry = shownEntry(read)
   return (
-    <g className={`talent-node talent-${state}`} {...tip(nodeText(read, of), node.name)}>
-      <circle cx={node.x / unit} cy={node.y / unit} r={radius} />
-      {read.youRank > 0 && (
-        <text x={node.x / unit} y={node.y / unit} dy="0.35em" textAnchor="middle">
-          {node.maxRanks > 1 ? read.youRank : ''}
+    <g className={`talent-node talent-${state}`} {...spellTip(entry.spellID, nodeText(read, of))}>
+      <circle cx={cx} cy={cy} r={radius} />
+      {entry.icon && (
+        <image href={`/api/icons/${entry.icon}`} x={cx - radius} y={cy - radius} width={2 * radius} height={2 * radius}
+          clipPath="url(#talent-icon)" />
+      )}
+      {read.youRank > 0 && node.maxRanks > 1 && (
+        <text x={cx + radius} y={cy + radius} textAnchor="end">
+          {read.youRank}
         </text>
       )}
     </g>

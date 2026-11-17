@@ -1976,6 +1976,14 @@ table.compare td:first-child {
   stroke-width: 2;
 }
 
+.talent-node image {
+  pointer-events: none;
+}
+
+.talent-node.talent-unused image {
+  opacity: 0.35;
+}
+
 .talent-node text {
   fill: var(--text);
   font-size: 11px;

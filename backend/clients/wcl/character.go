@@ -2,11 +2,13 @@ package wcl
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"maps"
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
 	"time"
 
 	"wow-live/backend/clients/cachefile"
@@ -145,34 +147,29 @@ func (c *Client) addFights(ctx context.Context, reports []models.CharacterReport
 		return filepath.Join(c.CacheDir, "wcl-mplus", "reports", r.Code+".json")
 	}
 	found := make([]reportFights, len(reports))
-	var params, fields []string
-	vars := map[string]any{}
+	var stale []int
 	for i, r := range reports {
 		if !readCached(path(r), 0, &found[i]) || found[i].EndTime != r.EndTime {
-			params = append(params, fmt.Sprintf("$c%d: String!", i))
-			fields = append(fields, fmt.Sprintf(`r%d: report(code: $c%d) { fights { id encounterID keystoneLevel
-				difficulty kill startTime endTime friendlyPlayers } masterData { actors(type: "Player") { id name } } }`,
-				i, i))
-			vars[fmt.Sprintf("c%d", i)] = r.Code
+			stale = append(stale, i)
 		}
 	}
-	if len(fields) > 0 {
-		var data struct {
-			ReportData map[string]reportFights `json:"reportData"`
-		}
-		gql := fmt.Sprintf("query(%s) { reportData { %s } }", strings.Join(params, ", "), strings.Join(fields, " "))
-		if err := c.Query(ctx, gql, vars, &data); err != nil {
-			return err
-		}
-		for i, r := range reports {
-			if got, ok := data.ReportData[fmt.Sprintf("r%d", i)]; ok {
-				got.EndTime = r.EndTime
-				found[i] = got
-				if err := cachefile.WriteJSON(path(r), got); err != nil {
-					return err
-				}
-			}
-		}
+	// A query for every stale report at once is slow and times out; smaller ones run side by side. Each fills its own
+	// reports' slots.
+	var wg sync.WaitGroup
+	errs := make([]error, (len(stale)+reportsPerQuery-1)/reportsPerQuery)
+	slots := make(chan struct{}, reportQueries)
+	for n := range errs {
+		wg.Add(1)
+		slots <- struct{}{}
+		go func() {
+			defer func() { <-slots; wg.Done() }()
+			batch := stale[n*reportsPerQuery : min((n+1)*reportsPerQuery, len(stale))]
+			errs[n] = c.fetchReportFights(ctx, reports, batch, found, path)
+		}()
+	}
+	wg.Wait()
+	if err := errors.Join(errs...); err != nil {
+		return err
 	}
 	for i, f := range found {
 		names := map[int]string{}
@@ -186,6 +183,43 @@ func (c *Client) addFights(ctx context.Context, reports []models.CharacterReport
 				}
 			}
 			reports[i].Fights = append(reports[i].Fights, fight.ReportFight)
+		}
+	}
+	return nil
+}
+
+// reportsPerQuery is how many reports one fights query asks for, and reportQueries how many run at once.
+const (
+	reportsPerQuery = 8
+	reportQueries   = 4
+)
+
+// fetchReportFights asks for the fights and players of the reports at batch (indexes into reports), keeps them in
+// found at the same indexes and in the cache.
+func (c *Client) fetchReportFights(ctx context.Context, reports []models.CharacterReport, batch []int,
+	found []reportFights, path func(models.CharacterReport) string) error {
+	var params, fields []string
+	vars := map[string]any{}
+	for n, i := range batch {
+		params = append(params, fmt.Sprintf("$c%d: String!", n))
+		fields = append(fields, fmt.Sprintf(`r%d: report(code: $c%d) { fights { id encounterID keystoneLevel
+			difficulty kill startTime endTime friendlyPlayers } masterData { actors(type: "Player") { id name } } }`, n, n))
+		vars[fmt.Sprintf("c%d", n)] = reports[i].Code
+	}
+	var data struct {
+		ReportData map[string]reportFights `json:"reportData"`
+	}
+	gql := fmt.Sprintf("query(%s) { reportData { %s } }", strings.Join(params, ", "), strings.Join(fields, " "))
+	if err := c.Query(ctx, gql, vars, &data); err != nil {
+		return err
+	}
+	for n, i := range batch {
+		if got, ok := data.ReportData[fmt.Sprintf("r%d", n)]; ok {
+			got.EndTime = reports[i].EndTime
+			found[i] = got
+			if err := cachefile.WriteJSON(path(reports[i]), got); err != nil {
+				return err
+			}
 		}
 	}
 	return nil

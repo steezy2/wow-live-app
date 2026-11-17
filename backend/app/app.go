@@ -139,10 +139,11 @@ func Start(ctx context.Context, opts Options) (*Site, error) {
 	if opts.LogsDir != nil {
 		planner.Saves = func() ([]models.MDTPreset, error) { return mdt.SavedRoutes(opts.LogsDir()) }
 	}
-	spells := &service.Spells{Keys: keys, Source: wowhead.Client{CacheDir: filepath.Join(opts.Cache, "wowhead"),
+	spells := &service.Spells{Keys: keys, Talents: opts.Talents, Source: wowhead.Client{CacheDir: filepath.Join(opts.Cache, "wowhead"),
 		HTTP: &http.Client{Timeout: spellTimeout}}}
 	s.Handler = controller.Router(controller.MPlus{Keys: keys, Reviews: s.reviews, Compares: s.compares, Changes: s.Changes,
 		Now: opts.Now, Tiles: tiles, Recaps: recaps, Talents: opts.Talents,
+		Icons:  wowhead.Client{CacheDir: filepath.Join(opts.Cache, "wowhead")},
 		Spells: spells, Planner: planner}, &controller.Raid{Compares: s.compares, Pulls: keys, Maps: raidMaps, Now: opts.Now}, opts.Settings,
 		opts.Pages, opts.Hosts...)
 	return s, nil

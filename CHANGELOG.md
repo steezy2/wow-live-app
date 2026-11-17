@@ -4,7 +4,11 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 
 ## [Unreleased]
 
+### Changed
+- **Faster reviews and listings**: a player review reads its top logs five at a time, each log's tables, enemy hits and talents together, and the character's parses beside them, instead of one query after another. Listing a character's Warcraft Logs fights asks the next page of reports while the last is read, and a page's reports' fights in side-by-side queries of 8. Reading every log again takes about 20 s for 1.5 GB (the tracker is the limit, one line at a time), so it is unchanged.
+
 ### Added
+- **Talent icons, tooltips and both hero trees**: the compare tab's talent tree shows each talent's icon (the app fetches them from Wowhead once and keeps them) and what it does on hover, with who took it below; both hero trees are drawn (Arcane's Sunfury and Spellslinger, and every spec's two).
 - **Compare talents**: a player review draws the spec's talent tree with what the top logs take that you didn't, what only you took and where you both agree, with how many of the top logs took each. Keys and pulls read from now on (or with *Read old logs*) keep their talents; older ones say so.
 
 ### Fixed

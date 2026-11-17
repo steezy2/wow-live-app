@@ -1,5 +1,10 @@
 package models
 
+import "errors"
+
+// ErrNoSuchIcon is returned for an icon name that isn't one, or that Wowhead doesn't have.
+var ErrNoSuchIcon = errors.New("no such icon")
+
 // TalentTrees is reference/talent-trees.json: every spec's talent tree, written by cmd/talentref.
 type TalentTrees struct {
 	Trees []TalentTree `json:"trees"`

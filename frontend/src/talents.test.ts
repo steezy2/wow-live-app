@@ -35,11 +35,12 @@ describe('readTree', () => {
       ],
     }
     const state = Object.fromEntries(readTree(tree, talents).map((r) => [r.node.id, r.state]))
-    expect(state).toEqual({ 1: 'both', 2: 'missed', 3: 'extra', 4: 'missed', 5: 'unused', 6: 'extra' })
+    expect(state).toEqual({ 1: 'both', 2: 'missed', 3: 'extra', 4: 'missed', 5: 'unused', 6: 'extra', 7: 'unused' })
   })
 
-  it('draws the hero tree the top logs take when you took none', () => {
+  it('reads both hero trees', () => {
     const talents: CompareTalents = { specID: 62, of: 4, you: [{ n: 1, e: 10, r: 1 }], top: [{ n: 7, e: 70, r: 1, taken: 4, most: true }] }
-    expect(readTree(tree, talents).map((r) => r.node.id)).toEqual([1, 2, 3, 4, 5, 7])
+    const state = Object.fromEntries(readTree(tree, talents).map((r) => [r.node.id, r.state]))
+    expect(state).toMatchObject({ 6: 'unused', 7: 'missed' })
   })
 })

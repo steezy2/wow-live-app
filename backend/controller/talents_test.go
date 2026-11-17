@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -19,6 +20,28 @@ func TestTalentTreeServesASpecsTree(t *testing.T) {
 		r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, path, nil))
 		if w.Code != want {
 			t.Errorf("GET %s = %d, want %d", path, w.Code, want)
+		}
+	}
+}
+
+type fakeIcons struct{}
+
+func (fakeIcons) Icon(_ context.Context, name string) ([]byte, error) {
+	if name == "spell_a" {
+		return []byte("jpeg"), nil
+	}
+	return nil, models.ErrNoSuchIcon
+}
+
+func TestIconServesAnImageAndRefusesAnUnknownOne(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	r.GET("/icons/:name", MPlus{Icons: fakeIcons{}}.Icon)
+	for path, want := range map[string]int{"/icons/spell_a": 200, "/icons/other": 404} {
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, path, nil))
+		if w.Code != want || (want == 200 && w.Header().Get("Content-Type") != "image/jpeg") {
+			t.Errorf("GET %s = %d %s, want %d", path, w.Code, w.Header().Get("Content-Type"), want)
 		}
 	}
 }
