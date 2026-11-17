@@ -311,7 +311,7 @@ func buffRows(in compareInput, best int) ([]models.CompareRow, []costedLine) {
 	up := func(p models.RankedPlayer) map[string]float64 {
 		out := map[string]float64{}
 		for _, b := range p.Buffs {
-			out[b.Name] += 100 * float64(b.UptimeMS) / float64(max(1, p.DurationMS))
+			out[b.Name] = min(100, out[b.Name]+100*float64(b.UptimeMS)/float64(max(1, p.DurationMS)))
 		}
 		return out
 	}
