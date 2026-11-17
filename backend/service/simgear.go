@@ -26,22 +26,27 @@ type gearCandidate struct {
 	worn string
 }
 
-// gearCombo is one combination a sim runs: its profileset name and the slots it changes, and for a Droptimizer's
-// drop where it drops.
+// gearCombo is one profileset a sim runs: its name and the slots it changes, for a Droptimizer's drop where it drops,
+// and for a "consumables" sim the simc line it sets (lines) and the value it stands for (option).
 type gearCombo struct {
 	name   string
 	swaps  []models.SimSwap
 	source string
 	boss   string
+	lines  string
+	option *models.SimOptionRow
 }
 
-// topGearCombos is every legal combination of the picked items (indexes into p's Equipped and Bags) other than the
-// equipped gear. A slot with nothing picked keeps its item; two rings or trinkets are never the same item, and a
-// two-handed weapon empties the off-hand. More than maxCombos, or none, is ErrBadSimOptions: nothing is dropped.
-func topGearCombos(p models.SimProfile, equipped, bags []int) ([]gearCombo, error) {
+// gearGroups are the ways to fill each group of slots with the picked items (indexes into p's Equipped and Bags) and
+// extra candidates (a picked item's changed copies): a combination takes one way from each group. A slot with nothing
+// picked keeps its item; two rings or trinkets are never the same item, and a two-handed weapon empties the off-hand.
+func gearGroups(p models.SimProfile, equipped, bags []int, extra []gearCandidate) ([][][]models.SimSwap, error) {
 	pool, err := gearPool(p, equipped, bags)
 	if err != nil {
 		return nil, err
+	}
+	for _, c := range extra {
+		pool[gearKey(c.item.Slot)] = append(pool[gearKey(c.item.Slot)], c)
 	}
 	worn := map[string]*models.SimItem{}
 	for i := range p.Equipped {
@@ -56,7 +61,29 @@ func topGearCombos(p models.SimProfile, equipped, bags []int) ([]gearCombo, erro
 			groups = append(groups, slotOptions(slot, pool[slot], worn))
 		}
 	}
+	return groups, nil
+}
 
+// countCombos is how many combinations the groups make other than the equipped gear (the sim's baseline), stopping
+// at limit.
+func countCombos(groups [][][]models.SimSwap, limit int) int {
+	n := 1
+	for _, g := range groups {
+		n *= max(1, len(g))
+		if n > limit {
+			return limit
+		}
+	}
+	return n - 1
+}
+
+// topGearCombos is every legal combination of the picked items and extra candidates other than the equipped gear.
+// More than maxCombos, or none, is ErrBadSimOptions: nothing is dropped.
+func topGearCombos(p models.SimProfile, equipped, bags []int, extra []gearCandidate) ([]gearCombo, error) {
+	groups, err := gearGroups(p, equipped, bags, extra)
+	if err != nil {
+		return nil, err
+	}
 	var combos []gearCombo
 	var walk func(g int, swaps []models.SimSwap) error
 	walk = func(g int, swaps []models.SimSwap) error {
@@ -126,13 +153,22 @@ func slotOptions(slot string, picked []gearCandidate, worn map[string]*models.Si
 	return options
 }
 
+// distinctItems is how many different items (by ID) the candidates are.
+func distinctItems(picked []gearCandidate) int {
+	ids := map[int]bool{}
+	for _, c := range picked {
+		ids[c.item.ID] = true
+	}
+	return len(ids)
+}
+
 // pairOptions are the ways to fill two ring or trinket slots with two different picked items, the equipped ones
 // making up the two when fewer are picked. An equipped item stays in its own slot.
 func pairOptions(slots [2]string, picked []gearCandidate, worn map[string]*models.SimItem) [][]models.SimSwap {
 	if len(picked) == 0 {
 		return [][]models.SimSwap{nil}
 	}
-	short := len(picked) < 2
+	short := distinctItems(picked) < 2 // variants of one item count once: the pair needs another
 	for _, slot := range slots {
 		if short && worn[slot] != nil && !slices.ContainsFunc(picked, func(c gearCandidate) bool { return c.worn == slot }) {
 			picked = append(picked, gearCandidate{item: *worn[slot], worn: slot})
@@ -219,10 +255,13 @@ func gearSwaps(worn map[string]*models.SimItem, fills ...gearFill) []models.SimS
 	return swaps
 }
 
-// gearProfilesets are the combinations as simc profileset lines, one per changed slot.
+// gearProfilesets are the combinations as simc profileset lines, one per changed slot or set option.
 func gearProfilesets(combos []gearCombo) string {
 	var b strings.Builder
 	for _, c := range combos {
+		if c.lines != "" {
+			fmt.Fprintf(&b, "profileset.%s+=%s", c.name, c.lines)
+		}
 		for _, s := range c.swaps {
 			line := s.Slot + "=\n"
 			if s.In != nil {

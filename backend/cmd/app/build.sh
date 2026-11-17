@@ -9,7 +9,8 @@ embed="$repo/backend/cmd/app/embed"
 rm -rf "$embed/dist"
 cp -r "$repo/frontend/dist" "$embed/dist"
 cp "$repo/mplus.toml" "$repo/raid-rules.toml" "$repo/spec-rules.toml" "$repo/reference/mplus-dungeons.json" \
-  "$repo/reference/raid-bosses.json" "$repo/reference/talent-trees.json" "$repo/reference/sim-drops.json" "$embed/"
+  "$repo/reference/raid-bosses.json" "$repo/reference/talent-trees.json" "$repo/reference/sim-drops.json" \
+  "$repo/reference/sim-options.json" "$embed/"
 cd "$repo/backend" && go run ./cmd/appicon
 go build -trimpath -ldflags "-H windowsgui -s -w" -o "$repo/bin/WoW Live.exe" ./cmd/app
 echo "built $repo/bin/WoW Live.exe"

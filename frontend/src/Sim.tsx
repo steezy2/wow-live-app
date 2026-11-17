@@ -3,6 +3,7 @@ import {
   fetchSim,
   fetchSimChoices,
   fetchSimEngine,
+  fetchSimReference,
   fetchSims,
   installSimEngine,
   parseSimExport,
@@ -10,16 +11,25 @@ import {
   startSim,
   type Sim as SimRun,
   type SimChoices,
+  type SimCompare,
+  type SimConsumables,
   type SimEngineStatus,
   type SimKind,
   type SimOptions,
+  type SimPlan,
   type SimProfile,
+  type SimReference,
+  type SimRequest,
+  type SimVariant,
 } from './api'
 import { errorText, sizeText } from './format'
+import { OmniumFolio } from './OmniumFolio'
+import { ConsumableCompare, ConsumableSelects } from './SimConsumables'
 import { SimGear, SimHeader } from './SimGear'
 import { useItemInfo } from './simItems'
+import { usePlan } from './simPlan'
 import { SimResult } from './SimResult'
-import { averageLevel, simOptionsError } from './simOptions'
+import { averageLevel, omniumPicks, omniumString, pickedConsumables, simOptionsError } from './simOptions'
 import { Skeleton } from './Skeleton'
 import { tip } from './tipAttrs'
 
@@ -30,6 +40,7 @@ const KINDS: [SimKind, string, string][] = [
   ['quick', 'Quick Sim', 'One DPS number with each ability and buff'],
   ['topgear', 'Top Gear', 'The best combination of the gear you carry'],
   ['drops', 'Droptimizer', "Each piece the season's raid and dungeons drop, by its gain"],
+  ['consumables', 'Consumables', 'Flasks, food, potions, augment runes or weapon oils against each other'],
 ]
 
 /** The engine on one line: what is installed (or the plain words about the download), with its buttons. */
@@ -79,8 +90,24 @@ function EngineBar(props: {
   )
 }
 
-/** The fight's options, and for a Droptimizer where the drops come from, with the Sim button and a running sim's
- * progress, in the panel beside the gear. */
+/** What a Top Gear request makes, in words: how many combinations (of the most that run) and about how long, or why the
+ * request can't run. */
+function PlanText({ plan }: { plan: { plan: SimPlan | null; error: string | null } }) {
+  if (plan.error) return <p className="warning">{plan.error}</p>
+  if (!plan.plan) return <p className="muted small">Counting the combinations…</p>
+  const { combos, max, seconds } = plan.plan
+  if (combos === 0) return <p className="warning">Tick at least one item that isn't worn, or add a variant.</p>
+  if (combos >= max) return <p className="warning">Over {max} combinations: untick some items or variants.</p>
+  const about = seconds < 90 ? `${seconds} s` : `${Math.round(seconds / 60)} min`
+  return (
+    <p className="muted small">
+      {combos} combination{combos > 1 ? 's' : ''} of {max} · about {about}
+    </p>
+  )
+}
+
+/** The fight's options, the consumables and for a Droptimizer where the drops come from, with the Sim button and a
+ * running sim's progress, in the panel beside the gear. */
 function OptionsPanel(props: {
   kind: SimKind
   choices: SimChoices
@@ -91,6 +118,10 @@ function OptionsPanel(props: {
   keyLevel: number
   setKeyLevel: (k: number) => void
   optionsError: string | null
+  reference: SimReference
+  consumables: SimConsumables
+  setConsumables: (c: SimConsumables) => void
+  plan: { plan: SimPlan | null; error: string | null } | null
   canRun: boolean
   running: SimRun | null
   onRun: () => void
@@ -154,7 +185,10 @@ function OptionsPanel(props: {
           </label>
         </>
       )}
+      <h2>Consumables</h2>
+      <ConsumableSelects reference={props.reference} value={props.consumables} onChange={props.setConsumables} />
       {optionsError && <p className="warning">{optionsError}</p>}
+      {props.plan && <PlanText plan={props.plan} />}
       <button className="sim-run" disabled={!props.canRun || !!running || !!optionsError} onClick={props.onRun}>
         {running ? 'Simming…' : 'Sim'}
       </button>
@@ -178,8 +212,13 @@ export function Sim() {
   const [profile, setProfile] = useState<SimProfile | null>(null)
   const [kind, setKind] = useState<SimKind>('quick')
   const [options, setOptions] = useState<SimOptions | null>(null)
+  const [reference, setReference] = useState<SimReference | null>(null)
   const [equipped, setEquipped] = useState<number[]>([])
   const [bags, setBags] = useState<number[]>([])
+  const [variants, setVariants] = useState<SimVariant[]>([])
+  const [consumables, setConsumables] = useState<SimConsumables>({})
+  const [compare, setCompare] = useState<SimCompare>({ kind: 'flask', values: [] })
+  const [omnium, setOmnium] = useState<number[]>([])
   const [difficulty, setDifficulty] = useState('')
   const [keyLevel, setKeyLevel] = useState(0)
   const [sim, setSim] = useState<SimRun | null>(null)
@@ -197,6 +236,10 @@ export function Sim() {
         setDifficulty(c.defaultDifficulty)
         setKeyLevel(c.defaultKeyLevel)
       },
+      (err: unknown) => !controller.signal.aborted && setError(errorText(err)),
+    )
+    fetchSimReference(controller.signal).then(
+      setReference,
       (err: unknown) => !controller.signal.aborted && setError(errorText(err)),
     )
     fetchSimEngine(controller.signal).then(setEngine, () => undefined)
@@ -236,28 +279,56 @@ export function Sim() {
       setProfile(p)
       setEquipped(p.equipped.map((_, i) => i)) // worn items are candidates until unticked
       setBags([])
+      setVariants([])
+      setOmnium(omniumPicks(p.omnium))
     })
   const optionsError = choices && options ? simOptionsError(options, choices) : null
+  const request = (): SimRequest | null => {
+    if (!options) return null
+    const mine = omniumString(reference?.omnium ?? [], omnium)
+    const theirs = omniumString(reference?.omnium ?? [], omniumPicks(profile?.omnium))
+    return {
+      kind,
+      export: text,
+      options,
+      consumables: pickedConsumables(consumables),
+      ...(mine && mine !== theirs && { omnium: mine }),
+      ...(kind === 'topgear' && { equipped, bags, variants }),
+      ...(kind === 'drops' && { difficulty, keyLevel }),
+      ...(kind === 'consumables' && { compare }),
+    }
+  }
+  const planRequest = kind === 'topgear' && profile ? request() : null
+  const plan = usePlan(planRequest)
   const start = () =>
     act(async () => {
-      if (!options) return
-      setSim(
-        await startSim({
-          kind,
-          export: text,
-          options,
-          ...(kind === 'topgear' && { equipped, bags }),
-          ...(kind === 'drops' && { difficulty, keyLevel }),
-        }),
-      )
+      const req = request()
+      if (req) setSim(await startSim(req))
     })
   const toggle = (worn: boolean, i: number) => {
     const [list, set] = worn ? [equipped, setEquipped] : [bags, setBags]
     set(list.includes(i) ? list.filter((n) => n !== i) : [...list, i])
   }
 
-  if (!choices || !options) return error ? <p className="warning">{error}</p> : <Skeleton height={320} lines={5} />
-  const pick = kind === 'topgear' ? { equipped, bags, onToggle: toggle } : undefined
+  if (!choices || !options || !reference) {
+    return error ? <p className="warning">{error}</p> : <Skeleton height={320} lines={5} />
+  }
+  const same = (a: SimVariant, b: SimVariant) => JSON.stringify(a) === JSON.stringify(b)
+  const pick =
+    kind === 'topgear'
+      ? {
+          equipped,
+          bags,
+          onToggle: toggle,
+          reference,
+          variants,
+          onAddVariant: (v: SimVariant) => setVariants((all) => (all.some((o) => same(o, v)) ? all : [...all, v])),
+          onRemoveVariant: (v: SimVariant) => setVariants((all) => all.filter((o) => !same(o, v))),
+        }
+      : undefined
+  const planBlocks =
+    kind === 'topgear' && (!!plan.error || !plan.plan || plan.plan.combos === 0 || plan.plan.combos >= plan.plan.max)
+  const compareBlocks = kind === 'consumables' && compare.values.length === 0
   return (
     <main className="page settings sim">
       <EngineBar engine={engine} busy={!!running} act={act} onEngine={setEngine} />
@@ -308,14 +379,33 @@ export function Sim() {
           </div>
           <div className="sim-layout">
             <section className="panel sim-gear">
-              <h2>{kind === 'topgear' ? 'Gear to try' : 'Worn gear'}</h2>
-              {kind === 'topgear' && (
-                <p className="muted small">
-                  Tick what it may wear: worn items stay candidates, carried ones are added. At most{' '}
-                  {choices.maxCombos} combinations run.
-                </p>
+              {kind === 'consumables' ? (
+                <>
+                  <h2>Consumables to compare</h2>
+                  <p className="muted small">
+                    Each ticked one is simmed in place of the one you pick for it (or simc's default); at most{' '}
+                    {choices.maxCompare}.
+                  </p>
+                  <ConsumableCompare
+                    reference={reference}
+                    compare={compare}
+                    max={choices.maxCompare}
+                    onChange={setCompare}
+                  />
+                </>
+              ) : (
+                <>
+                  <h2>{kind === 'topgear' ? 'Gear to try' : 'Worn gear'}</h2>
+                  {kind === 'topgear' && (
+                    <p className="muted small">
+                      Tick what it may wear, highest item level first: worn items stay candidates, carried ones are
+                      added. Each item can also be tried upgraded, with a socket and gem, or with an enchant. At
+                      most {choices.maxCombos} combinations run.
+                    </p>
+                  )}
+                  <SimGear profile={profile} info={info} pick={pick} />
+                </>
               )}
-              <SimGear profile={profile} info={info} pick={pick} />
             </section>
             <OptionsPanel
               kind={kind}
@@ -327,12 +417,24 @@ export function Sim() {
               keyLevel={keyLevel}
               setKeyLevel={setKeyLevel}
               optionsError={optionsError}
-              canRun={!!engine?.installed}
+              reference={reference}
+              consumables={consumables}
+              setConsumables={setConsumables}
+              plan={planRequest ? plan : null}
+              canRun={!!engine?.installed && !planBlocks && !compareBlocks}
               running={running}
               onRun={start}
               onCancel={() => running && act(() => removeSim(running.id))}
             />
           </div>
+          {reference.omnium.length > 0 && (
+            <OmniumFolio
+              nodes={reference.omnium}
+              picks={omnium}
+              original={omniumPicks(profile.omnium)}
+              onChange={setOmnium}
+            />
+          )}
         </>
       )}
 

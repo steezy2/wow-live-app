@@ -88,9 +88,11 @@ type SimEngineSource interface {
 type Sims struct {
 	Engine SimEngineSource
 	Drops  models.SimDrops // reference/sim-drops.json, for a Droptimizer
-	Dir    string
-	Now    func() time.Time
-	Ctx    context.Context // the app's: canceled on Quit, which stops a running sim and download; nil never cancels
+	// Ref is reference/sim-options.json: the consumables, enchants, gems, upgrade tracks and Omnium Folio a request may use.
+	Ref models.SimReference
+	Dir string
+	Now func() time.Time
+	Ctx context.Context // the app's: canceled on Quit, which stops a running sim and download; nil never cancels
 
 	mu         sync.Mutex
 	run        *simRun     // the sim running now
@@ -121,7 +123,8 @@ func (s *Sims) Choices() models.SimChoices {
 		defaultKey = defaultDropKey
 	}
 	return models.SimChoices{FightStyles: simFightStyles, Accuracies: accuracies, MinLength: minSimLength,
-		MaxLength: maxSimLength, MaxTargets: maxSimTargets, MaxCombos: maxCombos, MaxDrops: maxDrops,
+		MaxLength: maxSimLength, MaxTargets: maxSimTargets, MaxCombos: maxCombos, MaxCompare: maxCompareValues,
+		MaxDrops:     maxDrops,
 		Difficulties: simDifficulties, KeyLevels: keyLevels, Defaults: simDefaults,
 		DefaultDifficulty: defaultDropDifficulty, DefaultKeyLevel: defaultKey}
 }
@@ -183,6 +186,30 @@ func (s *Sims) InstallEngine(path string) error {
 	return nil
 }
 
+// Reference is what a request may pick besides its gear (reference/sim-options.json).
+func (s *Sims) Reference() models.SimReference { return s.Ref }
+
+// Plan is what a Top Gear request would run, counted without starting it: ErrBadSimOptions for another kind or for
+// items and variants that don't fit the export.
+func (s *Sims) Plan(req models.SimRequest) (models.SimPlan, error) {
+	if req.Kind != "topgear" {
+		return models.SimPlan{}, fmt.Errorf("%w: only Top Gear has a plan", ErrBadSimOptions)
+	}
+	profile, err := ParseSimC(req.Export)
+	if err != nil {
+		return models.SimPlan{}, err
+	}
+	extra, err := variantCandidates(s.Ref, profile, req.Variants)
+	if err != nil {
+		return models.SimPlan{}, err
+	}
+	groups, err := gearGroups(profile, req.Equipped, req.Bags, extra)
+	if err != nil {
+		return models.SimPlan{}, err
+	}
+	return planOf(countCombos(groups, maxPlanCombos)), nil
+}
+
 // Start parses the export and starts the sim in the background; poll Get. Errors: ErrBadSimOptions, ErrBadSimC,
 // ErrNoEngine, ErrSimBusy.
 func (s *Sims) Start(req models.SimRequest) (models.Sim, error) {
@@ -193,12 +220,24 @@ func (s *Sims) Start(req models.SimRequest) (models.Sim, error) {
 	if err != nil {
 		return models.Sim{}, err
 	}
+	consumables, err := consumableLines(s.Ref, req.Consumables)
+	if err != nil {
+		return models.Sim{}, err
+	}
+	if profile.Omnium, err = omniumInput(s.Ref, profile, req.Omnium); err != nil {
+		return models.Sim{}, err
+	}
 	var combos []gearCombo
 	switch req.Kind {
 	case "topgear":
-		combos, err = topGearCombos(profile, req.Equipped, req.Bags)
+		var extra []gearCandidate
+		if extra, err = variantCandidates(s.Ref, profile, req.Variants); err == nil {
+			combos, err = topGearCombos(profile, req.Equipped, req.Bags, extra)
+		}
 	case "drops":
 		combos, err = dropCombos(profile, s.Drops, req.Difficulty, req.KeyLevel)
+	case "consumables":
+		combos, err = compareCombos(s.Ref, req.Compare)
 	}
 	if err != nil {
 		return models.Sim{}, err
@@ -220,7 +259,7 @@ func (s *Sims) Start(req models.SimRequest) (models.Sim, error) {
 		return models.Sim{}, fmt.Errorf("making %s: %w", work, err)
 	}
 	input, output := filepath.Join(work, id+".simc"), filepath.Join(work, id+".json")
-	if err := os.WriteFile(input, []byte(SimInput(profile)+gearProfilesets(combos)), 0o644); err != nil {
+	if err := os.WriteFile(input, []byte(SimInput(profile)+consumables+gearProfilesets(combos)), 0o644); err != nil {
 		return models.Sim{}, fmt.Errorf("writing %s: %w", input, err)
 	}
 	ctx, cancel := context.WithTimeout(s.base(), simTimeout)
@@ -418,7 +457,11 @@ func readSimResult(path string, combos []gearCombo) (*models.SimResult, error) {
 	slices.SortStableFunc(result.Buffs, func(a, b models.SimBuff) int { return cmp.Compare(b.Uptime, a.Uptime) })
 	result.Abilities = result.Abilities[:min(len(result.Abilities), maxSimRows)]
 	result.Buffs = result.Buffs[:min(len(result.Buffs), maxSimRows)]
-	if len(combos) > 0 {
+	switch {
+	case len(combos) == 0:
+	case combos[0].option != nil:
+		result.Options = optionResults(out.Sim.Profilesets.Results, result.DPS, combos)
+	default:
 		result.Combos = gearResults(out.Sim.Profilesets.Results, result.DPS, combos)
 	}
 	return result, nil

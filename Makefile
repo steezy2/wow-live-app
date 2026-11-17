@@ -1,7 +1,7 @@
 # WoW Live's everyday commands, from the repo root in Git Bash (with Go, Node and make): `make` lists them.
 SHELL := bash
 .DEFAULT_GOAL := help
-.PHONY: help app page site check fmt swag ref ref-check deps release
+.PHONY: help app page site check fmt swag ref ref-check talents simoptions deps release
 
 help: ## List these commands
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | sed -E 's/:.*## /\t/' | expand -t 12
@@ -33,6 +33,9 @@ ref: ## Rewrite reference/mplus-dungeons.json from its sources: check the diff
 
 talents: ## Rewrite reference/talent-trees.json from Raidbots: check the diff
 	cd backend && go run ./cmd/talentref
+
+simoptions: ## Rewrite reference/sim-options.json (consumables, enchants, gems, upgrade tracks, Omnium Folio) from Raidbots
+	cd backend && go run ./cmd/simoptref
 
 ref-check: ## List what the logged keys show that the dungeon file lacks
 	cd backend && go run ./cmd/mplusref --check

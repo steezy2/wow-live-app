@@ -24,6 +24,10 @@ type fakeSims struct{ err error }
 func (f fakeSims) Choices() models.SimChoices {
 	return models.SimChoices{FightStyles: []string{"Patchwerk"}}
 }
+func (f fakeSims) Reference() models.SimReference { return models.SimReference{} }
+func (f fakeSims) Plan(models.SimRequest) (models.SimPlan, error) {
+	return models.SimPlan{}, f.err
+}
 func (f fakeSims) EngineStatus() models.SimEngineStatus { return models.SimEngineStatus{} }
 func (f fakeSims) InstallEngine(string) error           { return f.err }
 func (f fakeSims) Get(string) (models.Sim, error)       { return models.Sim{}, f.err }
@@ -49,6 +53,10 @@ func TestSimAPIAnswersEachErrorWithItsStatus(t *testing.T) {
 		{"POST", "/api/sim", `{"kind": "quick"}`, nil, http.StatusBadRequest},
 		{"POST", "/api/sim", `{"export": "` + strings.Repeat("x", simBodyBytes) + `"}`, nil, http.StatusBadRequest},
 		{"POST", "/api/sim/engine", "", service.ErrSimBusy, http.StatusConflict},
+		{"GET", "/api/sim/options", "", nil, http.StatusOK},
+		{"POST", "/api/sim/plan", body, nil, http.StatusOK},
+		{"POST", "/api/sim/plan", body, fmt.Errorf("%w: not Top Gear", service.ErrBadSimOptions), http.StatusBadRequest},
+		{"POST", "/api/sim/plan", "{", nil, http.StatusBadRequest},
 		{"GET", "/api/sim/0123456789abcdef", "", fs.ErrNotExist, http.StatusNotFound},
 		{"DELETE", "/api/sim/0123456789abcdef", "", nil, http.StatusNoContent},
 		{"GET", "/api/sim/choices", "", fs.ErrNotExist, http.StatusOK}, // a route of its own, not a sim's ID

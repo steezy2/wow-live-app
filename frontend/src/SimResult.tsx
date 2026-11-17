@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { Sim, SimCombo } from './api'
+import type { Sim, SimCombo, SimOptionRow } from './api'
 import { amount, clock } from './format'
 import { Spell } from './Spell'
 import { ItemLine } from './SimItem'
@@ -66,8 +66,37 @@ function Combos({ combos, drops }: { combos: SimCombo[]; drops: boolean }) {
   )
 }
 
-/** A finished sim: the DPS, a Top Gear or Droptimizer's ranked rows, each ability's share of the damage and the buffs
- * that were up. */
+/** A "consumables" sim's values, best first: each a row with its rank, a bar for its gain over the sim's own
+ * consumables and its DPS. */
+function OptionRows({ rows }: { rows: SimOptionRow[] }) {
+  const best = Math.max(0, ...rows.map((r) => r.gain))
+  return (
+    <section className="panel">
+      <h2>Consumables</h2>
+      <ol className="sim-combos">
+        {rows.map((r, i) => (
+          <li key={r.value}>
+            <span className="sim-rank">{i + 1}</span>
+            <div className="sim-gain">
+              <span className={r.gain >= 0 ? 'good' : 'warning'}>
+                {r.gain >= 0 ? '+' : ''}
+                {amount(r.gain)}
+              </span>
+              <span className="muted small">{amount(r.dps)} DPS</span>
+              <span className="sim-gain-bar">
+                <span style={{ width: `${gainShare(r.gain, best)}%` }} />
+              </span>
+            </div>
+            <div className="sim-swaps">{r.name}</div>
+          </li>
+        ))}
+      </ol>
+    </section>
+  )
+}
+
+/** A finished sim: the DPS, a Top Gear or Droptimizer's ranked rows or a consumables sim's, each ability's share of
+ * the damage and the buffs that were up. */
 export function SimResult({ sim }: { sim: Sim }) {
   const result = sim.result
   if (!result) return null
@@ -86,6 +115,7 @@ export function SimResult({ sim }: { sim: Sim }) {
         </p>
       </section>
       {result.combos && <Combos combos={result.combos} drops={sim.kind === 'drops'} />}
+      {result.options && <OptionRows rows={result.options} />}
       <section className="panel">
         <h2>Abilities</h2>
         <div className="table-scroll">

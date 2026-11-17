@@ -23,13 +23,14 @@ type SimProfile struct {
 
 // SimItem is one piece of gear: its slot as simc names it ("finger1", "main_hand"; every carried ring is "finger1",
 // as the export writes it), the name and item level the export's comment gives, the item ID, and its other numbers
-// by simc's key ("bonus_id", "gem_id", "enchant_id", ...).
+// by simc's key ("bonus_id", "gem_id", "enchant_id", ...). A Top Gear variant says what it changed in Note.
 type SimItem struct {
 	Slot  string           `json:"slot"`
 	Name  string           `json:"name,omitempty"`
 	Level int              `json:"level,omitempty"`
 	ID    int              `json:"id"`
 	Opts  map[string][]int `json:"opts,omitempty"`
+	Note  string           `json:"note,omitempty" example:"Myth 3/6, socket"`
 }
 
 // SimOptions are the fight a sim runs: its style (one of SimChoices.FightStyles), its length in seconds, how many
@@ -48,8 +49,10 @@ type SimChoices struct {
 	MinLength   int      `json:"minLength"`
 	MaxLength   int      `json:"maxLength"`
 	MaxTargets  int      `json:"maxTargets"`
-	// MaxCombos is the most gear combinations a Top Gear sim runs; a request over it is refused.
-	MaxCombos int `json:"maxCombos" example:"100"`
+	// MaxCombos is the most gear combinations a Top Gear sim runs; a request over it is refused. MaxCompare is the
+	// most values a "consumables" sim tries.
+	MaxCombos  int `json:"maxCombos" example:"100"`
+	MaxCompare int `json:"maxCompare" example:"40"`
 	// MaxDrops is the most drops a Droptimizer sims; Difficulties are the raid difficulties it can sim the raid at and
 	// KeyLevels the Mythic+ key levels it can sim dungeons at.
 	MaxDrops     int        `json:"maxDrops" example:"300"`
@@ -64,20 +67,28 @@ type SimChoices struct {
 // SimRequest starts a sim: its Kind (one of SimKinds), the pasted SimC export (parsed again on every request) and
 // the options. A Top Gear sim also sends the items it may put on, as indexes into the parsed profile's Equipped and
 // Bags; an equipped item left out is not a candidate. A Droptimizer sim sends the raid Difficulty (one of
-// SimChoices.Difficulties) and the Mythic+ KeyLevel (one of SimChoices.KeyLevels) its drops are at.
+// SimChoices.Difficulties) and the Mythic+ KeyLevel (one of SimChoices.KeyLevels) its drops are at. Every kind may
+// name Consumables and an Omnium Folio (entry:rank pairs, as the export writes it) instead of simc's defaults and the
+// export's; a Top Gear sim may add Variants (changed copies of its candidates) and a "consumables" sim sends the
+// Compare it makes.
 type SimRequest struct {
-	Kind       string     `json:"kind" binding:"required" example:"quick"`
-	Export     string     `json:"export" binding:"required"`
-	Options    SimOptions `json:"options"`
-	Equipped   []int      `json:"equipped,omitempty"`
-	Bags       []int      `json:"bags,omitempty"`
-	Difficulty string     `json:"difficulty,omitempty" example:"heroic"`
-	KeyLevel   int        `json:"keyLevel,omitempty" example:"10"`
+	Kind        string         `json:"kind" binding:"required" example:"quick"`
+	Export      string         `json:"export" binding:"required"`
+	Options     SimOptions     `json:"options"`
+	Equipped    []int          `json:"equipped,omitempty"`
+	Bags        []int          `json:"bags,omitempty"`
+	Variants    []SimVariant   `json:"variants,omitempty"`
+	Difficulty  string         `json:"difficulty,omitempty" example:"heroic"`
+	KeyLevel    int            `json:"keyLevel,omitempty" example:"10"`
+	Consumables SimConsumables `json:"consumables"`
+	Omnium      string         `json:"omnium,omitempty" example:"136822:1/136817:1"`
+	Compare     *SimCompare    `json:"compare,omitempty"`
 }
 
 // SimKinds are the kinds of sim: one character's DPS ("quick"), the best combination of the gear they carry
-// ("topgear") and the gain of each piece the season's raid and dungeons drop ("drops").
-var SimKinds = []string{"quick", "topgear", "drops"}
+// ("topgear"), the gain of each piece the season's raid and dungeons drop ("drops") and the gain of each of several
+// flasks, foods, potions, augment runes or weapon oils ("consumables").
+var SimKinds = []string{"quick", "topgear", "drops", "consumables"}
 
 // The states a sim is in (Sim.State).
 const (
@@ -91,7 +102,7 @@ const (
 // how long it took, and, once State is "done", its Result; a failed one says why in Error. The list leaves Result out.
 type Sim struct {
 	ID        string     `json:"id" example:"9f3a1c5e7b2d4a60"`
-	Kind      string     `json:"kind" enums:"quick,topgear,drops"`
+	Kind      string     `json:"kind" enums:"quick,topgear,drops,consumables"`
 	State     string     `json:"state" enums:"running,done,failed,cancelled"`
 	Character string     `json:"character" example:"Steezy"`
 	Spec      string     `json:"spec" example:"elemental"`
@@ -112,6 +123,8 @@ type SimResult struct {
 	Abilities []SimAbility `json:"abilities"`
 	Buffs     []SimBuff    `json:"buffs"`
 	Combos    []SimCombo   `json:"combos,omitempty"`
+	// Options are a "consumables" sim's values, best first.
+	Options []SimOptionRow `json:"options,omitempty"`
 }
 
 // SimCombo is one gear combination a Top Gear sim ran: its DPS, the standard error of that mean, its gain over the

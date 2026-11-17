@@ -104,6 +104,8 @@ func Router(mplus MPlus, raid *Raid, settings *SettingsAPI, pages fs.FS, hosts .
 			api.GET("/sim", settings.Sim.List)
 			api.POST("/sim", settings.Sim.Start)
 			api.GET("/sim/choices", settings.Sim.Choices)
+			api.GET("/sim/options", settings.Sim.Reference)
+			api.POST("/sim/plan", settings.Sim.Plan)
 			api.GET("/sim/engine", settings.Sim.Engine)
 			api.GET("/sim/items", settings.Sim.ItemInfo)
 			api.POST("/sim/engine", settings.Sim.InstallEngine)

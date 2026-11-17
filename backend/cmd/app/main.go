@@ -319,6 +319,13 @@ func carried() (app.Options, error) {
 	if err := json.Unmarshal(drops, &opts.Drops); err != nil {
 		return opts, fmt.Errorf("reading the built-in sim drops: %w", err)
 	}
+	simOptions, err := files.ReadFile("embed/sim-options.json")
+	if err != nil {
+		return opts, err
+	}
+	if err := json.Unmarshal(simOptions, &opts.SimRef); err != nil {
+		return opts, fmt.Errorf("reading the built-in sim options: %w", err)
+	}
 	return opts, nil
 }
 

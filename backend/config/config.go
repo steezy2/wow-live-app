@@ -181,6 +181,12 @@ func SimDropsPath(root string) string {
 	return filepath.Join(root, "reference", "sim-drops.json")
 }
 
+// SimOptionsPath is the Sim tab's consumables, enchants, gems, upgrade tracks and Omnium Folio, written by
+// cmd/simoptref.
+func SimOptionsPath(root string) string {
+	return filepath.Join(root, "reference", "sim-options.json")
+}
+
 // SimDropLevelsPath is the hand-kept item levels cmd/simref gives the Droptimizer's gear.
 func SimDropLevelsPath(root string) string {
 	return filepath.Join(root, "reference", "sim-drops.toml")

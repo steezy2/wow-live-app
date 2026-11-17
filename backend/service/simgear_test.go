@@ -52,7 +52,7 @@ func TestTopGearCombosFollowTheSlotRules(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			combos, err := topGearCombos(gearProfile(tt.twoHanded), tt.equipped, tt.bag)
+			combos, err := topGearCombos(gearProfile(tt.twoHanded), tt.equipped, tt.bag, nil)
 			if tt.want == 0 {
 				if !errors.Is(err, ErrBadSimOptions) || combos != nil {
 					t.Errorf("got %d combos, err %v; want ErrBadSimOptions", len(combos), err)
@@ -67,7 +67,7 @@ func TestTopGearCombosFollowTheSlotRules(t *testing.T) {
 }
 
 func TestTopGearWeaponsEmptyOrFillTheOffHand(t *testing.T) {
-	combos, err := topGearCombos(gearProfile(false), []int{5, 6}, []int{4, 5})
+	combos, err := topGearCombos(gearProfile(false), []int{5, 6}, []int{4, 5}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -79,7 +79,7 @@ func TestTopGearWeaponsEmptyOrFillTheOffHand(t *testing.T) {
 		}
 	}
 	// a picked off-hand makes the bag main hand a one-hander beside a worn two-hander
-	combos, err = topGearCombos(gearProfile(true), []int{5}, []int{4, 5})
+	combos, err = topGearCombos(gearProfile(true), []int{5}, []int{4, 5}, nil)
 	if err != nil || len(combos) != 1 || len(combos[0].swaps) != 2 || combos[0].swaps[0].In.ID != 33 ||
 		combos[0].swaps[1].Slot != "off_hand" || combos[0].swaps[1].Out != nil || combos[0].swaps[1].In.ID != 34 {
 		t.Errorf("combos = %+v, %v", combos, err)
@@ -96,11 +96,11 @@ func TestTopGearRefusesOverTheCap(t *testing.T) {
 		p.Bags = append(p.Bags, gearItem("head", 100+i), gearItem("neck", 200+i))
 		picked = append(picked, 2*i, 2*i+1)
 	}
-	if combos, err := topGearCombos(p, nil, picked); err != nil || len(combos) != maxCombos {
+	if combos, err := topGearCombos(p, nil, picked, nil); err != nil || len(combos) != maxCombos {
 		t.Fatalf("10 heads by 10 necks: %d combos, %v; want %d", len(combos), err, maxCombos)
 	}
 	p.Bags = append(p.Bags, gearItem("head", 110))
-	if combos, err := topGearCombos(p, nil, append(picked, len(p.Bags)-1)); !errors.Is(err, ErrBadSimOptions) ||
+	if combos, err := topGearCombos(p, nil, append(picked, len(p.Bags)-1), nil); !errors.Is(err, ErrBadSimOptions) ||
 		combos != nil {
 		t.Errorf("11 heads by 10 necks: %d combos, %v; want refused, not cut", len(combos), err)
 	}
