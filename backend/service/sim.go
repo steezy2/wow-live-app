@@ -132,8 +132,8 @@ func validateSimOptions(kind string, o models.SimOptions) error {
 	_, accurate := simAccuracyOf(o.Accuracy)
 	if !slices.Contains(models.SimKinds, kind) || !slices.Contains(simFightStyles, o.FightStyle) || !accurate ||
 		o.Length < minSimLength || o.Length > maxSimLength || o.Targets < 1 || o.Targets > maxSimTargets {
-		return fmt.Errorf("%w: send a kind (%v), a fight style (%v), a length (%d to %d s), targets (1 to %d) and an accuracy",
-			ErrBadSimOptions, models.SimKinds, simFightStyles, minSimLength, maxSimLength, maxSimTargets)
+		return fmt.Errorf("%w: send a kind (%v), a fight style (%v), a length (%d to %d s), targets (1 to %d) and "+
+			"an accuracy", ErrBadSimOptions, models.SimKinds, simFightStyles, minSimLength, maxSimLength, maxSimTargets)
 	}
 	return nil
 }
@@ -232,7 +232,8 @@ func simArgs(input, output string, o models.SimOptions, profilesets bool) []stri
 		targetError = max(targetError, setTargetError)
 	}
 	return []string{input, "fight_style=" + o.FightStyle, "max_time=" + strconv.Itoa(o.Length),
-		"desired_targets=" + strconv.Itoa(o.Targets), "target_error=" + strconv.FormatFloat(targetError, 'f', -1, 64),
+		"desired_targets=" + strconv.Itoa(o.Targets),
+		"target_error=" + strconv.FormatFloat(targetError, 'f', -1, 64),
 		"iterations=" + strconv.Itoa(maxSimIterations), "threads=" + strconv.Itoa(max(1, runtime.NumCPU()-1)),
 		"json2=" + output}
 }
@@ -309,7 +310,7 @@ func (s *Sims) follow(r io.Reader) string {
 			complaint = line[:min(len(line), 300)]
 		}
 	}
-	io.Copy(io.Discard, r) // a line over the scanner's limit mustn't leave simc blocked on a full pipe
+	_, _ = io.Copy(io.Discard, r) // a line over the scanner's limit mustn't leave simc blocked on a full pipe
 	return complaint
 }
 
