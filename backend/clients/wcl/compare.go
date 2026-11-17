@@ -3,10 +3,12 @@ package wcl
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"slices"
 	"strings"
+	"sync"
 
 	"wow-live/backend/models"
 )
@@ -168,18 +170,34 @@ func (c *Client) RunPlayer(ctx context.Context, code string, fightID int, name, 
 		deaths: table(dataType: Deaths, targetID: $a, ` + args + `) } } }`
 	file := fmt.Sprintf("player-%s-%d-%d-%d.json", code, fightID, actor, to-from)
 	vars := map[string]any{"r": code, "f": fightID, "a": actor, "from": from, "to": to}
-	if err := c.cachedQuery(ctx, file, 0, gql, vars, &data); err != nil {
+	// The tables, the enemies' hits and the talents are three queries that don't need each other: ask them together.
+	var (
+		wg        sync.WaitGroup
+		taken     int64
+		takenErr  error
+		talents   []models.TalentPick
+		talentErr error
+	)
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		taken, takenErr = c.takenFromEnemies(ctx, code, fightID, actor, from, to)
+	}()
+	go func() {
+		defer wg.Done()
+		talents, talentErr = c.playerTalents(ctx, code, fightID, actor, from, to)
+	}()
+	tablesErr := c.cachedQuery(ctx, file, 0, gql, vars, &data)
+	wg.Wait()
+	if err := errors.Join(tablesErr, takenErr); err != nil {
 		return models.RankedPlayer{}, err
+	}
+	if talentErr != nil {
+		log.Printf("reading the talents of %s in %s#%d: %v", name, code, fightID, talentErr)
 	}
 	player := rankedPlayer(data.ReportData.Report, to-from)
-	taken, err := c.takenFromEnemies(ctx, code, fightID, actor, from, to)
-	if err != nil {
-		return models.RankedPlayer{}, err
-	}
 	player.Taken += taken
-	if player.Talents, err = c.playerTalents(ctx, code, fightID, actor, from, to); err != nil {
-		log.Printf("reading the talents of %s in %s#%d: %v", name, code, fightID, err)
-	}
+	player.Talents = talents
 	return player, nil
 }
 

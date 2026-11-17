@@ -3,7 +3,9 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io/fs"
+	"sync"
 	"testing"
 
 	"wow-live/backend/models"
@@ -12,9 +14,11 @@ import (
 // fakeLogs is Warcraft Logs for a player review: three ranked runs, each log read as asked, and a points count
 // that drops by 100 after the first reading of it.
 type fakeLogs struct {
+	mu      sync.Mutex
 	left    float64
 	windows []int64
 	fail    bool
+	limited bool // every log read hits the rate limit
 }
 
 func (f *fakeLogs) MPlusEncounters(context.Context) (map[string]int, error) {
@@ -30,7 +34,12 @@ func (f *fakeLogs) RankedRuns(context.Context, models.RankQuery, int) ([]models.
 }
 
 func (f *fakeLogs) RunPlayer(_ context.Context, _ string, _ int, _, _ string, window int64) (models.RankedPlayer, error) {
+	f.mu.Lock()
 	f.windows = append(f.windows, window)
+	f.mu.Unlock()
+	if f.limited {
+		return models.RankedPlayer{}, fmt.Errorf("reading: %w", models.ErrRateLimited)
+	}
 	if f.fail {
 		return models.RankedPlayer{}, errors.New("report gone")
 	}
@@ -38,6 +47,8 @@ func (f *fakeLogs) RunPlayer(_ context.Context, _ string, _ int, _, _ string, wi
 }
 
 func (f *fakeLogs) PointsLeft(context.Context) (float64, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	left := f.left
 	f.left -= 100
 	return left, nil
@@ -111,6 +122,14 @@ func TestRunStopsForTooFewPointsAndForLogsThatCantBeRead(t *testing.T) {
 	}
 	if _, err := c.Run(context.Background(), models.FightMPlus, 1000, "Nobody"); !errors.Is(err, ErrNoSuchPlayer) {
 		t.Errorf("an unknown player: %v, want ErrNoSuchPlayer", err)
+	}
+}
+
+func TestRunEndsAtOnceOnARateLimitAndStoresNothing(t *testing.T) {
+	c, _, store := comparerOf(t, &fakeLogs{left: 1000, limited: true})
+	if _, err := c.Run(context.Background(), models.FightMPlus, 1000, "Testmage"); !errors.Is(err, models.ErrRateLimited) ||
+		len(store.reviews) != 0 {
+		t.Errorf("with the rate limit hit: %v, %d stored; want ErrRateLimited and nothing stored", err, len(store.reviews))
 	}
 }
 

@@ -46,6 +46,43 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/icons/{name}": {
+            "get": {
+                "produces": [
+                    "image/jpeg"
+                ],
+                "tags": [
+                    "mplus"
+                ],
+                "summary": "A spell icon's image (Wowhead's medium JPEG), kept after the first request",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "the icon's name, from a talent entry (spell_nature_starfall)",
+                        "name": "name",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "502": {
+                        "description": "Wowhead failed",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/mplus/dungeons/{mapID}/floors/{uiMapID}/tiles/{x}/{y}": {
             "get": {
                 "produces": [
@@ -2182,7 +2219,7 @@ const docTemplate = `{
                     },
                     {
                         "type": "integer",
-                        "description": "a spell ID (a mob's spell from /api/mplus/dungeons/{mapID}/mobs)",
+                        "description": "a spell ID (a mob's spell from /api/mplus/dungeons/{mapID}/mobs, or a talent's from /api/talents/{specID})",
                         "name": "id",
                         "in": "query"
                     }

@@ -2885,6 +2885,31 @@ paths:
       summary: The owner's characters
       tags:
       - mplus
+  /api/icons/{name}:
+    get:
+      parameters:
+      - description: the icon's name, from a talent entry (spell_nature_starfall)
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - image/jpeg
+      responses:
+        "200":
+          description: OK
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+        "502":
+          description: Wowhead failed
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+      summary: A spell icon's image (Wowhead's medium JPEG), kept after the first
+        request
+      tags:
+      - mplus
   /api/mplus/dungeons/{mapID}/floors/{uiMapID}/tiles/{x}/{y}:
     get:
       parameters:
@@ -4387,7 +4412,8 @@ paths:
         in: query
         name: name
         type: string
-      - description: a spell ID (a mob's spell from /api/mplus/dungeons/{mapID}/mobs)
+      - description: a spell ID (a mob's spell from /api/mplus/dungeons/{mapID}/mobs,
+          or a talent's from /api/talents/{specID})
         in: query
         name: id
         type: integer
