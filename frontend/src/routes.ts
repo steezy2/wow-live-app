@@ -17,7 +17,7 @@ import {
   type RoutePull,
   type RouteView,
 } from './api'
-import { counted, groupBy } from './format'
+import { counted } from './format'
 import { useFetched } from './useFetched'
 import type { DrawTool } from './DrawTools'
 import type { Yards } from './KeyMap'
@@ -48,7 +48,7 @@ export const mobName = (npc: number, mob?: DungeonMob): string => mob?.name ?? `
  * mobs). */
 export function pullMobs(pull: EnemyRef[], byKey: Map<string, RouteEnemy>, mobs: Map<number, DungeonMob>) {
   const its = pull.flatMap((ref) => byKey.get(enemyKey(ref)) ?? [])
-  const groups = [...groupBy(its, (e) => mobName(e.npc, mobs.get(e.npc)))]
+  const groups = [...Map.groupBy(its, (e) => mobName(e.npc, mobs.get(e.npc)))]
     .map(([name, of]) => ({ name, enemies: of }))
     .sort((a, b) => b.enemies.length - a.enemies.length)
   return { groups, health: its.reduce((sum, e) => sum + (mobs.get(e.npc)?.health ?? 0), 0) }
@@ -101,7 +101,7 @@ export const PULL_COLORS = [
 export const UNDO_EDITS = 20
 
 /** A route's name, pulls and drawings as the editor changes them. */
-export interface Draft {
+interface Draft {
   name: string
   pulls: Required<RoutePull>[]
   drawings: Drawing[]
@@ -244,7 +244,7 @@ export function edit(s: Editor, e: Edit): Editor {
     case 'erase':
       return to({ drawings: s.draft.drawings.filter((d) => d.id !== e.id) })
     case 'undo': {
-      const draft = s.undo[s.undo.length - 1]
+      const draft = s.undo.at(-1)
       if (!draft) return s
       const selected = Math.min(s.selected, draft.pulls.length - 1)
       return { draft, selected, undo: s.undo.slice(0, -1), renaming: false }
@@ -292,7 +292,7 @@ function convexHull(points: [number, number][]): [number, number][] {
     })
     return out.slice(0, -1)
   }
-  return sorted.length < 3 ? sorted : [...half(sorted), ...half([...sorted].reverse())]
+  return sorted.length < 3 ? sorted : [...half(sorted), ...half(sorted.toReversed())]
 }
 
 /** A point on a map, [x, y]. */

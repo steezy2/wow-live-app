@@ -5,13 +5,13 @@ import {
   type KeyTrack,
   type KeyView,
   type RouteCompare,
-  type RouteView,
   type RunPull,
 } from './api'
 import { counted } from './format'
 import { RouteMap } from './RouteMap'
 import { enemyKey, PULL_COLORS, pullMobs, recordKeyRoute, useDungeonMap, useMobs } from './routes'
 import { When, type Seeker } from './Seek'
+import { useFetched } from './useFetched'
 
 /** How a pull of the key sits against the plan, in words. */
 function runLabel(p: RunPull): string {
@@ -51,11 +51,11 @@ function RecordRoute({ keyView: key, onRecorded }: { keyView: KeyView; onRecorde
  * then the kills off the route and the route pulls not pulled. With seek, a time moves the replay. A running key's
  * comparison is read again as its track changes (a null track, not at all). */
 export function KeyRoute({ keyView: key, track, seek }: { keyView: KeyView; track: KeyTrack | null; seek?: Seeker }) {
-  const [routes, setRoutes] = useState<RouteView[]>([])
   const [id, setID] = useState<string>()
   const [compare, setCompare] = useState<RouteCompare | null>()
   const [error, setError] = useState('')
   const [fetched, setFetched] = useState(0) // up one when a route is recorded, to read the comparison again
+  const routes = useFetched(String(key.mapID), (signal) => fetchRoutes(key.mapID, signal)).data ?? []
   const dungeon = useDungeonMap(key.mapID)
   const mobs = useMobs(key.mapID, key.level, '')
   const byNPC = useMemo(() => new Map(mobs?.mobs.map((m) => [m.npc, m])), [mobs])
@@ -64,11 +64,6 @@ export function KeyRoute({ keyView: key, track, seek }: { keyView: KeyView; trac
     [compare],
   )
   const enemyByKey = useMemo(() => new Map(dungeon?.enemies.map((e) => [enemyKey(e), e])), [dungeon])
-  useEffect(() => {
-    const controller = new AbortController()
-    fetchRoutes(key.mapID, controller.signal).then(setRoutes, () => undefined)
-    return () => controller.abort()
-  }, [key.mapID])
   useEffect(() => {
     const controller = new AbortController()
     fetchKeyRoute(key.start, id, controller.signal).then(

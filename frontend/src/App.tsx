@@ -10,6 +10,7 @@ import {
   type Character,
   type Settings,
   type SettingsView,
+  type FightKind,
 } from './api'
 import { CharacterPicker } from './CharacterPicker'
 import { Home } from './Home'
@@ -120,7 +121,7 @@ export default function App() {
       setRaidPull(null)
     },
   })
-  const open = (kind: 'mplus' | 'raid', start: number) => {
+  const open = (kind: FightKind, start: number) => {
     if (kind === 'raid') setRaidPull(start)
     else setSelected(start)
     setSection(kind)

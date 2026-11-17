@@ -964,9 +964,12 @@ function subscribeToChanges(onChange: () => void): () => void {
   }
 }
 
+/** What a saved fight is: a Mythic+ key or a raid pull. */
+export type FightKind = 'mplus' | 'raid'
+
 /** The full review page of a finished key or raid pull (its start), on a tab and, for the Player and Compare tabs, a
  * player: /review/mplus/{start}?tab=…&player=…. */
-export function reviewURL(kind: 'mplus' | 'raid', start: number, tab = '', player = ''): string {
+export function reviewURL(kind: FightKind, start: number, tab = '', player = ''): string {
   const query = new URLSearchParams()
   if (tab) query.set('tab', tab)
   if (player) query.set('player', player)
@@ -1146,7 +1149,7 @@ export async function stopImport(): Promise<ImportStatus> {
 }
 
 /** A period the Recap tab offers, with its span in ms since the epoch (models.RecapPeriod). */
-export interface RecapPeriod {
+interface RecapPeriod {
   label: string
   from: number
   to: number
@@ -1227,7 +1230,7 @@ export interface RecapDungeon {
 /** A recap line that opens its key (mplus) or pull (raid) by its start. */
 interface RecapFact {
   text: string
-  kind: 'mplus' | 'raid'
+  kind: FightKind
   start: number
 }
 
@@ -1349,7 +1352,7 @@ export interface CharacterParses {
 
 /** The character's best and median parse (0-100) in a dungeon or raid boss (models.CharacterParse). */
 interface CharacterParse {
-  kind: 'mplus' | 'raid'
+  kind: FightKind
   encounter: string
   best: number
   median: number
@@ -1688,7 +1691,7 @@ export async function fetchTalentTree(specID: number, signal?: AbortSignal): Pro
 /** A player's run against their own similar runs, the top Warcraft Logs logs of their spec and their parses
  * (models.PlayerCompare). */
 export interface PlayerCompare {
-  kind: 'mplus' | 'raid'
+  kind: FightKind
   start: number
   player: string
   spec: string
@@ -1714,7 +1717,7 @@ export interface PlayerCompare {
 
 /** A player's stored review of a finished key or raid pull, or null when none was made yet. */
 export async function fetchCompare(
-  kind: 'mplus' | 'raid',
+  kind: FightKind,
   start: number,
   player: string,
   signal?: AbortSignal,
@@ -1723,11 +1726,11 @@ export async function fetchCompare(
 }
 
 /** Reviews a player against Warcraft Logs' top logs (spends points); the stored review when there is one. */
-export async function runCompare(kind: 'mplus' | 'raid', start: number, player: string): Promise<PlayerCompare> {
+export async function runCompare(kind: FightKind, start: number, player: string): Promise<PlayerCompare> {
   return (await (await call(compareURL(kind, start, player), { method: 'POST' })).json()) as PlayerCompare
 }
 
-function compareURL(kind: 'mplus' | 'raid', start: number, player: string): string {
+function compareURL(kind: FightKind, start: number, player: string): string {
   const path = kind === 'mplus' ? `mplus/keys/${start}` : `raid/pulls/${start}`
   return `/api/${path}/players/${encodeURIComponent(player)}/compare`
 }

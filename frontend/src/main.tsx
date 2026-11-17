@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
+import type { FightKind } from './api'
 import { Overlay } from './Overlay'
 import { ReviewPage } from './ReviewPage'
 import { TipHost } from './Tip'
@@ -12,7 +13,7 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <TipHost />
     {review ? (
-      <ReviewPage kind={review[1] as 'mplus' | 'raid'} start={Number(review[2])} />
+      <ReviewPage kind={review[1] as FightKind} start={Number(review[2])} />
     ) : location.pathname === '/overlay' ? (
       <Overlay />
     ) : (

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type MouseEvent, type PointerEvent } from 'react'
+import { disc } from './disc'
 import {
   raidMapURL,
   tileURL,
@@ -264,6 +265,7 @@ export type Overlay = (
   at: (p: Yards) => [number, number],
   dot: number,
   hit: (id: string, x: number, y: number, r: number) => void,
+  css: Record<'muted' | 'text' | 'bad' | 'warn' | 'accent', string>,
 ) => void
 
 /** The map itself: the backdrop, each player's trail and dot in their class colour (a cross where they died), a raid
@@ -378,6 +380,10 @@ export function MapCanvas(props: {
     () => (backdrop.kind === 'walked' ? backdrop.walked.filter((p) => p.map === floor) : []),
     [backdrop, floor],
   )
+  const walkedBounds = useMemo(
+    () => (backdrop.kind === 'walked' ? walkedArea(backdrop.walked, track, floor) : undefined),
+    [backdrop, track, floor],
+  )
   useEffect(() => {
     const canvas = ref.current
     const ctx = canvas?.getContext('2d')
@@ -387,7 +393,7 @@ export function MapCanvas(props: {
         ? onTiles(backdrop.floor, canvas)
         : backdrop.kind === 'image'
           ? onImage(backdrop.map, area, canvas)
-          : onWalked(backdrop.walked, track, floor, canvas)
+          : onWalked(walkedBounds, canvas)
     if (!at) return
     placed.current = at
     const image = (url: string) => {
@@ -452,13 +458,9 @@ export function MapCanvas(props: {
         ctx.fillText(text, x, at)
       }
       const ring = (x: number, y: number, r: number) => {
-        ctx.strokeStyle = css.text
-        ctx.lineWidth = dot / 3
-        ctx.beginPath()
-        ctx.arc(x, y, r, 0, 2 * Math.PI)
-        ctx.stroke()
+        disc(ctx, x, y, r, null, css.text, dot / 3)
       }
-      overlay?.(ctx, at, dot, (id, x, y, r) => dots.current.push({ id, enemy: true, x, y, r }))
+      overlay?.(ctx, at, dot, (id, x, y, r) => dots.current.push({ id, enemy: true, x, y, r }), css)
       ctx.fillStyle = css.bad
       track.deaths
         .filter((d) => d.map === floor && d.t <= now)
@@ -471,13 +473,7 @@ export function MapCanvas(props: {
         if (!last || last.map !== floor || (m.died ? m.died <= now : now - last.t > MOB_GONE_MS)) return
         const [x, y] = at(last)
         dots.current.push({ id: guid, enemy: true, x, y, r: dot * 0.75 })
-        ctx.fillStyle = css.bad
-        ctx.strokeStyle = '#000'
-        ctx.lineWidth = dot / 5
-        ctx.beginPath()
-        ctx.arc(x, y, dot * 0.75, 0, 2 * Math.PI)
-        ctx.fill()
-        ctx.stroke()
+        disc(ctx, x, y, dot * 0.75, css.bad, '#000', dot / 5)
         if (guid === enemy) {
           ring(x, y, dot * 2)
           label(enemyName(track, guid), x, y, css.text, true)
@@ -488,13 +484,7 @@ export function MapCanvas(props: {
         if (!last || last.map !== floor || now - last.t > BOSS_GONE_MS) return
         const [x, y] = at(last)
         dots.current.push({ id: guid, enemy: true, x, y, r: dot * 2.4 })
-        ctx.fillStyle = '#000'
-        ctx.strokeStyle = css.warn
-        ctx.lineWidth = dot / 2
-        ctx.beginPath()
-        ctx.arc(x, y, dot * 2.4, 0, 2 * Math.PI)
-        ctx.fill()
-        ctx.stroke()
+        disc(ctx, x, y, dot * 2.4, '#000', css.warn, dot / 2)
         if (guid === enemy) {
           ring(x, y, dot * 3.4)
           label(last.name ?? '', x, y, css.text, true)
@@ -548,13 +538,7 @@ export function MapCanvas(props: {
           ctx.stroke()
           return
         }
-        ctx.fillStyle = colour
-        ctx.strokeStyle = '#000'
-        ctx.lineWidth = dot / 4
-        ctx.beginPath()
-        ctx.arc(x, y, dot * 1.2, 0, 2 * Math.PI)
-        ctx.fill()
-        ctx.stroke()
+        disc(ctx, x, y, dot * 1.2, colour, '#000', dot / 4)
       })
     }
     if (!clock) {
@@ -568,7 +552,7 @@ export function MapCanvas(props: {
     }
     tick()
     return () => cancelAnimationFrame(frame)
-  }, [track, backdrop, walkedHere, area, floor, now, clock, trailMS, deaths, loaded, view, focus, enemy, overlay])
+  }, [track, backdrop, walkedBounds, walkedHere, area, floor, now, clock, trailMS, deaths, loaded, view, focus, enemy, overlay])
   return (
     <>
       <canvas
@@ -657,8 +641,9 @@ function onImage(map: RaidMap, [left, top, share]: [number, number, number], can
   }
 }
 
-/** Where a log position lands on a floor without tiles: fitted to the walked area and the track, north up. */
-function onWalked(walked: TrackPoint[], track: KeyTrack, floor: number, canvas: HTMLCanvasElement) {
+/** The area of a floor without tiles that the walked points and the track cover, as [minX, maxX, minY, maxY] on the
+ * canvas's axes (north up); undefined when nothing was there. */
+function walkedArea(walked: TrackPoint[], track: KeyTrack, floor: number): [number, number, number, number] | undefined {
   const all = [...walked, ...Object.values(track.players).flat()].filter((p) => p.map === floor)
   if (all.length === 0) return undefined
   // A loop, not Math.min(...points): a season of runs can pass the engine's limit on arguments.
@@ -666,6 +651,13 @@ function onWalked(walked: TrackPoint[], track: KeyTrack, floor: number, canvas: 
   for (const p of all) {
     ;[minX, maxX, minY, maxY] = [Math.min(minX, -p.y), Math.max(maxX, -p.y), Math.min(minY, p.x), Math.max(maxY, p.x)]
   }
+  return [minX, maxX, minY, maxY]
+}
+
+/** Where a log position lands on a floor without tiles: fitted to the walked area, north up. */
+function onWalked(area: ReturnType<typeof walkedArea>, canvas: HTMLCanvasElement) {
+  if (!area) return undefined
+  const [minX, maxX, minY, maxY] = area
   const pad = 12
   const scale = Math.min((canvas.width - 2 * pad) / (maxX - minX || 1), (canvas.height - 2 * pad) / (maxY - minY || 1))
   return (p: Yards): [number, number] => [pad + (-p.y - minX) * scale, canvas.height - pad - (p.x - minY) * scale]

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
+import { FixNext } from './FixNext'
 import { Skeleton } from './Skeleton'
-import { fetchCompare, reportPages, runCompare, type CompareRow, type PlayerCompare } from './api'
+import { fetchCompare, reportPages, runCompare, type CompareRow, type FightKind, type PlayerCompare } from './api'
 import { clock, errorText, rowValue } from './format'
 import { Spell } from './Spell'
 import { TalentCompare } from './TalentTree'
@@ -8,7 +9,7 @@ import { TalentCompare } from './TalentTree'
 /** A player's review of a finished key or raid pull against the top Warcraft Logs logs of their spec and their own
  * similar runs: the verdict, then the key stats, abilities and buffs as "you" against three columns, and what to work
  * on. A stored review shows at once; the button makes one, which spends Warcraft Logs points. */
-export function ComparePlayer({ kind, start, player }: { kind: 'mplus' | 'raid'; start: number; player: string }) {
+export function ComparePlayer({ kind, start, player }: { kind: FightKind; start: number; player: string }) {
   const [compare, setCompare] = useState<PlayerCompare | null | undefined>(undefined)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -73,16 +74,7 @@ export function ComparePlayer({ kind, start, player }: { kind: 'mplus' | 'raid';
             </p>
           ))}
       </section>
-      {compare.advice.length > 0 && (
-        <section className="panel">
-          <h2>What to work on</h2>
-          <ol className="fix-next">
-            {compare.advice.map((a) => (
-              <li key={a}>{a}</li>
-            ))}
-          </ol>
-        </section>
-      )}
+      <FixNext title="What to work on" items={compare.advice} attention={false} />
       {compare.rules?.length ? (
         <section className="panel">
           <h2>Spec rules</h2>
