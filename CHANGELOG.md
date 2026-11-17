@@ -4,7 +4,55 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-16
+
+### Changed
+- **Faster reviews and listings**: a player review reads its top logs five at a time, each log's tables, enemy hits and talents together, and the character's parses beside them, instead of one query after another. Listing a character's Warcraft Logs fights asks the next page of reports while the last is read, and a page's reports' fights in side-by-side queries of 8. Reading every log again takes about 20 s for 1.5 GB (the tracker is the limit, one line at a time), so it is unchanged.
+
 ### Added
+- **Talent icons, tooltips and both hero trees**: the compare tab's talent tree shows each talent's icon (the app fetches them from Wowhead once and keeps them) and what it does on hover, with who took it below; both hero trees are drawn (Arcane's Sunfury and Spellslinger, and every spec's two). Each node has a thick ring and a corner mark for who took it (! top logs only, + you only, ≠ another rank, ✓ both) and a missed talent shows how many top logs took it; the talents listed under the tree are buttons that scroll to the talent and pulse it for 5 seconds.
+- **Compare talents**: a player review draws the spec's talent tree with what the top logs take that you didn't, what only you took and where you both agree, with how many of the top logs took each. Keys and pulls read from now on (or with *Read old logs*) keep their talents; older ones say so.
+
+### Fixed
+- **Compare tab**: a stray "0" under *What to work on* (the spec rules count showing when there are none) is gone, and a dungeon review no longer lists a Vantus Rune (raid-only, from `raid-rules.toml`) as a buff you lacked.
+- **Compare buffs**: always-on talent buffs (Charged Orb, Orb Barrage...) that read 100% for the top logs and 0% for you are left off the buff list.
+- **Compare damage taken**: the top logs' damage taken counted only hits from friendly sources (a mage's own Refraction), so it read about a tenth of yours; it now adds the enemies' hits, matching the key's own numbers within 0.3%. Reviews made before this are read again (run them once more).
+- **Compare buffs**: a buff with several spell IDs (Overpowered Missiles read 121% for the top logs) counts its time up once, so no buff passes 100%.
+- **Key page**: a running key's Replay map holds its place while the track loads, so the tabs below (Route) no longer jump when the map appears.
+- **Forces**: a finished key no longer reads "100% · 546/551" when the log missed a mob's death; the count shows only when it adds up.
+
+## [0.4.9] - 2026-11-16
+
+### Changed
+- **Routes tab**: typing a new name offers *Save as new route* (the original stays as it was) and *Rename* (saves over it); *Delete route* is beside them. *From MDT's saves* lists only the picked dungeon's routes.
+
+### Added
+- **Record next run as new route** on the Routes tab: arm it for a dungeon and the next key that ends there is recorded as a route, as *Record route* does on a finished key. *Record route* and this button are filled buttons now.
+
+## [0.4.8] - 2026-11-16
+
+### Changed
+- **A finished key's Route tab shows what was pulled**: the map draws the key's own pulls (the plan only as faint dashed outlines) and each pull is listed against the route pull it is closest to: *Plan pull N* when it matches, *N extra, M not killed* when it differs, *Not in the route* otherwise. Planned enemies the log never showed dying are listed as *not seen in the log*, not as missed. A running key's tab is as before. `GET /api/mplus/keys/{start}/route` has the new `run`.
+- **Record route keeps every kill**: a kill pulled differently from the map (more than 30 yards from an enemy of its NPC) used to be dropped; now it takes the nearest unused enemy of its NPC on its floor, so the recorded route holds what was pulled. `GET /api/mplus/keys/{start}/recorded-route` returns `{pulls, pct, dropped}`, and the page says the forces share recorded and the kills not on the map. The route's name has the key's date.
+
+## [0.4.7] - 2026-11-16
+
+### Added
+- **Record route**: a key's Route tab has a *Record route* button that makes a new route (starred when the dungeon has none) from the pulls the key made: its kills matched to map enemies, grouped by the key pull they died in. `GET /api/mplus/keys/{start}/recorded-route` gives those pulls.
+
+### Changed
+- **Smaller and faster**: the app's exe is about half its size (`-s -w -trimpath` in `build.sh`, and the Swagger UI, which the app couldn't serve without its spec, now only comes with `go run ./cmd/site`). *Read old logs* peaks at about a third of the memory (1,019 MB to 327 MB on 2.2 GB of logs) with the same saved keys and pulls, byte for byte: finished keys and pulls are saved every 100,000 lines instead of when the log ends, at most 4 goroutines parse, saved tracks are freed, and two per-line string splits no longer allocate. Following a log from its start reads it with one buffer. The replay is about 3 times lighter per move (the graph's numbers by binary search, review tabs built once instead of on every tick, no remount when a tab opens or its count changes, one render per live tick). Idle: the live clock only ticks while a key runs, a window hidden in the tray reads once when it shows, the Route tab re-reads a running key only while open, and a key's page asks for its dungeon map once. The built page's `assets/` are cached for good.
+- A running key's route map labels its two live pulls **Current** and **Next** instead of their numbers, and outlines them in colors that run along the line (still, with reduced motion).
+- The replay's floor buttons are numbered in the dungeon's own floor order, as the route map's are, not by where the party stood most (Voidscar Arena's route Floor 1 was the replay's Floor 3).
+
+### Fixed
+- A key's kills match the route far more often: a mob counts where it was first seen (a pulled mob runs to the party before it dies), up to 30 yards from its enemy, and the closest kill and enemy pair match first. On five saved keys' logs this took matches from about 40% to 80%.
+- **Ruby Life Pools** had its two floors' map IDs swapped against the combat log (every kill stood on the other floor's enemies), so nothing matched a route and its enemies drew on the wrong floor. `reference/mplus-dungeons.json` and the generator now use the log's IDs; a saved route's drawings there sit on the other floor and need drawing again. Every other dungeon's kills fall on their own floors.
+
+## [0.4.6] - 2026-11-15
+
+### Added
+- **Live route tracker**: a running key's Route tab shows each pull of the route as done (muted green), next (the two unfinished pulls after the last one reached, in their colors with a "next" tag), later (faded) or missed (red outline: unfinished though a later pull was reached, with its unkilled mobs and forces listed), and a *Forces x% vs y% planned* line when the key trails the plan by 1 point or more. The log shows nothing inside a fight, so the pull in progress is the first unfinished one. The live header adds `· N missed` and `· forces behind plan`, and any route that plans under 100% forces says so. `GET /api/mplus/keys/{start}/route` returns each pull's `state` plus `last`, `missed` and `behind`; `GET /api/mplus/live`'s route adds `missed` and `behind`.
 - **Mob data** for the route editor: `reference/mplus-dungeons.json` now keeps each dungeon's mobs (`mobs`: name and spells with Interruptible/Magic from Mythic Dungeon Tools; level, type, class, base health and affix flags from Keystone.guru's `npcs.json`). `GET /api/mplus/dungeons/{mapID}/mobs?level=N` scales them to a key level (2 to 40, by default the top bar character's newest saved key there, else 10) the way Keystone.guru does: 7% a level through +10, 10% a level after, Fortified on trash and Tyrannical on bosses from +10, trash 5% lower up to +5. It matched every mob in a +17 Temple of Sethraliss log to the point. No source has a mob's own damage, so it gives the level's damage multiplier only. `GET /api/spells?id=` explains the spell of a dungeon mob by its ID (404 for any other).
 - The route editor reads the dungeon's **mobs at a key level**: a +level box in the toolbar (starting at the top bar character's newest key there), the mouse on an enemy tells its name, health at that level and forces, and a right click opens its card (type, class, level, health, the level's damage multiplier, forces, affix flags, spells with their text and Interruptible/Magic marks) with Add to / Take out of the selected pull for it or its pack and Select its pull. Each pull row lists its mobs by name (`3× Name`, a click opens the card) with their health, hovering a row highlights its pull on the map, and a right click on a row moves, deletes or recolors the pull.
 - **Patrols** on the route map: each patrol Keystone.guru draws on the dungeon's newest mapping is a dashed line in its color (a *Patrols* button, on by default, hides them; it only shows in a dungeon that has any), and a patrolling mob's card says whether it walks a loop or back and forth. `reference/mplus-dungeons.json` keeps them (`patrols`, from each floor's `enemy_patrols.json`) and `GET /api/mplus/dungeons/{mapID}/map` serves them; this season only Temple of Sethraliss has one on its newest mapping.

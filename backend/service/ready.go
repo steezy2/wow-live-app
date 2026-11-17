@@ -129,6 +129,12 @@ func (k *LogTracker) buffGaps(run *keyRun, start []models.KeyBuffCheck, deaths [
 	return gaps
 }
 
+// RaidOnlyBuff is whether a buff is one that only counts in a raid (a Vantus Rune), so a dungeon review leaves it out.
+func (k *LogTracker) RaidOnlyBuff(name string) bool {
+	v := k.raid.rules.Consumables
+	return slices.ContainsFunc(v.Vantus, func(p string) bool { return strings.Contains(name, p) })
+}
+
 // had says whether one of the auras (ID -> name) is this consumable.
 func (c consumable) had(auras map[int]string) bool {
 	for id, name := range auras {

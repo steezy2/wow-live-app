@@ -303,6 +303,15 @@ func carried() (app.Options, error) {
 		return opts, fmt.Errorf("reading the built-in raid bosses: %w", err)
 	}
 	opts.Bosses, opts.Tier = raid.Bosses, raid.Tier
+	trees, err := files.ReadFile("embed/talent-trees.json")
+	if err != nil {
+		return opts, err
+	}
+	var talents models.TalentTrees
+	if err := json.Unmarshal(trees, &talents); err != nil {
+		return opts, fmt.Errorf("reading the built-in talent trees: %w", err)
+	}
+	opts.Talents = talents.BySpec()
 	drops, err := files.ReadFile("embed/sim-drops.json")
 	if err != nil {
 		return opts, err

@@ -8,10 +8,11 @@ import {
   type KeyMeterRow,
   type HitRecap,
   type KeyTrack,
+  type MeterPoint,
   type RaidPull,
   type TrackPoint,
 } from './api'
-import { errorText, valueAt } from './format'
+import { errorText } from './format'
 
 /** A move between two track points faster than this (yards per second) is a jump (a teleport, a release, a portal),
  * drawn as one in a trail, not as a walk. */
@@ -29,32 +30,35 @@ const PAGE_EVERY_MS = 100
  * frame by the real time since the last one: now() is that moment, for the map to draw every frame, and at follows it
  * PAGE_EVERY_MS, so the rest of the page isn't drawn again 60 times a second. It starts at 1×. */
 export function useReplay(end: number, start: number) {
-  const [at, setShown] = useState(start)
+  // A moment shown with the end it was shown at: one at the end keeps following it as it moves on (a running key).
+  const [shown, setShown] = useState({ t: start, end })
+  const at = shown.t >= shown.end ? end : shown.t
   const clock = useRef(start)
+  const endNow = useRef(end)
   const [playing, setPlaying] = useState(false)
   const [speed, setSpeed] = useState(1)
   const setAt = useCallback((t: number) => {
     clock.current = t
-    setShown(t)
+    setShown({ t, end: endNow.current })
   }, [])
   const now = useCallback(() => clock.current, [])
   useEffect(() => {
     if (!playing) return
     let frame = 0
     let before = performance.now()
-    let shown = before
+    let shownAt = before
     const tick = (time: number) => {
       // the first frame's time can come before performance.now()
       clock.current = Math.min(clock.current + Math.max(0, time - before) * speed, end)
       before = time
       if (clock.current >= end) {
-        setShown(end)
+        setShown({ t: end, end })
         setPlaying(false)
         return
       }
-      if (time - shown >= PAGE_EVERY_MS) {
-        shown = time
-        setShown(clock.current)
+      if (time - shownAt >= PAGE_EVERY_MS) {
+        shownAt = time
+        setShown({ t: clock.current, end })
       }
       frame = requestAnimationFrame(tick)
     }
@@ -62,13 +66,12 @@ export function useReplay(end: number, start: number) {
     return () => cancelAnimationFrame(frame)
   }, [playing, speed, end])
   // A replay left at its end stays there as the end moves on: a key that ends while the page watches lands at its end.
-  const last = useRef(end)
   useEffect(() => {
-    if (clock.current >= last.current) setAt(end)
-    last.current = end
-  }, [end, setAt])
+    if (clock.current >= endNow.current) clock.current = end
+    endNow.current = end
+  }, [end])
   const toggle = () => {
-    if (playing) setShown(clock.current) // the page catches up with the map
+    if (playing) setShown({ t: clock.current, end }) // the page catches up with the map
     else if (clock.current >= end) setAt(0)
     setPlaying(!playing)
   }
@@ -213,8 +216,14 @@ export const BOSS_GONE_MS = 5_000
  * drawn this long after it was last seen. */
 export const MOB_GONE_MS = 30_000
 
+/** One of a player's numbers so far at a clock reading (damage 'd', healing 'h', damage taken 'tk', and so on), from a
+ * track's meter points. */
+export function valueAt(points: MeterPoint[], t: number, kind: Exclude<keyof MeterPoint, 't'>): number {
+  return points[indexAfter(points, t) - 1]?.[kind] ?? 0
+}
+
 /** The index of the first point after a clock reading (points.length if none); points are in time order. */
-export function indexAfter(points: TrackPoint[], now: number): number {
+export function indexAfter(points: { t: number }[], now: number): number {
   let [lo, hi] = [0, points.length]
   while (lo < hi) {
     const mid = (lo + hi) >> 1

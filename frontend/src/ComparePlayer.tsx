@@ -3,6 +3,7 @@ import { Skeleton } from './Skeleton'
 import { fetchCompare, reportPages, runCompare, type CompareRow, type PlayerCompare } from './api'
 import { clock, errorText, rowValue } from './format'
 import { Spell } from './Spell'
+import { TalentCompare } from './TalentTree'
 
 /** A player's review of a finished key or raid pull against the top Warcraft Logs logs of their spec and their own
  * similar runs: the verdict, then the key stats, abilities and buffs as "you" against three columns, and what to work
@@ -82,7 +83,7 @@ export function ComparePlayer({ kind, start, player }: { kind: 'mplus' | 'raid';
           </ol>
         </section>
       )}
-      {compare.rules?.length && (
+      {compare.rules?.length ? (
         <section className="panel">
           <h2>Spec rules</h2>
           <ul className="list">
@@ -96,13 +97,14 @@ export function ComparePlayer({ kind, start, player }: { kind: 'mplus' | 'raid';
             ))}
           </ul>
         </section>
-      )}
+      ) : null}
       <Rows title="Key stats" rows={compare.stats} />
       <Rows title="Abilities" rows={compare.abilities} spells />
       <Rows title="Buffs on themselves" rows={compare.buffs} spells />
+      <TalentCompare compare={compare} />
       {(compare.onlyYou.length > 0 || compare.onlyTop.length > 0) && (
         <section className="panel">
-          <h2>Only one side used (usually a talent difference)</h2>
+          <h2>Abilities only one side used</h2>
           {compare.onlyYou.length > 0 && <p>Only {compare.player}: {compare.onlyYou.join(', ')}</p>}
           {compare.onlyTop.length > 0 && <p>Only the top logs: {compare.onlyTop.join(', ')}</p>}
         </section>

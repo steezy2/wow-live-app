@@ -140,6 +140,11 @@ export function KeyMap(props: {
 
   const now = live ? clockMS : replay.at
   const floors = useMemo(() => floorsOf(track), [track])
+  // numbered by the dungeon's own floor order, as the route's map numbers them, not by where the party stood most
+  const floorButtons = useMemo(() => {
+    const number = (m: number) => dungeon.floors.findIndex((f) => f.uiMapID === m) + 1 || floors.indexOf(m) + 1
+    return floors.map((m): [number, number] => [m, number(m)]).sort((a, b) => a[1] - b[1])
+  }, [floors, dungeon])
   const followed = follow ? track?.players[follow] : undefined
   const upTo = follow && track ? abilitiesUpTo(track, key, follow, now) : undefined
   const current = (followed ? lastAt(followed, now)?.map : floor) ?? floors[0]
@@ -162,41 +167,51 @@ export function KeyMap(props: {
     })),
   ]
 
-  if (!track || floors.length === 0) return <p className="muted">No positions yet (needs Advanced Combat Logging).</p>
+  const noPositions = 'No positions yet (needs Advanced Combat Logging).'
+  // A live key's map holds its place (controls, canvas, hint) while the track and its first positions come in, so the
+  // page below doesn't jump.
+  const waiting = live && floors.length === 0
+  if (!waiting && (!track || floors.length === 0)) return <p className="muted">{noPositions}</p>
   return (
     <section className="map">
       <div className="map-controls">
         {!live && <ReplayControls replay={replay} end={clockMS} marks={marks} trail={trail} setTrail={setTrail} />}
         <select value={follow} onChange={(e) => setFollow(e.target.value)} aria-label="follow">
           <option value="">Whole party</option>
-          {Object.keys(track.players).map((p) => (
+          {Object.keys(track?.players ?? {}).map((p) => (
             <option key={p}>{p}</option>
           ))}
         </select>
         {floors.length > 1 &&
-          floors.map((m, i) => (
+          floorButtons.map(([m, n]) => (
             <button key={m} aria-pressed={m === current} onClick={() => setFloor(m)} disabled={!!followed}>
-              Floor {i + 1}
+              Floor {n}
             </button>
           ))}
       </div>
       <div className="map-stage">
-        <MapCanvas
-          key={current}
-          track={track}
-          backdrop={backdrop}
-          floor={current}
-          now={now}
-          clock={replay.playing ? replay.now : undefined}
-          trailMS={live ? LIVE_TRAIL_MS : trail}
-          deaths={key.deaths}
-          focus={follow}
-          onPick={setFollow}
-          enemy={enemy}
-          onPickEnemy={setEnemy}
-        />
-        <BossBox track={track} now={now} />
-        <FocusBoxes track={track} player={follow} enemy={enemy} taken={upTo?.taken} now={now} />
+        {track && !waiting ? (
+          <>
+            <MapCanvas
+              key={current}
+              track={track}
+              backdrop={backdrop}
+              floor={current}
+              now={now}
+              clock={replay.playing ? replay.now : undefined}
+              trailMS={live ? LIVE_TRAIL_MS : trail}
+              deaths={key.deaths}
+              focus={follow}
+              onPick={setFollow}
+              enemy={enemy}
+              onPickEnemy={setEnemy}
+            />
+            <BossBox track={track} now={now} />
+            <FocusBoxes track={track} player={follow} enemy={enemy} taken={upTo?.taken} now={now} />
+          </>
+        ) : (
+          <div className="map-waiting muted">{track && noPositions}</div>
+        )}
       </div>
       <p className="muted small">
         Scroll to zoom, drag to move, double click for the whole floor · click a player to follow them or an enemy for

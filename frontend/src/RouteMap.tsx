@@ -7,6 +7,7 @@ import type {
   DungeonMob,
   EnemyRef,
   KeyTrack,
+  PullState,
   RouteEnemy,
   RoutePull,
 } from './api'
@@ -31,6 +32,19 @@ import {
 const NO_TRACK: KeyTrack = { players: {}, classes: {}, deaths: [], meters: {} }
 /** What an enemy in no pull is filled with. */
 const UNPULLED = '#8a93a6'
+/** A done pull's color and a missed pull's outline on a live key's map. */
+const DONE = '#6b8f71'
+const MISSED = '#e5484d'
+/** How faded a pull still far ahead is drawn. */
+const LATER_ALPHA = 0.35
+/** The colors that run along the outline of a live key's current and next pulls, and how fast (yards a second, in
+ * dots). */
+const RUNNERS = ['#ffffff', '#ffd23f', '#3ec6ff', '#ff5ca8']
+const RUN_SPEED = 5
+/** What a live key's map calls its next pulls, in order, instead of their numbers. */
+const LIVE_WORDS = ['Current', 'Next']
+/** Whether the page asks for no motion. */
+const STILL = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
 /** Characters a note's line holds before it wraps. */
 const NOTE_LINE = 28
 
@@ -85,6 +99,21 @@ function paint(ctx: CanvasRenderingContext2D, at: (p: Yards) => Point, dot: numb
   })
 }
 
+/** Strokes the path just traced with RUNNERS' colors in dashes that run along it. */
+function runAlong(ctx: CanvasRenderingContext2D, dot: number, width: number) {
+  const run = dot * 2
+  const phase = STILL ? 0 : (performance.now() / 1000) * dot * RUN_SPEED
+  ctx.lineWidth = width
+  RUNNERS.forEach((color, i) => {
+    ctx.setLineDash([run, run * (RUNNERS.length - 1)])
+    ctx.lineDashOffset = -(phase + i * run)
+    ctx.strokeStyle = color
+    ctx.stroke()
+  })
+  ctx.setLineDash([])
+  ctx.lineDashOffset = 0
+}
+
 /** Traces points as a path, closed unless told otherwise (a hull is, a patrol back and forth isn't). */
 function trace(ctx: CanvasRenderingContext2D, points: [number, number][], closed = true) {
   ctx.beginPath()
@@ -112,11 +141,15 @@ export function RouteMap(props: {
   mobs?: Map<number, DungeonMob>
   level?: number
   killed?: EnemyRef[]
+  /** A plan drawn faint behind the pulls (dashed outlines): what a key's own pulls were made against. */
+  ghost?: RoutePull[]
+  /** Each pull's state on a running key (done pulls muted, next ones bright, later ones faded, missed outlined). */
+  states?: PullState[]
   drawings?: Drawing[]
   onDraw?: (edit: Edit) => void
   limits?: DrawingLimits
 }) {
-  const { mapID, dungeon, pulls, selected, highlight, onEnemy, onContext, mobs, level, killed } = props
+  const { mapID, dungeon, pulls, selected, highlight, onEnemy, onContext, mobs, level, killed, ghost, states } = props
   const { drawings, onDraw, limits } = props
   const [floor, setFloor] = useState<number | null>(null)
   const [packs, setPacks] = useState(false)
@@ -126,6 +159,8 @@ export function RouteMap(props: {
   const [text, setText] = useState('')
   const [line, setLine] = useState<Point[] | null>(null) // the line being drawn
   const drawn = useRef<Point[]>([]) // the same, for the press's end
+  const animated = !STILL && !!states?.includes('next') // the outline runs, so the map draws every frame
+  const frameClock = useCallback(() => performance.now(), [])
   const full = (drawings?.length ?? 0) >= (limits?.drawings ?? Infinity)
   const tool = full && addsDrawing(picked) ? 'select' : picked // a full route leaves a tool that would add
   const frame = useRef(0) // the animation frame that shows the line so far
@@ -146,6 +181,9 @@ export function RouteMap(props: {
   const overlay = useCallback<Overlay>(
     (ctx, at, dot, hit) => {
       const pullOf = pullIndexes(pulls)
+      const liveOrder = pulls.map((_, i) => i).filter((i) => states?.[i] === 'next')
+      const shade = (pull: number | undefined) => (pull !== undefined && states?.[pull] === 'later' ? LATER_ALPHA : 1)
+      const colorOf = (pull: number) => (states?.[pull] === 'done' ? DONE : `#${pulls[pull].color}`)
       const outline = (group: RouteEnemy[]) => pullHull(group.map((e) => at(e)), dot * 2.5)
       const groups = (key: (e: RouteEnemy) => number | undefined) => {
         const by = new Map<number, RouteEnemy[]>()
@@ -154,6 +192,17 @@ export function RouteMap(props: {
           if (k !== undefined) by.set(k, [...(by.get(k) ?? []), e])
         })
         return by
+      }
+      if (ghost) {
+        const ghostOf = pullIndexes(ghost)
+        ctx.setLineDash([dot / 2, dot / 2])
+        ctx.strokeStyle = UNPULLED
+        ctx.lineWidth = dot / 4
+        groups((e) => ghostOf.get(enemyKey(e))).forEach((group) => {
+          trace(ctx, outline(group))
+          ctx.stroke()
+        })
+        ctx.setLineDash([])
       }
       if (packs) {
         ctx.setLineDash([dot, dot])
@@ -168,13 +217,15 @@ export function RouteMap(props: {
       }
       groups((e) => pullOf.get(enemyKey(e))).forEach((group, pull) => {
         trace(ctx, outline(group))
-        ctx.globalAlpha = pull === highlight ? 0.4 : 0.18
-        ctx.fillStyle = `#${pulls[pull].color}`
+        ctx.globalAlpha = (pull === highlight ? 0.4 : 0.18) * shade(pull)
+        ctx.fillStyle = colorOf(pull)
         ctx.fill()
-        ctx.globalAlpha = 0.9
-        ctx.strokeStyle = ctx.fillStyle
-        ctx.lineWidth = pull === selected || pull === highlight ? dot / 1.5 : dot / 4
+        ctx.globalAlpha = 0.9 * shade(pull)
+        ctx.strokeStyle = states?.[pull] === 'missed' ? MISSED : ctx.fillStyle
+        const bold = pull === selected || pull === highlight || states?.[pull] === 'next' || states?.[pull] === 'missed'
+        ctx.lineWidth = bold ? dot / 1.5 : dot / 4
         ctx.stroke()
+        if (states?.[pull] === 'next') runAlong(ctx, dot, dot / 1.2)
         ctx.globalAlpha = 1
       })
       ctx.setLineDash([dot * 1.5, dot])
@@ -191,12 +242,14 @@ export function RouteMap(props: {
         const [x, y] = at(e)
         const r = e.boss ? dot * 1.4 : dot * 0.8
         hit(enemyKey(e), x, y, r)
-        ctx.fillStyle = pull === undefined ? UNPULLED : `#${pulls[pull].color}`
+        ctx.fillStyle = pull === undefined ? UNPULLED : colorOf(pull)
         ctx.strokeStyle = pull !== undefined && pull === selected ? '#fff' : '#000'
+        ctx.globalAlpha = shade(pull)
         ctx.beginPath()
         ctx.arc(x, y, r, 0, 2 * Math.PI)
         ctx.fill()
         ctx.stroke()
+        ctx.globalAlpha = 1
       })
       const dead = new Set(killed?.map(enemyKey))
       ctx.strokeStyle = '#000'
@@ -219,14 +272,16 @@ export function RouteMap(props: {
       ctx.lineWidth = dot / 2
       pullCentres(enemies, pulls).forEach((c) => {
         const [x, y] = at(c)
-        ctx.strokeText(String(c.pull + 1), x, y)
+        const label = String(c.pull + 1)
+        const word = states?.[c.pull] === 'next' ? LIVE_WORDS[liveOrder.indexOf(c.pull)] : undefined
+        ctx.strokeText(word ?? label, x, y)
         ctx.fillStyle = '#fff'
-        ctx.fillText(String(c.pull + 1), x, y)
+        ctx.fillText(word ?? label, x, y)
       })
       const drawing = line && here && { id: '', map: here.uiMapID, kind: 'line' as const, color, points: line }
       paint(ctx, at, dot, drawing ? [...drawnHere, drawing] : drawnHere)
     },
-    [enemies, patrols, pulls, selected, highlight, killed, packs, drawnHere, line, color, here],
+    [enemies, patrols, pulls, selected, highlight, killed, ghost, states, packs, drawnHere, line, color, here],
   )
   /** A drawing tool's press on the map: a line follows it and ends with it, a marker or a note (with its text) goes
    * where it ends, and Erase takes the drawing it lands on. */
@@ -319,6 +374,7 @@ export function RouteMap(props: {
         onPickEnemy={onEnemy && pick}
         onContext={onContext && context}
         tipOf={mobs && tipOf}
+        clock={animated ? frameClock : undefined}
         onStroke={onDraw && tool !== 'select' ? stroke : undefined}
       />
       <p className="muted small">

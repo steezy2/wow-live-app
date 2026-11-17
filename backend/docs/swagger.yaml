@@ -214,6 +214,21 @@ definitions:
       yours:
         type: number
     type: object
+  models.CompareTalents:
+    properties:
+      of:
+        type: integer
+      specID:
+        type: integer
+      top:
+        items:
+          $ref: '#/definitions/models.TalentShare'
+        type: array
+      you:
+        items:
+          $ref: '#/definitions/models.TalentPick'
+        type: array
+    type: object
   models.Credentials:
     properties:
       id:
@@ -1198,6 +1213,14 @@ definitions:
         items:
           $ref: '#/definitions/models.KeyHit'
         type: array
+      talents:
+        additionalProperties:
+          items:
+            $ref: '#/definitions/models.TalentPick'
+          type: array
+        description: Talents is each player's talents from COMBATANT_INFO; missing
+          in keys saved before Nov 17.
+        type: object
       timerMS:
         description: the dungeon's time limit; 0 when Raider.IO doesn't list it
         type: integer
@@ -1439,8 +1462,17 @@ definitions:
         items:
           $ref: '#/definitions/models.CompareRow'
         type: array
+      talents:
+        allOf:
+        - $ref: '#/definitions/models.CompareTalents'
+        description: Talents is the player's talents against the top logs'; nil when
+          the player's weren't saved.
       verdict:
         type: string
+      version:
+        description: 'Version is service.compareVersion when the review was made:
+          one made by older code is read again.'
+        type: integer
       windowMS:
         description: |-
           WindowMS is how much of the top logs was read: 0 for all of it, else the fight's length (a wipe or an
@@ -1852,6 +1884,14 @@ definitions:
         items:
           $ref: '#/definitions/models.KeyHit'
         type: array
+      talents:
+        additionalProperties:
+          items:
+            $ref: '#/definitions/models.TalentPick'
+          type: array
+        description: Talents is each raider's talents from COMBATANT_INFO; missing
+          in pulls saved before Nov 17.
+        type: object
       targets:
         items:
           $ref: '#/definitions/models.RaidTarget'
@@ -2233,6 +2273,19 @@ definitions:
           type: string
         type: array
     type: object
+  models.RecordedRoute:
+    properties:
+      dropped:
+        type: integer
+      pct:
+        type: number
+      pulls:
+        items:
+          items:
+            $ref: '#/definitions/models.EnemyRef'
+          type: array
+        type: array
+    type: object
   models.ReportLink:
     properties:
       code:
@@ -2278,13 +2331,31 @@ definitions:
       value:
         type: number
     type: object
+  models.RouteBehind:
+    properties:
+      actualPct:
+        type: number
+      plannedPct:
+        type: number
+    type: object
   models.RouteCompare:
     properties:
+      behind:
+        $ref: '#/definitions/models.RouteBehind'
       current:
         type: integer
       kills:
         items:
           $ref: '#/definitions/models.EnemyRef'
+        type: array
+      last:
+        description: |-
+          Last is the highest route pull with a kill (-1 for none); Missed the unfinished pulls before it, and Behind how
+          far the key's forces trail the route's plan at Last (nil unless by a worthwhile margin).
+        type: integer
+      missed:
+        items:
+          $ref: '#/definitions/models.RouteMiss'
         type: array
       next:
         type: integer
@@ -2300,6 +2371,8 @@ definitions:
         type: array
       route:
         $ref: '#/definitions/models.RouteView'
+      run:
+        $ref: '#/definitions/models.RouteRun'
       skipped:
         items:
           type: integer
@@ -2340,14 +2413,33 @@ definitions:
     type: object
   models.RouteLive:
     properties:
+      behind:
+        description: forces trail the plan
+        type: boolean
       current:
         $ref: '#/definitions/models.RouteStep'
       forcesPct:
         type: number
+      missed:
+        description: pulls missed so far
+        type: integer
       name:
         type: string
       next:
         $ref: '#/definitions/models.RouteStep'
+    type: object
+  models.RouteMiss:
+    properties:
+      enemies:
+        items:
+          $ref: '#/definitions/models.EnemyRef'
+        type: array
+      forces:
+        type: integer
+      pct:
+        type: number
+      pull:
+        type: integer
     type: object
   models.RouteOff:
     properties:
@@ -2388,6 +2480,9 @@ definitions:
         type: integer
       of:
         type: integer
+      state:
+        description: PullDone, PullMissed, PullNext or PullLater
+        type: string
     type: object
   models.RoutePullView:
     properties:
@@ -2406,6 +2501,17 @@ definitions:
         type: integer
       totalPct:
         type: number
+    type: object
+  models.RouteRun:
+    properties:
+      pulls:
+        items:
+          $ref: '#/definitions/models.RunPull'
+        type: array
+      unseen:
+        items:
+          $ref: '#/definitions/models.RouteMiss'
+        type: array
     type: object
   models.RouteStep:
     properties:
@@ -2483,6 +2589,30 @@ definitions:
       text:
         type: string
       why:
+        type: string
+    type: object
+  models.RunPull:
+    properties:
+      clockMS:
+        type: integer
+      enemies:
+        items:
+          $ref: '#/definitions/models.EnemyRef'
+        type: array
+      extra:
+        type: integer
+      forces:
+        type: integer
+      keyPull:
+        type: integer
+      missing:
+        type: integer
+      pct:
+        type: number
+      plan:
+        type: integer
+      state:
+        description: RunMatches, RunDiffers or RunOff
         type: string
     type: object
   models.SavedRoute:
@@ -2903,6 +3033,89 @@ definitions:
         - gameLogs
         type: string
     type: object
+  models.TalentEntry:
+    properties:
+      icon:
+        type: string
+      id:
+        type: integer
+      name:
+        type: string
+      spellID:
+        type: integer
+    type: object
+  models.TalentNode:
+    properties:
+      choice:
+        type: boolean
+      entries:
+        items:
+          $ref: '#/definitions/models.TalentEntry'
+        type: array
+      id:
+        type: integer
+      maxRanks:
+        type: integer
+      name:
+        type: string
+      next:
+        description: the nodes this one leads to
+        items:
+          type: integer
+        type: array
+      subTree:
+        type: integer
+      tree:
+        description: Tree is "class", "spec" or "hero"; SubTree says which of the
+          hero trees a hero node is in.
+        enum:
+        - class
+        - spec
+        - hero
+        type: string
+      x:
+        description: the tree's own grid, in thousandths of a node
+        type: integer
+      "y":
+        type: integer
+    type: object
+  models.TalentPick:
+    properties:
+      e:
+        type: integer
+      "n":
+        type: integer
+      r:
+        type: integer
+    type: object
+  models.TalentShare:
+    properties:
+      e:
+        type: integer
+      most:
+        description: Most is whether most of the logs read took it (the share the
+          compare calls a majority).
+        type: boolean
+      "n":
+        type: integer
+      r:
+        type: integer
+      taken:
+        type: integer
+    type: object
+  models.TalentTree:
+    properties:
+      class:
+        type: string
+      nodes:
+        items:
+          $ref: '#/definitions/models.TalentNode'
+        type: array
+      spec:
+        type: string
+      specID:
+        type: integer
+    type: object
   models.TrackCast:
     properties:
       e:
@@ -2968,6 +3181,31 @@ paths:
               $ref: '#/definitions/models.Character'
             type: array
       summary: The owner's characters
+      tags:
+      - mplus
+  /api/icons/{name}:
+    get:
+      parameters:
+      - description: the icon's name, from a talent entry (spell_nature_starfall)
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - image/jpeg
+      responses:
+        "200":
+          description: OK
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+        "502":
+          description: Wowhead failed
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+      summary: A spell icon's image (Wowhead's medium JPEG), kept after the first
+        request
       tags:
       - mplus
   /api/mplus/dungeons/{mapID}/floors/{uiMapID}/tiles/{x}/{y}:
@@ -3265,6 +3503,41 @@ paths:
         their own runs (spends points)
       tags:
       - mplus
+  /api/mplus/keys/{start}/recorded-route:
+    get:
+      description: |-
+        Each kill takes the nearest map enemy of its NPC on its floor, grouped by the key pull it died in, in
+        order, with the forces share they hold and the kills worth forces that no enemy was left for. The page
+        makes a route of them (POST /api/mplus/routes, then PUT with colors). No pulls for a key saved before
+        mob positions were kept.
+      parameters:
+      - description: the key's start (ms since the epoch)
+        in: path
+        name: start
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.RecordedRoute'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+        "404":
+          description: no such key
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+      summary: The pulls a key made, as the enemies of a route to record from it
+      tags:
+      - mplus
   /api/mplus/keys/{start}/review:
     get:
       parameters:
@@ -3340,8 +3613,8 @@ paths:
   /api/mplus/keys/{start}/route:
     get:
       description: |-
-        Each dead mob is matched to the nearest map enemy of its NPC on its floor within 20 yards, in
-        death order. A pull is done when all of it died or 80% of its forces. noMobs is a key saved before
+        Each dead mob is matched to a map enemy of its NPC on its floor within 30 yards of where it was
+        first seen, closest pairs first. A pull is done when all of it died or 80% of its forces. noMobs is a key saved before
         mob positions were kept: only the route can be shown until its log is read again.
       parameters:
       - description: 'the key''s start (ms since the epoch): the running key''s, the
@@ -4623,7 +4896,8 @@ paths:
         in: query
         name: name
         type: string
-      - description: a spell ID (a mob's spell from /api/mplus/dungeons/{mapID}/mobs)
+      - description: a spell ID (a mob's spell from /api/mplus/dungeons/{mapID}/mobs,
+          or a talent's from /api/talents/{specID})
         in: query
         name: id
         type: integer
@@ -4668,4 +4942,31 @@ paths:
       summary: How much disk the app's data and the game's logs take
       tags:
       - settings
+  /api/talents/{specID}:
+    get:
+      parameters:
+      - description: the specialization ID (62 Arcane Mage)
+        in: path
+        name: specID
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.TalentTree'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+      summary: 'A spec''s talent tree: its class, spec and hero talents with their
+        places'
+      tags:
+      - mplus
 swagger: "2.0"

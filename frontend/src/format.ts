@@ -6,7 +6,6 @@ import type {
   KeySpike,
   KeyView,
   LogFile,
-  MeterPoint,
   RaidPullSummary,
   RouteLive,
 } from './api'
@@ -143,22 +142,13 @@ export function pullTitle(key: KeyView, clockMS: number): string {
 }
 
 /** The live key's place on its route in one line: "Next: pull 7 (12.4%, to 58.1%)", with " · on pull 9" when the
- * party's last kill on the route was past an unfinished pull, or "Route done (102.3%)". */
-export function routeLine({ current, next, forcesPct }: RouteLive): string {
-  if (!next) return `Route done (${forcesPct.toFixed(1)}%)`
+ * party's last kill on the route was past an unfinished pull, or "Route done (102.3%)"; then " · 2 missed" and
+ * " · forces behind plan" when so. */
+export function routeLine({ current, next, forcesPct, missed, behind }: RouteLive): string {
+  const warn = (missed > 0 ? ` · ${missed} missed` : '') + (behind ? ' · forces behind plan' : '')
+  if (!next) return `Route done (${forcesPct.toFixed(1)}%)${warn}`
   const past = current && current.number > next.number ? ` · on pull ${current.number}` : ''
-  return `Next: pull ${next.number} (${next.pct.toFixed(1)}%, to ${next.totalPct.toFixed(1)}%)${past}`
-}
-
-/** One of a player's numbers so far at a clock reading (damage 'd', healing 'h', damage taken 'tk', and so on), from a
- * track's meter points. */
-export function valueAt(points: MeterPoint[], t: number, kind: Exclude<keyof MeterPoint, 't'>): number {
-  let value = 0
-  for (const p of points) {
-    if (p.t > t) break
-    value = p[kind] ?? 0
-  }
-  return value
+  return `Next: pull ${next.number} (${next.pct.toFixed(1)}%, to ${next.totalPct.toFixed(1)}%)${past}${warn}`
 }
 
 /** The middle value, or the mean of the two middle ones for an even count (0 for none). */
@@ -268,4 +258,10 @@ export function rowValue(value: number, unit: string): string {
     default:
       return value.toFixed(0)
   }
+}
+
+/** The " · 546/551" after a key's forces, or '' when there is no count or the key reads 100% on kills that add up to
+ * less (the game finished it, so the count missed a mob). */
+export function forcesCount({ count, total, pct }: { count: number; total: number; pct: number }): string {
+  return count > 0 && (pct < 100 || count >= total) ? ` · ${count}/${total}` : ''
 }

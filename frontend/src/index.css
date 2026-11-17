@@ -744,6 +744,16 @@ button {
   color: var(--text);
   border-radius: 4px;
   padding: var(--s2) var(--s3);
+  font-weight: 600;
+}
+
+.action:hover:not(:disabled) {
+  filter: brightness(1.15);
+}
+
+.action:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
 .topnav {
@@ -795,10 +805,20 @@ button {
 }
 
 /* The map fits one screen. */
-.map-panel .map-canvas {
+.map-panel .map-canvas,
+.map-waiting {
   display: block;
   max-height: calc(100vh - 140px);
   object-fit: contain;
+}
+
+/* The canvas's place until a live key's positions are in: its 3:2 shape, under the same controls and hint. */
+.map-waiting {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 3 / 2;
+  background: var(--panel);
+  border-radius: 6px;
 }
 
 /* A boss fight's meter cards in its details (KeyLedgers.tsx), small and two across. */
@@ -1695,6 +1715,10 @@ button.link {
 }
 
 /* The route editor (RoutesPage.tsx): the name, the pull buttons and the selected pull's swatch. */
+button.danger {
+  color: var(--bad);
+}
+
 .route-name {
   flex: 1;
   min-width: 0;
@@ -1934,4 +1958,186 @@ table.compare td {
 table.compare th:first-child,
 table.compare td:first-child {
   text-align: left;
+}
+
+.talent-tree {
+  width: 100%;
+  max-height: 520px;
+  scroll-margin: var(--s5);
+}
+
+.talent-link {
+  stroke: var(--border);
+  stroke-width: 2;
+}
+
+/* A node is its icon in a ring; the ring's colour and width, the mark on its corner and (for a missed talent) the
+   count under it each say the state, so none depends on colour alone. */
+.talent-node .talent-ring {
+  fill: var(--panel-2);
+  stroke: var(--border);
+  stroke-width: 2;
+}
+
+.talent-node image {
+  pointer-events: none;
+}
+
+.talent-node.talent-unused image {
+  opacity: 0.35;
+}
+
+.talent-node text {
+  fill: var(--text);
+  font-size: 7px;
+  pointer-events: none;
+}
+
+.talent-node .talent-rank {
+  font-size: 8px;
+  font-weight: 700;
+  paint-order: stroke;
+  stroke: var(--bg);
+  stroke-width: 2px;
+}
+
+.talent-node .talent-count {
+  fill: var(--bad);
+  font-size: 7px;
+  font-weight: 700;
+  paint-order: stroke;
+  stroke: var(--bg);
+  stroke-width: 2px;
+}
+
+.talent-node .talent-badge circle {
+  stroke: var(--bg);
+  stroke-width: 1.5;
+}
+
+.talent-node .talent-badge text {
+  fill: var(--bg);
+  font-size: 8px;
+  font-weight: 800;
+}
+
+.talent-node.talent-both .talent-ring {
+  stroke: var(--good);
+  stroke-width: 3;
+}
+
+.talent-node.talent-both .talent-badge circle {
+  fill: var(--good);
+}
+
+.talent-node.talent-rank .talent-ring {
+  stroke: var(--warn);
+  stroke-width: 3.5;
+}
+
+.talent-node.talent-rank .talent-badge circle {
+  fill: var(--warn);
+}
+
+.talent-node.talent-missed .talent-ring {
+  stroke: var(--bad);
+  stroke-width: 4.5;
+}
+
+.talent-node.talent-missed .talent-badge circle {
+  fill: var(--bad);
+}
+
+.talent-node.talent-extra .talent-ring {
+  stroke: var(--accent);
+  stroke-width: 4.5;
+}
+
+.talent-node.talent-extra .talent-badge circle {
+  fill: var(--accent);
+}
+
+/* A talent found from a list: a ring that grows and fades, over and over while it lasts. */
+.talent-pulse {
+  fill: none;
+  stroke: var(--text);
+  stroke-width: 3;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: talent-pulse 0.9s ease-out infinite;
+}
+
+@keyframes talent-pulse {
+  from {
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  to {
+    transform: scale(3.2);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .talent-pulse {
+    animation: none;
+    transform: scale(1.8);
+  }
+}
+
+.talent-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2) var(--s4);
+}
+
+.legend-dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 3px solid var(--border);
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.legend-dot.talent-both {
+  border-color: var(--good);
+}
+
+.legend-dot.talent-rank {
+  border-color: var(--warn);
+}
+
+.legend-dot.talent-missed {
+  border-color: var(--bad);
+}
+
+.legend-dot.talent-extra {
+  border-color: var(--accent);
+}
+
+.talent-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s3);
+}
+
+.talent-jump {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  text-decoration: underline dotted;
+}
+
+.talent-jump:hover {
+  text-decoration: underline;
 }
