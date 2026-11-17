@@ -33,7 +33,12 @@ AFTER EVERY KEY
   talents), with up to five things to work on.
 • A "Fix next key" list and a timeline of every pull, death, Bloodlust and cooldown.
 • A replay on the dungeon's map, synced to the meters.
-• Routes: import a Mythic Dungeon Tools route and see which pulls you skipped.
+
+ROUTES
+• Import a Mythic Dungeon Tools route, or record your own run as a new one.
+• Edit it on the dungeon's map with mob health at your key level, and draw lines, markers and notes.
+• Follow it live: the overlay shows "Next: pull N" as you play.
+• After the key, see which pulls you skipped.
 
 RAID
 • After each pull: how far it got, the early deaths and why, and what failed by mechanic (soaks, tethers, adds,
@@ -62,6 +67,16 @@ World of Warcraft is a trademark of Blizzard Entertainment. WoW Live isn't affil
 and the game's spell names, text and icons belong to Blizzard. Dungeon maps and patrols are Keystone.guru's, routes
 and enemies Mythic Dungeon Tools', talent trees Raidbots', raid map edges wago.tools', raid maps and top runs
 Warcraft Logs', season timers Raider.IO's and spell text and icons Wowhead's.
+
+## What's new in this version
+
+• Plan routes: import a Mythic Dungeon Tools route or record your own run, edit it with mob health at your key level,
+  draw on the map, follow it live and see which pulls you skipped.
+• Compare each player with the top runs of their spec, now with their talents and buffs, and faster to run.
+• Death recaps show the last 10 seconds of every death and big hit.
+• Replay a key or a raid pull on the map, with a timeline of deaths, Bloodlust and cooldowns.
+• Import your keys and raid pulls from Warcraft Logs, or read your old combat logs.
+• Opens on Home, with a short guide for first-time setup.
 
 ## Product features (up to 20, shown as a list)
 
@@ -100,9 +115,10 @@ payoff). Each screen shows one thing, large; crop to it rather than showing a wh
 | 2 | `4-death.png` | Every death, explained | A death recap: each hit and heal as a health bar falling to 0%, the ready defensive named | Made (the last 10 seconds, health falling to 0%) |
 | 3 | `compare.png` | See how you stack up | Compare tab: verdict, the "work on" list, key stats and abilities against the top logs | Made, sample data |
 | 4 | `2-key.png` | Know why your key depleted | Fix next key and Timeline | Made |
-| 5 | `3-raid.png` | Fix the wipe before the next pull | A raid pull's Fix next pull and early deaths | Made |
-| 6 | `5-replay.png` | Replay the key on the map | The map replay | Made |
-| 7 | `6-recap.png` | Your whole season | The Recap's Mythic+ tab | Made |
+| 5 | `routes.png` | Plan it. Follow it live. | The Routes tab: a route's pulls on the dungeon's map with forces per pull | Made |
+| 6 | `3-raid.png` | Fix the wipe before the next pull | A raid pull's Fix next pull and early deaths | Made |
+| 7 | `5-replay.png` | Replay the key on the map | The map replay | Made |
+| 8 | `6-recap.png` | Your whole season | The Recap's Mythic+ tab | Made |
 
 The comparison screenshot uses sample numbers, not a real review (the owner's choice); the names are made up too, and
 the image carries a small "sample data" mark. Keep it to the values a real review shows. The talent tree shows
