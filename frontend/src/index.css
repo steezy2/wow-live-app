@@ -822,9 +822,8 @@ button {
 }
 
 /* A boss fight's meter cards in its details (KeyLedgers.tsx), small and two across. */
-.replay-meters {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+.replay-meters .cards {
+  margin-top: var(--s2);
   gap: var(--s2);
 }
 
@@ -1194,7 +1193,7 @@ span.graph-taken {
   max-height: 260px;
 }
 
-/* The raid page's bottom tabs, twice as tall as a key's. */
+/* The bottom tabs of the key and raid pages, twice as tall as the lists' usual height. */
 .tall .scroll {
   max-height: 640px;
 }
@@ -1545,6 +1544,7 @@ button.link {
 /* The Report links under a finished key or pull: Warcraft Logs, WoWAnalyzer, or Find my report. */
 .links {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--s2);
   align-items: center;
 }
@@ -1557,6 +1557,15 @@ button.link {
 }
 .links button:hover:not(:disabled) {
   border-color: var(--accent);
+}
+
+/* The Home tab's quick links: bigger buttons with an arrow. */
+.quick-links button {
+  padding: var(--s2) var(--s3);
+  font-weight: 600;
+}
+.quick-links button::after {
+  content: ' →';
 }
 
 /* The recap's numbers, each in a box: the number big, its label under it. */

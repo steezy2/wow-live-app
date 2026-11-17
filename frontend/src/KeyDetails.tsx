@@ -76,7 +76,7 @@ export function KeyDetails({
       {
         id: 'bosses',
         name: 'Bosses',
-        body: <BossList keyView={key} track={track} topBosses={review?.topBosses} onSeek={show} />,
+        body: <BossList keyView={key} track={track} topBosses={review?.topBosses} onSeek={setAt} />,
       },
       // A running key's route is compared again as its track grows, but only while its tab is open (a saved key's
       // once).
@@ -93,7 +93,7 @@ export function KeyDetails({
         track,
       ),
     ],
-    [key, clockMS, seek, track, review, show, routeOpen],
+    [key, clockMS, seek, track, review, setAt, routeOpen],
   )
   return (
     <div className={key.status === 'running' || track ? 'key-ready' : 'key-loading'}>
@@ -239,11 +239,9 @@ export function KeyDetails({
         <KeyMap keyView={key} clockMS={clockMS} track={track} replay={replay} focus={focus} onFocus={setFocus} />
       </section>
 
-      <Tabs
-        initial={key.route ? 'route' : undefined}
-        tabs={tabs}
-        onOpen={(id) => setRouteOpen(id === 'route')}
-      />
+      <div className="tall">
+        <Tabs initial={key.route ? 'route' : undefined} tabs={tabs} onOpen={(id) => setRouteOpen(id === 'route')} />
+      </div>
       <p className="muted small">{key.players.join(' · ')}</p>
     </div>
   )
