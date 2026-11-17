@@ -203,7 +203,7 @@ export function RouteMap(props: {
       if (ghost) {
         const ghostOf = pullIndexes(ghost)
         ctx.setLineDash([dot / 2, dot / 2])
-        ctx.strokeStyle = UNPULLED
+        ctx.strokeStyle = unpulled
         ctx.lineWidth = dot / 4
         groups((e) => ghostOf.get(enemyKey(e))).forEach((group) => {
           trace(ctx, outline(group))
