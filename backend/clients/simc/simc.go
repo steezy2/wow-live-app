@@ -261,6 +261,7 @@ func bannerOutput(ctx context.Context, exe string) (out string, runErr error, ti
 	defer cancel()
 	cmd := exec.CommandContext(ctx, exe)
 	cmd.Dir = filepath.Dir(exe)
+	HideWindow(cmd)
 	raw, runErr := cmd.CombinedOutput() // it may exit with an error: there is nothing to sim
 	return string(raw), runErr, ctx.Err() != nil
 }

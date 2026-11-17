@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"wow-live/backend/clients/cachefile"
+	"wow-live/backend/clients/simc"
 	"wow-live/backend/models"
 )
 
@@ -255,6 +256,7 @@ func (s *Sims) execute(ctx context.Context, input, output string) {
 	s.mu.Unlock()
 	cmd := exec.CommandContext(ctx, s.Engine.Path(), simArgs(input, output, sim.Options, len(combos) > 0)...)
 	cmd.Dir = filepath.Dir(input)
+	simc.HideWindow(cmd)
 	pr, pw := io.Pipe()
 	cmd.Stdout, cmd.Stderr = pw, pw
 	said := make(chan string)
