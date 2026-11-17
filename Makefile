@@ -31,6 +31,9 @@ swag: ## Regenerate the API spec (backend/docs) after changing an endpoint or it
 ref: ## Rewrite reference/mplus-dungeons.json from its sources: check the diff
 	cd backend && go run ./cmd/mplusref
 
+talents: ## Rewrite reference/talent-trees.json from Raidbots: check the diff
+	cd backend && go run ./cmd/talentref
+
 ref-check: ## List what the logged keys show that the dungeon file lacks
 	cd backend && go run ./cmd/mplusref --check
 

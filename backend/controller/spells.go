@@ -15,7 +15,7 @@ import (
 // Spells explains an ability by its name or a spell by its ID (service.Spells).
 type Spells interface {
 	Info(ctx context.Context, name string) (models.SpellInfo, error)
-	MobSpell(ctx context.Context, id int) (models.SpellInfo, error)
+	ReferenceSpell(ctx context.Context, id int) (models.SpellInfo, error)
 }
 
 // SpellQuery is the ability to explain, as the combat log names it, or a spell ID.
@@ -33,7 +33,7 @@ type SpellQuery struct {
 //	@Tags			spells
 //	@Produce		json
 //	@Param			name	query		string	false	"the ability's name as the combat log shows it (needed without id)"
-//	@Param			id		query		int		false	"a spell ID (a mob's spell from /api/mplus/dungeons/{mapID}/mobs)"
+//	@Param			id		query		int		false	"a spell ID (a mob's spell from /api/mplus/dungeons/{mapID}/mobs, or a talent's from /api/talents/{specID})"
 //	@Success		200		{object}	models.SpellInfo
 //	@Failure		400		{object}	ErrorResponse
 //	@Failure		404		{object}	ErrorResponse
@@ -49,7 +49,7 @@ func (m MPlus) Spell(c *gin.Context) {
 	var info models.SpellInfo
 	var err error
 	if q.ID > 0 {
-		info, err = m.Spells.MobSpell(c.Request.Context(), q.ID)
+		info, err = m.Spells.ReferenceSpell(c.Request.Context(), q.ID)
 	} else {
 		info, err = m.Spells.Info(c.Request.Context(), q.Name)
 	}

@@ -4,6 +4,37 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-16
+
+### Changed
+- **Faster reviews and listings**: a player review reads its top logs five at a time, each log's tables, enemy hits and talents together, and the character's parses beside them, instead of one query after another. Listing a character's Warcraft Logs fights asks the next page of reports while the last is read, and a page's reports' fights in side-by-side queries of 8. Reading every log again takes about 20 s for 1.5 GB (the tracker is the limit, one line at a time), so it is unchanged.
+
+### Added
+- **Talent icons, tooltips and both hero trees**: the compare tab's talent tree shows each talent's icon (the app fetches them from Wowhead once and keeps them) and what it does on hover, with who took it below; both hero trees are drawn (Arcane's Sunfury and Spellslinger, and every spec's two). Each node has a thick ring and a corner mark for who took it (! top logs only, + you only, ≠ another rank, ✓ both) and a missed talent shows how many top logs took it; the talents listed under the tree are buttons that scroll to the talent and pulse it for 5 seconds.
+- **Compare talents**: a player review draws the spec's talent tree with what the top logs take that you didn't, what only you took and where you both agree, with how many of the top logs took each. Keys and pulls read from now on (or with *Read old logs*) keep their talents; older ones say so.
+
+### Fixed
+- **Compare tab**: a stray "0" under *What to work on* (the spec rules count showing when there are none) is gone, and a dungeon review no longer lists a Vantus Rune (raid-only, from `raid-rules.toml`) as a buff you lacked.
+- **Compare buffs**: always-on talent buffs (Charged Orb, Orb Barrage...) that read 100% for the top logs and 0% for you are left off the buff list.
+- **Compare damage taken**: the top logs' damage taken counted only hits from friendly sources (a mage's own Refraction), so it read about a tenth of yours; it now adds the enemies' hits, matching the key's own numbers within 0.3%. Reviews made before this are read again (run them once more).
+- **Compare buffs**: a buff with several spell IDs (Overpowered Missiles read 121% for the top logs) counts its time up once, so no buff passes 100%.
+- **Key page**: a running key's Replay map holds its place while the track loads, so the tabs below (Route) no longer jump when the map appears.
+- **Forces**: a finished key no longer reads "100% · 546/551" when the log missed a mob's death; the count shows only when it adds up.
+
+## [0.4.9] - 2026-11-16
+
+### Changed
+- **Routes tab**: typing a new name offers *Save as new route* (the original stays as it was) and *Rename* (saves over it); *Delete route* is beside them. *From MDT's saves* lists only the picked dungeon's routes.
+
+### Added
+- **Record next run as new route** on the Routes tab: arm it for a dungeon and the next key that ends there is recorded as a route, as *Record route* does on a finished key. *Record route* and this button are filled buttons now.
+
+## [0.4.8] - 2026-11-16
+
+### Changed
+- **A finished key's Route tab shows what was pulled**: the map draws the key's own pulls (the plan only as faint dashed outlines) and each pull is listed against the route pull it is closest to: *Plan pull N* when it matches, *N extra, M not killed* when it differs, *Not in the route* otherwise. Planned enemies the log never showed dying are listed as *not seen in the log*, not as missed. A running key's tab is as before. `GET /api/mplus/keys/{start}/route` has the new `run`.
+- **Record route keeps every kill**: a kill pulled differently from the map (more than 30 yards from an enemy of its NPC) used to be dropped; now it takes the nearest unused enemy of its NPC on its floor, so the recorded route holds what was pulled. `GET /api/mplus/keys/{start}/recorded-route` returns `{pulls, pct, dropped}`, and the page says the forces share recorded and the kills not on the map. The route's name has the key's date.
+
 ## [0.4.7] - 2026-11-16
 
 ### Added
