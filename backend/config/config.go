@@ -98,6 +98,7 @@ type Loaded struct {
 	Dungeons  map[int]models.DungeonFacts
 	Bosses    map[string]models.RaidBoss
 	Tier      map[string][]int
+	Talents   map[int]models.TalentTree
 	// RefErr is a reference file that wouldn't load: cmd/site goes on without it, the app (which builds both in) stops.
 	RefErr error
 }
@@ -113,8 +114,9 @@ func Load(fsys fs.FS) (Loaded, error) {
 	}
 	dungeons, dungeonsErr := loadJSON[models.MPlusReference](fsys, "reference/mplus-dungeons.json", "mplusref")
 	raid, raidErr := loadJSON[models.RaidReference](fsys, "reference/raid-bosses.json", "raidref")
-	l.Dungeons, l.Bosses, l.Tier = dungeons.Dungeons, raid.Bosses, raid.Tier
-	l.RefErr = errors.Join(dungeonsErr, raidErr)
+	talents, talentsErr := loadJSON[models.TalentTrees](fsys, "reference/talent-trees.json", "talentref")
+	l.Dungeons, l.Bosses, l.Tier, l.Talents = dungeons.Dungeons, raid.Bosses, raid.Tier, talents.BySpec()
+	l.RefErr = errors.Join(dungeonsErr, raidErr, talentsErr)
 	return l, nil
 }
 
@@ -161,6 +163,11 @@ func ReferencePath(root string) string {
 // RaidReferencePath is the raid's boss mechanics for the raid overview, written by cmd/raidref.
 func RaidReferencePath(root string) string {
 	return filepath.Join(root, "reference", "raid-bosses.json")
+}
+
+// TalentTreesPath is every spec's talent tree, written by cmd/talentref.
+func TalentTreesPath(root string) string {
+	return filepath.Join(root, "reference", "talent-trees.json")
 }
 
 // LoadReference reads the season's dungeon facts (ReferencePath).

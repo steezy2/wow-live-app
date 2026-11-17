@@ -1,17 +1,23 @@
 import { useEffect, useState } from 'react'
 import {
+  createRoute,
+  deleteRoute,
   fetchDungeonMap,
   fetchMobs,
+  fetchRecordedRoute,
+  saveRoute,
   type Drawing,
   type DungeonMap,
   type DungeonMob,
   type DungeonMobs,
   type EnemyRef,
+  type KeyView,
   type Patrol,
   type RouteEnemy,
   type RoutePull,
   type RouteView,
 } from './api'
+import { counted } from './format'
 import { useFetched } from './useFetched'
 import type { DrawTool } from './DrawTools'
 import type { Yards } from './KeyMap'
@@ -329,4 +335,22 @@ export function drawingAt(drawings: Drawing[], map: number, p: Point, reach: num
   return drawings
     .filter((d) => d.map === map && far(d) <= reach)
     .sort((a, b) => far(a) - far(b))[0]
+}
+
+/** Makes a route of the pulls a key made and says what was recorded, or why nothing was (`recorded` false). */
+export async function recordKeyRoute(key: KeyView): Promise<{ recorded: boolean; message: string }> {
+  const { pulls, pct, dropped } = await fetchRecordedRoute(key.start)
+  if (pulls.length === 0) return { recorded: false, message: "No kills on the map to record: read this key's log again." }
+  const name = `${key.dungeon} +${key.level} recorded ${new Date(key.start).toLocaleDateString()}`
+  const colored = pulls.map((enemies, i) => ({ color: PULL_COLORS[i % PULL_COLORS.length], enemies }))
+  await createRouteFrom(key.mapID, { name, drawings: [], pulls: colored })
+  const gaps = dropped ? `, ${counted(dropped, 'kill')} not on the map` : ''
+  const shape = `${counted(pulls.length, 'pull')}, ${pct.toFixed(1)}% forces${gaps}`
+  return { recorded: true, message: `Recorded as “${name}”: ${shape}. Edit and export it on the Routes tab.` }
+}
+
+/** Saves a draft as a new route of a dungeon; no empty route is left behind when it is refused. */
+export async function createRouteFrom(mapID: number, draft: Draft): Promise<RouteView> {
+  const route = await createRoute(mapID, draft.name)
+  return saveRoute(route.id, draft).catch((err: Error) => deleteRoute(route.id).then(() => Promise.reject(err)))
 }

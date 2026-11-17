@@ -623,7 +623,9 @@ func (f *fakePlanner) Compare(start int64, id string) (models.RouteCompare, erro
 	}
 	return models.RouteCompare{}, f.known(id)
 }
-func (f *fakePlanner) Recorded(int64) ([][]models.EnemyRef, error)    { return nil, nil }
+func (f *fakePlanner) Recorded(int64) (models.RecordedRoute, error) {
+	return models.RecordedRoute{}, nil
+}
 func (f *fakePlanner) Live(models.KeyView) (*models.RouteLive, error) { return nil, nil }
 
 func TestRoutesAnswerBadIDsBeforeTouchingFiles(t *testing.T) {
@@ -675,7 +677,7 @@ func (fakeSpells) Info(_ context.Context, name string) (models.SpellInfo, error)
 	return models.SpellInfo{}, service.ErrUnknownSpell
 }
 
-func (fakeSpells) MobSpell(_ context.Context, id int) (models.SpellInfo, error) {
+func (fakeSpells) ReferenceSpell(_ context.Context, id int) (models.SpellInfo, error) {
 	return models.SpellInfo{ID: id}, nil
 }
 

@@ -600,3 +600,11 @@ func TestAKeysBuffGapsAreWhatCameOffAndWhatWasMissingFromTheStart(t *testing.T) 
 		t.Errorf("Arcane Intellect gaps = %v; want the shaman's start until it landed, and the mage's 20 s", gaps)
 	}
 }
+
+func TestTalentPicksReadsCombatantInfosTalentList(t *testing.T) {
+	got := talentPicks("[(62121,80180,1),(62115,80174,2)]")
+	want := []models.TalentPick{{NodeID: 62121, EntryID: 80180, Rank: 1}, {NodeID: 62115, EntryID: 80174, Rank: 2}}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("talentPicks = %+v, want %+v", got, want)
+	}
+}

@@ -590,7 +590,7 @@ func (k *LogTracker) raidPull(run *keyRun, key models.Key, at int64, kill bool) 
 	r, rules := run.raid, k.raid.rules
 	p := models.RaidPull{Start: key.Start, End: at, Night: night(key.Start), Boss: key.Dungeon,
 		Difficulty: r.difficulty, DurationMS: at - key.Start, Kill: kill, BossPct: r.bossPct(kill), Phase: r.phase,
-		Players: key.Players, Logger: key.Logger, Realms: key.Realms, Specs: key.Specs, Resurrections: key.Resurrections, Meter: key.Overall, Lusts: key.Lusts,
+		Players: key.Players, Logger: key.Logger, Realms: key.Realms, Specs: key.Specs, Talents: key.Talents, Resurrections: key.Resurrections, Meter: key.Overall, Lusts: key.Lusts,
 		Dispels: list(key.Debuffs),
 		WentOff: []models.KeyStop{}}
 	for i, d := range key.Deaths {

@@ -748,7 +748,29 @@ export interface RouteCompare {
   missed: RouteMiss[]
   /** Set when the key's forces trail the route's plan at `last`. */
   behind?: { plannedPct: number; actualPct: number }
+  /** The key's own pulls against the route. */
+  run: RouteRun
   noMobs: boolean
+}
+
+/** A pull a key made: the map enemies it killed, the route pull (`plan`, -1 for none) most of them are in, how many of
+ * its enemies are in other route pulls (`extra`) and how many of that pull's it did not kill (`missing`). */
+export interface RunPull {
+  keyPull: number
+  clockMS: number
+  enemies: EnemyRef[]
+  forces: number
+  pct: number
+  plan: number
+  extra: number
+  missing: number
+  state: 'matches' | 'differs' | 'off'
+}
+
+/** A key's own pulls, and the route's enemies no pull killed (not shown dying in the log) by route pull. */
+export interface RouteRun {
+  pulls: RunPull[]
+  unseen: RouteMiss[]
 }
 
 /** A missed route pull (an index): the enemies of it not killed, and their forces. */
@@ -782,9 +804,16 @@ export async function fetchKeyRoute(start: number, id?: string, signal?: AbortSi
   return jsonOrNull<RouteCompare>(`/api/mplus/keys/${start}/route${query}`, signal)
 }
 
-/** The pulls a key made as the enemies of route pulls, to record a route from it. */
-export async function fetchRecordedRoute(start: number): Promise<EnemyRef[][]> {
-  return json<EnemyRef[][]>(`/api/mplus/keys/${start}/recorded-route`)
+/** The pulls a key made as the enemies of route pulls, the forces share they hold and the kills no enemy was left for. */
+export interface RecordedRoute {
+  pulls: EnemyRef[][]
+  pct: number
+  dropped: number
+}
+
+/** The pulls a key made, to record a route from it. */
+export async function fetchRecordedRoute(start: number): Promise<RecordedRoute> {
+  return json<RecordedRoute>(`/api/mplus/keys/${start}/recorded-route`)
 }
 
 /** A dungeon of the season a route can be planned in. */
@@ -1602,6 +1631,63 @@ interface CompareLog {
   amount: number
 }
 
+/** A talent a player took: the tree node, the entry chosen in it (a node with a choice holds two) and the ranks bought. */
+export interface TalentPick {
+  n: number
+  e: number
+  r: number
+}
+
+/** A talent entry the top logs took: `taken` of the `of` logs read took it, at most at rank `r`. */
+export interface TalentShare extends TalentPick {
+  taken: number
+  /** Most of the logs read took it. */
+  most: boolean
+}
+
+/** A player's talents against the top logs' (models.CompareTalents). */
+export interface CompareTalents {
+  specID: number
+  you: TalentPick[]
+  top: TalentShare[]
+  of: number
+}
+
+/** A talent an entry can hold, with its icon name. */
+export interface TalentEntry {
+  id: number
+  spellID: number
+  name: string
+  icon: string
+}
+
+/** A place in a talent tree (models.TalentNode): x and y are the tree's own grid; `next` the nodes it leads to. */
+export interface TalentNode {
+  id: number
+  name: string
+  tree: 'class' | 'spec' | 'hero'
+  subTree?: number
+  choice?: boolean
+  x: number
+  y: number
+  maxRanks: number
+  next: number[]
+  entries: TalentEntry[]
+}
+
+/** A spec's talent tree (models.TalentTree). */
+export interface TalentTree {
+  specID: number
+  class: string
+  spec: string
+  nodes: TalentNode[]
+}
+
+/** A spec's talent tree layout; null for a spec the app has none for. */
+export async function fetchTalentTree(specID: number, signal?: AbortSignal): Promise<TalentTree | null> {
+  return jsonOrNull<TalentTree>(`/api/talents/${specID}`, signal)
+}
+
 /** A player's run against their own similar runs, the top Warcraft Logs logs of their spec and their parses
  * (models.PlayerCompare). */
 export interface PlayerCompare {
@@ -1618,6 +1704,8 @@ export interface PlayerCompare {
   stats: CompareRow[]
   abilities: CompareRow[]
   buffs: CompareRow[]
+  /** The player's talents against the top logs'; missing when none of the logs' talents could be read. */
+  talents?: CompareTalents
   onlyYou: string[]
   onlyTop: string[]
   advice: string[]

@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import { FixNext } from './FixNext'
 import { reviewURL, type KeyForces, type KeyGhost, type KeyReview as Review, type KeyTrack, type KeyView } from './api'
-import { chestLabel, clock, oddsText, pullTitle, resultText, routeLine, share, versusBest } from './format'
+import { chestLabel, clock, forcesCount, oddsText, pullTitle, resultText, routeLine, share, versusBest } from './format'
 import { DamageGraph } from './DamageGraph'
 import { BuffGaps } from './BuffGaps'
 import { BossList, PriorityLedger } from './KeyLedgers'
@@ -321,7 +321,7 @@ export function ForcesBar({ forces, level }: { forces: KeyForces; level: number 
       </div>
       <span className="small">
         Forces {forces.pct >= 100 ? `100% (${forces.pct.toFixed(0)}%)` : `${forces.pct.toFixed(1)}%`}
-        {forces.count > 0 && <span className="muted"> · {forces.count}/{forces.total}</span>}
+        <span className="muted">{forcesCount(forces)}</span>
         {pace && (
           <span className="muted">
             {' '}

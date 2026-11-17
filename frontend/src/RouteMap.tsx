@@ -140,13 +140,15 @@ export function RouteMap(props: {
   mobs?: Map<number, DungeonMob>
   level?: number
   killed?: EnemyRef[]
+  /** A plan drawn faint behind the pulls (dashed outlines): what a key's own pulls were made against. */
+  ghost?: RoutePull[]
   /** Each pull's state on a running key (done pulls muted, next ones bright, later ones faded, missed outlined). */
   states?: PullState[]
   drawings?: Drawing[]
   onDraw?: (edit: Edit) => void
   limits?: DrawingLimits
 }) {
-  const { mapID, dungeon, pulls, selected, highlight, onEnemy, onContext, mobs, level, killed, states } = props
+  const { mapID, dungeon, pulls, selected, highlight, onEnemy, onContext, mobs, level, killed, ghost, states } = props
   const { drawings, onDraw, limits } = props
   const [floor, setFloor] = useState<number | null>(null)
   const [packs, setPacks] = useState(false)
@@ -197,6 +199,17 @@ export function RouteMap(props: {
           if (k !== undefined) by.set(k, [...(by.get(k) ?? []), e])
         })
         return by
+      }
+      if (ghost) {
+        const ghostOf = pullIndexes(ghost)
+        ctx.setLineDash([dot / 2, dot / 2])
+        ctx.strokeStyle = UNPULLED
+        ctx.lineWidth = dot / 4
+        groups((e) => ghostOf.get(enemyKey(e))).forEach((group) => {
+          trace(ctx, outline(group))
+          ctx.stroke()
+        })
+        ctx.setLineDash([])
       }
       if (packs) {
         ctx.setLineDash([dot, dot])
@@ -270,7 +283,7 @@ export function RouteMap(props: {
       const drawing = line && here && { id: '', map: here.uiMapID, kind: 'line' as const, color, points: line }
       paint(ctx, at, dot, drawing ? [...drawnHere, drawing] : drawnHere)
     },
-    [enemies, patrols, pulls, selected, highlight, killed, states, packs, drawnHere, line, color, here],
+    [enemies, patrols, pulls, selected, highlight, killed, ghost, states, packs, drawnHere, line, color, here],
   )
   /** A drawing tool's press on the map: a line follows it and ends with it, a marker or a note (with its text) goes
    * where it ends, and Erase takes the drawing it lands on. */
