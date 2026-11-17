@@ -1628,6 +1628,61 @@ interface CompareLog {
   amount: number
 }
 
+/** A talent a player took: the tree node, the entry chosen in it (a node with a choice holds two) and the ranks bought. */
+export interface TalentPick {
+  n: number
+  e: number
+  r: number
+}
+
+/** A talent entry the top logs took: `taken` of the `of` logs read took it, at most at rank `r`. */
+export interface TalentShare extends TalentPick {
+  taken: number
+}
+
+/** A player's talents against the top logs' (models.CompareTalents). */
+export interface CompareTalents {
+  specID: number
+  you: TalentPick[]
+  top: TalentShare[]
+  of: number
+}
+
+/** A talent an entry can hold, with its icon name. */
+interface TalentEntry {
+  id: number
+  spellID: number
+  name: string
+  icon: string
+}
+
+/** A place in a talent tree (models.TalentNode): x and y are the tree's own grid; `next` the nodes it leads to. */
+export interface TalentNode {
+  id: number
+  name: string
+  tree: 'class' | 'spec' | 'hero'
+  subTree?: number
+  choice?: boolean
+  x: number
+  y: number
+  maxRanks: number
+  next: number[]
+  entries: TalentEntry[]
+}
+
+/** A spec's talent tree (models.TalentTree). */
+export interface TalentTree {
+  specID: number
+  class: string
+  spec: string
+  nodes: TalentNode[]
+}
+
+/** A spec's talent tree layout; null for a spec the app has none for. */
+export async function fetchTalentTree(specID: number, signal?: AbortSignal): Promise<TalentTree | null> {
+  return jsonOrNull<TalentTree>(`/api/talents/${specID}`, signal)
+}
+
 /** A player's run against their own similar runs, the top Warcraft Logs logs of their spec and their parses
  * (models.PlayerCompare). */
 export interface PlayerCompare {
@@ -1644,6 +1699,8 @@ export interface PlayerCompare {
   stats: CompareRow[]
   abilities: CompareRow[]
   buffs: CompareRow[]
+  /** The player's talents against the top logs'; missing when none of the logs' talents could be read. */
+  talents?: CompareTalents
   onlyYou: string[]
   onlyTop: string[]
   advice: string[]

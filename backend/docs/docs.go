@@ -2240,6 +2240,46 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/api/talents/{specID}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "mplus"
+                ],
+                "summary": "A spec's talent tree: its class, spec and hero talents with their places",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "the specialization ID (62 Arcane Mage)",
+                        "name": "specID",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.TalentTree"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -2541,6 +2581,29 @@ const docTemplate = `{
                 },
                 "yours": {
                     "type": "number"
+                }
+            }
+        },
+        "models.CompareTalents": {
+            "type": "object",
+            "properties": {
+                "of": {
+                    "type": "integer"
+                },
+                "specID": {
+                    "type": "integer"
+                },
+                "top": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.TalentShare"
+                    }
+                },
+                "you": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.TalentPick"
+                    }
                 }
             }
         },
@@ -3925,6 +3988,16 @@ const docTemplate = `{
                         "$ref": "#/definitions/models.KeyHit"
                     }
                 },
+                "talents": {
+                    "description": "Talents is each player's talents from COMBATANT_INFO; missing in keys saved before Nov 17.",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/definitions/models.TalentPick"
+                        }
+                    }
+                },
                 "timerMS": {
                     "description": "the dungeon's time limit; 0 when Raider.IO doesn't list it",
                     "type": "integer"
@@ -4266,6 +4339,14 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/models.CompareRow"
                     }
+                },
+                "talents": {
+                    "description": "Talents is the player's talents against the top logs'; nil when the player's weren't saved.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.CompareTalents"
+                        }
+                    ]
                 },
                 "verdict": {
                     "type": "string"
@@ -4837,6 +4918,16 @@ const docTemplate = `{
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/models.KeyHit"
+                    }
+                },
+                "talents": {
+                    "description": "Talents is each raider's talents from COMBATANT_INFO; missing in pulls saved before Nov 17.",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/definitions/models.TalentPick"
+                        }
                     }
                 },
                 "targets": {
@@ -6103,6 +6194,123 @@ const docTemplate = `{
                         "archive",
                         "gameLogs"
                     ]
+                }
+            }
+        },
+        "models.TalentEntry": {
+            "type": "object",
+            "properties": {
+                "icon": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "spellID": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.TalentNode": {
+            "type": "object",
+            "properties": {
+                "choice": {
+                    "type": "boolean"
+                },
+                "entries": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.TalentEntry"
+                    }
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "maxRanks": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "next": {
+                    "description": "the nodes this one leads to",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "subTree": {
+                    "type": "integer"
+                },
+                "tree": {
+                    "description": "Tree is \"class\", \"spec\" or \"hero\"; SubTree says which of the hero trees a hero node is in.",
+                    "type": "string",
+                    "enum": [
+                        "class",
+                        "spec",
+                        "hero"
+                    ]
+                },
+                "x": {
+                    "description": "the tree's own grid, in thousandths of a node",
+                    "type": "integer"
+                },
+                "y": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.TalentPick": {
+            "type": "object",
+            "properties": {
+                "e": {
+                    "type": "integer"
+                },
+                "n": {
+                    "type": "integer"
+                },
+                "r": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.TalentShare": {
+            "type": "object",
+            "properties": {
+                "e": {
+                    "type": "integer"
+                },
+                "n": {
+                    "type": "integer"
+                },
+                "r": {
+                    "type": "integer"
+                },
+                "taken": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.TalentTree": {
+            "type": "object",
+            "properties": {
+                "class": {
+                    "type": "string"
+                },
+                "nodes": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.TalentNode"
+                    }
+                },
+                "spec": {
+                    "type": "string"
+                },
+                "specID": {
+                    "type": "integer"
                 }
             }
         },

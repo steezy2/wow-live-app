@@ -35,6 +35,16 @@ type RankedPlayer struct {
 	Deaths    int             `json:"deaths"`
 	Abilities []RankedAbility `json:"abilities"`
 	Buffs     []RankedBuff    `json:"buffs"`
+	// Talents are the talents they took; none when unknown (a key saved before they were kept).
+	Talents []TalentPick `json:"talents,omitempty"`
+}
+
+// TalentPick is one talent a player took: the tree node, the choice made in it and the ranks bought, as the game's
+// COMBATANT_INFO lists them.
+type TalentPick struct {
+	NodeID  int `json:"n"`
+	EntryID int `json:"e"`
+	Rank    int `json:"r"`
 }
 
 // RankedAbility is what one ability did: its spell ID (0 when unknown, then the name matches), damage and healing,
@@ -121,9 +131,11 @@ type PlayerCompare struct {
 	Stats     []CompareRow     `json:"stats"`
 	Abilities []CompareRow     `json:"abilities"`
 	Buffs     []CompareRow     `json:"buffs"`
-	OnlyYou   []string         `json:"onlyYou"`
-	OnlyTop   []string         `json:"onlyTop"`
-	Advice    []string         `json:"advice"`
+	// Talents is the player's talents against the top logs'; nil when the player's weren't saved.
+	Talents *CompareTalents `json:"talents,omitempty"`
+	OnlyYou []string        `json:"onlyYou"`
+	OnlyTop []string        `json:"onlyTop"`
+	Advice  []string        `json:"advice"`
 	// Rules are the spec's rules the player fell short of, checked on their own log; none for a spec without rules.
 	Rules []RuleResult `json:"rules"`
 	// Points is what the review spent of Warcraft Logs' hourly points.
@@ -156,4 +168,21 @@ type RuleResult struct {
 	Share   float64 `json:"share"`
 	AtLeast float64 `json:"atLeast"`
 	Why     string  `json:"why,omitempty"`
+}
+
+// CompareTalents is a player's talents against the top logs': what they took, and for each talent a top log took,
+// how many of them did (Of logs read their talents).
+type CompareTalents struct {
+	SpecID int           `json:"specID"`
+	You    []TalentPick  `json:"you"`
+	Top    []TalentShare `json:"top"`
+	Of     int           `json:"of"`
+}
+
+// TalentShare is a talent choice (a node's entry) Taken of the top logs took, at Rank (the most common).
+type TalentShare struct {
+	NodeID  int `json:"n"`
+	EntryID int `json:"e"`
+	Rank    int `json:"r"`
+	Taken   int `json:"taken"`
 }

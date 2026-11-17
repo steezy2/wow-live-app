@@ -28,7 +28,9 @@ type MPlus struct {
 	Recaps   Recaps
 	Planner  Planner
 	Spells   Spells
-	Now      func() time.Time
+	// Talents are the spec talent trees by spec ID.
+	Talents map[int]models.TalentTree
+	Now     func() time.Time
 }
 
 // Planner keeps the owner's planned routes (service.Routes).

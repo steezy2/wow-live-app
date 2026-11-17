@@ -198,11 +198,13 @@ type RaidPull struct {
 	Realms map[string]string `json:"realms,omitempty"`
 	// Specs is each raider's specialization ID and Resurrections who was brought back and by whom; both missing in
 	// pulls saved before Nov 13.
-	Specs         map[string]int `json:"specs,omitempty"`
-	Resurrections []Resurrection `json:"resurrections,omitempty"`
-	Deaths        []RaidDeath    `json:"deaths"`
-	MassKills     []MassKill     `json:"massKills"`
-	Avoidable     []RaidHits     `json:"avoidable"`
+	Specs map[string]int `json:"specs,omitempty"`
+	// Talents is each raider's talents from COMBATANT_INFO; missing in pulls saved before Nov 17.
+	Talents       map[string][]TalentPick `json:"talents,omitempty"`
+	Resurrections []Resurrection          `json:"resurrections,omitempty"`
+	Deaths        []RaidDeath             `json:"deaths"`
+	MassKills     []MassKill              `json:"massKills"`
+	Avoidable     []RaidHits              `json:"avoidable"`
 	// AvoidableHits is each raider's avoidable damage by ability, most first; missing in pulls saved before Nov 11.
 	AvoidableHits []KeyHit       `json:"avoidableHits,omitempty"`
 	Soaks         []RaidSoak     `json:"soaks"`

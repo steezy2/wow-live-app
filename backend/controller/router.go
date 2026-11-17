@@ -53,6 +53,7 @@ func Router(mplus MPlus, raid *Raid, settings *SettingsAPI, pages fs.FS, hosts .
 	api.GET("/mplus/keys/:start/route", mplus.KeyRoute)
 	api.GET("/mplus/keys/:start/recorded-route", mplus.RecordedRoute)
 	api.GET("/spells", mplus.Spell)
+	api.GET("/talents/:specID", mplus.TalentTree)
 	api.GET("/recap/periods", mplus.RecapPeriods)
 	api.GET("/recap", mplus.Recap)
 	api.GET("/recap/top-times", mplus.RecapTopTimes)

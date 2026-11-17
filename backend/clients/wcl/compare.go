@@ -2,7 +2,9 @@ package wcl
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"log"
 	"slices"
 	"strings"
 
@@ -167,7 +169,51 @@ func (c *Client) RunPlayer(ctx context.Context, code string, fightID int, name, 
 	if err := c.cachedQuery(ctx, file, 0, gql, vars, &data); err != nil {
 		return models.RankedPlayer{}, err
 	}
-	return rankedPlayer(data.ReportData.Report, to-from), nil
+	player := rankedPlayer(data.ReportData.Report, to-from)
+	var err error
+	if player.Talents, err = c.playerTalents(ctx, code, fightID, actor, from, to); err != nil {
+		log.Printf("reading the talents of %s in %s#%d: %v", name, code, fightID, err)
+	}
+	return player, nil
+}
+
+// playerTalents is the talents a player took in a report fight, from the fight's combatantinfo events (the game
+// writes them as the fight starts). One cheap query a fight, kept for good.
+func (c *Client) playerTalents(ctx context.Context, code string, fightID, actor int, from, to int64) (
+	[]models.TalentPick, error) {
+	var data struct {
+		ReportData struct {
+			Report struct {
+				Events eventPage `json:"events"`
+			} `json:"report"`
+		} `json:"reportData"`
+	}
+	gql := `query($r: String!, $f: Int!, $from: Float!, $to: Float!) { reportData { report(code: $r) {
+		events(dataType: CombatantInfo, fightIDs: [$f], startTime: $from, endTime: $to, limit: 100) { data } } } }`
+	if err := c.cachedQuery(ctx, fmt.Sprintf("talents-%s-%d.json", code, fightID), 0, gql,
+		map[string]any{"r": code, "f": fightID, "from": from, "to": to}, &data); err != nil {
+		return nil, err
+	}
+	var events []event
+	if err := json.Unmarshal(data.ReportData.Report.Events.Data, &events); err != nil {
+		return nil, fmt.Errorf("reading combatant events: %w", err)
+	}
+	return talentsOf(events, actor), nil
+}
+
+// talentsOf is the talents the combatantinfo event of the actor lists, nil when it has none.
+func talentsOf(events []event, actor int) []models.TalentPick {
+	for _, e := range events {
+		if e.Type != "combatantinfo" || e.SourceID != actor {
+			continue
+		}
+		picks := make([]models.TalentPick, len(e.TalentTree))
+		for i, t := range e.TalentTree {
+			picks[i] = models.TalentPick{NodeID: t.NodeID, EntryID: t.ID, Rank: t.Rank}
+		}
+		return picks
+	}
+	return nil
 }
 
 // rankedPlayer reads the six tables of a player's stretch into their numbers: abilities by spell ID with the hits of

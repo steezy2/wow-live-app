@@ -24,8 +24,12 @@ const (
 	maxBuffRows = 25
 	// minBuffPct: a buff under this uptime in the player and the top logs alike isn't listed.
 	minBuffPct = 5.0
-	// presentShare: an ability counts as one the top logs use when this share of them cast it.
+	// presentShare: an ability counts as one the top logs use when this share of them cast it, and a talent counts as
+	// one they take when this share of them took it.
 	presentShare = 0.5
+	// passiveUptimePct: a talent's buff the top logs have up this much of the time is always on (a passive), which
+	// says nothing the talent tree doesn't, so it isn't listed.
+	passiveUptimePct = 99.0
 )
 
 // compareInput is everything buildCompare needs, read already: the player's run, their own similar runs, the top logs
@@ -38,6 +42,9 @@ type compareInput struct {
 	metric string
 	parse  *models.CharacterParse
 	spec   specInfo
+	// specID and tree are the spec's talent tree (the zero tree when the reference has none).
+	specID int
+	tree   models.TalentTree
 }
 
 // buildCompare is the player review's rows, advice and verdict from the runs read.
@@ -54,7 +61,8 @@ func buildCompare(in compareInput) models.PlayerCompare {
 	c.Stats = statRows(in, best)
 	abilities, onlyYou, onlyTop, lines := abilityRows(in, best)
 	c.Abilities, c.OnlyYou, c.OnlyTop = abilities, onlyYou, onlyTop
-	buffs, buffLines := buffRows(in, best)
+	c.Talents = talentCompare(in)
+	buffs, buffLines := buffRows(in, best, passiveNames(in.tree, c.Talents))
 	c.Buffs = buffs
 	c.Advice = adviceOf(append(lines, append(buffLines, activeAdvice(c.Stats, in)...)...))
 	c.Verdict = verdict(c, in.metric)
@@ -307,7 +315,7 @@ func doneWord(metric string) string {
 
 // buffRows are the player's own buffs' uptime against theirs and the top logs', and a line for each the top logs
 // keep up buffGapPoints more than the player did.
-func buffRows(in compareInput, best int) ([]models.CompareRow, []costedLine) {
+func buffRows(in compareInput, best int, passive map[string]bool) ([]models.CompareRow, []costedLine) {
 	up := func(p models.RankedPlayer) map[string]float64 {
 		out := map[string]float64{}
 		for _, b := range p.Buffs {
@@ -350,7 +358,7 @@ func buffRows(in compareInput, best int) ([]models.CompareRow, []costedLine) {
 		if best < len(top) {
 			row.Best = top[best][k]
 		}
-		if max(row.You, row.Top) < minBuffPct {
+		if max(row.You, row.Top) < minBuffPct || passive[k] && row.Top >= passiveUptimePct {
 			continue
 		}
 		rows = append(rows, row)
@@ -363,6 +371,62 @@ func buffRows(in compareInput, best int) ([]models.CompareRow, []costedLine) {
 		return cmp.Or(cmp.Compare(b.Top, a.Top), strings.Compare(a.Name, b.Name))
 	})
 	return rows[:min(len(rows), maxBuffRows)], lines
+}
+
+// talentCompare is the player's talents against the top logs' (nil when none of the logs' talents could be read).
+func talentCompare(in compareInput) *models.CompareTalents {
+	of := 0
+	counts := map[[2]int]*models.TalentShare{}
+	for _, p := range in.top {
+		if len(p.Talents) > 0 {
+			of++
+		}
+		for _, t := range p.Talents {
+			share := counts[[2]int{t.NodeID, t.EntryID}]
+			if share == nil {
+				share = &models.TalentShare{NodeID: t.NodeID, EntryID: t.EntryID}
+				counts[[2]int{t.NodeID, t.EntryID}] = share
+			}
+			share.Taken++
+			share.Rank = max(share.Rank, t.Rank)
+		}
+	}
+	if of == 0 {
+		return nil
+	}
+	top := make([]models.TalentShare, 0, len(counts))
+	for _, k := range slices.SortedFunc(maps.Keys(counts), func(a, b [2]int) int { return cmp.Or(a[0]-b[0], a[1]-b[1]) }) {
+		top = append(top, *counts[k])
+	}
+	you := in.you.Talents
+	if you == nil {
+		you = []models.TalentPick{}
+	}
+	return &models.CompareTalents{SpecID: in.specID, You: you, Top: top, Of: of}
+}
+
+// passiveNames are the names of the talents the player took or most of the top logs did: a buff by one of them that
+// the top logs keep up is the talent itself.
+func passiveNames(tree models.TalentTree, t *models.CompareTalents) map[string]bool {
+	if t == nil {
+		return nil
+	}
+	names := map[int]string{}
+	for _, n := range tree.Nodes {
+		for _, e := range n.Entries {
+			names[e.ID] = e.Name
+		}
+	}
+	out := map[string]bool{}
+	for _, p := range t.You {
+		out[names[p.EntryID]] = true
+	}
+	for _, s := range t.Top {
+		if float64(s.Taken) >= presentShare*float64(t.Of) {
+			out[names[s.EntryID]] = true
+		}
+	}
+	return out
 }
 
 // verdict is one or two sentences from the numbers, never a score: the player's DPS or HPS as a share of the top

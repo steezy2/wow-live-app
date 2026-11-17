@@ -4,7 +4,11 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 
 ## [Unreleased]
 
+### Added
+- **Compare talents**: a player review draws the spec's talent tree with what the top logs take that you didn't, what only you took and where you both agree, with how many of the top logs took each. Keys and pulls read from now on (or with *Read old logs*) keep their talents; older ones say so.
+
 ### Fixed
+- **Compare buffs**: always-on talent buffs (Charged Orb, Orb Barrage...) that read 100% for the top logs and 0% for you are left off the buff list.
 - **Forces**: a finished key no longer reads "100% · 546/551" when the log missed a mob's death; the count shows only when it adds up.
 
 ## [0.4.9] - 2026-11-16
