@@ -102,13 +102,17 @@ func unlinked[T models.SavedFight[T]](list []T, links map[int64]models.ReportLin
 	return out
 }
 
-// applyLinks gives the local fights of list the reports of the linked ones with the same start.
-func applyLinks[T models.SavedFight[T]](list []T, linked []T) {
+// applyLinks gives the local fights of list the reports of the linked ones with the same start, and returns the
+// starts of linked ones no longer in list.
+func applyLinks[T models.SavedFight[T]](list []T, linked []T) (gone []int64) {
 	for _, l := range linked {
 		if i := slices.IndexFunc(list, func(f T) bool { return f.FightStart() == l.FightStart() && !f.FromWCL() }); i >= 0 {
 			list[i] = list[i].LinkedTo(l.LinkedReport())
+		} else {
+			gone = append(gone, l.FightStart())
 		}
 	}
+	return gone
 }
 
 // countImported is how many of list were imported from Warcraft Logs.

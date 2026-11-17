@@ -271,8 +271,12 @@ func (k *LogTracker) LinkReports(keyLinks, pullLinks map[int64]models.ReportLink
 	defer func() {
 		k.mu.Lock()
 		defer k.mu.Unlock()
-		applyLinks(k.history, savedKeys)
-		applyLinks(k.pulls, savedPulls)
+		for _, start := range applyLinks(k.history, savedKeys) { // deleted while its file was being written
+			err = errors.Join(err, k.store.Delete(start))
+		}
+		for _, start := range applyLinks(k.pulls, savedPulls) {
+			err = errors.Join(err, k.raid.store.DeletePull(start))
+		}
 		if n = len(savedKeys) + len(savedPulls); n > 0 {
 			k.version++
 		}
