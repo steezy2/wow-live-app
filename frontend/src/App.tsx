@@ -30,14 +30,6 @@ const SPLASH_MAX_MS = 2000
 
 type Section = 'home' | 'mplus' | 'routes' | 'raid' | 'recap' | 'settings'
 
-/** The section the app opens on, chosen once the settings are known (null when they never came): Home on the first
- * run (setup not done and no saved keys, null while not known), else Settings when the log folder is missing, else M+
- * Live. */
-function firstSection(view: SettingsView | null, savedKeys: number | null): Section {
-  if (view && !view.setupDone && savedKeys === 0) return 'home'
-  return view && !view.logsDirFound ? 'settings' : 'mplus'
-}
-
 /** Shown in place of the page until the settings and characters are read; the same markup as index.html's splash. */
 function Splash() {
   return <div className="splash" role="status">WoW Live</div>
@@ -46,23 +38,21 @@ function Splash() {
 /** The site: its sections along the top (Home, M+ Live, Routes, Raid, Recap, and Settings in the desktop app) and the
  * character picker, whose pick (Settings' character at first, else all) the saved keys, raid nights and recap show;
  * M+ Live has the saved keys on the side and the live key or the one picked from them. The app shows a splash until
- * the settings and characters are read (at most SPLASH_MAX_MS), then opens on Home on the first run, or on Settings
- * when it can't find the log folder. */
+ * the settings and characters are read (at most SPLASH_MAX_MS), then opens on Home. */
 export default function App() {
   const [selected, setSelected] = useState<number | null>(null)
   const [refresh, setRefresh] = useState(0)
   const keyEnded = useCallback(() => setRefresh((n) => n + 1), [])
   const [settings, setSettings] = useState<SettingsView | null>(null)
-  const [picking, setSection] = useState<Section | null>(null) // null until a tab is clicked or the first one is chosen
+  const [picking, setSection] = useState<Section | null>(null) // null until a tab is clicked
   const [charactersRead, setCharactersRead] = useState(false)
-  // how many keys are saved, for the first section and the guide
+  // how many keys are saved, for the guide
   const [savedKeys, setSavedKeys] = useState<number | null>(null)
   const [reopened, setReopened] = useState(false) // the setup guide was reopened from Settings
   const [anchor, setAnchor] = useState<string | undefined>() // the Settings panel to scroll to
   const [splashOver, setSplashOver] = useState(false)
   // the settings answered, or there are none (the site without the app)
   const [settingsRead, setSettingsRead] = useState(false)
-  const [first, setFirst] = useState<Section | null>(null) // the section opened on, chosen once
   // the Routes page stays mounted so unsaved edits survive a tab switch
   const [routesSeen, setRoutesSeen] = useState(false)
   const [raidPull, setRaidPull] = useState<number | null>(null)
@@ -71,10 +61,8 @@ export default function App() {
   const character = picked ?? characters.find((c) => c.preferred)?.id ?? ''
   const preferred = settings?.character ?? ''
   const ready = (settingsRead && charactersRead && savedKeys !== null) || splashOver
-  const section = picking ?? first
+  const section = picking ?? (ready ? 'home' : null)
   if (section === 'routes' && !routesSeen) setRoutesSeen(true)
-  // chosen once, so later changes never move the page
-  if (ready && first === null) setFirst(firstSection(settings, savedKeys))
   useEffect(() => {
     const timer = setTimeout(() => setSplashOver(true), SPLASH_MAX_MS)
     return () => clearTimeout(timer)
