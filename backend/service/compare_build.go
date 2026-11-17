@@ -42,6 +42,8 @@ type compareInput struct {
 	metric string
 	parse  *models.CharacterParse
 	spec   specInfo
+	// raidOnly says whether a buff only counts in a raid; a dungeon review leaves such buffs out. Nil: none do.
+	raidOnly func(name string) bool
 	// specID and tree are the spec's talent tree (the zero tree when the reference has none).
 	specID int
 	tree   models.TalentTree
@@ -358,7 +360,8 @@ func buffRows(in compareInput, best int, passive map[string]bool) ([]models.Comp
 		if best < len(top) {
 			row.Best = top[best][k]
 		}
-		if max(row.You, row.Top) < minBuffPct || passive[k] && row.Top >= passiveUptimePct {
+		if max(row.You, row.Top) < minBuffPct || passive[k] && row.Top >= passiveUptimePct ||
+			in.raidOnly != nil && in.raidOnly(k) {
 			continue
 		}
 		rows = append(rows, row)

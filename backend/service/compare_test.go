@@ -169,6 +169,27 @@ func TestTalentCompareCountsWhoTookWhat(t *testing.T) {
 	}
 }
 
+func TestBuffRowsLeaveOutRaidOnlyBuffsInADungeon(t *testing.T) {
+	run := func(runeMS int64) models.RankedPlayer {
+		return models.RankedPlayer{DurationMS: 100_000, Buffs: []models.RankedBuff{{Name: "Vantus Rune: Tides", UptimeMS: runeMS},
+			{Name: "Hellbent Commander", UptimeMS: 90_000}}}
+	}
+	in := compareInput{you: run(0), top: []models.RankedPlayer{run(100_000), run(100_000)},
+		logs: []models.CompareLog{{Amount: 1}, {Amount: 1}}, metric: "DPS", spec: specs[62],
+		raidOnly: func(name string) bool { return strings.HasPrefix(name, "Vantus Rune") }}
+	var names []string
+	for _, b := range buildCompare(in).Buffs {
+		names = append(names, b.Name)
+	}
+	if !slices.Equal(names, []string{"Hellbent Commander"}) {
+		t.Errorf("buffs = %v, want only Hellbent Commander", names)
+	}
+	in.raidOnly = nil
+	if got := len(buildCompare(in).Buffs); got != 2 {
+		t.Errorf("a raid review lists %d buffs, want both", got)
+	}
+}
+
 func TestBuffRowsHideAlwaysOnTalentPassives(t *testing.T) {
 	tree := models.TalentTree{Nodes: []models.TalentNode{{ID: 1, Entries: []models.TalentEntry{{ID: 10, Name: "Charged Orb"}}}}}
 	run := func(orbMS, tempoMS int64) models.RankedPlayer {

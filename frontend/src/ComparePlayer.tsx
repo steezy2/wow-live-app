@@ -83,7 +83,7 @@ export function ComparePlayer({ kind, start, player }: { kind: 'mplus' | 'raid';
           </ol>
         </section>
       )}
-      {compare.rules?.length && (
+      {compare.rules?.length ? (
         <section className="panel">
           <h2>Spec rules</h2>
           <ul className="list">
@@ -97,7 +97,7 @@ export function ComparePlayer({ kind, start, player }: { kind: 'mplus' | 'raid';
             ))}
           </ul>
         </section>
-      )}
+      ) : null}
       <Rows title="Key stats" rows={compare.stats} />
       <Rows title="Abilities" rows={compare.abilities} spells />
       <Rows title="Buffs on themselves" rows={compare.buffs} spells />

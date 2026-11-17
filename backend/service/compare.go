@@ -139,6 +139,9 @@ func (c Comparer) Run(ctx context.Context, kind models.FightKind, start int64, p
 	}
 	in := compareInput{you: f.local, yours: f.yours, top: top, logs: logs, metric: mainMetric(f.spec), spec: f.spec,
 		specID: f.specID, tree: c.Talents[f.specID]}
+	if f.kind == models.FightMPlus {
+		in.raidOnly = c.Keys.RaidOnlyBuff
+	}
 	if perr == nil {
 		in.parse = parseOf(parses, f.encounter, f.kind)
 	}

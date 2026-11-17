@@ -1,15 +1,20 @@
 import { useEffect, useState } from 'react'
 import { fetchTalentTree, type CompareTalents, type PlayerCompare, type TalentTree as Tree } from './api'
-import { entryName, readTree, shownEntry, type NodeRead } from './talents'
+import { entryName, readTree, shownEntry, type NodeRead, type NodeState } from './talents'
 import { spellTip } from './tipAttrs'
 
 /** Grid units per pixel: the tree's own grid puts nodes 300-600 apart. */
 const unit = 20
 const radius = 11
+/** How long a talent picked from the lists below the tree pulses. */
+const pulseMS = 5000
 
-/** A player's talents against the top logs': the spec's tree with each node coloured by who took it, and a list each
- * for what the top logs take that the player didn't and the other way round. Needs the spec's tree and, to say
- * anything, the player's saved talents. */
+/** The mark on a node's corner for each state, so a state reads without its colour: what the legend shows too. */
+const marks: Record<NodeState, string> = { both: '✓', missed: '!', extra: '+', rank: '≠', unused: '' }
+
+/** A player's talents against the top logs': the spec's tree with each node ringed and marked by who took it, and a
+ * list each for what the top logs take that the player didn't and the other way round, whose talents a click finds
+ * in the tree. Needs the spec's tree and, to say anything, the player's saved talents. */
 export function TalentCompare({ compare }: { compare: PlayerCompare }) {
   const talents = compare.talents
   const [tree, setTree] = useState<Tree | null>(null)
@@ -41,12 +46,27 @@ function TalentPanel({ tree, talents, player }: { tree: Tree; talents: CompareTa
   const left = Math.min(...xs) - 2 * radius
   const top = Math.min(...ys) - 2 * radius
   const byID = new Map(reads.map((r) => [r.node.id, r]))
+  const [found, setFound] = useState<number | null>(null)
+  useEffect(() => {
+    if (found === null) return
+    const timer = setTimeout(() => setFound(null), pulseMS)
+    return () => clearTimeout(timer)
+  }, [found])
+  const find = (id: number) => {
+    setFound(null) // a talent picked again starts its pulse over
+    requestAnimationFrame(() => {
+      setFound(id)
+      document.getElementById(nodeID(id))?.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' })
+    })
+  }
   return (
     <section className="panel">
       <h2>Talents</h2>
-      <p className="small">
-        <span className="legend-dot talent-missed" /> top logs take it, {player} doesn't · <span className="legend-dot talent-extra" />{' '}
-        only {player} · <span className="legend-dot talent-both" /> both
+      <p className="small talent-legend">
+        <Legend state="missed" text={`top logs take it, ${player} doesn't`} />
+        <Legend state="extra" text={`only ${player}`} />
+        <Legend state="rank" text="another rank" />
+        <Legend state="both" text="both" />
       </p>
       <svg
         className="talent-tree"
@@ -69,32 +89,59 @@ function TalentPanel({ tree, talents, player }: { tree: Tree; talents: CompareTa
           }),
         )}
         {reads.map((r) => (
-          <Node key={r.node.id} read={r} of={talents.of} />
+          <Node key={r.node.id} read={r} of={talents.of} found={found === r.node.id} />
         ))}
       </svg>
-      <Differences title="The top logs take, you don't" reads={missed} of={talents.of} />
-      <Differences title={`Only ${player}`} reads={extra} of={talents.of} />
+      <Differences title="The top logs take, you don't" reads={missed} of={talents.of} onFind={find} />
+      <Differences title={`Only ${player}`} reads={extra} of={talents.of} onFind={find} />
     </section>
   )
 }
 
-/** One node: its icon in a ring coloured by its state, its rank in it, and a hover saying what the talent does and
- * who took it. */
-function Node({ read, of }: { read: NodeRead; of: number }) {
+function nodeID(id: number): string {
+  return `talent-node-${id}`
+}
+
+/** One legend entry: the ring and mark a state has in the tree, and what it means. */
+function Legend({ state, text }: { state: NodeState; text: string }) {
+  return (
+    <span className="talent-legend-item">
+      <span className={`legend-dot talent-${state}`}>{marks[state]}</span> {text}
+    </span>
+  )
+}
+
+/** One node: its icon in a ring coloured by its state, a mark on its corner (and under it, how many top logs took a
+ * talent you didn't), its rank, and a hover saying what the talent does and who took it. A found node pulses. */
+function Node({ read, of, found }: { read: NodeRead; of: number; found: boolean }) {
   const { node, state } = read
   const cx = node.x / unit
   const cy = node.y / unit
   const entry = shownEntry(read)
   return (
-    <g className={`talent-node talent-${state}`} {...spellTip(entry.spellID, nodeText(read, of))}>
-      <circle cx={cx} cy={cy} r={radius} />
+    <g id={nodeID(node.id)} className={`talent-node talent-${state}`} {...spellTip(entry.spellID, nodeText(read, of))}>
+      {found && <circle className="talent-pulse" cx={cx} cy={cy} r={radius} />}
+      <circle className="talent-ring" cx={cx} cy={cy} r={radius} />
       {entry.icon && (
         <image href={`/api/icons/${entry.icon}`} x={cx - radius} y={cy - radius} width={2 * radius} height={2 * radius}
           clipPath="url(#talent-icon)" />
       )}
+      {marks[state] && (
+        <g className="talent-badge">
+          <circle cx={cx + radius * 0.8} cy={cy - radius * 0.8} r={radius * 0.5} />
+          <text x={cx + radius * 0.8} y={cy - radius * 0.8} dy="0.35em" textAnchor="middle">
+            {marks[state]}
+          </text>
+        </g>
+      )}
       {read.youRank > 0 && node.maxRanks > 1 && (
-        <text x={cx + radius} y={cy + radius} textAnchor="end">
+        <text className="talent-rank" x={cx + radius} y={cy + radius} textAnchor="end">
           {read.youRank}
+        </text>
+      )}
+      {state === 'missed' && (
+        <text className="talent-count" x={cx} y={cy + radius + 8} textAnchor="middle">
+          {read.topTaken}/{of}
         </text>
       )}
     </g>
@@ -111,15 +158,18 @@ function nodeText(r: NodeRead, of: number): string {
   return `${you}\n${top}`
 }
 
-function Differences({ title, reads, of }: { title: string; reads: NodeRead[]; of: number }) {
+/** A list of talents, each a button that finds it in the tree. */
+function Differences({ title, reads, of, onFind }: { title: string; reads: NodeRead[]; of: number; onFind: (id: number) => void }) {
   if (reads.length === 0) return null
   return (
     <>
       <h3>{title}</h3>
-      <ul className="list">
+      <ul className="list talent-list">
         {reads.map((r) => (
           <li key={r.node.id}>
-            <span>{entryName(r.node, r.state === 'extra' ? r.youEntry : r.topEntry)}</span>
+            <button type="button" className="talent-jump" onClick={() => onFind(r.node.id)}>
+              {entryName(r.node, r.state === 'extra' ? r.youEntry : r.topEntry)}
+            </button>
             {r.state !== 'extra' && (
               <span className="muted">
                 {r.topTaken} of {of} top logs
