@@ -1708,6 +1708,7 @@ export interface Sim {
 /** The SimulationCraft engine: installed or not, and what the app is doing about it. */
 export interface SimEngineStatus {
   installed: boolean
+  file?: string
   version?: string
   patch?: string
   builtMS?: number
@@ -1725,9 +1726,9 @@ export async function fetchSimEngine(signal?: AbortSignal): Promise<SimEngineSta
   return json('/api/sim/engine', { signal })
 }
 
-/** Starts downloading the engine; poll fetchSimEngine. */
-export async function installSimEngine(): Promise<SimEngineStatus> {
-  return sendJSON('/api/sim/engine', 'POST', {})
+/** Starts installing the engine, from the newest release or, with a path, the simc.exe there; poll fetchSimEngine. */
+export async function installSimEngine(path?: string): Promise<SimEngineStatus> {
+  return sendJSON('/api/sim/engine', 'POST', path ? { path } : {})
 }
 
 /** Reads a pasted export without running anything. */

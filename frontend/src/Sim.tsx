@@ -38,6 +38,7 @@ const errorText = (err: unknown) => (err instanceof Error ? err.message : String
 export function Sim() {
   const [choices, setChoices] = useState<SimChoices | null>(null)
   const [engine, setEngine] = useState<SimEngineStatus | null>(null)
+  const [ownPath, setOwnPath] = useState('')
   const [text, setText] = useState('')
   const [profile, setProfile] = useState<SimProfile | null>(null)
   const [kind, setKind] = useState<SimKind>('quick')
@@ -125,11 +126,14 @@ export function Sim() {
           <p className="muted">
             SimulationCraft {engine.version} for WoW {engine.patch}
             {engine.size ? ` · ${sizeText(engine.size)}` : ''}
+            {engine.file ? ` · ${engine.file}` : ''}
+            {engine.builtMS ? ` · built ${new Date(engine.builtMS).toLocaleDateString()}` : ''}
           </p>
         ) : (
           <p className="muted">
-            Sims run on this PC with SimulationCraft, which is not ours. The download (about 115 MB) comes from
-            simulationcraft.org over plain HTTP, and nothing about your character is sent anywhere.
+            Sims run on this PC with SimulationCraft, which is not ours. The download (about 116 MB) is the official
+            nightly, kept on this app's GitHub release and checked against its checksum, and nothing about your
+            character is sent anywhere.
           </p>
         )}
         {engine?.stale && <p className="warning">This build is old; a patch has probably made it wrong. Update it.</p>}
@@ -140,6 +144,18 @@ export function Sim() {
             onClick={() => act(async () => setEngine(await installSimEngine()))}
           >
             {engine?.installing ? 'Downloading…' : engine?.installed ? 'Update the engine' : 'Download the engine'}
+          </button>
+        </div>
+        <label>
+          Or use a simc.exe you already have (its full path)
+          <input value={ownPath} placeholder="C:/Tools/simc/simc.exe" onChange={(e) => setOwnPath(e.target.value)} />
+        </label>
+        <div className="actions">
+          <button
+            disabled={!engine || engine.installing || !!running || !ownPath.trim()}
+            onClick={() => act(async () => setEngine(await installSimEngine(ownPath.trim())))}
+          >
+            Use this file
           </button>
         </div>
       </section>
