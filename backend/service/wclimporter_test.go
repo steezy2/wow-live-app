@@ -349,6 +349,39 @@ func TestRemoveImportedKeepsLocalKeysAndPulls(t *testing.T) {
 	}
 }
 
+// failingDelete is a memStore whose Delete of one start fails.
+type failingDelete struct {
+	*memStore
+	fail int64
+}
+
+func (f failingDelete) Delete(start int64) error {
+	if start == f.fail {
+		return errors.New("disk full")
+	}
+	return f.memStore.Delete(start)
+}
+
+func TestRemoveImportedKeepsWhatItCouldNotDelete(t *testing.T) {
+	k, _ := newRaidTracker(t)
+	mem := k.store.(*memStore)
+	mem.keys = []models.Key{{Start: 1, Imported: true}, {Start: 2, Imported: true}}
+	k.store = failingDelete{mem, 2}
+	if err := k.Reload(); err != nil {
+		t.Fatal(err)
+	}
+	if err := k.RemoveImported(); err == nil {
+		t.Fatal("no error from the failed delete")
+	}
+	var starts []int64
+	for _, key := range k.history {
+		starts = append(starts, key.Start)
+	}
+	if !slices.Equal(starts, []int64{2}) {
+		t.Errorf("history starts %v, want only 2, whose file is still there", starts)
+	}
+}
+
 // fightingMeter is a meter with a row, so the pull counts as fought.
 func fightingMeter() models.KeyMeter {
 	return models.KeyMeter{Rows: []models.KeyMeterRow{{Player: "Testmage"}}}

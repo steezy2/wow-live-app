@@ -283,11 +283,15 @@ func (k *LogTracker) LinkReports(keyLinks, pullLinks map[int64]models.ReportLink
 		for _, key := range savedKeys {
 			if i := slices.IndexFunc(k.history, func(h models.Key) bool { return h.Start == key.Start && !h.Imported }); i >= 0 {
 				k.history[i].Report = key.Report
+			} else if e := k.store.Delete(key.Start); e != nil { // deleted while its file was being written
+				err = errors.Join(err, fmt.Errorf("removing a key deleted during linking: %w", e))
 			}
 		}
 		for _, p := range savedPulls {
 			if i := slices.IndexFunc(k.pulls, func(h models.RaidPull) bool { return h.Start == p.Start && !h.Imported }); i >= 0 {
 				k.pulls[i].Report = p.Report
+			} else if e := k.raid.store.DeletePull(p.Start); e != nil {
+				err = errors.Join(err, fmt.Errorf("removing a pull deleted during linking: %w", e))
 			}
 		}
 		if n = len(savedKeys) + len(savedPulls); n > 0 {
