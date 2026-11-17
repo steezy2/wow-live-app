@@ -4,6 +4,8 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-16
+
 ### Changed
 - **Faster reviews and listings**: a player review reads its top logs five at a time, each log's tables, enemy hits and talents together, and the character's parses beside them, instead of one query after another. Listing a character's Warcraft Logs fights asks the next page of reports while the last is read, and a page's reports' fights in side-by-side queries of 8. Reading every log again takes about 20 s for 1.5 GB (the tracker is the limit, one line at a time), so it is unchanged.
 
