@@ -24,6 +24,7 @@ jobs:
         shell: bash
     env:
       GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }} # there is no checkout for gh to read the repo from
     steps:
       - name: Newest official Windows nightly
         run: |
