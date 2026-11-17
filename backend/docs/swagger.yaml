@@ -68,7 +68,6 @@ definitions:
         description: '[end clockMS, damage, healing, damage taken]'
         items:
           items:
-            format: int64
             type: integer
           type: array
         type: array
@@ -240,7 +239,6 @@ definitions:
       points:
         items:
           items:
-            format: float64
             type: number
           type: array
         type: array
@@ -773,7 +771,6 @@ definitions:
         type: integer
       topBosses:
         additionalProperties:
-          format: int64
           type: integer
         description: |-
           TopBosses is how long each boss took in the similar top runs (the median, by boss name; missing in reviews
@@ -1007,7 +1004,6 @@ definitions:
         type: array
       activity:
         additionalProperties:
-          format: float64
           type: number
         description: Activity is each player's share of their time alive in pulls
           with a cast going or a hit landing (in %).
@@ -1024,7 +1020,6 @@ definitions:
         type: array
       bestBosses:
         additionalProperties:
-          format: int64
           type: integer
         type: object
       bestFinalMS:
@@ -1379,7 +1374,6 @@ definitions:
       points:
         items:
           items:
-            format: float64
             type: number
           type: array
         type: array
@@ -1684,7 +1678,6 @@ definitions:
         type: array
       activity:
         additionalProperties:
-          format: float64
           type: number
         type: object
       adds:

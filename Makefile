@@ -26,6 +26,8 @@ check: deps ## Run CI's checks (not its spec diff or Windows job): gofmt, go vet
 fmt: ## gofmt the backend
 	cd backend && gofmt -w .
 
+# CI's swag is `go install github.com/swaggo/swag/cmd/swag@v1.16.4` outside this module; one built from go.mod's
+# dependencies writes extra `format:` lines and fails CI's diff.
 swag: ## Regenerate the API spec (backend/docs) after changing an endpoint or its types
 	cd backend && swag init -g cmd/site/main.go -o docs --parseInternal
 
