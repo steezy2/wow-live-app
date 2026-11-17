@@ -153,7 +153,6 @@ function ReviewShell({ fight }: { fight: Fight }) {
   const group = fight.kind === 'mplus' ? 'party' : 'raid'
   const query = useMemo(() => new URLSearchParams(location.search), [])
   const [tab, setTab] = useState<TabName>(TABS.find((t) => t === query.get('tab')) ?? 'overview')
-  const [opened, setOpened] = useState(0) // bumped to open a tab the page picked, since Tabs keeps its own state
   const [focus, setFocus] = useState(query.get('player') ?? '')
   const replay = useReplay(fight.durationMS, fight.durationMS)
   const classes = useMemo(() => Object.fromEntries(fight.meter.rows.map((r) => [r.player, r.class])), [fight.meter])
@@ -169,7 +168,6 @@ function ReviewShell({ fight }: { fight: Fight }) {
       onSeek: (ms) => {
         setAt(ms)
         open('timeline')
-        setOpened((n) => n + 1)
       },
       classes,
       onFocus: setFocus,
@@ -184,8 +182,13 @@ function ReviewShell({ fight }: { fight: Fight }) {
     [String(data?.deaths.length ?? 0), 'deaths'],
   ]
   if (data?.reference) tiles.push([`${stopped}/${data.stops.length}`, 'must-stop casts stopped'])
-  const tabsOf = (prefix: string) =>
-    data ? fightTabs(data, 'Deaths', group, seek, fight.track).filter((t) => t.name.startsWith(prefix)) : []
+  // Built once, not on each tick of the replay's clock: the tabs don't depend on it, so their panels stay as they are.
+  const shared = useMemo(
+    () => (data ? fightTabs(data, 'Deaths', group, seek, fight.track) : []),
+    [data, group, seek, fight.track],
+  )
+  const feed = useMemo(() => data && <EventFeed data={data} seek={seek} />, [data, seek])
+  const tabsOf = (prefix: string) => shared.filter((t) => t.name.startsWith(prefix))
   const bodies: Record<TabName, ReactNode> = {
     overview: (
       <>
@@ -308,7 +311,7 @@ function ReviewShell({ fight }: { fight: Fight }) {
     ),
     events: data ? (
       <>
-        <EventFeed data={data} seek={seek} />
+        {feed}
         {tabsOf('Defensives and potions').map((t) => (
           <div key={t.name}>
             <h2>Defensives and potions</h2>
@@ -363,7 +366,6 @@ function ReviewShell({ fight }: { fight: Fight }) {
               onClick={() => {
                 setFocus(p)
                 open('compare')
-                setOpened((n) => n + 1)
               }}
             >
               Logs
@@ -372,8 +374,7 @@ function ReviewShell({ fight }: { fight: Fight }) {
         ))}
       </p>
       <Tabs
-        key={opened}
-        initial={TABS.indexOf(tab)}
+        open={TABS.indexOf(tab)}
         onOpen={(i) => open(TABS[i])}
         tabs={TABS.map((name) => ({ name: name[0].toUpperCase() + name.slice(1), body: bodies[name] }))}
       />

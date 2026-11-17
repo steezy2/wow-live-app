@@ -45,14 +45,15 @@ export function TipHost() {
       const text = el.getAttribute('data-tip') ?? ''
       const below = box.top < NEAR_TOP // no room above
       const y = below ? box.bottom : box.top
+      const note = el.getAttribute('data-tip-note') ?? ''
       const spell = el.getAttribute('data-spell')
       const id = Number(el.getAttribute('data-spell-id'))
-      setShown({ x, y, below, text: text || spell || '', head: el.getAttribute('data-tip-head') ?? undefined })
+      setShown({ x, y, below, text: text || note || spell || '', head: el.getAttribute('data-tip-head') ?? undefined })
       if (!spell && !id) return
       void fetchSpell(id || spell || '').then((info) => {
         if (info && current === el) {
           const head = [info.name, info.cooldown].filter(Boolean).join(' · ')
-          setShown({ x, y, below, head, text: info.description })
+          setShown({ x, y, below, head, text: [info.description, note].filter(Boolean).join('\n\n') })
         }
       })
     }

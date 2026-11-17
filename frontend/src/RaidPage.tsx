@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { fetchRaidNights, fetchRaidPull, reviewURL, subscribe, type KeyTrack, type RaidNight, type RaidPull, type RaidPullSummary } from './api'
 import { clock, counted, errorText, groupBy, progressText } from './format'
 import { defense, raidOffense } from './meterColumns'
@@ -187,6 +187,7 @@ export function RaidPullView({ pull }: { pull: RaidPull }) {
     },
     [setAt],
   )
+  const seek = useMemo(() => ({ onSeek: show, classes, onFocus: setFocus }), [show, classes])
   return (
     <>
       <section className="raid-head">
@@ -243,7 +244,7 @@ export function RaidPullView({ pull }: { pull: RaidPull }) {
         focus={focus}
         onFocus={setFocus}
       />
-      <PullTabs pull={pull} seek={{ onSeek: show, classes, onFocus: setFocus }} track={track ?? null} />
+      <PullTabs pull={pull} seek={seek} track={track ?? null} />
     </>
   )
 }
@@ -307,9 +308,9 @@ export function RaidOverlayCard({ pull, rows = 0 }: { pull: RaidPull; rows?: num
 }
 
 /** Under the meters: every raider's pull in one table, and the tabs a key has (deaths, interrupts, must-stops, spikes,
- * big hits, avoidable, defensives and potions, CC) with the buffs missing through the pull; a pull saved before they were kept
- * says how to fill them in. */
-function PullTabs({ pull, seek, track }: { pull: RaidPull; seek: Seeker; track: KeyTrack | null }) {
+ * big hits, avoidable, defensives and potions, CC) with the buffs missing through the pull; a pull saved before they
+ * were kept says how to fill them in. Memoized, so a replay tick doesn't rebuild the tabs. */
+const PullTabs = memo(function PullTabs({ pull, seek, track }: { pull: RaidPull; seek: Seeker; track: KeyTrack | null }) {
   const data = pullFightData(pull)
   if (!data) return <NoAbilities />
   const tabs = fightTabs(data, `Deaths ${pull.deaths.length}`, 'raid', seek, track)
@@ -335,4 +336,4 @@ function PullTabs({ pull, seek, track }: { pull: RaidPull; seek: Seeker; track: 
       </div>
     </>
   )
-}
+})

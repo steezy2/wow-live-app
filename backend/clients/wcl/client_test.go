@@ -135,3 +135,12 @@ func TestRunSumsDamageTakenAndTimesKilledBosses(t *testing.T) {
 		t.Fatalf("Run = %+v, %v; want %+v", run, err, want)
 	}
 }
+
+func TestTakenFromEnemiesTakesThePlayersEntryOfTheFightsTable(t *testing.T) {
+	f := newFake(t, data(`{"reportData": {"report": {"taken": {"data": {"entries": [
+		{"id": 2, "name": "Tank", "total": 900}, {"id": 4, "name": "Mage", "total": 74000}]}}}}}`))
+	got, err := f.client(t).takenFromEnemies(context.Background(), "abc", 3, 4, 0, 1000)
+	if err != nil || got != 74000 {
+		t.Fatalf("takenFromEnemies = %d, %v; want the mage's 74000", got, err)
+	}
+}

@@ -174,7 +174,17 @@ func TestPagesAndUnknownAPIPaths(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(pages, "index.html"), []byte("page"), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	if err := os.MkdirAll(filepath.Join(pages, "assets"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(pages, "assets", "index-abc.js"), []byte("js"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	router := Router(MPlus{Keys: &fakeKeys{}, Now: time.Now}, nil, nil, os.DirFS(pages), LocalHosts(port)...)
+	if w := get(t, router, "/assets/index-abc.js"); !strings.Contains(w.Header().Get("Cache-Control"), "immutable") ||
+		get(t, router, "/mplus").Header().Get("Cache-Control") != "" {
+		t.Errorf("an asset is cached for good and a page isn't: %q", w.Header().Get("Cache-Control"))
+	}
 	if w := get(t, router, "/mplus"); w.Code != http.StatusOK || w.Body.String() != "page" {
 		t.Fatalf("a page route: %d %q, want index.html", w.Code, w.Body)
 	}
@@ -613,6 +623,9 @@ func (f *fakePlanner) Compare(start int64, id string) (models.RouteCompare, erro
 	}
 	return models.RouteCompare{}, f.known(id)
 }
+func (f *fakePlanner) Recorded(int64) (models.RecordedRoute, error) {
+	return models.RecordedRoute{}, nil
+}
 func (f *fakePlanner) Live(models.KeyView) (*models.RouteLive, error) { return nil, nil }
 
 func TestRoutesAnswerBadIDsBeforeTouchingFiles(t *testing.T) {
@@ -664,7 +677,7 @@ func (fakeSpells) Info(_ context.Context, name string) (models.SpellInfo, error)
 	return models.SpellInfo{}, service.ErrUnknownSpell
 }
 
-func (fakeSpells) MobSpell(_ context.Context, id int) (models.SpellInfo, error) {
+func (fakeSpells) ReferenceSpell(_ context.Context, id int) (models.SpellInfo, error) {
 	return models.SpellInfo{ID: id}, nil
 }
 

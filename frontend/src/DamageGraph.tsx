@@ -1,8 +1,8 @@
 import { useState, type MouseEvent } from 'react'
 import { type KeyTrack, type KeyView, type MeterPoint } from './api'
 import { classColors } from './classColors'
-import { amount, clock, valueAt } from './format'
-import type { SliderMark } from './replay'
+import { amount, clock } from './format'
+import { valueAt, type SliderMark } from './replay'
 import { TipBox } from './Tip'
 import { tip } from './tipAttrs'
 
