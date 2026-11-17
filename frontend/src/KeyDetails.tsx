@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
 import { reviewURL, type KeyForces, type KeyGhost, type KeyReview as Review, type KeyTrack, type KeyView } from './api'
-import { chestLabel, clock, oddsText, pullTitle, resultText, routeLine, share, versusBest } from './format'
+import { chestLabel, clock, forcesCount, oddsText, pullTitle, resultText, routeLine, share, versusBest } from './format'
 import { DamageGraph } from './DamageGraph'
 import { BuffGaps } from './BuffGaps'
 import { BossList, PriorityLedger } from './KeyLedgers'
@@ -17,6 +17,9 @@ import { ReportLinks } from './ReportLinks'
 import { Tabs } from './Tabs'
 import { type Seeker } from './Seek'
 import { tip } from './tipAttrs'
+
+/** The Route tab's place in the key's tabs: a running key with a route opens on it. */
+const ROUTE_TAB = 3
 
 /** The result's icon, so it doesn't rest on colour alone. */
 const resultIcon: Record<KeyView['status'], string> = {
@@ -57,14 +60,35 @@ export function KeyDetails({
       key.status === 'running' ? undefined : { onSeek: show, classes: track?.classes ?? {}, onFocus: setFocus },
     [key.status, show, track],
   )
-  const fight = fightTabs(
-    { ...key, lanes: key.lanes ?? [] },
-    `Deaths ${key.deaths.length} (+${clock(key.penaltyMS)})`,
-    'party',
-    seek,
-    track,
-  )
   const [review, setReview] = useState<Review | null>(null)
+  const [routeOpen, setRouteOpen] = useState(!!key.route)
+  // Built when what they show changes, not on each tick of the replay's clock, so their panels stay as they are.
+  const tabs = useMemo(
+    () => [
+      {
+        name: `Priority targets ${key.pulls.filter((p) => p.late).length}/${key.pulls.length}`,
+        body: <PriorityLedger keyView={key} />,
+      },
+      {
+        name: `Buffs ${new Set(key.buffGaps?.map((g) => g.buff)).size}`,
+        body: <BuffGaps gaps={key.buffGaps ?? []} endMS={clockMS} players={key.players.length} seek={seek} />,
+      },
+      {
+        name: 'Bosses',
+        body: <BossList keyView={key} track={track} topBosses={review?.topBosses} onSeek={show} />,
+      },
+      // A running key's route is compared again as its track grows, but only while its tab is open (a saved key's once).
+      { name: 'Route', body: <KeyRoute keyView={key} track={routeOpen || key.status !== 'running' ? track : null} seek={seek} /> },
+      ...fightTabs(
+        { ...key, lanes: key.lanes ?? [] },
+        `Deaths ${key.deaths.length} (+${clock(key.penaltyMS)})`,
+        'party',
+        seek,
+        track,
+      ),
+    ],
+    [key, clockMS, seek, track, review, show, routeOpen],
+  )
   return (
     <div className={key.status === 'running' || track ? 'key-ready' : 'key-loading'}>
       <header className="title">
@@ -217,22 +241,9 @@ export function KeyDetails({
       </section>
 
       <Tabs
-        tabs={[
-          {
-            name: `Priority targets ${key.pulls.filter((p) => p.late).length}/${key.pulls.length}`,
-            body: <PriorityLedger keyView={key} />,
-          },
-          {
-            name: `Buffs ${new Set(key.buffGaps?.map((g) => g.buff)).size}`,
-            body: <BuffGaps gaps={key.buffGaps ?? []} endMS={clockMS} players={key.players.length} seek={seek} />,
-          },
-          {
-            name: 'Bosses',
-            body: <BossList keyView={key} track={track} topBosses={review?.topBosses} onSeek={show} />,
-          },
-          { name: 'Route', body: <KeyRoute keyView={key} track={track} seek={seek} /> },
-          ...fight,
-        ]}
+        initial={key.route ? ROUTE_TAB : 0}
+        tabs={tabs}
+        onOpen={(i) => setRouteOpen(i === ROUTE_TAB)}
       />
       <p className="muted small">{key.players.join(' · ')}</p>
     </div>
@@ -318,7 +329,7 @@ export function ForcesBar({ forces, level }: { forces: KeyForces; level: number 
       </div>
       <span className="small">
         Forces {forces.pct >= 100 ? `100% (${forces.pct.toFixed(0)}%)` : `${forces.pct.toFixed(1)}%`}
-        {forces.count > 0 && <span className="muted"> · {forces.count}/{forces.total}</span>}
+        <span className="muted">{forcesCount(forces)}</span>
         {pace && (
           <span className="muted">
             {' '}

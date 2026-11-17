@@ -554,9 +554,17 @@ export async function fetchTrack(start: number, signal?: AbortSignal): Promise<K
   return json<KeyTrack>(`/api/mplus/keys/${start}/track`, { signal })
 }
 
-/** A dungeon's map: its floors with Keystone.guru tiles, and where parties have walked in its saved runs. */
-export async function fetchDungeonMap(mapID: number, signal?: AbortSignal): Promise<DungeonMap> {
-  return json<DungeonMap>(`/api/mplus/dungeons/${mapID}/map`, { signal })
+const dungeonMaps = new Map<number, Promise<DungeonMap>>()
+
+/** A dungeon's map: its floors with Keystone.guru tiles, and where parties have walked in its saved runs. Pages that
+ * ask at once (a key's map and its route) share one request, which none of them can abort; a later ask reads anew. */
+export function fetchDungeonMap(mapID: number): Promise<DungeonMap> {
+  let read = dungeonMaps.get(mapID)
+  if (!read) {
+    read = json<DungeonMap>(`/api/mplus/dungeons/${mapID}/map`).finally(() => dungeonMaps.delete(mapID))
+    dungeonMaps.set(mapID, read)
+  }
+  return read
 }
 
 /** A spell a mob casts, with Mythic Dungeon Tools' flags (models.MobSpell). */
@@ -700,6 +708,9 @@ export async function importRoute(code: string): Promise<RouteView> {
   return sendJSON('/api/mplus/routes', 'POST', { code })
 }
 
+/** A route pull on a running key's map (models.PullDone and the rest in the Go). */
+export type PullState = 'done' | 'missed' | 'next' | 'later'
+
 /** One route pull's progress in a key: how many of its enemies died, and the key pull that killed most of them. */
 interface RoutePullProgress {
   killed: number
@@ -708,6 +719,7 @@ interface RoutePullProgress {
   /** Index into the key's pulls, -1 for none. */
   keyPull: number
   clockMS: number
+  state: PullState
 }
 
 /** Kills that were in no route pull, grouped by the key pull they died in (-1 before the first pull). */
@@ -730,7 +742,43 @@ export interface RouteCompare {
   off: RouteOff[]
   skipped: number[]
   kills: EnemyRef[]
+  /** The highest route pull with a kill, -1 for none. */
+  last: number
+  /** Unfinished pulls before `last`, with the enemies not killed. */
+  missed: RouteMiss[]
+  /** Set when the key's forces trail the route's plan at `last`. */
+  behind?: { plannedPct: number; actualPct: number }
+  /** The key's own pulls against the route. */
+  run: RouteRun
   noMobs: boolean
+}
+
+/** A pull a key made: the map enemies it killed, the route pull (`plan`, -1 for none) most of them are in, how many of
+ * its enemies are in other route pulls (`extra`) and how many of that pull's it did not kill (`missing`). */
+export interface RunPull {
+  keyPull: number
+  clockMS: number
+  enemies: EnemyRef[]
+  forces: number
+  pct: number
+  plan: number
+  extra: number
+  missing: number
+  state: 'matches' | 'differs' | 'off'
+}
+
+/** A key's own pulls, and the route's enemies no pull killed (not shown dying in the log) by route pull. */
+export interface RouteRun {
+  pulls: RunPull[]
+  unseen: RouteMiss[]
+}
+
+/** A missed route pull (an index): the enemies of it not killed, and their forces. */
+interface RouteMiss {
+  pull: number
+  enemies: EnemyRef[]
+  forces: number
+  pct: number
 }
 
 /** A route pull with its number (from 1). */
@@ -745,12 +793,27 @@ export interface RouteLive {
   next: RouteStep | null
   /** Forces % the whole route plans. */
   forcesPct: number
+  /** Pulls missed so far, and whether the forces trail the plan. */
+  missed: number
+  behind: boolean
 }
 
 /** A key's progress on a route (the dungeon's starred one when no id); null when the dungeon has no route. */
 export async function fetchKeyRoute(start: number, id?: string, signal?: AbortSignal): Promise<RouteCompare | null> {
   const query = id ? `?${new URLSearchParams({ id })}` : ''
   return jsonOrNull<RouteCompare>(`/api/mplus/keys/${start}/route${query}`, signal)
+}
+
+/** The pulls a key made as the enemies of route pulls, the forces share they hold and the kills no enemy was left for. */
+export interface RecordedRoute {
+  pulls: EnemyRef[][]
+  pct: number
+  dropped: number
+}
+
+/** The pulls a key made, to record a route from it. */
+export async function fetchRecordedRoute(start: number): Promise<RecordedRoute> {
+  return json<RecordedRoute>(`/api/mplus/keys/${start}/recorded-route`)
 }
 
 /** A dungeon of the season a route can be planned in. */
@@ -849,10 +912,32 @@ export function onAppEvent(name: string, callback: (data: unknown) => void): () 
   }
 }
 
-/** Calls onChange once now and whenever the site says the keys changed (and in a browser when the stream reopens). In the desktop app the notices are Wails
- * events; in a browser, the site's event stream, polling every FALLBACK_POLL_MS while it's down (the browser keeps
- * retrying it). Returns the unsubscribe. */
-export function subscribe(onChange: () => void): () => void {
+/** Calls notify once now and whenever the site says the keys changed (and in a browser when the stream reopens). In
+ * the desktop app the notices are Wails events; in a browser, the site's event stream, polling every FALLBACK_POLL_MS
+ * while it's down (the browser keeps retrying it). While the page is hidden (a window in the tray) a change waits and is read once when it shows again.
+ * Returns the unsubscribe. */
+export function subscribe(notify: () => void): () => void {
+  let missed = false
+  const onChange = () => {
+    if (document.hidden) missed = true
+    else notify()
+  }
+  const shown = () => {
+    if (!document.hidden && missed) {
+      missed = false
+      notify()
+    }
+  }
+  document.addEventListener('visibilitychange', shown)
+  const stop = subscribeToChanges(onChange)
+  return () => {
+    document.removeEventListener('visibilitychange', shown)
+    stop()
+  }
+}
+
+/** subscribe without the wait for the page to show. */
+function subscribeToChanges(onChange: () => void): () => void {
   if (location.host === APP_HOST) {
     const off = onAppEvent('change', onChange)
     onChange()
@@ -1543,6 +1628,63 @@ interface CompareLog {
   amount: number
 }
 
+/** A talent a player took: the tree node, the entry chosen in it (a node with a choice holds two) and the ranks bought. */
+export interface TalentPick {
+  n: number
+  e: number
+  r: number
+}
+
+/** A talent entry the top logs took: `taken` of the `of` logs read took it, at most at rank `r`. */
+export interface TalentShare extends TalentPick {
+  taken: number
+  /** Most of the logs read took it. */
+  most: boolean
+}
+
+/** A player's talents against the top logs' (models.CompareTalents). */
+export interface CompareTalents {
+  specID: number
+  you: TalentPick[]
+  top: TalentShare[]
+  of: number
+}
+
+/** A talent an entry can hold, with its icon name. */
+export interface TalentEntry {
+  id: number
+  spellID: number
+  name: string
+  icon: string
+}
+
+/** A place in a talent tree (models.TalentNode): x and y are the tree's own grid; `next` the nodes it leads to. */
+export interface TalentNode {
+  id: number
+  name: string
+  tree: 'class' | 'spec' | 'hero'
+  subTree?: number
+  choice?: boolean
+  x: number
+  y: number
+  maxRanks: number
+  next: number[]
+  entries: TalentEntry[]
+}
+
+/** A spec's talent tree (models.TalentTree). */
+export interface TalentTree {
+  specID: number
+  class: string
+  spec: string
+  nodes: TalentNode[]
+}
+
+/** A spec's talent tree layout; null for a spec the app has none for. */
+export async function fetchTalentTree(specID: number, signal?: AbortSignal): Promise<TalentTree | null> {
+  return jsonOrNull<TalentTree>(`/api/talents/${specID}`, signal)
+}
+
 /** A player's run against their own similar runs, the top Warcraft Logs logs of their spec and their parses
  * (models.PlayerCompare). */
 export interface PlayerCompare {
@@ -1559,6 +1701,8 @@ export interface PlayerCompare {
   stats: CompareRow[]
   abilities: CompareRow[]
   buffs: CompareRow[]
+  /** The player's talents against the top logs'; missing when none of the logs' talents could be read. */
+  talents?: CompareTalents
   onlyYou: string[]
   onlyTop: string[]
   advice: string[]

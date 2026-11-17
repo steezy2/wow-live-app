@@ -42,11 +42,21 @@ type mobStat struct {
 
 // npcOf is a creature's NPC ID from its GUID (Creature-0-3882-2859-27547-245336-00006BE4EA: 245336), or 0.
 func npcOf(guid string) int {
-	parts := strings.Split(guid, "-")
-	if len(parts) < 7 || (parts[0] != "Creature" && parts[0] != "Vehicle") {
+	kind, rest, _ := strings.Cut(guid, "-")
+	if kind != "Creature" && kind != "Vehicle" {
 		return 0
 	}
-	return atoi(parts[5])
+	for range 4 { // the type's other fields before the NPC ID
+		var ok bool
+		if _, rest, ok = strings.Cut(rest, "-"); !ok {
+			return 0
+		}
+	}
+	id, _, ok := strings.Cut(rest, "-") // and one field after it
+	if !ok {
+		return 0
+	}
+	return atoi(id)
 }
 
 // hitMob counts a party member's hit on a mob for the pull's miniboss numbers; the mob belongs to the pull it was

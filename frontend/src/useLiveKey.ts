@@ -25,7 +25,6 @@ interface Reading {
 export function useLiveKey(onEnded?: () => void) {
   const [reading, setReading] = useState<Reading | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const now = useNow(TICK_MS)
   const [endedHere, setEndedHere] = useState<number | null>(null)
 
   useEffect(() => {
@@ -53,6 +52,7 @@ export function useLiveKey(onEnded?: () => void) {
   }, [onEnded])
 
   const key = reading?.key ?? null
+  const now = useNow(key?.status === 'running' ? TICK_MS : 0) // no clock to tick without a running key
   const since = key?.status === 'running' && reading ? Math.max(0, now - reading.at) : 0
   return {
     loaded: reading !== null,
@@ -64,10 +64,11 @@ export function useLiveKey(onEnded?: () => void) {
   }
 }
 
-/** The time now, read again every tickMS. */
+/** The time now, read again every tickMS (never, for 0). */
 export function useNow(tickMS: number): number {
   const [now, setNow] = useState(() => Date.now())
   useEffect(() => {
+    if (!tickMS) return
     const timer = setInterval(() => setNow(Date.now()), tickMS)
     return () => clearInterval(timer)
   }, [tickMS])

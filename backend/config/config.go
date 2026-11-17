@@ -145,6 +145,17 @@ func RaidReferencePath(root string) string {
 	return filepath.Join(root, "reference", "raid-bosses.json")
 }
 
+// TalentTreesPath is every spec's talent tree, written by cmd/talentref.
+func TalentTreesPath(root string) string {
+	return filepath.Join(root, "reference", "talent-trees.json")
+}
+
+// LoadTalentTrees reads the talent trees by spec ID (TalentTreesPath).
+func LoadTalentTrees(path string) (map[int]models.TalentTree, error) {
+	file, err := loadJSON[models.TalentTrees](path, "talentref")
+	return file.BySpec(), err
+}
+
 // LoadReference reads the season's dungeon facts (ReferencePath).
 func LoadReference(path string) (models.MPlusReference, error) {
 	return loadJSON[models.MPlusReference](path, "mplusref")
