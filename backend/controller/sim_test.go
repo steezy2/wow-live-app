@@ -59,7 +59,8 @@ func TestSimAPIAnswersEachErrorWithItsStatus(t *testing.T) {
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, r)
 		if w.Code != tc.code || strings.Contains(w.Body.String(), "secret") {
-			t.Errorf("%s %s with %v: %d %.80s, want %d and no path of the PC", tc.method, tc.path, tc.err, w.Code, w.Body, tc.code)
+			t.Errorf("%s %s with %v: %d %.80s, want %d and no path of the PC",
+				tc.method, tc.path, tc.err, w.Code, w.Body, tc.code)
 		}
 	}
 }

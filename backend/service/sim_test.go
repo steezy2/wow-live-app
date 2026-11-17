@@ -113,11 +113,13 @@ func TestSimsRunsAndSavesAQuickSim(t *testing.T) {
 	}
 	sim := waitSim(t, s, started.ID)
 	if sim.State != models.SimDone || sim.Progress != 100 || sim.Result == nil || sim.Result.DPS < 100000 ||
-		len(sim.Result.Abilities) == 0 || sim.Result.Abilities[0].DPS < sim.Result.Abilities[len(sim.Result.Abilities)-1].DPS {
+		len(sim.Result.Abilities) == 0 ||
+		sim.Result.Abilities[0].DPS < sim.Result.Abilities[len(sim.Result.Abilities)-1].DPS {
 		t.Errorf("sim = %+v", sim)
 	}
-	if got, err := os.ReadFile(args); err != nil || !strings.Contains(string(got), "fight_style=HecticAddCleave\nmax_time=120\n"+
-		"desired_targets=3\ntarget_error=0.05\n") || strings.Contains(string(got), "html=") {
+	want := "fight_style=HecticAddCleave\nmax_time=120\ndesired_targets=3\ntarget_error=0.05\n"
+	if got, err := os.ReadFile(args); err != nil || !strings.Contains(string(got), want) ||
+		strings.Contains(string(got), "html=") {
 		t.Errorf("simc got %q, %v", got, err)
 	}
 	// a new Sims on the same folder, as after a restart, still has it, and the list leaves its result out
@@ -140,7 +142,7 @@ func TestSimsStartRefuses(t *testing.T) {
 		want   error
 	}{
 		{"unknown kind", func(r *models.SimRequest, _ *Sims) { r.Kind = "topgear" }, ErrBadSimOptions},
-		{"unknown fight style", func(r *models.SimRequest, _ *Sims) { r.Options.FightStyle = "DungeonRoute" }, ErrBadSimOptions},
+		{"unknown fight style", func(r *models.SimRequest, _ *Sims) { r.Options.FightStyle = "Route" }, ErrBadSimOptions},
 		{"too long", func(r *models.SimRequest, _ *Sims) { r.Options.Length = maxSimLength + 1 }, ErrBadSimOptions},
 		{"no options", func(r *models.SimRequest, _ *Sims) { r.Options = models.SimOptions{} }, ErrBadSimOptions},
 		{"not an export", func(r *models.SimRequest, _ *Sims) { r.Export = "hello" }, ErrBadSimC},
@@ -224,7 +226,8 @@ func TestSimsShowWhySimcFailed(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if sim := waitSim(t, s, started.ID); sim.State != models.SimFailed || !strings.Contains(sim.Error, "Setup failure: bad thing") {
+	sim := waitSim(t, s, started.ID)
+	if sim.State != models.SimFailed || !strings.Contains(sim.Error, "Setup failure: bad thing") {
 		t.Errorf("sim = %+v", sim)
 	}
 }
@@ -305,7 +308,8 @@ func TestReadSimResult(t *testing.T) {
 	}
 	for _, a := range result.Abilities {
 		if a.DPS <= 0 || a.Name == "" || a.ID == 0 || a.Casts > 0 && a.PerCast*a.Casts/a.DPS > 600 {
-			t.Errorf("ability %+v: a row with no damage or no name should be left out, and a cast hits for what the fight's total over its casts says", a)
+			t.Errorf("ability %+v: a row with no damage or no name should be left out, and a cast hits for what the "+
+				"fight's total over its casts says", a)
 		}
 	}
 	for i := 1; i < len(result.Buffs); i++ {

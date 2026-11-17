@@ -32,8 +32,8 @@ func TestParseSimCExport(t *testing.T) {
 		t.Fatalf("equipped %d, bags %d, want 11 and 4", len(p.Equipped), len(p.Bags))
 	}
 	head := p.Equipped[0]
-	if head.Slot != "head" || head.ID != 271483 || head.Name != "Serpent Crown of the Ophidian Oracle" || head.Level != 334 ||
-		len(head.Opts["bonus_id"]) != 6 || head.Opts["enchant_id"][0] != 8017 {
+	if head.Slot != "head" || head.ID != 271483 || head.Name != "Serpent Crown of the Ophidian Oracle" ||
+		head.Level != 334 || len(head.Opts["bonus_id"]) != 6 || head.Opts["enchant_id"][0] != 8017 {
 		t.Errorf("head = %+v", head)
 	}
 	if ring := p.Bags[1]; ring.Slot != "finger1" || ring.Name != "Lightwarden's Bind" || ring.Level != 311 {
@@ -68,12 +68,13 @@ level=9999
 func TestParseSimCRefuses(t *testing.T) {
 	good := fixtureSimC(t)
 	tests := map[string]string{
-		"not an export":    "hello",
-		"no spec":          strings.Replace(good, "spec=elemental", "", 1),
-		"bad name":         strings.Replace(good, `"Testshaman"`, `"x\ninput=y"`, 1),
-		"no gear":          "shaman=\"Testshaman\"\nspec=elemental\ntalents=ABC\n",
-		"too big":          good + strings.Repeat("#\n", maxProfileBytes),
-		"too many carried": strings.Replace(good, bagsHeading, bagsHeading+"\n"+strings.Repeat("# head=,id=1\n", maxBagItems+1), 1),
+		"not an export": "hello",
+		"no spec":       strings.Replace(good, "spec=elemental", "", 1),
+		"bad name":      strings.Replace(good, `"Testshaman"`, `"x\ninput=y"`, 1),
+		"no gear":       "shaman=\"Testshaman\"\nspec=elemental\ntalents=ABC\n",
+		"too big":       good + strings.Repeat("#\n", maxProfileBytes),
+		"too many carried": strings.Replace(good, bagsHeading,
+			bagsHeading+"\n"+strings.Repeat("# head=,id=1\n", maxBagItems+1), 1),
 	}
 	for name, text := range tests {
 		t.Run(name, func(t *testing.T) {
@@ -97,7 +98,8 @@ func TestSimInputRoundTrips(t *testing.T) {
 		SimInput(again) != SimInput(p) {
 		t.Errorf("reading the generated input changed the profile:\n%s", SimInput(p))
 	}
-	if !strings.Contains(SimInput(p), "head=,id=271483,bonus_id=13692/13440/6652/13695/13698/12854,enchant_id=8017,gem_id=240967") {
+	const head = "head=,id=271483,bonus_id=13692/13440/6652/13695/13698/12854,enchant_id=8017,gem_id=240967"
+	if !strings.Contains(SimInput(p), head) {
 		t.Errorf("the head line is wrong:\n%s", SimInput(p))
 	}
 }
