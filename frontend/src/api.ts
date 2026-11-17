@@ -1430,7 +1430,10 @@ export async function deleteLogs(names: string[], source: LogSource = 'game'): P
 
 /** What the app keeps on disk, by folder (models.Storage). */
 export interface Storage {
-  folders: { name: 'localKeys' | 'raidPulls' | 'wclImport' | 'archive' | 'simEngine' | 'sims' | 'gameLogs'; bytes: number }[]
+  folders: {
+    name: 'localKeys' | 'raidPulls' | 'wclImport' | 'archive' | 'simEngine' | 'sims' | 'gameLogs'
+    bytes: number
+  }[]
 }
 
 export async function fetchStorage(signal?: AbortSignal): Promise<Storage> {

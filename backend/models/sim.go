@@ -148,8 +148,9 @@ type SimEngineStatus struct {
 	Error      string `json:"error,omitempty"`
 }
 
-// SimEngine is the SimulationCraft program the app installed: its file name (the nightly's, or the owner's own simc.exe),
-// the version and game patch it printed, when it was built (ms since the epoch; the owner's file's date) and its size.
+// SimEngine is the SimulationCraft program the app installed: its file name (the nightly's, or the owner's own
+// simc.exe), the version and game patch it printed, when it was built (ms since the epoch; the owner's file's date)
+// and its size.
 type SimEngine struct {
 	Installed bool   `json:"installed"`
 	File      string `json:"file,omitempty" example:"simc-1210.01.73a372b-win64.7z"`
