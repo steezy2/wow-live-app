@@ -4,6 +4,8 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-11-16
+
 ### Changed
 - **M+ Live opens on All characters** the first time it is opened in a session, then the top bar keeps the last pick (it used to start on the Settings character).
 - **Store listing rewritten** shorter, with a Routes section and screenshot, with a new Compare screenshot (sample data) and a death recap showing health falling to 0%, leading with death recaps and the comparison with top runs; `docs/video-script.md` has a 50 s trailer and a 3 min walkthrough script.
