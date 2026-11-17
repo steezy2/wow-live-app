@@ -6,6 +6,7 @@
 package simc
 
 import (
+	"cmp"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -32,8 +33,10 @@ const (
 	exeName = "simc.exe"
 	// downloadTimeout bounds the whole download, a few minutes on a slow line.
 	downloadTimeout = 15 * time.Minute
-	// listTimeout bounds reading the manifest and running the new program once.
+	// listTimeout bounds reading the manifest.
 	listTimeout = 30 * time.Second
+	// bannerTimeout bounds running the new program once: the first run of a new file can wait on a virus scan.
+	bannerTimeout = 2 * time.Minute
 	// releaseBase is where the weekly job publishes simc.exe and engine.json (a release with a fixed tag).
 	releaseBase = "https://github.com/steezy2/wow-live-app/releases/download/simc-engine/"
 )
@@ -235,12 +238,13 @@ func checkProgram(file string) error {
 
 // runBanner runs exe without an input, which makes simc print its version and game patch, and returns them.
 func runBanner(ctx context.Context, exe string) (version, patch string, err error) {
-	ctx, cancel := context.WithTimeout(ctx, listTimeout)
+	ctx, cancel := context.WithTimeout(ctx, bannerTimeout)
 	defer cancel()
-	out, _ := exec.CommandContext(ctx, exe).CombinedOutput() // it exits with an error: there is nothing to sim
+	out, runErr := exec.CommandContext(ctx, exe).CombinedOutput() // it may exit with an error: there is nothing to sim
 	version, patch, ok := parseBanner(string(out))
 	if !ok {
-		return "", "", errors.New("it printed no SimulationCraft version")
+		return "", "", fmt.Errorf("it printed no SimulationCraft version (%v; it said %q)", cmp.Or(runErr, ctx.Err()),
+			strings.TrimSpace(string(out[:min(len(out), 200)])))
 	}
 	return version, patch, nil
 }
