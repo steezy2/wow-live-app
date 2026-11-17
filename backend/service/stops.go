@@ -83,7 +83,7 @@ func (k *LogTracker) stopEvent(at int64, event string, f []string, src, dst stri
 	spell := atoi(f[8])
 	switch event {
 	case "SPELL_CAST_START":
-		if hasFlag(f[2], hostileFlag) && slices.Contains(run.facts.MustStop, spell) {
+		if hasFlag(f[2], models.FlagHostile) && slices.Contains(run.facts.MustStop, spell) {
 			if c, ok := run.casting[f[0]]; ok {
 				k.endCast(f[0], "stopped", c.cc, at)
 			}
@@ -93,7 +93,7 @@ func (k *LogTracker) stopEvent(at int64, event string, f []string, src, dst stri
 		if c, ok := run.casting[f[0]]; ok && c.spellID == spell {
 			k.endCast(f[0], "went off", "", at)
 		}
-		if src != "" && slices.Contains(k.rules.Kicks.Names, f[9]) && hasFlag(f[6], hostileFlag) &&
+		if src != "" && slices.Contains(k.rules.Kicks.Names, f[9]) && hasFlag(f[6], models.FlagHostile) &&
 			at-run.lastKick[src] > kickWindowMS {
 			run.kick = &pendingKick{at: at, player: src, spell: f[9]}
 		}
@@ -179,7 +179,8 @@ func (k *LogTracker) spikeWindow(run *keyRun) int64 {
 
 // spikes is the run's worst bursts of party damage taken (the top spikeShare of spikeWindow stretches), worst first,
 // with each hit member's cover by the death rules and the party cooldowns used for it.
-func (k *LogTracker) spikes(run *keyRun, casts []models.KeyCast, buffs []models.BuffUp, kit models.Kit) []models.KeySpike {
+func (k *LogTracker) spikes(run *keyRun, casts []models.KeyCast, buffs []models.BuffUp,
+	kit models.Kit) []models.KeySpike {
 	party := map[int64]int64{}
 	for _, bySecond := range run.taken {
 		for s, n := range bySecond {
@@ -199,7 +200,7 @@ func (k *LogTracker) spikes(run *keyRun, casts []models.KeyCast, buffs []models.
 	if len(stretches) < minSpikeStretches {
 		return spikes
 	}
-	slices.SortFunc(stretches, func(a, b [2]int64) int { return cmp.Compare(b[1], a[1]) })
+	slices.SortFunc(stretches, func(a, b [2]int64) int { return cmp.Or(cmp.Compare(b[1], a[1]), cmp.Compare(a[0], b[0])) })
 	threshold := stretches[int(float64(len(stretches))*(1-spikeShare))][1]
 	var taken []int64
 	for _, s := range stretches {
@@ -221,7 +222,8 @@ func (k *LogTracker) spikes(run *keyRun, casts []models.KeyCast, buffs []models.
 func (k *LogTracker) spike(run *keyRun, second, damage, span int64, casts []models.KeyCast, buffs []models.BuffUp,
 	kit models.Kit) models.KeySpike {
 	at := second * 1000
-	sp := models.KeySpike{ClockMS: k.clockAt(at), Seconds: span / 1000, Damage: damage, PartyCDs: []string{}, Members: []models.KeySpikeMember{}}
+	sp := models.KeySpike{ClockMS: k.clockAt(at), Seconds: span / 1000, Damage: damage, PartyCDs: []string{},
+		Members: []models.KeySpikeMember{}}
 	window := int64(k.rules.Defensives.WindowSeconds * 1000)
 	covers := func(c models.KeyCast) bool {
 		return (slices.Contains(k.rules.Defensives.Externals, c.Ability) ||

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"maps"
 	"slices"
+	"strings"
 	"sync"
 
 	"wow-live/backend/models"
@@ -38,9 +39,9 @@ func (k *LogTracker) Latest(now int64) (models.KeyView, bool) {
 	return models.KeyView{}, false
 }
 
-// FirstRun is the running key when it's the first of its dungeon here (no finished runs saved) and its top Warcraft Logs runs
-// haven't been asked for: asking marks them, so they're fetched once a dungeon and level. False until COMBATANT_INFO
-// names the party's specs.
+// FirstRun is the running key when it's the first of its dungeon here (no finished runs saved) and its top Warcraft
+// Logs runs haven't been asked for: asking marks them, so they're fetched once a dungeon and level. False until
+// COMBATANT_INFO names the party's specs.
 func (k *LogTracker) FirstRun() (models.Key, bool) {
 	k.mu.Lock()
 	defer k.mu.Unlock()
@@ -86,23 +87,8 @@ func (k *LogTracker) LastEnd() int64 {
 // SaveFinished saves the keys that ended since the last call (the log follower calls it after each read), and says
 // which (by start time).
 func (k *LogTracker) SaveFinished() ([]int64, error) {
-	var saved []int64
-	err := saveQueued(&k.mu, &k.unsaved, func(run savedRun) error {
-		skip, err := keepLocal(&k.mu, &k.history, run.key, sameKey, func(key models.Key) bool { return key.Imported },
-			func(key models.Key) int64 { return key.Start }, k.store.Delete)
-		if skip || err != nil {
-			return err
-		}
-		err = k.store.Save(run.key)
-		if err == nil {
-			err = k.store.SaveTrack(run.key.Start, run.track)
-		}
-		if err != nil {
-			return fmt.Errorf("saving the %s key (retried after the next read): %w", run.key.Dungeon, err)
-		}
-		saved = append(saved, run.key.Start)
-		return nil
-	})
+	saved, err := saveFights(&k.mu, &k.unsaved, &k.history, k.store, sameKey,
+		func(key models.Key) string { return key.Dungeon + " key" })
 	if err == nil && k.raid != nil {
 		err = k.savePulls()
 	}
@@ -191,9 +177,12 @@ func (k *LogTracker) DeleteSaved(start int64) error {
 func (k *LogTracker) details(run *keyRun, at int64) models.Key {
 	key := run.key
 	buffs := slices.Clone(run.buffs)
-	for open, from := range k.up {
+	// In key order, so which of two open defensives covers a death doesn't change between reads.
+	for _, open := range slices.SortedFunc(maps.Keys(k.up), func(a, b [2]string) int {
+		return cmp.Or(strings.Compare(a[0], b[0]), strings.Compare(a[1], b[1]))
+	}) {
 		if slices.Contains(run.party, open[0]) {
-			buffs = append(buffs, models.BuffUp{Fight: run.pull, Start: from, End: at, Player: k.names[open[0]],
+			buffs = append(buffs, models.BuffUp{Fight: run.pull, Start: k.up[open], End: at, Player: k.names[open[0]],
 				Ability: open[1]})
 		}
 	}

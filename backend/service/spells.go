@@ -84,12 +84,14 @@ func (s *Spells) byID(ctx context.Context, id int) (models.SpellInfo, error) {
 	}
 	info, err := s.Source.Spell(ctx, id)
 	if err != nil {
-		s.mu.Lock()
-		if s.failed == nil {
-			s.failed = map[int]time.Time{}
+		if ctx.Err() == nil { // a reader who moved on (a cancelled hover) hasn't shown the spell is down
+			s.mu.Lock()
+			if s.failed == nil {
+				s.failed = map[int]time.Time{}
+			}
+			s.failed[id] = time.Now()
+			s.mu.Unlock()
 		}
-		s.failed[id] = time.Now()
-		s.mu.Unlock()
 		return models.SpellInfo{}, fmt.Errorf("reading spell %d: %w", id, err)
 	}
 	return info, nil

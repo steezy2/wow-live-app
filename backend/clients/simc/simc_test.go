@@ -102,7 +102,8 @@ func TestUseFileRefusesWhatIsNotAProgram(t *testing.T) {
 }
 
 func TestParseBanner(t *testing.T) {
-	version, patch, ok := parseBanner("Nothing to sim! SimulationCraft 1210-01 for World of Warcraft 12.1.5.70529 Live (hotfix 2026-10-22/70529)")
+	version, patch, ok := parseBanner(
+		"Nothing to sim! SimulationCraft 1210-01 for World of Warcraft 12.1.5.70529 Live (hotfix 2026-10-22/70529)")
 	if !ok || version != "1210-01" || patch != "12.1.5.70529" {
 		t.Errorf("parseBanner = %q, %q, %v", version, patch, ok)
 	}

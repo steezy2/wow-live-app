@@ -2,13 +2,13 @@
 package wago
 
 import (
+	"bytes"
 	"cmp"
 	"context"
 	"encoding/csv"
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -35,15 +35,11 @@ func (c Client) Rows(ctx context.Context, table string, columns []string, each f
 		file, url = table+"."+c.Branch+".csv", url+"?branch="+c.Branch
 	}
 	path := filepath.Join(c.CacheDir, file)
-	if err := cachefile.Fresh(ctx, nil, url, path, 7*24*time.Hour); err != nil {
+	data, err := cachefile.Fresh(ctx, nil, url, path, 7*24*time.Hour)
+	if err != nil {
 		return fmt.Errorf("wago.tools %s: %w", table, err)
 	}
-	f, err := os.Open(path)
-	if err != nil {
-		return fmt.Errorf("reading %s: %w", path, err)
-	}
-	defer f.Close()
-	r := csv.NewReader(f)
+	r := csv.NewReader(bytes.NewReader(data))
 	r.ReuseRecord = true
 	header, err := r.Read()
 	if err != nil {

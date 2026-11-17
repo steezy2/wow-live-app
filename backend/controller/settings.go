@@ -16,12 +16,6 @@ import (
 	"wow-live/backend/service"
 )
 
-// Settings reads and saves the desktop app's settings (app.Settings); only the app serves them.
-type Settings interface {
-	Get() models.SettingsView
-	Save(models.Settings) error
-}
-
 // WCLKeys keeps the desktop app's Warcraft Logs keys (service.WCLKeys).
 type WCLKeys interface {
 	Status() models.KeyStatus
@@ -60,7 +54,7 @@ type Import interface {
 
 // SettingsAPI serves the desktop app's settings and Warcraft Logs keys, and the log folder's old logs.
 type SettingsAPI struct {
-	Settings   Settings
+	Settings   service.SettingsStore
 	Keys       WCLKeys
 	Logs       LogFolder  // set by app.Start
 	Characters Characters // set by app.Start
@@ -255,23 +249,19 @@ func (s SettingsAPI) Put(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, ErrorResponse{Error: service.ErrBadSettings.Error()})
 		return
 	}
-	next = service.CleanSettings(next)
-	if err := service.ValidateSettings(next); err != nil {
+	changed, err := service.SaveSettings(c.Request.Context(), s.Settings, s.Characters, next)
+	switch {
+	case errors.Is(err, service.ErrBadSettings):
 		c.JSON(http.StatusBadRequest, ErrorResponse{Error: err.Error()})
 		return
-	}
-	before := s.Settings.Get().Settings
-	if service.CharacterNeedsCheck(before, next) {
-		if _, _, err := s.Characters.Resolve(c.Request.Context(), next.Region, next.Character); characterFailed(c, err) {
-			return
-		}
-	}
-	if err := s.Settings.Save(next); err != nil {
+	case errors.Is(err, service.ErrSavingSettings):
 		log.Printf("saving the settings: %v", err)
-		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: "couldn't save the settings"})
+		c.JSON(http.StatusInternalServerError, ErrorResponse{Error: service.ErrSavingSettings.Error()})
+		return
+	case characterFailed(c, err):
 		return
 	}
-	if s.Import != nil && next.Character != before.Character {
+	if s.Import != nil && changed {
 		s.Import.Stop() // its fights are the old character's
 	}
 	c.JSON(http.StatusOK, s.view())

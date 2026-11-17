@@ -11,11 +11,20 @@ export function lanesOf(lanes: RaidLane[], player: string): RaidLane[] {
 }
 
 /** What happened on a fight's clock, for the Events feed's filter. */
-export const eventKinds = ['death', 'defensive', 'raid cooldown', 'potion', 'interrupt', 'wasted kick', 'cc', 'dispel'] as const
+export const eventKinds = [
+  'death',
+  'defensive',
+  'raid cooldown',
+  'potion',
+  'interrupt',
+  'wasted kick',
+  'cc',
+  'dispel',
+] as const
 export type EventKind = (typeof eventKinds)[number]
 
 /** One line of the Events feed: who did it (or who it happened to) and what, at a moment. */
-export interface FightEvent {
+interface FightEvent {
   clockMS: number
   kind: EventKind
   player: string
@@ -76,7 +85,11 @@ export function cooldownLanes(casts: TrackCast[], durationMS: number): RaidLane[
   return [...bySpell]
     .filter(([, list]) => list.length <= most)
     .sort((a, b) => a[1][0].t - b[1][0].t)
-    .map(([spell, list]) => ({ name: spell, kind: 'cooldowns', marks: list.map((c) => ({ clockMS: c.t, text: spell })) }))
+    .map(([spell, list]) => ({
+      name: spell,
+      kind: 'cooldowns',
+      marks: list.map((c) => ({ clockMS: c.t, text: spell })),
+    }))
 }
 
 /** One buff's share of the fight it was up on a player (0 to 100), most up first; a buff cast again counts its

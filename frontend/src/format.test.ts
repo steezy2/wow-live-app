@@ -4,7 +4,6 @@ import {
   groupLogsByDay,
   clock,
   coverOf,
-  errorText,
   importKindText,
   importProgress,
   importTotal,
@@ -16,7 +15,6 @@ import {
   resultText,
   forcesCount,
   routeLine,
-  versus,
   versusBest,
   withRealm,
 } from './format'
@@ -172,14 +170,6 @@ describe('withRealm', () => {
   })
 })
 
-describe('versus', () => {
-  it('signs the difference', () => {
-    expect(versus(90_000, 30_000)).toBe('+1:00')
-    expect(versus(30_000, 60_000)).toBe('-0:30')
-    expect(versus(30_000, 30_000)).toBe('0:00')
-  })
-})
-
 describe('routeLine', () => {
   const step = (number: number) => ({ number, pct: 12.4, totalPct: 58.1, color: '3eff3e', forces: 0, total: 0 })
   it.each([
@@ -192,7 +182,9 @@ describe('routeLine', () => {
   })
 
   it('names the missed pulls and the forces behind plan', () => {
-    expect(routeLine({ name: 'Route', current: step(9), next: step(7), forcesPct: 102.3, missed: 2, behind: true })).toBe(
+    expect(
+      routeLine({ name: 'Route', current: step(9), next: step(7), forcesPct: 102.3, missed: 2, behind: true }),
+    ).toBe(
       'Next: pull 7 (12.4%, to 58.1%) · on pull 9 · 2 missed · forces behind plan',
     )
   })
@@ -228,13 +220,6 @@ describe('groupLogsByDay', () => {
     expect(groups.map((g) => g.files.map((f) => f.name))).toEqual([['0-12', '0-8'], ['1-9'], ['5-9'], ['6-9', '40-9']])
     expect(groups[3].label).toBe('Older than 5 days')
   })
-})
-
-describe('errorText', () => {
-  it.each([
-    ['an Error says its message', new Error('boom'), 'boom'],
-    ['anything else is written out', 'plain', 'plain'],
-  ])('%s', (_, err, want) => expect(errorText(err)).toBe(want))
 })
 
 describe('forcesCount', () => {

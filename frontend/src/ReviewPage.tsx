@@ -1,4 +1,7 @@
 import { type ReactNode, useCallback, useMemo, useState } from 'react'
+import { FixNext } from './FixNext'
+import { SavedBefore } from './SavedBefore'
+import { Tiles } from './Tiles'
 import {
   fetchRaidPull,
   fetchSavedKey,
@@ -10,11 +13,12 @@ import {
   type KeyTrack,
   type KeyView,
   type RaidPull,
+  type FightKind,
 } from './api'
 import { clock, counted, progressText, resultText } from './format'
 import { DamageGraph } from './DamageGraph'
 import { EventFeed } from './EventFeed'
-import { FightMeters, NoAbilities } from './FightMeters'
+import { FightMeters } from './FightMeters'
 import { KeyMap } from './KeyMap'
 import { KeyReview } from './KeyReview'
 import { fightTabs, pullFightData, type FightData } from './KeyTabs'
@@ -39,7 +43,7 @@ type MeterProps = Parameters<typeof FightMeters>[0]
 
 /** What the shell shows of a key or a raid pull; the two pages build it and share the tabs. */
 interface Fight {
-  kind: 'mplus' | 'raid'
+  kind: FightKind
   start: number
   title: string
   result: string
@@ -65,7 +69,7 @@ const noop = () => undefined
 
 /** A finished key's (kind mplus) or raid pull's (raid) full review, read from its start: the long version of what the
  * key and pull pages show, in tabs. The tab and player are the address's query. */
-export function ReviewPage({ kind, start }: { kind: 'mplus' | 'raid'; start: number }) {
+export function ReviewPage({ kind, start }: { kind: FightKind; start: number }) {
   const { data: saved, error } = useFetched<KeyView | RaidPull>(`${kind}:${start}`, (signal) =>
     kind === 'mplus' ? fetchSavedKey(start, signal) : fetchRaidPull(start, signal),
   )
@@ -147,6 +151,25 @@ function PullFight({ pull }: { pull: RaidPull }) {
   )
 }
 
+/** What a tab shows for a fight saved without its abilities. */
+const NO_DATA = <SavedBefore what="abilities" />
+
+/** The select that picks the player a tab is about. */
+function PlayerPicker(props: { players: string[]; focus: string; onFocus: (player: string) => void }) {
+  const { players, focus, onFocus } = props
+  return (
+    <label>
+      Player{' '}
+      <select value={focus} onChange={(e) => onFocus(e.target.value)}>
+        <option value="">Pick a player</option>
+        {players.map((p) => (
+          <option key={p}>{p}</option>
+        ))}
+      </select>
+    </label>
+  )
+}
+
 /** The page itself: header, then the tabs on one replay clock and one focused player. A time in any tab moves the
  * replay and opens the Timeline. */
 function ReviewShell({ fight }: { fight: Fight }) {
@@ -188,58 +211,86 @@ function ReviewShell({ fight }: { fight: Fight }) {
     [data, group, seek, fight.track],
   )
   const feed = useMemo(() => data && <EventFeed data={data} seek={seek} />, [data, seek])
-  const tabsOf = (prefix: string) => shared.filter((t) => t.name.startsWith(prefix))
+  const meters = (to: number, atEnd: boolean) => (
+    <FightMeters
+      windows={[{ title: 'Whole fight', from: 0, to, saved: meter }]}
+      track={fight.track ?? null}
+      atEnd={atEnd}
+      fight={fight.meters.fight}
+      offense={fight.meters.offense}
+      avoidableColumn={group === 'raid'}
+      group={group}
+      classes={classes}
+      focus={focus}
+      onFocus={setFocus}
+    />
+  )
+  // The tabs that don't follow the replay's clock, built when what they show changes, so a tick leaves them alone.
+  const still = useMemo(() => {
+    const part = (id: string) => shared.find((t) => t.id === id)?.body
+    return {
+      deaths: data ? (
+        <>
+          {part('deaths')}
+          <h2>Resurrections</h2>
+          <ul className="list">
+            {fight.resurrections.map((r, i) => (
+              <li key={i}>
+                <span>
+                  <Who player={r.by} seek={seek} /> brought back <Who player={r.player} seek={seek} />
+                </span>
+                <When ms={r.clockMS} seek={seek} />
+              </li>
+            ))}
+            {fight.resurrections.length === 0 && <li className="muted">None, or not recorded before Nov 13</li>}
+          </ul>
+        </>
+      ) : (
+        NO_DATA
+      ),
+      interrupts: data ? (
+        <>
+          {part('interrupts')}
+          <h2>Must-stop casts</h2>
+          {part('must-stops')}
+        </>
+      ) : (
+        NO_DATA
+      ),
+      events: data ? (
+        <>
+          {feed}
+          <h2>Defensives and potions</h2>
+          {part('defensives')}
+        </>
+      ) : (
+        NO_DATA
+      ),
+      compare: (
+        <>
+          <PlayerPicker players={fight.players} focus={focus} onFocus={setFocus} />
+          {focus ? (
+            <ComparePlayer key={focus} kind={fight.kind} start={fight.start} player={focus} />
+          ) : (
+            <p className="muted">Pick a player to compare with the top logs of their spec.</p>
+          )}
+        </>
+      ),
+    }
+  }, [data, shared, feed, seek, fight, focus])
   const bodies: Record<TabName, ReactNode> = {
+    ...still,
     overview: (
       <>
-        <div className="recap-tiles">
-          {tiles.map(([value, label]) => (
-            <div key={label} className="card small">
-              <b>{value}</b>
-              <span className="muted small">{label}</span>
-            </div>
-          ))}
-        </div>
-        {fight.suggestions.length > 0 && (
-          <section className="panel attention">
-            <h2>{fight.suggestionsTitle}</h2>
-            <ol className="fix-next">
-              {fight.suggestions.map((s) => (
-                <li key={s}>{s}</li>
-              ))}
-            </ol>
-          </section>
-        )}
+        <Tiles tiles={tiles} />
+        <FixNext title={fight.suggestionsTitle} items={fight.suggestions} />
         {fight.review}
-        {data ? (
-          <FightMeters
-            windows={[{ title: 'Whole fight', from: 0, to: replay.at, saved: meter }]}
-            track={fight.track ?? null}
-            atEnd={replay.at >= fight.durationMS}
-            fight={fight.meters.fight}
-            offense={fight.meters.offense}
-            avoidableColumn={group === 'raid'}
-            group={group}
-            classes={classes}
-            focus={focus}
-            onFocus={setFocus}
-          />
-        ) : (
-          <NoAbilities />
-        )}
+        {data ? meters(replay.at, replay.at >= fight.durationMS) : NO_DATA}
       </>
     ),
     player: data ? (
       <>
-        <label>
-          Player{' '}
-          <select value={focus} onChange={(e) => setFocus(e.target.value)}>
-            <option value="">Pick a player</option>
-            {fight.players.map((p) => (
-              <option key={p}>{p}</option>
-            ))}
-          </select>
-        </label>
+        <PlayerPicker players={fight.players} focus={focus} onFocus={setFocus} />
         {focus ? (
           <>
             <PlayerReview
@@ -253,94 +304,16 @@ function ReviewShell({ fight }: { fight: Fight }) {
               seek={seek}
               now={replay.at}
             />
-            <FightMeters
-              windows={[{ title: 'Whole fight', from: 0, to: fight.durationMS, saved: meter }]}
-              track={fight.track ?? null}
-              atEnd
-              fight={fight.meters.fight}
-              offense={fight.meters.offense}
-              avoidableColumn={group === 'raid'}
-              group={group}
-              classes={classes}
-              focus={focus}
-              onFocus={setFocus}
-            />
+            {meters(fight.durationMS, true)}
           </>
         ) : (
           <p className="muted">Pick a player to see their fight.</p>
         )}
       </>
     ) : (
-      <NoAbilities />
-    ),
-    deaths: data ? (
-      <>
-        {tabsOf('Deaths').map((t) => (
-          <div key={t.name}>{t.body}</div>
-        ))}
-        <h2>Resurrections</h2>
-        <ul className="list">
-          {fight.resurrections.map((r, i) => (
-            <li key={i}>
-              <span>
-                <Who player={r.by} seek={seek} /> brought back <Who player={r.player} seek={seek} />
-              </span>
-              <When ms={r.clockMS} seek={seek} />
-            </li>
-          ))}
-          {fight.resurrections.length === 0 && <li className="muted">None, or not recorded before Nov 13</li>}
-        </ul>
-      </>
-    ) : (
-      <NoAbilities />
-    ),
-    interrupts: data ? (
-      <>
-        {tabsOf('Interrupts').map((t) => (
-          <div key={t.name}>{t.body}</div>
-        ))}
-        {tabsOf('Must-stops').map((t) => (
-          <div key={t.name}>
-            <h2>Must-stop casts</h2>
-            {t.body}
-          </div>
-        ))}
-      </>
-    ) : (
-      <NoAbilities />
-    ),
-    events: data ? (
-      <>
-        {feed}
-        {tabsOf('Defensives and potions').map((t) => (
-          <div key={t.name}>
-            <h2>Defensives and potions</h2>
-            {t.body}
-          </div>
-        ))}
-      </>
-    ) : (
-      <NoAbilities />
+      NO_DATA
     ),
     timeline: <section className="panel replay">{fight.timeline(replay, focus, setFocus)}</section>,
-    compare: (
-      <>
-        <label>
-          Player{' '}
-          <select value={focus} onChange={(e) => setFocus(e.target.value)}>
-            <option value="">Pick a player</option>
-            {fight.players.map((p) => (
-              <option key={p}>{p}</option>
-            ))}
-          </select>
-        </label>
-        {focus ? (
-          <ComparePlayer key={focus} kind={fight.kind} start={fight.start} player={focus} />
-        ) : (
-          <p className="muted">Pick a player to compare with the top logs of their spec.</p>
-        )}
-      </>
-    ),
   }
   return (
     <main className="page review">
@@ -374,9 +347,9 @@ function ReviewShell({ fight }: { fight: Fight }) {
         ))}
       </p>
       <Tabs
-        open={TABS.indexOf(tab)}
-        onOpen={(i) => open(TABS[i])}
-        tabs={TABS.map((name) => ({ name: name[0].toUpperCase() + name.slice(1), body: bodies[name] }))}
+        open={tab}
+        onOpen={(id) => open(id as TabName)}
+        tabs={TABS.map((id) => ({ id, name: id[0].toUpperCase() + id.slice(1), body: bodies[id] }))}
       />
     </main>
   )

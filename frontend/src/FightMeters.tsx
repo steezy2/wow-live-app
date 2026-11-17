@@ -1,4 +1,5 @@
 import type { MouseEvent } from 'react'
+import { SavedBefore } from './SavedBefore'
 import { abilityViews, raidTargets, type AbilityRow } from './abilities'
 import type { KeyHit, KeyMeter, KeyTrack, RaidPull } from './api'
 import { classColors } from './classColors'
@@ -83,7 +84,14 @@ export function FightMeters(props: {
     const targets = raidTargets((whole ? fight.targets : undefined) ?? between?.targets, focus)
     return { ...v, taken, targets, known: whole || between !== undefined }
   })
-  const card = (i: number, title: string, rows: AbilityRow[], under: string, underLabel: string, more: AbilityRow[]) => (
+  const card = (
+    i: number,
+    title: string,
+    rows: AbilityRow[],
+    under: string,
+    underLabel: string,
+    more: AbilityRow[],
+  ) => (
     <div key={`${title}-${windows[i].title}`} className="card focus drill" onContextMenu={back}>
       <h2>
         <button className="back" onClick={back}>
@@ -98,7 +106,7 @@ export function FightMeters(props: {
           <AbilityBars rows={more} color={color} label={underLabel} />
         </>
       ) : !fight.abilities ? (
-        <NoAbilities />
+        <SavedBefore what="abilities" />
       ) : (
         <p className="muted">
           {track
@@ -121,15 +129,6 @@ function nonZero(columns: Column[], meter: KeyMeter): Column[] {
   return columns.filter((c, i) => i === 0 || meter.rows.some((r) => c.value(r) !== 0))
 }
 
-/** What shows in place of a player's abilities for a fight saved without them. */
-export function NoAbilities() {
-  return (
-    <p className="muted">
-      This was saved before abilities were kept: <i>Read old logs</i> in Settings fills them in from the logs still in
-      the game's folder.
-    </p>
-  )
-}
 
 /** Abilities (or whatever label names) as bars, biggest first (the first limit of them), each in its spell school's
  * colour (color without one): the number, its share of the total, and casts and hits where the rows have them; an

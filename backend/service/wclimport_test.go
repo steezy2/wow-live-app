@@ -189,6 +189,35 @@ func TestLinkedReportSurvivesReadingTheLogAgain(t *testing.T) {
 	})
 }
 
+// deletingStore is a memStore that deletes a key through the tracker while its file is being saved.
+type deletingStore struct {
+	*memStore
+	k *LogTracker
+}
+
+func (d *deletingStore) Save(key models.Key) error {
+	if err := d.k.DeleteSaved(key.Start); err != nil {
+		return err
+	}
+	return d.memStore.Save(key)
+}
+
+func TestLinkReportsDoesNotBringBackAKeyDeletedMeanwhile(t *testing.T) {
+	keys := newTracker(t, nil)
+	mem := &memStore{}
+	keys.store = mem
+	feed(t, keys, at(0, `CHALLENGE_MODE_START,"Voidscar Arena",2923,585,10,[9]`),
+		"11/4/2026 20:03:00.000-7  CHALLENGE_MODE_END,2923,1,10,180000,100.0,3000.0")
+	start := keys.history[0].Start
+	keys.store = &deletingStore{mem, keys}
+	if _, err := keys.LinkReports(map[int64]models.ReportLink{start: link("A", 3)}, nil); err != nil {
+		t.Fatal(err)
+	}
+	if len(mem.keys) != 0 || len(keys.history) != 0 {
+		t.Errorf("files %v, history %v; want the deleted key gone from both", mem.keys, keys.history)
+	}
+}
+
 func TestPickFights(t *testing.T) {
 	const length = 30 * minute
 	reports := []models.CharacterReport{
@@ -260,7 +289,8 @@ func TestResolveChecksNameAndRealm(t *testing.T) {
 		}
 	}
 	boom := errors.New("down")
-	if _, _, err := (Characters{Realms: fakeRealms{boom}}).Resolve(context.Background(), "us", "Testmage-Area52"); !errors.Is(err, boom) {
+	if _, _, err := (Characters{Realms: fakeRealms{boom}}).Resolve(context.Background(), "us",
+		"Testmage-Area52"); !errors.Is(err, boom) {
 		t.Errorf("Warcraft Logs failing gave %v; want its error through", err)
 	}
 }

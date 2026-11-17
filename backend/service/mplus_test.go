@@ -23,7 +23,7 @@ type memStore struct {
 }
 
 func (m *memStore) Save(k models.Key) error     { m.keys = append(m.keys, k); return nil }
-func (m *memStore) List() ([]models.Key, error) { return m.keys, nil }
+func (m *memStore) List() ([]models.Key, error) { return slices.Clone(m.keys), nil }
 func (m *memStore) Delete(start int64) error {
 	m.keys = slices.DeleteFunc(m.keys, func(k models.Key) bool { return k.Start == start })
 	return nil
@@ -55,9 +55,10 @@ func newTracker(t *testing.T, timers map[int]int64) *LogTracker {
 	rules.CC.Names = []string{"Capacitor Totem"}
 	// Voidscar Arena's avoidable list has Light Bolt, so TestShortKeyIsReadAndSaved's hit counts as avoidable.
 	// The Radiant Spellsower (NPC 245336) is a quarter of the forces. Den of Nalorakk's (586) mob 3 is a boss.
-	facts := map[int]models.DungeonFacts{586: {Minibosses: []int{245331, 245332}, Bosses: []int{245333}}, 585: {Avoidable: []int{1238063}, MustStop: []int{1238063}, Dispel: []int{1234846},
-		Floors: []models.DungeonFloor{{RaidMap: models.RaidMap{UIMapID: 2610}, Tiles: "midnight/voidscar_arena/1"}},
-		Forces: models.Forces{Total: 40, NPCs: map[int]int{245336: 10}}}}
+	facts := map[int]models.DungeonFacts{586: {Minibosses: []int{245331, 245332}, Bosses: []int{245333}},
+		585: {Avoidable: []int{1238063}, MustStop: []int{1238063}, Dispel: []int{1234846},
+			Floors: []models.DungeonFloor{{RaidMap: models.RaidMap{UIMapID: 2610}, Tiles: "midnight/voidscar_arena/1"}},
+			Forces: models.Forces{Total: 40, NPCs: map[int]int{245336: 10}}}}
 	keys, err := NewLogTracker(timers, map[int]string{9: "Tyrannical"}, rules, facts, &memStore{})
 	if err != nil {
 		t.Fatal(err)
@@ -160,9 +161,9 @@ func TestADeathsDefensiveIsOnlyTheirOwn(t *testing.T) {
 	}
 }
 
-// TestShortKeyIsReadAndSaved reads one short key: an interrupt, a pet's hit counted to its owner, a heal, a dispel, an avoidable
-// hit taken, a defensive just before a death, the buffs each player lacked at the start, and the key saved when it
-// ends.
+// TestShortKeyIsReadAndSaved reads one short key: an interrupt, a pet's hit counted to its owner, a heal, a dispel, an
+// avoidable hit taken, a defensive just before a death, the buffs each player lacked at the start, and the key saved
+// when it ends.
 func TestShortKeyIsReadAndSaved(t *testing.T) {
 	keys := newTracker(t, nil)
 	const shaman = `Player-76-0000BBBB,"Testshaman-Sargeras-US",0x512,0x80000000`
@@ -181,8 +182,10 @@ func TestShortKeyIsReadAndSaved(t *testing.T) {
 		info("Player-76-0000BBBB", "262", "Player-76-0000BBBB,462854,1"),
 		// The shaman's name shows up only after the key started: still in the party.
 		`11/4/2026 19:01:10.000-7  SPELL_AURA_APPLIED,`+shaman+`,`+shaman+`,462854,"Skyfury",0x8,BUFF`,
-		`11/4/2026 19:01:12.000-7  SPELL_AURA_APPLIED_DOSE,`+shaman+`,`+shaman+`,462854,"Skyfury",0x8,BUFF,2`, // a stack: still up
-		`11/4/2026 19:01:19.000-7  SPELL_CAST_SUCCESS,`+shaman+`,`+none+`,nil,0x80000000,0x80000000,192058,"Capacitor Totem",0x8,`+
+		// a stack: still up
+		`11/4/2026 19:01:12.000-7  SPELL_AURA_APPLIED_DOSE,`+shaman+`,`+shaman+`,462854,"Skyfury",0x8,BUFF,2`,
+		`11/4/2026 19:01:19.000-7  SPELL_CAST_SUCCESS,`+shaman+`,`+none+`,nil,0x80000000,0x80000000,192058,`+
+			`"Capacitor Totem",0x8,`+
 			advancedOf("Player-76-0000BBBB", none),
 		`11/4/2026 19:01:20.000-7  SPELL_INTERRUPT,`+shaman+`,`+mob+`,57994,"Wind Shear",0x8,1238063,"Light Bolt",2`,
 		`11/4/2026 19:01:21.000-7  SWING_DAMAGE,`+petGUID+`,"Greater Earth Elemental",0x1114,0x80000000,`+mob+`,`+
@@ -191,8 +194,10 @@ func TestShortKeyIsReadAndSaved(t *testing.T) {
 			advancedOf(mobGUID, none)+`,5000,5000,-1,64,0,0,0,nil,nil,nil,ST`,
 		`11/4/2026 19:01:23.000-7  SPELL_HEAL,`+shaman+`,`+testPlayer+`,77472,"Healing Wave",0x8,`+
 			advancedOf("Player-76-0000AAAA", none)+`,3000,3000,1000,0,nil`,
-		`11/4/2026 19:01:23.500-7  SPELL_DISPEL,`+shaman+`,`+testPlayer+`,51886,"Cleanse Spirit",0x8,1234846,"Gorge",0x1,DEBUFF`,
-		`11/4/2026 19:01:24.000-7  SPELL_CAST_SUCCESS,`+testPlayer+`,`+none+`,nil,0x80000000,0x80000000,45438,"Ice Block",0x10,`+
+		`11/4/2026 19:01:23.500-7  SPELL_DISPEL,`+shaman+`,`+testPlayer+`,51886,"Cleanse Spirit",0x8,1234846,"Gorge",0x1,`+
+			`DEBUFF`,
+		`11/4/2026 19:01:24.000-7  SPELL_CAST_SUCCESS,`+testPlayer+`,`+none+`,nil,0x80000000,0x80000000,45438,`+
+			`"Ice Block",0x10,`+
 			advancedOf("Player-76-0000AAAA", none),
 		`11/4/2026 19:01:25.000-7  SPELL_DAMAGE,`+mob+`,`+testPlayer+`,1238063,"Light Bolt",0x2,`+
 			advancedOf("Player-76-0000AAAA", none)+`,9000,9000,100,2,0,0,0,nil,nil,nil,ST`,
@@ -220,7 +225,8 @@ func TestShortKeyIsReadAndSaved(t *testing.T) {
 		t.Fatalf("meter = %+v; want 5000, the pet's 1000 to the shaman, 2000 healing, an interrupt and a dispel, "+
 			"9000 avoidable taken, and classes", got.Overall.Rows)
 	}
-	if d := got.Deaths[0]; d.Killer != "Radiant Spellsower" || d.Ability != "Light Bolt" || d.Defensive != "Ice Block" || !d.Used ||
+	if d := got.Deaths[0]; d.Killer != "Radiant Spellsower" || d.Ability != "Light Bolt" || d.Defensive != "Ice Block" ||
+		!d.Used ||
 		!slices.ContainsFunc(got.Casts, func(c models.KeyCast) bool { return c.Kind == "defensive" }) ||
 		!slices.ContainsFunc(got.Casts, func(c models.KeyCast) bool { return c.Kind == "cc" && c.Player == "Testshaman" }) {
 		t.Fatalf("death = %+v, casts %+v; want killed by Light Bolt with Ice Block just before", d, got.Casts)
@@ -253,7 +259,8 @@ func TestShortKeyIsReadAndSaved(t *testing.T) {
 		t.Fatalf("logger = %q, realms %v; want Testmage, whose unit flags say the log is theirs, and the shaman's realm",
 			got.Logger, got.Realms)
 	}
-	if r := got.Resurrections; len(r) != 1 || r[0].By != "Testshaman" || r[0].Player != "Testmage" || r[0].ClockMS != 32_000 { // 26 s of log, the death's penalty and the countdown
+	if r := got.Resurrections; len(r) != 1 || r[0].By != "Testshaman" || r[0].Player != "Testmage" ||
+		r[0].ClockMS != 32_000 { // 26 s of log, the death's penalty and the countdown
 		t.Fatalf("resurrections = %+v; want the shaman bringing Testmage back at 0:32 on the key clock", r)
 	}
 	if a := got.Activity["Testmage"]; a <= 0 || a > 100 || got.Lusts == nil || got.BetweenPulls == nil {
@@ -268,7 +275,8 @@ func TestShortKeyIsReadAndSaved(t *testing.T) {
 		sky[0].ToMS <= sky[0].FromMS {
 		t.Fatalf("buffs = %+v, %v; want the shaman's own Skyfury as one stretch to the end", track.Buffs, err)
 	}
-	if me := track.Players["Testmage"]; err != nil || len(me) == 0 || me[0].X != 1599.81 || me[0].Map != 2610 || me[0].HP != 100 ||
+	if me := track.Players["Testmage"]; err != nil || len(me) == 0 || me[0].X != 1599.81 || me[0].Map != 2610 ||
+		me[0].HP != 100 ||
 		len(track.Deaths) != 1 || track.Deaths[0].Name != "Radiant Spellsower" || track.Classes["Testmage"] != "Mage" ||
 		len(track.Meters["Testmage"]) == 0 {
 		t.Fatalf("track = %+v, %v; want the mage's position and the mob's death", track, err)
@@ -277,7 +285,8 @@ func TestShortKeyIsReadAndSaved(t *testing.T) {
 		t.Fatalf("mobs = %+v; want the Spellsower's trail", track.Mobs)
 	}
 	for _, m := range track.Mobs {
-		if m.Name != "Radiant Spellsower" || len(m.Points) == 0 || m.Points[0].Name != "" || m.Points[0].HP != 100 || m.Died != track.Deaths[0].ClockMS {
+		if m.Name != "Radiant Spellsower" || len(m.Points) == 0 || m.Points[0].Name != "" || m.Points[0].HP != 100 ||
+			m.Died != track.Deaths[0].ClockMS {
 			t.Fatalf("mob trail = %+v; want the name and unnamed points ending at its death %d", m, track.Deaths[0].ClockMS)
 		}
 	}
@@ -297,13 +306,14 @@ func TestShortKeyIsReadAndSaved(t *testing.T) {
 			}
 		}
 	}
-	if !slices.ContainsFunc(track.Casts["Testshaman"], func(c models.TrackCast) bool { return c.Spell == "Capacitor Totem" }) ||
+	if !slices.ContainsFunc(track.Casts["Testshaman"],
+		func(c models.TrackCast) bool { return c.Spell == "Capacitor Totem" }) ||
 		damage != 5000 || len(track.AbilityTimes) == 0 || len(track.TargetSeries["Testmage"]) == 0 {
 		t.Fatalf("track casts %+v, abilities %+v, times %v; want the totem cast and the barrage's 5000 in stretches",
 			track.Casts["Testshaman"], track.Abilities["Testmage"], track.AbilityTimes)
 	}
 	if m, err := keys.DungeonMap(585); err != nil || len(m.Walked) == 0 || len(m.Floors) != 1 {
-		t.Fatalf("dungeon map = %+v, %v; want the saved track's squares and the dungeon file's floor", m, err)
+		t.Fatalf("dungeon map = %+v, %v; want the dungeon file's floor and the saved track's squares", m, err)
 	}
 }
 

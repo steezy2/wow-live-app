@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -137,34 +138,71 @@ const UserAgent = "wow-live (https://github.com/steezy2/wow-live-app)"
 // downloadTimeout bounds one download when the caller gives no HTTP client.
 const downloadTimeout = 2 * time.Minute
 
-// Fresh makes sure path holds url's content no older than maxAge, downloading it (atomically) when it's missing or
-// stale. client may be nil.
-func Fresh(ctx context.Context, client *http.Client, url, path string, maxAge time.Duration) error {
-	if info, err := os.Stat(path); err == nil && time.Since(info.ModTime()) < maxAge {
-		return nil
+// Forever is the maxAge of a file that never changes (a map image, a tile).
+const Forever = 100 * 365 * 24 * time.Hour
+
+// ReadJSON reads the JSON file at path as a T; the error wraps os.ErrNotExist when the file is missing.
+func ReadJSON[T any](path string) (T, error) {
+	var v T
+	data, err := os.ReadFile(path)
+	if err == nil {
+		err = json.Unmarshal(data, &v)
 	}
+	if err != nil {
+		return v, fmt.Errorf("reading %s: %w", path, err)
+	}
+	return v, nil
+}
+
+// Fresh returns url's content, kept at path: read from there when it's no older than maxAge, else downloaded
+// (atomically) and kept. A stale copy stands in, with the failure logged, when the download fails but the site hasn't
+// said the file is gone. client may be nil.
+func Fresh(ctx context.Context, client *http.Client, url, path string, maxAge time.Duration) ([]byte, error) {
+	info, statErr := os.Stat(path)
+	if statErr == nil && time.Since(info.ModTime()) < maxAge {
+		return readKept(path)
+	}
+	data, err := download(ctx, client, url, path)
+	if err != nil && statErr == nil && !errors.Is(err, ErrNotFound) {
+		log.Printf("using the stale %s: %v", filepath.Base(path), err)
+		return readKept(path)
+	}
+	return data, err
+}
+
+// readKept reads the file Fresh keeps at path.
+func readKept(path string) ([]byte, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("reading %s: %w", path, err)
+	}
+	return data, nil
+}
+
+// download returns url's content and writes it to path, atomically.
+func download(ctx context.Context, client *http.Client, url, path string) ([]byte, error) {
 	if client == nil {
 		client = &http.Client{Timeout: downloadTimeout}
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		return fmt.Errorf("building request for %s: %w", url, err)
+		return nil, fmt.Errorf("building request for %s: %w", url, err)
 	}
 	req.Header.Set("User-Agent", UserAgent)
 	resp, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("downloading %s: %w", url, err)
+		return nil, fmt.Errorf("downloading %s: %w", url, err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode == http.StatusNotFound {
-		return fmt.Errorf("downloading %s: %w", url, ErrNotFound)
+		return nil, fmt.Errorf("downloading %s: %w", url, ErrNotFound)
 	}
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("downloading %s: %s", url, resp.Status)
+		return nil, fmt.Errorf("downloading %s: %s", url, resp.Status)
 	}
 	data, err := ReadBody(resp.Body)
 	if err != nil {
-		return fmt.Errorf("downloading %s: %w", url, err)
+		return nil, fmt.Errorf("downloading %s: %w", url, err)
 	}
-	return writeBytes(path, data)
+	return data, writeBytes(path, data)
 }
