@@ -77,6 +77,7 @@ type SimEngineSource interface {
 	Path() string
 	Installed() models.SimEngine
 	Install(ctx context.Context) (models.SimEngine, error)
+	UseFile(ctx context.Context, path string) (models.SimEngine, error)
 }
 
 // Sims runs sims on this PC one at a time with the downloaded SimulationCraft and keeps the last keepSims in Dir.
@@ -139,9 +140,9 @@ func (s *Sims) EngineStatus() models.SimEngineStatus {
 		Stale: engine.Installed && age > engineStaleDays*24*time.Hour}
 }
 
-// InstallEngine downloads the engine in the background; poll EngineStatus. It is ErrSimBusy while a sim or another
-// download runs.
-func (s *Sims) InstallEngine() error {
+// InstallEngine installs the engine in the background; poll EngineStatus. With a path it takes the simc.exe there,
+// else it downloads the newest release. It is ErrSimBusy while a sim or another install runs.
+func (s *Sims) InstallEngine(path string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.run != nil || s.installing {
@@ -149,7 +150,12 @@ func (s *Sims) InstallEngine() error {
 	}
 	s.installing, s.installErr = true, ""
 	go func() {
-		_, err := s.Engine.Install(s.base())
+		var err error
+		if path != "" {
+			_, err = s.Engine.UseFile(s.base(), path)
+		} else {
+			_, err = s.Engine.Install(s.base())
+		}
 		s.mu.Lock()
 		defer s.mu.Unlock()
 		s.installing = false
