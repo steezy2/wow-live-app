@@ -19,7 +19,7 @@
   </Resources>
   <Applications>
     <Application Id="WoWLive" Executable="WoW Live.exe" EntryPoint="Windows.FullTrustApplication">
-      <uap:VisualElements DisplayName="WoW Live" Description="Mythic+ keys, read live from World of Warcraft's combat log."
+      <uap:VisualElements DisplayName="WoW Live" Description="Mythic+ keys and raid pulls, read live from World of Warcraft's combat log."
         BackgroundColor="transparent" Square150x150Logo="Square150x150Logo.png" Square44x44Logo="Square44x44Logo.png"/>
     </Application>
   </Applications>

@@ -55,6 +55,11 @@ export function Home({
         <QuickLinks character={character} {...actions} />
         <AtAGlance character={character} />
         <StoragePanel view={view} onSaved={onSaved} />
+        <p className="muted small">
+          World of Warcraft is a trademark of Blizzard Entertainment; WoW Live isn&apos;t affiliated with Blizzard. Maps
+          and patrols: Keystone.guru. Routes and enemies: Mythic Dungeon Tools. Raid maps and top runs: Warcraft Logs.
+          Timers: Raider.IO. Spell text and icons: Wowhead.
+        </p>
       </div>
     </>
   )
