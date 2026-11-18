@@ -237,15 +237,17 @@ function RaidPullView({ pull }: { pull: RaidPull }) {
 }
 
 /** The overlay's card between pulls: how far the last pull got, the boss's health as a bar with tonight's best pull
- * marked, the first deaths (a click on one, when the overlay takes clicks, shows its recap), the top things to fix,
+ * marked, the first deaths (a click on one, when the overlay takes clicks, shows its recap; a click on a raider in a
+ * meter shows their abilities), the top things to fix,
  * and the top damage and healing in two cards (the settings' raid rows each, one over the other or side by side) or,
  * with raidOneCard, one card of the chosen columns ranked by what the settings say. */
 export function RaidOverlayCard(props: {
   pull: RaidPull
   settings: OverlaySettings
   onPickDeath: (death: RaidPull['deaths'][number]) => void
+  onPickPlayer: (player: string) => void
 }) {
-  const { pull, settings, onPickDeath } = props
+  const { pull, settings, onPickDeath, onPickPlayer } = props
   const classes = classesOf(pull)
   const best = pull.comparisons?.tonight
   const more = pull.deaths.length - OVERLAY_DEATHS
@@ -256,6 +258,7 @@ export function RaidOverlayCard(props: {
       title="Damage"
       meter={topMeter(pull.meter, 'dps', raidDpsRows)}
       columns={raidOffense.slice(0, 1)}
+      onPick={onPickPlayer}
     />
   )
   const healing = (
@@ -264,6 +267,7 @@ export function RaidOverlayCard(props: {
       title="Healing"
       meter={topMeter(pull.meter, 'hps', raidHpsRows)}
       columns={defense(false).slice(0, 1)}
+      onPick={onPickPlayer}
     />
   )
   const ids = overlayIds(settings.columns.filter((c) => RAID_OVERLAY_COLUMNS.includes(c)), rankBy, false)
@@ -307,6 +311,7 @@ export function RaidOverlayCard(props: {
             meter={topMeter(pull.meter, rankBy, rankBy === 'hps' ? raidHpsRows : raidDpsRows)}
             columns={ids.map((id) => overlayColumn(id, pull.meter, []))}
             dense
+            onPick={onPickPlayer}
           />
         ) : (
           <div className={settings.raidSideBySide ? 'overlay-meters side' : 'overlay-meters'}>

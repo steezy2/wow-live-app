@@ -1,4 +1,4 @@
-import type { HitRecap, KeyDeath, KeyMeterRow, KeyTrack, KeyView, RaidPull } from './api'
+import type { HitRecap, KeyAbility, KeyDeath, KeyMeterRow, KeyTrack, KeyView, RaidPull } from './api'
 
 /** Dummy data for the overlay's preview (Settings → Overlay → Preview), so every card and option can be tried
  * without a key or a pull. The shapes are cut down to the fields the overlay reads, hence the casts. */
@@ -88,8 +88,35 @@ export const DEMO_KEY = {
   projection: { finalMS: 29 * MIN + 10_000, lowMS: 27 * MIN, highMS: 31 * MIN, chests: 2, odds: [], runs: 3, best: [] },
 } as unknown as KeyView
 
-/** The recaps of the preview key's deaths, shown through the same drill as a real key's. */
-export const DEMO_TRACK = { recaps: keyDeaths.map((d) => recap(d.player, d.clockMS, d.ability)) } as unknown as KeyTrack
+/** What each demo player did (an ability's damage, healing and damage taken) and which enemies they hit. */
+const demoAbilities: Record<string, [string, number, number, number][]> = {
+  Pyrelord: [['Fireball', 420, 0, 0], ['Pyroblast', 300, 0, 0], ['Living Bomb', 90, 0, 0], ['Cleave', 0, 0, 40]],
+  Stabbyone: [['Sinister Strike', 380, 0, 0], ['Eviscerate', 250, 0, 0], ['Kick', 20, 0, 0], ['Cleave', 0, 0, 30]],
+  Moonwhisper: [['Rejuvenation', 0, 300, 0], ['Wrath', 100, 0, 0], ['Regrowth', 0, 210, 0], ['Cleave', 0, 0, 60]],
+  Ironwall: [['Mortal Strike', 260, 0, 0], ['Execute', 160, 0, 0], ['Cleave', 0, 0, 180], ['Fireball', 0, 0, 90]],
+  Lightbringer: [['Smite', 210, 0, 0], ['Flash Heal', 0, 190, 0], ['Power Word: Shield', 0, 120, 0]],
+}
+const demoEnemies = ['Fanatical Bruiser', 'Shadowy Caster', 'Boss']
+const DEMO_END = 23 * MIN + 41_000
+
+/** The preview key's track: the recaps of its deaths and each player's abilities over one stretch of the whole key,
+ * shown through the same drill as a real key's. */
+export const DEMO_TRACK = {
+  recaps: keyDeaths.map((d) => recap(d.player, d.clockMS, d.ability)),
+  abilityTimes: [DEMO_END],
+  abilities: Object.fromEntries(
+    Object.entries(demoAbilities).map(([p, list]) => [
+      p,
+      list.map(([a, d, h, t]) => ({ a, p: [[DEMO_END, d * 1e6, h * 1e6, t * 1e6]] })),
+    ]),
+  ),
+  targetSeries: Object.fromEntries(
+    Object.entries(demoAbilities).map(([p, list]) => {
+      const damage = list.reduce((n, [, d]) => n + d * 1e6, 0)
+      return [p, demoEnemies.map((a, i) => ({ a, p: [[DEMO_END, damage / (2 + i * 2), 0, 0]] }))]
+    }),
+  ),
+} as unknown as KeyTrack
 
 const raidRows = [
   row('Pyrelord', 'Mage', 1_320_000, 3_000),
@@ -119,6 +146,10 @@ const raidDeaths = [
   raidDeath('Sunfire', 4 * MIN + 2_000, 'Rending Claws', false),
 ]
 
+const raidAbilities: KeyAbility[] = Object.entries(demoAbilities).flatMap(([player, list]) =>
+  list.map(([ability, d, h]) => ({ player, ability, damage: d * 5e5, healing: h * 5e5, casts: 20, hits: 40 })),
+)
+
 /** The preview raid pull: a wipe at 18% on pull 7. */
 export const DEMO_RAID = {
   start: DEMO_START,
@@ -137,6 +168,13 @@ export const DEMO_RAID = {
   comparisons: { tonight: { number: 5, bossPct: 9, kill: false, boss: 'Preview Boss', phase: 'P3' } },
   suggestions: ['Use a defensive for Shadow Cleave', 'Soak the Void Eruption with more players'],
   soaks: [],
+  abilities: raidAbilities,
+  taken: Object.entries(demoAbilities).flatMap(([player, list]) =>
+    list.filter(([, , , t]) => t > 0).map(([ability, , , t]) => ({ player, ability, damage: t * 5e5 })),
+  ),
+  targets: Object.keys(demoAbilities).flatMap((player) =>
+    demoEnemies.map((target, i) => ({ player, target, damage: 2e8 / (1 + i * 2) })),
+  ),
 } as unknown as RaidPull
 
 /** The recaps of the preview pull's deaths. */
