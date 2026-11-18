@@ -237,7 +237,8 @@ function RaidPullView({ pull }: { pull: RaidPull }) {
 }
 
 /** The overlay's card between pulls: how far the last pull got, the boss's health as a bar with tonight's best pull
- * marked, the first deaths (a click on one, when the overlay takes clicks, shows its recap), the top things to fix,
+ * marked, the first deaths (a click on one, when the overlay takes clicks, shows its recap; a click on a raider in a
+ * meter shows their abilities), the top things to fix,
  * and the top damage and healing in two cards (the settings' raid rows each, one over the other or side by side) or,
  * with raidOneCard, one card of the chosen columns ranked by what the settings say. */
 export function RaidOverlayCard(props: {

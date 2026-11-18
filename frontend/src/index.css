@@ -996,7 +996,7 @@ html:has(.overlay) {
 }
 
 /* A breakdown lists its rows in full: the overlay never scrolls. */
-.overlay .scroll {
+.overlay .drill .scroll {
   max-height: none;
   overflow: visible;
 }
