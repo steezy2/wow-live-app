@@ -1009,7 +1009,7 @@ html:has(.overlay) {
   margin: 0;
 }
 
-/* The raid card's rows under its title and bar: deaths, what to fix, and the top DPS and HPS side by side. */
+/* The raid card's rows under its title and bar: deaths, what to fix, and the top DPS and HPS one over the other. */
 .overlay-rows {
   display: grid;
   gap: 2px;
@@ -1022,20 +1022,17 @@ html:has(.overlay) {
 
 .overlay-meters {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  grid-template-columns: 1fr; /* Damage over Healing, never side by side */
   gap: var(--s1);
+}
+
+.overlay-meters.side {
+  grid-template-columns: 1fr 1fr;
 }
 
 .overlay-meters .card {
   min-width: 0;
   overflow: hidden;
-}
-
-/* Strip mode: an overlay made this short keeps only the clock, timer, forces and deaths. */
-@media (max-height: 160px) {
-  .overlay-extra {
-    display: none;
-  }
 }
 
 .overlay.moving {
