@@ -5,6 +5,9 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 ## [Unreleased]
 
 ### Changed
+- **A click on a player in the overlay shows the main window's two cards in one:** damage by ability and into each enemy, then healing by ability and the damage they took. It works on the raid overlay's meters too (the whole pull), and in both previews. The breakdown lists its rows in full, with no scrollbar.
+
+### Changed
 - **The raid overlay no longer opens on a death's recap** after a pull; only a new Mythic+ death shows its recap by itself (Settings has the seconds), and a click on a raid death line opens its recap.
 - **Death lines look clickable** on the overlay (a pointer and an arrow) while it takes clicks.
 

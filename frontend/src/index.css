@@ -995,6 +995,12 @@ html:has(.overlay) {
   padding: 0;
 }
 
+/* A breakdown lists its rows in full: the overlay never scrolls. */
+.overlay .scroll {
+  max-height: none;
+  overflow: visible;
+}
+
 .overlay p {
   margin: 0;
 }

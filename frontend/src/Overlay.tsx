@@ -1,5 +1,5 @@
-import { type CSSProperties, type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
-import { abilityViews, raidTargets } from './abilities'
+import { type CSSProperties, Fragment, type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
+import { abilityViews, raidTargets, type AbilityRow } from './abilities'
 import {
   fetchSettings,
   onAppEvent,
@@ -247,12 +247,21 @@ function useKeyTrack(key: KeyView) {
   return demo ? DEMO_TRACK : track
 }
 
-/** The raid overlay between pulls: the pull's card, in place of which a death's recap shows when one of its lines
- * was clicked. */
+/** The raid overlay between pulls: the pull's card, in place of which a click on a death line shows its recap and a
+ * click on a raider in a meter their abilities. */
 function OverlayRaid({ pull, settings }: { pull: RaidPull; settings: OverlaySettings }) {
-  const [picked, setPicked] = useState<RaidPull['deaths'][number]>()
-  if (!picked) return <RaidOverlayCard pull={pull} settings={settings} onPickDeath={setPicked} />
-  return <RaidRecap pull={pull} death={picked} onBack={() => setPicked(undefined)} />
+  const [picked, setPicked] = useState<{ death?: RaidPull['deaths'][number]; player?: string }>()
+  const back = () => setPicked(undefined)
+  if (picked?.death) return <RaidRecap pull={pull} death={picked.death} onBack={back} />
+  if (picked?.player) return <RaidBreakdown pull={pull} player={picked.player} onBack={back} />
+  return (
+    <RaidOverlayCard
+      pull={pull}
+      settings={settings}
+      onPickDeath={(death) => setPicked({ death })}
+      onPickPlayer={(player) => setPicked({ player })}
+    />
+  )
 }
 
 /** The death to show a recap of without a click: once deaths has grown, the newest stays up for seconds (0 is off) or
@@ -305,9 +314,54 @@ function RaidRecap(props: { pull: RaidPull; death: KeyDeath; onBack: () => void 
   return <RecapDrill title={`Pull ${props.pull.number}`} death={props.death} track={track} onBack={props.onBack} />
 }
 
-/** A player's top abilities from the key's clock from to to (the last pull, or the whole key so far), from the live
- * track's ability stretches: their damage over their damage into each enemy, or their healing when they healed more.
- * A click on the title, a right click or Esc goes back. */
+/** What a player's drill lists: their damage by ability and into each enemy, their healing by ability and what they
+ * took damage from, like the main window's two drill cards. */
+type PlayerViews = Record<'damage' | 'targets' | 'healing' | 'taken', AbilityRow[]>
+
+/** The drill sections, in order: the key of the views, their heading and what the rows are called. */
+const DRILL_SECTIONS = [
+  ['damage', 'Damage done', 'Ability'],
+  ['targets', 'Damage into each enemy', 'Enemy'],
+  ['healing', 'Healing done', 'Ability'],
+  ['taken', 'Damage taken from', 'Ability'],
+] as const
+
+/** A player's breakdown card in place of the meters (the sections that have rows); without views, loading or why
+ * there is none. A click on the title, a right click or Esc goes back. */
+function PlayerDrill(props: {
+  title: string
+  player: string
+  color: string
+  views: PlayerViews | undefined
+  loading: boolean
+  onBack: () => void
+}) {
+  const { title, player, color, views, loading, onBack } = props
+  return (
+    <Drill title={title} heading={player} onBack={onBack}>
+      {views ? (
+        DRILL_SECTIONS.filter(([key]) => views[key].length > 0).map(([key, heading, label]) => (
+          <Fragment key={key}>
+            <h3 className="muted small">{heading}</h3>
+            <AbilityBars rows={views[key]} color={color} label={label} limit={OVERLAY_SPELLS} />
+          </Fragment>
+        ))
+      ) : loading ? (
+        <Skeleton height={64} />
+      ) : (
+        <p className="muted">No ability timeline for this fight</p>
+      )}
+    </Drill>
+  )
+}
+
+/** A player's drill from abilities, what they took and their damage into each enemy. */
+function playerViews(player: string, got: NonNullable<ReturnType<typeof abilitiesBetween>>) {
+  return { ...abilityViews(player, got.abilities, got.taken), targets: raidTargets(got.targets, player) }
+}
+
+/** A player's drill for the key's clock from to to (the last pull, or the whole key so far), from the live track's
+ * ability stretches. */
 function Breakdown(props: {
   keyView: KeyView
   player: string
@@ -319,23 +373,19 @@ function Breakdown(props: {
   const { keyView: key, player, title, from, to, onBack } = props
   const track = useKeyTrack(key)
   const between = track ? abilitiesBetween(track, key, player, from, to) : undefined
-  const views = between && abilityViews(player, between.abilities, between.taken)
-  const sum = (rows: { value: number }[]) => rows.reduce((n, r) => n + r.value, 0)
-  const healer = views !== undefined && sum(views.healing) > sum(views.damage)
   const color = classColors[key.overall.rows.find((r) => r.player === player)?.class ?? ''] ?? 'var(--accent)'
-  const targets = healer ? [] : raidTargets(between?.targets, player)
-  return (
-    <Drill title={title} heading={`${player} · ${healer ? 'Healing' : 'Damage'}`} onBack={onBack}>
-      {views ? (
-        <>
-          <AbilityBars rows={healer ? views.healing : views.damage} color={color} limit={OVERLAY_SPELLS} />
-          {targets.length > 0 && <AbilityBars rows={targets} color={color} label="Enemy" limit={OVERLAY_SPELLS} />}
-        </>
-      ) : (
-        track ? <p className="muted">No ability timeline for this key</p> : <Skeleton height={64} />
-      )}
-    </Drill>
-  )
+  const views = between && playerViews(player, between)
+  return <PlayerDrill title={title} player={player} color={color} views={views} loading={!track} onBack={onBack} />
+}
+
+/** A raider's drill for the whole pull, from what the pull saved (missing in pulls saved before Nov 11). */
+function RaidBreakdown(props: { pull: RaidPull; player: string; onBack: () => void }) {
+  const { pull, player, onBack } = props
+  const color = classColors[pull.meter.rows.find((r) => r.player === player)?.class ?? ''] ?? 'var(--accent)'
+  const { abilities, taken = [], targets } = pull
+  const views = abilities && playerViews(player, { abilities, taken, targets })
+  const title = `Pull ${pull.number}`
+  return <PlayerDrill title={title} player={player} color={color} views={views} loading={false} onBack={onBack} />
 }
 
 /** A card the overlay shows in place of the meters: a title button, a right click or Esc goes back. */
