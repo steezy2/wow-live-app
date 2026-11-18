@@ -700,7 +700,7 @@ type OverlaySettings struct {
 	// Damage and Healing cards (the default).
 	SplitCards  bool `json:"splitCards"`
 	RaidOneCard bool `json:"raidOneCard"`
-	// DeathRecapSeconds is how long a new death's recap shows over the cards without a click; 0 is off.
+	// DeathRecapSeconds is how long a new death's recap shows over the cards without a click: 0 for off, else 3 to 60.
 	DeathRecapSeconds int `json:"deathRecapSeconds" minimum:"0" maximum:"60"`
 }
 

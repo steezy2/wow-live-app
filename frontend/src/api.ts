@@ -1004,9 +1004,10 @@ export type OverlayPreview = 'mplus' | 'raid'
 export function previewOverlay(kind?: OverlayPreview | ''): void {
   emitAppEvent('overlay-preview', kind)
 }
-/** Tells the desktop app the overlay content's size at zoom 1, so it holds the window to that shape. */
-export function overlayShape(width: number, height: number): void {
-  emitAppEvent('overlay-shape', [width, height])
+/** Tells the desktop app the overlay content's size at zoom 1 and the page's zoom limits, so it holds the window to
+ * that shape and between those sizes. */
+export function overlayShape(width: number, height: number, zoomMin: number, zoomMax: number): void {
+  emitAppEvent('overlay-shape', [width, height, zoomMin, zoomMax])
 }
 
 /** The desktop app's settings, with whether the log folder exists, when the game last wrote a log there (0 for

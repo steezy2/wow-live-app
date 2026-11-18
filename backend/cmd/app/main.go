@@ -159,7 +159,7 @@ func run() error {
 	var moving atomic.Bool
 	// Between raid pulls the overlay shows the last pull for service.RaidLinger.
 	betweenPulls := func() bool { return site.Keys.BetweenPulls(time.Now().UnixMilli()) }
-	var hidden atomic.Bool // hidden by hideOverlay; moving or previewing the overlay shows it anyway
+	var hidden atomic.Bool   // hidden by hideOverlay; moving or previewing the overlay shows it anyway
 	var preview atomic.Value // "mplus" or "raid" while the Settings page has the overlay show dummy data, else ""
 	preview.Store("")
 	up := func(show string) bool {
@@ -220,7 +220,10 @@ func run() error {
 	})
 	wails.Event.On("overlay-preview", func(e *application.CustomEvent) {
 		if kind, ok := e.Data.(string); ok { // else a page asking what it shows
-			preview.Store(map[string]string{"mplus": "mplus", "raid": "raid"}[kind])
+			if kind != "mplus" && kind != "raid" {
+				kind = ""
+			}
+			preview.Store(kind)
 			showOrHide(settings.Current().Overlay.Show)
 		}
 		wails.Event.Emit("overlay-previewing", preview.Load())
@@ -234,11 +237,13 @@ func run() error {
 	// The overlay page's content shape: the window follows it while it is moved or resized.
 	shape := &holdShape{window: overlay}
 	wails.Event.On("overlay-shape", func(e *application.CustomEvent) {
-		if size, ok := e.Data.([]any); ok && len(size) == 2 {
-			w, _ := size[0].(float64)
-			h, _ := size[1].(float64)
-			if w > 0 && h > 0 {
-				shape.report(w, h)
+		if size, ok := e.Data.([]any); ok && len(size) == 4 {
+			var n [4]float64
+			for i := range n {
+				n[i], _ = size[i].(float64)
+			}
+			if n[0] > 0 && n[1] > 0 {
+				shape.report(n[0], n[1], n[2], n[3])
 			}
 		}
 	})
@@ -290,16 +295,19 @@ func run() error {
 	go func() {
 		var hide *time.Timer
 		forRaid := false // the overlay is up for the last raid pull, until the next pull or key
-		var lastKey int64
-		wasBetween := false
+		key, _ := site.Keys.Latest(time.Now().UnixMilli())
+		lastKey, lastPull := key.Start, site.Keys.LastPullStart()
 		for v := range versions {
 			wails.Event.Emit("change", v)
 			key, _ := site.Keys.Latest(time.Now().UnixMilli())
-			between := betweenPulls()
-			if hidden.Load() && (key.Status == models.StatusRunning && key.Start != lastKey || between && !wasBetween) {
-				setHidden(false) // a new key or raid pull brings it back
+			pull := site.Keys.LastPullStart()
+			if key.Status == models.StatusRunning && key.Start != lastKey || pull != lastPull {
+				// a new key or raid pull brings the overlay back and ends a preview
+				preview.Store("")
+				wails.Event.Emit("overlay-previewing", "")
+				setHidden(false)
 			}
-			lastKey, wasBetween = key.Start, between
+			lastKey, lastPull = key.Start, pull
 			switch {
 			case up(settings.Current().Overlay.Show):
 				if hide != nil {

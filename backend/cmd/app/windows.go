@@ -37,38 +37,34 @@ func fit(p app.Place, screens []application.Rect) (application.Rect, bool) {
 	return application.Rect{}, false
 }
 
-// Zoom limits of the overlay page (useFitZoom's FIT_MIN and FIT_MAX), which bound the window's size to the content's.
-const fitMin, fitMax = 0.5, 2.0
-
-// fitHeight is the height that gives a window of width the shape of content w by h.
-func fitHeight(width int, w, h float64) int {
-	return int(math.Round(float64(width) * h / w))
-}
-
 // holdShape keeps the overlay the shape of its content, which its page reports (the content's size at zoom 1): the
 // page scales the content to the window, so only that shape leaves no side spare.
 type holdShape struct {
 	window *application.WebviewWindow
-	w, h   atomic.Uint64 // the content's size as float64 bits; 0 until the page reports
+	ratio  atomic.Uint64 // the content's height over its width, as float64 bits; 0 until the page reports
 }
 
 // report takes the content's size from the page, limits the window's size to the page's zoom limits of it and
 // re-shapes the window.
-func (s *holdShape) report(w, h float64) {
-	s.w.Store(math.Float64bits(w))
-	s.h.Store(math.Float64bits(h))
-	s.window.SetMinSize(int(w*fitMin), int(h*fitMin)).SetMaxSize(int(w*fitMax), int(h*fitMax))
+func (s *holdShape) report(w, h, zoomMin, zoomMax float64) {
+	s.ratio.Store(math.Float64bits(h / w))
+	s.window.SetMinSize(int(w*zoomMin), int(h*zoomMin)).SetMaxSize(int(w*zoomMax), int(h*zoomMax))
 	s.apply()
 }
 
-// apply sets the window's height to its width's shape of the content, when that isn't its height already.
+// apply sets the window's height to its width's shape of the content (at most the screen's), when that isn't its
+// height already.
 func (s *holdShape) apply() {
-	w, h := math.Float64frombits(s.w.Load()), math.Float64frombits(s.h.Load())
-	if w == 0 {
+	ratio := math.Float64frombits(s.ratio.Load())
+	if ratio == 0 {
 		return
 	}
 	width, height := s.window.Size()
-	if want := fitHeight(width, w, h); want != height {
+	want := int(math.Round(float64(width) * ratio))
+	if screen, _ := s.window.GetScreen(); screen != nil {
+		want = min(want, screen.WorkArea.Height)
+	}
+	if want != height {
 		s.window.SetSize(width, want)
 	}
 }

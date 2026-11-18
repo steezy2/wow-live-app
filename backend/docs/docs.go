@@ -4255,7 +4255,7 @@ const docTemplate = `{
                     }
                 },
                 "deathRecapSeconds": {
-                    "description": "DeathRecapSeconds is how long a new death's recap shows over the cards without a click; 0 is off.",
+                    "description": "DeathRecapSeconds is how long a new death's recap shows over the cards without a click: 0 for off, else 3 to 60.",
                     "type": "integer",
                     "maximum": 60,
                     "minimum": 0

@@ -12,7 +12,7 @@ import {
   type RaidPullSummary,
 } from './api'
 import { clock, counted, isWeekLabel, progressText } from './format'
-import { defense, overlayColumn, overlayIds, RAID_OVERLAY_COLUMNS, raidOffense } from './meterColumns'
+import { defense, overlayColumn, overlayIds, RAID_OVERLAY_COLUMNS, raidOffense, rankOrder } from './meterColumns'
 import { MeterCard } from './MeterCards'
 import { ReportLinks, ReportTag } from './ReportLinks'
 import { fightTabs, pullFightData } from './KeyTabs'
@@ -311,7 +311,7 @@ export function RaidOverlayCard(props: {
             dense
           />
         ) : (
-          <div className="overlay-meters">{rankBy === 'hps' ? [healing, damage] : [damage, healing]}</div>
+          <div className="overlay-meters">{rankOrder(rankBy).map((by) => (by === 'hps' ? healing : damage))}</div>
         )}
       </div>
     </>

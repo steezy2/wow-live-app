@@ -67,7 +67,7 @@ export function SettingsPage({
     }, OVERLAY_SAVE_MS)
     return () => clearTimeout(timer)
   }, [overlay, view, onSaved, setOverlayNote])
-  const columns = view.overlayColumns.filter((id) => overlay.oneCard || id !== 'pullDps')
+  const columns = view.overlayColumns.filter((id) => overlay.oneCard && !overlay.splitCards || id !== 'pullDps')
   const allowed = RECAP_CHOICES.filter((n) => n >= view.minRecapSeconds && n <= view.maxRecapSeconds)
   const recapSeconds = [...new Set([0, ...allowed, overlay.deathRecapSeconds])].sort((a, b) => a - b)
   const save = (e: FormEvent) => {

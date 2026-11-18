@@ -18,7 +18,7 @@ import { Skeleton } from './Skeleton'
 import { chestLabel, clock, pullTitle, resultText, routeLine } from './format'
 import { HitRecapView } from './HitRecap'
 import { ForcesBar, TimerBar } from './KeyDetails'
-import { healersOnly, overlayColumn, overlayIds } from './meterColumns'
+import { healersOnly, overlayColumn, overlayIds, rankOrder } from './meterColumns'
 import { MeterCard } from './MeterCards'
 import { RaidOverlayCard } from './RaidPage'
 import { abilitiesBetween, recapOf, useRaidTrack, useTrack } from './replay'
@@ -36,6 +36,10 @@ const OVERLAY_RECAP_ROWS = 12
 const FIT_MIN = 0.5
 const FIT_MAX = 2
 
+/** How much the content's size must change (as a share) before the app is told, so a number growing a digit doesn't
+ * resize the window on every poll. */
+const SHAPE_CHANGE = 0.01
+
 /** Scales the overlay to its window with CSS zoom on root: the content's size at zoom 1 (its measured size divided
  * by the current zoom) against the window's, so nothing scrolls. The app holds the window to that size's shape (told
  * with overlayShape), so no side is left spare. Returns the refs for the root and the content. */
@@ -43,15 +47,17 @@ function useFitZoom() {
   const root = useRef<HTMLDivElement>(null)
   const content = useRef<HTMLDivElement>(null)
   useEffect(() => {
-    let told = ''
+    let told = [0, 0] // the content size the app was last told
     const fit = () => {
       if (!root.current || !content.current) return
       const zoom = Number(root.current.style.zoom) || 1
       const { width, height } = content.current.getBoundingClientRect()
       if (!width || !height) return
-      const shape = [Math.round(width / zoom), Math.round(height / zoom)]
-      if (shape.join() !== told) overlayShape(shape[0], shape[1])
-      told = shape.join()
+      const shape = [width / zoom, height / zoom]
+      if (shape.some((n, i) => Math.abs(n / told[i] - 1) > SHAPE_CHANGE)) {
+        overlayShape(Math.round(shape[0]), Math.round(shape[1]), FIT_MIN, FIT_MAX)
+        told = shape
+      }
       const next = Math.min(window.innerWidth / (width / zoom), window.innerHeight / (height / zoom))
       const clamped = Math.min(FIT_MAX, Math.max(FIT_MIN, next))
       if (Math.abs(clamped - zoom) > 0.005) root.current.style.zoom = String(clamped)
@@ -140,7 +146,7 @@ function OverlayKey(props: { keyView: KeyView; clockMS: number; settings: Overla
   const pullDeaths = key.deaths.filter((d) => d.clockMS >= last.startMS && d.clockMS <= last.endMS)
   const columns = (ids: OverlayColumn[], deaths: KeyDeath[]) => ids.map((id) => overlayColumn(id, last, deaths))
   const ids = overlayIds(settings.columns, settings.rankBy, settings.oneCard)
-  const [fresh, dismissFresh] = useFreshDeath(key.deaths, settings.deathRecapSeconds, latestDeath, false)
+  const [fresh, dismissFresh] = useFreshDeath(key.deaths, settings.deathRecapSeconds, false)
   return (
     <>
       <div className="overlay-clock">
@@ -188,7 +194,7 @@ function OverlayKey(props: { keyView: KeyView; clockMS: number; settings: Overla
             onBack={back}
           />
         ) : settings.splitCards ? (
-          (settings.rankBy === 'hps' ? (['hps', 'dps'] as const) : (['dps', 'hps'] as const)).map((by) => (
+          rankOrder(settings.rankBy).map((by) => (
             <MeterCard
               key={by}
               title={by.toUpperCase()}
@@ -235,28 +241,26 @@ function OverlayKey(props: { keyView: KeyView; clockMS: number; settings: Overla
 
 /** The key's live track, or the preview's dummy one. */
 function useKeyTrack(key: KeyView) {
-  const track = useTrack(key.start, key.status === 'running')
-  return key.start === DEMO_START ? DEMO_TRACK : track
+  const demo = key.start === DEMO_START
+  const track = useTrack(key.start, !demo && key.status === 'running')
+  return demo ? DEMO_TRACK : track
 }
 
 /** The raid overlay between pulls: the pull's card, in place of which a death's recap shows when one of its lines
  * was clicked, or for the settings' seconds after the pull ends (the first death's; a raid log is written in batches,
  * so there is no newest one to show live). */
 function OverlayRaid({ pull, settings }: { pull: RaidPull; settings: OverlaySettings }) {
-  const [fresh, dismiss] = useFreshDeath(pull.deaths, settings.deathRecapSeconds, firstDeath, pull.start !== DEMO_START)
+  const [fresh, dismiss] = useFreshDeath(pull.deaths, settings.deathRecapSeconds, pull.start !== DEMO_START)
   const [picked, setPicked] = useState<RaidPull['deaths'][number]>()
   const death = picked ?? fresh
   if (!death) return <RaidOverlayCard pull={pull} settings={settings} onPickDeath={setPicked} />
   return <RaidRecap pull={pull} death={death} onBack={picked ? () => setPicked(undefined) : dismiss} />
 }
 
-/** The newest and the oldest of a list of deaths. */
-const latestDeath = <D,>(deaths: D[]) => deaths[deaths.length - 1]
-const firstDeath = <D,>(deaths: D[]) => deaths[0]
-
-/** The death to show a recap of without a click: once deaths has grown (at first, with fromStart, from none), pick's
- * choice stays up for seconds (0 is off) or until dismissed. */
-function useFreshDeath<D>(deaths: D[], seconds: number, pick: (deaths: D[]) => D, fromStart: boolean) {
+/** The death to show a recap of without a click: once deaths has grown (at first, with fromStart, from none), the
+ * newest, or with fromStart the first (a raid log is written in batches), stays up for seconds (0 is off) or until
+ * dismissed. */
+function useFreshDeath<D>(deaths: D[], seconds: number, fromStart: boolean) {
   const seen = useRef(fromStart ? 0 : deaths.length)
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
   const [fresh, setFresh] = useState<D>()
@@ -265,7 +269,7 @@ function useFreshDeath<D>(deaths: D[], seconds: number, pick: (deaths: D[]) => D
     const grew = count > seen.current
     seen.current = count
     if (!grew || !seconds) return
-    setFresh(pick(deaths))
+    setFresh(fromStart ? deaths[0] : deaths[deaths.length - 1])
     clearTimeout(timer.current)
     timer.current = setTimeout(() => setFresh(undefined), seconds * 1000)
     // deaths is read when it grows only: a new array each poll mustn't restart the timer

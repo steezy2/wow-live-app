@@ -95,11 +95,14 @@ export function overlayIds(chosen: OverlayColumn[], rankBy: RankBy, withPullDps:
   return [...(withPullDps && rankBy === 'dps' ? (['pullDps'] as const) : []), rankBy, ...rest]
 }
 
+/** The two ranks in the order their cards show: the one the settings rank by first. */
+export const rankOrder = (rankBy: RankBy) => (rankBy === 'hps' ? (['hps', 'dps'] as const) : (['dps', 'hps'] as const))
+
 /** The meter with only the players who healed, for an HPS card. */
 export const healersOnly = (meter: KeyMeter): KeyMeter => ({ ...meter, rows: meter.rows.filter((r) => r.hps > 0) })
 
-/** The columns the raid overlay's pull can show: the others are a key's (its route, its deaths list or avoidable
- * damage the raid pull doesn't keep per player). */
+/** The settings' columns a raid pull has per-player data for (a client-side subset of the settings' overlayColumns):
+ * the others are a key's (Pull DPS, avoidable and priority damage, deaths, which the raid card lists on its own). */
 export const RAID_OVERLAY_COLUMNS: OverlayColumn[] = ['dps', 'hps', 'kicks', 'taken', 'dispels']
 
 /** An overlay card's column by its settings id: pull is the last pull, for the Pull DPS column, and deaths the deaths

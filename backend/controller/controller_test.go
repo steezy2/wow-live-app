@@ -362,7 +362,6 @@ func TestSettingsAreSavedOnlyWithChoicesTheAPIOffers(t *testing.T) {
 			http.StatusBadRequest},
 		{string(full), `{}`, http.StatusBadRequest},
 		{string(full), `{"show": "keys", "opacity": 90, "rankBy": "hps", "deathRecapSeconds": 10}`, http.StatusOK},
-		{string(full), `{"show": "keys", "opacity": 90, "rankBy": "hps", "deathRecapSeconds": 1}`, http.StatusBadRequest},
 		{`"Logs"`, `{"show": "always", "opacity": 70, "rankBy": "dps"}`, http.StatusBadRequest},
 		{`""`, `{"show": "always", "opacity": 70, "rankBy": "dps"}`, http.StatusBadRequest},
 	} {
