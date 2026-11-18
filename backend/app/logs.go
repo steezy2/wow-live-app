@@ -93,6 +93,8 @@ func (s *Site) Storage() (models.Storage, error) {
 		{"raidPulls", filepath.Join(s.opts.Cache, raidPullsDir)},
 		{"wclImport", filepath.Join(s.opts.Cache, wcl.ImportDir)},
 		{"archive", filepath.Join(dir, combatlog.ArchiveDir)},
+		{"simEngine", filepath.Join(s.opts.Cache, simEngineDir)},
+		{"sims", filepath.Join(s.opts.Cache, simsDir)},
 	} {
 		bytes, err := cachefile.FolderBytes(f.dir)
 		if err != nil {
