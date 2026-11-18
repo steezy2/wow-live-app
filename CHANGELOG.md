@@ -4,12 +4,7 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 
 ## [Unreleased]
 
-### Changed
-- **A click on a player in the overlay shows the main window's two cards in one:** damage by ability and into each enemy, then healing by ability and the damage they took. It works on the raid overlay's meters too (the whole pull), and in both previews. The breakdown lists its rows in full, with no scrollbar.
-
-### Changed
-- **The raid overlay no longer opens on a death's recap** after a pull; only a new Mythic+ death shows its recap by itself (Settings has the seconds), and a click on a raid death line opens its recap.
-- **Death lines look clickable** on the overlay (a pointer and an arrow) while it takes clicks.
+## [0.5.4] - 2026-11-17
 
 ### Added
 - **The overlay can rank by DPS or HPS** (rows and bars), and show a DPS card and an HPS card (healers only) of the key. The raid overlay follows the same rank and has an option for one ranked card in place of its Damage and Healing cards (off, as before).
@@ -20,6 +15,9 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 - **Overlay layouts** (Compact, Standard, Full) fill in the card options in Settings in one click.
 
 ### Changed
+- **A click on a player in the overlay shows the main window's two cards in one:** damage by ability and into each enemy, then healing by ability and the damage they took. It works on the raid overlay's meters too (the whole pull), and in both previews. The breakdown lists its rows in full, with no scrollbar.
+- **The raid overlay no longer opens on a death's recap** after a pull; only a new Mythic+ death shows its recap by itself (Settings has the seconds), and a click on a raid death line opens its recap.
+- **Death lines look clickable** on the overlay (a pointer and an arrow) while it takes clicks.
 - **The overlay window keeps the shape of its content** while it is resized (drag a corner), so it never has a spare side or a scrollbar.
 
 ## [0.5.3] - 2026-11-17
