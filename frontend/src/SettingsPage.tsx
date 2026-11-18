@@ -223,7 +223,7 @@ export function SettingsPage({
           Raid: one ranked card instead of Damage and Healing cards
         </label>
         <label>
-          Show a death's recap for (seconds)
+          Mythic+: show a new death's recap for (seconds)
           <select
             value={overlay.deathRecapSeconds}
             onChange={(e) => setOverlay({ ...overlay, deathRecapSeconds: Number(e.target.value) })}

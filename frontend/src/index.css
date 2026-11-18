@@ -1026,6 +1026,22 @@ html:has(.overlay) {
   gap: var(--s1);
 }
 
+/* With clicks on, a death line shows it opens: a pointer, an arrow and an underline on hover. */
+.overlay.clicks .row-button:not(:disabled) {
+  cursor: pointer;
+}
+
+.overlay.clicks .row-button:not(:disabled)::after {
+  content: '›';
+  padding-left: var(--s1);
+  font-weight: bold;
+  color: var(--accent);
+}
+
+.overlay.clicks .row-button:not(:disabled):hover {
+  text-decoration: underline;
+}
+
 .overlay-meters.side {
   grid-template-columns: 1fr 1fr;
 }

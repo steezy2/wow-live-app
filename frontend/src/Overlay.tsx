@@ -99,11 +99,12 @@ export function Overlay() {
   const settings = useOverlaySettings()
   const raid = useRaidLive(key?.status !== 'running')
   const preview = useOverlayPreview()
+  const clicks = settings && !settings.clickThrough
   const { root, content } = useFitZoom()
   return (
     <div
       ref={root}
-      className={moving ? 'overlay moving' : 'overlay'}
+      className={['overlay', moving && 'moving', clicks && 'clicks'].filter(Boolean).join(' ')}
       style={{ '--overlay-bg': `${settings?.opacity ?? 0}%` } as CSSProperties}
     >
       <div ref={content} className="overlay-fit">
@@ -146,7 +147,7 @@ function OverlayKey(props: { keyView: KeyView; clockMS: number; settings: Overla
   const pullDeaths = key.deaths.filter((d) => d.clockMS >= last.startMS && d.clockMS <= last.endMS)
   const columns = (ids: OverlayColumn[], deaths: KeyDeath[]) => ids.map((id) => overlayColumn(id, last, deaths))
   const ids = overlayIds(settings.columns, settings.rankBy, settings.oneCard)
-  const [fresh, dismissFresh] = useFreshDeath(key.deaths, settings.deathRecapSeconds, false)
+  const [fresh, dismissFresh] = useFreshDeath(key.deaths, settings.deathRecapSeconds)
   return (
     <>
       <div className="overlay-clock">
@@ -247,21 +248,17 @@ function useKeyTrack(key: KeyView) {
 }
 
 /** The raid overlay between pulls: the pull's card, in place of which a death's recap shows when one of its lines
- * was clicked, or for the settings' seconds after the pull ends (the first death's; a raid log is written in batches,
- * so there is no newest one to show live). */
+ * was clicked. */
 function OverlayRaid({ pull, settings }: { pull: RaidPull; settings: OverlaySettings }) {
-  const [fresh, dismiss] = useFreshDeath(pull.deaths, settings.deathRecapSeconds, pull.start !== DEMO_START)
   const [picked, setPicked] = useState<RaidPull['deaths'][number]>()
-  const death = picked ?? fresh
-  if (!death) return <RaidOverlayCard pull={pull} settings={settings} onPickDeath={setPicked} />
-  return <RaidRecap pull={pull} death={death} onBack={picked ? () => setPicked(undefined) : dismiss} />
+  if (!picked) return <RaidOverlayCard pull={pull} settings={settings} onPickDeath={setPicked} />
+  return <RaidRecap pull={pull} death={picked} onBack={() => setPicked(undefined)} />
 }
 
-/** The death to show a recap of without a click: once deaths has grown (at first, with fromStart, from none), the
- * newest, or with fromStart the first (a raid log is written in batches), stays up for seconds (0 is off) or until
- * dismissed. */
-function useFreshDeath<D>(deaths: D[], seconds: number, fromStart: boolean) {
-  const seen = useRef(fromStart ? 0 : deaths.length)
+/** The death to show a recap of without a click: once deaths has grown, the newest stays up for seconds (0 is off) or
+ * until dismissed. */
+function useFreshDeath<D>(deaths: D[], seconds: number) {
+  const seen = useRef(deaths.length)
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
   const [fresh, setFresh] = useState<D>()
   const count = deaths.length
@@ -269,7 +266,7 @@ function useFreshDeath<D>(deaths: D[], seconds: number, fromStart: boolean) {
     const grew = count > seen.current
     seen.current = count
     if (!grew || !seconds) return
-    setFresh(fromStart ? deaths[0] : deaths[deaths.length - 1])
+    setFresh(deaths[deaths.length - 1])
     clearTimeout(timer.current)
     timer.current = setTimeout(() => setFresh(undefined), seconds * 1000)
     // deaths is read when it grows only: a new array each poll mustn't restart the timer

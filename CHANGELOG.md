@@ -4,11 +4,15 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 
 ## [Unreleased]
 
+### Changed
+- **The raid overlay no longer opens on a death's recap** after a pull; only a new Mythic+ death shows its recap by itself (Settings has the seconds), and a click on a raid death line opens its recap.
+- **Death lines look clickable** on the overlay (a pointer and an arrow) while it takes clicks.
+
 ### Added
 - **The overlay can rank by DPS or HPS** (rows and bars), and show a DPS card and an HPS card (healers only) of the key. The raid overlay follows the same rank and has an option for one ranked card in place of its Damage and Healing cards (off, as before).
 - **The raid overlay has its own row counts** for the Damage and Healing cards (5 and 3 by default, 0 for everyone) and an option to put the two cards side by side.
 - **Ctrl+Alt+H hides the overlay** (or the tray's *Hide the overlay*) until the next key or raid pull.
-- **A death's recap shows over the overlay** for 3 to 60 seconds (10 by default, or off) without a click: the key's newest death, and the raid pull's first death once the pull ends. A death line on the raid card opens its recap on a click.
+- **A death's recap shows over the overlay** for 3 to 60 seconds (10 by default, or off) without a click: a new Mythic+ death's. A death line on the raid card opens its recap on a click.
 - **Preview the overlay with dummy data** from Settings (*Preview Mythic+*, *Preview raid*), to try every option without a key or a pull.
 - **Overlay layouts** (Compact, Standard, Full) fill in the card options in Settings in one click.
 
