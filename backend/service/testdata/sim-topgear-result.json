@@ -1,0 +1,16 @@
+{
+  "sim": {
+    "players": [{ "collected_data": { "dps": { "mean": 100000, "mean_std_dev": 50 } }, "stats": [], "buffs": [] }],
+    "profilesets": {
+      "metric": "Damage per Second",
+      "results": [
+        { "name": "combo2", "mean": 99000, "mean_stddev": 61, "mean_error": 120 },
+        { "name": "combo1", "mean": 101000, "mean_stddev": 62, "mean_error": 121 },
+        { "name": "combo5", "mean": 100500, "mean_stddev": 63, "mean_error": 122 },
+        { "name": "combo3", "mean": 103000, "mean_stddev": 64, "mean_error": 123 },
+        { "name": "combo4", "mean": 98000, "mean_stddev": 65, "mean_error": 124 },
+        { "name": "not_ours", "mean": 200000, "mean_stddev": 66, "mean_error": 125 }
+      ]
+    }
+  }
+}
