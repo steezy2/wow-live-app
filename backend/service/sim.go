@@ -84,6 +84,7 @@ type SimEngineSource interface {
 // Sims runs sims on this PC one at a time with the downloaded SimulationCraft and keeps the last keepSims in Dir.
 type Sims struct {
 	Engine SimEngineSource
+	Drops  models.SimDrops // reference/sim-drops.json, for a Droptimizer
 	Dir    string
 	Now    func() time.Time
 	Ctx    context.Context // the app's: canceled on Quit, which stops a running sim and download; nil never cancels
@@ -108,8 +109,13 @@ func (s *Sims) Choices() models.SimChoices {
 	for i, a := range simAccuracies {
 		accuracies[i] = a.Name
 	}
+	keyLevels := make([]int, len(s.Drops.Keys))
+	for i, k := range s.Drops.Keys {
+		keyLevels[i] = k.Level
+	}
 	return models.SimChoices{FightStyles: simFightStyles, Accuracies: accuracies, MinLength: minSimLength,
-		MaxLength: maxSimLength, MaxTargets: maxSimTargets, MaxCombos: maxCombos, Defaults: simDefaults}
+		MaxLength: maxSimLength, MaxTargets: maxSimTargets, MaxCombos: maxCombos, MaxDrops: maxDrops,
+		Difficulties: simDifficulties, KeyLevels: keyLevels, Defaults: simDefaults}
 }
 
 // simAccuracyOf is the accuracy named name, false when there is none.
@@ -180,10 +186,14 @@ func (s *Sims) Start(req models.SimRequest) (models.Sim, error) {
 		return models.Sim{}, err
 	}
 	var combos []gearCombo
-	if req.Kind == "topgear" {
-		if combos, err = topGearCombos(profile, req.Equipped, req.Bags); err != nil {
-			return models.Sim{}, err
-		}
+	switch req.Kind {
+	case "topgear":
+		combos, err = topGearCombos(profile, req.Equipped, req.Bags)
+	case "drops":
+		combos, err = dropCombos(profile, s.Drops, req.Difficulty, req.KeyLevel)
+	}
+	if err != nil {
+		return models.Sim{}, err
 	}
 	if !s.Engine.Installed().Installed {
 		return models.Sim{}, ErrNoEngine

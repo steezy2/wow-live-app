@@ -2778,6 +2778,7 @@ definitions:
         enum:
         - quick
         - topgear
+        - drops
         type: string
       options:
         $ref: '#/definitions/models.SimOptions'
@@ -2834,14 +2835,28 @@ definitions:
         type: array
       defaults:
         $ref: '#/definitions/models.SimOptions'
+      difficulties:
+        items:
+          type: string
+        type: array
       fightStyles:
         items:
           type: string
+        type: array
+      keyLevels:
+        items:
+          type: integer
         type: array
       maxCombos:
         description: MaxCombos is the most gear combinations a Top Gear sim runs;
           a request over it is refused.
         example: 100
+        type: integer
+      maxDrops:
+        description: |-
+          MaxDrops is the most drops a Droptimizer sims; Difficulties are the raid difficulties it can sim the raid at and
+          KeyLevels the Mythic+ key levels it can sim dungeons at.
+        example: 300
         type: integer
       maxLength:
         type: integer
@@ -2852,12 +2867,16 @@ definitions:
     type: object
   models.SimCombo:
     properties:
+      boss:
+        type: string
       dps:
         type: number
       dpsError:
         type: number
       gain:
         type: number
+      source:
+        type: string
       swaps:
         items:
           $ref: '#/definitions/models.SimSwap'
@@ -2970,12 +2989,18 @@ definitions:
         items:
           type: integer
         type: array
+      difficulty:
+        example: heroic
+        type: string
       equipped:
         items:
           type: integer
         type: array
       export:
         type: string
+      keyLevel:
+        example: 10
+        type: integer
       kind:
         example: quick
         type: string
@@ -4751,7 +4776,8 @@ paths:
         Runs SimulationCraft on this PC in the background, one at a time: the pasted export (read again,
         never passed to simc as it is) with the options. Poll the sim by its ID.
       parameters:
-      - description: the kind, the export and the options
+      - description: the kind, the export, the options and, for topgear, the picked
+          equipped and bag indexes
         in: body
         name: body
         required: true
