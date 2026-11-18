@@ -997,6 +997,13 @@ export function moveOverlay(on?: boolean): void {
 export function resetOverlay(): void {
   emitAppEvent('overlay-reset')
 }
+/** What the overlay can show dummy data of: a Mythic+ key or a raid pull. */
+export type OverlayPreview = 'mplus' | 'raid'
+/** Tells the desktop app to show the overlay with dummy data of kind, to stop ('') or, without kind, to say again what
+ * it shows (the 'overlay-previewing' event). */
+export function previewOverlay(kind?: OverlayPreview | ''): void {
+  emitAppEvent('overlay-preview', kind)
+}
 /** Tells the desktop app the overlay content's size at zoom 1, so it holds the window to that shape. */
 export function overlayShape(width: number, height: number): void {
   emitAppEvent('overlay-shape', [width, height])

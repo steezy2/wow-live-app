@@ -159,9 +159,12 @@ func run() error {
 	var moving atomic.Bool
 	// Between raid pulls the overlay shows the last pull for service.RaidLinger.
 	betweenPulls := func() bool { return site.Keys.BetweenPulls(time.Now().UnixMilli()) }
-	var hidden atomic.Bool // hidden by hideOverlay; moving the overlay shows it anyway
+	var hidden atomic.Bool // hidden by hideOverlay; moving or previewing the overlay shows it anyway
+	var preview atomic.Value // "mplus" or "raid" while the Settings page has the overlay show dummy data, else ""
+	preview.Store("")
 	up := func(show string) bool {
-		return moving.Load() || !hidden.Load() && (show == "always" || show == "keys" && (running() || betweenPulls()))
+		wanted := show == "always" || show == "keys" && (running() || betweenPulls())
+		return moving.Load() || preview.Load() != "" || !hidden.Load() && wanted
 	}
 	showOrHide := func(show string) {
 		if up(show) {
@@ -214,6 +217,13 @@ func run() error {
 		} else { // a page asking whether it's moving
 			wails.Event.Emit("overlay-moving", moving.Load())
 		}
+	})
+	wails.Event.On("overlay-preview", func(e *application.CustomEvent) {
+		if kind, ok := e.Data.(string); ok { // else a page asking what it shows
+			preview.Store(map[string]string{"mplus": "mplus", "raid": "raid"}[kind])
+			showOrHide(settings.Current().Overlay.Show)
+		}
+		wails.Event.Emit("overlay-previewing", preview.Load())
 	})
 	defaultPlace := func() {
 		area := wails.Screen.GetPrimary().WorkArea

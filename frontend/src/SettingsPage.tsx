@@ -1,8 +1,10 @@
 import { type FormEvent, useEffect, useState } from 'react'
 import {
   moveOverlay,
+  type OverlayPreview,
   type OverlaySettings,
   type RankBy,
+  previewOverlay,
   resetOverlay,
   savedSettings,
   saveSettings,
@@ -12,7 +14,7 @@ import {
 import { track, useNote } from './note'
 import { NoteLine } from './NoteLine'
 import { OVERLAY_LABELS } from './meterColumns'
-import { useNow, useOverlayMoving } from './useLiveKey'
+import { useNow, useOverlayMoving, useOverlayPreview } from './useLiveKey'
 import { WCLImport } from './WCLImport'
 import { WCLKeys } from './WCLKeys'
 
@@ -25,6 +27,12 @@ const SHOW_LABELS: Record<OverlaySettings['show'], string> = {
 
 /** The seconds a death's recap can be set to, within what the API allows. */
 const RECAP_CHOICES = [5, 10, 20, 30, 60]
+
+/** The overlay's previews with dummy data and their buttons' labels. */
+const PREVIEWS: [OverlayPreview, string][] = [
+  ['mplus', 'Preview Mythic+'],
+  ['raid', 'Preview raid'],
+]
 
 /** How long after the last change to the overlay it's saved, so dragging the opacity slider saves once. */
 const OVERLAY_SAVE_MS = 300
@@ -48,6 +56,7 @@ export function SettingsPage({
   const [game, setGame] = useNote('game')
   const [overlayNote, setOverlayNote] = useNote('overlay')
   const moving = useOverlayMoving()
+  const previewing = useOverlayPreview()
   const now = useNow(60_000)
   useEffect(() => {
     const edited = { ...overlay, clickThrough: view.overlay.clickThrough }
@@ -247,6 +256,16 @@ export function SettingsPage({
           <button type="button" onClick={resetOverlay}>
             Reset position
           </button>
+          {PREVIEWS.map(([kind, label]) => (
+            <button
+              key={kind}
+              type="button"
+              aria-pressed={previewing === kind}
+              onClick={() => previewOverlay(previewing === kind ? '' : kind)}
+            >
+              {previewing === kind ? 'Stop preview' : label}
+            </button>
+          ))}
         </div>
         <p className="muted small">
           {moving

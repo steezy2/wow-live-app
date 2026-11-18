@@ -1031,13 +1031,6 @@ html:has(.overlay) {
   overflow: hidden;
 }
 
-/* Strip mode: an overlay made this short keeps only the clock, timer, forces and deaths. */
-@media (max-height: 160px) {
-  .overlay-extra {
-    display: none;
-  }
-}
-
 .overlay.moving {
   outline: 2px dashed var(--accent);
   outline-offset: -2px;

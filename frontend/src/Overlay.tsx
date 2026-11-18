@@ -22,7 +22,8 @@ import { healersOnly, overlayColumn, overlayIds } from './meterColumns'
 import { MeterCard } from './MeterCards'
 import { RaidOverlayCard } from './RaidPage'
 import { abilitiesBetween, recapOf, useRaidTrack, useTrack } from './replay'
-import { useLiveKey, useOverlayMoving, useRaidLive } from './useLiveKey'
+import { DEMO_KEY, DEMO_RAID, DEMO_RAID_TRACK, DEMO_START, DEMO_TRACK } from './overlayDemo'
+import { useLiveKey, useOverlayMoving, useOverlayPreview, useRaidLive } from './useLiveKey'
 
 /** How many of a player's abilities (and enemies) the overlay's breakdown lists. */
 const OVERLAY_SPELLS = 8
@@ -84,14 +85,14 @@ function useOverlaySettings(): OverlaySettings | null {
 
 /** The overlay over the game (/overlay, the desktop app's second window): the clock against the timer, forces,
  * the estimate, deaths, the route's next pull and the pull's DPS and HPS during a key, and the last raid pull between
- * raid pulls. Everything else stays in the full window; when it's made very short only the clock, forces and deaths
- * stay (index.css). While
+ * raid pulls. Everything else stays in the full window. While
  * the app says it's being moved, it shows a border and how to move and resize it. */
 export function Overlay() {
   const { key, clockMS } = useLiveKey()
   const moving = useOverlayMoving()
   const settings = useOverlaySettings()
   const raid = useRaidLive(key?.status !== 'running')
+  const preview = useOverlayPreview()
   const { root, content } = useFitZoom()
   return (
     <div
@@ -103,7 +104,11 @@ export function Overlay() {
         {moving && (
           <p className="small overlay-wrap">Drag to move, drag a corner to resize; Ctrl+Alt+O or Settings when done.</p>
         )}
-        {!settings ? null : raid?.betweenPulls && raid.last ? (
+        {!settings ? null : preview === 'raid' ? (
+          <OverlayRaid pull={DEMO_RAID} settings={settings} />
+        ) : preview === 'mplus' ? (
+          <OverlayKey keyView={DEMO_KEY} clockMS={DEMO_KEY.clockMS} settings={settings} />
+        ) : raid?.betweenPulls && raid.last ? (
           <OverlayRaid key={raid.last.start} pull={raid.last} settings={settings} />
         ) : key ? (
           <OverlayKey keyView={key} clockMS={clockMS} settings={settings} />
@@ -228,11 +233,17 @@ function OverlayKey(props: { keyView: KeyView; clockMS: number; settings: Overla
   )
 }
 
+/** The key's live track, or the preview's dummy one. */
+function useKeyTrack(key: KeyView) {
+  const track = useTrack(key.start, key.status === 'running')
+  return key.start === DEMO_START ? DEMO_TRACK : track
+}
+
 /** The raid overlay between pulls: the pull's card, in place of which a death's recap shows when one of its lines
  * was clicked, or for the settings' seconds after the pull ends (the first death's; a raid log is written in batches,
  * so there is no newest one to show live). */
 function OverlayRaid({ pull, settings }: { pull: RaidPull; settings: OverlaySettings }) {
-  const [fresh, dismiss] = useFreshDeath(pull.deaths, settings.deathRecapSeconds, firstDeath, true)
+  const [fresh, dismiss] = useFreshDeath(pull.deaths, settings.deathRecapSeconds, firstDeath, pull.start !== DEMO_START)
   const [picked, setPicked] = useState<RaidPull['deaths'][number]>()
   const death = picked ?? fresh
   if (!death) return <RaidOverlayCard pull={pull} settings={settings} onPickDeath={setPicked} />
@@ -283,12 +294,13 @@ function RecapBody({ track, death }: { track: KeyTrack | null | undefined; death
 }
 
 function KeyRecap(props: { keyView: KeyView; death: KeyDeath; onBack: () => void }) {
-  const track = useTrack(props.keyView.start, props.keyView.status === 'running')
+  const track = useKeyTrack(props.keyView)
   return <RecapDrill title="Key" death={props.death} track={track} onBack={props.onBack} />
 }
 
 function RaidRecap(props: { pull: RaidPull; death: KeyDeath; onBack: () => void }) {
-  const { track } = useRaidTrack(props.pull.start)
+  const { track: saved } = useRaidTrack(props.pull.start)
+  const track = props.pull.start === DEMO_START ? DEMO_RAID_TRACK : saved
   return <RecapDrill title={`Pull ${props.pull.number}`} death={props.death} track={track} onBack={props.onBack} />
 }
 
@@ -304,7 +316,7 @@ function Breakdown(props: {
   onBack: () => void
 }) {
   const { keyView: key, player, title, from, to, onBack } = props
-  const track = useTrack(key.start, key.status === 'running')
+  const track = useKeyTrack(key)
   const between = track ? abilitiesBetween(track, key, player, from, to) : undefined
   const views = between && abilityViews(player, between.abilities, between.taken)
   const sum = (rows: { value: number }[]) => rows.reduce((n, r) => n + r.value, 0)
@@ -358,7 +370,7 @@ const deathText = (d: KeyDeath) => `${d.player}: ${d.ability || d.killer} ${cloc
 /** The key's deaths, newest first; a click on one shows its recap (the last 12 rows) from the live track, and back
  * returns to the list, then to the meters. */
 function DeathsDrill({ keyView: key, onBack }: { keyView: KeyView; onBack: () => void }) {
-  const track = useTrack(key.start, key.status === 'running')
+  const track = useKeyTrack(key)
   const [picked, setPicked] = useState<KeyDeath>()
   const back = useCallback(() => (picked ? setPicked(undefined) : onBack()), [picked, onBack])
   return (
