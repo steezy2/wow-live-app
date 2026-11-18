@@ -32,11 +32,9 @@ import { tip } from './tipAttrs'
 import { WaitingCard } from './WaitingCard'
 import { localDay, raidTonight } from './waiting'
 
-/** How many deaths, things to fix, and top damage and healing rows the overlay's card shows. */
+/** How many deaths and things to fix the overlay's card shows. */
 const OVERLAY_DEATHS = 3
 const OVERLAY_FIXES = 3
-const OVERLAY_DPS_ROWS = 5
-const OVERLAY_HPS_ROWS = 3
 
 /** A pull's title: "Ula'tek Mythic · pull 23". */
 function pullName(p: RaidPullSummary): string {
@@ -240,8 +238,8 @@ function RaidPullView({ pull }: { pull: RaidPull }) {
 
 /** The overlay's card between pulls: how far the last pull got, the boss's health as a bar with tonight's best pull
  * marked, the first deaths (a click on one, when the overlay takes clicks, shows its recap), the top things to fix,
- * and the top damage and healing in two cards or, with raidOneCard, one card of the chosen columns ranked by what the
- * settings say (rows players each when set, else 5 and 3). */
+ * and the top damage and healing in two cards (the settings' raid rows each, one over the other or side by side) or,
+ * with raidOneCard, one card of the chosen columns ranked by what the settings say. */
 export function RaidOverlayCard(props: {
   pull: RaidPull
   settings: OverlaySettings
@@ -251,12 +249,12 @@ export function RaidOverlayCard(props: {
   const classes = classesOf(pull)
   const best = pull.comparisons?.tonight
   const more = pull.deaths.length - OVERLAY_DEATHS
-  const { rankBy, rows } = settings
+  const { rankBy, raidDpsRows, raidHpsRows } = settings
   const damage = (
     <MeterCard
       key="dps"
       title="Damage"
-      meter={topMeter(pull.meter, 'dps', rows || OVERLAY_DPS_ROWS)}
+      meter={topMeter(pull.meter, 'dps', raidDpsRows)}
       columns={raidOffense.slice(0, 1)}
     />
   )
@@ -264,7 +262,7 @@ export function RaidOverlayCard(props: {
     <MeterCard
       key="hps"
       title="Healing"
-      meter={topMeter(pull.meter, 'hps', rows || OVERLAY_HPS_ROWS)}
+      meter={topMeter(pull.meter, 'hps', raidHpsRows)}
       columns={defense(false).slice(0, 1)}
     />
   )
@@ -306,12 +304,13 @@ export function RaidOverlayCard(props: {
         {settings.raidOneCard ? (
           <MeterCard
             title={rankBy === 'hps' ? 'Healing' : 'Damage'}
-            meter={topMeter(pull.meter, rankBy, rows || OVERLAY_DPS_ROWS)}
+            meter={topMeter(pull.meter, rankBy, rankBy === 'hps' ? raidHpsRows : raidDpsRows)}
             columns={ids.map((id) => overlayColumn(id, pull.meter, []))}
             dense
           />
         ) : (
-          <div className="overlay-meters">{rankOrder(rankBy).map((by) => (by === 'hps' ? healing : damage))}</div>
+          <div className={settings.raidSideBySide ? 'overlay-meters side' : 'overlay-meters'}>
+            {rankOrder(rankBy).map((by) => (by === 'hps' ? healing : damage))}</div>
         )}
       </div>
     </>

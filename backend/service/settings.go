@@ -41,7 +41,7 @@ const (
 
 // ErrBadSettings is a settings request that breaks the rules of validateSettings; its text says what to send.
 var ErrBadSettings = fmt.Errorf("send a full log folder path, a region (%s), when overlay shows (%s), its opacity "+
-	"(%d to 100), its rows (0 or more), its columns (%s), what it ranks by (%s), "+
+	"(%d to 100), its rows and the raid cards' (0 or more), its columns (%s), what it ranks by (%s), "+
 	"its death recap's seconds (0 for off, else %d to %d) and the auto rule's days (0 to %d)",
 	strings.Join(regions, ", "), strings.Join(overlayShows, ", "), minOpacity, strings.Join(overlayColumns, ", "),
 	strings.Join(overlayRanks, ", "), minRecapSeconds, maxRecapSeconds, maxAutoDays)
@@ -98,7 +98,8 @@ func characterNeedsCheck(before, next models.Settings) bool {
 func validateSettings(s models.Settings) error {
 	o, auto := s.Overlay, s.Auto
 	if !filepath.IsAbs(s.LogsDir) || !slices.Contains(regions, s.Region) || !slices.Contains(overlayShows, o.Show) ||
-		o.Opacity < minOpacity || o.Opacity > 100 || o.Rows < 0 || !slices.Contains(overlayRanks, o.RankBy) ||
+		o.Opacity < minOpacity || o.Opacity > 100 || min(o.Rows, o.RaidDpsRows, o.RaidHpsRows) < 0 ||
+		!slices.Contains(overlayRanks, o.RankBy) ||
 		o.DeathRecapSeconds != 0 && (o.DeathRecapSeconds < minRecapSeconds || o.DeathRecapSeconds > maxRecapSeconds) ||
 		slices.ContainsFunc(o.Columns, func(c string) bool { return !slices.Contains(overlayColumns, c) }) ||
 		len(slices.Compact(slices.Sorted(slices.Values(o.Columns)))) != len(o.Columns) ||

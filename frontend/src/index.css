@@ -1026,6 +1026,10 @@ html:has(.overlay) {
   gap: var(--s1);
 }
 
+.overlay-meters.side {
+  grid-template-columns: 1fr 1fr;
+}
+
 .overlay-meters .card {
   min-width: 0;
   overflow: hidden;

@@ -188,6 +188,32 @@ export function SettingsPage({
           />{' '}
           Mythic+: one card for the pull and the whole key
         </label>
+        <label>
+          Raid: players on the Damage card (0 for everyone)
+          <input
+            type="number"
+            min={0}
+            value={overlay.raidDpsRows}
+            onChange={(e) => setOverlay({ ...overlay, raidDpsRows: Math.max(0, Math.floor(Number(e.target.value))) })}
+          />
+        </label>
+        <label>
+          Raid: players on the Healing card (0 for everyone)
+          <input
+            type="number"
+            min={0}
+            value={overlay.raidHpsRows}
+            onChange={(e) => setOverlay({ ...overlay, raidHpsRows: Math.max(0, Math.floor(Number(e.target.value))) })}
+          />
+        </label>
+        <label className="inline">
+          <input
+            type="checkbox"
+            checked={overlay.raidSideBySide}
+            onChange={(e) => setOverlay({ ...overlay, raidSideBySide: e.target.checked })}
+          />{' '}
+          Raid: the Damage and Healing cards side by side
+        </label>
         <label className="inline">
           <input
             type="checkbox"

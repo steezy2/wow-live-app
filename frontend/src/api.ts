@@ -1041,6 +1041,10 @@ export interface OverlaySettings {
    * card in place of its Damage and Healing cards. */
   splitCards: boolean
   raidOneCard: boolean
+  /** Players the raid overlay's Damage and Healing cards show (0 for everyone), and whether they sit side by side. */
+  raidDpsRows: number
+  raidHpsRows: number
+  raidSideBySide: boolean
   /** Seconds a new death's recap shows over the cards without a click; 0 is off. */
   deathRecapSeconds: number
 }

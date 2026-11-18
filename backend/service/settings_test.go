@@ -50,14 +50,16 @@ func TestValidateSettingsOverlayChoices(t *testing.T) {
 		change func(*models.OverlaySettings)
 		ok     bool
 	}{
-		"rank by hps":      {func(o *models.OverlaySettings) { o.RankBy = "hps" }, true},
-		"no rank":          {func(o *models.OverlaySettings) { o.RankBy = "" }, false},
-		"unknown rank":     {func(o *models.OverlaySettings) { o.RankBy = "taken" }, false},
-		"recap off":        {func(o *models.OverlaySettings) { o.DeathRecapSeconds = 0 }, true},
-		"recap in range":   {func(o *models.OverlaySettings) { o.DeathRecapSeconds = maxRecapSeconds }, true},
-		"recap too short":  {func(o *models.OverlaySettings) { o.DeathRecapSeconds = minRecapSeconds - 1 }, false},
-		"recap too long":   {func(o *models.OverlaySettings) { o.DeathRecapSeconds = maxRecapSeconds + 1 }, false},
-		"recap below zero": {func(o *models.OverlaySettings) { o.DeathRecapSeconds = -1 }, false},
+		"rank by hps":       {func(o *models.OverlaySettings) { o.RankBy = "hps" }, true},
+		"no rank":           {func(o *models.OverlaySettings) { o.RankBy = "" }, false},
+		"unknown rank":      {func(o *models.OverlaySettings) { o.RankBy = "taken" }, false},
+		"raid rows":         {func(o *models.OverlaySettings) { o.RaidDpsRows, o.RaidHpsRows = 0, 8 }, true},
+		"raid rows below 0": {func(o *models.OverlaySettings) { o.RaidHpsRows = -1 }, false},
+		"recap off":         {func(o *models.OverlaySettings) { o.DeathRecapSeconds = 0 }, true},
+		"recap in range":    {func(o *models.OverlaySettings) { o.DeathRecapSeconds = maxRecapSeconds }, true},
+		"recap too short":   {func(o *models.OverlaySettings) { o.DeathRecapSeconds = minRecapSeconds - 1 }, false},
+		"recap too long":    {func(o *models.OverlaySettings) { o.DeathRecapSeconds = maxRecapSeconds + 1 }, false},
+		"recap below zero":  {func(o *models.OverlaySettings) { o.DeathRecapSeconds = -1 }, false},
 	} {
 		s := models.Settings{LogsDir: t.TempDir(), Region: "us", Overlay: models.OverlaySettings{Show: "keys", Opacity: 100,
 			RankBy: "dps"}}

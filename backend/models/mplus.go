@@ -700,6 +700,12 @@ type OverlaySettings struct {
 	// Damage and Healing cards (the default).
 	SplitCards  bool `json:"splitCards"`
 	RaidOneCard bool `json:"raidOneCard"`
+	// RaidDpsRows and RaidHpsRows are how many players the raid overlay's Damage and Healing cards show, the top ones
+	// (0 for everyone; the one ranked card shows the ranked one's); RaidSideBySide puts the two cards next to each
+	// other instead of one over the other.
+	RaidDpsRows    int  `json:"raidDpsRows" minimum:"0"`
+	RaidHpsRows    int  `json:"raidHpsRows" minimum:"0"`
+	RaidSideBySide bool `json:"raidSideBySide"`
 	// DeathRecapSeconds is how long a new death's recap shows over the cards without a click: 0 for off, else 3 to 60.
 	DeathRecapSeconds int `json:"deathRecapSeconds" minimum:"0" maximum:"60"`
 }

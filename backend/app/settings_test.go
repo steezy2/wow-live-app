@@ -16,7 +16,7 @@ func TestSettingsFromAnOlderFileKeepDefaultsAndPlacesSurviveASave(t *testing.T) 
 	}
 	// no columns read as the default ones
 	overlay := models.OverlaySettings{Show: "keys", Opacity: 100, RankBy: "dps", DeathRecapSeconds: defaultRecapSeconds,
-		Columns: []string{"dps", "hps", "kicks"}}
+		RaidDpsRows: 5, RaidHpsRows: 3, Columns: []string{"dps", "hps", "kicks"}}
 	s, err := LoadSettings(path, models.Settings{Region: "us",
 		Overlay: models.OverlaySettings{Show: "keys", Opacity: 100}})
 	if err != nil {
