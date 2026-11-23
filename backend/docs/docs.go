@@ -2229,7 +2229,7 @@ const docTemplate = `{
                 }
             },
             "post": {
-                "description": "Runs SimulationCraft on this PC in the background, one at a time: the pasted export (read again,\nnever passed to simc as it is) with the options. Poll the sim by its ID.",
+                "description": "Runs SimulationCraft on this PC in the background, one at a time: the pasted export (read again,\nnever passed to simc as it is) with the options. Poll the sim by its ID. A Top Gear request also\nsends ` + "`" + `equipped` + "`" + ` and ` + "`" + `bags` + "`" + `: the indexes of the items it may put on.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2259,7 +2259,7 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "options outside the choices, or not an export",
+                        "description": "bad options or indexes, not an export, nothing to try or over maxCombos",
                         "schema": {
                             "$ref": "#/definitions/controller.ErrorResponse"
                         }
@@ -2271,7 +2271,7 @@ const docTemplate = `{
                         }
                     },
                     "500": {
-                        "description": "Internal Server Error",
+                        "description": "a weapon's type couldn't be read from Wowhead",
                         "schema": {
                             "$ref": "#/definitions/controller.ErrorResponse"
                         }
@@ -2318,7 +2318,7 @@ const docTemplate = `{
                 }
             },
             "post": {
-                "description": "With no body, downloads the newest simc.exe (about 116 MB) from this app's own GitHub release over\nHTTPS, checked against the sha256 in the release's engine.json; the release is rebuilt weekly from\nSimulationCraft's official nightly. With a path, copies that simc.exe instead. Runs in the background:\npoll the engine's status.",
+                "description": "With no body, downloads the newest simc.exe (about 116 MB) from this app's own GitHub release over\nHTTPS, checked against the sha256 in the release's engine.json (which catches a broken download, not a\nswapped file: both come from the same release); the release is rebuilt weekly from SimulationCraft's\nofficial nightly. With a path, copies that simc.exe instead. Runs in the background: poll the engine's\nstatus.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2344,6 +2344,12 @@ const docTemplate = `{
                         "description": "Accepted",
                         "schema": {
                             "$ref": "#/definitions/models.SimEngineStatus"
+                        }
+                    },
+                    "400": {
+                        "description": "a body that isn't {\"path\": ...}",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
                         }
                     },
                     "409": {
@@ -4486,6 +4492,32 @@ const docTemplate = `{
                 }
             }
         },
+        "models.OverlayPreset": {
+            "type": "object",
+            "properties": {
+                "columns": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "name": {
+                    "type": "string"
+                },
+                "oneCard": {
+                    "type": "boolean"
+                },
+                "raidOneCard": {
+                    "type": "boolean"
+                },
+                "rows": {
+                    "type": "integer"
+                },
+                "splitCards": {
+                    "type": "boolean"
+                }
+            }
+        },
         "models.OverlaySettings": {
             "type": "object",
             "properties": {
@@ -4510,6 +4542,12 @@ const docTemplate = `{
                         ]
                     }
                 },
+                "deathRecapSeconds": {
+                    "description": "DeathRecapSeconds is how long a new death's recap shows over the cards without a click: 0 for off, else 3 to 60.",
+                    "type": "integer",
+                    "maximum": 60,
+                    "minimum": 0
+                },
                 "oneCard": {
                     "description": "OneCard shows the pull and the whole key in one card instead of two, one above the other (the default).",
                     "type": "boolean"
@@ -4518,6 +4556,29 @@ const docTemplate = `{
                     "type": "integer",
                     "maximum": 100,
                     "minimum": 0
+                },
+                "raidDpsRows": {
+                    "description": "RaidDpsRows and RaidHpsRows are how many players the raid overlay's Damage and Healing cards show, the top ones\n(0 for everyone; the one ranked card shows the ranked one's); RaidSideBySide puts the two cards next to each\nother instead of one over the other.",
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "raidHpsRows": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "raidOneCard": {
+                    "type": "boolean"
+                },
+                "raidSideBySide": {
+                    "type": "boolean"
+                },
+                "rankBy": {
+                    "description": "RankBy is what the cards order their rows and fill their bars by: dps (the default) or hps.",
+                    "type": "string",
+                    "enum": [
+                        "dps",
+                        "hps"
+                    ]
                 },
                 "rows": {
                     "description": "Rows is how many players each card shows, the top ones (0 for everyone); Columns the cards' columns in order\n(saving none sets DPS, HPS and kicks).",
@@ -4531,6 +4592,10 @@ const docTemplate = `{
                         "always",
                         "off"
                     ]
+                },
+                "splitCards": {
+                    "description": "SplitCards shows a DPS card and an HPS card (healers only) of the key instead of the pull and key cards, which\nOneCard then no longer applies to; RaidOneCard shows the raid overlay's pull in one ranked card instead of its\nDamage and Healing cards (the default).",
+                    "type": "boolean"
                 }
             }
         },
@@ -6415,7 +6480,13 @@ const docTemplate = `{
                     "description": "MaxAutoDays is the most days each of Auto's fields takes.",
                     "type": "integer"
                 },
+                "maxRecapSeconds": {
+                    "type": "integer"
+                },
                 "minOpacity": {
+                    "type": "integer"
+                },
+                "minRecapSeconds": {
                     "type": "integer"
                 },
                 "overlay": {
@@ -6423,6 +6494,19 @@ const docTemplate = `{
                 },
                 "overlayColumns": {
                     "description": "OverlayColumns are the columns the overlay's cards can show.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "overlayPresets": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.OverlayPreset"
+                    }
+                },
+                "overlayRanks": {
+                    "description": "OverlayRanks are what the cards can rank by, OverlayPresets the layouts to pick from, and MinRecapSeconds and\nMaxRecapSeconds the least and most a death's recap shows (0 turns it off).",
                     "type": "array",
                     "items": {
                         "type": "string"
@@ -6782,6 +6866,7 @@ const docTemplate = `{
                     }
                 },
                 "difficulty": {
+                    "description": "Difficulty is the raid difficulty a Droptimizer's drops are at, one of SimChoices.Difficulties.",
                     "type": "string",
                     "enum": [
                         "lfr",
@@ -6792,6 +6877,7 @@ const docTemplate = `{
                     "example": "heroic"
                 },
                 "equipped": {
+                    "description": "Equipped and Bags are the items a Top Gear sim may put on, as indexes into the parsed profile's Equipped and\nBags. A slot with nothing ticked keeps its item; rings and trinkets with fewer than two ticked are made up from\nthe equipped ones.",
                     "type": "array",
                     "items": {
                         "type": "integer"
@@ -6801,6 +6887,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "keyLevel": {
+                    "description": "KeyLevel is the Mythic+ key level a Droptimizer's dungeon drops are at, one of SimChoices.KeyLevels.",
                     "type": "integer",
                     "example": 10
                 },

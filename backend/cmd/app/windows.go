@@ -4,8 +4,10 @@ package main
 
 import (
 	"log"
+	"math"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -33,6 +35,38 @@ func fit(p app.Place, screens []application.Rect) (application.Rect, bool) {
 		}
 	}
 	return application.Rect{}, false
+}
+
+// holdShape keeps the overlay the shape of its content, which its page reports (the content's size at zoom 1): the
+// page scales the content to the window, so only that shape leaves no side spare.
+type holdShape struct {
+	window *application.WebviewWindow
+	ratio  atomic.Uint64 // the content's height over its width, as float64 bits; 0 until the page reports
+}
+
+// report takes the content's size from the page, limits the window's size to the page's zoom limits of it and
+// re-shapes the window.
+func (s *holdShape) report(w, h, zoomMin, zoomMax float64) {
+	s.ratio.Store(math.Float64bits(h / w))
+	s.window.SetMinSize(int(w*zoomMin), int(h*zoomMin)).SetMaxSize(int(w*zoomMax), int(h*zoomMax))
+	s.apply()
+}
+
+// apply sets the window's height to its width's shape of the content (at most the screen's), when that isn't its
+// height already.
+func (s *holdShape) apply() {
+	ratio := math.Float64frombits(s.ratio.Load())
+	if ratio == 0 {
+		return
+	}
+	width, height := s.window.Size()
+	want := int(math.Round(float64(width) * ratio))
+	if screen, _ := s.window.GetScreen(); screen != nil {
+		want = min(want, screen.WorkArea.Height)
+	}
+	if want != height {
+		s.window.SetSize(width, want)
+	}
 }
 
 // keepPlace puts window back where the settings last had it once its page is up (Wails drops a move before the

@@ -1,7 +1,10 @@
 import { type FormEvent, useEffect, useState } from 'react'
 import {
   moveOverlay,
+  type OverlayPreview,
   type OverlaySettings,
+  type RankBy,
+  previewOverlay,
   resetOverlay,
   savedSettings,
   saveSettings,
@@ -11,7 +14,7 @@ import {
 import { track, useNote } from './note'
 import { NoteLine } from './NoteLine'
 import { OVERLAY_LABELS } from './meterColumns'
-import { useNow, useOverlayMoving } from './useLiveKey'
+import { useNow, useOverlayMoving, useOverlayPreview } from './useLiveKey'
 import { WCLImport } from './WCLImport'
 import { WCLKeys } from './WCLKeys'
 
@@ -21,6 +24,15 @@ const SHOW_LABELS: Record<OverlaySettings['show'], string> = {
   always: 'Always',
   off: 'Off',
 }
+
+/** The seconds a death's recap can be set to, within what the API allows. */
+const RECAP_CHOICES = [5, 10, 20, 30, 60]
+
+/** The overlay's previews with dummy data and their buttons' labels. */
+const PREVIEWS: [OverlayPreview, string][] = [
+  ['mplus', 'Preview Mythic+'],
+  ['raid', 'Preview raid'],
+]
 
 /** How long after the last change to the overlay it's saved, so dragging the opacity slider saves once. */
 const OVERLAY_SAVE_MS = 300
@@ -44,26 +56,20 @@ export function SettingsPage({
   const [game, setGame] = useNote('game')
   const [overlayNote, setOverlayNote] = useNote('overlay')
   const moving = useOverlayMoving()
+  const previewing = useOverlayPreview()
   const now = useNow(60_000)
   useEffect(() => {
-    if (
-      overlay.show === view.overlay.show &&
-      overlay.opacity === view.overlay.opacity &&
-      overlay.oneCard === view.overlay.oneCard &&
-      overlay.rows === view.overlay.rows &&
-      overlay.columns.join() === view.overlay.columns.join()
-    )
-      return
+    const edited = { ...overlay, clickThrough: view.overlay.clickThrough }
+    if (JSON.stringify(edited) === JSON.stringify(view.overlay)) return
     const timer = setTimeout(() => {
-      const call = saveSettings({
-        ...savedSettings(view),
-        overlay: { ...overlay, clickThrough: view.overlay.clickThrough },
-      })
+      const call = saveSettings({ ...savedSettings(view), overlay: edited })
       track(call, setOverlayNote, 'Saving…', () => 'Saved').then(onSaved, () => undefined)
     }, OVERLAY_SAVE_MS)
     return () => clearTimeout(timer)
   }, [overlay, view, onSaved, setOverlayNote])
-  const columns = view.overlayColumns.filter((id) => overlay.oneCard || id !== 'pullDps')
+  const columns = view.overlayColumns.filter((id) => overlay.oneCard && !overlay.splitCards || id !== 'pullDps')
+  const allowed = RECAP_CHOICES.filter((n) => n >= view.minRecapSeconds && n <= view.maxRecapSeconds)
+  const recapSeconds = [...new Set([0, ...allowed, overlay.deathRecapSeconds])].sort((a, b) => a - b)
   const save = (e: FormEvent) => {
     e.preventDefault()
     const call = saveSettings({ ...savedSettings(view), logsDir: logsDir.trim(), region, overlay })
@@ -128,13 +134,106 @@ export function SettingsPage({
             onChange={(e) => setOverlay({ ...overlay, opacity: Number(e.target.value) })}
           />
         </label>
+        <label>
+          Layout
+          <select
+            value=""
+            onChange={({ target }) => {
+              const preset = view.overlayPresets.find((p) => p.name === target.value)!
+              setOverlay({
+                ...overlay,
+                oneCard: preset.oneCard,
+                splitCards: preset.splitCards,
+                raidOneCard: preset.raidOneCard,
+                rows: preset.rows,
+                columns: preset.columns,
+              })
+            }}
+          >
+            <option value="" disabled>
+              Pick a layout to fill in the options below…
+            </option>
+            {view.overlayPresets.map((p) => (
+              <option key={p.name}>{p.name}</option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Rank players and fill the bars by
+          <select
+            value={overlay.rankBy}
+            onChange={(e) => setOverlay({ ...overlay, rankBy: e.target.value as RankBy })}
+          >
+            {view.overlayRanks.map((r) => (
+              <option key={r} value={r}>
+                {r.toUpperCase()}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="inline">
+          <input
+            type="checkbox"
+            checked={overlay.splitCards}
+            onChange={(e) => setOverlay({ ...overlay, splitCards: e.target.checked })}
+          />{' '}
+          Mythic+: a DPS card and an HPS card (healers only) of the key
+        </label>
         <label className="inline">
           <input
             type="checkbox"
             checked={overlay.oneCard}
+            disabled={overlay.splitCards}
             onChange={(e) => setOverlay({ ...overlay, oneCard: e.target.checked })}
           />{' '}
-          One card for the pull and the whole key
+          Mythic+: one card for the pull and the whole key
+        </label>
+        <label>
+          Raid: players on the Damage card (0 for everyone)
+          <input
+            type="number"
+            min={0}
+            value={overlay.raidDpsRows}
+            onChange={(e) => setOverlay({ ...overlay, raidDpsRows: Math.max(0, Math.floor(Number(e.target.value))) })}
+          />
+        </label>
+        <label>
+          Raid: players on the Healing card (0 for everyone)
+          <input
+            type="number"
+            min={0}
+            value={overlay.raidHpsRows}
+            onChange={(e) => setOverlay({ ...overlay, raidHpsRows: Math.max(0, Math.floor(Number(e.target.value))) })}
+          />
+        </label>
+        <label className="inline">
+          <input
+            type="checkbox"
+            checked={overlay.raidSideBySide}
+            onChange={(e) => setOverlay({ ...overlay, raidSideBySide: e.target.checked })}
+          />{' '}
+          Raid: the Damage and Healing cards side by side
+        </label>
+        <label className="inline">
+          <input
+            type="checkbox"
+            checked={overlay.raidOneCard}
+            onChange={(e) => setOverlay({ ...overlay, raidOneCard: e.target.checked })}
+          />{' '}
+          Raid: one ranked card instead of Damage and Healing cards
+        </label>
+        <label>
+          Mythic+: show a new death's recap for (seconds)
+          <select
+            value={overlay.deathRecapSeconds}
+            onChange={(e) => setOverlay({ ...overlay, deathRecapSeconds: Number(e.target.value) })}
+          >
+            {recapSeconds.map((n) => (
+              <option key={n} value={n}>
+                {n === 0 ? 'Off' : `${n} s`}
+              </option>
+            ))}
+          </select>
         </label>
         <label>
           Players per card (0 for everyone)
@@ -183,11 +282,21 @@ export function SettingsPage({
           <button type="button" onClick={resetOverlay}>
             Reset position
           </button>
+          {PREVIEWS.map(([kind, label]) => (
+            <button
+              key={kind}
+              type="button"
+              aria-pressed={previewing === kind}
+              onClick={() => previewOverlay(previewing === kind ? '' : kind)}
+            >
+              {previewing === kind ? 'Stop preview' : label}
+            </button>
+          ))}
         </div>
         <p className="muted small">
           {moving
-            ? 'Drag the overlay to move it, or an edge to resize it; Ctrl+Alt+O also locks it.'
-            : 'Ctrl+Alt+O moves it too, even mid-key.'}
+            ? 'Drag the overlay to move it, or a corner to resize it; Ctrl+Alt+O also locks it.'
+            : 'Ctrl+Alt+O moves it too, even mid-key. Ctrl+Alt+H hides it until the next key or pull.'}
         </p>
         <NoteLine note={overlayNote} />
       </section>

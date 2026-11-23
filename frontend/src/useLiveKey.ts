@@ -4,6 +4,8 @@ import {
   fetchRaidLive,
   moveOverlay,
   onAppEvent,
+  type OverlayPreview,
+  previewOverlay,
   type RaidLive,
   subscribe,
   type KeyView,
@@ -95,6 +97,17 @@ function usePushed<T>(read: (signal: AbortSignal) => Promise<T | null>, enabled 
     }
   }, [read, enabled])
   return value
+}
+
+/** What the desktop app says the overlay shows dummy data of (none for the real thing). */
+export function useOverlayPreview(): OverlayPreview | undefined {
+  const [kind, setKind] = useState<OverlayPreview>()
+  useEffect(() => {
+    const off = onAppEvent('overlay-previewing', (k) => setKind(k === 'mplus' || k === 'raid' ? k : undefined))
+    previewOverlay() // it may already be on, before this page was open
+    return off
+  }, [])
+  return kind
 }
 
 /** Whether the desktop app says the overlay is being moved (it takes clicks to be dragged and resized). */

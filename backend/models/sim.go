@@ -60,17 +60,21 @@ type SimChoices struct {
 }
 
 // SimRequest starts a sim: its Kind (one of SimKinds), the pasted SimC export (parsed again on every request) and
-// the options. A Top Gear sim also sends the items it may put on, as indexes into the parsed profile's Equipped and
-// Bags; an equipped item left out is not a candidate. A Droptimizer sim sends the raid Difficulty (one of
-// SimChoices.Difficulties) and the Mythic+ KeyLevel (one of SimChoices.KeyLevels) its drops are at.
+// the options. A Top Gear sim also sends the items it may put on, and a Droptimizer sim the Difficulty and KeyLevel
+// its drops are at.
 type SimRequest struct {
-	Kind       string     `json:"kind" binding:"required" example:"quick"`
-	Export     string     `json:"export" binding:"required"`
-	Options    SimOptions `json:"options"`
-	Equipped   []int      `json:"equipped,omitempty"`
-	Bags       []int      `json:"bags,omitempty"`
-	Difficulty string     `json:"difficulty,omitempty" enums:"lfr,normal,heroic,mythic" example:"heroic"`
-	KeyLevel   int        `json:"keyLevel,omitempty" example:"10"`
+	Kind    string     `json:"kind" binding:"required" example:"quick"`
+	Export  string     `json:"export" binding:"required"`
+	Options SimOptions `json:"options"`
+	// Equipped and Bags are the items a Top Gear sim may put on, as indexes into the parsed profile's Equipped and
+	// Bags. A slot with nothing ticked keeps its item; rings and trinkets with fewer than two ticked are made up from
+	// the equipped ones.
+	Equipped []int `json:"equipped"`
+	Bags     []int `json:"bags"`
+	// Difficulty is the raid difficulty a Droptimizer's drops are at, one of SimChoices.Difficulties.
+	Difficulty string `json:"difficulty,omitempty" enums:"lfr,normal,heroic,mythic" example:"heroic"`
+	// KeyLevel is the Mythic+ key level a Droptimizer's dungeon drops are at, one of SimChoices.KeyLevels.
+	KeyLevel int `json:"keyLevel,omitempty" example:"10"`
 }
 
 // SimKinds are the kinds of sim: one character's DPS ("quick"), the best combination of the gear they carry

@@ -37,8 +37,10 @@ type gearCombo struct {
 
 // topGearCombos is every legal combination of the picked items (indexes into p's Equipped and Bags) other than the
 // equipped gear. A slot with nothing picked keeps its item; two rings or trinkets are never the same item, and a
-// two-handed weapon empties the off-hand. More than maxCombos, or none, is ErrBadSimOptions: nothing is dropped.
-func topGearCombos(p models.SimProfile, equipped, bags []int) ([]gearCombo, error) {
+// two-handed weapon (twoHanded says which item ID is) empties the off-hand. More than maxCombos, or none, is
+// ErrBadSimOptions: nothing is dropped.
+func topGearCombos(p models.SimProfile, equipped, bags []int, twoHanded func(id int) (bool, error)) ([]gearCombo,
+	error) {
 	pool, err := gearPool(p, equipped, bags)
 	if err != nil {
 		return nil, err
@@ -47,7 +49,11 @@ func topGearCombos(p models.SimProfile, equipped, bags []int) ([]gearCombo, erro
 	for i := range p.Equipped {
 		worn[p.Equipped[i].Slot] = &p.Equipped[i]
 	}
-	groups := [][][]models.SimSwap{weaponOptions(pool, worn)}
+	weapons, err := weaponOptions(pool, worn, twoHanded)
+	if err != nil {
+		return nil, err
+	}
+	groups := [][][]models.SimSwap{weapons}
 	for _, pair := range gearPairs {
 		groups = append(groups, pairOptions(pair, pool[gearKey(pair[0])], worn))
 	}
@@ -157,16 +163,16 @@ func pairOptions(slots [2]string, picked []gearCandidate, worn map[string]*model
 	return options
 }
 
-// weaponOptions are the ways to fill the main and off hands. The export doesn't say which weapon is two-handed, so
-// the equipped main hand is when no off-hand is equipped, and one from the bags is when that one is and no off-hand
-// is picked. A two-hander empties the off-hand; any other main hand goes with each picked off-hand (the equipped one
-// when none is picked), never the same item twice.
-func weaponOptions(pool map[string][]gearCandidate, worn map[string]*models.SimItem) [][]models.SimSwap {
+// weaponOptions are the ways to fill the main and off hands. A two-handed main hand empties the off-hand; any other
+// goes with each picked off-hand (the equipped one when none is picked). The export doesn't say which weapon is
+// two-handed, so twoHanded is asked, only for a main hand an off-hand could go beside: one worn with an off-hand is
+// one-handed.
+func weaponOptions(pool map[string][]gearCandidate, worn map[string]*models.SimItem,
+	twoHanded func(id int) (bool, error)) ([][]models.SimSwap, error) {
 	mains, offs := pool["main_hand"], pool["off_hand"]
 	if len(mains) == 0 && len(offs) == 0 {
-		return [][]models.SimSwap{nil}
+		return [][]models.SimSwap{nil}, nil
 	}
-	twoHandedBags := wearsTwoHander(worn) && len(offs) == 0
 	if len(mains) == 0 && worn["main_hand"] != nil {
 		mains = []gearCandidate{{item: *worn["main_hand"], worn: "main_hand"}}
 	}
@@ -176,15 +182,19 @@ func weaponOptions(pool map[string][]gearCandidate, worn map[string]*models.SimI
 	options := [][]models.SimSwap{}
 	for i := range mains {
 		m := &mains[i]
-		twoHanded := m.worn == "main_hand" && wearsTwoHander(worn) || m.worn == "" && twoHandedBags
-		if twoHanded || len(offs) == 0 {
+		alone := len(offs) == 0
+		if !alone && (m.worn == "" || worn["off_hand"] == nil) {
+			var err error
+			if alone, err = twoHanded(m.item.ID); err != nil {
+				return nil, fmt.Errorf("reading whether %s (%d) is two-handed: %w", m.item.Name, m.item.ID, err)
+			}
+		}
+		if alone {
 			options = append(options, gearSwaps(worn, gearFill{"main_hand", m}, gearFill{"off_hand", nil}))
 			continue
 		}
 		for j := range offs {
-			if offs[j].item.ID != m.item.ID {
-				options = append(options, gearSwaps(worn, gearFill{"main_hand", m}, gearFill{"off_hand", &offs[j]}))
-			}
+			options = append(options, gearSwaps(worn, gearFill{"main_hand", m}, gearFill{"off_hand", &offs[j]}))
 		}
 	}
 	if len(mains) == 0 {
@@ -192,7 +202,7 @@ func weaponOptions(pool map[string][]gearCandidate, worn map[string]*models.SimI
 			options = append(options, gearSwaps(worn, gearFill{"off_hand", &offs[j]}))
 		}
 	}
-	return options
+	return options, nil
 }
 
 // wearsTwoHander is whether the equipped main hand is two-handed: the export doesn't say, so it is when no off-hand is
