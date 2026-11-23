@@ -4,6 +4,7 @@ package cachefile
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"errors"
@@ -13,6 +14,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -41,11 +43,21 @@ const (
 	renameWait  = 50 * time.Millisecond
 )
 
+// gzipped is whether a cache file is kept gzipped, by its name.
+func gzipped(path string) bool { return strings.HasSuffix(path, ".gz") }
+
 // WriteJSON saves value as JSON at path atomically (a temp file renamed over it), so the other processes sharing
-// the cache never read it half-written. On Windows the rename fails while a reader has the file open, so it's
-// retried a few times; the temp file is removed if anything fails.
+// the cache never read it half-written; a path ending in .gz is gzipped. On Windows the rename fails while a reader
+// has the file open, so it's retried a few times; the temp file is removed if anything fails.
 func WriteJSON(path string, value any) error {
 	data, err := Marshal(value)
+	if err == nil && gzipped(path) {
+		var packed bytes.Buffer
+		zw := gzip.NewWriter(&packed)
+		_, err = zw.Write(data)
+		err = errors.Join(err, zw.Close())
+		data = packed.Bytes()
+	}
 	if err != nil {
 		return fmt.Errorf("encoding %s: %w", path, err)
 	}
@@ -141,11 +153,17 @@ const downloadTimeout = 2 * time.Minute
 // Forever is the maxAge of a file that never changes (a map image, a tile).
 const Forever = 100 * 365 * 24 * time.Hour
 
-// ReadJSON reads the JSON file at path as a T; the error wraps os.ErrNotExist when the file is missing.
+// ReadJSON reads the JSON file at path (gzipped when it ends in .gz) as a T; the error wraps os.ErrNotExist when the
+// file is missing.
 func ReadJSON[T any](path string) (T, error) {
 	var v T
 	data, err := os.ReadFile(path)
-	if err == nil {
+	if err == nil && gzipped(path) {
+		var zr *gzip.Reader
+		if zr, err = gzip.NewReader(bytes.NewReader(data)); err == nil {
+			err = json.NewDecoder(zr).Decode(&v)
+		}
+	} else if err == nil {
 		err = json.Unmarshal(data, &v)
 	}
 	if err != nil {

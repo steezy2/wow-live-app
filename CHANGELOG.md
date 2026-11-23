@@ -5,6 +5,7 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 ## [Unreleased]
 
 ### Changed
+- **Saved tracks are gzipped** (about 5x smaller: 2.5 MB to 0.5 MB), and the app compresses the ones already saved once, in the background, when it starts. A saved key's map, route and review read the last two tracks from memory instead of decoding the file each time.
 - **One look for buttons that do something** (Settings, Home's data, report links, quick links, the route editor and the Routes sidebar): boxed, the main action filled, a destructive one red.
 - **Fewer connections and timers:** every page in a browser shares one event stream, the 60 s clocks share one timer that stops while the page is hidden, and the saved keys list is read once when two parts of a page ask at once.
 - **A key's Route tab** reads its comparison again only while the key runs and the tab is open (it took the track just as a trigger).
