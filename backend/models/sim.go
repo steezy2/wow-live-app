@@ -54,14 +54,16 @@ type SimChoices struct {
 }
 
 // SimRequest starts a sim: its Kind (one of SimKinds), the pasted SimC export (parsed again on every request) and
-// the options. A Top Gear sim also sends the items it may put on, as indexes into the parsed profile's Equipped and
-// Bags; an equipped item left out is not a candidate.
+// the options.
 type SimRequest struct {
-	Kind     string     `json:"kind" binding:"required" example:"quick"`
-	Export   string     `json:"export" binding:"required"`
-	Options  SimOptions `json:"options"`
-	Equipped []int      `json:"equipped,omitempty"`
-	Bags     []int      `json:"bags,omitempty"`
+	Kind    string     `json:"kind" binding:"required" example:"quick"`
+	Export  string     `json:"export" binding:"required"`
+	Options SimOptions `json:"options"`
+	// Equipped and Bags are the items a Top Gear sim may put on, as indexes into the parsed profile's Equipped and
+	// Bags. A slot with nothing ticked keeps its item; rings and trinkets with fewer than two ticked are made up from
+	// the equipped ones.
+	Equipped []int `json:"equipped"`
+	Bags     []int `json:"bags"`
 }
 
 // SimKinds are the kinds of sim: one character's DPS ("quick") and the best combination of the gear they carry

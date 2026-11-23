@@ -81,9 +81,15 @@ type SimEngineSource interface {
 	UseFile(ctx context.Context, path string) (models.SimEngine, error)
 }
 
+// ItemTypes says whether an item is a two-handed weapon, which the SimC export doesn't (wowhead.Client).
+type ItemTypes interface {
+	TwoHanded(ctx context.Context, id int) (bool, error)
+}
+
 // Sims runs sims on this PC one at a time with the downloaded SimulationCraft and keeps the last keepSims in Dir.
 type Sims struct {
 	Engine SimEngineSource
+	Items  ItemTypes
 	Dir    string
 	Now    func() time.Time
 	Ctx    context.Context // the app's: canceled on Quit, which stops a running sim and download; nil never cancels
@@ -95,11 +101,10 @@ type Sims struct {
 	installErr string
 }
 
-// simRun is the sim running: what the page sees of it, how to stop it, and a Top Gear sim's combinations.
+// simRun is the sim running: what the page sees of it and how to stop it.
 type simRun struct {
 	sim    models.Sim
 	cancel context.CancelFunc
-	combos []gearCombo
 }
 
 // Choices are the options a sim can be started with, and the ones the page starts with.
@@ -181,7 +186,8 @@ func (s *Sims) Start(req models.SimRequest) (models.Sim, error) {
 	}
 	var combos []gearCombo
 	if req.Kind == "topgear" {
-		if combos, err = topGearCombos(profile, req.Equipped, req.Bags); err != nil {
+		twoHanded := func(id int) (bool, error) { return s.Items.TwoHanded(s.base(), id) }
+		if combos, err = topGearCombos(profile, req.Equipped, req.Bags, twoHanded); err != nil {
 			return models.Sim{}, err
 		}
 	}
@@ -208,8 +214,8 @@ func (s *Sims) Start(req models.SimRequest) (models.Sim, error) {
 	ctx, cancel := context.WithTimeout(s.base(), simTimeout)
 	sim := models.Sim{ID: id, Kind: req.Kind, State: models.SimRunning, Character: profile.Name, Spec: profile.Spec,
 		Options: req.Options, StartedMS: s.Now().UnixMilli()}
-	s.run, s.last = &simRun{sim: sim, cancel: cancel, combos: combos}, nil
-	go s.execute(ctx, input, output)
+	s.run, s.last = &simRun{sim: sim, cancel: cancel}, nil
+	go s.execute(ctx, input, output, combos)
 	return sim, nil
 }
 
@@ -229,13 +235,13 @@ func simArgs(input, output string, o models.SimOptions, profilesets bool) []stri
 }
 
 // execute runs simc for the running sim, following its progress, and saves what it found.
-func (s *Sims) execute(ctx context.Context, input, output string) {
+func (s *Sims) execute(ctx context.Context, input, output string, combos []gearCombo) {
 	defer func() {
 		os.Remove(input)
 		os.Remove(output)
 	}()
 	s.mu.Lock()
-	sim, combos := s.run.sim, s.run.combos
+	sim := s.run.sim
 	s.mu.Unlock()
 	cmd := exec.CommandContext(ctx, s.Engine.Path(), simArgs(input, output, sim.Options, len(combos) > 0)...)
 	cmd.Dir = filepath.Dir(input)

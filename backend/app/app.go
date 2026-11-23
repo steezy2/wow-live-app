@@ -47,7 +47,7 @@ const (
 	simsDir      = "sims"
 )
 
-// spellTimeout bounds one spell lookup on Wowhead, so a hover never waits on a site that is down.
+// spellTimeout bounds one spell or item lookup on Wowhead, so a hover or a sim never waits on a site that is down.
 const spellTimeout = 10 * time.Second
 
 // Options say where the site reads and writes.
@@ -116,11 +116,12 @@ func Start(ctx context.Context, opts Options) (*Site, error) {
 	s := &Site{Keys: keys, Changes: &service.Changes{Every: pushEvery}, opts: opts, newKeys: newKeys}
 	characters := service.Characters{Realms: opts.Realms, Logs: opts.WCL,
 		Bosses: slices.Sorted(maps.Keys(opts.Bosses))}
+	wh := wowhead.Client{CacheDir: filepath.Join(opts.Cache, "wowhead"), HTTP: &http.Client{Timeout: spellTimeout}}
 	if opts.Settings != nil {
 		opts.Settings.Logs, opts.Settings.Characters = s, characters
 		opts.Settings.Sim = &controller.SimAPI{Runs: &service.Sims{
-			Engine: simc.Client{Dir: filepath.Join(opts.Cache, simEngineDir)},
-			Dir:    filepath.Join(opts.Cache, simsDir), Now: opts.Now, Ctx: ctx}}
+			Engine: simc.Client{Dir: filepath.Join(opts.Cache, simEngineDir)}, Items: wh,
+			Dir: filepath.Join(opts.Cache, simsDir), Now: opts.Now, Ctx: ctx}}
 		if opts.WCL != nil {
 			s.Import = s.importer(characters, store, pulls)
 			opts.Settings.Import = s.Import
@@ -146,8 +147,7 @@ func Start(ctx context.Context, opts Options) (*Site, error) {
 	if opts.LogsDir != nil {
 		planner.Saves = func() ([]models.MDTPreset, error) { return mdt.SavedRoutes(opts.LogsDir()) }
 	}
-	spells := &service.Spells{Keys: keys, Talents: opts.Talents,
-		Source: wowhead.Client{CacheDir: filepath.Join(opts.Cache, "wowhead"), HTTP: &http.Client{Timeout: spellTimeout}}}
+	spells := &service.Spells{Keys: keys, Talents: opts.Talents, Source: wh}
 	s.Handler = controller.Router(controller.MPlus{Keys: keys, Reviews: s.reviews, Compares: s.compares,
 		Changes: s.Changes, Now: opts.Now, Tiles: tiles, Recaps: recaps, Talents: opts.Talents,
 		Icons: wowhead.Client{CacheDir: filepath.Join(opts.Cache, "wowhead")}, Spells: spells, Planner: planner},
