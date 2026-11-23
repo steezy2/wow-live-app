@@ -539,9 +539,9 @@ export async function abandonLiveKey(): Promise<void> {
 }
 
 /** The saved keys one character played ('' for every character), newest first. */
-export async function fetchSavedKeys(character: string, signal?: AbortSignal): Promise<KeySummary[]> {
+export function fetchSavedKeys(character: string, signal?: AbortSignal): Promise<KeySummary[]> {
   const query = new URLSearchParams({ character }).toString()
-  return json<KeySummary[]>(`/api/mplus/keys?${query}`, { signal })
+  return sharedRead(savedKeyReads, character, () => json<KeySummary[]>(`/api/mplus/keys?${query}`), signal)
 }
 
 /** One saved key. */
@@ -555,16 +555,29 @@ export async function fetchTrack(start: number, signal?: AbortSignal): Promise<K
 }
 
 const dungeonMaps = new Map<number, Promise<DungeonMap>>()
+const savedKeyReads = new Map<string, Promise<KeySummary[]>>()
+
+/** read's answer for key, shared by every ask while it is in flight (a later ask reads anew). A signal ends only its
+ * own ask early; the request goes on for the others. */
+function sharedRead<K, T>(reads: Map<K, Promise<T>>, key: K, read: () => Promise<T>, signal?: AbortSignal): Promise<T> {
+  let shared = reads.get(key)
+  if (!shared) {
+    shared = read().finally(() => reads.delete(key))
+    reads.set(key, shared)
+  }
+  if (!signal) return shared
+  const answer = shared
+  return new Promise<T>((resolve, reject) => {
+    if (signal.aborted) return reject(signal.reason)
+    signal.addEventListener('abort', () => reject(signal.reason), { once: true })
+    answer.then(resolve, reject)
+  })
+}
 
 /** A dungeon's map: its floors with Keystone.guru tiles, and where parties have walked in its saved runs. Pages that
  * ask at once (a key's map and its route) share one request, which none of them can abort; a later ask reads anew. */
 export function fetchDungeonMap(mapID: number): Promise<DungeonMap> {
-  let read = dungeonMaps.get(mapID)
-  if (!read) {
-    read = json<DungeonMap>(`/api/mplus/dungeons/${mapID}/map`).finally(() => dungeonMaps.delete(mapID))
-    dungeonMaps.set(mapID, read)
-  }
-  return read
+  return sharedRead(dungeonMaps, mapID, () => json<DungeonMap>(`/api/mplus/dungeons/${mapID}/map`))
 }
 
 /** A spell a mob casts, with Mythic Dungeon Tools' flags (models.MobSpell). */
@@ -937,31 +950,50 @@ export function subscribe(notify: () => void): () => void {
   }
 }
 
-/** subscribe without the wait for the page to show. */
-function subscribeToChanges(onChange: () => void): () => void {
-  if (location.host === APP_HOST) {
-    const off = onAppEvent('change', onChange)
-    onChange()
-    return off
-  }
+const streamListeners = new Set<() => void>()
+let closeStream: (() => void) | undefined
+
+/** Opens the browser's one event stream (a browser allows about 6 connections to a host), telling every listener of
+ * each change; returns what closes it. */
+function openStream(): () => void {
+  const tell = () => streamListeners.forEach((listener) => listener())
   let timer: ReturnType<typeof setInterval> | undefined
   const stopPolling = () => {
     clearInterval(timer)
     timer = undefined
   }
   const source = new EventSource('/api/mplus/events')
-  source.addEventListener('change', onChange)
+  source.addEventListener('change', tell)
   source.onopen = () => {
     stopPolling()
-    onChange()
+    tell()
   }
   source.onerror = () => {
-    timer ??= setInterval(onChange, FALLBACK_POLL_MS)
+    timer ??= setInterval(tell, FALLBACK_POLL_MS)
   }
-  onChange()
   return () => {
     source.close()
     stopPolling()
+  }
+}
+
+/** subscribe without the wait for the page to show. In a browser every subscriber shares one event stream, open
+ * while any listens. */
+function subscribeToChanges(onChange: () => void): () => void {
+  if (location.host === APP_HOST) {
+    const off = onAppEvent('change', onChange)
+    onChange()
+    return off
+  }
+  streamListeners.add(onChange)
+  closeStream ??= openStream()
+  onChange()
+  return () => {
+    streamListeners.delete(onChange)
+    if (streamListeners.size === 0) {
+      closeStream?.()
+      closeStream = undefined
+    }
   }
 }
 

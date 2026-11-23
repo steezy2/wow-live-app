@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react'
 import {
   fetchKeyRoute,
   fetchRoutes,
-  type KeyTrack,
   type KeyView,
   type RouteCompare,
   type RunPull,
@@ -50,8 +49,8 @@ function RecordRoute({ keyView: key, onRecorded }: { keyView: KeyView; onRecorde
  * enemies, or not in the route), then the planned enemies the log never showed dying. A running key shows the route's
  * map with the enemies killed ticked, each route pull's planned forces, when it was pulled and how much of it died,
  * then the kills off the route and the route pulls not pulled. With seek, a time moves the replay. A running key's
- * comparison is read again as its track changes (a null track, not at all). */
-export function KeyRoute({ keyView: key, track, seek }: { keyView: KeyView; track: KeyTrack | null; seek?: Seeker }) {
+ * comparison is read again as the key changes while live is set. */
+export function KeyRoute({ keyView: key, live, seek }: { keyView: KeyView; live: boolean; seek?: Seeker }) {
   const [id, setID] = useState<string>()
   const [compare, setCompare] = useState<RouteCompare | null>()
   const [error, setError] = useState('')
@@ -66,6 +65,7 @@ export function KeyRoute({ keyView: key, track, seek }: { keyView: KeyView; trac
     [compare],
   )
   const enemyByKey = useMemo(() => new Map(dungeon?.enemies.map((e) => [enemyKey(e), e])), [dungeon])
+  const changing = live ? key : null // a new reading of a live key asks again
   useEffect(() => {
     const controller = new AbortController()
     fetchKeyRoute(key.start, id, controller.signal).then(
@@ -73,7 +73,7 @@ export function KeyRoute({ keyView: key, track, seek }: { keyView: KeyView; trac
       (err: Error) => controller.signal.aborted || setError(err.message),
     )
     return () => controller.abort()
-  }, [key.start, id, track, fetched])
+  }, [key.start, id, fetched, changing])
 
   if (error) return <p className="warning">{error}</p>
   if (compare === undefined) return <p className="muted">Loading…</p>

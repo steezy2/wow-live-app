@@ -41,8 +41,12 @@ html {
   scrollbar-gutter: stable;
 }
 
+/* Full width up to 1400px, centered: in a grid column a bare auto margin would shrink the page to its content, so it
+ * would start narrow and shift as the tab's content loads. */
 .page {
-  max-width: 1400px;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: calc(1400px + 2 * var(--s5));
   margin: 0 auto;
   padding: var(--s5);
 }
@@ -879,11 +883,9 @@ button {
   color: var(--text);
 }
 
-/* Fields and buttons in Settings and Home's data panel look like what they are: boxed, the main action filled, a
- * destructive one red. */
+/* Fields in Settings and Home's data panel look like what they are: boxed. */
 :is(.settings, .home-data) input:not([type='checkbox'], [type='range']),
-:is(.settings, .home-data) select,
-:is(.settings, .home-data) button {
+:is(.settings, .home-data) select {
   font: inherit;
   color: var(--text);
   background: var(--bg);
@@ -897,39 +899,48 @@ button {
   accent-color: var(--accent);
 }
 
-:is(.settings, .home-data) button {
-  background: var(--panel-2);
-  font-weight: 600;
+/* The one look of a button that does something: boxed, the main action (a submit or .action) filled, a destructive
+ * one red. */
+:is(.settings, .home-data, .links, .quick-links, .route-bar, .route-tools) {
+  & button {
+    font: inherit;
+    font-weight: 600;
+    color: var(--text);
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: var(--s2) var(--s3);
+  }
+
+  & button:hover:not(:disabled),
+  & button[aria-pressed='true'] {
+    border-color: var(--accent);
+  }
+
+  & button:is([type='submit'], .action) {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+
+  & button:is([type='submit'], .action):hover:not(:disabled) {
+    filter: brightness(1.1);
+  }
+
+  & button.danger {
+    color: var(--bad);
+  }
+
+  & button.danger:hover:not(:disabled) {
+    border-color: var(--bad);
+  }
+
+  & button:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
 }
 
-:is(.settings, .home-data) button:hover:not(:disabled),
-:is(.settings, .home-data) button[aria-pressed='true'] {
-  border-color: var(--accent);
-}
-
-:is(.settings, .home-data) button[type='submit'] {
-  background: var(--accent);
-  border-color: var(--accent);
-}
-
-:is(.settings, .home-data) button[type='submit']:hover:not(:disabled) {
-  filter: brightness(1.1);
-}
-
-:is(.settings, .home-data) button.danger {
-  color: var(--bad);
-}
-
-:is(.settings, .home-data) button.danger:hover:not(:disabled) {
-  border-color: var(--bad);
-}
-
-:is(.settings, .home-data) button:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-
-:is(.settings, .home-data) :is(input, select, button):focus-visible {
+:is(.settings, .home-data, .links, .quick-links, .route-bar, .route-tools) :is(input, select, button):focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
@@ -1570,16 +1581,6 @@ button.link {
   flex-wrap: wrap;
   gap: var(--s2);
   align-items: center;
-}
-.links button {
-  background: var(--panel-2);
-  color: var(--text);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: var(--s1) var(--s2);
-}
-.links button:hover:not(:disabled) {
-  border-color: var(--accent);
 }
 
 /* The Home tab's quick links: bigger buttons with an arrow. */
