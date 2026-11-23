@@ -196,12 +196,6 @@ function OptionsPanel(props: {
       <button className="sim-run" disabled={!props.canRun || !!running || !!optionsError} onClick={props.onRun}>
         {running ? 'Simming…' : 'Sim'}
       </button>
-      {running && (
-        <div className="sim-progress">
-          <progress value={running.progress} max={100} aria-label="Sim progress" /> {running.progress}%
-          <button onClick={props.onCancel}>Cancel</button>
-        </div>
-      )}
     </aside>
   )
 }
