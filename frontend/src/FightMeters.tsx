@@ -1,6 +1,6 @@
 import type { MouseEvent } from 'react'
 import { SavedBefore } from './SavedBefore'
-import { abilityViews, raidTargets, type AbilityRow } from './abilities'
+import { playerViews, type AbilityRow } from './abilities'
 import type { KeyHit, KeyMeter, KeyTrack, RaidPull } from './api'
 import { classColors } from './classColors'
 import { amount } from './format'
@@ -75,14 +75,9 @@ export function FightMeters(props: {
   const views = windows.map((w) => {
     const whole = w.from <= 0 && !fromTrack && fight.abilities !== undefined
     const between = track ? abilitiesBetween(track, fight, focus, w.from, w.to) : undefined
-    const v = abilityViews(
-      focus,
-      (whole ? fight.abilities : between?.abilities) ?? [],
-      (whole ? fight.taken : between?.taken) ?? [],
-    )
+    const v = playerViews(focus, whole ? { ...fight, targets: fight.targets ?? between?.targets } : (between ?? {}))
     const taken = v.taken.map((r) => ({ ...r, avoidable: avoidable.has(r.name) }))
-    const targets = raidTargets((whole ? fight.targets : undefined) ?? between?.targets, focus)
-    return { ...v, taken, targets, known: whole || between !== undefined }
+    return { ...v, taken, known: whole || between !== undefined }
   })
   const card = (
     i: number,

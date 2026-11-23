@@ -144,9 +144,9 @@ function QuickLinks({ character, onOpen, onSettings, onRecap }: HomeActions & { 
   const key = useFetched(`keys:${character}`, (signal) => fetchSavedKeys(character, signal)).data?.[0]
   const pull = useFetched(`pulls:${character}`, (signal) => fetchRaidNights(character, signal)).data?.[0]?.pulls[0]
   return (
-    <section className="panel">
+    <section className="panel quick-links">
       <h2>Quick links</h2>
-      <div className="actions">
+      <div className="links">
         {key && (
           <button onClick={() => onOpen('mplus', key.start)}>
             Last key: {key.dungeon} +{key.level}

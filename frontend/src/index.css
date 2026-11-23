@@ -821,10 +821,9 @@ button {
   border-radius: 6px;
 }
 
-/* A boss fight's meter cards in its details (KeyLedgers.tsx), small and two across. */
-.replay-meters {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+/* A boss fight's meter cards in its details (KeyLedgers.tsx), two across (one under 1280 px). */
+.replay-meters .cards {
+  margin-top: var(--s2);
   gap: var(--s2);
 }
 
@@ -996,6 +995,12 @@ html:has(.overlay) {
   padding: 0;
 }
 
+/* A breakdown lists its rows in full: the overlay never scrolls. */
+.overlay .drill .scroll {
+  max-height: none;
+  overflow: visible;
+}
+
 .overlay p {
   margin: 0;
 }
@@ -1010,7 +1015,7 @@ html:has(.overlay) {
   margin: 0;
 }
 
-/* The raid card's rows under its title and bar: deaths, what to fix, and the top DPS and HPS side by side. */
+/* The raid card's rows under its title and bar: deaths, what to fix, and the top DPS and HPS one over the other. */
 .overlay-rows {
   display: grid;
   gap: 2px;
@@ -1023,20 +1028,33 @@ html:has(.overlay) {
 
 .overlay-meters {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  grid-template-columns: 1fr; /* Damage over Healing, never side by side */
   gap: var(--s1);
+}
+
+/* With clicks on, a death line shows it opens: a pointer, an arrow and an underline on hover. */
+.overlay.clicks .row-button:not(:disabled) {
+  cursor: pointer;
+}
+
+.overlay.clicks .row-button:not(:disabled)::after {
+  content: '›';
+  padding-left: var(--s1);
+  font-weight: bold;
+  color: var(--accent);
+}
+
+.overlay.clicks .row-button:not(:disabled):hover {
+  text-decoration: underline;
+}
+
+.overlay-meters.side {
+  grid-template-columns: 1fr 1fr;
 }
 
 .overlay-meters .card {
   min-width: 0;
   overflow: hidden;
-}
-
-/* Strip mode: an overlay made this short keeps only the clock, timer, forces and deaths. */
-@media (max-height: 160px) {
-  .overlay-extra {
-    display: none;
-  }
 }
 
 .overlay.moving {
@@ -1194,9 +1212,13 @@ span.graph-taken {
   max-height: 260px;
 }
 
-/* The raid page's bottom tabs, twice as tall as a key's. */
+/* The bottom tabs of the key and raid pages, twice as tall as the lists' usual height. */
 .tall .scroll {
   max-height: 640px;
+}
+
+.tall .drill .scroll {
+  max-height: 260px;
 }
 
 /* Boxes over the replay's map: the boss's health at the top right, the focused raider's casts at the bottom left, and
@@ -1545,6 +1567,7 @@ button.link {
 /* The Report links under a finished key or pull: Warcraft Logs, WoWAnalyzer, or Find my report. */
 .links {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--s2);
   align-items: center;
 }
@@ -1557,6 +1580,15 @@ button.link {
 }
 .links button:hover:not(:disabled) {
   border-color: var(--accent);
+}
+
+/* The Home tab's quick links: bigger buttons with an arrow. */
+.quick-links button {
+  padding: var(--s2) var(--s3);
+  font-weight: 600;
+}
+.quick-links button::after {
+  content: ' →' / '';
 }
 
 /* The recap's numbers, each in a box: the number big, its label under it. */

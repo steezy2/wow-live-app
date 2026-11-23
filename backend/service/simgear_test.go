@@ -2,8 +2,6 @@ package service
 
 import (
 	"errors"
-	"os"
-	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -135,13 +133,8 @@ func TestTopGearRefusesOverTheCap(t *testing.T) {
 
 func TestSimsRunTopGear(t *testing.T) {
 	s := newTestSims(t, "ok")
-	result, err := filepath.Abs("testdata/sim-topgear-result.json")
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv("WOWLIVE_FAKE_RESULT", result)
-	args := filepath.Join(t.TempDir(), "args.txt")
-	t.Setenv("WOWLIVE_FAKE_ARGS", args)
+	engine := s.Engine.(*fakeEngine)
+	engine.result = "testdata/sim-topgear-result.json"
 	req := simRequest(t)
 	// all equipped ticked, plus the bags' head and ring: the head 2 ways times the rings 3 ways, less the equipped gear
 	req.Kind, req.Equipped, req.Bags = "topgear", []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10}, []int{0, 1}
@@ -154,10 +147,7 @@ func TestSimsRunTopGear(t *testing.T) {
 		t.Fatalf("sim = %+v", sim)
 	}
 
-	input, err := os.ReadFile(args + ".simc")
-	if err != nil {
-		t.Fatal(err)
-	}
+	input := engine.input
 	ring := "finger2=,id=251194,bonus_id=12843/13440/6652/13668/12699,content_tuning=1279,enchant_id=7967,gem_id=240892\n"
 	for _, want := range []string{
 		"\nmain_hand=,id=271092,", // the equipped gear is the baseline
@@ -165,14 +155,14 @@ func TestSimsRunTopGear(t *testing.T) {
 		"\nprofileset.combo2+=" + ring,
 		"\nprofileset.combo4+=finger1=,id=251194,", // beside the equipped finger2, the bag ring takes finger1
 	} {
-		if !strings.Contains(string(input), want) {
+		if !strings.Contains(input, want) {
 			t.Errorf("the input file lacks %q:\n%s", want, input)
 		}
 	}
-	if n := strings.Count(string(input), "profileset."); n != 7 {
+	if n := strings.Count(input, "profileset."); n != 7 {
 		t.Errorf("%d profileset lines, want 7 (5 combos, 2 of them changing 2 slots)", n)
 	}
-	if got, _ := os.ReadFile(args); !strings.Contains(string(got), "target_error=0.2\n") {
+	if got := strings.Join(engine.args, "\n"); !strings.Contains(got, "target_error=0.2") {
 		t.Errorf("profilesets should run at target_error=0.2: %q", got)
 	}
 

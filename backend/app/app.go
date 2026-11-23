@@ -85,6 +85,7 @@ type Site struct {
 	Changes  *service.Changes
 	Handler  *gin.Engine
 	Import   *service.Importer // nil without Settings and Warcraft Logs
+	Sims     *service.Sims     // nil without Settings
 	opts     Options
 	reviews  controller.Reviews
 	compares controller.Compares
@@ -119,9 +120,9 @@ func Start(ctx context.Context, opts Options) (*Site, error) {
 	wh := wowhead.Client{CacheDir: filepath.Join(opts.Cache, "wowhead"), HTTP: &http.Client{Timeout: spellTimeout}}
 	if opts.Settings != nil {
 		opts.Settings.Logs, opts.Settings.Characters = s, characters
-		opts.Settings.Sim = &controller.SimAPI{Runs: &service.Sims{
-			Engine: simc.Client{Dir: filepath.Join(opts.Cache, simEngineDir)}, Items: wh,
-			Dir: filepath.Join(opts.Cache, simsDir), Now: opts.Now, Ctx: ctx}}
+		s.Sims = &service.Sims{Engine: simc.Client{Dir: filepath.Join(opts.Cache, simEngineDir)}, Items: wh,
+			Dir: filepath.Join(opts.Cache, simsDir), Now: opts.Now, Ctx: ctx}
+		opts.Settings.Sim = &controller.SimAPI{Runs: s.Sims}
 		if opts.WCL != nil {
 			s.Import = s.importer(characters, store, pulls)
 			opts.Settings.Import = s.Import

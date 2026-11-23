@@ -997,6 +997,18 @@ export function moveOverlay(on?: boolean): void {
 export function resetOverlay(): void {
   emitAppEvent('overlay-reset')
 }
+/** What the overlay can show dummy data of: a Mythic+ key or a raid pull. */
+export type OverlayPreview = 'mplus' | 'raid'
+/** Tells the desktop app to show the overlay with dummy data of kind, to stop ('') or, without kind, to say again what
+ * it shows (the 'overlay-previewing' event). */
+export function previewOverlay(kind?: OverlayPreview | ''): void {
+  emitAppEvent('overlay-preview', kind)
+}
+/** Tells the desktop app the overlay content's size at zoom 1 and the page's zoom limits, so it holds the window to
+ * that shape and between those sizes. */
+export function overlayShape(width: number, height: number, zoomMin: number, zoomMax: number): void {
+  emitAppEvent('overlay-shape', [width, height, zoomMin, zoomMax])
+}
 
 /** The desktop app's settings, with whether the log folder exists, when the game last wrote a log there (0 for
  * never) and the choices to pick from; null outside the app. The app sends the saved settings as the 'settings'
@@ -1023,6 +1035,23 @@ export interface OverlaySettings {
   columns: OverlayColumn[]
   /** Clicks go through the overlay to the game; off, a click on a player shows their abilities in the pull. */
   clickThrough: boolean
+  /** What the cards order their rows and fill their bars by. */
+  rankBy: RankBy
+  /** A DPS card and an HPS card of the key in place of the pull and key cards; the raid overlay's pull in one ranked
+   * card in place of its Damage and Healing cards. */
+  splitCards: boolean
+  raidOneCard: boolean
+  /** Players the raid overlay's Damage and Healing cards show (0 for everyone), and whether they sit side by side. */
+  raidDpsRows: number
+  raidHpsRows: number
+  raidSideBySide: boolean
+  /** Seconds a new death's recap shows over the cards without a click; 0 is off. */
+  deathRecapSeconds: number
+}
+export type RankBy = 'dps' | 'hps'
+/** A named layout of the overlay's cards the Settings page fills in with one click. */
+export type OverlayPreset = Pick<OverlaySettings, 'oneCard' | 'splitCards' | 'raidOneCard' | 'rows' | 'columns'> & {
+  name: string
 }
 /** A column the overlay's cards can show (the settings' overlayColumns). */
 export type OverlayColumn =
@@ -1041,6 +1070,11 @@ export interface SettingsView extends Settings {
   regions: Settings['region'][]
   overlayShows: OverlaySettings['show'][]
   overlayColumns: OverlayColumn[]
+  overlayRanks: RankBy[]
+  overlayPresets: OverlayPreset[]
+  /** The least and most seconds a death's recap shows (0 turns it off). */
+  minRecapSeconds: number
+  maxRecapSeconds: number
   minOpacity: number
   /** The most days an auto rule takes. */
   maxAutoDays: number

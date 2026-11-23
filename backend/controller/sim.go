@@ -72,14 +72,16 @@ func (a SimAPI) Engine(c *gin.Context) {
 //
 //	@Summary		Download or update the SimulationCraft engine, or use one the owner has
 //	@Description	With no body, downloads the newest simc.exe (about 116 MB) from this app's own GitHub release over
-//	@Description	HTTPS, checked against the sha256 in the release's engine.json; the release is rebuilt weekly from
-//	@Description	SimulationCraft's official nightly. With a path, copies that simc.exe instead. Runs in the background:
-//	@Description	poll the engine's status.
+//	@Description	HTTPS, checked against the sha256 in the release's engine.json (which catches a broken download, not a
+//	@Description	swapped file: both come from the same release); the release is rebuilt weekly from SimulationCraft's
+//	@Description	official nightly. With a path, copies that simc.exe instead. Runs in the background: poll the engine's
+//	@Description	status.
 //	@Tags			sim
 //	@Accept			json
 //	@Produce		json
 //	@Param			body	body		SimEngineFile	false	"the path of a simc.exe to use"
 //	@Success		202		{object}	models.SimEngineStatus
+//	@Failure		400		{object}	ErrorResponse	"a body that isn't {"path": ...}"
 //	@Failure		409		{object}	ErrorResponse	"a sim or an install is running"
 //	@Router			/api/sim/engine [post]
 func (a SimAPI) InstallEngine(c *gin.Context) {
