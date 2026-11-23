@@ -41,6 +41,9 @@ const (
 	// clickOverlay switches the overlay between taking clicks (a click on a player shows their abilities) and letting
 	// them through to the game, like Overlay takes clicks on the Settings page and in the tray.
 	clickOverlay = "CmdOrCtrl+Alt+K"
+	// hideOverlay hides the overlay (or shows it again) until the next key or raid pull, like Hide the overlay in the
+	// tray.
+	hideOverlay = "CmdOrCtrl+Alt+H"
 	// overlayLinger is how long the overlay stays up after a key ends.
 	overlayLinger = time.Minute
 	// overlayW and overlayH are the overlay's first size, overlayMargin how far it sits from the primary screen's top
@@ -156,8 +159,12 @@ func run() error {
 	var moving atomic.Bool
 	// Between raid pulls the overlay shows the last pull for service.RaidLinger.
 	betweenPulls := func() bool { return site.Keys.BetweenPulls(time.Now().UnixMilli()) }
+	var hidden atomic.Bool   // hidden by hideOverlay; moving or previewing the overlay shows it anyway
+	var preview atomic.Value // "mplus" or "raid" while the Settings page has the overlay show dummy data, else ""
+	preview.Store("")
 	up := func(show string) bool {
-		return moving.Load() || show == "always" || show == "keys" && (running() || betweenPulls())
+		wanted := show == "always" || show == "keys" && (running() || betweenPulls())
+		return moving.Load() || preview.Load() != "" || !hidden.Load() && wanted
 	}
 	showOrHide := func(show string) {
 		if up(show) {
@@ -170,6 +177,7 @@ func run() error {
 	menu.Add("Open " + name).OnClick(func(*application.Context) { show() })
 	moveItem := menu.AddCheckbox("Move or resize the overlay", false)
 	clickItem := menu.AddCheckbox("Overlay takes clicks", !settings.Current().Overlay.ClickThrough)
+	hideItem := menu.AddCheckbox("Hide the overlay until the next key or pull", false)
 	// passClicks lets clicks through to the game unless the overlay is being moved or takes them.
 	passClicks := func(o models.OverlaySettings) { overlay.SetIgnoreMouseEvents(o.ClickThrough && !moving.Load()) }
 	setMoving := func(on bool) {
@@ -180,6 +188,12 @@ func run() error {
 		showOrHide(settings.Current().Overlay.Show)
 	}
 	moveItem.OnClick(func(*application.Context) { setMoving(moveItem.Checked()) })
+	setHidden := func(on bool) {
+		hidden.Store(on)
+		hideItem.SetChecked(on)
+		showOrHide(settings.Current().Overlay.Show)
+	}
+	hideItem.OnClick(func(*application.Context) { setHidden(hideItem.Checked()) })
 	setClicks := func(on bool) { // saved, so OnSave applies it and tells the pages
 		next := settings.Current()
 		next.Overlay.ClickThrough = !on
@@ -204,12 +218,40 @@ func run() error {
 			wails.Event.Emit("overlay-moving", moving.Load())
 		}
 	})
+	wails.Event.On("overlay-preview", func(e *application.CustomEvent) {
+		if kind, ok := e.Data.(string); ok { // else a page asking what it shows
+			if kind != "mplus" && kind != "raid" {
+				kind = ""
+			}
+			preview.Store(kind)
+			showOrHide(settings.Current().Overlay.Show)
+		}
+		wails.Event.Emit("overlay-previewing", preview.Load())
+	})
 	defaultPlace := func() {
 		area := wails.Screen.GetPrimary().WorkArea
 		overlay.SetBounds(application.Rect{X: area.X + area.Width - overlayW - overlayMargin, Y: area.Y + overlayMargin,
 			Width: overlayW, Height: overlayH})
 	}
 	wails.Event.On("overlay-reset", func(*application.CustomEvent) { defaultPlace() })
+	// The overlay page's content shape: the window follows it while it is moved or resized.
+	shape := &holdShape{window: overlay}
+	wails.Event.On("overlay-shape", func(e *application.CustomEvent) {
+		if size, ok := e.Data.([]any); ok && len(size) == 4 {
+			var n [4]float64
+			for i := range n {
+				n[i], _ = size[i].(float64)
+			}
+			if n[0] > 0 && n[1] > 0 {
+				shape.report(n[0], n[1], n[2], n[3])
+			}
+		}
+	})
+	overlay.OnWindowEvent(events.Common.WindowDidResize, func(*application.WindowEvent) {
+		if moving.Load() {
+			shape.apply()
+		}
+	})
 	// A full review page's Pop out button.
 	wails.Event.On("open-review", func(e *application.CustomEvent) {
 		if url, ok := e.Data.(string); ok && isReviewURL(url) {
@@ -240,6 +282,9 @@ func run() error {
 		if err := wails.GlobalShortcut.Register(moveOverlay, func() { setMoving(!moving.Load()) }); err != nil {
 			log.Printf("no %s to move the overlay (use Settings or the tray): %v", moveOverlay, err)
 		}
+		if err := wails.GlobalShortcut.Register(hideOverlay, func() { setHidden(!hidden.Load()) }); err != nil {
+			log.Printf("no %s to hide the overlay (use the tray): %v", hideOverlay, err)
+		}
 		if err := wails.GlobalShortcut.Register(clickOverlay, func() {
 			setClicks(settings.Current().Overlay.ClickThrough)
 		}); err != nil {
@@ -250,8 +295,19 @@ func run() error {
 	go func() {
 		var hide *time.Timer
 		forRaid := false // the overlay is up for the last raid pull, until the next pull or key
+		key, _ := site.Keys.Latest(time.Now().UnixMilli())
+		lastKey, lastPull := key.Start, site.Keys.LastPullStart()
 		for v := range versions {
 			wails.Event.Emit("change", v)
+			key, _ := site.Keys.Latest(time.Now().UnixMilli())
+			pull := site.Keys.LastPullStart()
+			if key.Status == models.StatusRunning && key.Start != lastKey || pull != lastPull {
+				// a new key or raid pull brings the overlay back and ends a preview
+				preview.Store("")
+				wails.Event.Emit("overlay-previewing", "")
+				setHidden(false)
+			}
+			lastKey, lastPull = key.Start, pull
 			switch {
 			case up(settings.Current().Overlay.Show):
 				if hide != nil {

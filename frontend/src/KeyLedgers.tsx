@@ -4,23 +4,26 @@ import type { KeyHit, KeyTrack, KeyView } from './api'
 import type { FightData } from './KeyTabs'
 import { amount, causesText, clock, coverOf } from './format'
 import { Cover, Spell } from './Spell'
-import { defense, offense } from './meterColumns'
+import { offense } from './meterColumns'
 import { RecapRow } from './HitRecap'
-import { MeterCard } from './MeterCards'
+import { FightMeters } from './FightMeters'
 import { meterBetween, recapOf } from './replay'
 import { When, Who, type Seeker } from './Seek'
 
-/** The key's boss fights; a click moves the replay to one and opens its details: its length against your best run at
- * the level and the top runs (topBosses, from the review), the deaths and must-stops that went off in it, and the
- * party's DPS and HPS on it. */
+/** The key's boss fights; a click moves the replay to one (without scrolling the page) and opens its details: its
+ * length against your best run at the level and the top runs (topBosses, from the review), the deaths and must-stops
+ * that went off in it, and the party's meters on it; a click on a player drills into their damage by spell and into
+ * each enemy, and their healing and damage taken. */
 export function BossList(props: {
   keyView: KeyView
   track: KeyTrack | null
   topBosses?: Record<string, number>
+  /** Moves the replay to a boss's start; it doesn't scroll the page. */
   onSeek: (clockMS: number) => void
 }) {
   const { keyView: key, track, topBosses, onSeek } = props
   const [open, setOpen] = useState('')
+  const [focus, setFocus] = useState('')
   if (key.bosses.length === 0) return <p className="muted">None yet</p>
   return (
     <ul className="list">
@@ -39,6 +42,7 @@ export function BossList(props: {
               aria-expanded={open === id}
               onClick={() => {
                 setOpen(open === id ? '' : id)
+                setFocus('')
                 onSeek(b.startMS)
               }}
             >
@@ -69,14 +73,24 @@ export function BossList(props: {
                 </span>
                 {track && (
                   <div className="replay-meters">
-                    {[offense.slice(0, 2), defense(false).slice(0, 2)].map((columns) => (
-                      <MeterCard
-                        key={columns[0].label}
-                        title={`On ${b.name}`}
-                        meter={meterBetween(track, b.startMS, end)}
-                        columns={columns}
-                      />
-                    ))}
+                    <FightMeters
+                      windows={[
+                        {
+                          title: `On ${b.name}`,
+                          from: b.startMS,
+                          to: end,
+                          saved: meterBetween(track, b.startMS, end),
+                        },
+                      ]}
+                      track={track}
+                      atEnd={false}
+                      fight={key}
+                      offense={offense}
+                      group="party"
+                      classes={track.classes}
+                      focus={focus}
+                      onFocus={key.status === 'running' ? undefined : setFocus}
+                    />
                   </div>
                 )}
               </>

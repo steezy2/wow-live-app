@@ -6,12 +6,13 @@ import {
   fetchRaidPull,
   reviewURL,
   type KeyTrack,
+  type OverlaySettings,
   type RaidNight,
   type RaidPull,
   type RaidPullSummary,
 } from './api'
 import { clock, counted, isWeekLabel, progressText } from './format'
-import { defense, raidOffense } from './meterColumns'
+import { defense, overlayColumn, overlayIds, RAID_OVERLAY_COLUMNS, raidOffense, rankOrder } from './meterColumns'
 import { MeterCard } from './MeterCards'
 import { ReportLinks, ReportTag } from './ReportLinks'
 import { fightTabs, pullFightData } from './KeyTabs'
@@ -31,11 +32,9 @@ import { tip } from './tipAttrs'
 import { WaitingCard } from './WaitingCard'
 import { localDay, raidTonight } from './waiting'
 
-/** How many deaths, things to fix, and top damage and healing rows the overlay's card shows. */
+/** How many deaths and things to fix the overlay's card shows. */
 const OVERLAY_DEATHS = 3
 const OVERLAY_FIXES = 3
-const OVERLAY_DPS_ROWS = 5
-const OVERLAY_HPS_ROWS = 3
 
 /** A pull's title: "Ula'tek Mythic · pull 23". */
 function pullName(p: RaidPullSummary): string {
@@ -238,12 +237,40 @@ function RaidPullView({ pull }: { pull: RaidPull }) {
 }
 
 /** The overlay's card between pulls: how far the last pull got, the boss's health as a bar with tonight's best pull
- * marked, the first deaths, the top things to fix, and the top DPS and HPS (rows players each when set, else 5 and 3);
- * made very short, the title and bar only. */
-export function RaidOverlayCard({ pull, rows = 0 }: { pull: RaidPull; rows?: number }) {
+ * marked, the first deaths (a click on one, when the overlay takes clicks, shows its recap; a click on a raider in a
+ * meter shows their abilities), the top things to fix,
+ * and the top damage and healing in two cards (the settings' raid rows each, one over the other or side by side) or,
+ * with raidOneCard, one card of the chosen columns ranked by what the settings say. */
+export function RaidOverlayCard(props: {
+  pull: RaidPull
+  settings: OverlaySettings
+  onPickDeath: (death: RaidPull['deaths'][number]) => void
+  onPickPlayer: (player: string) => void
+}) {
+  const { pull, settings, onPickDeath, onPickPlayer } = props
   const classes = classesOf(pull)
   const best = pull.comparisons?.tonight
   const more = pull.deaths.length - OVERLAY_DEATHS
+  const { rankBy, raidDpsRows, raidHpsRows } = settings
+  const damage = (
+    <MeterCard
+      key="dps"
+      title="Damage"
+      meter={topMeter(pull.meter, 'dps', raidDpsRows)}
+      columns={raidOffense.slice(0, 1)}
+      onPick={onPickPlayer}
+    />
+  )
+  const healing = (
+    <MeterCard
+      key="hps"
+      title="Healing"
+      meter={topMeter(pull.meter, 'hps', raidHpsRows)}
+      columns={defense(false).slice(0, 1)}
+      onPick={onPickPlayer}
+    />
+  )
+  const ids = overlayIds(settings.columns.filter((c) => RAID_OVERLAY_COLUMNS.includes(c)), rankBy, false)
   return (
     <>
       <div className="overlay-clock">
@@ -265,10 +292,10 @@ export function RaidOverlayCard({ pull, rows = 0 }: { pull: RaidPull; rows?: num
       </p>
       <div className="overlay-extra overlay-rows">
         {pull.deaths.slice(0, OVERLAY_DEATHS).map((d, i) => (
-          <p key={`${d.player}-${i}`} className="small">
+          <button key={`${d.player}-${i}`} className="row-button small" onClick={() => onPickDeath(d)}>
             <span className="muted">{clock(d.clockMS)}</span> <Name player={d.player} classes={classes} />{' '}
             {d.ability || 'unknown'}
-          </p>
+          </button>
         ))}
         {more > 0 && <p className="small muted">and {counted(more, 'more death')}</p>}
         {pull.suggestions.length > 0 && (
@@ -278,18 +305,18 @@ export function RaidOverlayCard({ pull, rows = 0 }: { pull: RaidPull; rows?: num
             ))}
           </ol>
         )}
-        <div className="overlay-meters">
+        {settings.raidOneCard ? (
           <MeterCard
-            title="Damage"
-            meter={topMeter(pull.meter, 'dps', rows || OVERLAY_DPS_ROWS)}
-            columns={raidOffense.slice(0, 1)}
+            title={rankBy === 'hps' ? 'Healing' : 'Damage'}
+            meter={topMeter(pull.meter, rankBy, rankBy === 'hps' ? raidHpsRows : raidDpsRows)}
+            columns={ids.map((id) => overlayColumn(id, pull.meter, []))}
+            dense
+            onPick={onPickPlayer}
           />
-          <MeterCard
-            title="Healing"
-            meter={topMeter(pull.meter, 'hps', rows || OVERLAY_HPS_ROWS)}
-            columns={defense(false).slice(0, 1)}
-          />
-        </div>
+        ) : (
+          <div className={settings.raidSideBySide ? 'overlay-meters side' : 'overlay-meters'}>
+            {rankOrder(rankBy).map((by) => (by === 'hps' ? healing : damage))}</div>
+        )}
       </div>
     </>
   )
