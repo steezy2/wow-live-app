@@ -1750,10 +1750,11 @@ function compareURL(kind: FightKind, start: number, player: string): string {
   return `/api/${path}/players/${encodeURIComponent(player)}/compare`
 }
 
-/** A piece of gear: its slot as simc names it, the name and item level the export gives, its item ID and its other
- * numbers. */
+/** A piece of gear: its slot as simc names it, the slots' group it is listed under ("finger" for both rings), the
+ * name and item level the export gives, its item ID and its other numbers. */
 export interface SimItem {
   slot: string
+  group: string
   name?: string
   level?: number
   id: number
@@ -1797,8 +1798,11 @@ export interface SimChoices {
   defaults: SimOptions
   defaultDifficulty: string
   defaultKeyLevel: number
+  /** The items' groups in wearing order, as Top Gear lists them. */
+  gearGroups: string[]
 }
 
+/** The kinds of sim: one DPS number, the best combination of the gear carried, and each drop's gain. */
 export type SimKind = 'quick' | 'topgear' | 'drops'
 
 /** A sim to start: the export is read again by the app, `equipped` and `bags` are indexes into the profile read from
@@ -1813,6 +1817,7 @@ export interface SimRequest {
   keyLevel?: number
 }
 
+/** One ability's damage in a sim: its spell ID, DPS, share of the total (0 to 1), casts and amount per cast. */
 export interface SimAbility {
   name: string
   id: number
@@ -1823,6 +1828,7 @@ export interface SimAbility {
   perCast: number
 }
 
+/** A buff in a sim and the percent of the fight it was up. */
 export interface SimBuff {
   name: string
   id: number
@@ -1847,6 +1853,7 @@ export interface SimCombo {
   boss?: string
 }
 
+/** What a finished sim found: the DPS and its error, each ability, the buffs, and a Top Gear or Droptimizer's rows. */
 export interface SimResult {
   dps: number
   dpsError: number
@@ -1883,10 +1890,12 @@ export interface SimEngineStatus {
   error?: string
 }
 
+/** The options a sim can start with, their limits and the ones the page starts on. */
 export async function fetchSimChoices(signal?: AbortSignal): Promise<SimChoices> {
   return json('/api/sim/choices', { signal })
 }
 
+/** The engine's status: installed or not, downloading, failed or stale. */
 export async function fetchSimEngine(signal?: AbortSignal): Promise<SimEngineStatus> {
   return json('/api/sim/engine', { signal })
 }
@@ -1901,10 +1910,12 @@ export async function parseSimExport(text: string): Promise<SimProfile> {
   return sendJSON('/api/sim/profile', 'POST', { export: text })
 }
 
+/** Starts a sim in the background; poll fetchSim with its ID. */
 export async function startSim(request: SimRequest): Promise<Sim> {
   return sendJSON('/api/sim', 'POST', request)
 }
 
+/** One sim: the running one's progress, or a saved one with its result. */
 export async function fetchSim(id: string, signal?: AbortSignal): Promise<Sim> {
   return json(`/api/sim/${id}`, { signal })
 }

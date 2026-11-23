@@ -2318,7 +2318,7 @@ const docTemplate = `{
                 }
             },
             "post": {
-                "description": "With no body, downloads the newest simc.exe (about 116 MB) from this app's own GitHub release over\nHTTPS, checked against the sha256 in the release's engine.json; the release is rebuilt weekly from\nSimulationCraft's official nightly. With a path, copies that simc.exe instead. Runs in the background:\npoll the engine's status.",
+                "description": "With no body, downloads the newest simc.exe from this app's own GitHub release over\nHTTPS, checked against the sha256 in the release's engine.json; the release is rebuilt weekly from\nSimulationCraft's official nightly. With a path, copies that simc.exe instead. Runs in the background:\npoll the engine's status.",
                 "consumes": [
                     "application/json"
                 ],
@@ -6580,6 +6580,13 @@ const docTemplate = `{
                         "type": "string"
                     }
                 },
+                "gearGroups": {
+                    "description": "GearGroups are the items' groups (SimItem.Group) in wearing order.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "keyLevels": {
                     "type": "array",
                     "items": {
@@ -6671,6 +6678,10 @@ const docTemplate = `{
         "models.SimItem": {
             "type": "object",
             "properties": {
+                "group": {
+                    "type": "string",
+                    "example": "finger"
+                },
                 "id": {
                     "type": "integer"
                 },

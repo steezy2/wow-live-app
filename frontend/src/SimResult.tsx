@@ -1,10 +1,8 @@
 import { useState } from 'react'
-import type { Sim, SimCombo, SimItem, SimSwap } from './api'
+import type { Sim, SimCombo, SimSwap } from './api'
 import { amount, clock } from './format'
+import { groupLabel, itemText } from './simOptions'
 import { Spell } from './Spell'
-
-/** An item as the page names it: its name (or ID) and item level. */
-const itemText = (item: SimItem) => `${item.name ?? `item ${item.id}`}${item.level ? ` (${item.level})` : ''}`
 
 /** What a swap does: "Ring A (300) → Ring B (310)", or the slot emptied. */
 function swapText(s: SimSwap): string {
@@ -49,15 +47,15 @@ function Combos({ combos, drops }: { combos: SimCombo[]; drops: boolean }) {
                   {amount(c.gain)}
                 </td>
                 <td>{amount(c.dps)}</td>
-                <td style={{ textAlign: 'left' }}>
+                <td className="left">
                   {c.swaps.map((s) => (
                     <div key={s.slot}>
-                      <span className="muted">{s.slot.replace('_', ' ')}</span> {swapText(s)}
+                      <span className="muted">{groupLabel(s.in?.group ?? s.out?.group ?? s.slot)}</span> {swapText(s)}
                     </div>
                   ))}
                 </td>
                 {drops && (
-                  <td style={{ textAlign: 'left' }}>
+                  <td className="left">
                     {c.boss}
                     <span className="muted"> · {c.source}</span>
                   </td>
@@ -109,11 +107,10 @@ export function SimResult({ sim }: { sim: Sim }) {
                 <tr key={a.id || a.name}>
                   <td
                     style={{
-                      textAlign: 'left',
                       backgroundImage: `linear-gradient(to right, var(--border) ${share(a.dps)}%, transparent 0)`,
                     }}
                   >
-                    <Spell name={a.name} />
+                    <Spell name={a.name} id={a.id} />
                   </td>
                   <td>{amount(a.dps)}</td>
                   <td>{Math.round(a.share * 100)}%</td>
@@ -131,7 +128,7 @@ export function SimResult({ sim }: { sim: Sim }) {
           <ul className="list">
             {result.buffs.map((b) => (
               <li key={b.id || b.name}>
-                <Spell name={b.name} /> <span className="muted">{Math.round(b.uptime)}%</span>
+                <Spell name={b.name} id={b.id} /> <span className="muted">{Math.round(b.uptime)}%</span>
               </li>
             ))}
           </ul>

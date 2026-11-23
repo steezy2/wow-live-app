@@ -43,6 +43,9 @@ const (
 	maxSimTargets    = 20
 	// maxSimRows is how many abilities and buffs a result keeps.
 	maxSimRows = 40
+	// defaultDropDifficulty and defaultDropKey are what the Droptimizer starts on (the key when the drops offer it).
+	defaultDropDifficulty = "heroic"
+	defaultDropKey        = 10
 )
 
 var (
@@ -66,9 +69,6 @@ var (
 		"DungeonSlice"}
 	simAccuracies = []simAccuracy{{"quick", 0.3}, {"normal", 0.1}, {"high", 0.05}}
 	simDefaults   = models.SimOptions{FightStyle: "Patchwerk", Length: 300, Targets: 1, Accuracy: "normal"}
-
-	defaultDropDifficulty = "heroic"
-	defaultDropKey        = 10
 
 	simIDPattern = regexp.MustCompile(`^[0-9a-f]{16}$`)
 	// simProgress is simc's progress line: "Generating Profileset: t50 2/76 [====>...] 1122/4300 146.2 Mean=...", the
@@ -120,10 +120,14 @@ func (s *Sims) Choices() models.SimChoices {
 	if slices.Contains(keyLevels, defaultDropKey) {
 		defaultKey = defaultDropKey
 	}
+	groups := make([]string, len(simSlots))
+	for i, slot := range simSlots {
+		groups[i] = gearKey(slot)
+	}
 	return models.SimChoices{FightStyles: simFightStyles, Accuracies: accuracies, MinLength: minSimLength,
 		MaxLength: maxSimLength, MaxTargets: maxSimTargets, MaxCombos: maxCombos, MaxDrops: maxDrops,
 		Difficulties: simDifficulties, KeyLevels: keyLevels, Defaults: simDefaults,
-		DefaultDifficulty: defaultDropDifficulty, DefaultKeyLevel: defaultKey}
+		DefaultDifficulty: defaultDropDifficulty, DefaultKeyLevel: defaultKey, GearGroups: slices.Compact(groups)}
 }
 
 // simAccuracyOf is the accuracy named name, false when there is none.

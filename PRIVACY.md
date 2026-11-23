@@ -1,6 +1,6 @@
 # WoW Live privacy policy
 
-Last updated: November 16, 2026
+Last updated: November 23, 2026
 
 WoW Live runs on your PC and has no accounts, analytics, ads or tracking. The developer receives no data from it.
 
@@ -8,6 +8,7 @@ WoW Live runs on your PC and has no accounts, analytics, ads or tracking. The de
 
 - **World of Warcraft's combat log**, from the game's Logs folder. It holds the character names of you and the players in your group. WoW Live reads it on your PC and never uploads it.
 - **What it works out from the log** (your saved keys and raid pulls, deaths and meters), its settings and its own log file, in the app's data folder on your PC. Uninstalling the app deletes them.
+- **Your last 20 sims** (each one's character name, spec and results) and the **SimulationCraft program** (`simc.exe`) you downloaded or picked, in the same data folder, if you use the Sim tab.
 - **Your Warcraft Logs API client ID and secret**, if you enter them, in Windows Credential Manager. They are sent only to Warcraft Logs, to sign in to its API.
 
 ## What it requests over the internet
@@ -18,7 +19,7 @@ WoW Live downloads public game data. None of these requests include anything fro
 - **Raider.IO** (raider.io): the season's dungeon timers and this week's affixes, for your region.
 - **Keystone.guru** (assets.keystone.guru): dungeon map images.
 - **Wowhead** (nether.wowhead.com and wow.zamimg.com): the text of a spell when you hover its name, and the icons of talents and spells.
-- **github.com** (this repository's `simc-engine` release), only when you press the Sim tab's download button: the SimulationCraft program (`simc.exe`, about 116 MB) and its checksum, over HTTPS; the app checks the file against the checksum before it keeps it. A sim runs on your PC and sends nothing about the character you paste.
+- **GitHub** (github.com, this repository's `simc-engine` release, which redirects to release-assets.githubusercontent.com), only when you press the Sim tab's download button: the SimulationCraft program (`simc.exe`) and its checksum, over HTTPS; the app checks the file against the checksum before it keeps it. A sim runs on your PC and sends nothing about the character you paste.
 - **Warcraft Logs' image server** (assets.rpglogs.com): raid room map images, for the raid replay.
 
 As with any web request, those sites can see your IP address. Each request names WoW Live and its GitHub page.

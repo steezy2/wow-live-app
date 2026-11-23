@@ -282,6 +282,26 @@ func TestEngineStatusWarnsOfAnOldBuild(t *testing.T) {
 	}
 }
 
+func TestChoicesDefaultKeyLevel(t *testing.T) {
+	tests := []struct {
+		name   string
+		levels []int
+		want   int
+	}{
+		{"10 present", []int{2, 10, 12}, 10},
+		{"10 absent", []int{2, 7, 12}, 12},
+	}
+	for _, tt := range tests {
+		s := Sims{}
+		for _, level := range tt.levels {
+			s.Drops.Keys = append(s.Drops.Keys, models.KeyLevels{Level: level})
+		}
+		if got := s.Choices().DefaultKeyLevel; got != tt.want {
+			t.Errorf("%s: DefaultKeyLevel = %d, want %d", tt.name, got, tt.want)
+		}
+	}
+}
+
 func TestParseSimProgress(t *testing.T) {
 	tests := []struct {
 		line string

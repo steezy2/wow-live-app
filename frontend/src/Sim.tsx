@@ -8,7 +8,7 @@ import {
   parseSimExport,
   removeSim,
   startSim,
-  type Sim as SimRun,
+  type Sim,
   type SimChoices,
   type SimEngineStatus,
   type SimKind,
@@ -17,7 +17,7 @@ import {
 } from './api'
 import { sizeText } from './format'
 import { SimResult } from './SimResult'
-import { gearGroups, simOptionsError } from './simOptions'
+import { gearGroups, itemText, simOptionsError } from './simOptions'
 import { Skeleton } from './Skeleton'
 import { tip } from './tipAttrs'
 
@@ -34,8 +34,8 @@ const KINDS: [SimKind, string, string][] = [
 const errorText = (err: unknown) => (err instanceof Error ? err.message : String(err))
 
 /** The Sim tab (desktop app only): the engine's status and download, a pasted /simc export, the kind of sim and its
- * options, the running sim's progress, its result, and the saved sims. */
-export function Sim() {
+ * options, the running sim's progress, the result shown, and the saved sims. */
+export function SimPage() {
   const [choices, setChoices] = useState<SimChoices | null>(null)
   const [engine, setEngine] = useState<SimEngineStatus | null>(null)
   const [ownPath, setOwnPath] = useState('')
@@ -47,11 +47,20 @@ export function Sim() {
   const [bags, setBags] = useState<number[]>([])
   const [difficulty, setDifficulty] = useState('')
   const [keyLevel, setKeyLevel] = useState(0)
-  const [sim, setSim] = useState<SimRun | null>(null)
-  const [saved, setSaved] = useState<SimRun[]>([])
+  const [run, setRun] = useState<Sim | null>(null) // the sim started here, or found running, as last polled
+  const [sim, setSim] = useState<Sim | null>(null) // the finished sim shown
+  const [saved, setSaved] = useState<Sim[]>([])
   const [error, setError] = useState<string | null>(null)
 
-  const readSaved = useCallback(() => fetchSims().then(setSaved, () => undefined), [])
+  const readSaved = useCallback(
+    () =>
+      fetchSims().then((list) => {
+        setSaved(list.filter((s) => s.state !== 'running'))
+        const running = list.find((s) => s.state === 'running')
+        if (running) setRun(running)
+      }, () => undefined),
+    [],
+  )
   useEffect(() => {
     const controller = new AbortController()
     fetchSimChoices(controller.signal).then(
@@ -63,24 +72,29 @@ export function Sim() {
       },
       (err: unknown) => setError(errorText(err)),
     )
-    fetchSimEngine(controller.signal).then(setEngine, () => undefined)
+    fetchSimEngine(controller.signal).then(setEngine, (err: unknown) => setError(errorText(err)))
     void readSaved()
     return () => controller.abort()
   }, [readSaved])
   useEffect(() => {
     if (!engine?.installing) return
-    const timer = setInterval(() => void fetchSimEngine().then(setEngine, () => undefined), POLL_MS)
+    const timer = setInterval(
+      () => void fetchSimEngine().then(setEngine, (err: unknown) => setError(errorText(err))),
+      POLL_MS,
+    )
     return () => clearInterval(timer)
   }, [engine?.installing])
-  const running = sim?.state === 'running' ? sim.id : null
+  const running = run?.state === 'running' ? run.id : null
   useEffect(() => {
     if (!running) return
     const timer = setInterval(
       () =>
         void fetchSim(running).then(
           (s) => {
+            setRun(s)
+            if (s.state === 'running') return
             setSim(s)
-            if (s.state !== 'running') void readSaved()
+            void readSaved()
           },
           (err: unknown) => setError(errorText(err)),
         ),
@@ -104,7 +118,7 @@ export function Sim() {
   const start = () =>
     act(async () => {
       if (!options) return
-      setSim(
+      setRun(
         await startSim({
           kind,
           export: text,
@@ -131,9 +145,9 @@ export function Sim() {
           </p>
         ) : (
           <p className="muted">
-            Sims run on this PC with SimulationCraft, which is not ours. The download (about 116 MB) is the official
-            nightly, kept on this app's GitHub release and checked against its checksum, and nothing about your
-            character is sent anywhere.
+            Sims run on this PC with SimulationCraft, which is not ours. The download is the official nightly, kept on
+            this app's GitHub release and checked against its checksum, and nothing about your character is sent
+            anywhere.
           </p>
         )}
         {engine?.stale && <p className="warning">This build is old; a patch has probably made it wrong. Update it.</p>}
@@ -239,7 +253,7 @@ export function Sim() {
                 {choices.maxCombos}{' '}
                 combinations run.
               </p>
-              {gearGroups(profile.equipped, profile.bags).map((g) => (
+              {gearGroups(profile.equipped, profile.bags, choices.gearGroups).map((g) => (
                 <div key={g.label}>
                   <strong>{g.label}</strong>
                   {g.items.map(({ item, index, worn }) => (
@@ -249,7 +263,7 @@ export function Sim() {
                         checked={(worn ? equipped : bags).includes(index)}
                         onChange={() => (worn ? toggle(equipped, setEquipped, index) : toggle(bags, setBags, index))}
                       />
-                      {item.name ?? `item ${item.id}`} {item.level ? `(${item.level})` : ''}
+                      {itemText(item)}
                       {worn && <span className="muted"> worn</span>}
                     </label>
                   ))}
@@ -280,21 +294,25 @@ export function Sim() {
             </div>
           )}
           <div className="actions">
-            <button disabled={!engine?.installed || !!running || !!optionsError} onClick={start}>
+            <button
+              disabled={!engine?.installed || engine.installing || !!running || !!optionsError}
+              onClick={start}
+            >
               Run
             </button>
-            {running && sim && (
-              <>
-                <progress value={sim.progress} max={100} aria-label="Sim progress" /> {sim.progress}%
-                <button onClick={() => act(() => removeSim(sim.id))}>Cancel</button>
-              </>
-            )}
           </div>
         </section>
       )}
 
+      {run?.state === 'running' && (
+        <div className="actions">
+          {run.character} · {KINDS.find(([k]) => k === run.kind)?.[1]}
+          <progress value={run.progress} max={100} aria-label="Sim progress" /> {run.progress}%
+          <button onClick={() => act(() => removeSim(run.id))}>Cancel</button>
+        </div>
+      )}
       {error && <p className="warning">{error}</p>}
-      {sim && sim.state !== 'running' && (
+      {sim && (
         <>
           {sim.state === 'failed' && <p className="warning">{sim.error}</p>}
           {sim.state === 'cancelled' && <p className="muted">Cancelled.</p>}

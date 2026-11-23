@@ -2786,6 +2786,11 @@ definitions:
         items:
           type: string
         type: array
+      gearGroups:
+        description: GearGroups are the items' groups (SimItem.Group) in wearing order.
+        items:
+          type: string
+        type: array
       keyLevels:
         items:
           type: integer
@@ -2851,6 +2856,9 @@ definitions:
     type: object
   models.SimItem:
     properties:
+      group:
+        example: finger
+        type: string
       id:
         type: integer
       level:
@@ -4826,7 +4834,7 @@ paths:
       consumes:
       - application/json
       description: |-
-        With no body, downloads the newest simc.exe (about 116 MB) from this app's own GitHub release over
+        With no body, downloads the newest simc.exe from this app's own GitHub release over
         HTTPS, checked against the sha256 in the release's engine.json; the release is rebuilt weekly from
         SimulationCraft's official nightly. With a path, copies that simc.exe instead. Runs in the background:
         poll the engine's status.

@@ -21,7 +21,7 @@ import { Recap } from './Recap'
 import { RoutesPage } from './RoutesPage'
 import { SavedKeys } from './SavedKeys'
 import { SettingsPage } from './SettingsPage'
-import { Sim } from './Sim'
+import { SimPage } from './Sim'
 import { Skeleton } from './Skeleton'
 import { useSaved } from './useSaved'
 
@@ -57,6 +57,8 @@ export default function App() {
   const [settingsRead, setSettingsRead] = useState(false)
   // the Routes page stays mounted so unsaved edits survive a tab switch
   const [routesSeen, setRoutesSeen] = useState(false)
+  // the Sim page too, so the paste, the profile and a running sim survive it
+  const [simSeen, setSimSeen] = useState(false)
   const [raidPull, setRaidPull] = useState<number | null>(null)
   const [characters, setCharacters] = useState<Character[]>([])
   const [picked, setPicked] = useState<string | null>(null)
@@ -65,6 +67,7 @@ export default function App() {
   const ready = (settingsRead && charactersRead && savedKeys !== null) || splashOver
   const section = picking ?? (ready ? 'home' : null)
   if (section === 'routes' && !routesSeen) setRoutesSeen(true)
+  if (section === 'sim' && !simSeen) setSimSeen(true)
   if (section === 'mplus' && picked === null) setPicked('') // the first M+ open shows all; after that the pick stays
   useEffect(() => {
     const timer = setTimeout(() => setSplashOver(true), SPLASH_MAX_MS)
@@ -148,6 +151,11 @@ export default function App() {
           <RoutesPage visible={section === 'routes'} character={character} />
         </div>
       )}
+      {simSeen && (
+        <div hidden={section !== 'sim'}>
+          <SimPage />
+        </div>
+      )}
       {section === null ? (
         <Splash />
       ) : settings && section === 'settings' ? (
@@ -171,10 +179,8 @@ export default function App() {
             <Skeleton height={320} lines={5} />
           )}
         </main>
-      ) : section === 'routes' ? null : section === 'raid' ? (
+      ) : section === 'routes' || section === 'sim' ? null : section === 'raid' ? (
         <RaidPage key={raidPull} initial={raidPull} character={character} />
-      ) : settings && section === 'sim' ? (
-        <Sim />
       ) : section === 'recap' ? (
         <main className="page">
           <Recap character={characters.find((c) => c.id === character)} parsesFor={preferred} onOpen={open} />

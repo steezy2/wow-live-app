@@ -22,10 +22,12 @@ type SimProfile struct {
 }
 
 // SimItem is one piece of gear: its slot as simc names it ("finger1", "main_hand"; every carried ring is "finger1",
-// as the export writes it), the name and item level the export's comment gives, the item ID, and its other numbers
-// by simc's key ("bonus_id", "gem_id", "enchant_id", ...).
+// as the export writes it), the slots' group Top Gear lists it under ("finger" for both rings, one of
+// SimChoices.GearGroups), the name and item level the export's comment gives, the item ID, and its other numbers by
+// simc's key ("bonus_id", "gem_id", "enchant_id", ...).
 type SimItem struct {
 	Slot  string           `json:"slot"`
+	Group string           `json:"group" example:"finger"`
 	Name  string           `json:"name,omitempty"`
 	Level int              `json:"level,omitempty"`
 	ID    int              `json:"id"`
@@ -59,6 +61,8 @@ type SimChoices struct {
 	// DefaultDifficulty and DefaultKeyLevel are what the Droptimizer starts on.
 	DefaultDifficulty string `json:"defaultDifficulty" example:"heroic"`
 	DefaultKeyLevel   int    `json:"defaultKeyLevel" example:"10"`
+	// GearGroups are the items' groups (SimItem.Group) in wearing order.
+	GearGroups []string `json:"gearGroups"`
 }
 
 // SimRequest starts a sim: its Kind (one of SimKinds), the pasted SimC export (parsed again on every request) and
