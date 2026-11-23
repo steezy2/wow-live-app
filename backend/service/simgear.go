@@ -166,7 +166,7 @@ func weaponOptions(pool map[string][]gearCandidate, worn map[string]*models.SimI
 	if len(mains) == 0 && len(offs) == 0 {
 		return [][]models.SimSwap{nil}
 	}
-	twoHandedBags := worn["main_hand"] != nil && worn["off_hand"] == nil && len(offs) == 0
+	twoHandedBags := wearsTwoHander(worn) && len(offs) == 0
 	if len(mains) == 0 && worn["main_hand"] != nil {
 		mains = []gearCandidate{{item: *worn["main_hand"], worn: "main_hand"}}
 	}
@@ -176,7 +176,7 @@ func weaponOptions(pool map[string][]gearCandidate, worn map[string]*models.SimI
 	options := [][]models.SimSwap{}
 	for i := range mains {
 		m := &mains[i]
-		twoHanded := m.worn == "main_hand" && worn["off_hand"] == nil || m.worn == "" && twoHandedBags
+		twoHanded := m.worn == "main_hand" && wearsTwoHander(worn) || m.worn == "" && twoHandedBags
 		if twoHanded || len(offs) == 0 {
 			options = append(options, gearSwaps(worn, gearFill{"main_hand", m}, gearFill{"off_hand", nil}))
 			continue
@@ -193,6 +193,12 @@ func weaponOptions(pool map[string][]gearCandidate, worn map[string]*models.SimI
 		}
 	}
 	return options
+}
+
+// wearsTwoHander is whether the equipped main hand is two-handed: the export doesn't say, so it is when no off-hand is
+// equipped beside it.
+func wearsTwoHander(worn map[string]*models.SimItem) bool {
+	return worn["main_hand"] != nil && worn["off_hand"] == nil
 }
 
 // gearFill is one slot of a combination and what goes in it (nil empties it).
@@ -252,12 +258,16 @@ func gearResults(sets []simSetJSON, baseline float64, combos []gearCombo) []mode
 		}
 	}
 	slices.SortStableFunc(rows, func(a, b models.SimCombo) int { return cmp.Compare(b.DPS, a.DPS) })
-	seen := map[string]bool{}
+	type dropKey struct {
+		source, boss string
+		id           int
+	}
+	seen := map[dropKey]bool{}
 	return slices.DeleteFunc(rows, func(r models.SimCombo) bool {
 		if r.Source == "" {
 			return false
 		}
-		key := fmt.Sprint(r.Source, r.Boss, r.Swaps[0].In.ID)
+		key := dropKey{r.Source, r.Boss, r.Swaps[0].In.ID}
 		dup := seen[key]
 		seen[key] = true
 		return dup

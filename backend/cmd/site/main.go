@@ -76,8 +76,8 @@ func run(port int, replay string, key int, speed float64, learn bool, region str
 		return err
 	}
 	if loaded.RefErr != nil {
-		log.Printf("no dungeon facts, raid boss mechanics or talent trees, so no avoidable damage, forces, raid mechanics "+
-			"or talent tree: %v", loaded.RefErr)
+		log.Printf("no dungeon facts, raid boss mechanics, talent trees or sim drops (sim-drops.json), so no avoidable "+
+			"damage, forces, raid mechanics, talent tree or Droptimizer: %v", loaded.RefErr)
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()

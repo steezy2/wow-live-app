@@ -2242,7 +2242,7 @@ const docTemplate = `{
                 "summary": "Start a sim",
                 "parameters": [
                     {
-                        "description": "the kind, the export, the options and, for topgear, the picked equipped and bag indexes",
+                        "description": "the kind, the export, the options, for topgear the picked equipped and bag indexes, and for drops the difficulty and keyLevel",
                         "name": "body",
                         "in": "body",
                         "required": true,
@@ -6560,6 +6560,7 @@ const docTemplate = `{
                     "$ref": "#/definitions/models.SimOptions"
                 },
                 "difficulties": {
+                    "description": "Difficulties are the raid difficulties a Droptimizer can sim the raid at.",
                     "type": "array",
                     "items": {
                         "type": "string"
@@ -6572,6 +6573,7 @@ const docTemplate = `{
                     }
                 },
                 "keyLevels": {
+                    "description": "KeyLevels are the Mythic+ key levels a Droptimizer can sim the dungeons at.",
                     "type": "array",
                     "items": {
                         "type": "integer"
@@ -6583,7 +6585,7 @@ const docTemplate = `{
                     "example": 100
                 },
                 "maxDrops": {
-                    "description": "MaxDrops is the most drops a Droptimizer sims; Difficulties are the raid difficulties it can sim the raid at and\nKeyLevels the Mythic+ key levels it can sim dungeons at.",
+                    "description": "MaxDrops is the most drops a Droptimizer sims.",
                     "type": "integer",
                     "example": 300
                 },
@@ -6781,6 +6783,12 @@ const docTemplate = `{
                 },
                 "difficulty": {
                     "type": "string",
+                    "enum": [
+                        "lfr",
+                        "normal",
+                        "heroic",
+                        "mythic"
+                    ],
                     "example": "heroic"
                 },
                 "equipped": {

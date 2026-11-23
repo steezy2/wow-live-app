@@ -26,7 +26,9 @@ func raidLevel(l models.DifficultyLevels, difficulty string) int {
 
 // dropCombos is one combination per piece of gear the season's raid bosses (at difficulty) and dungeons (at key level
 // keyLevel) drop that the character's spec can loot, each replacing what is worn in its slot. A ring or trinket is
-// tried in both slots, a two-hander empties the off-hand. Nothing to sim, or over maxDrops, is ErrBadSimOptions.
+// tried in both slots, except the one beside a copy of it (unique-equipped); a two-hander empties the off-hand. A
+// one-hander only ever goes in the main hand, so a dual-wielder's off-hand isn't covered, and beside a worn two-hander
+// it is simmed with an empty off-hand. Nothing to sim, or over maxDrops, is ErrBadSimOptions.
 func dropCombos(p models.SimProfile, d models.SimDrops, difficulty string, keyLevel int) ([]gearCombo, error) {
 	spec := 0
 	for id, s := range d.Specs {
@@ -54,18 +56,18 @@ func dropCombos(p models.SimProfile, d models.SimDrops, difficulty string, keyLe
 			if !ok {
 				slots = []string{item.Slot}
 			}
-			for _, slot := range slots {
-				if slot == "off_hand" && worn["main_hand"] != nil && worn["off_hand"] == nil {
-					continue // the equipped main hand is a two-hander (as in weaponOptions), which has no off-hand
+			for i, slot := range slots {
+				pair := worn[slots[len(slots)-1-i]]
+				if slot == "off_hand" && wearsTwoHander(worn) || len(slots) == 2 && pair != nil && pair.ID == item.ID {
+					continue
 				}
-				in := models.SimItem{Slot: slot, Name: item.Name, Level: level, ID: item.ID,
-					Opts: map[string][]int{"ilevel": {level}}}
-				swaps := []models.SimSwap{{Slot: slot, Out: worn[slot], In: &in}}
-				if item.Slot == "two_hand" && worn["off_hand"] != nil {
-					swaps = append(swaps, models.SimSwap{Slot: "off_hand", Out: worn["off_hand"]})
+				fills := []gearFill{{slot, &gearCandidate{item: models.SimItem{Name: item.Name, Level: level, ID: item.ID,
+					Opts: map[string][]int{"ilevel": {level}}}}}}
+				if item.Slot == "two_hand" {
+					fills = append(fills, gearFill{"off_hand", nil})
 				}
-				combos = append(combos, gearCombo{name: "drop" + strconv.Itoa(len(combos)+1), swaps: swaps,
-					source: source.Name, boss: boss.Name})
+				combos = append(combos, gearCombo{name: "drop" + strconv.Itoa(len(combos)+1),
+					swaps: gearSwaps(worn, fills...), source: source.Name, boss: boss.Name})
 			}
 		}
 	}

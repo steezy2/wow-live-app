@@ -50,12 +50,13 @@ type SimChoices struct {
 	MaxTargets  int      `json:"maxTargets"`
 	// MaxCombos is the most gear combinations a Top Gear sim runs; a request over it is refused.
 	MaxCombos int `json:"maxCombos" example:"100"`
-	// MaxDrops is the most drops a Droptimizer sims; Difficulties are the raid difficulties it can sim the raid at and
-	// KeyLevels the Mythic+ key levels it can sim dungeons at.
-	MaxDrops     int        `json:"maxDrops" example:"300"`
-	Difficulties []string   `json:"difficulties"`
-	KeyLevels    []int      `json:"keyLevels"`
-	Defaults     SimOptions `json:"defaults"`
+	// MaxDrops is the most drops a Droptimizer sims.
+	MaxDrops int `json:"maxDrops" example:"300"`
+	// Difficulties are the raid difficulties a Droptimizer can sim the raid at.
+	Difficulties []string `json:"difficulties"`
+	// KeyLevels are the Mythic+ key levels a Droptimizer can sim the dungeons at.
+	KeyLevels []int      `json:"keyLevels"`
+	Defaults  SimOptions `json:"defaults"`
 }
 
 // SimRequest starts a sim: its Kind (one of SimKinds), the pasted SimC export (parsed again on every request) and
@@ -68,7 +69,7 @@ type SimRequest struct {
 	Options    SimOptions `json:"options"`
 	Equipped   []int      `json:"equipped,omitempty"`
 	Bags       []int      `json:"bags,omitempty"`
-	Difficulty string     `json:"difficulty,omitempty" example:"heroic"`
+	Difficulty string     `json:"difficulty,omitempty" enums:"lfr,normal,heroic,mythic" example:"heroic"`
 	KeyLevel   int        `json:"keyLevel,omitempty" example:"10"`
 }
 
@@ -113,7 +114,7 @@ type SimResult struct {
 
 // SimCombo is one gear combination a Top Gear sim ran: its DPS, the standard error of that mean, its gain over the
 // equipped gear (negative for a loss) and the slots it changes. A Droptimizer row says where the item drops: its
-// Source (raid or dungeon) and Boss.
+// Source (the raid's or dungeon's name, as "The Venomous Abyss") and Boss.
 type SimCombo struct {
 	DPS      float64   `json:"dps"`
 	DPSError float64   `json:"dpsError"`

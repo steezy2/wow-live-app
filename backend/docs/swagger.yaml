@@ -2771,6 +2771,8 @@ definitions:
       defaults:
         $ref: '#/definitions/models.SimOptions'
       difficulties:
+        description: Difficulties are the raid difficulties a Droptimizer can sim
+          the raid at.
         items:
           type: string
         type: array
@@ -2779,6 +2781,8 @@ definitions:
           type: string
         type: array
       keyLevels:
+        description: KeyLevels are the Mythic+ key levels a Droptimizer can sim the
+          dungeons at.
         items:
           type: integer
         type: array
@@ -2788,9 +2792,7 @@ definitions:
         example: 100
         type: integer
       maxDrops:
-        description: |-
-          MaxDrops is the most drops a Droptimizer sims; Difficulties are the raid difficulties it can sim the raid at and
-          KeyLevels the Mythic+ key levels it can sim dungeons at.
+        description: MaxDrops is the most drops a Droptimizer sims.
         example: 300
         type: integer
       maxLength:
@@ -2925,6 +2927,11 @@ definitions:
           type: integer
         type: array
       difficulty:
+        enum:
+        - lfr
+        - normal
+        - heroic
+        - mythic
         example: heroic
         type: string
       equipped:
@@ -4711,8 +4718,8 @@ paths:
         Runs SimulationCraft on this PC in the background, one at a time: the pasted export (read again,
         never passed to simc as it is) with the options. Poll the sim by its ID.
       parameters:
-      - description: the kind, the export, the options and, for topgear, the picked
-          equipped and bag indexes
+      - description: the kind, the export, the options, for topgear the picked equipped
+          and bag indexes, and for drops the difficulty and keyLevel
         in: body
         name: body
         required: true
