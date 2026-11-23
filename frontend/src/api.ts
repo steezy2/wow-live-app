@@ -558,7 +558,7 @@ const dungeonMaps = new Map<number, Promise<DungeonMap>>()
 const savedKeyReads = new Map<string, Promise<KeySummary[]>>()
 
 /** read's answer for key, shared by every ask while it is in flight (a later ask reads anew). A signal ends only its
- * own ask early; the request goes on for the others. */
+ * own ask early; the request goes on for the others. Callers share the one answer, so none may change it. */
 function sharedRead<K, T>(reads: Map<K, Promise<T>>, key: K, read: () => Promise<T>, signal?: AbortSignal): Promise<T> {
   let shared = reads.get(key)
   if (!shared) {
@@ -566,12 +566,11 @@ function sharedRead<K, T>(reads: Map<K, Promise<T>>, key: K, read: () => Promise
     reads.set(key, shared)
   }
   if (!signal) return shared
-  const answer = shared
-  return new Promise<T>((resolve, reject) => {
-    if (signal.aborted) return reject(signal.reason)
-    signal.addEventListener('abort', () => reject(signal.reason), { once: true })
-    answer.then(resolve, reject)
-  })
+  signal.throwIfAborted()
+  const aborted = new Promise<never>((_, reject) =>
+    signal.addEventListener('abort', () => reject(signal.reason), { once: true }),
+  )
+  return Promise.race([shared, aborted])
 }
 
 /** A dungeon's map: its floors with Keystone.guru tiles, and where parties have walked in its saved runs. Pages that

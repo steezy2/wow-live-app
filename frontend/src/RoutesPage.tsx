@@ -212,7 +212,7 @@ export function RoutesPage({ visible, character }: { visible: boolean; character
           </div>
         ))}
         {dungeon !== null && (
-          <div className="route-tools">
+          <div className="route-tools boxed">
             <button onClick={() => add(() => createRoute(dungeon, 'New route'))}>New route</button>
             {armed?.mapID === dungeon ? (
               <button className="action" onClick={() => setArmed(null)}>
@@ -236,7 +236,7 @@ export function RoutesPage({ visible, character }: { visible: boolean; character
           placeholder="Paste a Mythic Dungeon Tools export string"
           aria-label="export string"
         />
-        <div className="route-tools">
+        <div className="route-tools boxed">
           <button
             disabled={!code.trim()}
             onClick={() => add(() => importRoute(code.trim()).then((r) => (setCode(''), r)))}
@@ -247,7 +247,7 @@ export function RoutesPage({ visible, character }: { visible: boolean; character
         <h2>From MDT's saves</h2>
         {savedHere.length === 0 && <p className="muted small">No saved routes for this dungeon.</p>}
         {savedHere.map((s) => (
-          <div key={s.uid} className="item">
+          <div key={s.uid} className="item boxed">
             <span className="open">
               <span>{s.name}</span>
               <span className="muted small">
@@ -257,9 +257,7 @@ export function RoutesPage({ visible, character }: { visible: boolean; character
             {s.imported ? (
               <span className="muted small">imported</span>
             ) : (
-              <span className="route-tools">
-                <button onClick={() => add(() => importSavedRoute(s.uid))}>Import</button>
-              </span>
+              <button onClick={() => add(() => importSavedRoute(s.uid))}>Import</button>
             )}
           </div>
         ))}
@@ -270,7 +268,7 @@ export function RoutesPage({ visible, character }: { visible: boolean; character
         {notice && <p className="muted">{notice}</p>}
         {route && rows && route.id === shown?.id ? (
           <>
-            <div className="title route-bar">
+            <div className="title boxed">
               <input
                 className="route-name"
                 value={draft.name}
@@ -326,7 +324,7 @@ export function RoutesPage({ visible, character }: { visible: boolean; character
                 limits={route.limits}
               />
               <div>
-                <div className="route-tools">
+                <div className="route-tools boxed">
                   {mobs && (
                     <label className="route-level" {...tip('The key level the health and damage are at')}>
                       +

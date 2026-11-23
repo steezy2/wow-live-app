@@ -1,4 +1,5 @@
 :root {
+  --page-w: calc(1400px + 2 * var(--s5)); /* a page's widest, with or without a list */
   /* Surfaces step up in lightness; each colour has one meaning: accent = you/now, good, warn, bad. */
   --bg: #0b0d12;
   --panel: #151922;
@@ -46,7 +47,7 @@ html {
 .page {
   box-sizing: border-box;
   width: 100%;
-  max-width: calc(1400px + 2 * var(--s5));
+  max-width: var(--page-w);
   margin: 0 auto;
   padding: var(--s5);
 }
@@ -227,7 +228,7 @@ h2 {
 
 .layout {
   display: grid;
-  grid-template-columns: 260px 1fr;
+  grid-template-columns: 260px minmax(0, 1fr); /* minmax: wide content never stretches the column */
   min-height: calc(100vh - var(--nav));
   align-items: start;
 }
@@ -901,7 +902,7 @@ button {
 
 /* The one look of a button that does something: boxed, the main action (a submit or .action) filled, a destructive
  * one red. */
-:is(.settings, .home-data, .links, .quick-links, .route-bar, .route-tools) {
+:is(.settings, .home-data, .links, .quick-links, .boxed) {
   & button {
     font: inherit;
     font-weight: 600;
@@ -940,7 +941,7 @@ button {
   }
 }
 
-:is(.settings, .home-data, .links, .quick-links, .route-bar, .route-tools) :is(input, select, button):focus-visible {
+:is(.settings, .home-data, .links, .quick-links, .boxed) :is(input, select, button):focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
