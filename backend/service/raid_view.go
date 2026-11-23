@@ -3,6 +3,7 @@ package service
 import (
 	"errors"
 	"io/fs"
+	"log"
 	"slices"
 	"strconv"
 	"strings"
@@ -95,6 +96,11 @@ func (k *LogTracker) numbered(p models.RaidPull) models.RaidPull {
 // compared is a pull, numbered, with tonight's best and the best ever on its boss and difficulty, each left out
 // when it's the pull itself.
 func (k *LogTracker) compared(p models.RaidPull) models.RaidPull {
+	if full, err := whole(k.raid.store, p); err != nil {
+		log.Printf("showing a pull without its abilities: %v", err)
+	} else {
+		p = full
+	}
 	p = k.numbered(p)
 	p.Maps, p.Lanes = list(k.raid.bosses[p.Boss].Maps), list(p.Lanes) // pulls saved before Nov 9 have no lanes
 	var tonight, ever *models.RaidPull

@@ -99,3 +99,21 @@ func TestRecentTracksAreReadOnceUntilTheFileChanges(t *testing.T) {
 		t.Fatal("a track whose file changed is read from the file again")
 	}
 }
+
+func TestSaveRefusesASlimKeyAndLoadReadsTheWholeOne(t *testing.T) {
+	s := NewStore(filepath.Join(t.TempDir(), "local-keys"))
+	whole := models.Key{Start: 7, Dungeon: "Voidscar Arena",
+		Abilities: []models.KeyAbility{{Player: "Ann", Ability: "Bolt"}}}
+	if err := s.Save(whole); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Save(whole.Slim()); err == nil {
+		t.Fatal("a slim key was saved over the whole one")
+	}
+	if got, err := s.Load(7); err != nil || !reflect.DeepEqual(got, whole) {
+		t.Fatalf("Load = %+v, %v; want the whole key", got, err)
+	}
+	if _, err := s.Load(8); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("Load of an unsaved key = %v", err)
+	}
+}

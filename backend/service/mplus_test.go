@@ -29,6 +29,12 @@ func (m *memStore) Delete(start int64) error {
 	return nil
 }
 func (m *memStore) Clear() error { m.keys = nil; return nil }
+func (m *memStore) Load(start int64) (models.Key, error) {
+	if i := slices.IndexFunc(m.keys, func(k models.Key) bool { return k.Start == start }); i >= 0 {
+		return m.keys[i], nil
+	}
+	return models.Key{}, fs.ErrNotExist
+}
 func (m *memStore) SaveTrack(start int64, track models.KeyTrack) error {
 	if m.tracks == nil {
 		m.tracks = map[int64]models.KeyTrack{}

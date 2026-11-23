@@ -282,13 +282,21 @@ func (k *LogTracker) LinkReports(keyLinks, pullLinks map[int64]models.ReportLink
 		}
 	}()
 	for _, key := range keys {
-		if err := k.store.Save(key); err != nil {
+		full, err := whole(k.store, key)
+		if err == nil {
+			err = k.store.Save(full)
+		}
+		if err != nil {
 			return 0, fmt.Errorf("linking a key to its report: %w", err)
 		}
 		savedKeys = append(savedKeys, key)
 	}
 	for _, p := range pulls {
-		if err := k.raid.store.Save(p); err != nil {
+		full, err := whole(k.raid.store, p)
+		if err == nil {
+			err = k.raid.store.Save(full)
+		}
+		if err != nil {
 			return 0, fmt.Errorf("linking a raid pull to its report: %w", err)
 		}
 		savedPulls = append(savedPulls, p)
