@@ -36,6 +36,12 @@ export function abilityViews(
   }
 }
 
+/** A player's damage, healing and damage taken by ability and their damage into each enemy, from what a fight or a
+ * stretch of it kept. */
+export function playerViews(player: string, got: Partial<Pick<RaidPull, 'abilities' | 'taken' | 'targets'>>) {
+  return { ...abilityViews(player, got.abilities ?? [], got.taken ?? []), targets: raidTargets(got.targets, player) }
+}
+
 /** A player's damage into each enemy, from the targets a pull or a replay's moment has. */
 export function raidTargets(targets: RaidPull['targets'], player: string): AbilityRow[] {
   return (targets ?? []).filter((t) => t.player === player).map((t) => ({ name: t.target, value: t.damage }))

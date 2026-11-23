@@ -27,6 +27,16 @@ func (k *LogTracker) RaidLive(now int64) models.RaidLive {
 	return live
 }
 
+// LastPullStart is when the newest raid pull started on the log's clock (0 for none), which changes with each pull.
+func (k *LogTracker) LastPullStart() int64 {
+	k.mu.RLock()
+	defer k.mu.RUnlock()
+	if len(k.pulls) == 0 {
+		return 0
+	}
+	return k.pulls[0].Start
+}
+
 // BetweenPulls is whether the overlay shows the last raid pull at now (ms since the epoch).
 func (k *LogTracker) BetweenPulls(now int64) bool {
 	k.mu.RLock()

@@ -4,6 +4,32 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 
 ## [Unreleased]
 
+## [0.5.4] - 2026-11-17
+
+### Added
+- **The overlay can rank by DPS or HPS** (rows and bars), and show a DPS card and an HPS card (healers only) of the key. The raid overlay follows the same rank and has an option for one ranked card in place of its Damage and Healing cards (off, as before).
+- **The raid overlay has its own row counts** for the Damage and Healing cards (5 and 3 by default, 0 for everyone) and an option to put the two cards side by side.
+- **Ctrl+Alt+H hides the overlay** (or the tray's *Hide the overlay*) until the next key or raid pull.
+- **A death's recap shows over the overlay** for 3 to 60 seconds (10 by default, or off) without a click: a new Mythic+ death's. A death line on the raid card opens its recap on a click.
+- **Preview the overlay with dummy data** from Settings (*Preview Mythic+*, *Preview raid*), to try every option without a key or a pull.
+- **Overlay layouts** (Compact, Standard, Full) fill in the card options in Settings in one click.
+
+### Changed
+- **A click on a player in the overlay shows the main window's two cards in one:** damage by ability and into each enemy, then healing by ability and the damage they took. It works on the raid overlay's meters too (the whole pull), and in both previews. The breakdown lists its rows in full, with no scrollbar.
+- **The raid overlay no longer opens on a death's recap** after a pull; only a new Mythic+ death shows its recap by itself (Settings has the seconds), and a click on a raid death line opens its recap.
+- **Death lines look clickable** on the overlay (a pointer and an arrow) while it takes clicks.
+- **The overlay window keeps the shape of its content** while it is resized (drag a corner), so it never has a spare side or a scrollbar.
+
+## [0.5.3] - 2026-11-17
+
+### Changed
+- **The M+ Live bottom tabs are as tall as the raid page's** (640 px lists instead of 320 px), so the other tabs match the bigger Route.
+- **Clicking a boss shows the party's meter cards on it**, and a click on a player drills into two cards: their damage by spell over their damage into each enemy, and their healing by spell over the damage they took.
+- **Home's quick links look like buttons**, bigger and with an arrow, and wrap on a narrow window.
+
+### Fixed
+- **Clicking a boss no longer scrolls the page** up to the replay; it moves the replay and stays where it is.
+
 ## [0.5.2] - 2026-11-16
 
 ### Changed

@@ -13,13 +13,9 @@ import (
 	"testing"
 )
 
-// engineServer serves a release holding body as simc.exe, with a manifest naming sum as its sha256.
-func engineServer(t *testing.T, body, sum string) *httptest.Server {
-	return engineServerOf(t, body, sum, "")
-}
-
-// engineServerOf is engineServer with a manifest that also says the program's version ("1210-01 12.1.5.70783").
-func engineServerOf(t *testing.T, body, sum, version string) *httptest.Server {
+// engineServer serves a release holding body as simc.exe, with a manifest naming sum as its sha256 and version as the
+// program's version and patch ("1210-01 12.1.5.70783", "" for none).
+func engineServer(t *testing.T, body, sum, version string) *httptest.Server {
 	t.Helper()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
@@ -52,7 +48,7 @@ func TestInstallRefusesWhatIsNotAsTheManifestSays(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			srv := engineServer(t, tt.body, tt.sum)
+			srv := engineServer(t, tt.body, tt.sum, "")
 			dir := t.TempDir()
 			c := Client{Dir: dir, Base: srv.URL + "/"}
 			if _, err := c.Install(context.Background()); err == nil || !strings.Contains(err.Error(), tt.wantErr) {
@@ -70,7 +66,7 @@ func TestInstallRefusesWhatIsNotAsTheManifestSays(t *testing.T) {
 
 func TestInstallTrustsTheManifestsVersionWithoutRunningTheFile(t *testing.T) {
 	program := "MZ\x90\x00not really runnable"
-	srv := engineServerOf(t, program, sumOf(program), "1210-01 12.1.5.70783")
+	srv := engineServer(t, program, sumOf(program), "1210-01 12.1.5.70783")
 	c := Client{Dir: t.TempDir(), Base: srv.URL + "/"}
 	got, err := c.Install(context.Background())
 	if err != nil {

@@ -52,6 +52,29 @@ func TestParseSpellReadsNameCooldownAndDescription(t *testing.T) {
 	}
 }
 
+func TestParseTwoHandedReadsTheTooltipsSlot(t *testing.T) {
+	tests := []struct {
+		slot, kind string
+		want       bool
+	}{
+		{"Two-Hand", "Staff", true},
+		{"Ranged", "Bow", true},
+		{"Ranged", "Wand", false},
+		{"One-Hand", "Dagger", false},
+		{"Main Hand", "Sword", false},
+	}
+	for _, tt := range tests {
+		answer := `{"name":"W","tooltip":"<table><tr><td><b>W</b><table width=\"100%\"><tr><td>` + tt.slot +
+			`</td><th><!--scstart2:10--><span class=\"q1\">` + tt.kind + `</span><!--scend--></th></tr></table>"}`
+		if got, err := ParseTwoHanded([]byte(answer)); err != nil || got != tt.want {
+			t.Errorf("%s %s: two-handed = %v (%v); want %v", tt.slot, tt.kind, got, err, tt.want)
+		}
+	}
+	if _, err := ParseTwoHanded([]byte(`{"name":"Ring","tooltip":"<table></table>"}`)); err == nil {
+		t.Error("a tooltip without a weapon slot read; want an error")
+	}
+}
+
 func TestSpellDownloadsOnceAndKeepsIt(t *testing.T) {
 	asked := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

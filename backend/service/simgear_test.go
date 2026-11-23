@@ -2,8 +2,7 @@ package service
 
 import (
 	"errors"
-	"os"
-	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -12,9 +11,19 @@ import (
 
 func gearItem(slot string, id int) models.SimItem { return models.SimItem{Slot: slot, ID: id} }
 
-// gearProfile wears a head, two rings, two trinkets and a main hand (indexes 0 to 5), and an off-hand (6) unless
+// twoHanders says the weapons with these IDs are two-handed; asking about any other than 31 and 33 fails the test.
+func twoHanders(t *testing.T, ids ...int) func(int) (bool, error) {
+	return func(id int) (bool, error) {
+		if id != 31 && id != 33 {
+			t.Errorf("asked whether item %d is two-handed", id)
+		}
+		return slices.Contains(ids, id), nil
+	}
+}
+
+// gearProfile wears a head, two rings, two trinkets and a main hand (31; indexes 0 to 5), and an off-hand (6) unless
 // twoHanded. Its bags hold a head (0), a ring (1), a second copy of the first worn ring (2), a trinket (3), a main
-// hand (4), an off-hand (5) and a neck (6).
+// hand (33; 4), an off-hand (5) and a neck (6).
 func gearProfile(twoHanded bool) models.SimProfile {
 	p := models.SimProfile{
 		Equipped: []models.SimItem{gearItem("head", 1), gearItem("finger1", 11), gearItem("finger2", 12),
@@ -31,28 +40,31 @@ func gearProfile(twoHanded bool) models.SimProfile {
 func TestTopGearCombosFollowTheSlotRules(t *testing.T) {
 	tests := []struct {
 		name          string
-		twoHanded     bool
+		twoHanders    []int // 31 is worn without an off-hand
 		equipped, bag []int
 		want          int // 0: refused
 	}{
-		{"nothing picked", false, nil, nil, 0},
-		{"only the equipped gear", false, []int{0, 1, 2, 3, 4, 5, 6}, nil, 0},
-		{"a bag head beside the equipped one", false, []int{0}, []int{0}, 1},
-		{"an unticked equipped head is not a candidate", false, nil, []int{0, 6}, 1},
-		{"a bag head and neck, the equipped head ticked", false, []int{0}, []int{0, 6}, 2},
-		{"a bag ring beside both equipped", false, []int{1, 2}, []int{1}, 2},
-		{"the equipped rings make up the pair", false, nil, []int{1}, 2},
-		{"the same ring can't be worn twice", false, []int{1, 2}, []int{2}, 1},
-		{"a ring and a trinket", false, []int{1, 2, 3, 4}, []int{1, 3}, 8},
-		{"a bag main hand beside a one-hander", false, []int{5, 6}, []int{4}, 1},
-		{"main hands and off-hands", false, []int{5, 6}, []int{4, 5}, 3},
-		{"a two-hander and a bag main hand", true, []int{5}, []int{4}, 1},
-		{"a two-hander, a bag main hand and an off-hand", true, []int{5}, []int{4, 5}, 1},
-		{"an index outside the export", false, nil, []int{7}, 0},
+		{"nothing picked", nil, nil, nil, 0},
+		{"only the equipped gear", nil, []int{0, 1, 2, 3, 4, 5, 6}, nil, 0},
+		{"a bag head beside the equipped one", nil, []int{0}, []int{0}, 1},
+		{"an unticked equipped head is not a candidate", nil, nil, []int{0, 6}, 1},
+		{"a bag head and neck, the equipped head ticked", nil, []int{0}, []int{0, 6}, 2},
+		{"a bag ring beside both equipped", nil, []int{1, 2}, []int{1}, 2},
+		{"the equipped rings make up the pair", nil, nil, []int{1}, 2},
+		{"the same ring can't be worn twice", nil, []int{1, 2}, []int{2}, 1},
+		{"a ring and a trinket", nil, []int{1, 2, 3, 4}, []int{1, 3}, 8},
+		{"a bag main hand beside a one-hander", nil, []int{5, 6}, []int{4}, 1},
+		{"main hands and off-hands", nil, []int{5, 6}, []int{4, 5}, 3},
+		{"a bag two-hander beside a worn one-hander and off-hand empties the off-hand", []int{33}, []int{5, 6},
+			[]int{4, 5}, 2},
+		{"a two-hander and a bag main hand", []int{31}, []int{5}, []int{4}, 1},
+		{"a two-hander, a bag main hand and an off-hand", []int{31}, []int{5}, []int{4, 5}, 1},
+		{"an index outside the export", nil, nil, []int{7}, 0},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			combos, err := topGearCombos(gearProfile(tt.twoHanded), tt.equipped, tt.bag)
+			combos, err := topGearCombos(gearProfile(slices.Contains(tt.twoHanders, 31)), tt.equipped, tt.bag,
+				twoHanders(t, tt.twoHanders...))
 			if tt.want == 0 {
 				if !errors.Is(err, ErrBadSimOptions) || combos != nil {
 					t.Errorf("got %d combos, err %v; want ErrBadSimOptions", len(combos), err)
@@ -67,7 +79,7 @@ func TestTopGearCombosFollowTheSlotRules(t *testing.T) {
 }
 
 func TestTopGearWeaponsEmptyOrFillTheOffHand(t *testing.T) {
-	combos, err := topGearCombos(gearProfile(false), []int{5, 6}, []int{4, 5})
+	combos, err := topGearCombos(gearProfile(false), []int{5, 6}, []int{4, 5}, twoHanders(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -79,13 +91,25 @@ func TestTopGearWeaponsEmptyOrFillTheOffHand(t *testing.T) {
 		}
 	}
 	// a picked off-hand makes the bag main hand a one-hander beside a worn two-hander
-	combos, err = topGearCombos(gearProfile(true), []int{5}, []int{4, 5})
+	// a one-handed bag main hand beside a worn two-hander takes the picked off-hand
+	combos, err = topGearCombos(gearProfile(true), []int{5}, []int{4, 5}, twoHanders(t, 31))
 	if err != nil || len(combos) != 1 || len(combos[0].swaps) != 2 || combos[0].swaps[0].In.ID != 33 ||
 		combos[0].swaps[1].Slot != "off_hand" || combos[0].swaps[1].Out != nil || combos[0].swaps[1].In.ID != 34 {
 		t.Errorf("combos = %+v, %v", combos, err)
 	}
 	if got := gearProfilesets(combos); got != "profileset.combo1+=main_hand=,id=33\nprofileset.combo1+=off_hand=,id=34\n" {
 		t.Errorf("profilesets = %q", got)
+	}
+	// a two-handed bag main hand takes the worn off-hand off
+	combos, err = topGearCombos(gearProfile(false), nil, []int{4}, twoHanders(t, 33))
+	want := "profileset.combo1+=main_hand=,id=33\nprofileset.combo1+=off_hand=\n"
+	if got := gearProfilesets(combos); err != nil || got != want {
+		t.Errorf("profilesets = %q, %v", got, err)
+	}
+	if _, err := topGearCombos(gearProfile(false), nil, []int{4}, func(int) (bool, error) {
+		return false, errors.New("offline")
+	}); err == nil {
+		t.Error("a weapon whose type can't be read should fail the sim, not guess")
 	}
 }
 
@@ -96,11 +120,12 @@ func TestTopGearRefusesOverTheCap(t *testing.T) {
 		p.Bags = append(p.Bags, gearItem("head", 100+i), gearItem("neck", 200+i))
 		picked = append(picked, 2*i, 2*i+1)
 	}
-	if combos, err := topGearCombos(p, nil, picked); err != nil || len(combos) != maxCombos {
+	if combos, err := topGearCombos(p, nil, picked, twoHanders(t)); err != nil || len(combos) != maxCombos {
 		t.Fatalf("10 heads by 10 necks: %d combos, %v; want %d", len(combos), err, maxCombos)
 	}
 	p.Bags = append(p.Bags, gearItem("head", 110))
-	if combos, err := topGearCombos(p, nil, append(picked, len(p.Bags)-1)); !errors.Is(err, ErrBadSimOptions) ||
+	if combos, err := topGearCombos(p, nil, append(picked, len(p.Bags)-1), twoHanders(t)); !errors.Is(err,
+		ErrBadSimOptions) ||
 		combos != nil {
 		t.Errorf("11 heads by 10 necks: %d combos, %v; want refused, not cut", len(combos), err)
 	}
@@ -108,13 +133,8 @@ func TestTopGearRefusesOverTheCap(t *testing.T) {
 
 func TestSimsRunTopGear(t *testing.T) {
 	s := newTestSims(t, "ok")
-	result, err := filepath.Abs("testdata/sim-topgear-result.json")
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv("WOWLIVE_FAKE_RESULT", result)
-	args := filepath.Join(t.TempDir(), "args.txt")
-	t.Setenv("WOWLIVE_FAKE_ARGS", args)
+	engine := s.Engine.(*fakeEngine)
+	engine.result = "testdata/sim-topgear-result.json"
 	req := simRequest(t)
 	// all equipped ticked, plus the bags' head and ring: the head 2 ways times the rings 3 ways, less the equipped gear
 	req.Kind, req.Equipped, req.Bags = "topgear", []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10}, []int{0, 1}
@@ -127,10 +147,7 @@ func TestSimsRunTopGear(t *testing.T) {
 		t.Fatalf("sim = %+v", sim)
 	}
 
-	input, err := os.ReadFile(args + ".simc")
-	if err != nil {
-		t.Fatal(err)
-	}
+	input := engine.input
 	ring := "finger2=,id=251194,bonus_id=12843/13440/6652/13668/12699,content_tuning=1279,enchant_id=7967,gem_id=240892\n"
 	for _, want := range []string{
 		"\nmain_hand=,id=271092,", // the equipped gear is the baseline
@@ -138,14 +155,14 @@ func TestSimsRunTopGear(t *testing.T) {
 		"\nprofileset.combo2+=" + ring,
 		"\nprofileset.combo4+=finger1=,id=251194,", // beside the equipped finger2, the bag ring takes finger1
 	} {
-		if !strings.Contains(string(input), want) {
+		if !strings.Contains(input, want) {
 			t.Errorf("the input file lacks %q:\n%s", want, input)
 		}
 	}
-	if n := strings.Count(string(input), "profileset."); n != 7 {
+	if n := strings.Count(input, "profileset."); n != 7 {
 		t.Errorf("%d profileset lines, want 7 (5 combos, 2 of them changing 2 slots)", n)
 	}
-	if got, _ := os.ReadFile(args); !strings.Contains(string(got), "target_error=0.2\n") {
+	if got := strings.Join(engine.args, "\n"); !strings.Contains(got, "target_error=0.2") {
 		t.Errorf("profilesets should run at target_error=0.2: %q", got)
 	}
 
