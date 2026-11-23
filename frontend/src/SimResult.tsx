@@ -9,10 +9,10 @@ import { gainShare } from './simOptions'
 /** The gear combinations or drops of a Top Gear or Droptimizer sim, best first: each a row with its rank, a bar for
  * its gain over the equipped gear, its DPS, and what changes (icons and item levels) and where a drop comes from.
  * Drops filter by source. */
-function Combos({ combos, drops }: { combos: SimCombo[]; drops: boolean }) {
+function Combos({ combos, drops, chunk }: { combos: SimCombo[]; drops: boolean; chunk: number }) {
   const [source, setSource] = useState('')
   const swapped = combos.flatMap((c) => c.swaps.flatMap((s) => [s.out, s.in]))
-  const info = useItemInfo(swapped.flatMap((i) => (i ? [i] : [])))
+  const info = useItemInfo(swapped.flatMap((i) => (i ? [i] : [])), chunk)
   const sources = [...new Set(combos.flatMap((c) => (c.source ? [c.source] : [])))]
   const shown = source ? combos.filter((c) => c.source === source) : combos
   const best = Math.max(0, ...shown.map((c) => c.gain))
@@ -66,9 +66,9 @@ function Combos({ combos, drops }: { combos: SimCombo[]; drops: boolean }) {
   )
 }
 
-/** A finished sim: the DPS, a Top Gear or Droptimizer's ranked rows, each ability's share of the damage and the buffs
- * that were up. */
-export function SimResult({ sim }: { sim: Sim }) {
+/** A finished sim: the DPS, a Top Gear or Droptimizer's ranked rows (their items asked chunk at a time), each
+ * ability's share of the damage and the buffs that were up. */
+export function SimResult({ sim, chunk }: { sim: Sim; chunk: number }) {
   const result = sim.result
   if (!result) return null
   const top = Math.max(1, ...result.abilities.map((a) => a.dps))
@@ -85,7 +85,7 @@ export function SimResult({ sim }: { sim: Sim }) {
           {sim.tookMS ? ` · took ${clock(sim.tookMS)}` : ''}
         </p>
       </section>
-      {result.combos && <Combos combos={result.combos} drops={sim.kind === 'drops'} />}
+      {result.combos && <Combos combos={result.combos} drops={sim.kind === 'drops'} chunk={chunk} />}
       <section className="panel">
         <h2>Abilities</h2>
         <div className="table-scroll">

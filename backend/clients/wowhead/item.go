@@ -1,14 +1,12 @@
 package wowhead
 
 import (
-	"cmp"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"path/filepath"
 	"time"
 
-	"wow-live/backend/clients/cachefile"
 	"wow-live/backend/models"
 )
 
@@ -17,9 +15,7 @@ const itemMaxAge = 30 * 24 * time.Hour
 
 // Item is what Wowhead's tooltip knows of an item ID (fetched when the Sim tab draws it and kept in CacheDir).
 func (c Client) Item(ctx context.Context, id int) (models.SimItemInfo, error) {
-	file := filepath.Join(c.CacheDir, fmt.Sprintf("item-%d.json", id))
-	url := fmt.Sprintf("%s/tooltip/item/%d?dataEnv=1&locale=0", cmp.Or(c.BaseURL, "https://nether.wowhead.com"), id)
-	data, err := cachefile.Fresh(ctx, c.HTTP, url, file, itemMaxAge)
+	data, err := c.tooltip(ctx, "item", id, itemMaxAge)
 	if err != nil {
 		return models.SimItemInfo{}, err
 	}
@@ -35,8 +31,11 @@ func ParseItem(data []byte) (models.SimItemInfo, error) {
 		Icon    string `json:"icon"`
 		Quality int    `json:"quality"`
 	}
-	if err := json.Unmarshal(data, &tooltip); err != nil || tooltip.Name == "" {
-		return models.SimItemInfo{}, fmt.Errorf("no item in the tooltip answer (%v)", err)
+	if err := json.Unmarshal(data, &tooltip); err != nil {
+		return models.SimItemInfo{}, fmt.Errorf("reading the item tooltip: %w", err)
+	}
+	if tooltip.Name == "" {
+		return models.SimItemInfo{}, errors.New("no item in the tooltip answer")
 	}
 	return models.SimItemInfo{Name: tooltip.Name, Icon: tooltip.Icon, Quality: tooltip.Quality}, nil
 }

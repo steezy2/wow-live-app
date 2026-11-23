@@ -47,8 +47,8 @@ const (
 	simsDir      = "sims"
 )
 
-// spellTimeout bounds one spell lookup on Wowhead, so a hover never waits on a site that is down.
-const spellTimeout = 10 * time.Second
+// wowheadTimeout bounds one Wowhead lookup (a spell, an item or an icon), so a page never waits on a site that is down.
+const wowheadTimeout = 10 * time.Second
 
 // Options say where the site reads and writes.
 type Options struct {
@@ -117,13 +117,14 @@ func Start(ctx context.Context, opts Options) (*Site, error) {
 	s := &Site{Keys: keys, Changes: &service.Changes{Every: pushEvery}, opts: opts, newKeys: newKeys}
 	characters := service.Characters{Realms: opts.Realms, Logs: opts.WCL,
 		Bosses: slices.Sorted(maps.Keys(opts.Bosses))}
-	wowheadClient := wowhead.Client{CacheDir: filepath.Join(opts.Cache, "wowhead")}
+	wowheadClient := wowhead.Client{CacheDir: filepath.Join(opts.Cache, "wowhead"),
+		HTTP: &http.Client{Timeout: wowheadTimeout}}
 	if opts.Settings != nil {
 		opts.Settings.Logs, opts.Settings.Characters = s, characters
 		opts.Settings.Sim = &controller.SimAPI{Runs: &service.Sims{
 			Engine: simc.Client{Dir: filepath.Join(opts.Cache, simEngineDir)},
 			Dir:    filepath.Join(opts.Cache, simsDir), Drops: opts.Drops, Now: opts.Now, Ctx: ctx},
-			Items: wowheadClient}
+			Items: service.Items{Source: wowheadClient}}
 		if opts.WCL != nil {
 			s.Import = s.importer(characters, store, pulls)
 			opts.Settings.Import = s.Import
@@ -149,8 +150,7 @@ func Start(ctx context.Context, opts Options) (*Site, error) {
 	if opts.LogsDir != nil {
 		planner.Saves = func() ([]models.MDTPreset, error) { return mdt.SavedRoutes(opts.LogsDir()) }
 	}
-	spells := &service.Spells{Keys: keys, Talents: opts.Talents,
-		Source: wowhead.Client{CacheDir: filepath.Join(opts.Cache, "wowhead"), HTTP: &http.Client{Timeout: spellTimeout}}}
+	spells := &service.Spells{Keys: keys, Talents: opts.Talents, Source: wowheadClient}
 	s.Handler = controller.Router(controller.MPlus{Keys: keys, Reviews: s.reviews, Compares: s.compares,
 		Changes: s.Changes, Now: opts.Now, Tiles: tiles, Recaps: recaps, Talents: opts.Talents,
 		Icons: wowheadClient, Spells: spells, Planner: planner},

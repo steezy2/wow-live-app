@@ -11,6 +11,14 @@
   --best: color-mix(in srgb, var(--good) 60%, transparent);
   --warn: #fbbf24;
   --bad: #f87171;
+  /* WoW's item qualities (Warcraft Logs' parse colours too), the blue and purple a shade lighter for the dark
+   * background. */
+  --q-poor: #9d9d9d;
+  --q-common: var(--text);
+  --q-uncommon: #1eff00;
+  --q-rare: #4a9dff;
+  --q-epic: #b86cf5;
+  --q-legendary: #ff8000;
   --nav: 48px;
   /* Spacing and type scales: every gap and size below comes from these. */
   --s1: 4px;
@@ -501,7 +509,8 @@ button {
   transition: opacity 0.15s ease-out;
 }
 
-.tabs [role='tablist'] {
+.tabs [role='tablist'],
+.sim-tabs {
   display: flex;
   gap: var(--s4);
   margin-bottom: var(--s3);
@@ -521,13 +530,15 @@ button {
   visibility: hidden;
 }
 
-.tabs [role='tab'] {
+.tabs [role='tab'],
+.sim-tabs button[aria-pressed] {
   padding: var(--s2) 0;
   color: var(--muted);
   border-bottom: 2px solid transparent;
 }
 
-.tabs [role='tab'][aria-selected='true'] {
+.tabs [role='tab'][aria-selected='true'],
+.sim-tabs button[aria-pressed='true'] {
   color: var(--text);
   border-bottom-color: var(--accent);
 }
@@ -1508,21 +1519,21 @@ span.graph-damage {
   color: var(--text);
 }
 
-/* Warcraft Logs' parse colours, a shade lighter where the dark background needs it. */
+/* Warcraft Logs' parse colours: the item qualities, then its own pink and gold. */
 .parse.grey {
-  color: #9d9d9d;
+  color: var(--q-poor);
 }
 .parse.green {
-  color: #1eff00;
+  color: var(--q-uncommon);
 }
 .parse.blue {
-  color: #4a9dff;
+  color: var(--q-rare);
 }
 .parse.purple {
-  color: #b86cf5;
+  color: var(--q-epic);
 }
 .parse.orange {
-  color: #ff8000;
+  color: var(--q-legendary);
 }
 .parse.pink {
   color: #e268a8;
@@ -2153,14 +2164,7 @@ table.compare td:first-child {
   margin-top: 0;
 }
 
-.sim-engine-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--s3);
-}
-
+.sim-engine-row,
 .sim-header {
   display: flex;
   flex-wrap: wrap;
@@ -2185,24 +2189,12 @@ table.compare td:first-child {
   font-size: var(--t-h2);
 }
 
-.sim-tabs {
-  display: flex;
-  gap: var(--s1);
-  border-bottom: 1px solid var(--border);
-}
-
-.sim .sim-tabs button {
+/* The kind of sim is a button group drawn as the tabs (.tabs [role='tab']), without Settings' boxed buttons. */
+.sim-tabs button {
   border: 0;
-  border-bottom: 2px solid transparent;
   border-radius: 0;
   background: none;
-  color: var(--muted);
-  padding: var(--s2) var(--s4);
-}
-
-.sim .sim-tabs button.active {
-  color: var(--text);
-  border-bottom-color: var(--accent);
+  font-weight: inherit;
 }
 
 .sim-layout {
@@ -2326,28 +2318,28 @@ table.compare td:first-child {
   height: 100%;
 }
 
-.q0 {
-  color: #9d9d9d;
+.sim .q0 {
+  color: var(--q-poor);
 }
 
-.q1 {
-  color: #e7eaf0;
+.sim .q1 {
+  color: var(--q-common);
 }
 
-.q2 {
-  color: #1eff00;
+.sim .q2 {
+  color: var(--q-uncommon);
 }
 
-.q3 {
-  color: #0070dd;
+.sim .q3 {
+  color: var(--q-rare);
 }
 
-.q4 {
-  color: #a335ee;
+.sim .q4 {
+  color: var(--q-epic);
 }
 
-.q5 {
-  color: #ff8000;
+.sim .q5 {
+  color: var(--q-legendary);
 }
 
 .sim-dps {

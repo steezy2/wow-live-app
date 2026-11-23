@@ -2704,6 +2704,9 @@ definitions:
       character:
         example: Steezy
         type: string
+      dps:
+        description: DPS is the result's DPS, kept when the list leaves Result out.
+        type: number
       error:
         type: string
       id:
@@ -2800,6 +2803,11 @@ definitions:
           MaxDrops is the most drops a Droptimizer sims; Difficulties are the raid difficulties it can sim the raid at and
           KeyLevels the Mythic+ key levels it can sim dungeons at.
         example: 300
+        type: integer
+      maxItemLookups:
+        description: MaxItemLookups is the most item IDs one GET /api/sim/items takes;
+          the page asks in chunks of it.
+        example: 120
         type: integer
       maxLength:
         type: integer
@@ -2911,6 +2919,12 @@ definitions:
         items:
           $ref: '#/definitions/models.SimItem'
         type: array
+      itemLevel:
+        description: |-
+          ItemLevel is the equipped item level as the game counts it: the 16 slots without shirt and tabard, a main hand
+          with nothing in the off-hand (a two-hander) counted twice, rounded down.
+        example: 623
+        type: integer
       level:
         example: 90
         type: integer
@@ -4872,7 +4886,7 @@ paths:
         Wowhead's name, icon (for GET /api/icons/{name}) and quality of each item ID, as many as it knows: an
         item it can't look up is left out, so the page draws it by its export name.
       parameters:
-      - description: item IDs, comma separated (at most 120)
+      - description: item IDs, comma separated (at most SimChoices.maxItemLookups)
         in: query
         name: ids
         required: true

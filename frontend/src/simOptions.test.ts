@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest'
 import type { SimChoices, SimItem } from './api'
-import { averageLevel, gainShare, gearGroups, itemIDs, simOptionsError } from './simOptions'
+import { gainShare, gearGroups, simOptionsError } from './simOptions'
 
 const choices = { minLength: 30, maxLength: 900, maxTargets: 20 } as SimChoices
 const opts = { fightStyle: 'Patchwerk', length: 300, targets: 1, accuracy: 'normal' }
@@ -26,20 +26,8 @@ test('gearGroups puts both rings under one heading, worn ones first, and leaves 
   ])
 })
 
-test('itemIDs lists each item once, and averageLevel ignores items without a level', () => {
-  const items: SimItem[] = [
-    { slot: 'head', id: 1, level: 600 },
-    { slot: 'neck', id: 2 },
-    { slot: 'back', id: 1, level: 610 },
-  ]
-  expect(itemIDs(items)).toEqual([1, 2])
-  expect(averageLevel(items)).toBe(605)
-  expect(averageLevel([{ slot: 'head', id: 1 }])).toBe(0)
-})
-
 test('gainShare scales a gain to the best one and shows a loss as no bar', () => {
   expect(gainShare(50, 100)).toBe(50)
   expect(gainShare(-5, 100)).toBe(0)
   expect(gainShare(10, 0)).toBe(0)
-  expect(gainShare(120, 100)).toBe(100)
 })

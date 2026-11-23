@@ -89,7 +89,28 @@ func ParseSimC(text string) (models.SimProfile, error) {
 	case len(p.Equipped) == 0:
 		return models.SimProfile{}, fmt.Errorf("%w: no equipped gear", ErrBadSimC)
 	}
+	p.ItemLevel = itemLevel(p.Equipped)
 	return p, nil
+}
+
+// itemLevel is the equipped item level the game shows (SimProfile.ItemLevel).
+func itemLevel(equipped []models.SimItem) int {
+	sum, offHand, mainHand := 0, false, 0
+	for _, item := range equipped {
+		switch item.Slot {
+		case "shirt", "tabard":
+			continue
+		case "off_hand":
+			offHand = true
+		case "main_hand":
+			mainHand = item.Level
+		}
+		sum += item.Level
+	}
+	if !offHand {
+		sum += mainHand
+	}
+	return sum / (len(simSlots) - 2)
 }
 
 // setSimField reads one header line (shaman="Name", level=90, spec=...) into p; a line that doesn't match its field's

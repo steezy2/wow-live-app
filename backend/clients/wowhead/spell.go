@@ -26,15 +26,20 @@ var (
 
 // Spell is what Wowhead's tooltip shows for a spell ID (fetched when the player hovers it and kept in CacheDir).
 func (c Client) Spell(ctx context.Context, id int) (models.SpellInfo, error) {
-	file := filepath.Join(c.CacheDir, fmt.Sprintf("spell-%d.json", id))
-	url := fmt.Sprintf("%s/tooltip/spell/%d?dataEnv=1&locale=0", cmp.Or(c.BaseURL, "https://nether.wowhead.com"), id)
-	data, err := cachefile.Fresh(ctx, c.HTTP, url, file, spellMaxAge)
+	data, err := c.tooltip(ctx, "spell", id, spellMaxAge)
 	if err != nil {
 		return models.SpellInfo{}, err
 	}
 	info, err := ParseSpell(data)
 	info.ID = id
 	return info, err
+}
+
+// tooltip is Wowhead's tooltip answer for a kind ("spell", "item") and ID, kept in CacheDir for maxAge.
+func (c Client) tooltip(ctx context.Context, kind string, id int, maxAge time.Duration) ([]byte, error) {
+	file := filepath.Join(c.CacheDir, fmt.Sprintf("%s-%d.json", kind, id))
+	url := fmt.Sprintf("%s/tooltip/%s/%d?dataEnv=1&locale=0", cmp.Or(c.BaseURL, "https://nether.wowhead.com"), kind, id)
+	return cachefile.Fresh(ctx, c.HTTP, url, file, maxAge)
 }
 
 // ParseSpell reads a tooltip answer: the name, the cooldown the tooltip states, and the description (the block after

@@ -48,7 +48,8 @@ RAID
 SIMS
 • Paste the export of the SimulationCraft addon and sim your character on your PC: a Quick Sim, Top Gear for the gear
   you carry, and a Droptimizer for what the season's raid and dungeons drop.
-• Uses SimulationCraft, downloaded the first time you ask for a sim. Nothing about your character is sent anywhere.
+• Uses SimulationCraft, downloaded the first time you ask for a sim. Your character stays on your PC: only its gear's
+  item IDs go to Wowhead, for their names and icons.
 
 YOUR SEASON
 • A Recap per character: keys timed, your fastest and closest runs, the ability that kills you most, who you ran

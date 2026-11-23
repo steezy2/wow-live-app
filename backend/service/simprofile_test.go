@@ -5,6 +5,8 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"wow-live/backend/models"
 )
 
 func fixtureSimC(t *testing.T) string {
@@ -38,6 +40,35 @@ func TestParseSimCExport(t *testing.T) {
 	}
 	if ring := p.Bags[1]; ring.Slot != "finger1" || ring.Name != "Lightwarden's Bind" || ring.Level != 311 {
 		t.Errorf("a carried ring = %+v", ring)
+	}
+}
+
+func TestItemLevelCountsAsTheGameDoes(t *testing.T) {
+	sixteen := func(off bool) []models.SimItem {
+		var items []models.SimItem
+		for _, slot := range simSlots {
+			if slot != "off_hand" || off {
+				items = append(items, models.SimItem{Slot: slot, Level: 600})
+			}
+		}
+		return items
+	}
+	oneHigher := sixteen(true)
+	oneHigher[0].Level = 615
+	tests := map[string]struct {
+		equipped []models.SimItem
+		want     int
+	}{
+		"shirt and tabard left out":         {sixteen(true), 600},
+		"a two-hander counts twice":         {sixteen(false), 600},
+		"an empty slot counts as nothing":   {sixteen(true)[1:], 562},
+		"no levels in the export is zero":   {[]models.SimItem{{Slot: "head"}}, 0},
+		"rounded down like the game's pane": {oneHigher, 600},
+	}
+	for name, tt := range tests {
+		if got := itemLevel(tt.equipped); got != tt.want {
+			t.Errorf("%s: item level %d, want %d", name, got, tt.want)
+		}
 	}
 }
 

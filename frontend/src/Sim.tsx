@@ -15,11 +15,11 @@ import {
   type SimOptions,
   type SimProfile,
 } from './api'
-import { errorText, sizeText } from './format'
+import { amount, errorText, sizeText } from './format'
 import { SimGear, SimHeader } from './SimGear'
 import { useItemInfo } from './simItems'
 import { SimResult } from './SimResult'
-import { averageLevel, simOptionsError } from './simOptions'
+import { simOptionsError } from './simOptions'
 import { Skeleton } from './Skeleton'
 import { tip } from './tipAttrs'
 
@@ -53,8 +53,8 @@ function EngineBar(props: {
         ) : (
           <span className="muted">
             Sims run on this PC with SimulationCraft, which is not ours. The download (about 116 MB) is the official
-            nightly, kept on this app's GitHub release and checked against its checksum; nothing about your character
-            is sent anywhere.
+            nightly, kept on this app's GitHub release and checked against its checksum. Your character stays on this
+            PC: only its gear's item IDs go to Wowhead, for their names and icons.
           </span>
         )}
         <button disabled={locked} onClick={() => act(async () => onEngine(await installSimEngine()))}>
@@ -79,95 +79,6 @@ function EngineBar(props: {
   )
 }
 
-/** The fight's options, and for a Droptimizer where the drops come from, with the Sim button and a running sim's
- * progress, in the panel beside the gear. */
-function OptionsPanel(props: {
-  kind: SimKind
-  choices: SimChoices
-  options: SimOptions
-  setOptions: (o: SimOptions) => void
-  difficulty: string
-  setDifficulty: (d: string) => void
-  keyLevel: number
-  setKeyLevel: (k: number) => void
-  optionsError: string | null
-  canRun: boolean
-  running: SimRun | null
-  onRun: () => void
-  onCancel: () => void
-}) {
-  const { kind, choices, options, setOptions, optionsError, running } = props
-  return (
-    <aside className="panel sim-options">
-      <h2>Fight</h2>
-      <label>
-        Style
-        <select value={options.fightStyle} onChange={(e) => setOptions({ ...options, fightStyle: e.target.value })}>
-          {choices.fightStyles.map((s) => (
-            <option key={s}>{s}</option>
-          ))}
-        </select>
-      </label>
-      <label>
-        Length (s)
-        <input
-          type="number"
-          value={options.length}
-          onChange={(e) => setOptions({ ...options, length: Number(e.target.value) })}
-        />
-      </label>
-      <label>
-        Targets
-        <input
-          type="number"
-          value={options.targets}
-          onChange={(e) => setOptions({ ...options, targets: Number(e.target.value) })}
-        />
-      </label>
-      <label>
-        Accuracy
-        <select value={options.accuracy} onChange={(e) => setOptions({ ...options, accuracy: e.target.value })}>
-          {choices.accuracies.map((a) => (
-            <option key={a}>{a}</option>
-          ))}
-        </select>
-      </label>
-      {kind === 'drops' && (
-        <>
-          <label>
-            Raid difficulty
-            <select value={props.difficulty} onChange={(e) => props.setDifficulty(e.target.value)}>
-              {choices.difficulties.map((d) => (
-                <option key={d}>{d}</option>
-              ))}
-            </select>
-          </label>
-          <label>
-            Mythic+ key
-            <select value={props.keyLevel} onChange={(e) => props.setKeyLevel(Number(e.target.value))}>
-              {choices.keyLevels.map((k) => (
-                <option key={k} value={k}>
-                  {k === 0 ? 'Mythic 0' : `+${k}`}
-                </option>
-              ))}
-            </select>
-          </label>
-        </>
-      )}
-      {optionsError && <p className="warning">{optionsError}</p>}
-      <button className="sim-run" disabled={!props.canRun || !!running || !!optionsError} onClick={props.onRun}>
-        {running ? 'Simming…' : 'Sim'}
-      </button>
-      {running && (
-        <div className="sim-progress">
-          <progress value={running.progress} max={100} aria-label="Sim progress" /> {running.progress}%
-          <button onClick={props.onCancel}>Cancel</button>
-        </div>
-      )}
-    </aside>
-  )
-}
-
 /** The Sim tab (desktop app only): a compact engine bar, the pasted /simc export read into a character with its gear
  * laid out like Raidbots, the kind of sim (Quick Sim, Top Gear or Droptimizer) with its options beside the gear, the
  * running sim's progress, its result and the saved sims. */
@@ -185,7 +96,10 @@ export function Sim() {
   const [sim, setSim] = useState<SimRun | null>(null)
   const [saved, setSaved] = useState<SimRun[]>([])
   const [error, setError] = useState<string | null>(null)
-  const info = useItemInfo(profile ? [...profile.equipped, ...profile.bags] : [])
+  const info = useItemInfo(
+    profile && choices ? [...profile.equipped, ...profile.bags] : [],
+    choices?.maxItemLookups ?? 0,
+  )
 
   const readSaved = useCallback(() => fetchSims().then(setSaved, () => undefined), [])
   useEffect(() => {
@@ -280,25 +194,23 @@ export function Sim() {
       {profile && (
         <>
           <section className="panel">
-            <SimHeader profile={profile} level={averageLevel(profile.equipped)} />
+            <SimHeader profile={profile} />
             <div className="actions">
               <button
                 onClick={() => {
                   setProfile(null)
-                  setSim(null)
+                  setSim((s) => (s?.state === 'running' ? s : null)) // a running sim goes on
                 }}
               >
                 Paste another character
               </button>
             </div>
           </section>
-          <div className="sim-tabs" role="tablist">
+          <div className="sim-tabs" role="group" aria-label="Kind of sim">
             {KINDS.map(([k, label, hint]) => (
               <button
                 key={k}
-                role="tab"
-                aria-selected={kind === k}
-                className={kind === k ? 'active' : ''}
+                aria-pressed={kind === k}
                 onClick={() => setKind(k)}
                 {...tip(hint)}
               >
@@ -317,21 +229,83 @@ export function Sim() {
               )}
               <SimGear profile={profile} info={info} pick={pick} />
             </section>
-            <OptionsPanel
-              kind={kind}
-              choices={choices}
-              options={options}
-              setOptions={setOptions}
-              difficulty={difficulty}
-              setDifficulty={setDifficulty}
-              keyLevel={keyLevel}
-              setKeyLevel={setKeyLevel}
-              optionsError={optionsError}
-              canRun={!!engine?.installed}
-              running={running}
-              onRun={start}
-              onCancel={() => running && act(() => removeSim(running.id))}
-            />
+            <aside className="panel sim-options">
+              <h2>Fight</h2>
+              <label>
+                Style
+                <select
+                  value={options.fightStyle}
+                  onChange={(e) => setOptions({ ...options, fightStyle: e.target.value })}
+                >
+                  {choices.fightStyles.map((s) => (
+                    <option key={s}>{s}</option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Length (s)
+                <input
+                  type="number"
+                  value={options.length}
+                  onChange={(e) => setOptions({ ...options, length: Number(e.target.value) })}
+                />
+              </label>
+              <label>
+                Targets
+                <input
+                  type="number"
+                  value={options.targets}
+                  onChange={(e) => setOptions({ ...options, targets: Number(e.target.value) })}
+                />
+              </label>
+              <label>
+                Accuracy
+                <select
+                  value={options.accuracy}
+                  onChange={(e) => setOptions({ ...options, accuracy: e.target.value })}
+                >
+                  {choices.accuracies.map((a) => (
+                    <option key={a}>{a}</option>
+                  ))}
+                </select>
+              </label>
+              {kind === 'drops' && (
+                <>
+                  <label>
+                    Raid difficulty
+                    <select value={difficulty} onChange={(e) => setDifficulty(e.target.value)}>
+                      {choices.difficulties.map((d) => (
+                        <option key={d}>{d}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    Mythic+ key
+                    <select value={keyLevel} onChange={(e) => setKeyLevel(Number(e.target.value))}>
+                      {choices.keyLevels.map((k) => (
+                        <option key={k} value={k}>
+                          {k === 0 ? 'Mythic 0' : `+${k}`}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </>
+              )}
+              {optionsError && <p className="warning">{optionsError}</p>}
+              <button
+                className="sim-run"
+                disabled={!engine?.installed || !!running || !!optionsError}
+                onClick={start}
+              >
+                {running ? 'Simming…' : 'Sim'}
+              </button>
+              {running && (
+                <div className="sim-progress">
+                  <progress value={running.progress} max={100} aria-label="Sim progress" /> {running.progress}%
+                  <button onClick={() => act(() => removeSim(running.id))}>Cancel</button>
+                </div>
+              )}
+            </aside>
           </div>
         </>
       )}
@@ -341,7 +315,7 @@ export function Sim() {
         <>
           {sim.state === 'failed' && <p className="warning">{sim.error}</p>}
           {sim.state === 'cancelled' && <p className="muted">Cancelled.</p>}
-          <SimResult sim={sim} />
+          <SimResult sim={sim} chunk={choices.maxItemLookups} />
         </>
       )}
 
@@ -353,7 +327,7 @@ export function Sim() {
               <li key={s.id}>
                 <button className="link" onClick={() => act(async () => setSim(await fetchSim(s.id)))}>
                   <strong>{s.character}</strong> · {s.spec} · {KINDS.find(([k]) => k === s.kind)?.[1]}
-                  {s.result ? ` · ${Math.round(s.result.dps).toLocaleString()} DPS` : ''}
+                  {s.dps ? ` · ${amount(s.dps)} DPS` : ''}
                 </button>
                 <span className="muted small">{new Date(s.startedMS).toLocaleString()}</span>
                 <button

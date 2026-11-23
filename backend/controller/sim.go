@@ -3,14 +3,12 @@ package controller
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"io/fs"
 	"log"
 	"net/http"
 	"strconv"
 	"strings"
-	"sync"
 
 	"github.com/gin-gonic/gin"
 
@@ -34,16 +32,11 @@ type SimRuns interface {
 	Remove(id string) error
 }
 
-// SimItems names and draws the items of a pasted character (clients/wowhead).
+// SimItems names and draws the items of a pasted character (service.Items); Infos's error wraps
+// service.ErrBadSimOptions for too many IDs.
 type SimItems interface {
-	Item(ctx context.Context, id int) (models.SimItemInfo, error)
+	Infos(ctx context.Context, ids []int) ([]models.SimItemInfo, error)
 }
-
-// maxItemLookups bounds one items request: a character wears 16 pieces and carries a few dozen more.
-const maxItemLookups = 120
-
-// itemLookupsAtOnce is how many of them go to Wowhead side by side.
-const itemLookupsAtOnce = 6
 
 // SimAPI serves the sim page; only the desktop app does, since a browser can't download an engine to the PC.
 type SimAPI struct {
@@ -145,16 +138,12 @@ func (a SimAPI) ParseProfile(c *gin.Context) {
 //	@Description	item it can't look up is left out, so the page draws it by its export name.
 //	@Tags			sim
 //	@Produce		json
-//	@Param			ids	query		string	true	"item IDs, comma separated (at most 120)"
+//	@Param			ids	query		string	true	"item IDs, comma separated (at most SimChoices.maxItemLookups)"
 //	@Success		200	{array}		models.SimItemInfo
 //	@Failure		400	{object}	ErrorResponse	"no IDs, too many or not numbers"
 //	@Router			/api/sim/items [get]
 func (a SimAPI) ItemInfo(c *gin.Context) {
 	parts := strings.Split(c.Query("ids"), ",")
-	if len(parts) > maxItemLookups {
-		c.JSON(http.StatusBadRequest, ErrorResponse{Error: fmt.Sprintf("ask for at most %d items", maxItemLookups)})
-		return
-	}
 	ids := make([]int, len(parts))
 	for i, p := range parts {
 		id, err := strconv.Atoi(p)
@@ -164,26 +153,9 @@ func (a SimAPI) ItemInfo(c *gin.Context) {
 		}
 		ids[i] = id
 	}
-	found := make([]*models.SimItemInfo, len(ids))
-	var wg sync.WaitGroup
-	sem := make(chan struct{}, itemLookupsAtOnce)
-	for i, id := range ids {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			sem <- struct{}{}
-			defer func() { <-sem }()
-			if info, err := a.Items.Item(c.Request.Context(), id); err == nil {
-				found[i] = &info
-			}
-		}()
-	}
-	wg.Wait()
-	items := []models.SimItemInfo{}
-	for _, info := range found {
-		if info != nil {
-			items = append(items, *info)
-		}
+	items, err := a.Items.Infos(c.Request.Context(), ids)
+	if simFailed(c, err) {
+		return
 	}
 	c.JSON(http.StatusOK, items)
 }

@@ -124,12 +124,13 @@ func TestSimsRunsAndSavesAQuickSim(t *testing.T) {
 		strings.Contains(string(got), "html=") {
 		t.Errorf("simc got %q, %v", got, err)
 	}
-	// a new Sims on the same folder, as after a restart, still has it, and the list leaves its result out
+	// a new Sims on the same folder, as after a restart, still has it, and the list leaves its result out but its DPS
 	again := &Sims{Engine: s.Engine, Dir: s.Dir, Now: s.Now}
 	if saved, err := again.Get(started.ID); err != nil || saved.Result == nil || saved.Result.DPS != sim.Result.DPS {
 		t.Errorf("saved = %+v, %v", saved, err)
 	}
-	if list, err := again.List(); err != nil || len(list) != 1 || list[0].Result != nil {
+	if list, err := again.List(); err != nil || len(list) != 1 || list[0].Result != nil ||
+		list[0].DPS != sim.Result.DPS {
 		t.Errorf("list = %+v, %v", list, err)
 	}
 	if left, _ := filepath.Glob(filepath.Join(s.Dir, "work", "*")); len(left) != 0 {
