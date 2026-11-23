@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { fetchTalentTree, type CompareTalents, type PlayerCompare, type TalentTree as Tree } from './api'
+import { fetchTalentTree, iconURL, type CompareTalents, type PlayerCompare, type TalentTree as Tree } from './api'
 import { entryName, readTree, shownEntry, type NodeRead, type NodeState } from './talents'
 import { spellTip } from './tipAttrs'
 
@@ -129,7 +129,7 @@ function Node({ read, of, found }: { read: NodeRead; of: number; found: boolean 
       {found && <circle className="talent-pulse" cx={cx} cy={cy} r={radius} />}
       <circle className="talent-ring" cx={cx} cy={cy} r={radius} />
       {entry.icon && (
-        <image href={`/api/icons/${entry.icon}`} x={cx - radius} y={cy - radius} width={2 * radius} height={2 * radius}
+        <image href={iconURL(entry.icon)} x={cx - radius} y={cy - radius} width={2 * radius} height={2 * radius}
           clipPath="url(#talent-icon)" />
       )}
       {marks[state] && (

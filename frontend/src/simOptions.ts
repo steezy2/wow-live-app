@@ -19,39 +19,43 @@ export function simOptionsError(o: SimOptions, c: SimChoices): string | null {
   return null
 }
 
-/** The slots Top Gear lists its items under, in the order they are worn, by a slot's group ("finger1" and "finger2"
- * are rings). */
-const SLOT_GROUPS: [string, string][] = [
-  ['head', 'Head'],
-  ['neck', 'Neck'],
-  ['shoulder', 'Shoulders'],
-  ['back', 'Back'],
-  ['chest', 'Chest'],
-  ['wrist', 'Wrists'],
-  ['hands', 'Hands'],
-  ['waist', 'Waist'],
-  ['legs', 'Legs'],
-  ['feet', 'Feet'],
-  ['finger', 'Rings'],
-  ['trinket', 'Trinkets'],
-  ['main_hand', 'Main hand'],
-  ['off_hand', 'Off-hand'],
-]
+/** The page's names for the items' groups (SimItem.group). */
+const GROUP_LABELS: Record<string, string> = {
+  shoulder: 'Shoulders',
+  wrist: 'Wrists',
+  finger: 'Rings',
+  trinket: 'Trinkets',
+  main_hand: 'Main hand',
+  off_hand: 'Off-hand',
+}
 
-/** An item's group key: "finger" for both rings, "trinket" for both trinkets, else its slot. */
-const groupKey = (slot: string) => slot.replace(/[12]$/, '')
+/** A group's name on the page: "Rings" for "finger", else the group capitalized. */
+export const groupLabel = (group: string) => GROUP_LABELS[group] ?? group.charAt(0).toUpperCase() + group.slice(1)
 
-/** The items of each slot group (indexes into the profile's equipped and bags lists), in wearing order, the highest
- * item level first (worn or carried; items with no level last, in the export's order); empty groups left out. */
-export function gearGroups(equipped: SimItem[], bags: SimItem[]) {
-  return SLOT_GROUPS.map(([key, label]) => ({
-    key,
-    label,
-    items: [
-      ...equipped.flatMap((item, index) => (groupKey(item.slot) === key ? [{ item, index, worn: true }] : [])),
-      ...bags.flatMap((item, index) => (groupKey(item.slot) === key ? [{ item, index, worn: false }] : [])),
-    ].sort((a, b) => (b.item.level ?? 0) - (a.item.level ?? 0)),
-  })).filter((g) => g.items.length > 0)
+/** The paper doll's column each group is drawn in: 0 down the left, 1 down the right, 2 along the bottom (weapons). */
+const DOLL_COLUMNS: Record<string, number> = {
+  head: 0, neck: 0, shoulder: 0, back: 0, chest: 0, wrist: 0,
+  hands: 1, waist: 1, legs: 1, feet: 1, finger: 1, trinket: 1,
+}
+
+/** An item as the page names it: its name (or ID) and item level. */
+export const itemText = (item: SimItem) => `${item.name ?? `item ${item.id}`}${item.level ? ` (${item.level})` : ''}`
+
+/** The items of each group in order (SimChoices.gearGroups), as indexes into the profile's equipped and bags lists,
+ * the highest item level first (worn or carried; items with no level last, in the export's order); empty groups left
+ * out. */
+export function gearGroups(equipped: SimItem[], bags: SimItem[], order: string[]) {
+  return order
+    .map((group) => ({
+      key: group,
+      label: groupLabel(group),
+      column: DOLL_COLUMNS[group] ?? 2,
+      items: [
+        ...equipped.flatMap((item, index) => (item.group === group ? [{ item, index, worn: true }] : [])),
+        ...bags.flatMap((item, index) => (item.group === group ? [{ item, index, worn: false }] : [])),
+      ].sort((a, b) => (b.item.level ?? 0) - (a.item.level ?? 0)),
+    }))
+    .filter((g) => g.items.length > 0)
 }
 
 /** The upgrade track an item is on and its level in it, found by its bonus IDs; null for an item on none. */
@@ -97,25 +101,10 @@ export function togglePick(node: TalentNode, picks: number[], entry: number): nu
   return picks.includes(entry) ? others : [...others, entry]
 }
 
-/** The distinct item IDs of items, at most the 120 an items request takes. */
-export function itemIDs(items: SimItem[]): number[] {
-  return [...new Set(items.map((i) => i.id))].slice(0, 120)
-}
-
-/** The average item level of the worn items that have one, rounded (0 when none has). */
-export function averageLevel(equipped: SimItem[]): number {
-  const levels = equipped.flatMap((i) => (i.level ? [i.level] : []))
-  return levels.length ? Math.round(levels.reduce((a, b) => a + b, 0) / levels.length) : 0
-}
+/** The distinct item IDs of items. */
+export const itemIDs = (items: SimItem[]): number[] => [...new Set(items.map((i) => i.id))]
 
 /** How wide a gain's bar is, in percent of the best gain's (0 for a loss or when nothing gains). */
 export function gainShare(gain: number, best: number): number {
-  return best > 0 ? Math.min(100, Math.max(0, (gain / best) * 100)) : 0
+  return best > 0 ? Math.max(0, (gain / best) * 100) : 0
 }
-
-/** The slot groups drawn down the left of the paper doll, down its right, and along the bottom (the weapons). */
-export const DOLL_COLUMNS: string[][] = [
-  ['head', 'neck', 'shoulder', 'back', 'chest', 'wrist'],
-  ['hands', 'waist', 'legs', 'feet', 'finger', 'trinket'],
-  ['main_hand', 'off_hand'],
-]

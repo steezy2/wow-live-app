@@ -189,7 +189,7 @@ func TestVariantsJoinTheTopGearCandidates(t *testing.T) {
 		{"without the variant the worn rings are the only pair", nil, 0},
 		{"with it, the upgraded ring is another", extra, 1},
 	} {
-		groups, err := gearGroups(p, []int{1, 2}, nil, c.extra)
+		groups, err := gearGroups(p, []int{1, 2}, nil, c.extra, twoHanders(t))
 		if err != nil || comboCount(groups, maxPlanCombos) != c.want {
 			t.Errorf("%s: %d combinations, %v; want %d", c.name, comboCount(groups, maxPlanCombos), err, c.want)
 		}

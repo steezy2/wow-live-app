@@ -3,14 +3,12 @@ package controller
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"io/fs"
 	"log"
 	"net/http"
 	"strconv"
 	"strings"
-	"sync"
 
 	"github.com/gin-gonic/gin"
 
@@ -36,16 +34,11 @@ type SimRuns interface {
 	Remove(id string) error
 }
 
-// SimItems names and draws the items of a pasted character (clients/wowhead).
+// SimItems names and draws the items of a pasted character (service.Items); Infos's error wraps
+// service.ErrBadSimOptions for too many IDs.
 type SimItems interface {
-	Item(ctx context.Context, id int) (models.SimItemInfo, error)
+	Infos(ctx context.Context, ids []int) ([]models.SimItemInfo, error)
 }
-
-// maxItemLookups bounds one items request: a character wears 16 pieces and carries a few dozen more.
-const maxItemLookups = 120
-
-// itemLookupsAtOnce is how many of them go to Wowhead side by side.
-const itemLookupsAtOnce = 6
 
 // SimAPI serves the sim page; only the desktop app does, since a browser can't download an engine to the PC.
 type SimAPI struct {
@@ -90,15 +83,16 @@ func (a SimAPI) Engine(c *gin.Context) {
 // InstallEngine godoc
 //
 //	@Summary		Download or update the SimulationCraft engine, or use one the owner has
-//	@Description	With no body, downloads the newest simc.exe (about 116 MB) from this app's own GitHub release over
-//	@Description	HTTPS, checked against the sha256 in the release's engine.json; the release is rebuilt weekly from
-//	@Description	SimulationCraft's official nightly. With a path, copies that simc.exe instead. Runs in the background:
-//	@Description	poll the engine's status.
+//	@Description	With no body, downloads the newest simc.exe from this app's own GitHub release over HTTPS, checked
+//	@Description	against the sha256 in the release's engine.json (which catches a broken download, not a swapped file:
+//	@Description	both come from the same release); the release is rebuilt weekly from SimulationCraft's official nightly.
+//	@Description	With a path, copies that simc.exe instead. Runs in the background: poll the engine's status.
 //	@Tags			sim
 //	@Accept			json
 //	@Produce		json
 //	@Param			body	body		SimEngineFile	false	"the path of a simc.exe to use"
 //	@Success		202		{object}	models.SimEngineStatus
+//	@Failure		400		{object}	ErrorResponse	"a body that isn't {"path": ...}"
 //	@Failure		409		{object}	ErrorResponse	"a sim or an install is running"
 //	@Router			/api/sim/engine [post]
 func (a SimAPI) InstallEngine(c *gin.Context) {
@@ -147,16 +141,12 @@ func (a SimAPI) ParseProfile(c *gin.Context) {
 //	@Description	item it can't look up is left out, so the page draws it by its export name.
 //	@Tags			sim
 //	@Produce		json
-//	@Param			ids	query		string	true	"item IDs, comma separated (at most 120)"
+//	@Param			ids	query		string	true	"item IDs, comma separated (at most SimChoices.maxItemLookups)"
 //	@Success		200	{array}		models.SimItemInfo
 //	@Failure		400	{object}	ErrorResponse	"no IDs, too many or not numbers"
 //	@Router			/api/sim/items [get]
 func (a SimAPI) ItemInfo(c *gin.Context) {
 	parts := strings.Split(c.Query("ids"), ",")
-	if len(parts) > maxItemLookups {
-		c.JSON(http.StatusBadRequest, ErrorResponse{Error: fmt.Sprintf("ask for at most %d items", maxItemLookups)})
-		return
-	}
 	ids := make([]int, len(parts))
 	for i, p := range parts {
 		id, err := strconv.Atoi(p)
@@ -166,26 +156,9 @@ func (a SimAPI) ItemInfo(c *gin.Context) {
 		}
 		ids[i] = id
 	}
-	found := make([]*models.SimItemInfo, len(ids))
-	var wg sync.WaitGroup
-	sem := make(chan struct{}, itemLookupsAtOnce)
-	for i, id := range ids {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			sem <- struct{}{}
-			defer func() { <-sem }()
-			if info, err := a.Items.Item(c.Request.Context(), id); err == nil {
-				found[i] = &info
-			}
-		}()
-	}
-	wg.Wait()
-	items := []models.SimItemInfo{}
-	for _, info := range found {
-		if info != nil {
-			items = append(items, *info)
-		}
+	items, err := a.Items.Infos(c.Request.Context(), ids)
+	if simFailed(c, err) {
+		return
 	}
 	c.JSON(http.StatusOK, items)
 }
@@ -234,15 +207,16 @@ func (a SimAPI) Plan(c *gin.Context) {
 //
 //	@Summary		Start a sim
 //	@Description	Runs SimulationCraft on this PC in the background, one at a time: the pasted export (read again,
-//	@Description	never passed to simc as it is) with the options. Poll the sim by its ID.
+//	@Description	never passed to simc as it is) with the options. Poll the sim by its ID. A Top Gear request also
+//	@Description	sends `equipped` and `bags`: the indexes of the items it may put on.
 //	@Tags			sim
 //	@Accept			json
 //	@Produce		json
-//	@Param			body	body		models.SimRequest	true	"the kind, the export, the options and, for topgear, the picked equipped and bag indexes"
+//	@Param			body	body		models.SimRequest	true	"the kind, the export, the options, for topgear the picked equipped and bag indexes, and for drops the difficulty and keyLevel"
 //	@Success		202		{object}	models.Sim
-//	@Failure		400		{object}	ErrorResponse	"options outside the choices, or not an export"
+//	@Failure		400		{object}	ErrorResponse	"bad options or indexes, not an export, nothing to try or over maxCombos"
 //	@Failure		409		{object}	ErrorResponse	"a sim or a download is running, or no engine is installed"
-//	@Failure		500		{object}	ErrorResponse
+//	@Failure		500		{object}	ErrorResponse	"a weapon's type couldn't be read from Wowhead"
 //	@Router			/api/sim [post]
 func (a SimAPI) Start(c *gin.Context) {
 	var req models.SimRequest

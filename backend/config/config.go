@@ -117,12 +117,11 @@ func Load(fsys fs.FS) (Loaded, error) {
 	dungeons, dungeonsErr := loadJSON[models.MPlusReference](fsys, "reference/mplus-dungeons.json", "mplusref")
 	raid, raidErr := loadJSON[models.RaidReference](fsys, "reference/raid-bosses.json", "raidref")
 	talents, talentsErr := loadJSON[models.TalentTrees](fsys, "reference/talent-trees.json", "talentref")
-	var dropsErr error
-	l.Drops, dropsErr = loadJSON[models.SimDrops](fsys, "reference/sim-drops.json", "simref")
-	var optionsErr error
-	l.SimRef, optionsErr = loadJSON[models.SimReference](fsys, "reference/sim-options.json", "simoptref")
+	drops, dropsErr := loadJSON[models.SimDrops](fsys, "reference/sim-drops.json", "simref")
+	simRef, simRefErr := loadJSON[models.SimReference](fsys, "reference/sim-options.json", "simoptref")
 	l.Dungeons, l.Bosses, l.Tier, l.Talents = dungeons.Dungeons, raid.Bosses, raid.Tier, talents.BySpec()
-	l.RefErr = errors.Join(dungeonsErr, raidErr, talentsErr, dropsErr, optionsErr)
+	l.Drops, l.SimRef = drops, simRef
+	l.RefErr = errors.Join(dungeonsErr, raidErr, talentsErr, dropsErr, simRefErr)
 	return l, nil
 }
 

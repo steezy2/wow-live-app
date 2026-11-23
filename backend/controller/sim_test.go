@@ -51,7 +51,8 @@ func TestSimAPIAnswersEachErrorWithItsStatus(t *testing.T) {
 		{"POST", "/api/sim", body, service.ErrSimBusy, http.StatusConflict},
 		{"POST", "/api/sim", body, errors.New(`disk full: C:\secret`), http.StatusInternalServerError},
 		{"POST", "/api/sim", `{"kind": "quick"}`, nil, http.StatusBadRequest},
-		{"POST", "/api/sim", `{"export": "` + strings.Repeat("x", simBodyBytes) + `"}`, nil, http.StatusBadRequest},
+		{"POST", "/api/sim", `{"kind": "quick", "export": "` + strings.Repeat("x", simBodyBytes) + `"}`, nil,
+			http.StatusBadRequest},
 		{"POST", "/api/sim/engine", "", service.ErrSimBusy, http.StatusConflict},
 		{"GET", "/api/sim/options", "", nil, http.StatusOK},
 		{"POST", "/api/sim/plan", body, nil, http.StatusOK},
@@ -91,30 +92,34 @@ func TestSimAPIReadsAnExportWithoutRunningIt(t *testing.T) {
 	}
 }
 
-// fakeItems knows the items whose ID is under 100.
+// fakeItems knows every item, and refuses more than two IDs as the service refuses too many.
 type fakeItems struct{}
 
-func (fakeItems) Item(_ context.Context, id int) (models.SimItemInfo, error) {
-	if id >= 100 {
-		return models.SimItemInfo{}, errors.New("unknown")
+func (fakeItems) Infos(_ context.Context, ids []int) ([]models.SimItemInfo, error) {
+	if len(ids) > 2 {
+		return nil, service.ErrBadSimOptions
 	}
-	return models.SimItemInfo{ID: id, Name: "Item", Icon: "inv_x", Quality: 4}, nil
+	items := make([]models.SimItemInfo, len(ids))
+	for i, id := range ids {
+		items[i] = models.SimItemInfo{ID: id, Name: "Item"}
+	}
+	return items, nil
 }
 
-func TestSimAPIItemsLeaveOutWhatWowheadDoesNotKnow(t *testing.T) {
+func TestSimAPIItemsReadTheIDs(t *testing.T) {
 	tests := []struct {
 		name, ids string
 		code, got int
 	}{
-		{"known and unknown", "1,500,2", http.StatusOK, 2},
+		{"two", "1,2", http.StatusOK, 2},
 		{"not a number", "1,x", http.StatusBadRequest, 0},
 		{"none", "", http.StatusBadRequest, 0},
-		{"too many", strings.TrimSuffix(strings.Repeat("1,", maxItemLookups+1), ","), http.StatusBadRequest, 0},
+		{"too many", "1,2,3", http.StatusBadRequest, 0},
 	}
+	router := Router(MPlus{Keys: &fakeKeys{}, Now: time.Now}, nil,
+		&SettingsAPI{Sim: &SimAPI{Runs: fakeSims{}, Items: fakeItems{}}}, os.DirFS(t.TempDir()), LocalHosts(8080)...)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			router := Router(MPlus{Keys: &fakeKeys{}, Now: time.Now}, nil,
-				&SettingsAPI{Sim: &SimAPI{Runs: fakeSims{}, Items: fakeItems{}}}, os.DirFS(t.TempDir()), LocalHosts(8080)...)
 			r := httptest.NewRequest("GET", "/api/sim/items?ids="+tt.ids, nil)
 			r.Host = "localhost:8080"
 			w := httptest.NewRecorder()

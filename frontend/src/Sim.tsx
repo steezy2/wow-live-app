@@ -9,7 +9,7 @@ import {
   parseSimExport,
   removeSim,
   startSim,
-  type Sim as SimRun,
+  type Sim,
   type SimChoices,
   type SimCompare,
   type SimConsumables,
@@ -22,14 +22,14 @@ import {
   type SimRequest,
   type SimVariant,
 } from './api'
-import { errorText, sizeText } from './format'
+import { amount, errorText, sizeText } from './format'
 import { OmniumFolio } from './OmniumFolio'
 import { ConsumableCompare, ConsumableSelects } from './SimConsumables'
 import { SimGear, SimHeader } from './SimGear'
 import { useItemInfo } from './simItems'
 import { usePlan } from './simPlan'
 import { SimResult } from './SimResult'
-import { averageLevel, omniumPicks, omniumString, pickedConsumables, simOptionsError } from './simOptions'
+import { omniumPicks, omniumString, pickedConsumables, simOptionsError } from './simOptions'
 import { Skeleton } from './Skeleton'
 import { tip } from './tipAttrs'
 
@@ -63,9 +63,9 @@ function EngineBar(props: {
           </span>
         ) : (
           <span className="muted">
-            Sims run on this PC with SimulationCraft, which is not ours. The download (about 116 MB) is the official
-            nightly, kept on this app's GitHub release and checked against its checksum; nothing about your character
-            is sent anywhere.
+            Sims run on this PC with SimulationCraft, which is not ours. The download is the official
+            nightly, kept on this app's GitHub release and checked against its checksum. Your character stays on this
+            PC: only its gear's item IDs go to Wowhead, for their names and icons.
           </span>
         )}
         <button disabled={locked} onClick={() => act(async () => onEngine(await installSimEngine()))}>
@@ -122,7 +122,7 @@ function OptionsPanel(props: {
   setConsumables: (c: SimConsumables) => void
   plan: { plan: SimPlan | null; error: string | null } | null
   canRun: boolean
-  running: SimRun | null
+  running: Sim | null
   onRun: () => void
   onCancel: () => void
 }) {
@@ -207,9 +207,9 @@ function OptionsPanel(props: {
 }
 
 /** The Sim tab (desktop app only): a compact engine bar, the pasted /simc export read into a character with its gear
- * laid out like Raidbots, the kind of sim (Quick Sim, Top Gear or Droptimizer) with its options beside the gear, the
- * running sim's progress, its result and the saved sims. */
-export function Sim() {
+ * laid out like Raidbots, the kind of sim (Quick Sim, Top Gear, Droptimizer or Consumables) with its options beside
+ * the gear, the Omnium Folio, the running sim's progress, its result and the saved sims. */
+export function SimPage() {
   const [choices, setChoices] = useState<SimChoices | null>(null)
   const [engine, setEngine] = useState<SimEngineStatus | null>(null)
   const [text, setText] = useState('')
@@ -225,12 +225,24 @@ export function Sim() {
   const [omnium, setOmnium] = useState<number[]>([])
   const [difficulty, setDifficulty] = useState('')
   const [keyLevel, setKeyLevel] = useState(0)
-  const [sim, setSim] = useState<SimRun | null>(null)
-  const [saved, setSaved] = useState<SimRun[]>([])
+  const [run, setRun] = useState<Sim | null>(null) // the sim started here, or found running, as last polled
+  const [sim, setSim] = useState<Sim | null>(null) // the finished sim shown
+  const [saved, setSaved] = useState<Sim[]>([])
   const [error, setError] = useState<string | null>(null)
-  const info = useItemInfo(profile ? [...profile.equipped, ...profile.bags] : [])
+  const info = useItemInfo(
+    profile && choices ? [...profile.equipped, ...profile.bags] : [],
+    choices?.maxItemLookups ?? 0,
+  )
 
-  const readSaved = useCallback(() => fetchSims().then(setSaved, () => undefined), [])
+  const readSaved = useCallback(
+    () =>
+      fetchSims().then((list) => {
+        setSaved(list.filter((s) => s.state !== 'running'))
+        const running = list.find((s) => s.state === 'running')
+        if (running) setRun(running)
+      }, () => undefined),
+    [],
+  )
   useEffect(() => {
     const controller = new AbortController()
     fetchSimChoices(controller.signal).then(
@@ -246,16 +258,19 @@ export function Sim() {
       setReference,
       (err: unknown) => !controller.signal.aborted && setError(errorText(err)),
     )
-    fetchSimEngine(controller.signal).then(setEngine, () => undefined)
+    fetchSimEngine(controller.signal).then(setEngine, (err: unknown) => setError(errorText(err)))
     void readSaved()
     return () => controller.abort()
   }, [readSaved])
   useEffect(() => {
     if (!engine?.installing) return
-    const timer = setInterval(() => void fetchSimEngine().then(setEngine, () => undefined), POLL_MS)
+    const timer = setInterval(
+      () => void fetchSimEngine().then(setEngine, (err: unknown) => setError(errorText(err))),
+      POLL_MS,
+    )
     return () => clearInterval(timer)
   }, [engine?.installing])
-  const running = sim?.state === 'running' ? sim : null
+  const running = run?.state === 'running' ? run : null
   const runningID = running?.id
   useEffect(() => {
     if (!runningID) return
@@ -263,8 +278,10 @@ export function Sim() {
       () =>
         void fetchSim(runningID).then(
           (s) => {
+            setRun(s)
+            if (s.state === 'running') return
             setSim(s)
-            if (s.state !== 'running') void readSaved()
+            void readSaved()
           },
           (err: unknown) => setError(errorText(err)),
         ),
@@ -307,7 +324,7 @@ export function Sim() {
   const start = () =>
     act(async () => {
       const req = request()
-      if (req) setSim(await startSim(req))
+      if (req) setRun(await startSim(req))
     })
   const toggle = (worn: boolean, i: number) => {
     const [list, set] = worn ? [equipped, setEquipped] : [bags, setBags]
@@ -355,7 +372,7 @@ export function Sim() {
       {profile && (
         <>
           <section className="panel">
-            <SimHeader profile={profile} level={averageLevel(profile.equipped)} />
+            <SimHeader profile={profile} />
             <div className="actions">
               <button
                 onClick={() => {
@@ -367,13 +384,11 @@ export function Sim() {
               </button>
             </div>
           </section>
-          <div className="sim-tabs" role="tablist">
+          <div className="sim-tabs" role="group" aria-label="Kind of sim">
             {KINDS.map(([k, label, hint]) => (
               <button
                 key={k}
-                role="tab"
-                aria-selected={kind === k}
-                className={kind === k ? 'active' : ''}
+                aria-pressed={kind === k}
                 onClick={() => setKind(k)}
                 {...tip(hint)}
               >
@@ -408,7 +423,7 @@ export function Sim() {
                       most {choices.maxCombos} combinations run.
                     </p>
                   )}
-                  <SimGear profile={profile} info={info} pick={pick} />
+                  <SimGear profile={profile} order={choices.gearGroups} info={info} pick={pick} />
                 </>
               )}
             </section>
@@ -426,7 +441,7 @@ export function Sim() {
               consumables={consumables}
               setConsumables={setConsumables}
               plan={planRequest ? plan : null}
-              canRun={!!engine?.installed && !planBlocks && !compareBlocks}
+              canRun={!!engine?.installed && !engine.installing && !planBlocks && !compareBlocks}
               running={running}
               onRun={start}
               onCancel={() => running && act(() => removeSim(running.id))}
@@ -443,12 +458,20 @@ export function Sim() {
         </>
       )}
 
+
+      {running && (
+        <section className="panel sim-progress">
+          {running.character} · {KINDS.find(([k]) => k === running.kind)?.[1]}{' '}
+          <progress value={running.progress} max={100} aria-label="Sim progress" /> {running.progress}%
+          <button onClick={() => act(() => removeSim(running.id))}>Cancel</button>
+        </section>
+      )}
       {error && <p className="warning">{error}</p>}
-      {sim && sim.state !== 'running' && (
+      {sim && (
         <>
           {sim.state === 'failed' && <p className="warning">{sim.error}</p>}
           {sim.state === 'cancelled' && <p className="muted">Cancelled.</p>}
-          <SimResult sim={sim} />
+          <SimResult sim={sim} chunk={choices.maxItemLookups} />
         </>
       )}
 
@@ -460,7 +483,7 @@ export function Sim() {
               <li key={s.id}>
                 <button className="link" onClick={() => act(async () => setSim(await fetchSim(s.id)))}>
                   <strong>{s.character}</strong> · {s.spec} · {KINDS.find(([k]) => k === s.kind)?.[1]}
-                  {s.result ? ` · ${Math.round(s.result.dps).toLocaleString()} DPS` : ''}
+                  {s.dps ? ` · ${amount(s.dps)} DPS` : ''}
                 </button>
                 <span className="muted small">{new Date(s.startedMS).toLocaleString()}</span>
                 <button

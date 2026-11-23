@@ -997,6 +997,18 @@ export function moveOverlay(on?: boolean): void {
 export function resetOverlay(): void {
   emitAppEvent('overlay-reset')
 }
+/** What the overlay can show dummy data of: a Mythic+ key or a raid pull. */
+export type OverlayPreview = 'mplus' | 'raid'
+/** Tells the desktop app to show the overlay with dummy data of kind, to stop ('') or, without kind, to say again what
+ * it shows (the 'overlay-previewing' event). */
+export function previewOverlay(kind?: OverlayPreview | ''): void {
+  emitAppEvent('overlay-preview', kind)
+}
+/** Tells the desktop app the overlay content's size at zoom 1 and the page's zoom limits, so it holds the window to
+ * that shape and between those sizes. */
+export function overlayShape(width: number, height: number, zoomMin: number, zoomMax: number): void {
+  emitAppEvent('overlay-shape', [width, height, zoomMin, zoomMax])
+}
 
 /** The desktop app's settings, with whether the log folder exists, when the game last wrote a log there (0 for
  * never) and the choices to pick from; null outside the app. The app sends the saved settings as the 'settings'
@@ -1023,6 +1035,23 @@ export interface OverlaySettings {
   columns: OverlayColumn[]
   /** Clicks go through the overlay to the game; off, a click on a player shows their abilities in the pull. */
   clickThrough: boolean
+  /** What the cards order their rows and fill their bars by. */
+  rankBy: RankBy
+  /** A DPS card and an HPS card of the key in place of the pull and key cards; the raid overlay's pull in one ranked
+   * card in place of its Damage and Healing cards. */
+  splitCards: boolean
+  raidOneCard: boolean
+  /** Players the raid overlay's Damage and Healing cards show (0 for everyone), and whether they sit side by side. */
+  raidDpsRows: number
+  raidHpsRows: number
+  raidSideBySide: boolean
+  /** Seconds a new death's recap shows over the cards without a click; 0 is off. */
+  deathRecapSeconds: number
+}
+export type RankBy = 'dps' | 'hps'
+/** A named layout of the overlay's cards the Settings page fills in with one click. */
+export type OverlayPreset = Pick<OverlaySettings, 'oneCard' | 'splitCards' | 'raidOneCard' | 'rows' | 'columns'> & {
+  name: string
 }
 /** A column the overlay's cards can show (the settings' overlayColumns). */
 export type OverlayColumn =
@@ -1041,6 +1070,11 @@ export interface SettingsView extends Settings {
   regions: Settings['region'][]
   overlayShows: OverlaySettings['show'][]
   overlayColumns: OverlayColumn[]
+  overlayRanks: RankBy[]
+  overlayPresets: OverlayPreset[]
+  /** The least and most seconds a death's recap shows (0 turns it off). */
+  minRecapSeconds: number
+  maxRecapSeconds: number
   minOpacity: number
   /** The most days an auto rule takes. */
   maxAutoDays: number
@@ -1698,6 +1732,9 @@ export interface TalentTree {
   nodes: TalentNode[]
 }
 
+/** The address of the icon called name (a talent's or an item's, from Wowhead). */
+export const iconURL = (name: string) => `/api/icons/${name}`
+
 /** A spec's talent tree layout; null for a spec the app has none for. */
 export async function fetchTalentTree(specID: number, signal?: AbortSignal): Promise<TalentTree | null> {
   return jsonOrNull<TalentTree>(`/api/talents/${specID}`, signal)
@@ -1750,10 +1787,12 @@ function compareURL(kind: FightKind, start: number, player: string): string {
   return `/api/${path}/players/${encodeURIComponent(player)}/compare`
 }
 
-/** A piece of gear: its slot as simc names it, the name and item level the export gives, its item ID and its other
- * numbers. A Top Gear variant's note says what was changed ("Myth 3/6, socket"). */
+/** A piece of gear: its slot as simc names it, the slots' group it is listed under ("finger" for both rings), the
+ * name and item level the export gives, its item ID and its other numbers. A Top Gear variant's note says what was
+ * changed ("Myth 3/6, socket"). */
 export interface SimItem {
   slot: string
+  group: string
   name?: string
   level?: number
   id: number
@@ -1761,7 +1800,7 @@ export interface SimItem {
   note?: string
 }
 
-/** An item's name, icon (an icon name for /api/icons) and quality (0 poor to 5 legendary), from Wowhead. */
+/** An item's name, icon (an icon name for iconURL) and quality (0 poor to 5 legendary), from Wowhead. */
 export interface SimItemInfo {
   id: number
   name: string
@@ -1789,6 +1828,8 @@ export interface SimProfile {
   talents: string
   equipped: SimItem[]
   bags: SimItem[]
+  /** The equipped item level as the game counts it. */
+  itemLevel: number
 }
 
 /** The fight a sim runs. */
@@ -1815,8 +1856,14 @@ export interface SimChoices {
   defaults: SimOptions
   defaultDifficulty: string
   defaultKeyLevel: number
+  /** The most item IDs one fetchSimItems takes. */
+  maxItemLookups: number
+  /** The items' groups in wearing order, as Top Gear lists them. */
+  gearGroups: string[]
 }
 
+/** The kinds of sim: one DPS number, the best combination of the gear carried, each drop's gain, and each
+ * consumable's gain. */
 export type SimKind = 'quick' | 'topgear' | 'drops' | 'consumables'
 
 /** The consumables a sim uses, by kind (one of SimChoices.consumableKinds); a kind left out or empty keeps simc's
@@ -1926,6 +1973,7 @@ export interface SimOptionRow {
   gain: number
 }
 
+/** One ability's damage in a sim: its spell ID, DPS, share of the total (0 to 1), casts and amount per cast. */
 export interface SimAbility {
   name: string
   id: number
@@ -1936,6 +1984,7 @@ export interface SimAbility {
   perCast: number
 }
 
+/** A buff in a sim and the percent of the fight it was up. */
 export interface SimBuff {
   name: string
   id: number
@@ -1960,6 +2009,7 @@ export interface SimCombo {
   boss?: string
 }
 
+/** What a finished sim found: the DPS and its error, each ability, the buffs, and a Top Gear or Droptimizer's rows. */
 export interface SimResult {
   dps: number
   dpsError: number
@@ -1981,6 +2031,8 @@ export interface Sim {
   startedMS: number
   tookMS?: number
   error?: string
+  /** The result's DPS, kept in the list, which leaves result out. */
+  dps?: number
   result?: SimResult
 }
 
@@ -1997,6 +2049,7 @@ export interface SimEngineStatus {
   error?: string
 }
 
+/** The options a sim can start with, their limits and the ones the page starts on. */
 export async function fetchSimChoices(signal?: AbortSignal): Promise<SimChoices> {
   return json('/api/sim/choices', { signal })
 }
@@ -2011,6 +2064,7 @@ export async function planSim(request: SimRequest, signal?: AbortSignal): Promis
   return sendJSON('/api/sim/plan', 'POST', request, signal)
 }
 
+/** The engine's status: installed or not, downloading, failed or stale. */
 export async function fetchSimEngine(signal?: AbortSignal): Promise<SimEngineStatus> {
   return json('/api/sim/engine', { signal })
 }
@@ -2025,10 +2079,12 @@ export async function parseSimExport(text: string): Promise<SimProfile> {
   return sendJSON('/api/sim/profile', 'POST', { export: text })
 }
 
+/** Starts a sim in the background; poll fetchSim with its ID. */
 export async function startSim(request: SimRequest): Promise<Sim> {
   return sendJSON('/api/sim', 'POST', request)
 }
 
+/** One sim: the running one's progress, or a saved one with its result. */
 export async function fetchSim(id: string, signal?: AbortSignal): Promise<Sim> {
   return json(`/api/sim/${id}`, { signal })
 }

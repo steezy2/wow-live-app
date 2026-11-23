@@ -50,12 +50,12 @@ var weaponStats = map[int]int{0: 7, 1: 8, 2: 16, 3: 15, 4: 11, 5: 12, 6: 19, 7: 
 // in another season only is left out.
 func buildDrops(j journal, levels models.SimDropLevels, dungeonMaps []int) (models.SimDrops, error) {
 	drops := models.SimDrops{Season: levels.Season, Specs: map[int]models.SimSpec{}, Raids: []models.DropSource{},
-		Dungeons: []models.DropSource{}, HeroicDungeon: levels.HeroicDungeon, Keys: levels.Keys, Sources: map[string]string{
+		Dungeons: []models.DropSource{}, Keys: levels.Keys, Sources: map[string]string{
 			"items": "wago.tools' tables of the live game (JournalInstance, JournalEncounter, JournalEncounterItem, " +
 				"Item, ItemSparse): every weapon and armor piece each boss drops",
 			"specs": "ItemSpecOverride, else the game's ItemSpec rule over the item's kind and primary stats; " +
 				"ChrClasses and ChrSpecialization for the names",
-			"levels": "reference/sim-drops.toml (kept by hand, checked against the game)",
+			"levels": "reference/sim-drops.toml (kept by hand from the wiki; see the toml for what was checked)",
 		}}
 	for id, s := range j.specs {
 		drops.Specs[id] = s.SimSpec
@@ -133,7 +133,7 @@ func (j journal) source(id int, rows []loot) models.DropSource {
 }
 
 // gear is the item as the Droptimizer reads it, or false for an item that isn't a weapon or armor piece (tokens,
-// decor, mounts, cosmetics) or that ItemSparse has no row for.
+// decor, mounts, cosmetics), that ItemSparse has no row for or that no spec can loot.
 func (j journal) gear(id int) (models.DropItem, bool) {
 	it := j.items[id]
 	slot, ok := slots[it.inventory]
@@ -141,20 +141,24 @@ func (j journal) gear(id int) (models.DropItem, bool) {
 		(it.class == classArmor && it.subclass == armorCosmetic) {
 		return models.DropItem{}, false
 	}
-	d := models.DropItem{ID: id, Name: it.name, Slot: slot, Specs: j.lootSpecs(it)}
+	specs, lootable := j.lootSpecs(it)
+	if !lootable {
+		return models.DropItem{}, false
+	}
+	d := models.DropItem{ID: id, Name: it.name, Slot: slot, Specs: specs}
 	if it.class == classArmor && slot != "back" {
 		d.Armor = armorTypes[it.subclass]
 	}
 	return d, true
 }
 
-// lootSpecs is the specs that can loot the item, nil when every spec can: its ItemSpecOverride rows, else the ItemSpec
-// rows of its kind whose stats it has. A row with no primary stat fits only an item with none, so a strength axe
-// isn't an agility spec's.
-func (j journal) lootSpecs(it item) []int {
+// lootSpecs is the specs that can loot the item, nil when every spec can and false when none can: its ItemSpecOverride
+// rows, else the ItemSpec rows of its kind whose stats it has. A row with no primary stat fits only an item with none,
+// so a strength axe isn't an agility spec's. No row names an item of no kind and no stats (a ring, a neck): anyone's.
+func (j journal) lootSpecs(it item) ([]int, bool) {
 	fits := j.overrides[it.id]
+	kind, stats := specKind(it)
 	if len(fits) == 0 {
-		kind, stats := specKind(it)
 		primary := slices.ContainsFunc(stats, func(s int) bool { return s <= statStrength })
 		for _, s := range j.itemSpecs {
 			hasPrimary := slices.Contains(stats, s.primary) || (s.primary == statNone && !primary)
@@ -167,10 +171,13 @@ func (j journal) lootSpecs(it item) []int {
 	}
 	fits = slices.DeleteFunc(slices.Clone(fits), func(s int) bool { _, ok := j.specs[s]; return !ok })
 	slices.Sort(fits)
-	if fits = slices.Compact(fits); len(fits) == len(j.specs) {
-		return nil
+	switch fits = slices.Compact(fits); len(fits) {
+	case 0:
+		return nil, kind == 0 && len(stats) == 0
+	case len(j.specs):
+		return nil, true
 	}
-	return fits
+	return fits, true
 }
 
 // specKind is the item's ItemSpec kind (ItemSpec.ItemType: 0 other, 1 to 4 cloth to plate, 5 weapon, 6 shield) and

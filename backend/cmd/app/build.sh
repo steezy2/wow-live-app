@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Builds WoW Live (bin/WoW Live.exe): the page, the icon (cmd/appicon), then the app with the page, the M+, raid and
-# spec rules, the season's dungeon facts, the raid's boss mechanics, the talent trees and the icon built in. Run from
-# anywhere, in Git Bash on Windows.
+# spec rules, the season's dungeon facts, the raid's boss mechanics, the talent trees, the sim drops and the icon built
+# in. Run from anywhere, in Git Bash on Windows.
 set -euo pipefail
 repo="$(cd "$(dirname "$0")/../../.." && pwd)"
 (cd "$repo/frontend" && npm ci && npm run build)

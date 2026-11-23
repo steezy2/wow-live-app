@@ -6,9 +6,34 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 
 ### Added
 - **Sim tab, more of Raidbots' Top Gear**: Top Gear lists each slot's items with the highest item level first, and each item has an *Upgrade, socket, enchant…* form: try it at another level of its upgrade track, with an added socket and a gem, or with an enchant. Each change is a variant, simmed as a candidate beside the item (it counts toward the 100 combinations; the options panel says how many combinations the ticks make and about how long they take, and the Sim button waits until it is within the limit). Every sim kind has a dropdown each for flask, food, potion, augment rune and weapon oil (*Default* keeps simc's), a new **Consumables** tab ranks several flasks, foods, potions, runes or oils against each other, and the **Omnium Folio**'s runes can be picked instead of the export's. The lists come from Raidbots' public game data through `go run ./cmd/simoptref` into `reference/sim-options.json` (built into the app); `GET /api/sim/options` serves them and `POST /api/sim/plan` counts a Top Gear request's combinations.
-- **Sim tab, Raidbots style**: the character on top (name, spec, realm, average item level), Quick Sim / Top Gear / Droptimizer as tabs, the gear laid out by slot with Wowhead's item icons and quality colours (Top Gear's checkboxes in each slot), the fight's options in a panel beside it with a big Sim button, results as ranked rows with each swap's icons and a bar for the gain, and the engine on one line. `GET /api/sim/items?ids=` names and draws items.
-- A **Sim** tab in the desktop app runs character sims on your PC with SimulationCraft, in the style of Raidbots: paste the `/simc` export from the SimulationCraft addon, then run a **Quick Sim** (DPS, each ability's share and the buffs that were up), **Top Gear** (the best combination of the gear you carry; tick the candidates, at most 100 combinations) or a **Droptimizer** (the gain of each piece the season's raid bosses, at a difficulty you pick, and Mythic+ dungeons, at a key level you pick, drop for your spec; at most 300 pieces). The first run asks you to download SimulationCraft's `simc.exe` (about 116 MB, the official nightly from this repo's `simc-engine` release over HTTPS, checked against its sha256; a weekly workflow, `simc.yml`, refreshes it from simulationcraft/simc-publish; or use a `simc.exe` you already have); the page warns when the build is more than 14 days old. One sim runs at a time, can be cancelled, and the last 20 are saved. The export is read again by the app on every request and simc only gets a file the app writes from the fields it validated. Nothing about your character is sent anywhere. API: `/api/sim` (desktop app only). Code: `service/sim.go`, `simprofile.go`, `simgear.go`, `simdrops.go`, `clients/simc`, `Sim.tsx`.
+- A **Sim** tab in the desktop app runs character sims on your PC with SimulationCraft, laid out like Raidbots (the character on top with its item level as the game counts it, the kinds as a button group, the gear by slot with Wowhead's item icons and quality colours, the fight's options beside it, results as ranked rows with each swap's icons and a bar for the gain): paste the `/simc` export from the SimulationCraft addon, then run a **Quick Sim** (DPS, each ability's share and the buffs that were up), **Top Gear** (the best combination of the gear you carry; tick the candidates, at most 100 combinations) or a **Droptimizer** (the gain of each piece the season's raid bosses, at a difficulty you pick, and Mythic+ dungeons, at a key level you pick, drop for your spec; at most 300 pieces). The first run asks you to download SimulationCraft's `simc.exe` (the official nightly from this repo's `simc-engine` release over HTTPS, checked against its sha256; a weekly workflow, `simc.yml`, refreshes it from simulationcraft/simc-publish; or use a `simc.exe` you already have); the page warns when the build is more than 14 days old. One sim runs at a time, can be cancelled, and the last 20 are saved. The export is read again by the app on every request and simc only gets a file the app writes from the fields it validated. Only the gear's item IDs leave the PC, to Wowhead for names and icons (`GET /api/sim/items?ids=`, `service.Items`). API: `/api/sim` (desktop app only). Code: `service/sim.go`, `simprofile.go`, `simgear.go`, `simdrops.go`, `clients/simc`, `Sim.tsx`.
 - `go run ./cmd/simref` writes `reference/sim-drops.json` (each boss's and dungeon's gear, from wago.tools' journal tables) beside the hand-kept `reference/sim-drops.toml` (item levels per difficulty and key level, taken from the Midnight Season 2 wiki page and not yet checked in game). Tier tokens aren't in it.
+
+## [0.5.4] - 2026-11-17
+
+### Added
+- **The overlay can rank by DPS or HPS** (rows and bars), and show a DPS card and an HPS card (healers only) of the key. The raid overlay follows the same rank and has an option for one ranked card in place of its Damage and Healing cards (off, as before).
+- **The raid overlay has its own row counts** for the Damage and Healing cards (5 and 3 by default, 0 for everyone) and an option to put the two cards side by side.
+- **Ctrl+Alt+H hides the overlay** (or the tray's *Hide the overlay*) until the next key or raid pull.
+- **A death's recap shows over the overlay** for 3 to 60 seconds (10 by default, or off) without a click: a new Mythic+ death's. A death line on the raid card opens its recap on a click.
+- **Preview the overlay with dummy data** from Settings (*Preview Mythic+*, *Preview raid*), to try every option without a key or a pull.
+- **Overlay layouts** (Compact, Standard, Full) fill in the card options in Settings in one click.
+
+### Changed
+- **A click on a player in the overlay shows the main window's two cards in one:** damage by ability and into each enemy, then healing by ability and the damage they took. It works on the raid overlay's meters too (the whole pull), and in both previews. The breakdown lists its rows in full, with no scrollbar.
+- **The raid overlay no longer opens on a death's recap** after a pull; only a new Mythic+ death shows its recap by itself (Settings has the seconds), and a click on a raid death line opens its recap.
+- **Death lines look clickable** on the overlay (a pointer and an arrow) while it takes clicks.
+- **The overlay window keeps the shape of its content** while it is resized (drag a corner), so it never has a spare side or a scrollbar.
+
+## [0.5.3] - 2026-11-17
+
+### Changed
+- **The M+ Live bottom tabs are as tall as the raid page's** (640 px lists instead of 320 px), so the other tabs match the bigger Route.
+- **Clicking a boss shows the party's meter cards on it**, and a click on a player drills into two cards: their damage by spell over their damage into each enemy, and their healing by spell over the damage they took.
+- **Home's quick links look like buttons**, bigger and with an arrow, and wrap on a narrow window.
+
+### Fixed
+- **Clicking a boss no longer scrolls the page** up to the replay; it moves the replay and stays where it is.
 
 ## [0.5.2] - 2026-11-16
 

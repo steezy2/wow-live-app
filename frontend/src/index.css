@@ -11,6 +11,14 @@
   --best: color-mix(in srgb, var(--good) 60%, transparent);
   --warn: #fbbf24;
   --bad: #f87171;
+  /* WoW's item qualities (Warcraft Logs' parse colours too), the blue and purple a shade lighter for the dark
+   * background. */
+  --q-poor: #9d9d9d;
+  --q-common: var(--text);
+  --q-uncommon: #1eff00;
+  --q-rare: #4a9dff;
+  --q-epic: #b86cf5;
+  --q-legendary: #ff8000;
   --nav: 48px;
   /* Spacing and type scales: every gap and size below comes from these. */
   --s1: 4px;
@@ -501,7 +509,8 @@ button {
   transition: opacity 0.15s ease-out;
 }
 
-.tabs [role='tablist'] {
+.tabs [role='tablist'],
+.sim-tabs {
   display: flex;
   gap: var(--s4);
   margin-bottom: var(--s3);
@@ -521,13 +530,15 @@ button {
   visibility: hidden;
 }
 
-.tabs [role='tab'] {
+.tabs [role='tab'],
+.sim-tabs button[aria-pressed] {
   padding: var(--s2) 0;
   color: var(--muted);
   border-bottom: 2px solid transparent;
 }
 
-.tabs [role='tab'][aria-selected='true'] {
+.tabs [role='tab'][aria-selected='true'],
+.sim-tabs button[aria-pressed='true'] {
   color: var(--text);
   border-bottom-color: var(--accent);
 }
@@ -668,6 +679,10 @@ button {
 .review-table th:not(:first-child),
 .review-table td:not(:first-child) {
   min-width: 56px;
+}
+
+.review-table td.left {
+  text-align: left;
 }
 
 .review-table tbody tr {
@@ -821,10 +836,9 @@ button {
   border-radius: 6px;
 }
 
-/* A boss fight's meter cards in its details (KeyLedgers.tsx), small and two across. */
-.replay-meters {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+/* A boss fight's meter cards in its details (KeyLedgers.tsx), two across (one under 1280 px). */
+.replay-meters .cards {
+  margin-top: var(--s2);
   gap: var(--s2);
 }
 
@@ -996,6 +1010,12 @@ html:has(.overlay) {
   padding: 0;
 }
 
+/* A breakdown lists its rows in full: the overlay never scrolls. */
+.overlay .drill .scroll {
+  max-height: none;
+  overflow: visible;
+}
+
 .overlay p {
   margin: 0;
 }
@@ -1010,7 +1030,7 @@ html:has(.overlay) {
   margin: 0;
 }
 
-/* The raid card's rows under its title and bar: deaths, what to fix, and the top DPS and HPS side by side. */
+/* The raid card's rows under its title and bar: deaths, what to fix, and the top DPS and HPS one over the other. */
 .overlay-rows {
   display: grid;
   gap: 2px;
@@ -1023,20 +1043,33 @@ html:has(.overlay) {
 
 .overlay-meters {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  grid-template-columns: 1fr; /* Damage over Healing, never side by side */
   gap: var(--s1);
+}
+
+/* With clicks on, a death line shows it opens: a pointer, an arrow and an underline on hover. */
+.overlay.clicks .row-button:not(:disabled) {
+  cursor: pointer;
+}
+
+.overlay.clicks .row-button:not(:disabled)::after {
+  content: '›';
+  padding-left: var(--s1);
+  font-weight: bold;
+  color: var(--accent);
+}
+
+.overlay.clicks .row-button:not(:disabled):hover {
+  text-decoration: underline;
+}
+
+.overlay-meters.side {
+  grid-template-columns: 1fr 1fr;
 }
 
 .overlay-meters .card {
   min-width: 0;
   overflow: hidden;
-}
-
-/* Strip mode: an overlay made this short keeps only the clock, timer, forces and deaths. */
-@media (max-height: 160px) {
-  .overlay-extra {
-    display: none;
-  }
 }
 
 .overlay.moving {
@@ -1194,9 +1227,13 @@ span.graph-taken {
   max-height: 260px;
 }
 
-/* The raid page's bottom tabs, twice as tall as a key's. */
+/* The bottom tabs of the key and raid pages, twice as tall as the lists' usual height. */
 .tall .scroll {
   max-height: 640px;
+}
+
+.tall .drill .scroll {
+  max-height: 260px;
 }
 
 /* Boxes over the replay's map: the boss's health at the top right, the focused raider's casts at the bottom left, and
@@ -1508,21 +1545,21 @@ span.graph-damage {
   color: var(--text);
 }
 
-/* Warcraft Logs' parse colours, a shade lighter where the dark background needs it. */
+/* Warcraft Logs' parse colours: the item qualities, then its own pink and gold. */
 .parse.grey {
-  color: #9d9d9d;
+  color: var(--q-poor);
 }
 .parse.green {
-  color: #1eff00;
+  color: var(--q-uncommon);
 }
 .parse.blue {
-  color: #4a9dff;
+  color: var(--q-rare);
 }
 .parse.purple {
-  color: #b86cf5;
+  color: var(--q-epic);
 }
 .parse.orange {
-  color: #ff8000;
+  color: var(--q-legendary);
 }
 .parse.pink {
   color: #e268a8;
@@ -1545,6 +1582,7 @@ button.link {
 /* The Report links under a finished key or pull: Warcraft Logs, WoWAnalyzer, or Find my report. */
 .links {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--s2);
   align-items: center;
 }
@@ -1557,6 +1595,15 @@ button.link {
 }
 .links button:hover:not(:disabled) {
   border-color: var(--accent);
+}
+
+/* The Home tab's quick links: bigger buttons with an arrow. */
+.quick-links button {
+  padding: var(--s2) var(--s3);
+  font-weight: 600;
+}
+.quick-links button::after {
+  content: ' →' / '';
 }
 
 /* The recap's numbers, each in a box: the number big, its label under it. */
@@ -2153,14 +2200,7 @@ table.compare td:first-child {
   margin-top: 0;
 }
 
-.sim-engine-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--s3);
-}
-
+.sim-engine-row,
 .sim-header {
   display: flex;
   flex-wrap: wrap;
@@ -2185,24 +2225,12 @@ table.compare td:first-child {
   font-size: var(--t-h2);
 }
 
-.sim-tabs {
-  display: flex;
-  gap: var(--s1);
-  border-bottom: 1px solid var(--border);
-}
-
-.sim .sim-tabs button {
+/* The kind of sim is a button group drawn as the tabs (.tabs [role='tab']), without Settings' boxed buttons. */
+.sim-tabs button {
   border: 0;
-  border-bottom: 2px solid transparent;
   border-radius: 0;
   background: none;
-  color: var(--muted);
-  padding: var(--s2) var(--s4);
-}
-
-.sim .sim-tabs button.active {
-  color: var(--text);
-  border-bottom-color: var(--accent);
+  font-weight: inherit;
 }
 
 .sim-layout {
@@ -2326,28 +2354,28 @@ table.compare td:first-child {
   height: 100%;
 }
 
-.q0 {
-  color: #9d9d9d;
+.sim .q0 {
+  color: var(--q-poor);
 }
 
-.q1 {
-  color: #e7eaf0;
+.sim .q1 {
+  color: var(--q-common);
 }
 
-.q2 {
-  color: #1eff00;
+.sim .q2 {
+  color: var(--q-uncommon);
 }
 
-.q3 {
-  color: #0070dd;
+.sim .q3 {
+  color: var(--q-rare);
 }
 
-.q4 {
-  color: #a335ee;
+.sim .q4 {
+  color: var(--q-epic);
 }
 
-.q5 {
-  color: #ff8000;
+.sim .q5 {
+  color: var(--q-legendary);
 }
 
 .sim-dps {

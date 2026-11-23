@@ -1,4 +1,4 @@
-import type { TalentNode } from './api'
+import { iconURL, type TalentNode } from './api'
 import { omniumString, togglePick } from './simOptions'
 import { tip } from './tipAttrs'
 
@@ -35,7 +35,7 @@ export function OmniumFolio(props: {
                   {...tip(e.name)}
                 >
                   <span className="sim-icon">
-                    {e.icon && <img src={`/api/icons/${e.icon}`} alt="" loading="lazy" />}
+                    {e.icon && <img src={iconURL(e.icon)} alt="" loading="lazy" />}
                   </span>
                   <span className="small">{e.name}</span>
                 </button>

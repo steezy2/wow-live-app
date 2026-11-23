@@ -1,4 +1,4 @@
-import type { SimCompare, SimConsumables, SimReference } from './api'
+import { iconURL, type SimCompare, type SimConsumables, type SimReference } from './api'
 
 /** The page's name for each consumable kind; a kind it doesn't know shows as the app names it. */
 const CONSUMABLE_LABELS: Record<string, string> = {
@@ -82,7 +82,7 @@ export function ConsumableCompare(props: {
                   })
                 }
               />
-              <span className="sim-icon">{c.icon && <img src={`/api/icons/${c.icon}`} alt="" loading="lazy" />}</span>
+              <span className="sim-icon">{c.icon && <img src={iconURL(c.icon)} alt="" loading="lazy" />}</span>
               {c.name}
             </label>
           </li>

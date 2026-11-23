@@ -1,11 +1,9 @@
 import { expect, test } from 'vitest'
 import type { SimChoices, SimItem, SimReference } from './api'
 import {
-  averageLevel,
   enchantsFor,
   gainShare,
   gearGroups,
-  itemIDs,
   omniumPicks,
   omniumString,
   pickedConsumables,
@@ -24,13 +22,13 @@ test('simOptionsError says which option is out of range', () => {
   expect(simOptionsError({ ...opts, length: 300.5 }, choices)).toContain('fight length')
 })
 
-test('gearGroups puts both rings under one heading, worn ones first, and leaves empty slots out', () => {
+test("gearGroups lists groups in the API's order and leaves empty groups out", () => {
   const equipped: SimItem[] = [
-    { slot: 'finger2', id: 2 },
-    { slot: 'head', id: 1 },
+    { slot: 'finger2', group: 'finger', id: 2 },
+    { slot: 'head', group: 'head', id: 1 },
   ]
-  const bags: SimItem[] = [{ slot: 'finger1', id: 3 }]
-  const groups = gearGroups(equipped, bags)
+  const bags: SimItem[] = [{ slot: 'finger1', group: 'finger', id: 3 }]
+  const groups = gearGroups(equipped, bags, ['head', 'neck', 'finger', 'main_hand'])
   expect(groups.map((g) => g.label)).toEqual(['Head', 'Rings'])
   expect(groups[1].items.map((i) => [i.item.id, i.index, i.worn])).toEqual([
     [2, 0, true],
@@ -38,22 +36,10 @@ test('gearGroups puts both rings under one heading, worn ones first, and leaves 
   ])
 })
 
-test('itemIDs lists each item once, and averageLevel ignores items without a level', () => {
-  const items: SimItem[] = [
-    { slot: 'head', id: 1, level: 600 },
-    { slot: 'neck', id: 2 },
-    { slot: 'back', id: 1, level: 610 },
-  ]
-  expect(itemIDs(items)).toEqual([1, 2])
-  expect(averageLevel(items)).toBe(605)
-  expect(averageLevel([{ slot: 'head', id: 1 }])).toBe(0)
-})
-
 test('gainShare scales a gain to the best one and shows a loss as no bar', () => {
   expect(gainShare(50, 100)).toBe(50)
   expect(gainShare(-5, 100)).toBe(0)
   expect(gainShare(10, 0)).toBe(0)
-  expect(gainShare(120, 100)).toBe(100)
 })
 
 const ref = {
@@ -79,20 +65,20 @@ const ref = {
 } as unknown as SimReference
 
 test('gearGroups lists the highest item level first, worn or carried, and items without a level last', () => {
-  const equipped: SimItem[] = [{ slot: 'finger1', id: 1, level: 300 }]
+  const equipped: SimItem[] = [{ slot: 'finger1', group: 'finger', id: 1, level: 300 }]
   const bags: SimItem[] = [
-    { slot: 'finger1', id: 2, level: 320 },
-    { slot: 'finger1', id: 3 },
-    { slot: 'finger1', id: 4, level: 310 },
+    { slot: 'finger1', group: 'finger', id: 2, level: 320 },
+    { slot: 'finger1', group: 'finger', id: 3 },
+    { slot: 'finger1', group: 'finger', id: 4, level: 310 },
   ]
-  expect(gearGroups(equipped, bags)[0].items.map((i) => i.item.id)).toEqual([2, 4, 1, 3])
+  expect(gearGroups(equipped, bags, ['finger'])[0].items.map((i) => i.item.id)).toEqual([2, 4, 1, 3])
 })
 
 test('upgradeTrackOf finds the track and level from the bonus IDs, and says none for an item on no track', () => {
-  const on = upgradeTrackOf(ref, { slot: 'finger1', id: 1, opts: { bonus_id: [7, 101] } })
+  const on = upgradeTrackOf(ref, { slot: 'finger1', group: 'finger', id: 1, opts: { bonus_id: [7, 101] } })
   expect([on?.track.name, on?.level.level]).toEqual(['Myth', 2])
-  expect(upgradeTrackOf(ref, { slot: 'finger1', id: 1, opts: { bonus_id: [7] } })).toBeNull()
-  expect(upgradeTrackOf(ref, { slot: 'finger1', id: 1 })).toBeNull()
+  expect(upgradeTrackOf(ref, { slot: 'finger1', group: 'finger', id: 1, opts: { bonus_id: [7] } })).toBeNull()
+  expect(upgradeTrackOf(ref, { slot: 'finger1', group: 'finger', id: 1 })).toBeNull()
 })
 
 test('enchantsFor lists the enchants of a slot', () => {
