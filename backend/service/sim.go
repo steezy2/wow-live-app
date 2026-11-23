@@ -14,7 +14,6 @@ import (
 	"io/fs"
 	"log"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -25,7 +24,6 @@ import (
 	"time"
 
 	"wow-live/backend/clients/cachefile"
-	"wow-live/backend/clients/simc"
 	"wow-live/backend/models"
 )
 
@@ -73,9 +71,9 @@ var (
 	simProgress = regexp.MustCompile(`(\d+)/(\d+) \[[=>. ]*\] (\d+)/(\d+)`)
 )
 
-// SimEngineSource is the program sims run: where it is, whether it's installed and downloading it (simc.Client).
+// SimEngineSource is the program sims run: running it, whether it's installed and downloading it (simc.Client).
 type SimEngineSource interface {
-	Path() string
+	Run(ctx context.Context, args []string, out io.Writer) error
 	Installed() models.SimEngine
 	Install(ctx context.Context) (models.SimEngine, error)
 	UseFile(ctx context.Context, path string) (models.SimEngine, error)
@@ -86,8 +84,9 @@ type Sims struct {
 	Engine SimEngineSource
 	Dir    string
 	Now    func() time.Time
-	Ctx    context.Context // the app's: canceled on Quit, which stops a running sim and download; nil never cancels
+	Ctx    context.Context // the app's: canceled on Quit, which stops a running sim and download
 
+	work       sync.WaitGroup // the running sim and download, for Wait
 	mu         sync.Mutex
 	run        *simRun     // the sim running now
 	last       *models.Sim // the last sim that ended without a result to save (failed or cancelled), for the page's poll
@@ -150,12 +149,12 @@ func (s *Sims) InstallEngine(path string) error {
 		return ErrSimBusy
 	}
 	s.installing, s.installErr = true, ""
-	go func() {
+	s.work.Go(func() {
 		var err error
 		if path != "" {
-			_, err = s.Engine.UseFile(s.base(), path)
+			_, err = s.Engine.UseFile(s.Ctx, path)
 		} else {
-			_, err = s.Engine.Install(s.base())
+			_, err = s.Engine.Install(s.Ctx)
 		}
 		s.mu.Lock()
 		defer s.mu.Unlock()
@@ -164,9 +163,12 @@ func (s *Sims) InstallEngine(path string) error {
 			log.Printf("downloading the sim engine: %v", err)
 			s.installErr = err.Error()
 		}
-	}()
+	})
 	return nil
 }
+
+// Wait returns once the running sim and download, if any, have ended: after Ctx is canceled, once simc is stopped.
+func (s *Sims) Wait() { s.work.Wait() }
 
 // Start parses the export and starts the sim in the background; poll Get. Errors: ErrBadSimOptions, ErrBadSimC,
 // ErrNoEngine, ErrSimBusy.
@@ -198,11 +200,11 @@ func (s *Sims) Start(req models.SimRequest) (models.Sim, error) {
 	if err := os.WriteFile(input, []byte(SimInput(profile)), 0o644); err != nil {
 		return models.Sim{}, fmt.Errorf("writing %s: %w", input, err)
 	}
-	ctx, cancel := context.WithTimeout(s.base(), simTimeout)
+	ctx, cancel := context.WithTimeout(s.Ctx, simTimeout)
 	sim := models.Sim{ID: id, Kind: req.Kind, State: models.SimRunning, Character: profile.Name, Spec: profile.Spec,
 		Options: req.Options, StartedMS: s.Now().UnixMilli()}
 	s.run, s.last = &simRun{sim: sim, cancel: cancel}, nil
-	go s.execute(ctx, input, output)
+	s.work.Go(func() { s.execute(ctx, input, output) })
 	return sim, nil
 }
 
@@ -226,14 +228,10 @@ func (s *Sims) execute(ctx context.Context, input, output string) {
 	s.mu.Lock()
 	sim := s.run.sim
 	s.mu.Unlock()
-	cmd := exec.CommandContext(ctx, s.Engine.Path(), simArgs(input, output, sim.Options)...)
-	cmd.Dir = filepath.Dir(input)
-	simc.HideWindow(cmd)
 	pr, pw := io.Pipe()
-	cmd.Stdout, cmd.Stderr = pw, pw
 	said := make(chan string)
 	go func() { said <- s.follow(pr) }()
-	runErr := cmd.Run()
+	runErr := s.Engine.Run(ctx, simArgs(input, output, sim.Options), pw)
 	pw.Close()
 	complaint := <-said
 
@@ -268,9 +266,6 @@ func (s *Sims) execute(ctx context.Context, input, output string) {
 		s.last = &sim
 	}
 }
-
-// base is the context sims and downloads run under.
-func (s *Sims) base() context.Context { return cmp.Or(s.Ctx, context.Background()) }
 
 // follow reads simc's output, updating the running sim's progress, and returns the last error line it printed.
 func (s *Sims) follow(r io.Reader) string {

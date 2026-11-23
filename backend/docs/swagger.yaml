@@ -4752,9 +4752,10 @@ paths:
       - application/json
       description: |-
         With no body, downloads the newest simc.exe (about 116 MB) from this app's own GitHub release over
-        HTTPS, checked against the sha256 in the release's engine.json; the release is rebuilt weekly from
-        SimulationCraft's official nightly. With a path, copies that simc.exe instead. Runs in the background:
-        poll the engine's status.
+        HTTPS, checked against the sha256 in the release's engine.json (which catches a broken download, not a
+        swapped file: both come from the same release); the release is rebuilt weekly from SimulationCraft's
+        official nightly. With a path, copies that simc.exe instead. Runs in the background: poll the engine's
+        status.
       parameters:
       - description: the path of a simc.exe to use
         in: body
@@ -4768,6 +4769,10 @@ paths:
           description: Accepted
           schema:
             $ref: '#/definitions/models.SimEngineStatus'
+        "400":
+          description: 'a body that isn''t {"path": ...}'
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
         "409":
           description: a sim or an install is running
           schema:

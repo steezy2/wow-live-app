@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -14,49 +15,33 @@ import (
 	"wow-live/backend/models"
 )
 
-// TestMain lets the test binary stand in for simc.exe: Sims runs os.Args[0], and WOWLIVE_FAKE_SIMC says how it acts.
-func TestMain(m *testing.M) {
-	if mode := os.Getenv("WOWLIVE_FAKE_SIMC"); mode != "" {
-		fakeSimc(mode)
-		return
-	}
-	os.Exit(m.Run())
-}
-
-func fakeSimc(mode string) {
-	var output string
-	for _, arg := range os.Args[1:] {
-		if v, ok := strings.CutPrefix(arg, "json2="); ok {
-			output = v
-		}
-	}
-	if path := os.Getenv("WOWLIVE_FAKE_ARGS"); path != "" {
-		os.WriteFile(path, []byte(strings.Join(os.Args[1:], "\n")), 0o644)
-	}
-	fmt.Print("Generating Baseline: 1/1 [====>...] 50/100 1.0 Mean=1 Error=1%\r")
-	switch mode {
-	case "fail":
-		fmt.Println("Error: Setup failure: bad thing")
-		os.Exit(1)
-	case "hang":
-		time.Sleep(time.Minute)
-	default:
-		data, err := os.ReadFile(os.Getenv("WOWLIVE_FAKE_RESULT"))
-		if err == nil {
-			err = os.WriteFile(output, data, 0o644)
-		}
-		if err != nil {
-			os.Exit(2)
-		}
-	}
-}
-
+// fakeEngine stands in for simc: mode "ok" writes testdata/sim-result.json as the result, "fail" prints why it
+// failed, and "hang" runs until it is stopped.
 type fakeEngine struct {
 	installed bool
 	built     time.Time
+	mode      string
+	args      []string // the last run's
 }
 
-func (f *fakeEngine) Path() string { return os.Args[0] }
+func (f *fakeEngine) Run(ctx context.Context, args []string, out io.Writer) error {
+	f.args = args
+	fmt.Fprint(out, "Generating Baseline: 1/1 [====>...] 50/100 1.0 Mean=1 Error=1%\r")
+	switch f.mode {
+	case "fail":
+		fmt.Fprintln(out, "Error: Setup failure: bad thing")
+		return errors.New("exit status 1")
+	case "hang":
+		<-ctx.Done()
+		return ctx.Err()
+	}
+	data, err := os.ReadFile("testdata/sim-result.json")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(strings.TrimPrefix(args[len(args)-1], "json2="), data, 0o644)
+}
+
 func (f *fakeEngine) Installed() models.SimEngine {
 	return models.SimEngine{Installed: f.installed, BuiltMS: f.built.UnixMilli()}
 }
@@ -67,15 +52,9 @@ func (f *fakeEngine) UseFile(context.Context, string) (models.SimEngine, error) 
 
 func newTestSims(t *testing.T, mode string) *Sims {
 	t.Helper()
-	result, err := filepath.Abs("testdata/sim-result.json")
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv("WOWLIVE_FAKE_SIMC", mode)
-	t.Setenv("WOWLIVE_FAKE_RESULT", result)
 	now := time.Date(2026, 11, 14, 12, 0, 0, 0, time.UTC)
-	return &Sims{Engine: &fakeEngine{installed: true, built: now.Add(-24 * time.Hour)}, Dir: t.TempDir(),
-		Now: func() time.Time { return now }}
+	return &Sims{Engine: &fakeEngine{installed: true, built: now.Add(-24 * time.Hour), mode: mode}, Dir: t.TempDir(),
+		Now: func() time.Time { return now }, Ctx: context.Background()}
 }
 
 func simRequest(t *testing.T) models.SimRequest {
@@ -100,8 +79,6 @@ func waitSim(t *testing.T, s *Sims, id string) models.Sim {
 
 func TestSimsRunsAndSavesAQuickSim(t *testing.T) {
 	s := newTestSims(t, "ok")
-	args := filepath.Join(t.TempDir(), "args.txt")
-	t.Setenv("WOWLIVE_FAKE_ARGS", args)
 	req := simRequest(t)
 	req.Options = models.SimOptions{FightStyle: "HecticAddCleave", Length: 120, Targets: 3, Accuracy: "high"}
 	started, err := s.Start(req)
@@ -118,9 +95,9 @@ func TestSimsRunsAndSavesAQuickSim(t *testing.T) {
 		t.Errorf("sim = %+v", sim)
 	}
 	want := "fight_style=HecticAddCleave\nmax_time=120\ndesired_targets=3\ntarget_error=0.05\n"
-	if got, err := os.ReadFile(args); err != nil || !strings.Contains(string(got), want) ||
-		strings.Contains(string(got), "html=") {
-		t.Errorf("simc got %q, %v", got, err)
+	if got := strings.Join(s.Engine.(*fakeEngine).args, "\n"); !strings.Contains(got, want) ||
+		strings.Contains(got, "html=") {
+		t.Errorf("simc got %q", got)
 	}
 	// a new Sims on the same folder, as after a restart, still has it, and the list leaves its result out
 	again := &Sims{Engine: s.Engine, Dir: s.Dir, Now: s.Now}
@@ -132,6 +109,12 @@ func TestSimsRunsAndSavesAQuickSim(t *testing.T) {
 	}
 	if left, _ := filepath.Glob(filepath.Join(s.Dir, "work", "*")); len(left) != 0 {
 		t.Errorf("the work folder still holds %v", left)
+	}
+	if err := s.Remove(started.ID); err != nil {
+		t.Fatal(err)
+	}
+	if list, _ := s.List(); len(list) != 0 {
+		t.Errorf("a removed sim is still listed: %+v", list)
 	}
 }
 
@@ -188,21 +171,6 @@ func TestSimsRunOneAtATimeAndCancel(t *testing.T) {
 	}
 	if list, _ := s.List(); len(list) != 0 {
 		t.Errorf("a cancelled sim is not saved: %+v", list)
-	}
-}
-
-func TestSimsRemoveDeletesAFinishedSim(t *testing.T) {
-	s := newTestSims(t, "ok")
-	started, err := s.Start(simRequest(t))
-	if err != nil {
-		t.Fatal(err)
-	}
-	waitSim(t, s, started.ID)
-	if err := s.Remove(started.ID); err != nil {
-		t.Fatal(err)
-	}
-	if list, _ := s.List(); len(list) != 0 {
-		t.Errorf("a removed sim is still listed: %+v", list)
 	}
 }
 
