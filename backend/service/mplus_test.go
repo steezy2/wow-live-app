@@ -164,8 +164,9 @@ func TestADeathsDefensiveIsOnlyTheirOwn(t *testing.T) {
 // TestShortKeyIsReadAndSaved reads one short key: an interrupt, a pet's hit counted to its owner, a heal, a dispel, an
 // avoidable hit taken, a defensive just before a death, the buffs each player lacked at the start, and the key saved
 // when it ends.
-func TestShortKeyIsReadAndSaved(t *testing.T) {
-	keys := newTracker(t, nil)
+// shortKeyLines is a short +10 of Voidscar Arena with two players, a kick, a death, a dispel and forces, in the log's
+// own lines.
+func shortKeyLines() []string {
 	const shaman = `Player-76-0000BBBB,"Testshaman-Sargeras-US",0x512,0x80000000`
 	const petGUID = "Creature-0-3019-3004-1081-95072-00006A951E"
 	const mobGUID = "Creature-0-3882-2859-27547-245336-00006BE4EA"
@@ -175,40 +176,46 @@ func TestShortKeyIsReadAndSaved(t *testing.T) {
 		return `11/4/2026 19:01:00.000-7  COMBATANT_INFO,` + guid + `,1,` + strings.Repeat("0,", 22) + spec +
 			`,[(1,2,1)],(0,0,0),[],[],[` + auras + `]`
 	}
-	feed(t, keys,
-		`11/4/2026 19:00:00.000-7  SPELL_AURA_APPLIED,`+testPlayer+`,`+testPlayer+`,1459,"Arcane Intellect",0x40,BUFF`,
+	return []string{
+		`11/4/2026 19:00:00.000-7  SPELL_AURA_APPLIED,` + testPlayer + `,` + testPlayer +
+			`,1459,"Arcane Intellect",0x40,BUFF`,
 		`11/4/2026 19:01:00.000-7  CHALLENGE_MODE_START,"Voidscar Arena",2923,585,10,[9]`,
 		info("Player-76-0000AAAA", "62", "Player-76-0000AAAA,1459,1"),
 		info("Player-76-0000BBBB", "262", "Player-76-0000BBBB,462854,1"),
 		// The shaman's name shows up only after the key started: still in the party.
-		`11/4/2026 19:01:10.000-7  SPELL_AURA_APPLIED,`+shaman+`,`+shaman+`,462854,"Skyfury",0x8,BUFF`,
+		`11/4/2026 19:01:10.000-7  SPELL_AURA_APPLIED,` + shaman + `,` + shaman + `,462854,"Skyfury",0x8,BUFF`,
 		// a stack: still up
-		`11/4/2026 19:01:12.000-7  SPELL_AURA_APPLIED_DOSE,`+shaman+`,`+shaman+`,462854,"Skyfury",0x8,BUFF,2`,
-		`11/4/2026 19:01:19.000-7  SPELL_CAST_SUCCESS,`+shaman+`,`+none+`,nil,0x80000000,0x80000000,192058,`+
-			`"Capacitor Totem",0x8,`+
+		`11/4/2026 19:01:12.000-7  SPELL_AURA_APPLIED_DOSE,` + shaman + `,` + shaman + `,462854,"Skyfury",0x8,BUFF,2`,
+		`11/4/2026 19:01:19.000-7  SPELL_CAST_SUCCESS,` + shaman + `,` + none + `,nil,0x80000000,0x80000000,192058,` +
+			`"Capacitor Totem",0x8,` +
 			advancedOf("Player-76-0000BBBB", none),
-		`11/4/2026 19:01:20.000-7  SPELL_INTERRUPT,`+shaman+`,`+mob+`,57994,"Wind Shear",0x8,1238063,"Light Bolt",2`,
-		`11/4/2026 19:01:21.000-7  SWING_DAMAGE,`+petGUID+`,"Greater Earth Elemental",0x1114,0x80000000,`+mob+`,`+
-			advancedOf(petGUID, "Player-76-0000BBBB")+`,1000,1000,-1,1,0,0,0,nil,nil,nil`,
-		`11/4/2026 19:01:22.000-7  SPELL_DAMAGE,`+testPlayer+`,`+mob+`,44425,"Arcane Barrage",0x40,`+
-			advancedOf(mobGUID, none)+`,5000,5000,-1,64,0,0,0,nil,nil,nil,ST`,
-		`11/4/2026 19:01:23.000-7  SPELL_HEAL,`+shaman+`,`+testPlayer+`,77472,"Healing Wave",0x8,`+
-			advancedOf("Player-76-0000AAAA", none)+`,3000,3000,1000,0,nil`,
-		`11/4/2026 19:01:23.500-7  SPELL_DISPEL,`+shaman+`,`+testPlayer+`,51886,"Cleanse Spirit",0x8,1234846,"Gorge",0x1,`+
-			`DEBUFF`,
-		`11/4/2026 19:01:24.000-7  SPELL_CAST_SUCCESS,`+testPlayer+`,`+none+`,nil,0x80000000,0x80000000,45438,`+
-			`"Ice Block",0x10,`+
+		`11/4/2026 19:01:20.000-7  SPELL_INTERRUPT,` + shaman + `,` + mob + `,57994,"Wind Shear",0x8,1238063,"Light Bolt",2`,
+		`11/4/2026 19:01:21.000-7  SWING_DAMAGE,` + petGUID + `,"Greater Earth Elemental",0x1114,0x80000000,` + mob + `,` +
+			advancedOf(petGUID, "Player-76-0000BBBB") + `,1000,1000,-1,1,0,0,0,nil,nil,nil`,
+		`11/4/2026 19:01:22.000-7  SPELL_DAMAGE,` + testPlayer + `,` + mob + `,44425,"Arcane Barrage",0x40,` +
+			advancedOf(mobGUID, none) + `,5000,5000,-1,64,0,0,0,nil,nil,nil,ST`,
+		`11/4/2026 19:01:23.000-7  SPELL_HEAL,` + shaman + `,` + testPlayer + `,77472,"Healing Wave",0x8,` +
+			advancedOf("Player-76-0000AAAA", none) + `,3000,3000,1000,0,nil`,
+		`11/4/2026 19:01:23.500-7  SPELL_DISPEL,` + shaman + `,` + testPlayer +
+			`,51886,"Cleanse Spirit",0x8,1234846,"Gorge",0x1,DEBUFF`,
+		`11/4/2026 19:01:24.000-7  SPELL_CAST_SUCCESS,` + testPlayer + `,` + none + `,nil,0x80000000,0x80000000,45438,` +
+			`"Ice Block",0x10,` +
 			advancedOf("Player-76-0000AAAA", none),
-		`11/4/2026 19:01:25.000-7  SPELL_DAMAGE,`+mob+`,`+testPlayer+`,1238063,"Light Bolt",0x2,`+
-			advancedOf("Player-76-0000AAAA", none)+`,9000,9000,100,2,0,0,0,nil,nil,nil,ST`,
-		`11/4/2026 19:01:25.100-7  UNIT_DIED,`+none+`,nil,0x80000000,0x80000000,`+testPlayer+`,0`,
-		`11/4/2026 19:01:26.000-7  SPELL_RESURRECT,`+shaman+`,`+testPlayer+`,20484,"Rebirth",0x8`,
-		`11/4/2026 19:01:30.000-7  UNIT_DIED,`+none+`,nil,0x80000000,0x80000000,`+mob+`,0`,
-		`11/4/2026 19:01:31.000-7  UNIT_DIED,`+none+`,nil,0x80000000,0x80000000,`+mob+`,0`,
-		`11/4/2026 19:01:32.000-7  UNIT_DIED,`+none+`,nil,0x80000000,0x80000000,`+
+		`11/4/2026 19:01:25.000-7  SPELL_DAMAGE,` + mob + `,` + testPlayer + `,1238063,"Light Bolt",0x2,` +
+			advancedOf("Player-76-0000AAAA", none) + `,9000,9000,100,2,0,0,0,nil,nil,nil,ST`,
+		`11/4/2026 19:01:25.100-7  UNIT_DIED,` + none + `,nil,0x80000000,0x80000000,` + testPlayer + `,0`,
+		`11/4/2026 19:01:26.000-7  SPELL_RESURRECT,` + shaman + `,` + testPlayer + `,20484,"Rebirth",0x8`,
+		`11/4/2026 19:01:30.000-7  UNIT_DIED,` + none + `,nil,0x80000000,0x80000000,` + mob + `,0`,
+		`11/4/2026 19:01:31.000-7  UNIT_DIED,` + none + `,nil,0x80000000,0x80000000,` + mob + `,0`,
+		`11/4/2026 19:01:32.000-7  UNIT_DIED,` + none + `,nil,0x80000000,0x80000000,` +
 			`Creature-0-3882-2859-27547-999999-00006BE4EB,"Odd Add",0x10a48,0x80000000,0`,
 		`11/4/2026 19:03:00.000-7  CHALLENGE_MODE_END,2923,1,10,111000,100.0,3000.0`,
-	)
+	}
+}
+
+func TestShortKeyIsReadAndSaved(t *testing.T) {
+	keys := newTracker(t, nil)
+	feed(t, keys, shortKeyLines()...)
 	got, _ := keys.Latest(0)
 	if i := got.Interrupts; len(i) != 1 || i[0] != (models.KeyInterrupt{Player: "Testshaman", Kick: "Wind Shear",
 		Target: "Radiant Spellsower", Spell: "Light Bolt", ClockMS: 11_000}) {
