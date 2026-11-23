@@ -78,12 +78,12 @@ export function joinClock(tickMS: number, onTick: () => void): () => void {
     clocks.set(tickMS, clock)
   }
   const shared = clock
+  shared.now = Date.now() // a late joiner starts from the present, not the last tick
   const tick = () => {
     shared.now = Date.now()
     shared.listeners.forEach((listener) => listener())
   }
   if (shared.listeners.size === 0) {
-    shared.now = Date.now()
     const timer = setInterval(() => document.hidden || tick(), tickMS)
     const shown = () => document.hidden || tick()
     document.addEventListener('visibilitychange', shown)
