@@ -2769,6 +2769,12 @@ definitions:
         items:
           type: string
         type: array
+      consumableKinds:
+        description: ConsumableKinds are the kinds of consumable a sim can be told
+          to use, in the order the page lists them.
+        items:
+          type: string
+        type: array
       defaultDifficulty:
         description: DefaultDifficulty and DefaultKeyLevel are what the Droptimizer
           starts on.
@@ -2856,17 +2862,8 @@ definitions:
         type: string
     type: object
   models.SimConsumables:
-    properties:
-      augment:
-        type: string
-      flask:
-        type: string
-      food:
-        type: string
-      potion:
-        type: string
-      weapon:
-        type: string
+    additionalProperties:
+      type: string
     type: object
   models.SimEnchant:
     properties:
@@ -2937,7 +2934,7 @@ definitions:
       name:
         type: string
       note:
-        example: Myth 3/6, socket
+        example: Myth 3/8, socket
         type: string
       opts:
         additionalProperties:
@@ -2995,9 +2992,15 @@ definitions:
     properties:
       combos:
         type: integer
+      error:
+        type: string
       max:
         example: 100
         type: integer
+      notes:
+        items:
+          type: string
+        type: array
       seconds:
         type: integer
     type: object
@@ -3162,10 +3165,10 @@ definitions:
   models.SimUpgradeLevel:
     properties:
       bonusID:
-        example: 12849
+        example: 12897
         type: integer
       itemLevel:
-        example: 318
+        example: 388
         type: integer
       level:
         example: 1
@@ -3174,7 +3177,7 @@ definitions:
   models.SimUpgradeTrack:
     properties:
       group:
-        example: 618
+        example: 630
         type: integer
       levels:
         items:

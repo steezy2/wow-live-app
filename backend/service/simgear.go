@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	// maxCombos is the most gear combinations a Top Gear sim runs: 100 took 73 s on a 16-thread PC.
+	// maxCombos is the most gear combinations a Top Gear sim runs.
 	maxCombos = 100
 	// setTargetError is the finest target error (in % of the DPS) profilesets run at, so 100 of them stay near a minute.
 	setTargetError = 0.2
@@ -27,13 +27,13 @@ type gearCandidate struct {
 }
 
 // gearCombo is one profileset a sim runs: its name and the slots it changes, for a Droptimizer's drop where it drops,
-// and for a "consumables" sim the simc line it sets (lines) and the value it stands for (option).
+// and for a "consumables" sim the simc line it sets (line) and the value it stands for (option).
 type gearCombo struct {
 	name   string
 	swaps  []models.SimSwap
 	source string
 	boss   string
-	lines  string
+	line   string
 	option *models.SimOptionRow
 }
 
@@ -64,17 +64,33 @@ func gearGroups(p models.SimProfile, equipped, bags []int, extra []gearCandidate
 	return groups, nil
 }
 
-// countCombos is how many combinations the groups make other than the equipped gear (the sim's baseline), stopping
-// at limit.
-func countCombos(groups [][][]models.SimSwap, limit int) int {
-	n := 1
+// comboCount is how many combinations the groups make other than the equipped gear (the sim's baseline: every
+// group's no-change options taken together), stopping at limit.
+func comboCount(groups [][][]models.SimSwap, limit int) int {
+	if slices.ContainsFunc(groups, func(g [][]models.SimSwap) bool { return len(g) == 0 }) {
+		return 0
+	}
+	all, same := 1, 1
 	for _, g := range groups {
-		n *= max(1, len(g))
-		if n > limit {
+		all *= len(g)
+		same *= len(slices.DeleteFunc(slices.Clone(g), func(o []models.SimSwap) bool { return len(o) > 0 }))
+		if all-same > limit { // the count never shrinks, as every group has an option
 			return limit
 		}
 	}
-	return n - 1
+	return all - same
+}
+
+// comboRefusal is why a Top Gear sim of n combinations is refused (ErrBadSimOptions), nil when it may run.
+func comboRefusal(n int) error {
+	switch {
+	case n == 0:
+		return fmt.Errorf("%w: tick at least one item that isn't equipped, or add a variant", ErrBadSimOptions)
+	case n > maxCombos:
+		return fmt.Errorf("%w: the picked items make over %d gear combinations; untick some", ErrBadSimOptions,
+			maxCombos)
+	}
+	return nil
 }
 
 // topGearCombos is every legal combination of the picked items and extra candidates other than the equipped gear.
@@ -84,33 +100,23 @@ func topGearCombos(p models.SimProfile, equipped, bags []int, extra []gearCandid
 	if err != nil {
 		return nil, err
 	}
-	var combos []gearCombo
-	var walk func(g int, swaps []models.SimSwap) error
-	walk = func(g int, swaps []models.SimSwap) error {
-		if g == len(groups) {
-			if len(swaps) == 0 {
-				return nil // the equipped gear, which the sim's baseline runs
-			}
-			if len(combos) == maxCombos {
-				return fmt.Errorf("%w: the picked items make over %d gear combinations; untick some", ErrBadSimOptions,
-					maxCombos)
-			}
-			combos = append(combos, gearCombo{name: "combo" + strconv.Itoa(len(combos)+1), swaps: slices.Clone(swaps)})
-			return nil
-		}
-		for _, option := range groups[g] {
-			if err := walk(g+1, append(swaps, option...)); err != nil {
-				return err
-			}
-		}
-		return nil
-	}
-	if err := walk(0, nil); err != nil {
+	if err := comboRefusal(comboCount(groups, maxCombos+1)); err != nil {
 		return nil, err
 	}
-	if len(combos) == 0 {
-		return nil, fmt.Errorf("%w: tick at least one item that isn't equipped", ErrBadSimOptions)
+	var combos []gearCombo
+	var walk func(g int, swaps []models.SimSwap)
+	walk = func(g int, swaps []models.SimSwap) {
+		if g == len(groups) {
+			if len(swaps) > 0 { // none is the equipped gear, which the sim's baseline runs
+				combos = append(combos, gearCombo{name: "combo" + strconv.Itoa(len(combos)+1), swaps: slices.Clone(swaps)})
+			}
+			return
+		}
+		for _, option := range groups[g] {
+			walk(g+1, append(swaps, option...))
+		}
 	}
+	walk(0, nil)
 	return combos, nil
 }
 
@@ -259,8 +265,8 @@ func gearSwaps(worn map[string]*models.SimItem, fills ...gearFill) []models.SimS
 func gearProfilesets(combos []gearCombo) string {
 	var b strings.Builder
 	for _, c := range combos {
-		if c.lines != "" {
-			fmt.Fprintf(&b, "profileset.%s+=%s", c.name, c.lines)
+		if c.line != "" {
+			fmt.Fprintf(&b, "profileset.%s+=%s", c.name, c.line)
 		}
 		for _, s := range c.swaps {
 			line := s.Slot + "=\n"

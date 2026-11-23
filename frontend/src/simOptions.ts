@@ -7,7 +7,6 @@ import type {
   SimReference,
   SimUpgradeLevel,
   SimUpgradeTrack,
-  SimVariant,
   TalentNode,
 } from './api'
 
@@ -72,21 +71,9 @@ export function upgradeTrackOf(
 export const enchantsFor = (ref: SimReference, slot: string): SimEnchant[] =>
   ref.enchants.filter((e) => e.slots.includes(slot))
 
-/** A variant in words: "Myth 3/6 · socket + Quick Lapis · Amani Mastery". */
-export function variantLabel(ref: SimReference, item: SimItem, v: SimVariant): string {
-  const parts: string[] = []
-  const on = upgradeTrackOf(ref, item)
-  if (v.upgrade && on) parts.push(`${on.track.name} ${v.upgrade}/${on.track.levels.length}`)
-  const gem = ref.gems.find((g) => g.id === v.gem)?.name
-  if (v.socket || gem) parts.push([v.socket && 'socket', gem].filter(Boolean).join(' + '))
-  const enchant = ref.enchants.find((e) => e.id === v.enchant)
-  if (enchant) parts.push(enchant.name)
-  return parts.join(' · ')
-}
-
 /** The consumables set, without the kinds left on simc's default. */
 export function pickedConsumables(c: SimConsumables): SimConsumables {
-  return Object.fromEntries(Object.entries(c).filter(([, v]) => v)) as SimConsumables
+  return Object.fromEntries(Object.entries(c).filter(([, v]) => v))
 }
 
 /** The entry IDs of an Omnium Folio string ("136814:1/136817:1"). */

@@ -91,13 +91,12 @@ function EngineBar(props: {
 }
 
 /** What a Top Gear request makes, in words: how many combinations (of the most that run) and about how long, or why the
- * request can't run. */
+ * app would refuse it. */
 function PlanText({ plan }: { plan: { plan: SimPlan | null; error: string | null } }) {
-  if (plan.error) return <p className="warning">{plan.error}</p>
+  const refusal = plan.error ?? plan.plan?.error
+  if (refusal) return <p className="warning">{refusal}</p>
   if (!plan.plan) return <p className="muted small">Counting the combinations…</p>
   const { combos, max, seconds } = plan.plan
-  if (combos === 0) return <p className="warning">Tick at least one item that isn't worn, or add a variant.</p>
-  if (combos >= max) return <p className="warning">Over {max} combinations: untick some items or variants.</p>
   const about = seconds < 90 ? `${seconds} s` : `${Math.round(seconds / 60)} min`
   return (
     <p className="muted small">
@@ -186,7 +185,12 @@ function OptionsPanel(props: {
         </>
       )}
       <h2>Consumables</h2>
-      <ConsumableSelects reference={props.reference} value={props.consumables} onChange={props.setConsumables} />
+      <ConsumableSelects
+        kinds={choices.consumableKinds}
+        reference={props.reference}
+        value={props.consumables}
+        onChange={props.setConsumables}
+      />
       {optionsError && <p className="warning">{optionsError}</p>}
       {props.plan && <PlanText plan={props.plan} />}
       <button className="sim-run" disabled={!props.canRun || !!running || !!optionsError} onClick={props.onRun}>
@@ -292,7 +296,7 @@ export function Sim() {
       export: text,
       options,
       consumables: pickedConsumables(consumables),
-      ...(mine && mine !== theirs && { omnium: mine }),
+      ...(mine !== theirs && { omnium: mine }),
       ...(kind === 'topgear' && { equipped, bags, variants }),
       ...(kind === 'drops' && { difficulty, keyLevel }),
       ...(kind === 'consumables' && { compare }),
@@ -322,12 +326,12 @@ export function Sim() {
           onToggle: toggle,
           reference,
           variants,
+          notes: plan.plan?.notes ?? [],
           onAddVariant: (v: SimVariant) => setVariants((all) => (all.some((o) => same(o, v)) ? all : [...all, v])),
           onRemoveVariant: (v: SimVariant) => setVariants((all) => all.filter((o) => !same(o, v))),
         }
       : undefined
-  const planBlocks =
-    kind === 'topgear' && (!!plan.error || !plan.plan || plan.plan.combos === 0 || plan.plan.combos >= plan.plan.max)
+  const planBlocks = kind === 'topgear' && (!!plan.error || !plan.plan || !!plan.plan.error)
   const compareBlocks = kind === 'consumables' && compare.values.length === 0
   return (
     <main className="page settings sim">
@@ -387,6 +391,7 @@ export function Sim() {
                     {choices.maxCompare}.
                   </p>
                   <ConsumableCompare
+                    kinds={choices.consumableKinds}
                     reference={reference}
                     compare={compare}
                     max={choices.maxCompare}

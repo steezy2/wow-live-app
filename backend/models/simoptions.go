@@ -18,8 +18,8 @@ type SimReference struct {
 	Omnium []TalentNode `json:"omnium"`
 }
 
-// SimConsumableKinds are the consumables a sim can be told to use, in the order the page lists them, with the simc
-// option each sets.
+// SimConsumableKinds are the consumables a sim can be told to use, in the order the page lists them
+// (SimChoices.ConsumableKinds).
 var SimConsumableKinds = []string{"flask", "food", "potion", "augment", "weapon"}
 
 // SimConsumable is a flask, food, potion, augment rune or weapon oil: the name simc takes ("flask_of_..._2"), the
@@ -52,10 +52,10 @@ type SimGem struct {
 	Quality int    `json:"quality,omitempty"`
 }
 
-// SimUpgradeTrack is a track items upgrade along ("Myth 1/6" to "Myth 6/6"): the group Blizzard keys it by, its name
+// SimUpgradeTrack is a track items upgrade along ("Myth 1/8" to "Myth 8/8"): the group Blizzard keys it by, its name
 // and its levels, lowest first.
 type SimUpgradeTrack struct {
-	Group  int               `json:"group" example:"618"`
+	Group  int               `json:"group" example:"630"`
 	Name   string            `json:"name" example:"Myth"`
 	Levels []SimUpgradeLevel `json:"levels"`
 }
@@ -63,20 +63,14 @@ type SimUpgradeTrack struct {
 // SimUpgradeLevel is one level of a track: the bonus ID an item carries at it, its number (from 1) and the item level
 // it gives.
 type SimUpgradeLevel struct {
-	BonusID   int `json:"bonusID" example:"12849"`
+	BonusID   int `json:"bonusID" example:"12897"`
 	Level     int `json:"level" example:"1"`
-	ItemLevel int `json:"itemLevel" example:"318"`
+	ItemLevel int `json:"itemLevel" example:"388"`
 }
 
-// SimConsumables are the consumables a sim uses instead of simc's defaults, each a SimConsumable.Value of its kind
-// (empty keeps simc's default).
-type SimConsumables struct {
-	Flask   string `json:"flask,omitempty"`
-	Food    string `json:"food,omitempty"`
-	Potion  string `json:"potion,omitempty"`
-	Augment string `json:"augment,omitempty"`
-	Weapon  string `json:"weapon,omitempty"`
-}
+// SimConsumables are the consumables a sim uses instead of simc's defaults: a SimConsumable.Value by its kind (one of
+// SimConsumableKinds; a kind left out, or empty, keeps simc's default).
+type SimConsumables map[string]string
 
 // SimVariant is a changed copy of a Top Gear candidate, sim'd beside it: the item at Index of the profile's Equipped
 // (Worn) or Bags, moved to upgrade level Upgrade of its track (0 keeps it), given one more socket (Socket), a gem
@@ -98,11 +92,15 @@ type SimCompare struct {
 }
 
 // SimPlan is what a Top Gear request would run: how many gear combinations it makes (Max is the most one runs) and
-// about how long that takes on this PC.
+// about how long that takes on this PC, for its fight length and accuracy. Error is why a sim of them would be refused
+// (none, or over Max), in the words starting it gives; Notes say what each of the request's variants changes, in its
+// order.
 type SimPlan struct {
-	Combos  int `json:"combos"`
-	Max     int `json:"max" example:"100"`
-	Seconds int `json:"seconds"`
+	Combos  int      `json:"combos"`
+	Max     int      `json:"max" example:"100"`
+	Seconds int      `json:"seconds"`
+	Error   string   `json:"error,omitempty"`
+	Notes   []string `json:"notes"`
 }
 
 // SimOptionRow is one value of a "consumables" sim: its simc name and display name, its DPS, the standard error of

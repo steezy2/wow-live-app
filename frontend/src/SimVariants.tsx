@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { SimItem, SimReference, SimVariant } from './api'
-import { enchantsFor, upgradeTrackOf, variantLabel } from './simOptions'
+import { enchantsFor, upgradeTrackOf } from './simOptions'
 
 /** The name a gem or enchant is listed by: its quality when it has one, and its stats. */
 const optionText = (o: { name: string; stats?: string; quality?: number }) =>
@@ -24,7 +24,7 @@ function VariantForm(props: { item: SimItem; reference: SimReference; onAdd: (v:
           <select value={upgrade} onChange={(e) => setUpgrade(Number(e.target.value))}>
             <option value={0}>Keep {on.track.name}</option>
             {on.track.levels
-              .filter((l) => l.level !== on.level.level)
+              .filter((l) => l.level > on.level.level)
               .map((l) => (
                 <option key={l.level} value={l.level}>
                   {on.track.name} {l.level}/{on.track.levels.length} ({l.itemLevel})
@@ -82,29 +82,33 @@ function VariantForm(props: { item: SimItem; reference: SimReference; onAdd: (v:
 /** What a variant form fills in: the rest of a SimVariant (which item) comes from the row it is on. */
 type Change = Pick<SimVariant, 'upgrade' | 'socket' | 'gem' | 'enchant'>
 
-/** Under an item of Top Gear: its variants (changed copies sim'd as candidates, each removable) and a "Change…"
- * form that adds one. */
+/** Under an item of Top Gear: its variants (changed copies sim'd as candidates, each removable, named by the plan's
+ * notes, which follow the variants' order) and a "Change…" form that adds one. */
 export function ItemVariants(props: {
   item: SimItem
   worn: boolean
   index: number
   reference: SimReference
   variants: SimVariant[]
+  notes: string[]
   onAdd: (v: SimVariant) => void
   onRemove: (v: SimVariant) => void
 }) {
-  const { item, worn, index, reference, variants } = props
-  const mine = variants.filter((v) => !!v.worn === worn && v.index === index)
+  const { item, worn, index, reference, variants, notes } = props
   return (
     <div className="sim-variants">
-      {mine.map((v) => (
-        <span key={variantLabel(reference, item, v)} className="sim-variant-chip">
-          {variantLabel(reference, item, v)}
-          <button className="delete" aria-label="Remove this variant" onClick={() => props.onRemove(v)}>
-            ×
-          </button>
-        </span>
-      ))}
+      {variants.map(
+        (v, i) =>
+          !!v.worn === worn &&
+          v.index === index && (
+            <span key={JSON.stringify(v)} className="sim-variant-chip">
+              {notes[i] ?? '…'}
+              <button className="delete" aria-label="Remove this variant" onClick={() => props.onRemove(v)}>
+                ×
+              </button>
+            </span>
+          ),
+      )}
       <details>
         <summary className="muted small">Upgrade, socket, enchant…</summary>
         <VariantForm item={item} reference={reference} onAdd={(c) => props.onAdd({ worn, index, ...c })} />

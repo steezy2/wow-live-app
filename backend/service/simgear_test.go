@@ -53,6 +53,10 @@ func TestTopGearCombosFollowTheSlotRules(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			combos, err := topGearCombos(gearProfile(tt.twoHanded), tt.equipped, tt.bag, nil)
+			groups, _ := gearGroups(gearProfile(tt.twoHanded), tt.equipped, tt.bag, nil)
+			if n := comboCount(groups, maxPlanCombos); n != len(combos) {
+				t.Errorf("comboCount = %d, want the %d topGearCombos makes", n, len(combos))
+			}
 			if tt.want == 0 {
 				if !errors.Is(err, ErrBadSimOptions) || combos != nil {
 					t.Errorf("got %d combos, err %v; want ErrBadSimOptions", len(combos), err)
@@ -103,6 +107,9 @@ func TestTopGearRefusesOverTheCap(t *testing.T) {
 	if combos, err := topGearCombos(p, nil, append(picked, len(p.Bags)-1), nil); !errors.Is(err, ErrBadSimOptions) ||
 		combos != nil {
 		t.Errorf("11 heads by 10 necks: %d combos, %v; want refused, not cut", len(combos), err)
+	}
+	if groups, _ := gearGroups(p, nil, append(picked, len(p.Bags)-1), nil); comboCount(groups, 50) != 50 {
+		t.Errorf("comboCount of 110 combinations = %d, want it to stop at the limit", comboCount(groups, 50))
 	}
 }
 

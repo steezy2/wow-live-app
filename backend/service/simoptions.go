@@ -3,7 +3,6 @@ package service
 import (
 	"cmp"
 	"fmt"
-	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -16,15 +15,16 @@ const (
 	maxCompareValues = 40
 	// maxPlanCombos is where a plan stops counting: a request that makes more than maxCombos is refused anyway.
 	maxPlanCombos = 1_000_000
-	// comboSeconds is how long one Top Gear combination took on a 16-thread PC (100 took 73 s), and referenceThreads
-	// the threads that PC ran it on.
+	// comboSeconds is how long one Top Gear combination took on a 16-thread PC at the default fight (100 took 73 s),
+	// and referenceThreads the threads that PC ran it on.
 	comboSeconds     = 0.73
 	referenceThreads = 15
 )
 
-// simOptionNames are the simc options the consumables set, by kind (models.SimConsumableKinds).
-var simOptionNames = map[string]string{"flask": "flask", "food": "food", "potion": "potion",
-	"augment": "augmentation", "weapon": "temporary_enchant"}
+// simOptionLines are the start of the simc line each kind of consumable sets (models.SimConsumableKinds); a weapon oil
+// goes on the main hand.
+var simOptionLines = map[string]string{"flask": "flask=", "food": "food=", "potion": "potion=",
+	"augment": "augmentation=", "weapon": "temporary_enchant=main_hand:"}
 
 // consumableOf is the consumable of kind with simc name value, false when the reference has none.
 func consumableOf(ref models.SimReference, kind, value string) (models.SimConsumable, bool) {
@@ -36,22 +36,22 @@ func consumableOf(ref models.SimReference, kind, value string) (models.SimConsum
 }
 
 // consumableLine is the simc line that sets a consumable ("flask=flask_of_..."). Only a name from the reference gets
-// here, so nothing else is written into the input. A weapon oil goes on the main hand.
+// here, so nothing else is written into the input.
 func consumableLine(kind string, c models.SimConsumable) string {
-	if kind == "weapon" {
-		return "temporary_enchant=main_hand:" + c.Value + "\n"
-	}
-	return simOptionNames[kind] + "=" + c.Value + "\n"
+	return simOptionLines[kind] + c.Value + "\n"
 }
 
 // consumableLines are the lines for the consumables picked (a kind left empty keeps simc's default), or
-// ErrBadSimOptions for a value the reference doesn't have.
+// ErrBadSimOptions for a kind or value the reference doesn't have.
 func consumableLines(ref models.SimReference, picked models.SimConsumables) (string, error) {
+	for kind := range picked {
+		if !slices.Contains(models.SimConsumableKinds, kind) {
+			return "", fmt.Errorf("%w: no consumable kind %q (%v)", ErrBadSimOptions, kind, models.SimConsumableKinds)
+		}
+	}
 	var b strings.Builder
-	values := map[string]string{"flask": picked.Flask, "food": picked.Food, "potion": picked.Potion,
-		"augment": picked.Augment, "weapon": picked.Weapon}
 	for _, kind := range models.SimConsumableKinds {
-		value := values[kind]
+		value := picked[kind]
 		if value == "" {
 			continue
 		}
@@ -70,17 +70,17 @@ func compareCombos(ref models.SimReference, cmpr *models.SimCompare) ([]gearComb
 	if cmpr == nil || !slices.Contains(models.SimConsumableKinds, cmpr.Kind) {
 		return nil, fmt.Errorf("%w: pick what to compare (%v)", ErrBadSimOptions, models.SimConsumableKinds)
 	}
-	values := slices.Compact(slices.Clone(cmpr.Values))
-	if len(values) == 0 || len(values) > maxCompareValues || len(values) != len(cmpr.Values) {
+	n := len(cmpr.Values)
+	if n == 0 || n > maxCompareValues || len(slices.Compact(slices.Sorted(slices.Values(cmpr.Values)))) != n {
 		return nil, fmt.Errorf("%w: compare 1 to %d different %s values", ErrBadSimOptions, maxCompareValues, cmpr.Kind)
 	}
-	combos := make([]gearCombo, len(values))
-	for i, v := range values {
+	combos := make([]gearCombo, n)
+	for i, v := range cmpr.Values {
 		c, ok := consumableOf(ref, cmpr.Kind, v)
 		if !ok {
 			return nil, fmt.Errorf("%w: no %s called %q", ErrBadSimOptions, cmpr.Kind, v)
 		}
-		combos[i] = gearCombo{name: "option" + strconv.Itoa(i+1), lines: consumableLine(cmpr.Kind, c),
+		combos[i] = gearCombo{name: "option" + strconv.Itoa(i+1), line: consumableLine(cmpr.Kind, c),
 			option: &models.SimOptionRow{Value: c.Value, Name: c.Name}}
 	}
 	return combos, nil
@@ -101,13 +101,16 @@ func optionResults(sets []simSetJSON, baseline float64, combos []gearCombo) []mo
 }
 
 // omniumInput is the Omnium Folio's picks as the export writes them ("136822:1/136817:1"): the request's when it sends
-// any, else the export's. A pick must be an entry of the reference's tree, at most one to a node.
-func omniumInput(ref models.SimReference, p models.SimProfile, requested string) (string, error) {
-	if requested == "" {
+// them (empty for none), else the export's. A pick must be an entry of the reference's tree, at most one to a node.
+func omniumInput(ref models.SimReference, p models.SimProfile, requested *string) (string, error) {
+	if requested == nil {
 		return p.Omnium, nil
 	}
+	if *requested == "" {
+		return "", nil
+	}
 	picks := map[int]int{} // node -> entry
-	for pair := range strings.SplitSeq(requested, "/") {
+	for pair := range strings.SplitSeq(*requested, "/") {
 		id, rank, ok := strings.Cut(pair, ":")
 		entry, err := strconv.Atoi(id)
 		if r, rankErr := strconv.Atoi(rank); err != nil || rankErr != nil || !ok || r != 1 {
@@ -226,9 +229,15 @@ func variantCandidates(ref models.SimReference, p models.SimProfile,
 }
 
 // planOf is what a Top Gear request would run: the combinations it makes (counted without making them, so a request
-// over the limit says by how much) and about how long they take on this PC.
-func planOf(combos int) models.SimPlan {
-	threads := max(1, runtime.NumCPU()-1)
-	seconds := float64(combos) * comboSeconds * referenceThreads / float64(threads)
-	return models.SimPlan{Combos: combos, Max: maxCombos, Seconds: int(seconds + 0.5)}
+// over the limit says by how much), why it is refused if it is, and about how long they take on this PC with o. A
+// sim's time grows with the fight's length and the iterations, which go as 1/target error².
+func planOf(combos int, o models.SimOptions) models.SimPlan {
+	errorRatio := simTargetError(simDefaults, true) / simTargetError(o, true)
+	seconds := float64(combos) * comboSeconds * referenceThreads / float64(simThreads()) *
+		float64(o.Length) / float64(simDefaults.Length) * errorRatio * errorRatio
+	plan := models.SimPlan{Combos: combos, Max: maxCombos, Seconds: int(seconds + 0.5)}
+	if err := comboRefusal(combos); err != nil {
+		plan.Error = err.Error()
+	}
+	return plan
 }

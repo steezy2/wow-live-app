@@ -15,6 +15,7 @@ export function SimGear(props: {
     onToggle: (worn: boolean, index: number) => void
     reference: SimReference
     variants: SimVariant[]
+    notes: string[] // what each variant changes, in the app's words (the plan's)
     onAddVariant: (v: SimVariant) => void
     onRemoveVariant: (v: SimVariant) => void
   }
@@ -56,6 +57,7 @@ export function SimGear(props: {
                           index={index}
                           reference={pick.reference}
                           variants={pick.variants}
+                          notes={pick.notes}
                           onAdd={pick.onAddVariant}
                           onRemove={pick.onRemoveVariant}
                         />

@@ -30,7 +30,7 @@ type SimItem struct {
 	Level int              `json:"level,omitempty"`
 	ID    int              `json:"id"`
 	Opts  map[string][]int `json:"opts,omitempty"`
-	Note  string           `json:"note,omitempty" example:"Myth 3/6, socket"`
+	Note  string           `json:"note,omitempty" example:"Myth 3/8, socket"`
 }
 
 // SimOptions are the fight a sim runs: its style (one of SimChoices.FightStyles), its length in seconds, how many
@@ -53,6 +53,8 @@ type SimChoices struct {
 	// most values a "consumables" sim tries.
 	MaxCombos  int `json:"maxCombos" example:"100"`
 	MaxCompare int `json:"maxCompare" example:"40"`
+	// ConsumableKinds are the kinds of consumable a sim can be told to use, in the order the page lists them.
+	ConsumableKinds []string `json:"consumableKinds"`
 	// MaxDrops is the most drops a Droptimizer sims; Difficulties are the raid difficulties it can sim the raid at and
 	// KeyLevels the Mythic+ key levels it can sim dungeons at.
 	MaxDrops     int        `json:"maxDrops" example:"300"`
@@ -68,9 +70,9 @@ type SimChoices struct {
 // the options. A Top Gear sim also sends the items it may put on, as indexes into the parsed profile's Equipped and
 // Bags; an equipped item left out is not a candidate. A Droptimizer sim sends the raid Difficulty (one of
 // SimChoices.Difficulties) and the Mythic+ KeyLevel (one of SimChoices.KeyLevels) its drops are at. Every kind may
-// name Consumables and an Omnium Folio (entry:rank pairs, as the export writes it) instead of simc's defaults and the
-// export's; a Top Gear sim may add Variants (changed copies of its candidates) and a "consumables" sim sends the
-// Compare it makes.
+// name Consumables and an Omnium Folio (entry:rank pairs, as the export writes it; empty for none) instead of
+// simc's defaults and the export's; a Top Gear sim may add Variants (changed copies of its candidates) and a
+// "consumables" sim sends the Compare it makes.
 type SimRequest struct {
 	Kind        string         `json:"kind" binding:"required" example:"quick"`
 	Export      string         `json:"export" binding:"required"`
@@ -81,7 +83,7 @@ type SimRequest struct {
 	Difficulty  string         `json:"difficulty,omitempty" example:"heroic"`
 	KeyLevel    int            `json:"keyLevel,omitempty" example:"10"`
 	Consumables SimConsumables `json:"consumables"`
-	Omnium      string         `json:"omnium,omitempty" example:"136822:1/136817:1"`
+	Omnium      *string        `json:"omnium,omitempty" example:"136822:1/136817:1"`
 	Compare     *SimCompare    `json:"compare,omitempty"`
 }
 

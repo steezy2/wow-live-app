@@ -39,29 +39,28 @@ func ring() models.SimItem {
 func TestApplyVariant(t *testing.T) {
 	tests := []struct {
 		name     string
+		slot     string
 		variant  models.SimVariant
 		wantLine string // the item's simc line
 		wantNote string
 		wantLvl  int
 		wantErr  string
 	}{
-		{"an upgrade swaps the track's bonus", models.SimVariant{Upgrade: 3},
+		{"an upgrade swaps the track's bonus", "finger1", models.SimVariant{Upgrade: 3},
 			"finger1=,id=5,bonus_id=7/102\n", "Myth 3/3", 324, ""},
-		{"a socket and a gem", models.SimVariant{Socket: true, Gem: 240883},
+		{"a socket and a gem", "finger1", models.SimVariant{Socket: true, Gem: 240883},
 			"finger1=,id=5,bonus_id=7/100/10397,gem_id=240883\n", "socket, Quick Lapis", 318, ""},
-		{"an enchant", models.SimVariant{Enchant: 7964},
+		{"an enchant", "finger1", models.SimVariant{Enchant: 7964},
 			"finger1=,id=5,bonus_id=7/100,enchant_id=7964\n", "Amani Mastery", 318, ""},
-		{"nothing changed", models.SimVariant{}, "", "", 0, "changes something"},
-		{"an upgrade past the track", models.SimVariant{Upgrade: 4}, "", "", 0, "no upgrade level 4"},
-		{"an unknown gem", models.SimVariant{Gem: 1}, "", "", 0, "no gem 1"},
-		{"an enchant for another slot", models.SimVariant{Enchant: 7964}, "", "", 0, "no enchant"},
+		{"nothing changed", "finger1", models.SimVariant{}, "", "", 0, "changes something"},
+		{"an upgrade past the track", "finger1", models.SimVariant{Upgrade: 4}, "", "", 0, "no upgrade level 4"},
+		{"an unknown gem", "finger1", models.SimVariant{Gem: 1}, "", "", 0, "no gem 1"},
+		{"an enchant for another slot", "head", models.SimVariant{Enchant: 7964}, "", "", 0, "no enchant"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			item := ring()
-			if tt.name == "an enchant for another slot" {
-				item.Slot = "head"
-			}
+			item.Slot = tt.slot
 			got, err := applyVariant(testRef(), item, tt.variant)
 			if tt.wantErr != "" {
 				if !errors.Is(err, ErrBadSimOptions) || !strings.Contains(err.Error(), tt.wantErr) {
@@ -91,7 +90,7 @@ func TestApplyVariantNeedsATrackForAnUpgrade(t *testing.T) {
 }
 
 func TestConsumableLines(t *testing.T) {
-	got, err := consumableLines(testRef(), models.SimConsumables{Flask: "flask_b_2", Weapon: "oil_2", Food: "feast"})
+	got, err := consumableLines(testRef(), models.SimConsumables{"flask": "flask_b_2", "weapon": "oil_2", "food": "feast"})
 	want := "flask=flask_b_2\nfood=feast\ntemporary_enchant=main_hand:oil_2\n"
 	if err != nil || got != want {
 		t.Errorf("consumableLines = %q, %v, want %q", got, err, want)
@@ -99,7 +98,7 @@ func TestConsumableLines(t *testing.T) {
 	if got, err := consumableLines(testRef(), models.SimConsumables{}); err != nil || got != "" {
 		t.Errorf("no picks = %q, %v, want simc's defaults (nothing written)", got, err)
 	}
-	for _, bad := range []models.SimConsumables{{Flask: "feast"}, {Potion: "x\nthreads=1"}} {
+	for _, bad := range []models.SimConsumables{{"flask": "feast"}, {"potion": "x\nthreads=1"}, {"ring": "feast"}} {
 		if _, err := consumableLines(testRef(), bad); !errors.Is(err, ErrBadSimOptions) {
 			t.Errorf("%+v: err = %v, want ErrBadSimOptions", bad, err)
 		}
@@ -123,6 +122,8 @@ func TestCompareCombos(t *testing.T) {
 		{"an unknown kind", &models.SimCompare{Kind: "ring", Values: []string{"a"}}},
 		{"no values", &models.SimCompare{Kind: "flask"}},
 		{"a value twice", &models.SimCompare{Kind: "flask", Values: []string{"flask_a_2", "flask_a_2"}}},
+		{"a value twice, not side by side",
+			&models.SimCompare{Kind: "flask", Values: []string{"flask_a_2", "flask_b_2", "flask_a_2"}}},
 		{"a value of another kind", &models.SimCompare{Kind: "flask", Values: []string{"feast"}}},
 	}
 	for _, tt := range tests {
@@ -149,21 +150,24 @@ func TestOptionResults(t *testing.T) {
 func TestOmniumInput(t *testing.T) {
 	p := models.SimProfile{Omnium: "11:1/21:1"}
 	tests := []struct {
-		name, requested, want string
-		wantErr               bool
+		name      string
+		requested *string
+		want      string
+		wantErr   bool
 	}{
-		{"the export's when none is sent", "", "11:1/21:1", false},
-		{"a pick is kept in the tree's order", "21:1/12:1", "12:1/21:1", false},
-		{"two entries of a node", "11:1/12:1", "", true},
-		{"an entry of no node", "99:1", "", true},
-		{"not a pair", "11", "", true},
-		{"a rank other than 1", "11:2", "", true},
+		{"the export's when none is sent", nil, "11:1/21:1", false},
+		{"none when an empty one is sent", new(""), "", false},
+		{"a pick is kept in the tree's order", new("21:1/12:1"), "12:1/21:1", false},
+		{"two entries of a node", new("11:1/12:1"), "", true},
+		{"an entry of no node", new("99:1"), "", true},
+		{"not a pair", new("11"), "", true},
+		{"a rank other than 1", new("11:2"), "", true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := omniumInput(testRef(), p, tt.requested)
 			if (err != nil) != tt.wantErr || got != tt.want || (err != nil && !errors.Is(err, ErrBadSimOptions)) {
-				t.Errorf("omniumInput(%q) = %q, %v, want %q (error %v)", tt.requested, got, err, tt.want, tt.wantErr)
+				t.Errorf("omniumInput = %q, %v, want %q (error %v)", got, err, tt.want, tt.wantErr)
 			}
 		})
 	}
@@ -186,8 +190,8 @@ func TestVariantsJoinTheTopGearCandidates(t *testing.T) {
 		{"with it, the upgraded ring is another", extra, 1},
 	} {
 		groups, err := gearGroups(p, []int{1, 2}, nil, c.extra)
-		if err != nil || countCombos(groups, maxPlanCombos) != c.want {
-			t.Errorf("%s: %d combinations, %v; want %d", c.name, countCombos(groups, maxPlanCombos), err, c.want)
+		if err != nil || comboCount(groups, maxPlanCombos) != c.want {
+			t.Errorf("%s: %d combinations, %v; want %d", c.name, comboCount(groups, maxPlanCombos), err, c.want)
 		}
 	}
 	_, err = variantCandidates(ref, p, []models.SimVariant{{Index: 99, Upgrade: 1}})
@@ -196,32 +200,17 @@ func TestVariantsJoinTheTopGearCandidates(t *testing.T) {
 	}
 }
 
-func TestCountCombos(t *testing.T) {
-	one := func(n int) [][]models.SimSwap { return make([][]models.SimSwap, n) }
-	tests := []struct {
-		name   string
-		groups [][][]models.SimSwap
-		limit  int
-		want   int
-	}{
-		{"nothing to change", [][][]models.SimSwap{one(1), one(1)}, 100, 0},
-		{"the product less the baseline", [][][]models.SimSwap{one(2), one(3), one(1)}, 100, 5},
-		{"stops at the limit", [][][]models.SimSwap{one(50), one(50)}, 100, 100},
+func TestPlanRefusesInStartsWords(t *testing.T) {
+	s := newTestSims(t, "ok")
+	req := simRequest(t)
+	req.Kind, req.Equipped, req.Bags = "topgear", []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10}, []int{0, 1}
+	if plan, err := s.Plan(req); err != nil || plan.Combos != 5 || plan.Error != "" || plan.Seconds == 0 {
+		t.Errorf("plan = %+v, %v; want 5 combinations that run", plan, err)
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := countCombos(tt.groups, tt.limit); got != tt.want {
-				t.Errorf("countCombos = %d, want %d", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestPlanOfScalesWithTheCombinations(t *testing.T) {
-	if p := planOf(0); p.Seconds != 0 || p.Max != maxCombos {
-		t.Errorf("planOf(0) = %+v", p)
-	}
-	if a, b := planOf(10), planOf(100); b.Seconds <= a.Seconds || b.Combos != 100 {
-		t.Errorf("planOf(10) = %+v, planOf(100) = %+v, want the longer run to cost more", a, b)
+	req.Bags = nil
+	plan, err := s.Plan(req)
+	_, startErr := s.Start(req)
+	if err != nil || plan.Combos != 0 || startErr == nil || plan.Error != startErr.Error() {
+		t.Errorf("plan = %+v, %v; want Start's refusal %v", plan, err, startErr)
 	}
 }

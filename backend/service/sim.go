@@ -125,7 +125,7 @@ func (s *Sims) Choices() models.SimChoices {
 	}
 	return models.SimChoices{FightStyles: simFightStyles, Accuracies: accuracies, MinLength: minSimLength,
 		MaxLength: maxSimLength, MaxTargets: maxSimTargets, MaxCombos: maxCombos, MaxCompare: maxCompareValues,
-		MaxDrops:     maxDrops,
+		ConsumableKinds: models.SimConsumableKinds, MaxDrops: maxDrops,
 		Difficulties: simDifficulties, KeyLevels: keyLevels, Defaults: simDefaults,
 		DefaultDifficulty: defaultDropDifficulty, DefaultKeyLevel: defaultKey}
 }
@@ -187,14 +187,29 @@ func (s *Sims) InstallEngine(path string) error {
 	return nil
 }
 
-// Reference is what a request may pick besides its gear (reference/sim-options.json).
-func (s *Sims) Reference() models.SimReference { return s.Ref }
+// Reference is what a request may pick besides its gear (reference/sim-options.json). With none loaded (cmd/site
+// carries on without it) its lists are empty, not null, so the page draws nothing to pick.
+func (s *Sims) Reference() models.SimReference {
+	if s.Ref.Consumables != nil {
+		return s.Ref
+	}
+	ref := models.SimReference{Consumables: map[string][]models.SimConsumable{}, Enchants: []models.SimEnchant{},
+		Gems: []models.SimGem{}, Upgrades: []models.SimUpgradeTrack{}, Omnium: []models.TalentNode{}}
+	for _, kind := range models.SimConsumableKinds {
+		ref.Consumables[kind] = []models.SimConsumable{}
+	}
+	return ref
+}
 
-// Plan is what a Top Gear request would run, counted without starting it: ErrBadSimOptions for another kind or for
-// items and variants that don't fit the export.
+// Plan is what a Top Gear request would run, counted without starting it, with what each variant changes; a count
+// Start would refuse says why in its Error. ErrBadSimOptions for another kind, options outside Choices, or items and
+// variants that don't fit the export.
 func (s *Sims) Plan(req models.SimRequest) (models.SimPlan, error) {
 	if req.Kind != "topgear" {
 		return models.SimPlan{}, fmt.Errorf("%w: only Top Gear has a plan", ErrBadSimOptions)
+	}
+	if err := validateSimOptions(req.Kind, req.Options); err != nil {
+		return models.SimPlan{}, err
 	}
 	profile, err := ParseSimC(req.Export)
 	if err != nil {
@@ -208,7 +223,12 @@ func (s *Sims) Plan(req models.SimRequest) (models.SimPlan, error) {
 	if err != nil {
 		return models.SimPlan{}, err
 	}
-	return planOf(countCombos(groups, maxPlanCombos)), nil
+	plan := planOf(comboCount(groups, maxPlanCombos), req.Options)
+	plan.Notes = make([]string, len(extra))
+	for i, c := range extra {
+		plan.Notes[i] = c.item.Note
+	}
+	return plan, nil
 }
 
 // Start parses the export and starts the sim in the background; poll Get. Errors: ErrBadSimOptions, ErrBadSimC,
@@ -274,17 +294,25 @@ func (s *Sims) Start(req models.SimRequest) (models.Sim, error) {
 // simArgs are simc's arguments: the input file, the options and the JSON file to write. Nothing but those validated
 // values goes in, and no shell reads them. A sim with profilesets runs no finer than setTargetError.
 func simArgs(input, output string, o models.SimOptions, profilesets bool) []string {
-	accuracy, _ := simAccuracyOf(o.Accuracy)
-	targetError := accuracy.TargetError
-	if profilesets {
-		targetError = max(targetError, setTargetError)
-	}
 	return []string{input, "fight_style=" + o.FightStyle, "max_time=" + strconv.Itoa(o.Length),
 		"desired_targets=" + strconv.Itoa(o.Targets),
-		"target_error=" + strconv.FormatFloat(targetError, 'f', -1, 64),
-		"iterations=" + strconv.Itoa(maxSimIterations), "threads=" + strconv.Itoa(max(1, runtime.NumCPU()-1)),
+		"target_error=" + strconv.FormatFloat(simTargetError(o, profilesets), 'f', -1, 64),
+		"iterations=" + strconv.Itoa(maxSimIterations), "threads=" + strconv.Itoa(simThreads()),
 		"json2=" + output}
 }
+
+// simTargetError is the target error a sim with o runs at: its accuracy's, no finer than setTargetError with
+// profilesets.
+func simTargetError(o models.SimOptions, profilesets bool) float64 {
+	accuracy, _ := simAccuracyOf(o.Accuracy)
+	if profilesets {
+		return max(accuracy.TargetError, setTargetError)
+	}
+	return accuracy.TargetError
+}
+
+// simThreads is how many threads a sim runs on: all but one, so the PC stays usable.
+func simThreads() int { return max(1, runtime.NumCPU()-1) }
 
 // execute runs simc for the running sim, following its progress, and saves what it found.
 func (s *Sims) execute(ctx context.Context, input, output string) {

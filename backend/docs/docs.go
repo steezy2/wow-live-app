@@ -6655,6 +6655,13 @@ const docTemplate = `{
                         "type": "string"
                     }
                 },
+                "consumableKinds": {
+                    "description": "ConsumableKinds are the kinds of consumable a sim can be told to use, in the order the page lists them.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "defaultDifficulty": {
                     "description": "DefaultDifficulty and DefaultKeyLevel are what the Droptimizer starts on.",
                     "type": "string",
@@ -6775,22 +6782,8 @@ const docTemplate = `{
         },
         "models.SimConsumables": {
             "type": "object",
-            "properties": {
-                "augment": {
-                    "type": "string"
-                },
-                "flask": {
-                    "type": "string"
-                },
-                "food": {
-                    "type": "string"
-                },
-                "potion": {
-                    "type": "string"
-                },
-                "weapon": {
-                    "type": "string"
-                }
+            "additionalProperties": {
+                "type": "string"
             }
         },
         "models.SimEnchant": {
@@ -6894,7 +6887,7 @@ const docTemplate = `{
                 },
                 "note": {
                     "type": "string",
-                    "example": "Myth 3/6, socket"
+                    "example": "Myth 3/8, socket"
                 },
                 "opts": {
                     "type": "object",
@@ -6978,9 +6971,18 @@ const docTemplate = `{
                 "combos": {
                     "type": "integer"
                 },
+                "error": {
+                    "type": "string"
+                },
                 "max": {
                     "type": "integer",
                     "example": 100
+                },
+                "notes": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 },
                 "seconds": {
                     "type": "integer"
@@ -7212,11 +7214,11 @@ const docTemplate = `{
             "properties": {
                 "bonusID": {
                     "type": "integer",
-                    "example": 12849
+                    "example": 12897
                 },
                 "itemLevel": {
                     "type": "integer",
-                    "example": 318
+                    "example": 388
                 },
                 "level": {
                     "type": "integer",
@@ -7229,7 +7231,7 @@ const docTemplate = `{
             "properties": {
                 "group": {
                     "type": "integer",
-                    "example": 618
+                    "example": 630
                 },
                 "levels": {
                     "type": "array",

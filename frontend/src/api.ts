@@ -1808,6 +1808,7 @@ export interface SimChoices {
   maxTargets: number
   maxCombos: number
   maxCompare: number
+  consumableKinds: string[]
   maxDrops: number
   difficulties: string[]
   keyLevels: number[]
@@ -1818,18 +1819,9 @@ export interface SimChoices {
 
 export type SimKind = 'quick' | 'topgear' | 'drops' | 'consumables'
 
-/** The consumables a sim uses; a kind left empty keeps simc's default. */
-export interface SimConsumables {
-  flask?: string
-  food?: string
-  potion?: string
-  augment?: string
-  weapon?: string
-}
-
-/** The consumable kinds, in the order the page lists them. */
-export const SIM_CONSUMABLE_KINDS = ['flask', 'food', 'potion', 'augment', 'weapon'] as const
-export type SimConsumableKind = (typeof SIM_CONSUMABLE_KINDS)[number]
+/** The consumables a sim uses, by kind (one of SimChoices.consumableKinds); a kind left out or empty keeps simc's
+ * default. */
+export type SimConsumables = Record<string, string>
 
 /** A changed copy of a Top Gear candidate: the item at `index` of the profile's equipped (`worn`) or bags, moved to
  * upgrade level `upgrade` of its track, given a socket, a gem (item ID) and an enchant (enchant ID). */
@@ -1844,13 +1836,13 @@ export interface SimVariant {
 
 /** What a "consumables" sim compares: the kind and the values (simc names) it tries. */
 export interface SimCompare {
-  kind: SimConsumableKind
+  kind: string
   values: string[]
 }
 
 /** A sim to start: the export is read again by the app, `equipped` and `bags` are indexes into the profile read from
- * it. `omnium` is the Omnium Folio's picks as the export writes them, sent only when they differ from the
- * export's. */
+ * it. `omnium` is the Omnium Folio's picks as the export writes them (empty for none), sent only when they differ
+ * from the export's. */
 export interface SimRequest {
   kind: SimKind
   export: string
@@ -1907,7 +1899,7 @@ export interface SimUpgradeTrack {
 /** What a sim can be given besides its gear (GET /api/sim/options). */
 export interface SimReference {
   build: string
-  consumables: Record<SimConsumableKind, SimConsumable[]>
+  consumables: Record<string, SimConsumable[]>
   enchants: SimEnchant[]
   gems: SimGem[]
   upgrades: SimUpgradeTrack[]
@@ -1915,11 +1907,14 @@ export interface SimReference {
   omnium: TalentNode[]
 }
 
-/** How many gear combinations a Top Gear request makes, the most one runs and about how long it takes. */
+/** How many gear combinations a Top Gear request makes, the most one runs and about how long it takes; `error` is why
+ * the app would refuse to run it, and `notes` say what each of its variants changes, in its order. */
 export interface SimPlan {
   combos: number
   max: number
   seconds: number
+  error?: string
+  notes: string[]
 }
 
 /** One value of a "consumables" sim: its DPS and gain over the sim's baseline. */

@@ -18,6 +18,7 @@ import (
 	"net/http"
 	"os"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -264,8 +265,8 @@ func upgradeTracks(bonuses map[string]rawBonus) []models.SimUpgradeTrack {
 		if b.Upgrade == nil {
 			continue
 		}
-		var bonusID int
-		if _, err := fmt.Sscan(id, &bonusID); err != nil {
+		bonusID, err := strconv.Atoi(id)
+		if err != nil {
 			continue
 		}
 		t := tracks[b.Upgrade.Group]

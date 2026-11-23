@@ -1,32 +1,29 @@
-import {
-  SIM_CONSUMABLE_KINDS,
-  type SimCompare,
-  type SimConsumableKind,
-  type SimConsumables,
-  type SimReference,
-} from './api'
+import type { SimCompare, SimConsumables, SimReference } from './api'
 
-/** The page's name for each consumable kind. */
-const CONSUMABLE_LABELS: Record<SimConsumableKind, string> = {
+/** The page's name for each consumable kind; a kind it doesn't know shows as the app names it. */
+const CONSUMABLE_LABELS: Record<string, string> = {
   flask: 'Flask',
   food: 'Food',
   potion: 'Potion',
   augment: 'Augment rune',
   weapon: 'Weapon oil',
 }
+const labelOf = (kind: string) => CONSUMABLE_LABELS[kind] ?? kind
 
-/** One dropdown for each consumable kind, each on "Default" (what simc assumes for the spec) until one is picked. */
+/** One dropdown for each consumable kind (in the app's order), each on "Default" (what simc assumes for the spec)
+ * until one is picked. */
 export function ConsumableSelects(props: {
+  kinds: string[]
   reference: SimReference
   value: SimConsumables
   onChange: (c: SimConsumables) => void
 }) {
-  const { reference, value, onChange } = props
+  const { kinds, reference, value, onChange } = props
   return (
     <div className="sim-consumables">
-      {SIM_CONSUMABLE_KINDS.map((kind) => (
+      {kinds.map((kind) => (
         <label key={kind}>
-          {CONSUMABLE_LABELS[kind]}
+          {labelOf(kind)}
           <select value={value[kind] ?? ''} onChange={(e) => onChange({ ...value, [kind]: e.target.value })}>
             <option value="">Default</option>
             {reference.consumables[kind].map((c) => (
@@ -44,24 +41,22 @@ export function ConsumableSelects(props: {
 /** The compare mode: pick a consumable kind and tick the values to sim against each other (and against the
  * baseline, which is the sim's own consumables). */
 export function ConsumableCompare(props: {
+  kinds: string[]
   reference: SimReference
   compare: SimCompare
   max: number
   onChange: (c: SimCompare) => void
 }) {
-  const { reference, compare, max, onChange } = props
+  const { kinds, reference, compare, max, onChange } = props
   const values = reference.consumables[compare.kind]
   return (
     <div className="sim-compare">
       <label>
         Compare
-        <select
-          value={compare.kind}
-          onChange={(e) => onChange({ kind: e.target.value as SimConsumableKind, values: [] })}
-        >
-          {SIM_CONSUMABLE_KINDS.map((k) => (
+        <select value={compare.kind} onChange={(e) => onChange({ kind: e.target.value, values: [] })}>
+          {kinds.map((k) => (
             <option key={k} value={k}>
-              {CONSUMABLE_LABELS[k]}s
+              {labelOf(k)}s
             </option>
           ))}
         </select>

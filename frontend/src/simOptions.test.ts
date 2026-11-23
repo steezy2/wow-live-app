@@ -12,7 +12,6 @@ import {
   simOptionsError,
   togglePick,
   upgradeTrackOf,
-  variantLabel,
 } from './simOptions'
 
 const choices = { minLength: 30, maxLength: 900, maxTargets: 20 } as SimChoices
@@ -101,16 +100,8 @@ test('enchantsFor lists the enchants of a slot', () => {
   expect(enchantsFor(ref, 'head')).toEqual([])
 })
 
-test('variantLabel names what changed', () => {
-  const item: SimItem = { slot: 'finger1', id: 1, opts: { bonus_id: [100] } }
-  expect(variantLabel(ref, item, { index: 0, upgrade: 2, socket: true, gem: 240883, enchant: 7964 })).toBe(
-    'Myth 2/2 · socket + Quick Lapis · Amani Mastery',
-  )
-  expect(variantLabel(ref, item, { index: 0, gem: 240883 })).toBe('Quick Lapis')
-})
-
 test('pickedConsumables leaves out the kinds on simc default', () => {
-  expect(pickedConsumables({ flask: 'a', food: '', potion: undefined })).toEqual({ flask: 'a' })
+  expect(pickedConsumables({ flask: 'a', food: '' })).toEqual({ flask: 'a' })
 })
 
 test('the Omnium Folio picks read from, and write to, the export format', () => {
