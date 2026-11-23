@@ -82,7 +82,7 @@ func readJournal(ctx context.Context, tables wago.Client) (journal, error) {
 		}},
 		{"ItemSparse", statColumns, 1, func(t []string, n []int) {
 			if it, looted := j.items[n[0]]; looted {
-				it.name, it.allowableClasses, it.stats = t[0], n[1], append([]int{}, n[2:]...)
+				it.name, it.allowableClasses, it.stats = t[0], n[1], n[2:]
 				j.items[n[0]] = it
 			}
 		}},

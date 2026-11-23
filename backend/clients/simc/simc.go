@@ -1,8 +1,9 @@
 // Package simc installs SimulationCraft's simc.exe, the engine the app runs sims with. It comes from this
 // repository's own release (built weekly by .github/workflows/simc.yml, which takes the newest official Windows nightly
 // from simulationcraft/simc-publish and checks it against GitHub's digest), over HTTPS and checked against the
-// sha256 in the release's engine.json. simulationcraft.org's own list is plain HTTP with no checksum, so the app never
-// uses it.
+// sha256 in the release's engine.json. That sha256 comes from the same release, so it catches a broken download, not a
+// swapped file: HTTPS and the job's own check are what keep the file genuine. simulationcraft.org's own list is plain
+// HTTP with no checksum, so the app never uses it.
 // The owner can also point the app at a simc.exe of their own (UseFile).
 package simc
 
@@ -27,7 +28,7 @@ import (
 )
 
 const (
-	// maxEngineBytes bounds the download and any simc.exe taken in (about 116 MB in November 2026).
+	// maxEngineBytes bounds the download and any simc.exe taken in, about twice the nightly's size (README).
 	maxEngineBytes = 256 << 20
 	// exeName is the program kept in Client.Dir.
 	exeName = "simc.exe"
@@ -41,7 +42,8 @@ const (
 	releaseBase = "https://github.com/steezy2/wow-live-app/releases/download/simc-engine/"
 )
 
-// banner is the line simc prints when run without an input.
+// banner is the line simc prints when run without an input; .github/workflows/simc.yml reads it with sed, so change
+// both together.
 var banner = regexp.MustCompile(`SimulationCraft (\S+) for World of Warcraft (\S+)`)
 
 // Client installs simc.exe into Dir, from Base (the release's address; this repository's when empty).
@@ -71,6 +73,20 @@ func (c Client) Path() string { return filepath.Join(c.Dir, exeName) }
 
 func (c Client) infoPath() string { return filepath.Join(c.Dir, "engine.json") }
 
+// Run runs the installed simc with args, without a console window, writing what it prints (stdout and stderr) to out.
+// Canceling ctx kills it.
+func (c Client) Run(ctx context.Context, args []string, out io.Writer) error {
+	return run(ctx, c.Path(), args, out)
+}
+
+func run(ctx context.Context, exe string, args []string, out io.Writer) error {
+	cmd := exec.CommandContext(ctx, exe, args...)
+	cmd.Dir = filepath.Dir(exe)
+	cmd.Stdout, cmd.Stderr = out, out
+	hideWindow(cmd)
+	return cmd.Run()
+}
+
 // Installed is the engine in Dir; its Installed is false until Install or UseFile has run.
 func (c Client) Installed() models.SimEngine {
 	var e models.SimEngine
@@ -84,8 +100,8 @@ func (c Client) Installed() models.SimEngine {
 	return e
 }
 
-// Install downloads the release's simc.exe, checks its sha256 against the manifest's and that it is a program that
-// names its version, and replaces the installed one with it.
+// Install downloads the release's simc.exe, checks its sha256 against the manifest's and that it is a Windows program,
+// and replaces the installed one with it, keeping the manifest's version and patch.
 func (c Client) Install(ctx context.Context) (models.SimEngine, error) {
 	m, err := c.manifest(ctx)
 	if err != nil {
@@ -102,8 +118,17 @@ func (c Client) UseFile(ctx context.Context, src string) (models.SimEngine, erro
 	if err != nil || !info.Mode().IsRegular() || !strings.EqualFold(filepath.Ext(src), ".exe") {
 		return models.SimEngine{}, fmt.Errorf("%s is not a program (.exe) file", src)
 	}
-	return c.replace(ctx, func(dest string) error { return copyFile(src, dest) },
-		models.SimEngine{File: filepath.Base(src), BuiltMS: info.ModTime().UnixMilli()})
+	return c.replace(ctx, func(dest string) error {
+		in, err := os.Open(src)
+		if err != nil {
+			return fmt.Errorf("opening %s: %w", src, err)
+		}
+		defer in.Close()
+		if _, err := writeLimited(in, dest); err != nil {
+			return fmt.Errorf("copying %s: %w", src, err)
+		}
+		return nil
+	}, models.SimEngine{File: filepath.Base(src), BuiltMS: info.ModTime().UnixMilli()})
 }
 
 // replace puts the program fetch writes in place of the installed one, once it checks out, and saves what is known of
@@ -196,19 +221,6 @@ func download(ctx context.Context, url, dest, wantSHA string) error {
 	return nil
 }
 
-// copyFile copies the program at src to dest, refusing one over maxEngineBytes.
-func copyFile(src, dest string) error {
-	in, err := os.Open(src)
-	if err != nil {
-		return fmt.Errorf("opening %s: %w", src, err)
-	}
-	defer in.Close()
-	if _, err := writeLimited(in, dest); err != nil {
-		return fmt.Errorf("copying %s: %w", src, err)
-	}
-	return nil
-}
-
 // writeLimited writes r to dest (at most maxEngineBytes) and returns the sha256 of what it wrote, in hex.
 func writeLimited(r io.Reader, dest string) (string, error) {
 	f, err := os.Create(dest)
@@ -256,10 +268,14 @@ func runBanner(ctx context.Context, exe string) (version, patch string, err erro
 		}
 		err = fmt.Errorf("it printed no SimulationCraft version (attempt %d: %v after %s, timed out %v, it said %q)", attempt,
 			runErr, time.Since(started).Round(time.Millisecond), timedOut, strings.TrimSpace(out[:min(len(out), 200)]))
-		if attempt > len(bannerWaits) || ctx.Err() != nil {
+		if attempt > len(bannerWaits) {
 			return "", "", err
 		}
-		time.Sleep(bannerWaits[attempt-1])
+		select {
+		case <-ctx.Done():
+			return "", "", err
+		case <-time.After(bannerWaits[attempt-1]):
+		}
 	}
 }
 
@@ -268,11 +284,9 @@ func runBanner(ctx context.Context, exe string) (version, patch string, err erro
 func bannerOutput(ctx context.Context, exe string) (out string, runErr error, timedOut bool) {
 	ctx, cancel := context.WithTimeout(ctx, bannerTimeout)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, exe)
-	cmd.Dir = filepath.Dir(exe)
-	HideWindow(cmd)
-	raw, runErr := cmd.CombinedOutput() // it may exit with an error: there is nothing to sim
-	return string(raw), runErr, ctx.Err() != nil
+	var raw strings.Builder
+	runErr = run(ctx, exe, nil, &raw) // it may exit with an error: there is nothing to sim
+	return raw.String(), runErr, ctx.Err() != nil
 }
 
 // parseBanner is the version ("1210-01") and patch ("12.1.5.70529") of simc's first line.

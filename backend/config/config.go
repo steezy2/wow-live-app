@@ -116,9 +116,8 @@ func Load(fsys fs.FS) (Loaded, error) {
 	dungeons, dungeonsErr := loadJSON[models.MPlusReference](fsys, "reference/mplus-dungeons.json", "mplusref")
 	raid, raidErr := loadJSON[models.RaidReference](fsys, "reference/raid-bosses.json", "raidref")
 	talents, talentsErr := loadJSON[models.TalentTrees](fsys, "reference/talent-trees.json", "talentref")
-	var dropsErr error
-	l.Drops, dropsErr = loadJSON[models.SimDrops](fsys, "reference/sim-drops.json", "simref")
-	l.Dungeons, l.Bosses, l.Tier, l.Talents = dungeons.Dungeons, raid.Bosses, raid.Tier, talents.BySpec()
+	drops, dropsErr := loadJSON[models.SimDrops](fsys, "reference/sim-drops.json", "simref")
+	l.Dungeons, l.Bosses, l.Tier, l.Talents, l.Drops = dungeons.Dungeons, raid.Bosses, raid.Tier, talents.BySpec(), drops
 	l.RefErr = errors.Join(dungeonsErr, raidErr, talentsErr, dropsErr)
 	return l, nil
 }

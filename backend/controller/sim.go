@@ -81,15 +81,16 @@ func (a SimAPI) Engine(c *gin.Context) {
 // InstallEngine godoc
 //
 //	@Summary		Download or update the SimulationCraft engine, or use one the owner has
-//	@Description	With no body, downloads the newest simc.exe (about 116 MB) from this app's own GitHub release over
-//	@Description	HTTPS, checked against the sha256 in the release's engine.json; the release is rebuilt weekly from
-//	@Description	SimulationCraft's official nightly. With a path, copies that simc.exe instead. Runs in the background:
-//	@Description	poll the engine's status.
+//	@Description	With no body, downloads the newest simc.exe from this app's own GitHub release over HTTPS, checked
+//	@Description	against the sha256 in the release's engine.json (which catches a broken download, not a swapped file:
+//	@Description	both come from the same release); the release is rebuilt weekly from SimulationCraft's official nightly.
+//	@Description	With a path, copies that simc.exe instead. Runs in the background: poll the engine's status.
 //	@Tags			sim
 //	@Accept			json
 //	@Produce		json
 //	@Param			body	body		SimEngineFile	false	"the path of a simc.exe to use"
 //	@Success		202		{object}	models.SimEngineStatus
+//	@Failure		400		{object}	ErrorResponse	"a body that isn't {"path": ...}"
 //	@Failure		409		{object}	ErrorResponse	"a sim or an install is running"
 //	@Router			/api/sim/engine [post]
 func (a SimAPI) InstallEngine(c *gin.Context) {
@@ -164,15 +165,16 @@ func (a SimAPI) ItemInfo(c *gin.Context) {
 //
 //	@Summary		Start a sim
 //	@Description	Runs SimulationCraft on this PC in the background, one at a time: the pasted export (read again,
-//	@Description	never passed to simc as it is) with the options. Poll the sim by its ID.
+//	@Description	never passed to simc as it is) with the options. Poll the sim by its ID. A Top Gear request also
+//	@Description	sends `equipped` and `bags`: the indexes of the items it may put on.
 //	@Tags			sim
 //	@Accept			json
 //	@Produce		json
-//	@Param			body	body		models.SimRequest	true	"the kind, the export, the options and, for topgear, the picked equipped and bag indexes"
+//	@Param			body	body		models.SimRequest	true	"the kind, the export, the options, for topgear the picked equipped and bag indexes, and for drops the difficulty and keyLevel"
 //	@Success		202		{object}	models.Sim
-//	@Failure		400		{object}	ErrorResponse	"options outside the choices, or not an export"
+//	@Failure		400		{object}	ErrorResponse	"bad options or indexes, not an export, nothing to try or over maxCombos"
 //	@Failure		409		{object}	ErrorResponse	"a sim or a download is running, or no engine is installed"
-//	@Failure		500		{object}	ErrorResponse
+//	@Failure		500		{object}	ErrorResponse	"a weapon's type couldn't be read from Wowhead"
 //	@Router			/api/sim [post]
 func (a SimAPI) Start(c *gin.Context) {
 	var req models.SimRequest

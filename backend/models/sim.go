@@ -25,10 +25,12 @@ type SimProfile struct {
 }
 
 // SimItem is one piece of gear: its slot as simc names it ("finger1", "main_hand"; every carried ring is "finger1",
-// as the export writes it), the name and item level the export's comment gives, the item ID, and its other numbers
-// by simc's key ("bonus_id", "gem_id", "enchant_id", ...).
+// as the export writes it), the slots' group Top Gear lists it under ("finger" for both rings, one of
+// SimChoices.GearGroups), the name and item level the export's comment gives, the item ID, and its other numbers by
+// simc's key ("bonus_id", "gem_id", "enchant_id", ...).
 type SimItem struct {
 	Slot  string           `json:"slot"`
+	Group string           `json:"group" example:"finger"`
 	Name  string           `json:"name,omitempty"`
 	Level int              `json:"level,omitempty"`
 	ID    int              `json:"id"`
@@ -53,31 +55,38 @@ type SimChoices struct {
 	MaxTargets  int      `json:"maxTargets"`
 	// MaxCombos is the most gear combinations a Top Gear sim runs; a request over it is refused.
 	MaxCombos int `json:"maxCombos" example:"100"`
-	// MaxDrops is the most drops a Droptimizer sims; Difficulties are the raid difficulties it can sim the raid at and
-	// KeyLevels the Mythic+ key levels it can sim dungeons at.
-	MaxDrops     int        `json:"maxDrops" example:"300"`
-	Difficulties []string   `json:"difficulties"`
-	KeyLevels    []int      `json:"keyLevels"`
-	Defaults     SimOptions `json:"defaults"`
+	// MaxDrops is the most drops a Droptimizer sims.
+	MaxDrops int `json:"maxDrops" example:"300"`
+	// Difficulties are the raid difficulties a Droptimizer can sim the raid at.
+	Difficulties []string `json:"difficulties"`
+	// KeyLevels are the Mythic+ key levels a Droptimizer can sim the dungeons at.
+	KeyLevels []int      `json:"keyLevels"`
+	Defaults  SimOptions `json:"defaults"`
 	// DefaultDifficulty and DefaultKeyLevel are what the Droptimizer starts on.
 	DefaultDifficulty string `json:"defaultDifficulty" example:"heroic"`
 	DefaultKeyLevel   int    `json:"defaultKeyLevel" example:"10"`
 	// MaxItemLookups is the most item IDs one GET /api/sim/items takes; the page asks in chunks of it.
 	MaxItemLookups int `json:"maxItemLookups" example:"120"`
+	// GearGroups are the items' groups (SimItem.Group) in wearing order.
+	GearGroups []string `json:"gearGroups"`
 }
 
 // SimRequest starts a sim: its Kind (one of SimKinds), the pasted SimC export (parsed again on every request) and
-// the options. A Top Gear sim also sends the items it may put on, as indexes into the parsed profile's Equipped and
-// Bags; an equipped item left out is not a candidate. A Droptimizer sim sends the raid Difficulty (one of
-// SimChoices.Difficulties) and the Mythic+ KeyLevel (one of SimChoices.KeyLevels) its drops are at.
+// the options. A Top Gear sim also sends the items it may put on, and a Droptimizer sim the Difficulty and KeyLevel
+// its drops are at.
 type SimRequest struct {
-	Kind       string     `json:"kind" binding:"required" example:"quick"`
-	Export     string     `json:"export" binding:"required"`
-	Options    SimOptions `json:"options"`
-	Equipped   []int      `json:"equipped,omitempty"`
-	Bags       []int      `json:"bags,omitempty"`
-	Difficulty string     `json:"difficulty,omitempty" example:"heroic"`
-	KeyLevel   int        `json:"keyLevel,omitempty" example:"10"`
+	Kind    string     `json:"kind" binding:"required" example:"quick"`
+	Export  string     `json:"export" binding:"required"`
+	Options SimOptions `json:"options"`
+	// Equipped and Bags are the items a Top Gear sim may put on, as indexes into the parsed profile's Equipped and
+	// Bags. A slot with nothing ticked keeps its item; rings and trinkets with fewer than two ticked are made up from
+	// the equipped ones.
+	Equipped []int `json:"equipped"`
+	Bags     []int `json:"bags"`
+	// Difficulty is the raid difficulty a Droptimizer's drops are at, one of SimChoices.Difficulties.
+	Difficulty string `json:"difficulty,omitempty" enums:"lfr,normal,heroic,mythic" example:"heroic"`
+	// KeyLevel is the Mythic+ key level a Droptimizer's dungeon drops are at, one of SimChoices.KeyLevels.
+	KeyLevel int `json:"keyLevel,omitempty" example:"10"`
 }
 
 // SimKinds are the kinds of sim: one character's DPS ("quick"), the best combination of the gear they carry
@@ -123,7 +132,7 @@ type SimResult struct {
 
 // SimCombo is one gear combination a Top Gear sim ran: its DPS, the standard error of that mean, its gain over the
 // equipped gear (negative for a loss) and the slots it changes. A Droptimizer row says where the item drops: its
-// Source (raid or dungeon) and Boss.
+// Source (the raid's or dungeon's name, as "The Venomous Abyss") and Boss.
 type SimCombo struct {
 	DPS      float64   `json:"dps"`
 	DPSError float64   `json:"dpsError"`

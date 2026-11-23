@@ -1330,6 +1330,23 @@ definitions:
           $ref: '#/definitions/models.TrackPoint'
         type: array
     type: object
+  models.OverlayPreset:
+    properties:
+      columns:
+        items:
+          type: string
+        type: array
+      name:
+        type: string
+      oneCard:
+        type: boolean
+      raidOneCard:
+        type: boolean
+      rows:
+        type: integer
+      splitCards:
+        type: boolean
+    type: object
   models.OverlaySettings:
     properties:
       clickThrough:
@@ -1351,6 +1368,12 @@ definitions:
           - deaths
           type: string
         type: array
+      deathRecapSeconds:
+        description: 'DeathRecapSeconds is how long a new death''s recap shows over
+          the cards without a click: 0 for off, else 3 to 60.'
+        maximum: 60
+        minimum: 0
+        type: integer
       oneCard:
         description: OneCard shows the pull and the whole key in one card instead
           of two, one above the other (the default).
@@ -1359,6 +1382,27 @@ definitions:
         maximum: 100
         minimum: 0
         type: integer
+      raidDpsRows:
+        description: |-
+          RaidDpsRows and RaidHpsRows are how many players the raid overlay's Damage and Healing cards show, the top ones
+          (0 for everyone; the one ranked card shows the ranked one's); RaidSideBySide puts the two cards next to each
+          other instead of one over the other.
+        minimum: 0
+        type: integer
+      raidHpsRows:
+        minimum: 0
+        type: integer
+      raidOneCard:
+        type: boolean
+      raidSideBySide:
+        type: boolean
+      rankBy:
+        description: 'RankBy is what the cards order their rows and fill their bars
+          by: dps (the default) or hps.'
+        enum:
+        - dps
+        - hps
+        type: string
       rows:
         description: |-
           Rows is how many players each card shows, the top ones (0 for everyone); Columns the cards' columns in order
@@ -1371,6 +1415,12 @@ definitions:
         - always
         - "off"
         type: string
+      splitCards:
+        description: |-
+          SplitCards shows a DPS card and an HPS card (healers only) of the key instead of the pull and key cards, which
+          OneCard then no longer applies to; RaidOneCard shows the raid overlay's pull in one ranked card instead of its
+          Damage and Healing cards (the default).
+        type: boolean
     type: object
   models.Patrol:
     properties:
@@ -2670,12 +2720,27 @@ definitions:
       maxAutoDays:
         description: MaxAutoDays is the most days each of Auto's fields takes.
         type: integer
+      maxRecapSeconds:
+        type: integer
       minOpacity:
+        type: integer
+      minRecapSeconds:
         type: integer
       overlay:
         $ref: '#/definitions/models.OverlaySettings'
       overlayColumns:
         description: OverlayColumns are the columns the overlay's cards can show.
+        items:
+          type: string
+        type: array
+      overlayPresets:
+        items:
+          $ref: '#/definitions/models.OverlayPreset'
+        type: array
+      overlayRanks:
+        description: |-
+          OverlayRanks are what the cards can rank by, OverlayPresets the layouts to pick from, and MinRecapSeconds and
+          MaxRecapSeconds the least and most a death's recap shows (0 turns it off).
         items:
           type: string
         type: array
@@ -2782,6 +2847,8 @@ definitions:
       defaults:
         $ref: '#/definitions/models.SimOptions'
       difficulties:
+        description: Difficulties are the raid difficulties a Droptimizer can sim
+          the raid at.
         items:
           type: string
         type: array
@@ -2789,7 +2856,14 @@ definitions:
         items:
           type: string
         type: array
+      gearGroups:
+        description: GearGroups are the items' groups (SimItem.Group) in wearing order.
+        items:
+          type: string
+        type: array
       keyLevels:
+        description: KeyLevels are the Mythic+ key levels a Droptimizer can sim the
+          dungeons at.
         items:
           type: integer
         type: array
@@ -2799,9 +2873,7 @@ definitions:
         example: 100
         type: integer
       maxDrops:
-        description: |-
-          MaxDrops is the most drops a Droptimizer sims; Difficulties are the raid difficulties it can sim the raid at and
-          KeyLevels the Mythic+ key levels it can sim dungeons at.
+        description: MaxDrops is the most drops a Droptimizer sims.
         example: 300
         type: integer
       maxItemLookups:
@@ -2859,6 +2931,9 @@ definitions:
     type: object
   models.SimItem:
     properties:
+      group:
+        example: finger
+        type: string
       id:
         type: integer
       level:
@@ -2962,15 +3037,28 @@ definitions:
           type: integer
         type: array
       difficulty:
+        description: Difficulty is the raid difficulty a Droptimizer's drops are at,
+          one of SimChoices.Difficulties.
+        enum:
+        - lfr
+        - normal
+        - heroic
+        - mythic
         example: heroic
         type: string
       equipped:
+        description: |-
+          Equipped and Bags are the items a Top Gear sim may put on, as indexes into the parsed profile's Equipped and
+          Bags. A slot with nothing ticked keeps its item; rings and trinkets with fewer than two ticked are made up from
+          the equipped ones.
         items:
           type: integer
         type: array
       export:
         type: string
       keyLevel:
+        description: KeyLevel is the Mythic+ key level a Droptimizer's dungeon drops
+          are at, one of SimChoices.KeyLevels.
         example: 10
         type: integer
       kind:
@@ -4746,10 +4834,11 @@ paths:
       - application/json
       description: |-
         Runs SimulationCraft on this PC in the background, one at a time: the pasted export (read again,
-        never passed to simc as it is) with the options. Poll the sim by its ID.
+        never passed to simc as it is) with the options. Poll the sim by its ID. A Top Gear request also
+        sends `equipped` and `bags`: the indexes of the items it may put on.
       parameters:
-      - description: the kind, the export, the options and, for topgear, the picked
-          equipped and bag indexes
+      - description: the kind, the export, the options, for topgear the picked equipped
+          and bag indexes, and for drops the difficulty and keyLevel
         in: body
         name: body
         required: true
@@ -4763,7 +4852,8 @@ paths:
           schema:
             $ref: '#/definitions/models.Sim'
         "400":
-          description: options outside the choices, or not an export
+          description: bad options or indexes, not an export, nothing to try or over
+            maxCombos
           schema:
             $ref: '#/definitions/controller.ErrorResponse'
         "409":
@@ -4771,7 +4861,7 @@ paths:
           schema:
             $ref: '#/definitions/controller.ErrorResponse'
         "500":
-          description: Internal Server Error
+          description: a weapon's type couldn't be read from Wowhead
           schema:
             $ref: '#/definitions/controller.ErrorResponse'
       summary: Start a sim
@@ -4855,10 +4945,10 @@ paths:
       consumes:
       - application/json
       description: |-
-        With no body, downloads the newest simc.exe (about 116 MB) from this app's own GitHub release over
-        HTTPS, checked against the sha256 in the release's engine.json; the release is rebuilt weekly from
-        SimulationCraft's official nightly. With a path, copies that simc.exe instead. Runs in the background:
-        poll the engine's status.
+        With no body, downloads the newest simc.exe from this app's own GitHub release over HTTPS, checked
+        against the sha256 in the release's engine.json (which catches a broken download, not a swapped file:
+        both come from the same release); the release is rebuilt weekly from SimulationCraft's official nightly.
+        With a path, copies that simc.exe instead. Runs in the background: poll the engine's status.
       parameters:
       - description: the path of a simc.exe to use
         in: body
@@ -4872,6 +4962,10 @@ paths:
           description: Accepted
           schema:
             $ref: '#/definitions/models.SimEngineStatus'
+        "400":
+          description: 'a body that isn''t {"path": ...}'
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
         "409":
           description: a sim or an install is running
           schema:

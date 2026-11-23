@@ -7,7 +7,6 @@
 
 season = "season-mn-2" # reference/mplus-dungeons.json's season: cmd/simref refuses another
 display_season = 37    # JournalEncounterItem.DisplaySeasonID of this season's raid loot (its trophies)
-heroic_dungeon = 276   # Adventurer 4
 
 # The Venomous Abyss: the bosses of each group (Encounter Journal names) and what each difficulty drops.
 # Ula'tek and The Coiled Altar's Mythic 344 (Myth 9, past the track's 334) is what both sources say; the wiki's
@@ -29,55 +28,45 @@ levels = { lfr = 285, normal = 298, heroic = 311, mythic = 324 }
 bosses = ["The Coiled Altar", "Ula'tek"]
 levels = { lfr = 289, normal = 302, heroic = 315, mythic = 344 }
 
-# Mythic+: the end-of-dungeon loot and the Great Vault's by key level (0 is Mythic 0). A higher key gets the last
-# row's. The wiki leaves +11 and up blank; Method has +6 and +7 at 302 instead of 305.
+# Mythic+: the end-of-dungeon loot by key level (0 is Mythic 0). The wiki leaves +11 and up blank; Method has +6 and
+# +7 at 302 instead of 305.
 
 [[keys]]
 level = 0
 loot = 292
-vault = 302
 
 [[keys]]
 level = 2
 loot = 295
-vault = 305
 
 [[keys]]
 level = 3
 loot = 295
-vault = 305
 
 [[keys]]
 level = 4
 loot = 298
-vault = 308
 
 [[keys]]
 level = 5
 loot = 302
-vault = 308
 
 [[keys]]
 level = 6
 loot = 305
-vault = 311
 
 [[keys]]
 level = 7
 loot = 305
-vault = 315
 
 [[keys]]
 level = 8
 loot = 308
-vault = 315
 
 [[keys]]
 level = 9
 loot = 308
-vault = 315
 
 [[keys]]
 level = 10
 loot = 311
-vault = 318

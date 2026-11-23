@@ -4,7 +4,7 @@ import { amount, clock } from './format'
 import { Spell } from './Spell'
 import { ItemLine } from './SimItem'
 import { useItemInfo } from './simItems'
-import { gainShare } from './simOptions'
+import { gainShare, groupLabel } from './simOptions'
 
 /** The gear combinations or drops of a Top Gear or Droptimizer sim, best first: each a row with its rank, a bar for
  * its gain over the equipped gear, its DPS, and what changes (icons and item levels) and where a drop comes from.
@@ -47,7 +47,7 @@ function Combos({ combos, drops, chunk }: { combos: SimCombo[]; drops: boolean; 
             <div className="sim-swaps">
               {c.swaps.map((s) => (
                 <div key={s.slot} className="sim-swap">
-                  <span className="muted small sim-swap-slot">{s.slot.replace('_', ' ')}</span>
+                  <span className="muted small sim-swap-slot">{groupLabel(s.in?.group ?? s.out?.group ?? s.slot)}</span>
                   {s.out ? <ItemLine item={s.out} info={info.get(s.out.id)} /> : <span className="muted">empty</span>}
                   <span className="muted">→</span>
                   {s.in ? <ItemLine item={s.in} info={info.get(s.in.id)} /> : <span className="muted">empty</span>}
@@ -104,11 +104,10 @@ export function SimResult({ sim, chunk }: { sim: Sim; chunk: number }) {
                 <tr key={a.id || a.name}>
                   <td
                     style={{
-                      textAlign: 'left',
                       backgroundImage: `linear-gradient(to right, var(--border) ${share(a.dps)}%, transparent 0)`,
                     }}
                   >
-                    <Spell name={a.name} />
+                    <Spell name={a.name} id={a.id} />
                   </td>
                   <td>{amount(a.dps)}</td>
                   <td>{Math.round(a.share * 100)}%</td>
@@ -126,7 +125,7 @@ export function SimResult({ sim, chunk }: { sim: Sim; chunk: number }) {
           <ul className="list">
             {result.buffs.map((b) => (
               <li key={b.id || b.name}>
-                <Spell name={b.name} /> <span className="muted">{Math.round(b.uptime)}%</span>
+                <Spell name={b.name} id={b.id} /> <span className="muted">{Math.round(b.uptime)}%</span>
               </li>
             ))}
           </ul>

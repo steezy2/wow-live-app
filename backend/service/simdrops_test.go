@@ -23,7 +23,7 @@ func testDrops() models.SimDrops {
 				{ID: 3, Name: "Staff", Slot: "two_hand", Specs: []int{1}}, {ID: 4, Name: "Wand", Slot: "one_hand"}}}}}},
 		Dungeons: []models.DropSource{{Name: "Dungeon", Bosses: []models.DropBoss{{Name: "Last",
 			Items: []models.DropItem{{ID: 5, Name: "Trinket", Slot: "trinket", Specs: []int{1}}}}}}},
-		Keys: []models.KeyLevels{{Level: 0, Loot: 90, Vault: 95}, {Level: 10, Loot: 105, Vault: 110}},
+		Keys: []models.KeyLevels{{Level: 0, Loot: 90}, {Level: 10, Loot: 105}},
 	}
 }
 
@@ -34,15 +34,19 @@ func TestDropCombosFollowTheSpecAndDifficulty(t *testing.T) {
 		name       string
 		difficulty string
 		key        int
+		ring2      int      // the worn second ring's ID
 		want       []string // each combo's slots and the item level of what goes in
 	}{
-		{"heroic raid and a +10", "heroic", 10,
+		{"heroic raid and a +10", "heroic", 10, 12,
 			[]string{"finger1:120", "finger2:120", "main_hand:120", "main_hand:120", "trinket1:105", "trinket2:105"}},
-		{"lfr raid and mythic 0", "lfr", 0,
+		{"lfr raid and mythic 0", "lfr", 0, 12,
 			[]string{"finger1:100", "finger2:100", "main_hand:100", "main_hand:100", "trinket1:90", "trinket2:90"}},
+		{"a ring already worn in the other slot is unique-equipped", "heroic", 10, 1,
+			[]string{"finger2:120", "main_hand:120", "main_hand:120", "trinket1:105", "trinket2:105"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			p.Equipped[2].ID = tt.ring2
 			combos, err := dropCombos(p, testDrops(), tt.difficulty, tt.key)
 			if err != nil {
 				t.Fatal(err)

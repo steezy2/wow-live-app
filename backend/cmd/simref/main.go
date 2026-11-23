@@ -1,9 +1,9 @@
 // Command simref writes reference/sim-drops.json, the gear the Droptimizer sims: each item the current season's raid
 // bosses and Mythic+ dungeons drop (ID, name, slot, armor type and the specs that can loot it), read from wago.tools'
-// game tables of the live build, with the item levels of reference/sim-drops.toml (kept by hand, checked against the
-// game). The raid is the journal instance whose loot carries the toml's display_season; the dungeons are
-// reference/mplus-dungeons.json's. The tables (ItemSparse is 52 MB) are kept a week in the user's cache folder, out
-// of the repo. Run it each season or patch and review the diff.
+// game tables of the live build, with the item levels of reference/sim-drops.toml (kept by hand from the wiki; see the
+// toml for what was checked). The raid is the journal instance whose loot carries the toml's display_season; the
+// dungeons are reference/mplus-dungeons.json's. The tables (ItemSparse is 52 MB) are kept a week in the user's cache
+// folder, out of the repo. Run it each season or patch and review the diff.
 //
 // Usage, from backend/:
 //

@@ -8,10 +8,11 @@ import { gearGroups } from './simOptions'
 export function SimGear(props: {
   profile: SimProfile
   pick?: { equipped: number[]; bags: number[]; onToggle: (worn: boolean, index: number) => void }
+  order: string[]
   info: Map<number, SimItemInfo>
 }) {
-  const { profile, pick, info } = props
-  const groups = gearGroups(profile.equipped, pick ? profile.bags : [])
+  const { profile, order, pick, info } = props
+  const groups = gearGroups(profile.equipped, pick ? profile.bags : [], order)
   return (
     <div className="sim-doll">
       {[0, 1, 2].map((column) => (

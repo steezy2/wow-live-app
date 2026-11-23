@@ -14,7 +14,6 @@ import (
 	"io/fs"
 	"log"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -25,7 +24,6 @@ import (
 	"time"
 
 	"wow-live/backend/clients/cachefile"
-	"wow-live/backend/clients/simc"
 	"wow-live/backend/models"
 )
 
@@ -43,6 +41,9 @@ const (
 	maxSimTargets    = 20
 	// maxSimRows is how many abilities and buffs a result keeps.
 	maxSimRows = 40
+	// defaultDropDifficulty and defaultDropKey are what the Droptimizer starts on (the key when the drops offer it).
+	defaultDropDifficulty = "heroic"
+	defaultDropKey        = 10
 )
 
 var (
@@ -67,31 +68,35 @@ var (
 	simAccuracies = []simAccuracy{{"quick", 0.3}, {"normal", 0.1}, {"high", 0.05}}
 	simDefaults   = models.SimOptions{FightStyle: "Patchwerk", Length: 300, Targets: 1, Accuracy: "normal"}
 
-	defaultDropDifficulty = "heroic"
-	defaultDropKey        = 10
-
 	simIDPattern = regexp.MustCompile(`^[0-9a-f]{16}$`)
 	// simProgress is simc's progress line: "Generating Profileset: t50 2/76 [====>...] 1122/4300 146.2 Mean=...", the
 	// stage (a baseline is 1/1, each profileset a stage) and the iterations in it.
 	simProgress = regexp.MustCompile(`(\d+)/(\d+) \[[=>. ]*\] (\d+)/(\d+)`)
 )
 
-// SimEngineSource is the program sims run: where it is, whether it's installed and downloading it (simc.Client).
+// SimEngineSource is the program sims run: running it, whether it's installed and downloading it (simc.Client).
 type SimEngineSource interface {
-	Path() string
+	Run(ctx context.Context, args []string, out io.Writer) error
 	Installed() models.SimEngine
 	Install(ctx context.Context) (models.SimEngine, error)
 	UseFile(ctx context.Context, path string) (models.SimEngine, error)
 }
 
+// ItemTypes says whether an item is a two-handed weapon, which the SimC export doesn't (wowhead.Client).
+type ItemTypes interface {
+	TwoHanded(ctx context.Context, id int) (bool, error)
+}
+
 // Sims runs sims on this PC one at a time with the downloaded SimulationCraft and keeps the last keepSims in Dir.
 type Sims struct {
 	Engine SimEngineSource
+	Items  ItemTypes
 	Drops  models.SimDrops // reference/sim-drops.json, for a Droptimizer
 	Dir    string
 	Now    func() time.Time
-	Ctx    context.Context // the app's: canceled on Quit, which stops a running sim and download; nil never cancels
+	Ctx    context.Context // the app's: canceled on Quit, which stops a running sim and download
 
+	work       sync.WaitGroup // the running sim and download, for Wait
 	mu         sync.Mutex
 	run        *simRun     // the sim running now
 	last       *models.Sim // the last sim that ended without a result to save (failed or cancelled), for the page's poll
@@ -99,11 +104,10 @@ type Sims struct {
 	installErr string
 }
 
-// simRun is the sim running: what the page sees of it, how to stop it, and a Top Gear sim's combinations.
+// simRun is the sim running: what the page sees of it and how to stop it.
 type simRun struct {
 	sim    models.Sim
 	cancel context.CancelFunc
-	combos []gearCombo
 }
 
 // Choices are the options a sim can be started with, and the ones the page starts with.
@@ -120,10 +124,15 @@ func (s *Sims) Choices() models.SimChoices {
 	if slices.Contains(keyLevels, defaultDropKey) {
 		defaultKey = defaultDropKey
 	}
+	groups := make([]string, len(simSlots))
+	for i, slot := range simSlots {
+		groups[i] = gearKey(slot)
+	}
 	return models.SimChoices{FightStyles: simFightStyles, Accuracies: accuracies, MinLength: minSimLength,
 		MaxLength: maxSimLength, MaxTargets: maxSimTargets, MaxCombos: maxCombos, MaxDrops: maxDrops,
 		Difficulties: simDifficulties, KeyLevels: keyLevels, Defaults: simDefaults,
-		DefaultDifficulty: defaultDropDifficulty, DefaultKeyLevel: defaultKey, MaxItemLookups: maxItemLookups}
+		DefaultDifficulty: defaultDropDifficulty, DefaultKeyLevel: defaultKey, GearGroups: slices.Compact(groups),
+		MaxItemLookups: maxItemLookups}
 }
 
 // simAccuracyOf is the accuracy named name, false when there is none.
@@ -165,12 +174,12 @@ func (s *Sims) InstallEngine(path string) error {
 		return ErrSimBusy
 	}
 	s.installing, s.installErr = true, ""
-	go func() {
+	s.work.Go(func() {
 		var err error
 		if path != "" {
-			_, err = s.Engine.UseFile(s.base(), path)
+			_, err = s.Engine.UseFile(s.Ctx, path)
 		} else {
-			_, err = s.Engine.Install(s.base())
+			_, err = s.Engine.Install(s.Ctx)
 		}
 		s.mu.Lock()
 		defer s.mu.Unlock()
@@ -179,9 +188,12 @@ func (s *Sims) InstallEngine(path string) error {
 			log.Printf("downloading the sim engine: %v", err)
 			s.installErr = err.Error()
 		}
-	}()
+	})
 	return nil
 }
+
+// Wait returns once the running sim and download, if any, have ended: after Ctx is canceled, once simc is stopped.
+func (s *Sims) Wait() { s.work.Wait() }
 
 // Start parses the export and starts the sim in the background; poll Get. Errors: ErrBadSimOptions, ErrBadSimC,
 // ErrNoEngine, ErrSimBusy.
@@ -196,7 +208,8 @@ func (s *Sims) Start(req models.SimRequest) (models.Sim, error) {
 	var combos []gearCombo
 	switch req.Kind {
 	case "topgear":
-		combos, err = topGearCombos(profile, req.Equipped, req.Bags)
+		twoHanded := func(id int) (bool, error) { return s.Items.TwoHanded(s.Ctx, id) }
+		combos, err = topGearCombos(profile, req.Equipped, req.Bags, twoHanded)
 	case "drops":
 		combos, err = dropCombos(profile, s.Drops, req.Difficulty, req.KeyLevel)
 	}
@@ -223,11 +236,11 @@ func (s *Sims) Start(req models.SimRequest) (models.Sim, error) {
 	if err := os.WriteFile(input, []byte(SimInput(profile)+gearProfilesets(combos)), 0o644); err != nil {
 		return models.Sim{}, fmt.Errorf("writing %s: %w", input, err)
 	}
-	ctx, cancel := context.WithTimeout(s.base(), simTimeout)
+	ctx, cancel := context.WithTimeout(s.Ctx, simTimeout)
 	sim := models.Sim{ID: id, Kind: req.Kind, State: models.SimRunning, Character: profile.Name, Spec: profile.Spec,
 		Options: req.Options, StartedMS: s.Now().UnixMilli()}
-	s.run, s.last = &simRun{sim: sim, cancel: cancel, combos: combos}, nil
-	go s.execute(ctx, input, output)
+	s.run, s.last = &simRun{sim: sim, cancel: cancel}, nil
+	s.work.Go(func() { s.execute(ctx, input, output, combos) })
 	return sim, nil
 }
 
@@ -247,22 +260,18 @@ func simArgs(input, output string, o models.SimOptions, profilesets bool) []stri
 }
 
 // execute runs simc for the running sim, following its progress, and saves what it found.
-func (s *Sims) execute(ctx context.Context, input, output string) {
+func (s *Sims) execute(ctx context.Context, input, output string, combos []gearCombo) {
 	defer func() {
 		os.Remove(input)
 		os.Remove(output)
 	}()
 	s.mu.Lock()
-	sim, combos := s.run.sim, s.run.combos
+	sim := s.run.sim
 	s.mu.Unlock()
-	cmd := exec.CommandContext(ctx, s.Engine.Path(), simArgs(input, output, sim.Options, len(combos) > 0)...)
-	cmd.Dir = filepath.Dir(input)
-	simc.HideWindow(cmd)
 	pr, pw := io.Pipe()
-	cmd.Stdout, cmd.Stderr = pw, pw
 	said := make(chan string)
 	go func() { said <- s.follow(pr) }()
-	runErr := cmd.Run()
+	runErr := s.Engine.Run(ctx, simArgs(input, output, sim.Options, len(combos) > 0), pw)
 	pw.Close()
 	complaint := <-said
 
@@ -297,9 +306,6 @@ func (s *Sims) execute(ctx context.Context, input, output string) {
 		s.last = &sim
 	}
 }
-
-// base is the context sims and downloads run under.
-func (s *Sims) base() context.Context { return cmp.Or(s.Ctx, context.Background()) }
 
 // follow reads simc's output, updating the running sim's progress, and returns the last error line it printed.
 func (s *Sims) follow(r io.Reader) string {

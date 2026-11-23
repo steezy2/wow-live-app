@@ -12,13 +12,13 @@ test('simOptionsError says which option is out of range', () => {
   expect(simOptionsError({ ...opts, length: 300.5 }, choices)).toContain('fight length')
 })
 
-test('gearGroups puts both rings under one heading, worn ones first, and leaves empty slots out', () => {
+test("gearGroups lists groups in the API's order, worn ones first, and leaves empty groups out", () => {
   const equipped: SimItem[] = [
-    { slot: 'finger2', id: 2 },
-    { slot: 'head', id: 1 },
+    { slot: 'finger2', group: 'finger', id: 2 },
+    { slot: 'head', group: 'head', id: 1 },
   ]
-  const bags: SimItem[] = [{ slot: 'finger1', id: 3 }]
-  const groups = gearGroups(equipped, bags)
+  const bags: SimItem[] = [{ slot: 'finger1', group: 'finger', id: 3 }]
+  const groups = gearGroups(equipped, bags, ['head', 'neck', 'finger', 'main_hand'])
   expect(groups.map((g) => g.label)).toEqual(['Head', 'Rings'])
   expect(groups[1].items.map((i) => [i.item.id, i.index, i.worn])).toEqual([
     [2, 0, true],

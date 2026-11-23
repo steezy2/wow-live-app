@@ -327,7 +327,7 @@ func TestCharacterIsSavedOnlyWhenWarcraftLogsKnowsItsRealm(t *testing.T) {
 		router := Router(MPlus{Keys: &fakeKeys{}, Now: time.Now}, nil, &SettingsAPI{Settings: fakeSettings{&saved},
 			Characters: fakeCharacters{tc.err}}, os.DirFS(t.TempDir()), LocalHosts(port)...)
 		body, _ := json.Marshal(map[string]any{"logsDir": t.TempDir(), "region": "us", "character": tc.character,
-			"overlay": map[string]any{"show": "keys", "opacity": 100}})
+			"overlay": map[string]any{"show": "keys", "opacity": 100, "rankBy": "dps"}})
 		r := httptest.NewRequest(http.MethodPut, "/api/settings", strings.NewReader(string(body)))
 		r.Host = "localhost:8080"
 		w := httptest.NewRecorder()
@@ -347,19 +347,23 @@ func TestSettingsAreSavedOnlyWithChoicesTheAPIOffers(t *testing.T) {
 		logsDir, overlay string
 		code             int
 	}{
-		{string(full), `{"show": "always", "opacity": 70}`, http.StatusOK},
-		{string(full), `{"show": "sometimes", "opacity": 70}`, http.StatusBadRequest},
-		{string(full), `{"show": "keys", "opacity": 120}`, http.StatusBadRequest},
-		{string(full), `{"show": "keys", "opacity": 90, "rows": 5, "columns": ["dps", "taken"]}`, http.StatusOK},
-		{string(full), `{"show": "keys", "opacity": 90, "columns": ["dps", "mana"]}`, http.StatusBadRequest},
-		{string(full), `{"show": "keys", "opacity": 90, "rows": -1}`, http.StatusBadRequest},
-		{string(full), `{"show": "keys", "opacity": 90}, "auto": {"archiveGameLogsDays": 365, "deleteImportsDays": 0}`,
+		{string(full), `{"show": "always", "opacity": 70, "rankBy": "dps"}`, http.StatusOK},
+		{string(full), `{"show": "sometimes", "opacity": 70, "rankBy": "dps"}`, http.StatusBadRequest},
+		{string(full), `{"show": "keys", "opacity": 120, "rankBy": "dps"}`, http.StatusBadRequest},
+		{string(full), `{"show": "keys", "opacity": 90, "rankBy": "dps", "rows": 5, "columns": ["dps", "taken"]}`,
 			http.StatusOK},
-		{string(full), `{"show": "keys", "opacity": 90}, "auto": {"archiveGameLogsDays": 366}`, http.StatusBadRequest},
-		{string(full), `{"show": "keys", "opacity": 90}, "auto": {"deleteImportsDays": -1}`, http.StatusBadRequest},
+		{string(full), `{"show": "keys", "opacity": 90, "rankBy": "dps", "columns": ["dps", "mana"]}`, http.StatusBadRequest},
+		{string(full), `{"show": "keys", "opacity": 90, "rankBy": "dps", "rows": -1}`, http.StatusBadRequest},
+		{string(full), `{"show": "keys", "opacity": 90, "rankBy": "dps"}, "auto": {"archiveGameLogsDays": 365}`,
+			http.StatusOK},
+		{string(full), `{"show": "keys", "opacity": 90, "rankBy": "dps"}, "auto": {"archiveGameLogsDays": 366}`,
+			http.StatusBadRequest},
+		{string(full), `{"show": "keys", "opacity": 90, "rankBy": "dps"}, "auto": {"deleteImportsDays": -1}`,
+			http.StatusBadRequest},
 		{string(full), `{}`, http.StatusBadRequest},
-		{`"Logs"`, `{"show": "always", "opacity": 70}`, http.StatusBadRequest},
-		{`""`, `{"show": "always", "opacity": 70}`, http.StatusBadRequest},
+		{string(full), `{"show": "keys", "opacity": 90, "rankBy": "hps", "deathRecapSeconds": 10}`, http.StatusOK},
+		{`"Logs"`, `{"show": "always", "opacity": 70, "rankBy": "dps"}`, http.StatusBadRequest},
+		{`""`, `{"show": "always", "opacity": 70, "rankBy": "dps"}`, http.StatusBadRequest},
 	} {
 		var saved models.Settings
 		router := Router(MPlus{Keys: &fakeKeys{}, Now: time.Now}, nil, &SettingsAPI{Settings: fakeSettings{&saved},
@@ -536,7 +540,7 @@ func TestAnUnchangedCharacterIsntCheckedAgain(t *testing.T) {
 	router := Router(MPlus{Keys: &fakeKeys{}, Now: time.Now}, nil, &SettingsAPI{Settings: fakeSettings{&saved},
 		Characters: fakeCharacters{errors.New("Warcraft Logs is down")}}, os.DirFS(t.TempDir()), LocalHosts(port)...)
 	body, _ := json.Marshal(map[string]any{"logsDir": t.TempDir(), "region": "us", "character": saved.Character,
-		"overlay": map[string]any{"show": "keys", "opacity": 50}})
+		"overlay": map[string]any{"show": "keys", "opacity": 50, "rankBy": "dps"}})
 	r := httptest.NewRequest(http.MethodPut, "/api/settings", strings.NewReader(string(body)))
 	r.Host = "localhost:8080"
 	w := httptest.NewRecorder()

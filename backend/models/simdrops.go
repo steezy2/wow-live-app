@@ -9,12 +9,11 @@ type SimDrops struct {
 	Specs    map[int]SimSpec `json:"specs"`
 	Raids    []DropSource    `json:"raids"`
 	Dungeons []DropSource    `json:"dungeons"`
-	// HeroicDungeon is the item level a Heroic dungeon drops, and Keys the Mythic+ levels by key level.
-	HeroicDungeon int         `json:"heroicDungeon"`
-	Keys          []KeyLevels `json:"keys"`
+	// Keys is the item level each Mythic+ key level drops.
+	Keys []KeyLevels `json:"keys"`
 }
 
-// SimSpec is a spec as simc names it: "death_knight" and "frost".
+// SimSpec is a spec as simc names it: "deathknight" and "frost".
 type SimSpec struct {
 	Class string `json:"class"`
 	Spec  string `json:"spec"`
@@ -55,20 +54,18 @@ type DifficultyLevels struct {
 	Mythic int `json:"mythic" toml:"mythic"`
 }
 
-// KeyLevels is what a Mythic+ key of Level (0 is Mythic 0) drops at its end and in the Great Vault.
+// KeyLevels is the item level a Mythic+ key of Level (0 is Mythic 0) drops at its end.
 type KeyLevels struct {
 	Level int `json:"level" toml:"level"`
 	Loot  int `json:"loot" toml:"loot"`
-	Vault int `json:"vault" toml:"vault"`
 }
 
 // SimDropLevels is reference/sim-drops.toml, kept by hand: the season it is for, the DisplaySeasonID its raid's
-// journal rows carry, and the item levels of each raid boss group, Heroic dungeons and Mythic+ keys.
+// journal rows carry, and the item levels of each raid boss group and Mythic+ key level.
 type SimDropLevels struct {
 	Season        string          `toml:"season"`
 	DisplaySeason int             `toml:"display_season"`
 	Raid          []RaidDropGroup `toml:"raid"`
-	HeroicDungeon int             `toml:"heroic_dungeon"`
 	Keys          []KeyLevels     `toml:"keys"`
 }
 

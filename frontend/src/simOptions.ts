@@ -9,40 +9,42 @@ export function simOptionsError(o: SimOptions, c: SimChoices): string | null {
   return null
 }
 
-/** The slots gear is listed under, in the order they are worn, by a slot's group ("finger1" and "finger2" are rings),
- * with the paper doll's column each is drawn in: 0 down the left, 1 down the right, 2 along the bottom (weapons). */
-const SLOT_GROUPS: [string, string, number][] = [
-  ['head', 'Head', 0],
-  ['neck', 'Neck', 0],
-  ['shoulder', 'Shoulders', 0],
-  ['back', 'Back', 0],
-  ['chest', 'Chest', 0],
-  ['wrist', 'Wrists', 0],
-  ['hands', 'Hands', 1],
-  ['waist', 'Waist', 1],
-  ['legs', 'Legs', 1],
-  ['feet', 'Feet', 1],
-  ['finger', 'Rings', 1],
-  ['trinket', 'Trinkets', 1],
-  ['main_hand', 'Main hand', 2],
-  ['off_hand', 'Off-hand', 2],
-]
+/** The page's names for the items' groups (SimItem.group). */
+const GROUP_LABELS: Record<string, string> = {
+  shoulder: 'Shoulders',
+  wrist: 'Wrists',
+  finger: 'Rings',
+  trinket: 'Trinkets',
+  main_hand: 'Main hand',
+  off_hand: 'Off-hand',
+}
 
-/** An item's group key: "finger" for both rings, "trinket" for both trinkets, else its slot. */
-const groupKey = (slot: string) => slot.replace(/[12]$/, '')
+/** A group's name on the page: "Rings" for "finger", else the group capitalized. */
+export const groupLabel = (group: string) => GROUP_LABELS[group] ?? group.charAt(0).toUpperCase() + group.slice(1)
 
-/** The items of each slot group (indexes into the profile's equipped and bags lists), in wearing order; empty
- * groups left out. */
-export function gearGroups(equipped: SimItem[], bags: SimItem[]) {
-  return SLOT_GROUPS.map(([key, label, column]) => ({
-    key,
-    label,
-    column,
-    items: [
-      ...equipped.flatMap((item, index) => (groupKey(item.slot) === key ? [{ item, index, worn: true }] : [])),
-      ...bags.flatMap((item, index) => (groupKey(item.slot) === key ? [{ item, index, worn: false }] : [])),
-    ],
-  })).filter((g) => g.items.length > 0)
+/** The paper doll's column each group is drawn in: 0 down the left, 1 down the right, 2 along the bottom (weapons). */
+const DOLL_COLUMNS: Record<string, number> = {
+  head: 0, neck: 0, shoulder: 0, back: 0, chest: 0, wrist: 0,
+  hands: 1, waist: 1, legs: 1, feet: 1, finger: 1, trinket: 1,
+}
+
+/** An item as the page names it: its name (or ID) and item level. */
+export const itemText = (item: SimItem) => `${item.name ?? `item ${item.id}`}${item.level ? ` (${item.level})` : ''}`
+
+/** The items of each group in order (SimChoices.gearGroups), as indexes into the profile's equipped and bags lists,
+ * worn ones first; empty groups left out. */
+export function gearGroups(equipped: SimItem[], bags: SimItem[], order: string[]) {
+  return order
+    .map((group) => ({
+      key: group,
+      label: groupLabel(group),
+      column: DOLL_COLUMNS[group] ?? 2,
+      items: [
+        ...equipped.flatMap((item, index) => (item.group === group ? [{ item, index, worn: true }] : [])),
+        ...bags.flatMap((item, index) => (item.group === group ? [{ item, index, worn: false }] : [])),
+      ],
+    }))
+    .filter((g) => g.items.length > 0)
 }
 
 /** The distinct item IDs of items. */

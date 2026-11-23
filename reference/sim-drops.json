@@ -2,7 +2,7 @@
   "season": "season-mn-2",
   "sources": {
     "items": "wago.tools' tables of the live game (JournalInstance, JournalEncounter, JournalEncounterItem, Item, ItemSparse): every weapon and armor piece each boss drops",
-    "levels": "reference/sim-drops.toml (kept by hand, checked against the game)",
+    "levels": "reference/sim-drops.toml (kept by hand from the wiki; see the toml for what was checked)",
     "specs": "ItemSpecOverride, else the game's ItemSpec rule over the item's kind and primary stats; ChrClasses and ChrSpecialization for the names"
   },
   "specs": {
@@ -5399,57 +5399,46 @@
       ]
     }
   ],
-  "heroicDungeon": 276,
   "keys": [
     {
       "level": 0,
-      "loot": 292,
-      "vault": 302
+      "loot": 292
     },
     {
       "level": 2,
-      "loot": 295,
-      "vault": 305
+      "loot": 295
     },
     {
       "level": 3,
-      "loot": 295,
-      "vault": 305
+      "loot": 295
     },
     {
       "level": 4,
-      "loot": 298,
-      "vault": 308
+      "loot": 298
     },
     {
       "level": 5,
-      "loot": 302,
-      "vault": 308
+      "loot": 302
     },
     {
       "level": 6,
-      "loot": 305,
-      "vault": 311
+      "loot": 305
     },
     {
       "level": 7,
-      "loot": 305,
-      "vault": 315
+      "loot": 305
     },
     {
       "level": 8,
-      "loot": 308,
-      "vault": 315
+      "loot": 308
     },
     {
       "level": 9,
-      "loot": 308,
-      "vault": 315
+      "loot": 308
     },
     {
       "level": 10,
-      "loot": 311,
-      "vault": 318
+      "loot": 311
     }
   ]
 }
