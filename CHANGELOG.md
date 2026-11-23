@@ -4,6 +4,15 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 
 ## [Unreleased]
 
+### Changed
+- **One look for buttons that do something** (Settings, Home's data, report links, quick links, the route editor and the Routes sidebar): boxed, the main action filled, a destructive one red.
+- **Fewer connections and timers:** every page in a browser shares one event stream, the 60 s clocks share one timer that stops while the page is hidden, and the saved keys list is read once when two parts of a page ask at once.
+- **A key's Route tab** reads its comparison again only while the key runs and the tab is open (it took the track just as a trigger).
+
+### Fixed
+- **A page no longer starts narrow and moves to the middle** when its tab opens: the page keeps its full width while its content loads.
+- **Names in a damage spike's list** have their class colour.
+
 ## [0.5.4] - 2026-11-17
 
 ### Added
