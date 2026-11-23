@@ -65,7 +65,7 @@ export function KeyRoute({ keyView: key, live, seek }: { keyView: KeyView; live:
     [compare],
   )
   const enemyByKey = useMemo(() => new Map(dungeon?.enemies.map((e) => [enemyKey(e), e])), [dungeon])
-  const changing = live ? key : null // a new reading of a live key asks again
+  const liveKey = live ? key : null // a new reading of a live key asks again
   useEffect(() => {
     const controller = new AbortController()
     fetchKeyRoute(key.start, id, controller.signal).then(
@@ -73,7 +73,7 @@ export function KeyRoute({ keyView: key, live, seek }: { keyView: KeyView; live:
       (err: Error) => controller.signal.aborted || setError(err.message),
     )
     return () => controller.abort()
-  }, [key.start, id, fetched, changing])
+  }, [key.start, id, fetched, liveKey])
 
   if (error) return <p className="warning">{error}</p>
   if (compare === undefined) return <p className="muted">Loading…</p>

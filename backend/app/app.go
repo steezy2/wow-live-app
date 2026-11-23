@@ -108,7 +108,7 @@ func compressTracks(store keystore.Store, pulls keystore.Pulls) {
 func Start(ctx context.Context, opts Options) (*Site, error) {
 	timers, affixes := dungeonData(ctx, opts.Cache, opts.Region)
 	store := keystore.NewStore(filepath.Join(opts.Cache, localKeysDir))
-	pulls := keystore.Pulls{Dir: filepath.Join(opts.Cache, raidPullsDir), Recent: &keystore.Recent{}}
+	pulls := keystore.NewPulls(filepath.Join(opts.Cache, raidPullsDir))
 	go compressTracks(store, pulls)
 	newKeys := func() (*service.LogTracker, error) {
 		keys, err := service.NewLogTracker(timers, affixes, opts.Rules, opts.Dungeons, store)
