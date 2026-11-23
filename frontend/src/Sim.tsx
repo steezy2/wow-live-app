@@ -313,12 +313,6 @@ export function SimPage() {
               >
                 {running ? 'Simming…' : 'Sim'}
               </button>
-              {running && (
-                <div className="sim-progress">
-                  <progress value={running.progress} max={100} aria-label="Sim progress" /> {running.progress}%
-                  <button onClick={() => act(() => removeSim(running.id))}>Cancel</button>
-                </div>
-              )}
             </aside>
           </div>
         </>
