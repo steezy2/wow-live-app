@@ -27,7 +27,13 @@ type memPulls struct {
 }
 
 func (m *memPulls) Save(p models.RaidPull) error     { m.pulls = append(m.pulls, p); return nil }
-func (m *memPulls) List() ([]models.RaidPull, error) { return m.pulls, nil }
+func (m *memPulls) List() ([]models.RaidPull, error) { return slices.Clone(m.pulls), nil }
+func (m *memPulls) Load(start int64) (models.RaidPull, error) {
+	if i := slices.IndexFunc(m.pulls, func(p models.RaidPull) bool { return p.Start == start }); i >= 0 {
+		return m.pulls[i], nil
+	}
+	return models.RaidPull{}, fs.ErrNotExist
+}
 func (m *memPulls) Delete(start int64) error {
 	m.pulls = slices.DeleteFunc(m.pulls, func(p models.RaidPull) bool { return p.Start == start })
 	return nil

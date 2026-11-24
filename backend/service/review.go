@@ -172,7 +172,10 @@ func (k *LogTracker) finished(start int64) (models.Key, []models.Key, error) {
 	if i < 0 {
 		return models.Key{}, nil, ErrNoSuchKey
 	}
-	key := k.history[i]
+	key, err := whole(k.store, k.history[i])
+	if err != nil {
+		return models.Key{}, nil, err
+	}
 	var earlier []models.Key
 	for _, h := range k.history {
 		if h.MapID == key.MapID && h.Start < start {

@@ -28,6 +28,27 @@ func upsert[T models.SavedFight[T]](list *[]T, fight T) {
 	(*list)[i] = fight.LinkedTo(cmp.Or(fight.LinkedReport(), (*list)[i].LinkedReport()))
 }
 
+// slimAll is list with each fight slim: the tracker keeps in memory only what its lists and totals read, and reads
+// the rest of a fight from its file (whole) when a page asks for it.
+func slimAll[T models.SavedFight[T]](list []T) []T {
+	for i := range list {
+		list[i] = list[i].Slim()
+	}
+	return list
+}
+
+// whole is fight in full: itself, or when it is slim its file's (with the tracker's link).
+func whole[T models.SavedFight[T]](store models.FightStore[T], fight T) (T, error) {
+	if !fight.IsSlim() {
+		return fight, nil
+	}
+	full, err := store.Load(fight.FightStart())
+	if err != nil {
+		return fight, fmt.Errorf("reading the saved fight of %d: %w", fight.FightStart(), err)
+	}
+	return full.LinkedTo(fight.LinkedReport()), nil
+}
+
 // withUnsaved is list with the queued fights it doesn't have yet (read before they ended) added in front.
 func withUnsaved[T models.SavedFight[T]](list []T, queue []savedFight[T]) []T {
 	for _, q := range queue {

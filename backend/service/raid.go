@@ -159,7 +159,7 @@ func savedPulls(store models.PullStore) ([]models.RaidPull, error) {
 	if err != nil {
 		return nil, fmt.Errorf("reading saved raid pulls: %w", err)
 	}
-	return slices.DeleteFunc(pulls, func(p models.RaidPull) bool { return !fought(p) }), nil
+	return slimAll(slices.DeleteFunc(pulls, func(p models.RaidPull) bool { return !fought(p) })), nil
 }
 
 // fought is whether anyone did damage or healing in a pull: an encounter that starts and ends at once (a reset on
