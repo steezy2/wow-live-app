@@ -281,15 +281,17 @@ func (s *Sims) planTopGear(req models.SimRequest, p models.SimProfile, values in
 	}
 	plan.Combos = comboCount(groups, maxPlanCombos)
 	if plan.Combos <= maxCombos { // the rules (unique gems, Catalyst charges) drop some of the product
-		if combos, err := topGearCombos(gearRules{s.Ref, req.CatalystCharges}, p, req.Equipped, req.Bags, extra,
-			values > 0, s.twoHanded); err == nil {
-			plan.Combos = len(combos)
+		combos, err := topGearCombos(gearRules{s.Ref, req.CatalystCharges}, p, req.Equipped, req.Bags, extra,
+			values > 0, s.twoHanded)
+		plan.Combos = len(combos)
+		if err != nil { // every combination broke a rule: Start refuses it in the same words
+			plan.Error = err.Error()
 		}
 	}
 	if values > 0 {
 		plan.Combos = (plan.Combos + 1) * values
 	}
-	if err := comboRefusal(plan.Combos); err != nil {
+	if err := comboRefusal(plan.Combos); err != nil && plan.Error == "" {
 		plan.Error = err.Error()
 	}
 	plan.Notes = make([]string, len(extra))

@@ -1948,7 +1948,7 @@ export interface SimVariant {
   /** A crafted item's embellishment (reagent ID), recraft (reagent ID) and what to take off. */
   embellishment?: number
   recraft?: number
-  remove?: 'gems' | 'enchant' | 'socket'
+  remove?: 'gems' | 'enchant' | 'socket' | 'embellishment'
   /** Converts the item to its Catalyst item (needs `catalystCharges` in the request). */
   catalyst?: boolean
 }

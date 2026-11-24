@@ -99,7 +99,7 @@ function VariantForm(props: { item: SimItem; reference: SimReference; onAdd: (v:
             <option value="">Nothing</option>
             {removals.map((r) => (
               <option key={r} value={r}>
-                {r === 'gems' ? 'Its gems' : r === 'enchant' ? 'Its enchant' : 'Its added socket'}
+                {removeLabels[r]}
               </option>
             ))}
           </select>
@@ -148,6 +148,13 @@ type Change = Pick<
 
 /** Under an item of Top Gear: its variants (changed copies sim'd as candidates, each removable, named by the plan's
  * notes, which follow the variants' order) and a "Change…" form that adds one. */
+const removeLabels: Record<string, string> = {
+  gems: 'Its gems',
+  enchant: 'Its enchant',
+  socket: 'Its added socket',
+  embellishment: 'Its embellishment',
+}
+
 export function ItemVariants(props: {
   item: SimItem
   worn: boolean
