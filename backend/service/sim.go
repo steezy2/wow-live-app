@@ -41,6 +41,9 @@ const (
 	maxSimTargets    = 20
 	// maxSimRows is how many abilities and buffs a result keeps.
 	maxSimRows = 40
+	// defaultDropDifficulty and defaultDropKey are what the Droptimizer starts on (the key when the drops offer it).
+	defaultDropDifficulty = "heroic"
+	defaultDropKey        = 10
 )
 
 var (
@@ -117,9 +120,18 @@ func (s *Sims) Choices() models.SimChoices {
 	for i, k := range s.Drops.Keys {
 		keyLevels[i] = k.Level
 	}
+	defaultKey := slices.Max(append([]int{0}, keyLevels...))
+	if slices.Contains(keyLevels, defaultDropKey) {
+		defaultKey = defaultDropKey
+	}
+	groups := make([]string, len(simSlots))
+	for i, slot := range simSlots {
+		groups[i] = gearKey(slot)
+	}
 	return models.SimChoices{FightStyles: simFightStyles, Accuracies: accuracies, MinLength: minSimLength,
 		MaxLength: maxSimLength, MaxTargets: maxSimTargets, MaxCombos: maxCombos, MaxDrops: maxDrops,
-		Difficulties: simDifficulties, KeyLevels: keyLevels, Defaults: simDefaults}
+		Difficulties: simDifficulties, KeyLevels: keyLevels, Defaults: simDefaults,
+		DefaultDifficulty: defaultDropDifficulty, DefaultKeyLevel: defaultKey, GearGroups: slices.Compact(groups)}
 }
 
 // simAccuracyOf is the accuracy named name, false when there is none.

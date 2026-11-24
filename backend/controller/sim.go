@@ -71,11 +71,10 @@ func (a SimAPI) Engine(c *gin.Context) {
 // InstallEngine godoc
 //
 //	@Summary		Download or update the SimulationCraft engine, or use one the owner has
-//	@Description	With no body, downloads the newest simc.exe (about 116 MB) from this app's own GitHub release over
-//	@Description	HTTPS, checked against the sha256 in the release's engine.json (which catches a broken download, not a
-//	@Description	swapped file: both come from the same release); the release is rebuilt weekly from SimulationCraft's
-//	@Description	official nightly. With a path, copies that simc.exe instead. Runs in the background: poll the engine's
-//	@Description	status.
+//	@Description	With no body, downloads the newest simc.exe from this app's own GitHub release over HTTPS, checked
+//	@Description	against the sha256 in the release's engine.json (which catches a broken download, not a swapped file:
+//	@Description	both come from the same release); the release is rebuilt weekly from SimulationCraft's official nightly.
+//	@Description	With a path, copies that simc.exe instead. Runs in the background: poll the engine's status.
 //	@Tags			sim
 //	@Accept			json
 //	@Produce		json

@@ -2318,7 +2318,7 @@ const docTemplate = `{
                 }
             },
             "post": {
-                "description": "With no body, downloads the newest simc.exe (about 116 MB) from this app's own GitHub release over\nHTTPS, checked against the sha256 in the release's engine.json (which catches a broken download, not a\nswapped file: both come from the same release); the release is rebuilt weekly from SimulationCraft's\nofficial nightly. With a path, copies that simc.exe instead. Runs in the background: poll the engine's\nstatus.",
+                "description": "With no body, downloads the newest simc.exe from this app's own GitHub release over HTTPS, checked\nagainst the sha256 in the release's engine.json (which catches a broken download, not a swapped file:\nboth come from the same release); the release is rebuilt weekly from SimulationCraft's official nightly.\nWith a path, copies that simc.exe instead. Runs in the background: poll the engine's status.",
                 "consumes": [
                     "application/json"
                 ],
@@ -6640,6 +6640,15 @@ const docTemplate = `{
                         "type": "string"
                     }
                 },
+                "defaultDifficulty": {
+                    "description": "DefaultDifficulty and DefaultKeyLevel are what the Droptimizer starts on.",
+                    "type": "string",
+                    "example": "heroic"
+                },
+                "defaultKeyLevel": {
+                    "type": "integer",
+                    "example": 10
+                },
                 "defaults": {
                     "$ref": "#/definitions/models.SimOptions"
                 },
@@ -6651,6 +6660,13 @@ const docTemplate = `{
                     }
                 },
                 "fightStyles": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "gearGroups": {
+                    "description": "GearGroups are the items' groups (SimItem.Group) in wearing order.",
                     "type": "array",
                     "items": {
                         "type": "string"
@@ -6748,6 +6764,10 @@ const docTemplate = `{
         "models.SimItem": {
             "type": "object",
             "properties": {
+                "group": {
+                    "type": "string",
+                    "example": "finger"
+                },
                 "id": {
                     "type": "integer"
                 },

@@ -28,7 +28,7 @@ import (
 )
 
 const (
-	// maxEngineBytes bounds the download and any simc.exe taken in (about 116 MB in November 2026).
+	// maxEngineBytes bounds the download and any simc.exe taken in, about twice the nightly's size (README).
 	maxEngineBytes = 256 << 20
 	// exeName is the program kept in Client.Dir.
 	exeName = "simc.exe"

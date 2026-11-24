@@ -21,6 +21,7 @@ import { Recap } from './Recap'
 import { RoutesPage } from './RoutesPage'
 import { SavedKeys } from './SavedKeys'
 import { SettingsPage } from './SettingsPage'
+import { SimPage } from './Sim'
 import { Skeleton } from './Skeleton'
 import { useSaved } from './useSaved'
 
@@ -28,18 +29,18 @@ import { useSaved } from './useSaved'
 /** The longest the splash stays up waiting for the settings and the characters. */
 const SPLASH_MAX_MS = 2000
 
-type Section = 'home' | 'mplus' | 'routes' | 'raid' | 'recap' | 'settings'
+type Section = 'home' | 'mplus' | 'routes' | 'raid' | 'recap' | 'sim' | 'settings'
 
 /** Shown in place of the page until the settings and characters are read; the same markup as index.html's splash. */
 function Splash() {
   return <div className="splash" role="status">WoW Live</div>
 }
 
-/** The site: its sections along the top (Home, M+ Live, Routes, Raid, Recap, and Settings in the desktop app) and the
- * character picker, whose pick (Settings' character at first, all when M+ Live is first opened, then the last one) the
- * saved keys, raid nights and recap show; M+ Live has the saved keys on the side and the live key or the one picked
- * from them. The app shows a splash until the settings and characters are read (at most SPLASH_MAX_MS), then opens on
- * Home. */
+/** The site: its sections along the top (Home, M+ Live, Routes, Raid, Recap, and Sim and Settings in the desktop app)
+ * and the character picker, whose pick (Settings' character at first, all when M+ Live is first opened, then the last
+ * one) the saved keys, raid nights and recap show; M+ Live has the saved keys on the side and the live key or the one
+ * picked from them. The app shows a splash until the settings and characters are read (at most SPLASH_MAX_MS), then
+ * opens on Home. */
 export default function App() {
   const [selected, setSelected] = useState<number | null>(null)
   const [refresh, setRefresh] = useState(0)
@@ -56,6 +57,8 @@ export default function App() {
   const [settingsRead, setSettingsRead] = useState(false)
   // the Routes page stays mounted so unsaved edits survive a tab switch
   const [routesSeen, setRoutesSeen] = useState(false)
+  // the Sim page too, so the paste, the profile and a running sim survive it
+  const [simSeen, setSimSeen] = useState(false)
   const [raidPull, setRaidPull] = useState<number | null>(null)
   const [characters, setCharacters] = useState<Character[]>([])
   const [picked, setPicked] = useState<string | null>(null)
@@ -64,6 +67,7 @@ export default function App() {
   const ready = (settingsRead && charactersRead && savedKeys !== null) || splashOver
   const section = picking ?? (ready ? 'home' : null)
   if (section === 'routes' && !routesSeen) setRoutesSeen(true)
+  if (section === 'sim' && !simSeen) setSimSeen(true)
   if (section === 'mplus' && picked === null) setPicked('') // the first M+ open shows all; after that the pick stays
   useEffect(() => {
     const timer = setTimeout(() => setSplashOver(true), SPLASH_MAX_MS)
@@ -134,6 +138,7 @@ export default function App() {
         <button {...tab('routes')}>Routes</button>
         <button {...tab('raid')}>Raid</button>
         <button {...tab('recap')}>Recap</button>
+        {settings && <button {...tab('sim')}>Sim</button>}
         {(settings || !settingsRead) && (
           <button {...tab('settings')} disabled={!settings}>
             Settings
@@ -144,6 +149,11 @@ export default function App() {
       {routesSeen && (
         <div hidden={section !== 'routes'}>
           <RoutesPage visible={section === 'routes'} character={character} />
+        </div>
+      )}
+      {simSeen && (
+        <div hidden={section !== 'sim'}>
+          <SimPage />
         </div>
       )}
       {section === null ? (
@@ -169,7 +179,7 @@ export default function App() {
             <Skeleton height={320} lines={5} />
           )}
         </main>
-      ) : section === 'routes' ? null : section === 'raid' ? (
+      ) : section === 'routes' || section === 'sim' ? null : section === 'raid' ? (
         <RaidPage key={raidPull} initial={raidPull} character={character} />
       ) : section === 'recap' ? (
         <main className="page">

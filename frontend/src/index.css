@@ -682,6 +682,10 @@ button {
   min-width: 56px;
 }
 
+.review-table td.left {
+  text-align: left;
+}
+
 .review-table tbody tr {
   border-top: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
 }
