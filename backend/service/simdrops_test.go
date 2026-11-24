@@ -62,6 +62,22 @@ func TestDropCombosFollowTheSpecAndDifficulty(t *testing.T) {
 	}
 }
 
+func TestDropCombosKeepTheWornEnchant(t *testing.T) {
+	p := gearProfile(false)
+	p.Class, p.Spec = "shaman", "elemental"
+	p.Equipped[1].Opts = map[string][]int{"enchant_id": {7}} // finger1
+	combos, err := dropCombos(p, testDrops(), "heroic", 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range combos {
+		in := c.swaps[0].In
+		if got, want := in.Opts["enchant_id"], c.swaps[0].Slot == "finger1"; (got != nil) != want {
+			t.Errorf("%s drop into %s has enchant %v, want one only in finger1", in.Name, c.swaps[0].Slot, got)
+		}
+	}
+}
+
 func TestDropCombosEmptyTheOffHandForATwoHander(t *testing.T) {
 	p := gearProfile(false) // wears an off-hand
 	p.Class, p.Spec = "shaman", "elemental"
