@@ -75,9 +75,17 @@ func (r *Recent) drop(start int64) {
 	r.tracks = slices.DeleteFunc(r.tracks, func(t recentTrack) bool { return t.start == start })
 }
 
-// Save writes a fight, replacing an earlier copy of it.
+// Save writes a fight, replacing an earlier copy of it; a slim fight, which would overwrite the whole one, is refused.
 func (s Folder[T]) Save(fight T) error {
+	if fight.IsSlim() {
+		return fmt.Errorf("saving the fight of %d: it is a slim copy, which would drop its lists", fight.FightStart())
+	}
 	return cachefile.WriteJSON(s.path(fight.FightStart()), fight)
+}
+
+// Load reads one whole saved fight; the error wraps os.ErrNotExist when it isn't saved.
+func (s Folder[T]) Load(start int64) (T, error) {
+	return cachefile.ReadJSON[T](s.path(start))
 }
 
 // List is every saved fight, newest first; a missing folder is none.

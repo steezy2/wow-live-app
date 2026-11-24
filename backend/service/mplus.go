@@ -174,7 +174,7 @@ func NewLogTracker(timers map[int]int64, affixes map[int]string, rules models.MP
 	}
 	c := rules.Consumables
 	return &LogTracker{timers: timers, affixes: affixes, rules: rules, kinds: kinds, facts: facts, mobSpells: mobSpells,
-		store: store, history: history,
+		store: store, history: slimAll(history),
 		everyday: map[string]consumable{"flask": {patterns: c.Flask}, "food": {patterns: c.Food}},
 		spells:   map[int]string{}, spellIDs: map[string]int{}, schools: map[string]int{"Melee": physicalSchool},
 		specs: map[string]int{}, talents: map[string][]models.TalentPick{},
@@ -198,7 +198,7 @@ func (k *LogTracker) Reload() error {
 	k.mu.Lock()
 	defer k.mu.Unlock()
 	// A key or pull that ended since the lists were read isn't saved yet; the fresh lists don't have it.
-	history, pulls = withUnsaved(history, k.unsaved), withUnsaved(pulls, k.unsavedPulls)
+	history, pulls = withUnsaved(slimAll(history), k.unsaved), withUnsaved(pulls, k.unsavedPulls)
 	k.history, k.pulls = history, pulls
 	k.version++
 	return nil
