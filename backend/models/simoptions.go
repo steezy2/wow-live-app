@@ -68,9 +68,11 @@ type SimUpgradeLevel struct {
 	ItemLevel int `json:"itemLevel" example:"388"`
 }
 
-// SimConsumables are the consumables a sim uses instead of simc's defaults: a SimConsumable.Value by its kind (one of
-// SimConsumableKinds; a kind left out, or empty, keeps simc's default).
-type SimConsumables map[string]string
+// SimConsumables are the consumables a sim uses instead of simc's defaults: the SimConsumable.Values picked of each
+// kind (one of SimConsumableKinds). A kind left out or empty keeps simc's default, one value is used by the whole sim,
+// and two or more are compared: every combination of the compared kinds' values is simmed (a Top Gear or Droptimizer
+// sim runs each of its own combinations once for each).
+type SimConsumables map[string][]string
 
 // SimVariant is a changed copy of a Top Gear candidate, sim'd beside it: the item at Index of the profile's Equipped
 // (Worn) or Bags, moved to upgrade level Upgrade of its track (0 keeps it), given one more socket (Socket), a gem
@@ -84,17 +86,10 @@ type SimVariant struct {
 	Enchant int  `json:"enchant,omitempty" example:"7964"`
 }
 
-// SimCompare is the consumable a "consumables" sim compares and the values it tries, each a SimConsumable.Value of
-// Kind (one of SimConsumableKinds).
-type SimCompare struct {
-	Kind   string   `json:"kind" example:"flask"`
-	Values []string `json:"values"`
-}
-
-// SimPlan is what a Top Gear request would run: how many gear combinations it makes and about how long that takes on
-// this PC, for its fight length and accuracy. Error is why a sim of them would be refused (none, or over
-// SimChoices.MaxCombos), in the words starting it gives; Notes say what each of the request's variants changes, in its
-// order.
+// SimPlan is what a sim request would run: the runs besides the sim's own it makes (a Top Gear sim's gear
+// combinations, a Droptimizer's drops, a comparison's combinations) and about how long it all takes on this PC, for
+// its fight length and accuracy. Error is why the sim would be refused, in the words starting it gives; Notes say what
+// each of a Top Gear request's variants changes, in its order.
 type SimPlan struct {
 	Combos  int      `json:"combos"`
 	Seconds int      `json:"seconds"`
@@ -102,7 +97,7 @@ type SimPlan struct {
 	Notes   []string `json:"notes"`
 }
 
-// SimOptionRow is one value of a "consumables" sim: its simc name and display name, its DPS, the standard error of
+// SimOptionRow is one value a Quick Sim compared: its simc name and display name, its DPS, the standard error of
 // that mean and its gain over the sim's default (negative for a loss).
 type SimOptionRow struct {
 	Value    string  `json:"value"`

@@ -676,10 +676,12 @@ type Settings struct {
 
 // AutoSettings is the app's rule for tidying logs by itself, each in days (0, the default, is off): archive the game's
 // logs last written that long ago (only read ones the game no longer writes), and delete Warcraft Logs imports of
-// fights that old (only ones whose key or pull is saved).
+// fights that old (only ones whose key or pull is saved). DeleteSimsDays deletes saved sims that old (a new install
+// starts it on 30; 0 keeps them for good).
 type AutoSettings struct {
 	ArchiveGameLogsDays int `json:"archiveGameLogsDays" minimum:"0" maximum:"365"`
 	DeleteImportsDays   int `json:"deleteImportsDays" minimum:"0" maximum:"365"`
+	DeleteSimsDays      int `json:"deleteSimsDays" minimum:"0" maximum:"365"`
 }
 
 // OverlaySettings are when the overlay shows (during keys, always or never) and its background's opacity (in %; the

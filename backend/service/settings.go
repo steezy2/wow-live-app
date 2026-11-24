@@ -103,7 +103,7 @@ func validateSettings(s models.Settings) error {
 		o.DeathRecapSeconds != 0 && (o.DeathRecapSeconds < minRecapSeconds || o.DeathRecapSeconds > maxRecapSeconds) ||
 		slices.ContainsFunc(o.Columns, func(c string) bool { return !slices.Contains(overlayColumns, c) }) ||
 		len(slices.Compact(slices.Sorted(slices.Values(o.Columns)))) != len(o.Columns) ||
-		!autoDays(auto.ArchiveGameLogsDays) || !autoDays(auto.DeleteImportsDays) {
+		!autoDays(auto.ArchiveGameLogsDays) || !autoDays(auto.DeleteImportsDays) || !autoDays(auto.DeleteSimsDays) {
 		return ErrBadSettings
 	}
 	return nil

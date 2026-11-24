@@ -1052,7 +1052,7 @@ export interface Settings {
   character: string
   /** The auto rules, in days (0 for off): archive the game's logs read and this old, delete imports this long after
    * they were imported. */
-  auto: { archiveGameLogsDays: number; deleteImportsDays: number }
+  auto: { archiveGameLogsDays: number; deleteImportsDays: number; deleteSimsDays: number }
   /** The Home tab's setup guide is done or dismissed. */
   setupDone: boolean
 }
@@ -1837,9 +1837,10 @@ export interface SimItemInfo {
   name: string
   icon: string
   quality: number
+  effect?: string
 }
 
-/** Names, icons and qualities of items; the ones Wowhead can't give are left out. */
+/** Names, icons, qualities and what using them does, of items; the ones Wowhead can't give are left out. */
 export async function fetchSimItems(ids: number[], signal?: AbortSignal): Promise<SimItemInfo[]> {
   return json(`/api/sim/items?ids=${ids.join(',')}`, { signal })
 }
@@ -1880,6 +1881,7 @@ export interface SimChoices {
   maxTargets: number
   maxCombos: number
   maxCompare: number
+  maxParallel: number
   consumableKinds: string[]
   maxDrops: number
   difficulties: string[]
@@ -1893,13 +1895,15 @@ export interface SimChoices {
   gearGroups: string[]
 }
 
-/** The kinds of sim: one DPS number, the best combination of the gear carried, each drop's gain, and each
- * consumable's gain. */
-export type SimKind = 'quick' | 'topgear' | 'drops' | 'consumables'
+/** The kinds of sim: one DPS number, the best combination of the gear carried, each drop's gain, and what a point of
+ * each stat is worth. (A sim saved by an earlier version can also say 'consumables'.) */
+export type SimKind = 'quick' | 'topgear' | 'drops' | 'stats'
 
-/** The consumables a sim uses, by kind (one of SimChoices.consumableKinds); a kind left out or empty keeps simc's
- * default. */
-export type SimConsumables = Record<string, string>
+/** The consumables a sim uses: the values (simc names) picked of each kind (one of SimChoices.consumableKinds). A kind
+ * with none keeps simc's default, one value is used by the whole sim, and two or more are compared: every combination
+ * of the compared kinds' values is simmed (a Top Gear or Droptimizer sim runs each of its combinations once for
+ * each). */
+export type SimConsumables = Record<string, string[]>
 
 /** A changed copy of a Top Gear candidate: the item at `index` of the profile's equipped (`worn`) or bags, moved to
  * upgrade level `upgrade` of its track, given a socket, a gem (item ID) and an enchant (enchant ID). */
@@ -1910,12 +1914,6 @@ export interface SimVariant {
   socket?: boolean
   gem?: number
   enchant?: number
-}
-
-/** What a "consumables" sim compares: the kind and the values (simc names) it tries. */
-export interface SimCompare {
-  kind: string
-  values: string[]
 }
 
 /** A sim to start: the export is read again by the app, `equipped` and `bags` are indexes into the profile read from
@@ -1930,9 +1928,9 @@ export interface SimRequest {
   variants?: SimVariant[]
   difficulty?: string
   keyLevel?: number
+  maxUpgrade?: boolean
   consumables?: SimConsumables
   omnium?: string
-  compare?: SimCompare
 }
 
 /** A flask, food, potion, augment rune or weapon oil. */
@@ -2037,6 +2035,7 @@ export interface SimCombo {
   swaps: SimSwap[]
   source?: string
   boss?: string
+  consumable?: string
 }
 
 /** What a finished sim found: the DPS and its error, each ability, the buffs, and a Top Gear or Droptimizer's rows. */
@@ -2047,6 +2046,16 @@ export interface SimResult {
   buffs: SimBuff[]
   combos?: SimCombo[]
   options?: SimOptionRow[]
+  equipped?: SimItem[]
+  weights?: SimStatWeight[]
+  pawn?: string
+}
+
+/** What a point of one stat is worth: its weight against the main stat's (1) and the DPS a point of rating adds. */
+export interface SimStatWeight {
+  stat: string
+  weight: number
+  dps: number
 }
 
 /** One sim run: how far along it is, then its result. */
@@ -2073,6 +2082,7 @@ export interface SimEngineStatus {
   version?: string
   patch?: string
   builtMS?: number
+  updatedMS?: number
   size?: number
   installing: boolean
   stale: boolean

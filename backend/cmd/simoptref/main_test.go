@@ -68,3 +68,13 @@ func TestUpgradeTracksLeaveOutOldSeasons(t *testing.T) {
 		t.Errorf("upgradeTracks = %+v, want only track 618 with its levels in order", got)
 	}
 }
+
+func TestWowheadIcon(t *testing.T) {
+	for in, want := range map[string]string{
+		"inv_12_flask_red__": "inv_12_flask_red--", "inv_12_flask_white_": "inv_12_flask_white-",
+		"inv_12_flask_black": "inv_12_flask_black", "": ""} {
+		if got := wowheadIcon(in); got != want {
+			t.Errorf("wowheadIcon(%q) = %q, want %q", in, got, want)
+		}
+	}
+}

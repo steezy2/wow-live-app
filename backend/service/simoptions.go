@@ -11,14 +11,17 @@ import (
 )
 
 const (
-	// maxCompareValues is the most values a "consumables" sim tries, so one stays about as long as a Top Gear sim.
-	maxCompareValues = 40
+	// maxCompareValues is the most combinations of consumables and Omnium runes a sim compares, so a Quick Sim stays
+	// well within a Top Gear sim's time.
+	maxCompareValues = 1000
 	// maxPlanCombos is where a plan stops counting: a request that makes more than maxCombos is refused anyway.
 	maxPlanCombos = 1_000_000
 	// comboSeconds is how long one Top Gear combination took on a 16-thread PC at the default fight (100 took 73 s),
 	// and referenceThreads the threads that PC ran it on.
 	comboSeconds     = 0.73
 	referenceThreads = 15
+	// statsRuns is how many sims a stat weights sim costs: its own and one more for each stat it scales.
+	statsRuns = 8
 )
 
 // simOptionLines are the start of the simc line each kind of consumable sets (models.SimConsumableKinds); a weapon oil
@@ -41,49 +44,127 @@ func consumableLine(kind string, c models.SimConsumable) string {
 	return simOptionLines[kind] + c.Value + "\n"
 }
 
-// consumableLines are the lines for the consumables picked (a kind left empty keeps simc's default), or
-// ErrBadSimOptions for a kind or value the reference doesn't have.
-func consumableLines(ref models.SimReference, picked models.SimConsumables) (string, error) {
-	for kind := range picked {
-		if !slices.Contains(models.SimConsumableKinds, kind) {
-			return "", fmt.Errorf("%w: no consumable kind %q (%v)", ErrBadSimOptions, kind, models.SimConsumableKinds)
-		}
-	}
-	var b strings.Builder
-	for _, kind := range models.SimConsumableKinds {
-		value := picked[kind]
-		if value == "" {
-			continue
-		}
-		c, ok := consumableOf(ref, kind, value)
-		if !ok {
-			return "", fmt.Errorf("%w: no %s called %q", ErrBadSimOptions, kind, value)
-		}
-		b.WriteString(consumableLine(kind, c))
-	}
-	return b.String(), nil
+// kindPicks are the consumables picked of one kind.
+type kindPicks struct {
+	kind  string
+	picks []models.SimConsumable
 }
 
-// compareCombos are the profilesets of a "consumables" sim: the default (or picked) consumables with one of the
-// compared kind changed, in the order given. Each is one value, at most maxCompareValues, none twice.
-func compareCombos(ref models.SimReference, cmpr *models.SimCompare) ([]gearCombo, error) {
-	if cmpr == nil || !slices.Contains(models.SimConsumableKinds, cmpr.Kind) {
-		return nil, fmt.Errorf("%w: pick what to compare (%v)", ErrBadSimOptions, models.SimConsumableKinds)
+// consumablesPicked are the consumables picked, by kind in the app's order (a kind with none is left out), or
+// ErrBadSimOptions for a kind, or a value or a repeat of one, the reference doesn't have.
+func consumablesPicked(ref models.SimReference, picked models.SimConsumables) ([]kindPicks, error) {
+	for kind := range picked {
+		if !slices.Contains(models.SimConsumableKinds, kind) {
+			return nil, fmt.Errorf("%w: no consumable kind %q (%v)", ErrBadSimOptions, kind, models.SimConsumableKinds)
+		}
 	}
-	n := len(cmpr.Values)
-	if n == 0 || n > maxCompareValues || len(slices.Compact(slices.Sorted(slices.Values(cmpr.Values)))) != n {
-		return nil, fmt.Errorf("%w: compare 1 to %d different %s values", ErrBadSimOptions, maxCompareValues, cmpr.Kind)
+	var out []kindPicks
+	for _, kind := range models.SimConsumableKinds {
+		var picks []models.SimConsumable
+		for _, value := range picked[kind] {
+			c, ok := consumableOf(ref, kind, value)
+			if !ok || slices.ContainsFunc(picks, func(p models.SimConsumable) bool { return p.Value == value }) {
+				return nil, fmt.Errorf("%w: no %s called %q, or it is picked twice", ErrBadSimOptions, kind, value)
+			}
+			picks = append(picks, c)
+		}
+		if len(picks) > 0 {
+			out = append(out, kindPicks{kind, picks})
+		}
+	}
+	return out, nil
+}
+
+// consumableLines are the lines for the consumables a sim uses as they are: the kinds with one value picked (a kind
+// with none keeps simc's default, with several is compared: see compareCombos), or ErrBadSimOptions for a bad pick.
+func consumableLines(ref models.SimReference, picked models.SimConsumables) (string, error) {
+	all, err := consumablesPicked(ref, picked)
+	var b strings.Builder
+	for _, k := range all {
+		if len(k.picks) == 1 {
+			b.WriteString(consumableLine(k.kind, k.picks[0]))
+		}
+	}
+	return b.String(), err
+}
+
+// compareOption is one value of a thing a sim compares: the simc line that sets it, the value it stands for and its
+// name.
+type compareOption struct{ line, value, name string }
+
+// compareDim is one thing a sim compares, a consumable kind or the Omnium Folio's runes: its values, two or more.
+type compareDim []compareOption
+
+// consumableDims are the kinds of consumable with two or more values picked, each a thing to compare.
+func consumableDims(ref models.SimReference, picked models.SimConsumables) ([]compareDim, error) {
+	all, err := consumablesPicked(ref, picked)
+	var dims []compareDim
+	for _, k := range all {
+		if len(k.picks) > 1 {
+			dim := make(compareDim, len(k.picks))
+			for i, c := range k.picks {
+				dim[i] = compareOption{consumableLine(k.kind, c), c.Value, c.Name}
+			}
+			dims = append(dims, dim)
+		}
+	}
+	return dims, err
+}
+
+// compareCombos are the profilesets of a comparison: every combination of the values of dims (the last changes
+// fastest), at most maxCompareValues of them; none when nothing is compared.
+func compareCombos(dims []compareDim) ([]gearCombo, error) {
+	n := 1
+	for _, d := range dims {
+		n *= len(d)
+	}
+	if len(dims) == 0 {
+		return nil, nil
+	}
+	if n > maxCompareValues {
+		return nil, fmt.Errorf("%w: what is picked makes %d combinations, and a sim compares at most %d",
+			ErrBadSimOptions, n, maxCompareValues)
 	}
 	combos := make([]gearCombo, n)
-	for i, v := range cmpr.Values {
-		c, ok := consumableOf(ref, cmpr.Kind, v)
-		if !ok {
-			return nil, fmt.Errorf("%w: no %s called %q", ErrBadSimOptions, cmpr.Kind, v)
+	for i := range combos {
+		var line string
+		var values, names []string
+		for j, rest := len(dims)-1, i; j >= 0; j-- {
+			o := dims[j][rest%len(dims[j])]
+			rest /= len(dims[j])
+			line = o.line + line
+			values, names = append([]string{o.value}, values...), append([]string{o.name}, names...)
 		}
-		combos[i] = gearCombo{name: "option" + strconv.Itoa(i+1), line: consumableLine(cmpr.Kind, c),
-			option: &models.SimOptionRow{Value: c.Value, Name: c.Name}}
+		combos[i] = gearCombo{name: "option" + strconv.Itoa(i+1), line: line,
+			option: &models.SimOptionRow{Value: strings.Join(values, "+"), Name: strings.Join(names, " + ")}}
 	}
 	return combos, nil
+}
+
+// withCompare is a sim's combinations with dims compared: a Quick Sim's are the combinations of them alone, any other
+// sim's each gear combination run once for every one (ErrBadSimOptions when that is more than limit profilesets).
+// With nothing to compare it returns gear as it is.
+func withCompare(dims []compareDim, quick bool, gear []gearCombo, limit int) ([]gearCombo, error) {
+	values, err := compareCombos(dims)
+	if err != nil || len(values) == 0 {
+		return gear, err
+	}
+	if quick {
+		return values, nil
+	}
+	if len(gear)*len(values) > limit {
+		return nil, fmt.Errorf("%w: %d combinations with %d compared are %d sims, and this one runs at most %d",
+			ErrBadSimOptions, len(gear), len(values), len(gear)*len(values), limit)
+	}
+	out := make([]gearCombo, 0, len(gear)*len(values))
+	for _, g := range gear {
+		for _, v := range values {
+			c := g
+			c.name, c.line, c.consumable = g.name+"x"+v.name, v.line, v.option.Name
+			out = append(out, c)
+		}
+	}
+	return out, nil
 }
 
 // optionResults are the compared values' DPS, best first, with their gain over the baseline's.
@@ -101,37 +182,76 @@ func optionResults(sets []simSetJSON, baseline float64, combos []gearCombo) []mo
 }
 
 // omniumInput is the Omnium Folio's picks as the export writes them ("136822:1/136817:1"): the request's when it sends
-// them (empty for none), else the export's. A pick must be an entry of the reference's tree, at most one to a node.
-func omniumInput(ref models.SimReference, p models.SimProfile, requested *string) (string, error) {
+// them (empty for none), else the export's. A pick must be an entry of the reference's tree. A node with several
+// picks is compared: the picks used by the sim itself take its first, and the dimension has a value for every
+// combination.
+func omniumInput(ref models.SimReference, p models.SimProfile, requested *string) (string, compareDim, error) {
 	if requested == nil {
-		return p.Omnium, nil
+		return p.Omnium, nil, nil
 	}
 	if *requested == "" {
-		return "", nil
+		return "", nil, nil
 	}
-	picks := map[int]int{} // node -> entry
+	picks := map[int][]models.TalentEntry{} // node -> its picked entries
 	for pair := range strings.SplitSeq(*requested, "/") {
 		id, rank, ok := strings.Cut(pair, ":")
 		entry, err := strconv.Atoi(id)
 		if r, rankErr := strconv.Atoi(rank); err != nil || rankErr != nil || !ok || r != 1 {
-			return "", fmt.Errorf("%w: the Omnium Folio's picks are entry:1 pairs", ErrBadSimOptions)
+			return "", nil, fmt.Errorf("%w: the Omnium Folio's picks are entry:1 pairs", ErrBadSimOptions)
 		}
 		i := slices.IndexFunc(ref.Omnium, func(n models.TalentNode) bool {
 			return slices.ContainsFunc(n.Entries, func(e models.TalentEntry) bool { return e.ID == entry })
 		})
-		if i < 0 || picks[ref.Omnium[i].ID] != 0 {
-			return "", fmt.Errorf("%w: entry %d is not a rune of the Omnium Folio, or its node has another pick",
+		if i < 0 || slices.ContainsFunc(picks[ref.Omnium[i].ID], func(e models.TalentEntry) bool { return e.ID == entry }) {
+			return "", nil, fmt.Errorf("%w: entry %d is not a rune of the Omnium Folio, or is picked twice",
 				ErrBadSimOptions, entry)
 		}
-		picks[ref.Omnium[i].ID] = entry
+		node := ref.Omnium[i]
+		e := node.Entries[slices.IndexFunc(node.Entries, func(e models.TalentEntry) bool { return e.ID == entry })]
+		picks[node.ID] = append(picks[node.ID], e)
 	}
-	out := make([]string, 0, len(picks))
-	for _, n := range ref.Omnium { // in the tree's order, so one choice reads the same each time
-		if entry, ok := picks[n.ID]; ok {
-			out = append(out, strconv.Itoa(entry)+":1")
+	// One entry from each picked node, in the tree's order so a choice reads the same each time.
+	variants := [][]models.TalentEntry{nil}
+	for _, n := range ref.Omnium {
+		if entries := picks[n.ID]; len(entries) > 0 {
+			var next [][]models.TalentEntry
+			for _, v := range variants {
+				for _, e := range entries {
+					next = append(next, append(slices.Clone(v), e))
+				}
+			}
+			variants = next
 		}
 	}
-	return strings.Join(out, "/"), nil
+	text := func(v []models.TalentEntry) string {
+		ids := make([]string, len(v))
+		for i, e := range v {
+			ids[i] = strconv.Itoa(e.ID) + ":1"
+		}
+		return strings.Join(ids, "/")
+	}
+	if len(variants) == 1 {
+		return text(variants[0]), nil, nil
+	}
+	compared := map[int]bool{} // the entries of the nodes with several picks
+	for _, entries := range picks {
+		if len(entries) > 1 {
+			for _, e := range entries {
+				compared[e.ID] = true
+			}
+		}
+	}
+	dim := make(compareDim, len(variants))
+	for i, v := range variants {
+		var names []string
+		for _, e := range v {
+			if compared[e.ID] {
+				names = append(names, e.Name)
+			}
+		}
+		dim[i] = compareOption{"omnium_talents=" + text(v) + "\n", text(v), strings.Join(names, ", ")}
+	}
+	return text(variants[0]), dim, nil
 }
 
 // upgradeOf is the track an item is on and its level in it, found by the item's bonus IDs.
@@ -228,16 +348,10 @@ func variantCandidates(ref models.SimReference, p models.SimProfile,
 	return out, nil
 }
 
-// planOf is what a Top Gear request would run: the combinations it makes (counted without making them, so a request
-// over the limit says by how much), why it is refused if it is, and about how long they take on this PC with o. A
-// sim's time grows with the fight's length and the iterations, which go as 1/target error².
-func planOf(combos int, o models.SimOptions) models.SimPlan {
+// planSeconds is about how long runs sims take on this PC, for o's fight length and accuracy.
+func planSeconds(runs int, o models.SimOptions) int {
 	errorRatio := simTargetError(simDefaults, true) / simTargetError(o, true)
-	seconds := float64(combos) * comboSeconds * referenceThreads / float64(simThreads()) *
+	seconds := float64(runs) * comboSeconds * referenceThreads / float64(simThreads()) *
 		float64(o.Length) / float64(simDefaults.Length) * errorRatio * errorRatio
-	plan := models.SimPlan{Combos: combos, Seconds: int(seconds + 0.5)}
-	if err := comboRefusal(combos); err != nil {
-		plan.Error = err.Error()
-	}
-	return plan
+	return int(seconds + 0.5)
 }

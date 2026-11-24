@@ -85,21 +85,22 @@ func writeBytes(path string, data []byte) error {
 	return nil
 }
 
-// ReadAll reads every JSON file in dir as a T; a missing folder is none.
+// ReadAll reads every JSON file in dir (plain or gzipped) as a T; a missing folder is none.
 func ReadAll[T any](dir string) ([]T, error) {
 	paths, err := filepath.Glob(filepath.Join(dir, "*.json"))
+	if err == nil {
+		var zipped []string
+		zipped, err = filepath.Glob(filepath.Join(dir, "*.json.gz"))
+		paths = append(paths, zipped...)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("listing %s: %w", dir, err)
 	}
 	all := []T{}
 	for _, path := range paths {
-		data, err := os.ReadFile(path)
+		v, err := ReadJSON[T](path)
 		if err != nil {
-			return nil, fmt.Errorf("reading %s: %w", path, err)
-		}
-		var v T
-		if err := json.Unmarshal(data, &v); err != nil {
-			return nil, fmt.Errorf("reading %s: %w", path, err)
+			return nil, err
 		}
 		all = append(all, v)
 	}

@@ -140,3 +140,14 @@ func TestParseItemReadsNameIconAndQuality(t *testing.T) {
 		t.Error("an answer without an item should fail")
 	}
 }
+
+func TestParseItemReadsWhatUsingItDoes(t *testing.T) {
+	got, err := ParseItem([]byte(`{"name":"Flask","quality":1,"icon":"i","tooltip":"<table><tr><td><!--useText:0:1-->` +
+		`<span class=\"q2\">Use: <a href=\"/spell=1\" class=\"q2\">Increases your Critical Strike by <!--pts1-->165` +
+		`<!----> for 1 hour.<br /><br /><a href=\"/spell=2\">Lasts 1 hour &amp; through death.</a></a> (3 Sec ` +
+		`Cooldown)</span><!--useText:1--><br>Requires Level 81</td></tr></table>"}`))
+	want := "Use: Increases your Critical Strike by 165 for 1 hour. Lasts 1 hour & through death. (3 Sec Cooldown)"
+	if err != nil || got.Effect != want {
+		t.Errorf("effect = %q (%v), want %q", got.Effect, err, want)
+	}
+}

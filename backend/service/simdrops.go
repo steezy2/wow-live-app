@@ -24,12 +24,40 @@ func raidLevel(l models.DifficultyLevels, difficulty string) int {
 	return []int{l.LFR, l.Normal, l.Heroic, l.Mythic}[slices.Index(simDifficulties, difficulty)]
 }
 
+// Ascendant Venomstones (10 of them, used at the Catalyst) raise a fully upgraded Hero or Myth weapon, trinket or neck
+// by venomstoneLevels item levels (Myth 334 to 341, Hero 321 to 328: the owner's check in the game and Raidbots' "328
+// Venomforged"). Wowhead's item 280562 (patch 12.1.5) names the tracks and slots but not the amount. A crafted item
+// gets +6, to 337, but none drops.
+const venomstoneLevels = 7
+
+var (
+	venomstoneTracks = []string{"Hero", "Myth"}
+	venomstoneSlots  = []string{"one_hand", "two_hand", "main_hand", "off_hand", "trinket", "neck"}
+)
+
+// maxedLevel is the item level a drop of level reaches at the top rank of its upgrade track, and the track's name: the
+// track that has level at its lowest rank (the higher track of two), or level itself and no track when none has it
+// (an item past its track's top).
+func maxedLevel(tracks []models.SimUpgradeTrack, level int) (int, string) {
+	maxed, name, rank, group := level, "", 0, 0
+	for _, t := range tracks {
+		for _, l := range t.Levels {
+			if l.ItemLevel == level && (rank == 0 || l.Level < rank || l.Level == rank && t.Group > group) {
+				maxed, name, rank, group = t.Levels[len(t.Levels)-1].ItemLevel, t.Name, l.Level, t.Group
+			}
+		}
+	}
+	return maxed, name
+}
+
 // dropCombos is one combination per piece of gear the season's raid bosses (at difficulty) and dungeons (at key level
-// keyLevel) drop that the character's spec can loot, each replacing what is worn in its slot. A ring or trinket is
-// tried in both slots, except the one beside a copy of it (unique-equipped); a two-hander empties the off-hand. A
-// one-hander only ever goes in the main hand, so a dual-wielder's off-hand isn't covered, and beside a worn two-hander
-// it is simmed with an empty off-hand. Nothing to sim, or over maxDrops, is ErrBadSimOptions.
-func dropCombos(p models.SimProfile, d models.SimDrops, difficulty string, keyLevel int) ([]gearCombo, error) {
+// keyLevel) drop that the character's spec can loot, each replacing what is worn in its slot, at the top rank of its
+// upgrade track in upgrades (none keeps the level it drops at). A ring or trinket is tried in both slots, except the
+// one beside a copy of it (unique-equipped); a two-hander empties the off-hand. A one-hander only ever goes in the
+// main hand, so a dual-wielder's off-hand isn't covered, and beside a worn two-hander it is simmed with an empty
+// off-hand. Nothing to sim, or over maxDrops, is ErrBadSimOptions.
+func dropCombos(p models.SimProfile, d models.SimDrops, difficulty string, keyLevel int,
+	upgrades []models.SimUpgradeTrack) ([]gearCombo, error) {
 	spec := 0
 	for id, s := range d.Specs {
 		if s.Class == p.Class && s.Spec == p.Spec {
@@ -47,10 +75,15 @@ func dropCombos(p models.SimProfile, d models.SimDrops, difficulty string, keyLe
 	}
 
 	var combos []gearCombo
-	add := func(source models.DropSource, boss models.DropBoss, level int) {
+	add := func(source models.DropSource, boss models.DropBoss, dropped int) {
+		maxed, track := maxedLevel(upgrades, dropped)
 		for _, item := range boss.Items {
 			if len(item.Specs) > 0 && !slices.Contains(item.Specs, spec) {
 				continue
+			}
+			level := maxed
+			if slices.Contains(venomstoneTracks, track) && slices.Contains(venomstoneSlots, item.Slot) {
+				level += venomstoneLevels
 			}
 			slots, ok := dropSlots[item.Slot]
 			if !ok {

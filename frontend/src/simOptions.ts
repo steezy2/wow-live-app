@@ -19,6 +19,18 @@ export function simOptionsError(o: SimOptions, c: SimChoices): string | null {
   return null
 }
 
+/** What each kind of sim is called (a sim saved before consumables moved into each kind says "consumables"). */
+const KIND_LABELS: Record<string, string> = {
+  quick: 'Quick Sim',
+  topgear: 'Top Gear',
+  drops: 'Droptimizer',
+  stats: 'Stat Weights',
+  consumables: 'Consumables',
+}
+
+/** A kind of sim's name on the page; a kind it doesn't know shows as the app names it. */
+export const kindLabel = (kind: string) => KIND_LABELS[kind] ?? kind
+
 /** The page's names for the items' groups (SimItem.group). */
 const GROUP_LABELS: Record<string, string> = {
   shoulder: 'Shoulders',
@@ -72,31 +84,27 @@ export function upgradeTrackOf(
 export const enchantsFor = (ref: SimReference, slot: string): SimEnchant[] =>
   ref.enchants.filter((e) => e.slots.includes(slot))
 
-/** The consumables set, without the kinds left on simc's default. */
-export function pickedConsumables(c: SimConsumables): SimConsumables {
-  return Object.fromEntries(Object.entries(c).filter(([, v]) => v))
-}
+/** How many combinations the consumables picked make: the product of the values of each kind with two or more (1 when
+ * nothing is compared). */
+export const comparedCount = (c: SimConsumables): number =>
+  Object.values(c).reduce((n, values) => (values.length > 1 ? n * values.length : n), 1)
 
 /** The entry IDs of an Omnium Folio string ("136814:1/136817:1"). */
 export const omniumPicks = (text: string | undefined): number[] =>
   (text ?? '').split('/').flatMap((pair) => (/^\d+:\d+$/.test(pair) ? [Number(pair.split(':')[0])] : []))
 
-/** The picks as the export writes them, in the tree's node order, one entry to a node. */
+/** The picks as the app sends them, in the tree's node order and each node's entry order: the export's format, but a
+ * node can have several picks (they are compared). */
 export function omniumString(nodes: TalentNode[], picks: number[]): string {
   return [...nodes]
     .sort((a, b) => a.id - b.id)
-    .flatMap((n) => {
-      const entry = n.entries.find((e) => picks.includes(e.id))
-      return entry ? [`${entry.id}:1`] : []
-    })
+    .flatMap((n) => n.entries.filter((e) => picks.includes(e.id)).map((e) => `${e.id}:1`))
     .join('/')
 }
 
-/** The picks after clicking an entry: it is picked (replacing another of its node) or, when it was, unpicked. */
-export function togglePick(node: TalentNode, picks: number[], entry: number): number[] {
-  const others = picks.filter((p) => !node.entries.some((e) => e.id === p))
-  return picks.includes(entry) ? others : [...others, entry]
-}
+/** The picks after clicking an entry: it is picked as well as the others of its node, or unpicked when it was. */
+export const togglePick = (picks: number[], entry: number): number[] =>
+  picks.includes(entry) ? picks.filter((p) => p !== entry) : [...picks, entry]
 
 /** The distinct item IDs of items. */
 export const itemIDs = (items: SimItem[]): number[] => [...new Set(items.map((i) => i.id))]

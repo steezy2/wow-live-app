@@ -17,8 +17,8 @@ const FOLDER_LABELS: Record<Storage['folders'][number]['name'], string> = {
   gameLogs: "The game's combat logs",
 }
 
-/** The days the Home tab suggests for the two auto rules; shown as hints, never applied. */
-const SUGGESTED_DAYS = { archiveGameLogsDays: 30, deleteImportsDays: 90 }
+/** The days the Home tab suggests for the auto rules; shown as hints, never applied. */
+const SUGGESTED_DAYS = { archiveGameLogsDays: 30, deleteImportsDays: 90, deleteSimsDays: 30 }
 
 /** The auto rules' fields, label and key. */
 const AUTO_FIELDS: [string, keyof SettingsView['auto'], string][] = [
@@ -32,6 +32,7 @@ const AUTO_FIELDS: [string, keyof SettingsView['auto'], string][] = [
     'deleteImportsDays',
     'Importing again costs Warcraft Logs points.',
   ],
+  ['Delete saved sims this many days after they ran', 'deleteSimsDays', 'Saved sims are small, gzipped files.'],
 ]
 
 /** What the app stores: its size by folder, Read old logs, the combat log list (archive and delete) and the two auto
@@ -58,8 +59,7 @@ export function StoragePanel({ view, onSaved }: { view: SettingsView; onSaved: (
       'Reading the log folder…',
       ({ read, saved }) => `${read} logs read · ${saved} keys saved`,
     ).then(changed, () => undefined)
-  const unchanged =
-    days.archiveGameLogsDays === view.auto.archiveGameLogsDays && days.deleteImportsDays === view.auto.deleteImportsDays
+  const unchanged = AUTO_FIELDS.every(([, field]) => days[field] === view.auto[field])
   const saveAuto = (e: FormEvent) => {
     e.preventDefault()
     const call = saveSettings({ ...savedSettings(view), auto: days })

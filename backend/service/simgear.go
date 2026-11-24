@@ -11,8 +11,9 @@ import (
 )
 
 const (
-	// maxCombos is the most gear combinations a Top Gear sim runs.
-	maxCombos = 100
+	// maxCombos is the most gear combinations a Top Gear sim runs: 100 took 73 s on a 16-thread PC, so 1000 take a
+	// quarter of an hour.
+	maxCombos = 1000
 	// setTargetError is the finest target error (in % of the DPS) profilesets run at, so 100 of them stay near a minute.
 	setTargetError = 0.2
 )
@@ -27,15 +28,21 @@ type gearCandidate struct {
 }
 
 // gearCombo is one profileset a sim runs: its name and the slots it changes, for a Droptimizer's drop where it drops,
-// and for a "consumables" sim the simc line it sets (line) and the value it stands for (option).
+// and for a sim that compares consumables the simc line it sets (line), the value it stands for (option, for a Quick
+// Sim) or the name of the consumable a gear combination runs with (consumable).
 type gearCombo struct {
-	name   string
-	swaps  []models.SimSwap
-	source string
-	boss   string
-	line   string
-	option *models.SimOptionRow
+	name       string
+	swaps      []models.SimSwap
+	source     string
+	boss       string
+	line       string
+	option     *models.SimOptionRow
+	consumable string
 }
+
+// currentGear is the equipped gear as a combination, with no swaps (an empty list, not nil, which the page reads), run
+// beside the others when a Top Gear sim compares consumables.
+func currentGear() gearCombo { return gearCombo{name: "current", swaps: []models.SimSwap{}} }
 
 // gearGroups are the ways to fill each group of slots with the picked items (indexes into p's Equipped and Bags) and
 // extra candidates (a picked item's changed copies): a combination takes one way from each group. A slot with nothing
@@ -87,27 +94,33 @@ func comboCount(groups [][][]models.SimSwap, limit int) int {
 	return all - same
 }
 
-// comboRefusal is why a Top Gear sim of n combinations is refused (ErrBadSimOptions), nil when it may run.
+// comboRefusal is why a Top Gear sim of n combinations (times the consumables compared) is refused
+// (ErrBadSimOptions), nil when it may run.
 func comboRefusal(n int) error {
 	switch {
 	case n == 0:
 		return fmt.Errorf("%w: tick at least one item that isn't equipped, or add a variant", ErrBadSimOptions)
 	case n > maxCombos:
-		return fmt.Errorf("%w: the picked items make over %d gear combinations; untick some", ErrBadSimOptions,
+		return fmt.Errorf("%w: the picked items and consumables make over %d sims; untick some", ErrBadSimOptions,
 			maxCombos)
 	}
 	return nil
 }
 
 // topGearCombos is every legal combination of the picked items and extra candidates other than the equipped gear
-// (gearGroups). More than maxCombos, or none, is ErrBadSimOptions: nothing is dropped.
-func topGearCombos(p models.SimProfile, equipped, bags []int, extra []gearCandidate,
+// (gearGroups). More than maxCombos is ErrBadSimOptions, and so is none unless the sim is comparing consumables (then
+// the equipped gear alone is worth a run): nothing is dropped.
+func topGearCombos(p models.SimProfile, equipped, bags []int, extra []gearCandidate, comparing bool,
 	twoHanded func(id int) (bool, error)) ([]gearCombo, error) {
 	groups, err := gearGroups(p, equipped, bags, extra, twoHanded)
 	if err != nil {
 		return nil, err
 	}
-	if err := comboRefusal(comboCount(groups, maxCombos+1)); err != nil {
+	n := comboCount(groups, maxCombos+1)
+	if n == 0 && comparing {
+		return nil, nil
+	}
+	if err := comboRefusal(n); err != nil {
 		return nil, err
 	}
 	var combos []gearCombo
@@ -282,8 +295,10 @@ func gearSwaps(worn map[string]*models.SimItem, fills ...gearFill) []models.SimS
 func gearProfilesets(combos []gearCombo) string {
 	var b strings.Builder
 	for _, c := range combos {
-		if c.line != "" {
-			fmt.Fprintf(&b, "profileset.%s+=%s", c.name, c.line)
+		for _, line := range strings.SplitAfter(c.line, "\n") { // each of a combination's own lines is a profileset line
+			if line != "" {
+				fmt.Fprintf(&b, "profileset.%s+=%s", c.name, line)
+			}
 		}
 		for _, s := range c.swaps {
 			line := s.Slot + "=\n"
@@ -303,6 +318,25 @@ type simSetJSON struct {
 	MeanStdDev float64 `json:"mean_stddev"`
 }
 
+// slimItem is the item as a saved report keeps it, without the simc options (bonus IDs, gems) the page never reads.
+func slimItem(i *models.SimItem) *models.SimItem {
+	if i == nil {
+		return nil
+	}
+	c := *i
+	c.Opts = nil
+	return &c
+}
+
+// slimmed is swaps as a saved report keeps them: with slim items, and an empty list rather than nil for none.
+func slimmed(swaps []models.SimSwap) []models.SimSwap {
+	out := make([]models.SimSwap, len(swaps))
+	for i, s := range swaps {
+		out[i] = models.SimSwap{Slot: s.Slot, Out: slimItem(s.Out), In: slimItem(s.In)}
+	}
+	return out
+}
+
 // gearResults are the combinations simc ran, best first, with their gain over the baseline's DPS. A drop that fills
 // two slots (a ring) keeps its better row.
 func gearResults(sets []simSetJSON, baseline float64, combos []gearCombo) []models.SimCombo {
@@ -310,20 +344,20 @@ func gearResults(sets []simSetJSON, baseline float64, combos []gearCombo) []mode
 	for _, set := range sets {
 		if i := slices.IndexFunc(combos, func(c gearCombo) bool { return c.name == set.Name }); i >= 0 {
 			rows = append(rows, models.SimCombo{DPS: set.Mean, DPSError: set.MeanStdDev, Gain: set.Mean - baseline,
-				Swaps: combos[i].swaps, Source: combos[i].source, Boss: combos[i].boss})
+				Swaps: slimmed(combos[i].swaps), Source: combos[i].source, Boss: combos[i].boss, Consumable: combos[i].consumable})
 		}
 	}
 	slices.SortStableFunc(rows, func(a, b models.SimCombo) int { return cmp.Compare(b.DPS, a.DPS) })
 	type dropKey struct {
-		source, boss string
-		id           int
+		source, boss, consumable string
+		id                       int
 	}
 	seen := map[dropKey]bool{}
 	return slices.DeleteFunc(rows, func(r models.SimCombo) bool {
 		if r.Source == "" {
 			return false
 		}
-		key := dropKey{r.Source, r.Boss, r.Swaps[0].In.ID}
+		key := dropKey{r.Source, r.Boss, r.Consumable, r.Swaps[0].In.ID}
 		dup := seen[key]
 		seen[key] = true
 		return dup

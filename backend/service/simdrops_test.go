@@ -47,7 +47,7 @@ func TestDropCombosFollowTheSpecAndDifficulty(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p.Equipped[2].ID = tt.ring2
-			combos, err := dropCombos(p, testDrops(), tt.difficulty, tt.key)
+			combos, err := dropCombos(p, testDrops(), tt.difficulty, tt.key, nil)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -62,11 +62,56 @@ func TestDropCombosFollowTheSpecAndDifficulty(t *testing.T) {
 	}
 }
 
+func TestMaxedLevel(t *testing.T) {
+	track := func(group int, name string, levels ...int) models.SimUpgradeTrack {
+		t := models.SimUpgradeTrack{Group: group, Name: name}
+		for i, l := range levels {
+			t.Levels = append(t.Levels, models.SimUpgradeLevel{Level: i + 1, ItemLevel: l})
+		}
+		return t
+	}
+	tracks := []models.SimUpgradeTrack{track(615, "Veteran", 279, 282, 285, 289, 292, 295),
+		track(616, "Champion", 292, 295, 298, 302, 305, 308), track(618, "Myth", 318, 321, 324, 328, 331, 334)}
+	for level, want := range map[int]struct {
+		level int
+		track string
+	}{279: {295, "Veteran"}, 292: {308, "Champion"}, 295: {308, "Champion"}, 318: {334, "Myth"}, 334: {334, "Myth"},
+		344: {344, ""}, 100: {100, ""}} {
+		if got, track := maxedLevel(tracks, level); got != want.level || track != want.track {
+			t.Errorf("maxedLevel(%d) = %d, %q, want %d, %q", level, got, track, want.level, want.track)
+		}
+	}
+	if got, _ := maxedLevel(nil, 292); got != 292 {
+		t.Errorf("no tracks: %d, want the level kept", got)
+	}
+}
+
+func TestDropCombosUpgradeToTheTop(t *testing.T) {
+	p := gearProfile(false)
+	p.Class, p.Spec = "shaman", "elemental"
+	tracks := []models.SimUpgradeTrack{{Group: 1, Name: "Hero",
+		Levels: []models.SimUpgradeLevel{{Level: 1, ItemLevel: 120}, {Level: 2, ItemLevel: 130}}}}
+	combos, err := dropCombos(p, testDrops(), "heroic", 0, tracks)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range combos {
+		in := c.swaps[0].In
+		want := map[string]int{"Ring": 130, // the top rank
+			"Staff": 130 + venomstoneLevels, "Wand": 130 + venomstoneLevels, // a Hero weapon takes Venomstones
+			"Trinket": 90, // the dungeon's level is on no track
+		}[in.Name]
+		if in.Level != want || in.Opts["ilevel"][0] != want {
+			t.Errorf("%s: level %d, ilevel %v, want %d", in.Name, in.Level, in.Opts["ilevel"], want)
+		}
+	}
+}
+
 func TestDropCombosKeepTheWornEnchant(t *testing.T) {
 	p := gearProfile(false)
 	p.Class, p.Spec = "shaman", "elemental"
 	p.Equipped[1].Opts = map[string][]int{"enchant_id": {7}} // finger1
-	combos, err := dropCombos(p, testDrops(), "heroic", 0)
+	combos, err := dropCombos(p, testDrops(), "heroic", 0, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -81,7 +126,7 @@ func TestDropCombosKeepTheWornEnchant(t *testing.T) {
 func TestDropCombosEmptyTheOffHandForATwoHander(t *testing.T) {
 	p := gearProfile(false) // wears an off-hand
 	p.Class, p.Spec = "shaman", "elemental"
-	combos, err := dropCombos(p, testDrops(), "normal", 0)
+	combos, err := dropCombos(p, testDrops(), "normal", 0, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -114,7 +159,7 @@ func TestDropCombosRefuse(t *testing.T) {
 		"more than maxDrops":    {p, big, "heroic", 0},
 		"nothing that can drop": {p, models.SimDrops{Specs: testDrops().Specs, Keys: testDrops().Keys}, "heroic", 0},
 	} {
-		if _, err := dropCombos(tc.p, tc.d, tc.difficulty, tc.key); !errors.Is(err, ErrBadSimOptions) {
+		if _, err := dropCombos(tc.p, tc.d, tc.difficulty, tc.key, nil); !errors.Is(err, ErrBadSimOptions) {
 			t.Errorf("%s: err %v, want ErrBadSimOptions", name, err)
 		}
 	}
@@ -123,7 +168,7 @@ func TestDropCombosRefuse(t *testing.T) {
 func TestGearResultsKeepARingsBetterSlot(t *testing.T) {
 	p := gearProfile(false)
 	p.Class, p.Spec = "shaman", "elemental"
-	combos, _ := dropCombos(p, testDrops(), "heroic", 0)
+	combos, _ := dropCombos(p, testDrops(), "heroic", 0, nil)
 	sets := []simSetJSON{{Name: "drop1", Mean: 90}, {Name: "drop2", Mean: 110}, {Name: "drop3", Mean: 100}}
 	rows := gearResults(sets, 100, combos)
 	if len(rows) != 2 || rows[0].Swaps[0].Slot != "finger2" || rows[0].Gain != 10 || rows[0].Source != "Raid" ||
@@ -137,7 +182,7 @@ func TestDropCombosSkipAnOffHandBesideATwoHander(t *testing.T) {
 	d.Raids[0].Bosses[0].Items = []models.DropItem{{ID: 6, Name: "Shield", Slot: "off_hand"}}
 	p := gearProfile(true) // wears a two-hander
 	p.Class, p.Spec = "shaman", "elemental"
-	combos, err := dropCombos(p, d, "normal", 0)
+	combos, err := dropCombos(p, d, "normal", 0, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

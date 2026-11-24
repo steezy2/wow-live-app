@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 // engineServer serves a release holding body as simc.exe, with a manifest naming sum as its sha256 and version as the
@@ -74,6 +75,9 @@ func TestInstallTrustsTheManifestsVersionWithoutRunningTheFile(t *testing.T) {
 	}
 	if !got.Installed || got.Version != "1210-01" || got.Patch != "12.1.5.70783" || c.Installed().Version != "1210-01" {
 		t.Errorf("Install = %+v, installed %+v; want the manifest's version kept", got, c.Installed())
+	}
+	if updated := time.UnixMilli(c.Installed().UpdatedMS); time.Since(updated) > time.Minute {
+		t.Errorf("updated %v, want when the file was put in place, which is just now", updated)
 	}
 }
 

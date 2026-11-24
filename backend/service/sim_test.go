@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"wow-live/backend/clients/cachefile"
 	"wow-live/backend/models"
 )
 
@@ -150,17 +151,34 @@ func TestSimsStartRefuses(t *testing.T) {
 	}
 }
 
-func TestSimsRunOneAtATimeAndCancel(t *testing.T) {
+func TestSimsRunInParallelUpToTheMaxAndCancel(t *testing.T) {
 	s := newTestSims(t, "hang")
 	first, err := s.Start(simRequest(t))
 	if err != nil {
 		t.Fatal(err)
 	}
+	var others []models.Sim
+	for range maxParallelSims - 1 {
+		other, err := s.Start(simRequest(t))
+		if err != nil {
+			t.Fatalf("a sim beside the first: %v", err)
+		}
+		others = append(others, other)
+	}
 	if _, err := s.Start(simRequest(t)); !errors.Is(err, ErrSimBusy) {
-		t.Errorf("a second sim: err = %v, want ErrSimBusy", err)
+		t.Errorf("one sim too many: err = %v, want ErrSimBusy", err)
+	}
+	if list, _ := s.List(); len(list) != maxParallelSims {
+		t.Errorf("the list has %d sims, want the %d running", len(list), maxParallelSims)
 	}
 	if err := s.InstallEngine(""); !errors.Is(err, ErrSimBusy) {
 		t.Errorf("a download during a sim: err = %v, want ErrSimBusy", err)
+	}
+	for _, other := range others {
+		if err := s.Remove(other.ID); err != nil {
+			t.Fatal(err)
+		}
+		waitSim(t, s, other.ID)
 	}
 	for deadline := time.Now().Add(5 * time.Second); time.Now().Before(deadline); time.Sleep(20 * time.Millisecond) {
 		if sim, _ := s.Get(first.ID); sim.Progress == 50 {
@@ -222,20 +240,25 @@ func TestSimsRefuseIDsThatAreNotTheirs(t *testing.T) {
 	}
 }
 
-func TestSimsKeepTheLastTwenty(t *testing.T) {
+func TestSimsDeleteTheOnesOlderThanKeepDays(t *testing.T) {
 	s := newTestSims(t, "ok")
-	for i := range keepSims + 3 {
+	for i, age := range []int{1, 10, 29, 31, 60} { // days old; some saved plain, as an earlier version did
 		id := fmt.Sprintf("%016x", i+1)
-		data := fmt.Sprintf(`{"id":%q,"startedMS":%d,"state":"done"}`, id, i+1)
-		if err := os.WriteFile(filepath.Join(s.Dir, id+".json"), []byte(data), 0o644); err != nil {
+		sim := models.Sim{ID: id, State: models.SimDone, StartedMS: s.Now().AddDate(0, 0, -age).UnixMilli()}
+		name := id + ".json.gz"
+		if i%2 == 1 {
+			name = id + ".json"
+		}
+		if err := cachefile.WriteJSON(filepath.Join(s.Dir, name), sim); err != nil {
 			t.Fatal(err)
 		}
 	}
-	s.prune()
-	list, err := s.List()
-	if err != nil || len(list) != keepSims || list[0].StartedMS != keepSims+3 || list[keepSims-1].StartedMS != 4 {
-		t.Errorf("kept %d, newest %d, oldest %d, %v: want the newest %d", len(list), list[0].StartedMS,
-			list[len(list)-1].StartedMS, err, keepSims)
+	for _, c := range []struct{ days, want int }{{0, 5}, {30, 3}, {7, 1}} {
+		s.KeepDays = func() int { return c.days }
+		s.Prune()
+		if list, err := s.List(); err != nil || len(list) != c.want {
+			t.Errorf("kept %d of the sims with %d days, %v, want %d", len(list), c.days, err, c.want)
+		}
 	}
 }
 

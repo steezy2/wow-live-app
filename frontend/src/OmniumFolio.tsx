@@ -1,10 +1,11 @@
 import { iconURL, type TalentNode } from './api'
 import { omniumString, togglePick } from './simOptions'
-import { tip } from './tipAttrs'
+import { spellTip, tip } from './tipAttrs'
 
 /** The Omnium Folio's runes, a row of choices per node from the end of its path down to where it starts, each rune an
- * icon to click: the picked ones are lit, and a node with a choice takes one of its runes. picks are the entry IDs;
- * original is the export's own picks, which the page says it differs from and can go back to. */
+ * icon to click: the picked ones are lit. Two or more picked in a node are compared (every combination of the nodes
+ * with several picks is simmed). picks are the entry IDs; original is the export's own picks, which the page says it
+ * differs from and can go back to. */
 export function OmniumFolio(props: {
   nodes: TalentNode[]
   picks: number[]
@@ -20,6 +21,7 @@ export function OmniumFolio(props: {
       </h2>
       <p className="muted small">
         Pick the runes to sim with{changed ? ', not the ones in your export' : ' (they start as your export has them)'}.
+        Pick two or more of a node to compare them.
       </p>
       <div className="sim-omnium-tree">
         {[...nodes]
@@ -31,8 +33,9 @@ export function OmniumFolio(props: {
                   key={e.id}
                   className={picks.includes(e.id) ? 'sim-rune picked' : 'sim-rune'}
                   aria-pressed={picks.includes(e.id)}
-                  onClick={() => onChange(togglePick(n, picks, e.id))}
+                  onClick={() => onChange(togglePick(picks, e.id))}
                   {...tip(e.name)}
+                  {...(e.spellID ? spellTip(e.spellID) : {})}
                 >
                   <span className="sim-icon">
                     {e.icon && <img src={iconURL(e.icon)} alt="" loading="lazy" />}

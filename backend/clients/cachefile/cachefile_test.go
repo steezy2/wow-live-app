@@ -71,3 +71,20 @@ func TestReadJSONMissingWrapsNotExist(t *testing.T) {
 		t.Errorf("err = %v, want os.ErrNotExist", err)
 	}
 }
+
+func TestReadAllReadsPlainAndGzippedFiles(t *testing.T) {
+	type row struct{ N int }
+	dir := t.TempDir()
+	for name, n := range map[string]int{"a.json": 1, "b.json.gz": 2} {
+		if err := WriteJSON(filepath.Join(dir, name), row{n}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got, err := ReadAll[row](dir)
+	if err != nil || len(got) != 2 {
+		t.Fatalf("ReadAll = %v, %v, want both files", got, err)
+	}
+	if got[0].N+got[1].N != 3 {
+		t.Errorf("rows = %v, want 1 and 2", got)
+	}
+}

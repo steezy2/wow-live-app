@@ -28,10 +28,13 @@ import (
 )
 
 const (
-	// keepSims is how many finished sims are kept; the oldest go.
-	keepSims = 20
-	// simTimeout ends a sim that runs this long (a 300-drop Droptimizer takes minutes on a slow PC).
-	simTimeout = 30 * time.Minute
+	// simTimeout ends a sim that runs this long (a 1000-combination Top Gear takes a quarter of an hour on a fast PC,
+	// and several sims at once share it).
+	simTimeout = 2 * time.Hour
+	// maxParallelSims is how many sims run at once; they share the PC, so each takes longer.
+	maxParallelSims = 4
+	// keepEnded is how many sims that ended without a result to save (failed or cancelled) the page can still read.
+	keepEnded = 10
 	// engineStaleDays is how old the installed simc may be before the page warns: each patch makes an older build wrong.
 	engineStaleDays = 14
 	// maxSimIterations caps a sim whatever its accuracy asks for.
@@ -48,7 +51,7 @@ const (
 
 var (
 	// ErrSimBusy is a sim or an engine download asked for while another runs.
-	ErrSimBusy = errors.New("a sim or the engine download is already running")
+	ErrSimBusy = errors.New("the engine is downloading, or as many sims as can run at once already are")
 	// ErrNoEngine is a sim asked for before the engine was downloaded.
 	ErrNoEngine = errors.New("download the SimulationCraft engine first")
 	// ErrBadSimOptions is a sim request with a kind or options outside SimChoices.
@@ -87,7 +90,8 @@ type ItemTypes interface {
 	TwoHanded(ctx context.Context, id int) (bool, error)
 }
 
-// Sims runs sims on this PC one at a time with the downloaded SimulationCraft and keeps the last keepSims in Dir.
+// Sims runs sims on this PC, up to maxParallelSims at once, with the downloaded SimulationCraft and keeps the finished
+// ones in Dir, gzipped, until they are KeepDays old.
 type Sims struct {
 	Engine SimEngineSource
 	Items  ItemTypes
@@ -96,18 +100,20 @@ type Sims struct {
 	// use.
 	Ref models.SimReference
 	Dir string
-	Now func() time.Time
-	Ctx context.Context // the app's: canceled on Quit, which stops a running sim and download
+	// KeepDays is how many days a finished sim is kept (the owner's setting; 0, or nil, keeps them for good).
+	KeepDays func() int
+	Now      func() time.Time
+	Ctx      context.Context // the app's: canceled on Quit, which stops a running sim and download
 
-	work       sync.WaitGroup // the running sim and download, for Wait
+	work       sync.WaitGroup // the running sims and download, for Wait
 	mu         sync.Mutex
-	run        *simRun     // the sim running now
-	last       *models.Sim // the last sim that ended without a result to save (failed or cancelled), for the page's poll
+	runs       map[string]*simRun    // the sims running now, by ID
+	ended      map[string]models.Sim // the last keepEnded sims that ended without a result to save, for the page's poll
 	installing bool
 	installErr string
 }
 
-// simRun is the sim running: what the page sees of it and how to stop it.
+// simRun is a sim running: what the page sees of it and how to stop it.
 type simRun struct {
 	sim    models.Sim
 	cancel context.CancelFunc
@@ -133,6 +139,7 @@ func (s *Sims) Choices() models.SimChoices {
 	}
 	return models.SimChoices{FightStyles: simFightStyles, Accuracies: accuracies, MinLength: minSimLength,
 		MaxLength: maxSimLength, MaxTargets: maxSimTargets, MaxCombos: maxCombos, MaxCompare: maxCompareValues,
+		MaxParallel:     maxParallelSims,
 		ConsumableKinds: models.SimConsumableKinds, MaxDrops: maxDrops,
 		Difficulties: simDifficulties, KeyLevels: keyLevels, Defaults: simDefaults,
 		DefaultDifficulty: defaultDropDifficulty, DefaultKeyLevel: defaultKey, GearGroups: slices.Compact(groups),
@@ -174,7 +181,7 @@ func (s *Sims) EngineStatus() models.SimEngineStatus {
 func (s *Sims) InstallEngine(path string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.run != nil || s.installing {
+	if len(s.runs) > 0 || s.installing {
 		return ErrSimBusy
 	}
 	s.installing, s.installErr = true, ""
@@ -203,13 +210,11 @@ func (s *Sims) Wait() { s.work.Wait() }
 // without).
 func (s *Sims) Reference() models.SimReference { return s.Ref }
 
-// Plan is what a Top Gear request would run, counted without starting it, with what each variant changes; a count
-// Start would refuse says why in its Error. ErrBadSimOptions for another kind, options outside Choices, or items and
-// variants that don't fit the export.
+// Plan is what a request would run, counted without starting it, and about how long that takes: the runs besides the
+// sim's own (a Top Gear sim's gear combinations, a Droptimizer's drops, a comparison's combinations) and, for Top Gear,
+// what each variant changes. A request Start would refuse says why in the plan's Error. ErrBadSimOptions for options
+// outside Choices, a bad pick, or items and variants that don't fit the export.
 func (s *Sims) Plan(req models.SimRequest) (models.SimPlan, error) {
-	if req.Kind != "topgear" {
-		return models.SimPlan{}, fmt.Errorf("%w: only Top Gear has a plan", ErrBadSimOptions)
-	}
 	if err := validateSimOptions(req.Kind, req.Options); err != nil {
 		return models.SimPlan{}, err
 	}
@@ -217,24 +222,102 @@ func (s *Sims) Plan(req models.SimRequest) (models.SimPlan, error) {
 	if err != nil {
 		return models.SimPlan{}, err
 	}
-	extra, err := variantCandidates(s.Ref, profile, req.Variants)
+	dims, err := s.compared(req, &profile)
 	if err != nil {
 		return models.SimPlan{}, err
 	}
-	groups, err := gearGroups(profile, req.Equipped, req.Bags, extra, s.twoHanded)
+	values, err := compareCombos(dims)
 	if err != nil {
 		return models.SimPlan{}, err
 	}
-	plan := planOf(comboCount(groups, maxPlanCombos), req.Options)
+	plan := models.SimPlan{Combos: len(values)}
+	switch req.Kind {
+	case "topgear":
+		err = s.planTopGear(req, profile, len(values), &plan)
+	case "drops":
+		err = s.planDrops(req, profile, dims, &plan)
+	case "stats":
+		if len(dims) > 0 {
+			plan.Error = errStatsOneSetup.Error()
+		}
+	}
+	if err != nil {
+		return models.SimPlan{}, err
+	}
+	runs := plan.Combos + 1 // the sim's own run besides its profilesets
+	if req.Kind == "stats" {
+		runs = statsRuns
+	}
+	plan.Seconds = planSeconds(runs, req.Options)
+	return plan, nil
+}
+
+// planTopGear counts a Top Gear request's gear combinations (each once for every compared value, the equipped gear
+// too) into plan, with the notes of its variants and what Start would refuse it for.
+func (s *Sims) planTopGear(req models.SimRequest, p models.SimProfile, values int, plan *models.SimPlan) error {
+	extra, err := variantCandidates(s.Ref, p, req.Variants)
+	if err != nil {
+		return err
+	}
+	groups, err := gearGroups(p, req.Equipped, req.Bags, extra, s.twoHanded)
+	if err != nil {
+		return err
+	}
+	plan.Combos = comboCount(groups, maxPlanCombos)
+	if values > 0 {
+		plan.Combos = (plan.Combos + 1) * values
+	}
+	if err := comboRefusal(plan.Combos); err != nil {
+		plan.Error = err.Error()
+	}
 	plan.Notes = make([]string, len(extra))
 	for i, c := range extra {
 		plan.Notes[i] = c.item.Note
 	}
-	return plan, nil
+	return nil
+}
+
+// planDrops counts a Droptimizer request's drops (each once for every compared value) into plan, with what Start
+// would refuse it for.
+func (s *Sims) planDrops(req models.SimRequest, p models.SimProfile, dims []compareDim, plan *models.SimPlan) error {
+	drops, err := dropCombos(p, s.Drops, req.Difficulty, req.KeyLevel, s.upgradesFor(req))
+	if err == nil {
+		drops, err = withCompare(dims, false, drops, maxDrops)
+	}
+	if errors.Is(err, ErrBadSimOptions) {
+		plan.Error, err = err.Error(), nil
+	}
+	plan.Combos = len(drops)
+	return err
+}
+
+// upgradesFor are the upgrade tracks a Droptimizer request tops its drops up to: none unless it asks for it.
+func (s *Sims) upgradesFor(req models.SimRequest) []models.SimUpgradeTrack {
+	if req.MaxUpgrade {
+		return s.Ref.Upgrades
+	}
+	return nil
 }
 
 // twoHanded asks Items whether the item is a two-handed weapon.
 func (s *Sims) twoHanded(id int) (bool, error) { return s.Items.TwoHanded(s.Ctx, id) }
+
+// compared are the things a request compares, the consumables with several values picked and then the Omnium Folio's
+// runes, and sets p's own Omnium picks to the ones the sim itself uses. ErrBadSimOptions for a bad pick.
+func (s *Sims) compared(req models.SimRequest, p *models.SimProfile) ([]compareDim, error) {
+	dims, err := consumableDims(s.Ref, req.Consumables)
+	if err != nil {
+		return nil, err
+	}
+	var omnium compareDim
+	if p.Omnium, omnium, err = omniumInput(s.Ref, *p, req.Omnium); err != nil {
+		return nil, err
+	}
+	if omnium != nil {
+		dims = append(dims, omnium)
+	}
+	return dims, nil
+}
 
 // Start parses the export and starts the sim in the background; poll Get. Errors: ErrBadSimOptions, ErrBadSimC,
 // ErrNoEngine, ErrSimBusy.
@@ -250,20 +333,30 @@ func (s *Sims) Start(req models.SimRequest) (models.Sim, error) {
 	if err != nil {
 		return models.Sim{}, err
 	}
-	if profile.Omnium, err = omniumInput(s.Ref, profile, req.Omnium); err != nil {
+	dims, err := s.compared(req, &profile)
+	if err != nil {
 		return models.Sim{}, err
 	}
 	var combos []gearCombo
+	limit := maxCombos
 	switch req.Kind {
 	case "topgear":
 		var extra []gearCandidate
 		if extra, err = variantCandidates(s.Ref, profile, req.Variants); err == nil {
-			combos, err = topGearCombos(profile, req.Equipped, req.Bags, extra, s.twoHanded)
+			combos, err = topGearCombos(profile, req.Equipped, req.Bags, extra, len(dims) > 0, s.twoHanded)
+			if len(dims) > 0 { // the equipped gear takes each compared value too
+				combos = append([]gearCombo{currentGear()}, combos...)
+			}
 		}
 	case "drops":
-		combos, err = dropCombos(profile, s.Drops, req.Difficulty, req.KeyLevel)
-	case "consumables":
-		combos, err = compareCombos(s.Ref, req.Compare)
+		limit = maxDrops
+		combos, err = dropCombos(profile, s.Drops, req.Difficulty, req.KeyLevel, s.upgradesFor(req))
+	}
+	if err == nil && req.Kind == "stats" && len(dims) > 0 {
+		err = errStatsOneSetup
+	}
+	if err == nil {
+		combos, err = withCompare(dims, req.Kind == "quick", combos, limit)
 	}
 	if err != nil {
 		return models.Sim{}, err
@@ -273,7 +366,7 @@ func (s *Sims) Start(req models.SimRequest) (models.Sim, error) {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.run != nil || s.installing {
+	if len(s.runs) >= maxParallelSims || s.installing {
 		return models.Sim{}, ErrSimBusy
 	}
 	id, err := newSimID()
@@ -285,14 +378,18 @@ func (s *Sims) Start(req models.SimRequest) (models.Sim, error) {
 		return models.Sim{}, fmt.Errorf("making %s: %w", work, err)
 	}
 	input, output := filepath.Join(work, id+".simc"), filepath.Join(work, id+".json")
-	if err := os.WriteFile(input, []byte(SimInput(profile)+consumables+gearProfilesets(combos)), 0o644); err != nil {
+	text := SimInput(profile) + consumables + scaleLine(req.Kind) + gearProfilesets(combos)
+	if err := os.WriteFile(input, []byte(text), 0o644); err != nil {
 		return models.Sim{}, fmt.Errorf("writing %s: %w", input, err)
 	}
 	ctx, cancel := context.WithTimeout(s.Ctx, simTimeout)
 	sim := models.Sim{ID: id, Kind: req.Kind, State: models.SimRunning, Character: profile.Name, Spec: profile.Spec,
 		Options: req.Options, StartedMS: s.Now().UnixMilli()}
-	s.run, s.last = &simRun{sim: sim, cancel: cancel}, nil
-	s.work.Go(func() { s.execute(ctx, input, output, combos) })
+	if s.runs == nil {
+		s.runs = map[string]*simRun{}
+	}
+	s.runs[id] = &simRun{sim: sim, cancel: cancel}
+	s.work.Go(func() { s.execute(ctx, id, input, output, combos, profile.Equipped) })
 	return sim, nil
 }
 
@@ -319,18 +416,18 @@ func simTargetError(o models.SimOptions, profilesets bool) float64 {
 // simThreads is how many threads a sim runs on: all but one, so the PC stays usable.
 func simThreads() int { return max(1, runtime.NumCPU()-1) }
 
-// execute runs simc for the running sim, following its progress, and saves what it found.
-func (s *Sims) execute(ctx context.Context, input, output string, combos []gearCombo) {
+// execute runs simc for the running sim with this ID, following its progress, and saves what it found.
+func (s *Sims) execute(ctx context.Context, id, input, output string, combos []gearCombo, equipped []models.SimItem) {
 	defer func() {
 		os.Remove(input)
 		os.Remove(output)
 	}()
 	s.mu.Lock()
-	sim := s.run.sim
+	sim := s.runs[id].sim
 	s.mu.Unlock()
 	pr, pw := io.Pipe()
 	said := make(chan string)
-	go func() { said <- s.follow(pr) }()
+	go func() { said <- s.follow(pr, id) }()
 	runErr := s.Engine.Run(ctx, simArgs(input, output, sim.Options, len(combos) > 0), pw)
 	pw.Close()
 	complaint := <-said
@@ -342,7 +439,7 @@ func (s *Sims) execute(ctx context.Context, input, output string, combos []gearC
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	sim = s.run.sim
+	sim = s.runs[id].sim
 	sim.TookMS = s.Now().UnixMilli() - sim.StartedMS
 	switch {
 	case errors.Is(ctx.Err(), context.Canceled):
@@ -352,23 +449,48 @@ func (s *Sims) execute(ctx context.Context, input, output string, combos []gearC
 	case runErr != nil || parseErr != nil:
 		sim.State, sim.Error = models.SimFailed, cmp.Or(complaint, fmt.Sprint(cmp.Or(runErr, parseErr)))
 	default:
+		for i := range equipped {
+			result.Equipped = append(result.Equipped, *slimItem(&equipped[i]))
+		}
+		if len(result.Weights) > 0 {
+			result.Pawn = pawnString(sim.Character+"-"+sim.Spec, result.Weights)
+		}
 		sim.State, sim.Progress, sim.Result = models.SimDone, 100, result
-		if err := cachefile.WriteJSON(filepath.Join(s.Dir, sim.ID+".json"), sim); err != nil {
+		if err := cachefile.WriteJSON(filepath.Join(s.Dir, sim.ID+".json.gz"), sim); err != nil {
 			log.Printf("saving sim %s: %v", sim.ID, err)
 			sim.State, sim.Error, sim.Result = models.SimFailed, "the result couldn't be saved", nil
 		} else {
 			s.prune()
 		}
 	}
-	s.run.cancel()
-	s.run, s.last = nil, nil
+	s.runs[id].cancel()
+	delete(s.runs, id)
 	if sim.State != models.SimDone {
-		s.last = &sim
+		s.keepEnded(sim)
 	}
 }
 
-// follow reads simc's output, updating the running sim's progress, and returns the last error line it printed.
-func (s *Sims) follow(r io.Reader) string {
+// keepEnded remembers a sim that ended without a result to save, so the page can read why, and forgets the oldest ones
+// past keepEnded. The caller holds s.mu.
+func (s *Sims) keepEnded(sim models.Sim) {
+	if s.ended == nil {
+		s.ended = map[string]models.Sim{}
+	}
+	s.ended[sim.ID] = sim
+	for len(s.ended) > keepEnded {
+		oldest := ""
+		for id, e := range s.ended {
+			if oldest == "" || e.StartedMS < s.ended[oldest].StartedMS {
+				oldest = id
+			}
+		}
+		delete(s.ended, oldest)
+	}
+}
+
+// follow reads simc's output, updating the progress of the running sim with this ID, and returns the last error line
+// it printed.
+func (s *Sims) follow(r io.Reader, id string) string {
 	var complaint string
 	scan := bufio.NewScanner(r)
 	scan.Split(splitProgress)
@@ -376,8 +498,8 @@ func (s *Sims) follow(r io.Reader) string {
 		line := scan.Text()
 		if p, ok := parseSimProgress(line); ok {
 			s.mu.Lock()
-			if s.run != nil {
-				s.run.sim.Progress = p
+			if run := s.runs[id]; run != nil {
+				run.sim.Progress = p
 			}
 			s.mu.Unlock()
 		} else if strings.HasPrefix(line, "Error") {
@@ -427,7 +549,8 @@ type simJSON struct {
 					MeanStdDev float64 `json:"mean_std_dev"`
 				} `json:"dps"`
 			} `json:"collected_data"`
-			Stats []struct {
+			ScaleFactors map[string]float64 `json:"scale_factors"`
+			Stats        []struct {
 				ID        int    `json:"id"`
 				SpellName string `json:"spell_name"`
 				Name      string `json:"name"`
@@ -464,7 +587,8 @@ func readSimResult(path string, combos []gearCombo) (*models.SimResult, error) {
 		return nil, fmt.Errorf("reading simc's result: %w", cmp.Or(err, errors.New("no player in it")))
 	}
 	player := out.Sim.Players[0]
-	result := &models.SimResult{DPS: player.Collected.DPS.Mean, DPSError: player.Collected.DPS.MeanStdDev,
+	result := &models.SimResult{Weights: statWeights(player.ScaleFactors), DPS: player.Collected.DPS.Mean,
+		DPSError:  player.Collected.DPS.MeanStdDev,
 		Abilities: []models.SimAbility{}, Buffs: []models.SimBuff{}}
 	for _, st := range player.Stats {
 		if st.PortionDPS.Mean > 0 {
@@ -495,16 +619,16 @@ func readSimResult(path string, combos []gearCombo) (*models.SimResult, error) {
 	return result, nil
 }
 
-// Get is the sim with this ID: the running one with its progress, the last one that failed or was cancelled, or a
+// Get is the sim with this ID: a running one with its progress, one of the last that failed or were cancelled, or a
 // saved one; fs.ErrNotExist for any other.
 func (s *Sims) Get(id string) (models.Sim, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	switch {
-	case s.run != nil && s.run.sim.ID == id:
-		return s.run.sim, nil
-	case s.last != nil && s.last.ID == id:
-		return *s.last, nil
+	if run := s.runs[id]; run != nil {
+		return run.sim, nil
+	}
+	if sim, ok := s.ended[id]; ok {
+		return sim, nil
 	}
 	return s.read(id)
 }
@@ -514,18 +638,34 @@ func (s *Sims) read(id string) (models.Sim, error) {
 	if !simIDPattern.MatchString(id) {
 		return models.Sim{}, fs.ErrNotExist
 	}
-	data, err := os.ReadFile(filepath.Join(s.Dir, id+".json"))
-	if err != nil {
-		return models.Sim{}, fmt.Errorf("reading sim %s: %w", id, err)
+	for _, path := range s.paths(id) {
+		sim, err := cachefile.ReadJSON[models.Sim](path)
+		if !errors.Is(err, fs.ErrNotExist) {
+			return sim, err
+		}
 	}
-	var sim models.Sim
-	if err := json.Unmarshal(data, &sim); err != nil {
-		return models.Sim{}, fmt.Errorf("reading sim %s: %w", id, err)
-	}
-	return sim, nil
+	return models.Sim{}, fmt.Errorf("reading sim %s: %w", id, fs.ErrNotExist)
 }
 
-// List is the running sim, then the saved ones, newest first, without their results.
+// paths are the files a saved sim can be in: gzipped, or plain as an earlier version saved it.
+func (s *Sims) paths(id string) [2]string {
+	return [2]string{filepath.Join(s.Dir, id+".json.gz"), filepath.Join(s.Dir, id+".json")}
+}
+
+// removeSaved deletes a saved sim's file, whether it was found.
+func (s *Sims) removeSaved(id string) (bool, error) {
+	found := false
+	for _, path := range s.paths(id) {
+		err := os.Remove(path)
+		if err != nil && !errors.Is(err, fs.ErrNotExist) {
+			return found, err
+		}
+		found = found || err == nil
+	}
+	return found, nil
+}
+
+// List is the running sims, then the saved ones, newest first, without their results.
 func (s *Sims) List() ([]models.Sim, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -534,9 +674,10 @@ func (s *Sims) List() ([]models.Sim, error) {
 		return nil, err
 	}
 	list := []models.Sim{}
-	if s.run != nil {
-		list = append(list, s.run.sim)
+	for _, run := range s.runs {
+		list = append(list, run.sim)
 	}
+	slices.SortFunc(list, func(a, b models.Sim) int { return cmp.Compare(b.StartedMS, a.StartedMS) })
 	for _, sim := range saved {
 		if sim.Result != nil {
 			sim.DPS, sim.Result = sim.Result.DPS, nil
@@ -556,34 +697,54 @@ func (s *Sims) saved() ([]models.Sim, error) {
 	return sims, nil
 }
 
-// prune deletes the saved sims past keepSims, oldest first. The caller holds s.mu.
+// Prune deletes the saved sims older than KeepDays.
+func (s *Sims) Prune() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.prune()
+}
+
+// prune is Prune for a caller that holds s.mu.
 func (s *Sims) prune() {
+	if s.KeepDays == nil || s.KeepDays() <= 0 {
+		return
+	}
 	sims, err := s.saved()
 	if err != nil {
 		log.Printf("pruning sims: %v", err)
 		return
 	}
-	for _, sim := range sims[min(len(sims), keepSims):] {
-		os.Remove(filepath.Join(s.Dir, sim.ID+".json"))
+	cutoff := s.Now().Add(-time.Duration(s.KeepDays()) * 24 * time.Hour).UnixMilli()
+	for _, sim := range sims {
+		if sim.StartedMS < cutoff {
+			if _, err := s.removeSaved(sim.ID); err != nil {
+				log.Printf("deleting the old sim %s: %v", sim.ID, err)
+			}
+		}
 	}
 }
 
-// Remove stops the running sim with this ID, or deletes the saved one; fs.ErrNotExist for any other.
+// Remove stops the running sim with this ID, forgets the failed or cancelled one, or deletes the saved one;
+// fs.ErrNotExist for any other.
 func (s *Sims) Remove(id string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.run != nil && s.run.sim.ID == id {
-		s.run.cancel()
+	if run := s.runs[id]; run != nil {
+		run.cancel()
 		return nil
 	}
-	if s.last != nil && s.last.ID == id {
-		s.last = nil
+	if _, ok := s.ended[id]; ok {
+		delete(s.ended, id)
 		return nil
 	}
 	if !simIDPattern.MatchString(id) {
 		return fs.ErrNotExist
 	}
-	if err := os.Remove(filepath.Join(s.Dir, id+".json")); err != nil {
+	found, err := s.removeSaved(id)
+	if err == nil && !found {
+		err = fs.ErrNotExist
+	}
+	if err != nil {
 		return fmt.Errorf("deleting sim %s: %w", id, err)
 	}
 	return nil

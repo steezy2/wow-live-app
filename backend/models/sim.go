@@ -55,9 +55,11 @@ type SimChoices struct {
 	MaxLength   int      `json:"maxLength"`
 	MaxTargets  int      `json:"maxTargets"`
 	// MaxCombos is the most gear combinations a Top Gear sim runs; a request over it is refused.
-	MaxCombos int `json:"maxCombos" example:"100"`
-	// MaxCompare is the most values a "consumables" sim tries.
-	MaxCompare int `json:"maxCompare" example:"40"`
+	MaxCombos int `json:"maxCombos" example:"1000"`
+	// MaxCompare is the most combinations of compared consumables one sim runs.
+	MaxCompare int `json:"maxCompare" example:"1000"`
+	// MaxParallel is how many sims run at once (they share the PC); starting one more is refused.
+	MaxParallel int `json:"maxParallel" example:"4"`
 	// ConsumableKinds are the kinds of consumable a sim can be told to use, in the order the page lists them.
 	ConsumableKinds []string `json:"consumableKinds"`
 	// MaxDrops is the most drops a Droptimizer sims.
@@ -94,19 +96,22 @@ type SimRequest struct {
 	Difficulty string `json:"difficulty,omitempty" enums:"lfr,normal,heroic,mythic" example:"heroic"`
 	// KeyLevel is the Mythic+ key level a Droptimizer's dungeon drops are at, one of SimChoices.KeyLevels.
 	KeyLevel int `json:"keyLevel,omitempty" example:"10"`
-	// Consumables are what every kind of sim uses instead of simc's defaults.
+	// MaxUpgrade sims every drop of a Droptimizer fully upgraded: at the top rank of its upgrade track, and a Hero or Myth
+	// weapon, trinket or neck also with its Ascendant Venomstones.
+	MaxUpgrade bool `json:"maxUpgrade,omitempty"`
+	// Consumables are what every kind of sim uses instead of simc's defaults, and what it compares.
 	Consumables SimConsumables `json:"consumables"`
 	// Omnium is the Omnium Folio's runes (entry:rank pairs, as the export writes them): nil keeps the export's, empty
-	// is none.
+	// is none. Two or more entries of a node are compared, as consumables are.
 	Omnium *string `json:"omnium,omitempty" example:"136822:1/136817:1"`
-	// Compare is what a "consumables" sim ranks.
-	Compare *SimCompare `json:"compare,omitempty"`
 }
 
 // SimKinds are the kinds of sim: one character's DPS ("quick"), the best combination of the gear they carry
-// ("topgear"), the gain of each piece the season's raid and dungeons drop ("drops") and the gain of each of several
-// flasks, foods, potions, augment runes or weapon oils ("consumables").
-var SimKinds = []string{"quick", "topgear", "drops", "consumables"}
+// ("topgear"), the gain of each piece the season's raid and dungeons drop ("drops") and what a point of each stat is
+// worth ("stats"). Any of them but the last can compare
+// several flasks, foods, potions, augment runes or weapon oils (SimRequest.Consumables). A sim saved by an earlier
+// version can also be "consumables", a quick sim that only compared them.
+var SimKinds = []string{"quick", "topgear", "drops", "stats"}
 
 // The states a sim is in (Sim.State).
 const (
@@ -120,7 +125,7 @@ const (
 // how long it took, and, once State is "done", its Result; a failed one says why in Error. The list leaves Result out.
 type Sim struct {
 	ID        string     `json:"id" example:"9f3a1c5e7b2d4a60"`
-	Kind      string     `json:"kind" enums:"quick,topgear,drops,consumables"`
+	Kind      string     `json:"kind" enums:"quick,topgear,drops,stats,consumables"`
 	State     string     `json:"state" enums:"running,done,failed,cancelled"`
 	Character string     `json:"character" example:"Steezy"`
 	Spec      string     `json:"spec" example:"elemental"`
@@ -143,20 +148,27 @@ type SimResult struct {
 	Abilities []SimAbility `json:"abilities"`
 	Buffs     []SimBuff    `json:"buffs"`
 	Combos    []SimCombo   `json:"combos,omitempty"`
-	// Options are a "consumables" sim's values, best first.
+	// Equipped is the gear the sim started from, so a report can show the best combination in full.
+	Equipped []SimItem `json:"equipped,omitempty"`
+	// Weights and Pawn are a "stats" sim's stat weights and the Pawn string that carries them.
+	Weights []SimStatWeight `json:"weights,omitempty"`
+	Pawn    string          `json:"pawn,omitempty"`
+	// Options are the values a Quick Sim compared, best first.
 	Options []SimOptionRow `json:"options,omitempty"`
 }
 
 // SimCombo is one gear combination a Top Gear sim ran: its DPS, the standard error of that mean, its gain over the
 // equipped gear (negative for a loss) and the slots it changes. A Droptimizer row says where the item drops: its
-// Source (the raid's or dungeon's name, as "The Venomous Abyss") and Boss.
+// Source (the raid's or dungeon's name, as "The Venomous Abyss") and Boss. A sim that compares consumables runs each
+// combination once per value and names it in Consumable.
 type SimCombo struct {
-	DPS      float64   `json:"dps"`
-	DPSError float64   `json:"dpsError"`
-	Gain     float64   `json:"gain"`
-	Swaps    []SimSwap `json:"swaps"`
-	Source   string    `json:"source,omitempty"`
-	Boss     string    `json:"boss,omitempty"`
+	DPS        float64   `json:"dps"`
+	DPSError   float64   `json:"dpsError"`
+	Gain       float64   `json:"gain"`
+	Swaps      []SimSwap `json:"swaps"`
+	Source     string    `json:"source,omitempty"`
+	Boss       string    `json:"boss,omitempty"`
+	Consumable string    `json:"consumable,omitempty" example:"Flask of Tempered Aggression"`
 }
 
 // SimSwap is one slot a combination changes: the equipped item taken off (Out, none when the slot was empty) and the
@@ -179,6 +191,14 @@ type SimAbility struct {
 	PerCast float64 `json:"perCast"`
 }
 
+// SimStatWeight is what a point of one stat is worth: its Weight against the main stat's (1), and the DPS a point of
+// its rating adds.
+type SimStatWeight struct {
+	Stat   string  `json:"stat" example:"Crit"`
+	Weight float64 `json:"weight" example:"0.52"`
+	DPS    float64 `json:"dps" example:"23.17"`
+}
+
 // SimBuff is a buff and the share of the fight it was up, in percent.
 type SimBuff struct {
 	Name   string  `json:"name"`
@@ -197,13 +217,15 @@ type SimEngineStatus struct {
 
 // SimEngine is the SimulationCraft program the app installed: its file name (the nightly's, or the owner's own
 // simc.exe), the version and game patch it printed, when it was built (ms since the epoch; the owner's file's date)
-// and its size.
+// its size, and when it was last put in place (installed or updated, ms since the epoch: an update to the same build
+// moves this, not the build time).
 type SimEngine struct {
 	Installed bool   `json:"installed"`
 	File      string `json:"file,omitempty" example:"simc-1210.01.73a372b-win64.7z"`
 	Version   string `json:"version,omitempty" example:"1210-01"`
 	Patch     string `json:"patch,omitempty" example:"12.1.5.70529"`
 	BuiltMS   int64  `json:"builtMS,omitempty"`
+	UpdatedMS int64  `json:"updatedMS,omitempty"`
 	Size      int64  `json:"size,omitempty"`
 }
 
@@ -214,4 +236,6 @@ type SimItemInfo struct {
 	Name    string `json:"name" example:"Ansurek's Final Judgment"`
 	Icon    string `json:"icon" example:"inv_axe_1h_nerubianraid_d_01"`
 	Quality int    `json:"quality" example:"4"`
+	// Effect is what using the item does, as its tooltip words it ("Use: Increases your Critical Strike by 165 ...").
+	Effect string `json:"effect,omitempty"`
 }

@@ -14,28 +14,28 @@
    {
     "value": "flask_of_the_shattered_sun_2",
     "name": "Flask of the Shattered Sun (Quality 2)",
-    "icon": "inv_12_profession_alchemy_flask_sindoreipotion_red__",
+    "icon": "inv_12_profession_alchemy_flask_sindoreipotion_red--",
     "itemID": 241326,
     "quality": 2
    },
    {
     "value": "flask_of_the_shattered_sun_1",
     "name": "Flask of the Shattered Sun (Quality 1)",
-    "icon": "inv_12_profession_alchemy_flask_sindoreipotion_red__",
+    "icon": "inv_12_profession_alchemy_flask_sindoreipotion_red--",
     "itemID": 241327,
     "quality": 1
    },
    {
     "value": "flask_of_the_blood_knights_2",
     "name": "Flask of the Blood Knights (Quality 2)",
-    "icon": "inv_12_profession_alchemy_flask_sindoreipotion_white_",
+    "icon": "inv_12_profession_alchemy_flask_sindoreipotion_white-",
     "itemID": 241324,
     "quality": 2
    },
    {
     "value": "flask_of_the_blood_knights_1",
     "name": "Flask of the Blood Knights (Quality 1)",
-    "icon": "inv_12_profession_alchemy_flask_sindoreipotion_white_",
+    "icon": "inv_12_profession_alchemy_flask_sindoreipotion_white-",
     "itemID": 241325,
     "quality": 1
    },

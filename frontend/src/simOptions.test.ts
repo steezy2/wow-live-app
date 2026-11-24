@@ -1,12 +1,12 @@
 import { expect, test } from 'vitest'
 import type { SimChoices, SimItem, SimReference } from './api'
 import {
+  comparedCount,
   enchantsFor,
   gainShare,
   gearGroups,
   omniumPicks,
   omniumString,
-  pickedConsumables,
   simOptionsError,
   togglePick,
   upgradeTrackOf,
@@ -86,19 +86,22 @@ test('enchantsFor lists the enchants of a slot', () => {
   expect(enchantsFor(ref, 'head')).toEqual([])
 })
 
-test('pickedConsumables leaves out the kinds on simc default', () => {
-  expect(pickedConsumables({ flask: 'a', food: '' })).toEqual({ flask: 'a' })
+test('comparedCount multiplies the kinds with two or more values picked', () => {
+  expect(comparedCount({})).toBe(1)
+  expect(comparedCount({ flask: ['a'], food: [] })).toBe(1)
+  expect(comparedCount({ flask: ['a', 'b'], food: ['x', 'y', 'z'], potion: ['p'] })).toBe(6)
 })
 
 test('the Omnium Folio picks read from, and write to, the export format', () => {
   expect(omniumPicks('136814:1/21:1')).toEqual([136814, 21])
   expect(omniumPicks(undefined)).toEqual([])
   expect(omniumString(ref.omnium, [21, 12])).toBe('12:1/21:1')
+  expect(omniumString(ref.omnium, [12, 21, 11])).toBe('11:1/12:1/21:1')
 })
 
-test('togglePick replaces another entry of a choice node and unpicks a picked one', () => {
-  const [choice, single] = ref.omnium
-  expect(togglePick(choice, [11, 21], 12)).toEqual([21, 12])
-  expect(togglePick(choice, [11, 21], 11)).toEqual([21])
-  expect(togglePick(single, [], 21)).toEqual([21])
+test('togglePick adds an entry beside the others of its node and removes a picked one', () => {
+  expect(togglePick([11, 21], 12)).toEqual([11, 21, 12])
+  expect(togglePick([11, 21], 11)).toEqual([21])
+  expect(togglePick([], 21)).toEqual([21])
 })
+

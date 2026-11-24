@@ -2202,14 +2202,14 @@ const docTemplate = `{
         },
         "/api/sim": {
             "get": {
-                "description": "Newest first, the last 20, without their results.",
+                "description": "The running sims, then the saved ones (kept AutoSettings.deleteSimsDays days), each newest first and\nwithout their results.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "sim"
                 ],
-                "summary": "The running sim and the saved ones",
+                "summary": "The running sims and the saved ones",
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -2229,7 +2229,7 @@ const docTemplate = `{
                 }
             },
             "post": {
-                "description": "Runs SimulationCraft on this PC in the background, one at a time: the pasted export (read again,\nnever passed to simc as it is) with the options. Poll the sim by its ID. A Top Gear request also\nsends ` + "`" + `equipped` + "`" + ` and ` + "`" + `bags` + "`" + `: the indexes of the items it may put on.",
+                "description": "Runs SimulationCraft on this PC in the background, up to SimChoices.maxParallel at once: the pasted\nexport (read again, never passed to simc as it is) with the options. Poll the sim by its ID. A Top Gear\nrequest also sends ` + "`" + `equipped` + "`" + ` and ` + "`" + `bags` + "`" + `: the indexes of the items it may put on.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2242,7 +2242,7 @@ const docTemplate = `{
                 "summary": "Start a sim",
                 "parameters": [
                     {
-                        "description": "the kind, the export, the options and consumables, for topgear the picked equipped and bag indexes and variants, for drops the difficulty and keyLevel, and for consumables the compare",
+                        "description": "the kind, the export, the options and consumables, for topgear the picked equipped and bag indexes and variants, for drops the difficulty, keyLevel and maxUpgrade, and for any kind the consumables picked (two or more of a kind are compared)",
                         "name": "body",
                         "in": "body",
                         "required": true,
@@ -2265,7 +2265,7 @@ const docTemplate = `{
                         }
                     },
                     "409": {
-                        "description": "a sim or a download is running, or no engine is installed",
+                        "description": "as many sims as can run at once are running, the engine is downloading, or none is installed",
                         "schema": {
                             "$ref": "#/definitions/controller.ErrorResponse"
                         }
@@ -2421,7 +2421,7 @@ const docTemplate = `{
         },
         "/api/sim/plan": {
             "post": {
-                "description": "Counts them without starting the sim, so the page can show the cost (and that it is over the limit)\nbefore a run. Takes the same body as starting a Top Gear sim.",
+                "description": "Counts the runs without starting the sim, so the page can show the cost (and that it is over the limit)\nbefore a run. Takes the same body as starting a sim.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2431,10 +2431,10 @@ const docTemplate = `{
                 "tags": [
                     "sim"
                 ],
-                "summary": "How many gear combinations a Top Gear request would run",
+                "summary": "What a sim request would run, and about how long it takes",
                 "parameters": [
                     {
-                        "description": "a Top Gear request",
+                        "description": "a sim request of any kind",
                         "name": "body",
                         "in": "body",
                         "required": true,
@@ -2451,7 +2451,7 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "not a Top Gear request, or items and variants that don't fit the export",
+                        "description": "bad options or consumables, or items and variants that do not fit the export",
                         "schema": {
                             "$ref": "#/definitions/controller.ErrorResponse"
                         }
@@ -2548,7 +2548,7 @@ const docTemplate = `{
                 "tags": [
                     "sim"
                 ],
-                "summary": "Stop a running sim, or delete a saved one",
+                "summary": "Stop a running sim, forget one that failed or was cancelled, or delete a saved one",
                 "parameters": [
                     {
                         "type": "string",
@@ -2846,6 +2846,11 @@ const docTemplate = `{
                     "minimum": 0
                 },
                 "deleteImportsDays": {
+                    "type": "integer",
+                    "maximum": 365,
+                    "minimum": 0
+                },
+                "deleteSimsDays": {
                     "type": "integer",
                     "maximum": 365,
                     "minimum": 0
@@ -6667,6 +6672,7 @@ const docTemplate = `{
                         "quick",
                         "topgear",
                         "drops",
+                        "stats",
                         "consumables"
                     ]
                 },
@@ -6798,12 +6804,12 @@ const docTemplate = `{
                 "maxCombos": {
                     "description": "MaxCombos is the most gear combinations a Top Gear sim runs; a request over it is refused.",
                     "type": "integer",
-                    "example": 100
+                    "example": 1000
                 },
                 "maxCompare": {
-                    "description": "MaxCompare is the most values a \"consumables\" sim tries.",
+                    "description": "MaxCompare is the most combinations of compared consumables one sim runs.",
                     "type": "integer",
-                    "example": 40
+                    "example": 1000
                 },
                 "maxDrops": {
                     "description": "MaxDrops is the most drops a Droptimizer sims.",
@@ -6818,6 +6824,11 @@ const docTemplate = `{
                 "maxLength": {
                     "type": "integer"
                 },
+                "maxParallel": {
+                    "description": "MaxParallel is how many sims run at once (they share the PC); starting one more is refused.",
+                    "type": "integer",
+                    "example": 4
+                },
                 "maxTargets": {
                     "type": "integer"
                 },
@@ -6831,6 +6842,10 @@ const docTemplate = `{
             "properties": {
                 "boss": {
                     "type": "string"
+                },
+                "consumable": {
+                    "type": "string",
+                    "example": "Flask of Tempered Aggression"
                 },
                 "dps": {
                     "type": "number"
@@ -6848,21 +6863,6 @@ const docTemplate = `{
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/models.SimSwap"
-                    }
-                }
-            }
-        },
-        "models.SimCompare": {
-            "type": "object",
-            "properties": {
-                "kind": {
-                    "type": "string",
-                    "example": "flask"
-                },
-                "values": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
                     }
                 }
             }
@@ -6892,7 +6892,10 @@ const docTemplate = `{
         "models.SimConsumables": {
             "type": "object",
             "additionalProperties": {
-                "type": "string"
+                "type": "array",
+                "items": {
+                    "type": "string"
+                }
             }
         },
         "models.SimEnchant": {
@@ -6952,6 +6955,9 @@ const docTemplate = `{
                 },
                 "stale": {
                     "type": "boolean"
+                },
+                "updatedMS": {
+                    "type": "integer"
                 },
                 "version": {
                     "type": "string",
@@ -7019,6 +7025,10 @@ const docTemplate = `{
         "models.SimItemInfo": {
             "type": "object",
             "properties": {
+                "effect": {
+                    "description": "Effect is what using the item does, as its tooltip words it (\"Use: Increases your Critical Strike by 165 ...\").",
+                    "type": "string"
+                },
                 "icon": {
                     "type": "string",
                     "example": "inv_axe_1h_nerubianraid_d_01"
@@ -7230,16 +7240,8 @@ const docTemplate = `{
                         "type": "integer"
                     }
                 },
-                "compare": {
-                    "description": "Compare is what a \"consumables\" sim ranks.",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/models.SimCompare"
-                        }
-                    ]
-                },
                 "consumables": {
-                    "description": "Consumables are what every kind of sim uses instead of simc's defaults.",
+                    "description": "Consumables are what every kind of sim uses instead of simc's defaults, and what it compares.",
                     "allOf": [
                         {
                             "$ref": "#/definitions/models.SimConsumables"
@@ -7276,8 +7278,12 @@ const docTemplate = `{
                     "type": "string",
                     "example": "quick"
                 },
+                "maxUpgrade": {
+                    "description": "MaxUpgrade sims every drop of a Droptimizer fully upgraded: at the top rank of its upgrade track, and a Hero or Myth\nweapon, trinket or neck also with its Ascendant Venomstones.",
+                    "type": "boolean"
+                },
                 "omnium": {
-                    "description": "Omnium is the Omnium Folio's runes (entry:rank pairs, as the export writes them): nil keeps the export's, empty\nis none.",
+                    "description": "Omnium is the Omnium Folio's runes (entry:rank pairs, as the export writes them): nil keeps the export's, empty\nis none. Two or more entries of a node are compared, as consumables are.",
                     "type": "string",
                     "example": "136822:1/136817:1"
                 },
@@ -7320,12 +7326,46 @@ const docTemplate = `{
                 "dpsError": {
                     "type": "number"
                 },
+                "equipped": {
+                    "description": "Equipped is the gear the sim started from, so a report can show the best combination in full.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.SimItem"
+                    }
+                },
                 "options": {
-                    "description": "Options are a \"consumables\" sim's values, best first.",
+                    "description": "Options are the values a Quick Sim compared, best first.",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/models.SimOptionRow"
                     }
+                },
+                "pawn": {
+                    "type": "string"
+                },
+                "weights": {
+                    "description": "Weights and Pawn are a \"stats\" sim's stat weights and the Pawn string that carries them.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.SimStatWeight"
+                    }
+                }
+            }
+        },
+        "models.SimStatWeight": {
+            "type": "object",
+            "properties": {
+                "dps": {
+                    "type": "number",
+                    "example": 23.17
+                },
+                "stat": {
+                    "type": "string",
+                    "example": "Crit"
+                },
+                "weight": {
+                    "type": "number",
+                    "example": 0.52
                 }
             }
         },

@@ -143,7 +143,7 @@ func consumablesOf(items []rawConsumable) []models.SimConsumable {
 	out := []models.SimConsumable{}
 	for _, i := range items {
 		if i.Expansion == newest {
-			out = append(out, models.SimConsumable{Value: i.Value, Name: i.Name, Icon: i.Icon, ItemID: i.ItemID,
+			out = append(out, models.SimConsumable{Value: i.Value, Name: i.Name, Icon: wowheadIcon(i.Icon), ItemID: i.ItemID,
 				Quality: i.Quality})
 		}
 	}
@@ -216,12 +216,12 @@ func enchantsAndGems(raw []rawEnchant) ([]models.SimEnchant, []models.SimGem) {
 		switch {
 		case r.Expansion != newest || r.ItemID == 0:
 		case r.Slot == "socket":
-			gems = append(gems, models.SimGem{ID: r.ItemID, Name: r.ItemName, Stats: statsText(r), Icon: r.ItemIcon,
+			gems = append(gems, models.SimGem{ID: r.ItemID, Name: r.ItemName, Stats: statsText(r), Icon: wowheadIcon(r.ItemIcon),
 				Quality: r.Quality})
 		case r.Requirements != nil:
 			if slots := slotsOf(r.Requirements.ItemClass, r.Requirements.InvTypes); len(slots) > 0 {
 				enchants = append(enchants, models.SimEnchant{ID: r.ID, Name: r.ItemName, Stats: statsText(r),
-					Icon: r.ItemIcon, Quality: r.Quality, Slots: slots})
+					Icon: wowheadIcon(r.ItemIcon), Quality: r.Quality, Slots: slots})
 			}
 		}
 	}
@@ -282,4 +282,11 @@ func omniumNodes(raw []raidbots.Node) []models.TalentNode {
 	}
 	slices.SortFunc(nodes, func(a, b models.TalentNode) int { return a.ID - b.ID })
 	return nodes
+}
+
+// wowheadIcon is Raidbots' icon name as Wowhead's CDN has it: Raidbots writes the "-" the game's icon files end with
+// as "_" ("..._red--" is "..._red__"), which Wowhead has no file for.
+func wowheadIcon(name string) string {
+	kept := strings.TrimRight(name, "_")
+	return kept + strings.Repeat("-", len(name)-len(kept))
 }

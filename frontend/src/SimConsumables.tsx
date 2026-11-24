@@ -1,4 +1,6 @@
-import { iconURL, type SimCompare, type SimConsumables, type SimReference } from './api'
+import { iconURL, type SimConsumables, type SimReference } from './api'
+import { comparedCount } from './simOptions'
+import { itemTip, tip } from './tipAttrs'
 
 /** The page's name for each consumable kind; a kind it doesn't know shows as the app names it. */
 const CONSUMABLE_LABELS: Record<string, string> = {
@@ -10,84 +12,69 @@ const CONSUMABLE_LABELS: Record<string, string> = {
 }
 const labelOf = (kind: string) => CONSUMABLE_LABELS[kind] ?? kind
 
-/** One dropdown for each consumable kind (in the app's order), each on "Default" (what simc assumes for the spec)
- * until one is picked. */
-export function ConsumableSelects(props: {
+/** What a kind's picks mean, in words. */
+const pickText = (n: number) => (n === 0 ? 'simc default' : n === 1 ? 'used as it is' : `${n} compared`)
+
+/** The consumables card, laid out like the Omnium Folio's: a row of icons for each kind (in the app's order), each
+ * one to click. A kind with none picked keeps simc's default for the spec, one is used by the whole sim, and two or
+ * more are compared, every combination of the compared kinds (a Top Gear or Droptimizer sim runs each of its
+ * combinations once for each; the plan says when that is too many). */
+export function ConsumablesCard(props: {
   kinds: string[]
   reference: SimReference
   value: SimConsumables
   onChange: (c: SimConsumables) => void
 }) {
   const { kinds, reference, value, onChange } = props
+  const combos = comparedCount(value)
+  const picked = (kind: string) => value[kind] ?? []
+  const toggle = (kind: string, v: string) => {
+    const now = picked(kind)
+    onChange({ ...value, [kind]: now.includes(v) ? now.filter((p) => p !== v) : [...now, v] })
+  }
   return (
-    <div className="sim-consumables">
+    <section className="panel sim-consumables">
+      <h2>
+        Consumables {combos > 1 && <span className="muted small">{combos} combinations compared</span>}
+      </h2>
+      <p className="muted small">
+        Pick what to sim with: nothing keeps simc&apos;s default, one is used by the whole sim, and two or more of a
+        kind are compared. Top Gear and the Droptimizer run each of their combinations once for every one.
+      </p>
       {kinds.map((kind) => (
-        <label key={kind}>
-          {labelOf(kind)}
-          <select value={value[kind] ?? ''} onChange={(e) => onChange({ ...value, [kind]: e.target.value })}>
-            <option value="">Default</option>
+        <div key={kind} className="sim-consumable-kind">
+          <h3>
+            {labelOf(kind)} <span className="muted small">{pickText(picked(kind).length)}</span>
+          </h3>
+          <div className="sim-omnium-node">
+            <button
+              className={picked(kind).length === 0 ? 'sim-rune picked' : 'sim-rune'}
+              aria-pressed={picked(kind).length === 0}
+              onClick={() => onChange({ ...value, [kind]: [] })}
+              {...tip('What SimulationCraft assumes for your spec; pick nothing unless you want to try something else')}
+            >
+              <span className="small">SimC default</span>
+            </button>
             {reference.consumables[kind].map((c) => (
-              <option key={c.value} value={c.value}>
-                {c.name}
-              </option>
+              <button
+                key={c.value}
+                className={picked(kind).includes(c.value) ? 'sim-rune picked' : 'sim-rune'}
+                aria-pressed={picked(kind).includes(c.value)}
+                onClick={() => toggle(kind, c.value)}
+                {...itemTip(c.itemID, c.name)}
+              >
+                <span className="sim-icon">{c.icon && <img src={iconURL(c.icon)} alt="" loading="lazy" />}</span>
+                <span className="small">{c.name}</span>
+              </button>
             ))}
-          </select>
-        </label>
+          </div>
+        </div>
       ))}
-    </div>
-  )
-}
-
-/** The compare mode: pick a consumable kind and tick the values to sim against each other (and against the
- * baseline, which is the sim's own consumables). */
-export function ConsumableCompare(props: {
-  kinds: string[]
-  reference: SimReference
-  compare: SimCompare
-  max: number
-  onChange: (c: SimCompare) => void
-}) {
-  const { kinds, reference, compare, max, onChange } = props
-  const values = reference.consumables[compare.kind]
-  return (
-    <div className="sim-compare">
-      <label>
-        Compare
-        <select value={compare.kind} onChange={(e) => onChange({ kind: e.target.value, values: [] })}>
-          {kinds.map((k) => (
-            <option key={k} value={k}>
-              {labelOf(k)}s
-            </option>
-          ))}
-        </select>
-      </label>
-      <div className="actions">
-        <button onClick={() => onChange({ ...compare, values: values.slice(0, max).map((c) => c.value) })}>All</button>
-        <button onClick={() => onChange({ ...compare, values: [] })}>None</button>
-        <span className="muted small">{compare.values.length} ticked</span>
-      </div>
-      <ul className="sim-compare-list">
-        {values.map((c) => (
-          <li key={c.value}>
-            <label className="inline">
-              <input
-                type="checkbox"
-                checked={compare.values.includes(c.value)}
-                onChange={(e) =>
-                  onChange({
-                    ...compare,
-                    values: e.target.checked
-                      ? [...compare.values, c.value]
-                      : compare.values.filter((v) => v !== c.value),
-                  })
-                }
-              />
-              <span className="sim-icon">{c.icon && <img src={iconURL(c.icon)} alt="" loading="lazy" />}</span>
-              {c.name}
-            </label>
-          </li>
-        ))}
-      </ul>
-    </div>
+      {kinds.some((k) => picked(k).length > 0) && (
+        <div className="actions">
+          <button onClick={() => onChange({})}>Back to simc&apos;s defaults</button>
+        </div>
+      )}
+    </section>
   )
 }

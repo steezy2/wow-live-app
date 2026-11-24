@@ -1,12 +1,15 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import { fetchSpell } from './api'
+import { fetchSimItems, fetchSpell } from './api'
 
 /** An element this close to the window's top gets its box below it. */
 const NEAR_TOP = 90
 
 /** Half the widest a hover box is (index.css's .tip), so a box centered this far in is inside the window. */
 const TIP_HALF = 140
+
+/** The elements that get a hover box: the ones with a tip's, a spell's or an item's attributes. */
+const TIPPED = '[data-tip],[data-spell],[data-spell-id],[data-item-id]'
 
 /** The hover box: above (x, y) in the window (below it with below), its head in small text over its content. It
  * never takes the mouse. */
@@ -22,9 +25,9 @@ export function TipBox(props: { x: number; y: number; head?: string; below?: boo
   )
 }
 
-/** Shows a TipBox over whatever element under the mouse has `tip` or `spellTip` attributes, as soon as the mouse is
- * on it, so the whole app has one hover style. A spell's box says what the ability does once the backend has it, and
- * falls back to the element's own tip text. Mounted once. */
+/** Shows a TipBox over whatever element under the mouse has `tip`, `spellTip` or `itemTip` attributes, as soon as the
+ * mouse is on it, so the whole app has one hover style. A spell's box says what the ability does once the backend has
+ * it, an item's what using it does, and both fall back to the element's own tip text. Mounted once. */
 export function TipHost() {
   const [shown, setShown] = useState<{
     x: number
@@ -36,7 +39,7 @@ export function TipHost() {
   useEffect(() => {
     let current: Element | null = null // the element the box is for, so a late spell answer can't land on another
     const over = (e: MouseEvent) => {
-      const el = (e.target as Element | null)?.closest?.('[data-tip],[data-spell],[data-spell-id]') ?? null
+      const el = (e.target as Element | null)?.closest?.(TIPPED) ?? null
       if (el === current) return
       current = el
       if (!el) return setShown(null)
@@ -48,7 +51,14 @@ export function TipHost() {
       const note = el.getAttribute('data-tip-note') ?? ''
       const spell = el.getAttribute('data-spell')
       const id = Number(el.getAttribute('data-spell-id'))
+      const item = Number(el.getAttribute('data-item-id'))
       setShown({ x, y, below, text: text || note || spell || '', head: el.getAttribute('data-tip-head') ?? undefined })
+      if (item) {
+        void fetchSimItems([item]).then(([info]) => {
+          if (info?.effect && current === el) setShown({ x, y, below, head: info.name, text: info.effect })
+        }, () => undefined) // the box keeps the element's own text
+        return
+      }
       if (!spell && !id) return
       void fetchSpell(id || spell || '').then((info) => {
         if (info && current === el) {
