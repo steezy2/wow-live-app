@@ -7363,6 +7363,11 @@
                         }
                     ]
                 },
+                "custom": {
+                    "description": "Custom is extra simc lines (an action list, a few options) every kind of sim adds after the character; only an\nallowlist of them is accepted (service customLines), the rest is ErrBadSimOptions.",
+                    "type": "string",
+                    "example": "override.bloodlust=0"
+                },
                 "difficulty": {
                     "description": "Difficulty is the raid difficulty a Droptimizer's drops are at, one of SimChoices.Difficulties.",
                     "type": "string",
