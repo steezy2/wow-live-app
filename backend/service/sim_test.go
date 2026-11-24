@@ -455,13 +455,20 @@ func TestScenariosAreValidFightsAndRaidBuffsCanBeLeftOut(t *testing.T) {
 			t.Errorf("scenario %q: %v", sc.Name, err)
 		}
 	}
-	plain := models.SimOptions{FightStyle: "Patchwerk", Length: 300, Targets: 1}
-	args := strings.Join(simArgs("in", "out", plain, 1, false), " ")
-	if strings.Contains(args, "optimal_raid") {
-		t.Errorf("args %q: raid buffs are simc's default", args)
+}
+
+func TestRaidBuffsOffComeBeforeTheCustomLines(t *testing.T) {
+	s := newTestSims(t, "ok")
+	req := simRequest(t)
+	req.Options.NoRaidBuffs, req.Custom = true, "override.bloodlust=1"
+	started, err := s.Start(req)
+	if err != nil {
+		t.Fatal(err)
 	}
-	args = strings.Join(simArgs("in", "out", models.SimOptions{NoRaidBuffs: true}, 1, false), " ")
-	if !strings.Contains(args, "optimal_raid=0") {
-		t.Errorf("args %q: want optimal_raid=0 for no raid buffs", args)
+	waitSim(t, s, started.ID)
+	input := s.Engine.(*fakeEngine).input
+	off, custom := strings.Index(input, "optimal_raid=0"), strings.Index(input, "override.bloodlust=1")
+	if off < 0 || custom < off {
+		t.Errorf("optimal_raid=0 at %d, the custom line at %d: want it first so the override isn't reset", off, custom)
 	}
 }

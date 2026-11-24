@@ -416,7 +416,11 @@ func (s *Sims) Start(req models.SimRequest) (models.Sim, error) {
 		return models.Sim{}, fmt.Errorf("making %s: %w", work, err)
 	}
 	input, output := filepath.Join(work, id+".simc"), filepath.Join(work, id+".json")
-	head := SimInput(profile) + customInput(custom) + consumables + scaleLine(req.Kind)
+	head := SimInput(profile)
+	if req.Options.NoRaidBuffs { // before the custom lines, so their override.* settings aren't reset by it
+		head += "optimal_raid=0\n"
+	}
+	head += customInput(custom) + consumables + scaleLine(req.Kind)
 	ctx, cancel := context.WithTimeout(s.Ctx, simTimeout)
 	sim := models.Sim{ID: id, Kind: req.Kind, State: models.SimRunning, Character: profile.Name, Class: profile.Class,
 		Spec: profile.Spec, Options: req.Options, StartedMS: s.Now().UnixMilli()}
@@ -438,9 +442,6 @@ func simArgs(input, output string, o models.SimOptions, targetError float64, pro
 		"iterations=" + strconv.Itoa(maxSimIterations), "threads=" + strconv.Itoa(simThreads())}
 	if profilesets {
 		args = append(args, "profileset_work_threads="+strconv.Itoa(min(profilesetThreads, max(1, simThreads()/2))))
-	}
-	if o.NoRaidBuffs {
-		args = append(args, "optimal_raid=0")
 	}
 	return append(args, "json2="+output)
 }
