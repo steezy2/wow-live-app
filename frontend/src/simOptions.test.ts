@@ -5,7 +5,6 @@ import {
   enchantsFor,
   gainShare,
   gearGroups,
-  omniumCompared,
   omniumPicks,
   omniumString,
   simOptionsError,
@@ -98,11 +97,6 @@ test('the Omnium Folio picks read from, and write to, the export format', () => 
   expect(omniumPicks(undefined)).toEqual([])
   expect(omniumString(ref.omnium, [21, 12])).toBe('12:1/21:1')
   expect(omniumString(ref.omnium, [12, 21, 11])).toBe('11:1/12:1/21:1')
-})
-
-test('omniumCompared multiplies the picks of the nodes with two or more', () => {
-  expect(omniumCompared(ref.omnium, [11, 21])).toBe(1)
-  expect(omniumCompared(ref.omnium, [11, 12, 21])).toBe(2)
 })
 
 test('togglePick adds an entry beside the others of its node and removes a picked one', () => {

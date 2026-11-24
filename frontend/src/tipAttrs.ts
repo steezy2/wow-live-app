@@ -7,7 +7,7 @@ export function tip(text?: string, head?: string) {
 /** The attribute that makes an element's hover box say what using an item does (a flask, a potion), by item ID, with
  * text to show until Wowhead's answer comes. */
 export function itemTip(item: number, text?: string) {
-  return item ? { 'data-item-id': String(item), 'data-tip': text } : tip(text)
+  return item ? { ...tip(text), 'data-item-id': String(item) } : tip(text)
 }
 
 /** The attribute that makes an element's hover box say what an ability does (and its cooldown), by the name the combat
