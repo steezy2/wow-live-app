@@ -2565,6 +2565,63 @@ table.compare td:first-child {
   text-align: left;
 }
 
+.sim-saved-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--s2);
+}
+
+.sim-saved-list li {
+  display: flex;
+  align-items: stretch;
+  gap: var(--s2);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--class);
+  border-radius: 6px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--class) 14%, var(--panel-2)), var(--panel-2) 45%);
+}
+
+.sim-saved-open {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) 110px minmax(0, 1fr);
+  align-items: center;
+  gap: var(--s3);
+  padding: var(--s3) var(--s4);
+  background: none;
+  border: 0;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+}
+
+.sim-saved-who {
+  display: grid;
+}
+
+.sim-saved-who strong {
+  color: var(--class);
+  font-size: var(--t-h2);
+}
+
+.sim-saved-dps {
+  font-weight: 600;
+  text-align: right;
+}
+
+.sim-saved-list li:hover {
+  border-color: var(--class);
+}
+
+@media (max-width: 900px) {
+  .sim-saved-open {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+}
+
 @media (max-width: 900px) {
   .sim-layout {
     grid-template-columns: minmax(0, 1fr);

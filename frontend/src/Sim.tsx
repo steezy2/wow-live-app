@@ -21,13 +21,14 @@ import {
   type SimRequest,
   type SimVariant,
 } from './api'
-import { amount, errorText, sizeText } from './format'
+import { errorText, sizeText } from './format'
 import { OmniumFolio } from './OmniumFolio'
 import { ConsumablesCard } from './SimConsumables'
 import { SimGear, SimHeader } from './SimGear'
 import { useItemInfo } from './simItems'
 import { usePlan } from './simPlan'
 import { SimResult } from './SimResult'
+import { SavedSims } from './SimSaved'
 import { kindLabel, omniumPicks, omniumString, simOptionsError } from './simOptions'
 import { Skeleton } from './Skeleton'
 import { tip } from './tipAttrs'
@@ -171,7 +172,6 @@ function OptionsPanel(props: {
   optionsError: string | null
   upgrade: string
   setUpgrade: (u: string) => void
-  ranks: number // the most ranks an upgrade track has
   plan: { plan: SimPlan | null; error: string | null } | null
   why: string | null
   canRun: boolean
@@ -239,7 +239,7 @@ function OptionsPanel(props: {
               <option value="">As dropped</option>
               <option value="max">Fully, with Ascendant Venomstones</option>
               <option value="match">To the rank of the gear you wear</option>
-              {Array.from({ length: props.ranks }, (_, i) => (
+              {Array.from({ length: choices.upgradeRanks }, (_, i) => (
                 <option key={i} value={String(i + 1)}>
                   To rank {i + 1}
                 </option>
@@ -539,7 +539,6 @@ export function SimPage() {
               optionsError={optionsError}
               upgrade={upgrade}
               setUpgrade={setUpgrade}
-              ranks={Math.max(0, ...reference.upgrades.map((t) => t.levels.length))}
               plan={planRequest ? plan : null}
               why={why}
               canRun={!why && !planBlocks}
@@ -568,29 +567,16 @@ export function SimPage() {
       {saved.length > 0 && (
         <section className="panel">
           <h2>Saved sims</h2>
-          <ul className="sim-saved">
-            {saved.map((s) => (
-              <li key={s.id}>
-                <button className="link" onClick={() => act(async () => setSim(await fetchSim(s.id)))}>
-                  <strong>{s.character}</strong> · {s.spec} · {kindLabel(s.kind)}
-                  {s.dps ? ` · ${amount(s.dps)} DPS` : ''}
-                </button>
-                <span className="muted small">{new Date(s.startedMS).toLocaleString()}</span>
-                <button
-                  className="delete"
-                  aria-label="Delete"
-                  onClick={() =>
-                    act(async () => {
-                      await removeSim(s.id)
-                      await readSaved()
-                    })
-                  }
-                >
-                  ×
-                </button>
-              </li>
-            ))}
-          </ul>
+          <SavedSims
+            sims={saved}
+            onOpen={(id) => act(async () => setSim(await fetchSim(id)))}
+            onDelete={(id) =>
+              act(async () => {
+                await removeSim(id)
+                await readSaved()
+              })
+            }
+          />
         </section>
       )}
     </main>

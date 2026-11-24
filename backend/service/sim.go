@@ -139,7 +139,7 @@ func (s *Sims) Choices() models.SimChoices {
 	}
 	return models.SimChoices{FightStyles: simFightStyles, Accuracies: accuracies, MinLength: minSimLength,
 		MaxLength: maxSimLength, MaxTargets: maxSimTargets, MaxCombos: maxCombos, MaxCompare: maxCompareValues,
-		MaxParallel:     maxParallelSims,
+		MaxParallel: maxParallelSims, UpgradeRanks: upgradeRanks,
 		ConsumableKinds: models.SimConsumableKinds, MaxDrops: maxDrops,
 		Difficulties: simDifficulties, KeyLevels: keyLevels, Defaults: simDefaults,
 		DefaultDifficulty: defaultDropDifficulty, DefaultKeyLevel: defaultKey, GearGroups: slices.Compact(groups),
@@ -308,8 +308,9 @@ func (s *Sims) dropUpgrade(req models.SimRequest) (dropUpgrade, error) {
 		return dropUpgrade{Tracks: s.Ref.Upgrades, Match: true}, nil
 	}
 	rank, err := strconv.Atoi(req.Upgrade)
-	if err != nil || rank < 1 {
-		return dropUpgrade{}, fmt.Errorf("%w: upgrade is \"max\", \"match\" or a rank from 1", ErrBadSimOptions)
+	if err != nil || rank < 1 || rank > upgradeRanks {
+		return dropUpgrade{}, fmt.Errorf("%w: upgrade is \"max\", \"match\" or a rank from 1 to %d", ErrBadSimOptions,
+			upgradeRanks)
 	}
 	return dropUpgrade{Tracks: s.Ref.Upgrades, Rank: rank}, nil
 }
@@ -398,8 +399,8 @@ func (s *Sims) Start(req models.SimRequest) (models.Sim, error) {
 	input, output := filepath.Join(work, id+".simc"), filepath.Join(work, id+".json")
 	head := SimInput(profile) + consumables + scaleLine(req.Kind)
 	ctx, cancel := context.WithTimeout(s.Ctx, simTimeout)
-	sim := models.Sim{ID: id, Kind: req.Kind, State: models.SimRunning, Character: profile.Name, Spec: profile.Spec,
-		Options: req.Options, StartedMS: s.Now().UnixMilli()}
+	sim := models.Sim{ID: id, Kind: req.Kind, State: models.SimRunning, Character: profile.Name, Class: profile.Class,
+		Spec: profile.Spec, Options: req.Options, StartedMS: s.Now().UnixMilli()}
 	if s.runs == nil {
 		s.runs = map[string]*simRun{}
 	}

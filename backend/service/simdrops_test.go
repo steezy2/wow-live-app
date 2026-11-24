@@ -98,6 +98,13 @@ func TestTrackOfAndRankLevel(t *testing.T) {
 	if got := rankLevel(tracks[2], 9); got != 334 {
 		t.Errorf("a rank past the top = %d, want the top 334", got)
 	}
+	eight := models.SimUpgradeTrack{Name: "Myth"}
+	for i := range 8 {
+		eight.Levels = append(eight.Levels, models.SimUpgradeLevel{Level: i + 1, ItemLevel: 400 + i})
+	}
+	if got := rankLevel(eight, 0); got != 405 {
+		t.Errorf("the top of an eight-rank track = %d, want rank 6 (405)", got)
+	}
 }
 
 func TestDropCombosUpgrade(t *testing.T) {

@@ -58,6 +58,9 @@ type SimChoices struct {
 	MaxCombos int `json:"maxCombos" example:"1000"`
 	// MaxCompare is the most combinations of compared consumables one sim runs.
 	MaxCompare int `json:"maxCompare" example:"1000"`
+	// UpgradeRanks is how many ranks of an upgrade track a Droptimizer can upgrade drops to (the ranks past it are
+	// Mythic raid only).
+	UpgradeRanks int `json:"upgradeRanks" example:"6"`
 	// MaxParallel is how many sims run at once (they share the PC); starting one more is refused.
 	MaxParallel int `json:"maxParallel" example:"4"`
 	// ConsumableKinds are the kinds of consumable a sim can be told to use, in the order the page lists them.
@@ -129,6 +132,7 @@ type Sim struct {
 	Kind      string     `json:"kind" enums:"quick,topgear,drops,stats,consumables"`
 	State     string     `json:"state" enums:"running,done,failed,cancelled"`
 	Character string     `json:"character" example:"Steezy"`
+	Class     string     `json:"class,omitempty" example:"mage"`
 	Spec      string     `json:"spec" example:"elemental"`
 	Options   SimOptions `json:"options"`
 	Progress  int        `json:"progress"`

@@ -2773,6 +2773,9 @@ definitions:
       character:
         example: Steezy
         type: string
+      class:
+        example: mage
+        type: string
       dps:
         description: DPS is the result's DPS, kept when the list leaves Result out.
         type: number
@@ -2912,6 +2915,12 @@ definitions:
       maxTargets:
         type: integer
       minLength:
+        type: integer
+      upgradeRanks:
+        description: |-
+          UpgradeRanks is how many ranks of an upgrade track a Droptimizer can upgrade drops to (the ranks past it are
+          Mythic raid only).
+        example: 6
         type: integer
     type: object
   models.SimCombo:

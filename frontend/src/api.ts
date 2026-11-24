@@ -1882,6 +1882,8 @@ export interface SimChoices {
   maxCombos: number
   maxCompare: number
   maxParallel: number
+  /** How many ranks of a track a Droptimizer can upgrade to (the rest are Mythic raid only). */
+  upgradeRanks: number
   consumableKinds: string[]
   maxDrops: number
   difficulties: string[]
@@ -2072,6 +2074,7 @@ export interface Sim {
   kind: SimKind
   state: 'running' | 'done' | 'failed' | 'cancelled'
   character: string
+  class?: string
   spec: string
   options: SimOptions
   progress: number

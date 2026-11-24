@@ -6655,6 +6655,10 @@ const docTemplate = `{
                     "type": "string",
                     "example": "Steezy"
                 },
+                "class": {
+                    "type": "string",
+                    "example": "mage"
+                },
                 "dps": {
                     "description": "DPS is the result's DPS, kept when the list leaves Result out.",
                     "type": "number"
@@ -6838,6 +6842,11 @@ const docTemplate = `{
                 },
                 "minLength": {
                     "type": "integer"
+                },
+                "upgradeRanks": {
+                    "description": "UpgradeRanks is how many ranks of an upgrade track a Droptimizer can upgrade drops to (the ranks past it are\nMythic raid only).",
+                    "type": "integer",
+                    "example": 6
                 }
             }
         },

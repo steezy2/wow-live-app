@@ -14,3 +14,15 @@ export const classColors: Record<string, string> = {
   Warlock: '#8788EE',
   Warrior: '#C69B6D',
 }
+
+const byLower = Object.fromEntries(Object.keys(classColors).map((k) => [k.toLowerCase(), k]))
+
+/** A simc class ("mage", "deathknight") as the game names it ("Mage", "Death Knight"); "" when unknown. */
+export function simClassName(simClass?: string): string {
+  return byLower[simClass?.toLowerCase() ?? '']?.replace(/([a-z])([A-Z])/g, '$1 $2') ?? ''
+}
+
+/** A simc class's colour, or undefined when unknown. */
+export function simClassColor(simClass?: string): string | undefined {
+  return classColors[byLower[simClass?.toLowerCase() ?? '']]
+}

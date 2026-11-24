@@ -50,10 +50,14 @@ func trackOf(tracks []models.SimUpgradeTrack, level int) *models.SimUpgradeTrack
 	return found
 }
 
-// rankLevel is the item level at rank (from 1) of t: its top rank when rank is 0 or past it.
+// upgradeRanks is how far a Droptimizer upgrades a drop: the ranks past it of an eight-rank track are Mythic raid only.
+const upgradeRanks = 6
+
+// rankLevel is the item level at rank (from 1) of t: its top rank (upgradeRanks at most) when rank is 0 or past it.
 func rankLevel(t models.SimUpgradeTrack, rank int) int {
-	if rank <= 0 || rank > len(t.Levels) {
-		rank = len(t.Levels)
+	top := min(len(t.Levels), upgradeRanks)
+	if rank <= 0 || rank > top {
+		rank = top
 	}
 	return t.Levels[rank-1].ItemLevel
 }
