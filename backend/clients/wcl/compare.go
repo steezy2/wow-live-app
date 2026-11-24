@@ -170,13 +170,13 @@ func (c *Client) RunPlayer(ctx context.Context, code string, fightID int, name, 
 		deaths: table(dataType: Deaths, targetID: $a, ` + args + `) } } }`
 	file := fmt.Sprintf("player-%s-%d-%d-%d.json", code, fightID, actor, to-from)
 	vars := map[string]any{"r": code, "f": fightID, "a": actor, "from": from, "to": to}
-	// The tables, the enemies' hits and the talents are three queries that don't need each other: ask them together.
+	// The tables, the enemies' hits and the build are three queries that don't need each other: ask them together.
 	var (
-		wg        sync.WaitGroup
-		taken     int64
-		takenErr  error
-		talents   []models.TalentPick
-		talentErr error
+		wg       sync.WaitGroup
+		taken    int64
+		takenErr error
+		built    build
+		buildErr error
 	)
 	wg.Add(2)
 	go func() {
@@ -185,19 +185,19 @@ func (c *Client) RunPlayer(ctx context.Context, code string, fightID int, name, 
 	}()
 	go func() {
 		defer wg.Done()
-		talents, talentErr = c.playerTalents(ctx, code, fightID, actor, from, to)
+		built, buildErr = c.playerBuild(ctx, code, fightID, actor, from, to)
 	}()
 	tablesErr := c.cachedQuery(ctx, file, 0, gql, vars, &data)
 	wg.Wait()
 	if err := errors.Join(tablesErr, takenErr); err != nil {
 		return models.RankedPlayer{}, err
 	}
-	if talentErr != nil {
-		log.Printf("reading the talents of %s in %s#%d: %v", name, code, fightID, talentErr)
+	if buildErr != nil {
+		log.Printf("reading the build of %s in %s#%d: %v", name, code, fightID, buildErr)
 	}
 	player := rankedPlayer(data.ReportData.Report, to-from)
 	player.Taken += taken
-	player.Talents = talents
+	player.Talents, player.Gear, player.Stats = built.talents, built.gear, built.stats
 	return player, nil
 }
 
@@ -226,10 +226,20 @@ func (c *Client) takenFromEnemies(ctx context.Context, code string, fightID, act
 	return 0, nil
 }
 
-// playerTalents is the talents a player took in a report fight, from the fight's combatantinfo events (the game
-// writes them as the fight starts). One cheap query a fight, kept for good.
-func (c *Client) playerTalents(ctx context.Context, code string, fightID, actor int, from, to int64) (
-	[]models.TalentPick, error) {
+// build is what a player brought to a fight, from its combatantinfo event: talents, worn gear and secondary stats.
+type build struct {
+	talents []models.TalentPick
+	gear    []models.RankedGear
+	stats   *models.RankedStats
+}
+
+// gearSlots are simc's slot names by the position of an item in combatantinfo's gear list.
+var gearSlots = []string{"head", "neck", "shoulder", "shirt", "chest", "waist", "legs", "feet", "wrist", "hands",
+	"finger1", "finger2", "trinket1", "trinket2", "back", "main_hand", "off_hand", "tabard"}
+
+// playerBuild is what a player brought to a report fight, from the fight's combatantinfo events (the game writes them
+// as the fight starts). One cheap query a fight, kept for good (the file's name is from when it held only talents).
+func (c *Client) playerBuild(ctx context.Context, code string, fightID, actor int, from, to int64) (build, error) {
 	var data struct {
 		ReportData struct {
 			Report struct {
@@ -241,28 +251,41 @@ func (c *Client) playerTalents(ctx context.Context, code string, fightID, actor 
 		events(dataType: CombatantInfo, fightIDs: [$f], startTime: $from, endTime: $to, limit: 100) { data } } } }`
 	if err := c.cachedQuery(ctx, fmt.Sprintf("talents-%s-%d.json", code, fightID), 0, gql,
 		map[string]any{"r": code, "f": fightID, "from": from, "to": to}, &data); err != nil {
-		return nil, err
+		return build{}, err
 	}
 	var events []event
 	if err := json.Unmarshal(data.ReportData.Report.Events.Data, &events); err != nil {
-		return nil, fmt.Errorf("reading combatant events: %w", err)
+		return build{}, fmt.Errorf("reading combatant events: %w", err)
 	}
-	return talentsOf(events, actor), nil
+	return buildOf(events, actor), nil
 }
 
-// talentsOf is the talents the combatantinfo event of the actor lists, nil when it has none.
-func talentsOf(events []event, actor int) []models.TalentPick {
+// buildOf is the build the combatantinfo event of the actor lists, empty when it has none. Empty slots are left out of
+// the gear, and the stats are ratings (a caster's crit is its spell crit, a melee's its melee crit).
+func buildOf(events []event, actor int) build {
 	for _, e := range events {
 		if e.Type != "combatantinfo" || e.SourceID != actor {
 			continue
 		}
-		picks := make([]models.TalentPick, len(e.TalentTree))
-		for i, t := range e.TalentTree {
-			picks[i] = models.TalentPick{NodeID: t.NodeID, EntryID: t.ID, Rank: t.Rank}
+		b := build{stats: &models.RankedStats{Crit: int(max(e.CritMelee, e.CritRanged, e.CritSpell)),
+			Haste: int(max(e.HasteMelee, e.HasteRanged, e.HasteSpell)), Mastery: int(e.Mastery),
+			Vers: int(e.VersatilityDamageDone)}}
+		for _, t := range e.TalentTree {
+			b.talents = append(b.talents, models.TalentPick{NodeID: t.NodeID, EntryID: t.ID, Rank: t.Rank})
 		}
-		return picks
+		for i, g := range e.Gear {
+			if g.ID == 0 || i >= len(gearSlots) {
+				continue
+			}
+			item := models.RankedGear{Slot: gearSlots[i], ID: g.ID, Level: g.ItemLevel, Enchant: g.PermanentEnchant}
+			for _, gem := range g.Gems {
+				item.Gems = append(item.Gems, gem.ID)
+			}
+			b.gear = append(b.gear, item)
+		}
+		return b
 	}
-	return nil
+	return build{}
 }
 
 // rankedPlayer reads the six tables of a player's stretch into their numbers: abilities by spell ID with the hits of
