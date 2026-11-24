@@ -7,7 +7,7 @@ export function CustomCard(props: { value: string; onChange: (v: string) => void
       <summary>Custom SimC lines and action list</summary>
       <p className="muted small">
         One per line: an action list (<code>actions=</code>, <code>actions+=</code>,{' '}
-        <code>actions.&lt;list&gt;+=</code>) or a listed option such as <code>optimal_raid=0</code> or{' '}
+        <code>actions.&lt;list&gt;+=</code>) or a listed option such as <code>fixed_time=1</code> or{' '}
         <code>override.bloodlust=0</code>. A custom action list is not what other simmers get, so its numbers won&apos;t
         match theirs.
       </p>
