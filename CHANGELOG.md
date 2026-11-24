@@ -5,6 +5,7 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 ## [Unreleased]
 
 ### Added
+- **An Enchants and gems card for Top Gear:** pick enchants per slot and gems; every ticked item that can take one is tried with it, beside itself, and a unique gem is never on two items (`SimEnhancements`, `SimGem.unique` from Raidbots' gem limit categories).
 - **Fight scenarios and a raid buffs toggle:** a *Scenario* choice (Patchwerk, M+ AoE, Raid) fills the fight's style, length and targets, and *Raid buffs* off sets `optimal_raid=0`, the one place it is set: a custom line can't (`SimChoices.scenarios`, `SimOptions.noRaidBuffs`).
 - **Custom SimC lines and an action list** (a collapsed card on every sim): only an allowlist of lines is accepted (`actions` lines and a few options such as `override.bloodlust`); lines that could touch files or the app's own options are refused with the line named (`SimRequest.custom`, `service/simcustom.go`).
 - **Top Gear: sockets are shown, and "Add a socket" only where it works:** each item shows its sockets as small rings (the gem's icon in a filled one, hover for the gem), *Add a socket* follows Raidbots' season data: only a head, wrist or waist item can be given one (one, and not if it already has it); weapons, trinkets, rings and the neck never are, and a gem can only go in an item that has a socket or is being given one. The server refuses the rest (`SimItem.sockets`/`addSocket`, `socketsOf`/`canAddSocket`, `SimReference.sockets` and `socketSlots` from Raidbots' `bonus-sockets.json` and `seasons.json`).
