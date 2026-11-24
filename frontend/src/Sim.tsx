@@ -175,7 +175,7 @@ function OptionsPanel(props: {
   optionsError: string | null
   upgrade: string
   setUpgrade: (u: string) => void
-  catalystCharges: number
+  catalystCharges: number | null
   setCatalystCharges: (n: number) => void
   plan: { plan: SimPlan | null; error: string | null } | null
   why: string | null
@@ -244,7 +244,10 @@ function OptionsPanel(props: {
       {kind === 'topgear' && (
         <label>
           Catalyst charges
-          <select value={props.catalystCharges} onChange={(e) => props.setCatalystCharges(Number(e.target.value))}>
+          <select
+            value={props.catalystCharges ?? choices.maxCatalystCharges}
+            onChange={(e) => props.setCatalystCharges(Number(e.target.value))}
+          >
             {Array.from({ length: choices.maxCatalystCharges + 1 }, (_, n) => (
               <option key={n} value={n}>
                 {n === 0 ? 'None (no conversions)' : n}
@@ -318,7 +321,7 @@ export function SimPage() {
   const [keyLevel, setKeyLevel] = useState(0)
   const [upgrade, setUpgrade] = useState('')
   const [custom, setCustom] = useState('')
-  const [catalystCharges, setCatalystCharges] = useState(0)
+  const [chargesPicked, setChargesPicked] = useState<number | null>(null) // null: all the charges (no limit)
   const [enhancements, setEnhancements] = useState<SimEnhancements>({})
   const [runs, setRuns] = useState<Sim[]>([]) // the sims running now, as last polled
   const [watching, setWatching] = useState<string | null>(null) // the running sim whose progress card shows
@@ -419,7 +422,13 @@ export function SimPage() {
       consumables,
       ...(custom.trim() && { custom }),
       ...(mine !== theirs && { omnium: mine }),
-      ...(kind === 'topgear' && { equipped, bags, variants, enhancements, catalystCharges }),
+      ...(kind === 'topgear' && {
+        equipped,
+        bags,
+        variants,
+        enhancements,
+        catalystCharges: chargesPicked ?? choices?.maxCatalystCharges,
+      }),
       ...(kind === 'drops' && { difficulty, keyLevel, upgrade }),
     }
   }
@@ -583,8 +592,8 @@ export function SimPage() {
               optionsError={optionsError}
               upgrade={upgrade}
               setUpgrade={setUpgrade}
-              catalystCharges={catalystCharges}
-              setCatalystCharges={setCatalystCharges}
+              catalystCharges={chargesPicked}
+              setCatalystCharges={setChargesPicked}
               plan={planRequest ? plan : null}
               why={why}
               canRun={!why && !planBlocks}
