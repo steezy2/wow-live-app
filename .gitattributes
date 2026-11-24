@@ -1,5 +1,7 @@
-# Go files stay LF on every checkout (gofmt and the Go tools expect it).
+# Go files stay LF on every checkout (gofmt and the Go tools expect it); so do the golden files, which are compared
+# byte for byte (a CRLF checkout on Windows failed them).
 *.go text eol=lf
 go.mod text eol=lf
 go.sum text eol=lf
 *.sh text eol=lf
+backend/service/testdata/*.golden.json text eol=lf
