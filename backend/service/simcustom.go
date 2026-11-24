@@ -107,3 +107,11 @@ func allowedOption(key string) bool {
 		return key == o
 	})
 }
+
+// customInput is the accepted custom lines as simc input: one line each, nothing for none.
+func customInput(lines []string) string {
+	if len(lines) == 0 {
+		return ""
+	}
+	return strings.Join(lines, "\n") + "\n"
+}

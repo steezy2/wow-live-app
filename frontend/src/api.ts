@@ -1944,6 +1944,8 @@ export interface SimRequest {
   upgrade?: string
   consumables?: SimConsumables
   omnium?: string
+  /** Extra simc lines (an action list, a few options); the server refuses all but an allowlist. */
+  custom?: string
 }
 
 /** A flask, food, potion, augment rune or weapon oil. */

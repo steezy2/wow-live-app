@@ -169,6 +169,7 @@ func TestSimsStartRefuses(t *testing.T) {
 		{"too long", func(r *models.SimRequest, _ *Sims) { r.Options.Length = maxSimLength + 1 }, ErrBadSimOptions},
 		{"no options", func(r *models.SimRequest, _ *Sims) { r.Options = models.SimOptions{} }, ErrBadSimOptions},
 		{"not an export", func(r *models.SimRequest, _ *Sims) { r.Export = "hello" }, ErrBadSimC},
+		{"a refused custom line", func(r *models.SimRequest, _ *Sims) { r.Custom = "output=x" }, ErrBadSimOptions},
 		{"no engine", func(_ *models.SimRequest, s *Sims) { s.Engine.(*fakeEngine).installed = false }, ErrNoEngine},
 	}
 	for _, tt := range tests {
