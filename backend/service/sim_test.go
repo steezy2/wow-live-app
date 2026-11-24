@@ -447,3 +447,21 @@ func TestASmallSimRunsOnce(t *testing.T) {
 		t.Errorf("%d runs, stages %v, want one run and no stages", n, sim.Result.Stages)
 	}
 }
+
+func TestScenariosAreValidFightsAndRaidBuffsCanBeLeftOut(t *testing.T) {
+	for _, sc := range simScenarios {
+		o := models.SimOptions{FightStyle: sc.FightStyle, Length: sc.Length, Targets: sc.Targets, Accuracy: "normal"}
+		if err := validateSimOptions("quick", o); err != nil {
+			t.Errorf("scenario %q: %v", sc.Name, err)
+		}
+	}
+	plain := models.SimOptions{FightStyle: "Patchwerk", Length: 300, Targets: 1}
+	args := strings.Join(simArgs("in", "out", plain, 1, false), " ")
+	if strings.Contains(args, "optimal_raid") {
+		t.Errorf("args %q: raid buffs are simc's default", args)
+	}
+	args = strings.Join(simArgs("in", "out", models.SimOptions{NoRaidBuffs: true}, 1, false), " ")
+	if !strings.Contains(args, "optimal_raid=0") {
+		t.Errorf("args %q: want optimal_raid=0 for no raid buffs", args)
+	}
+}

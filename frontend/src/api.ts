@@ -1880,6 +1880,8 @@ export interface SimOptions {
   length: number
   targets: number
   accuracy: string
+  /** Leaves out the raid buffs simc gives by default. */
+  noRaidBuffs?: boolean
 }
 
 /** What the sim page picks its options from, and its limits. */
@@ -1892,6 +1894,8 @@ export interface SimChoices {
   maxCombos: number
   maxCompare: number
   maxParallel: number
+  /** Named fights to start the options from; the page fills the fight's fields from one. */
+  scenarios: { name: string; fightStyle: string; length: number; targets: number }[]
   /** How many ranks of a track a Droptimizer can upgrade to (the rest are Mythic raid only). */
   upgradeRanks: number
   consumableKinds: string[]

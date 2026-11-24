@@ -183,6 +183,21 @@ function OptionsPanel(props: {
     <aside className="panel sim-options">
       <h2>Fight</h2>
       <label>
+        Scenario
+        <select
+          value=""
+          onChange={(e) => {
+            const s = choices.scenarios.find((c) => c.name === e.target.value)
+            if (s) setOptions({ ...options, fightStyle: s.fightStyle, length: s.length, targets: s.targets })
+          }}
+        >
+          <option value="">Pick one to fill the fight…</option>
+          {choices.scenarios.map((s) => (
+            <option key={s.name}>{s.name}</option>
+          ))}
+        </select>
+      </label>
+      <label>
         Style
         <select value={options.fightStyle} onChange={(e) => setOptions({ ...options, fightStyle: e.target.value })}>
           {choices.fightStyles.map((s) => (
@@ -213,6 +228,14 @@ function OptionsPanel(props: {
             <option key={a}>{a}</option>
           ))}
         </select>
+      </label>
+      <label className="inline">
+        <input
+          type="checkbox"
+          checked={!options.noRaidBuffs}
+          onChange={(e) => setOptions({ ...options, noRaidBuffs: !e.target.checked || undefined })}
+        />
+        Raid buffs (simc's default: Bloodlust, Arcane Intellect, …)
       </label>
       {kind === 'drops' && (
         <>

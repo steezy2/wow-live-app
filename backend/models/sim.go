@@ -43,12 +43,21 @@ type SimItem struct {
 }
 
 // SimOptions are the fight a sim runs: its style (one of SimChoices.FightStyles), its length in seconds, how many
-// targets and its accuracy (one of SimChoices.Accuracies).
+// targets and its accuracy (one of SimChoices.Accuracies); NoRaidBuffs leaves out the raid buffs simc gives by default.
 type SimOptions struct {
-	FightStyle string `json:"fightStyle" example:"Patchwerk"`
-	Length     int    `json:"length" example:"300"`
-	Targets    int    `json:"targets" example:"1"`
-	Accuracy   string `json:"accuracy" example:"normal"`
+	FightStyle  string `json:"fightStyle" example:"Patchwerk"`
+	Length      int    `json:"length" example:"300"`
+	Targets     int    `json:"targets" example:"1"`
+	Accuracy    string `json:"accuracy" example:"normal"`
+	NoRaidBuffs bool   `json:"noRaidBuffs,omitempty"`
+}
+
+// SimScenario is a named fight the options start from (SimChoices.Scenarios): the page fills the fight from it.
+type SimScenario struct {
+	Name       string `json:"name" example:"M+ AoE"`
+	FightStyle string `json:"fightStyle" example:"HecticAddCleave"`
+	Length     int    `json:"length" example:"180"`
+	Targets    int    `json:"targets" example:"3"`
 }
 
 // SimChoices are what the sim page picks its options from, and the options it starts with.
@@ -76,6 +85,8 @@ type SimChoices struct {
 	// KeyLevels are the Mythic+ key levels a Droptimizer can sim the dungeons at.
 	KeyLevels []int      `json:"keyLevels"`
 	Defaults  SimOptions `json:"defaults"`
+	// Scenarios are named fights to start the options from (Raid, M+ AoE).
+	Scenarios []SimScenario `json:"scenarios"`
 	// DefaultDifficulty and DefaultKeyLevel are what the Droptimizer starts on.
 	DefaultDifficulty string `json:"defaultDifficulty" example:"heroic"`
 	DefaultKeyLevel   int    `json:"defaultKeyLevel" example:"10"`

@@ -72,6 +72,9 @@ var (
 		"DungeonSlice"}
 	simAccuracies = []simAccuracy{{"quick", 0.3}, {"normal", 0.1}, {"high", 0.05}}
 	simDefaults   = models.SimOptions{FightStyle: "Patchwerk", Length: 300, Targets: 1, Accuracy: "normal"}
+	simScenarios  = []models.SimScenario{{Name: "Patchwerk (1 target)", FightStyle: "Patchwerk", Length: 300, Targets: 1},
+		{Name: "M+ AoE", FightStyle: "HecticAddCleave", Length: 180, Targets: 3},
+		{Name: "Raid (5 targets)", FightStyle: "HecticAddCleave", Length: 360, Targets: 5}}
 
 	simIDPattern = regexp.MustCompile(`^[0-9a-f]{16}$`)
 	// simProgress is simc's progress line: "Generating Profileset: t50 2/76 [====>...] 1122/4300 146.2 Mean=...", the
@@ -143,7 +146,7 @@ func (s *Sims) Choices() models.SimChoices {
 		MaxLength: maxSimLength, MaxTargets: maxSimTargets, MaxCombos: maxCombos, MaxCompare: maxCompareValues,
 		MaxParallel: maxParallelSims, UpgradeRanks: upgradeRanks,
 		ConsumableKinds: models.SimConsumableKinds, MaxDrops: maxDrops,
-		Difficulties: simDifficulties, KeyLevels: keyLevels, Defaults: simDefaults,
+		Difficulties: simDifficulties, KeyLevels: keyLevels, Defaults: simDefaults, Scenarios: simScenarios,
 		DefaultDifficulty: defaultDropDifficulty, DefaultKeyLevel: defaultKey, GearGroups: slices.Compact(groups),
 		MaxItemLookups: maxItemLookups}
 }
@@ -435,6 +438,9 @@ func simArgs(input, output string, o models.SimOptions, targetError float64, pro
 		"iterations=" + strconv.Itoa(maxSimIterations), "threads=" + strconv.Itoa(simThreads())}
 	if profilesets {
 		args = append(args, "profileset_work_threads="+strconv.Itoa(min(profilesetThreads, max(1, simThreads()/2))))
+	}
+	if o.NoRaidBuffs {
+		args = append(args, "optimal_raid=0")
 	}
 	return append(args, "json2="+output)
 }
