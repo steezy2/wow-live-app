@@ -291,7 +291,7 @@ func (s *Sims) Start(req models.SimRequest) (models.Sim, error) {
 		if extra, err = variantCandidates(s.Ref, profile, req.Variants); err == nil {
 			combos, err = topGearCombos(profile, req.Equipped, req.Bags, extra, len(dims) > 0, s.twoHanded)
 			if len(dims) > 0 { // the equipped gear takes each compared value too
-				combos = append([]gearCombo{{name: "current"}}, combos...)
+				combos = append([]gearCombo{currentGear()}, combos...)
 			}
 		}
 	case "drops":

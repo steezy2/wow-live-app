@@ -52,6 +52,7 @@ function Combos({ combos, drops, chunk }: { combos: SimCombo[]; drops: boolean; 
             <span className="sim-rank">{i + 1}</span>
             <Gain gain={c.gain} dps={c.dps} best={best} />
             <div className="sim-swaps">
+              {c.swaps.length === 0 && <span>Current gear</span>}
               {c.swaps.map((s) => (
                 <div key={s.slot} className="sim-swap">
                   <span className="muted small sim-swap-slot">{groupLabel(s.in?.group ?? s.out?.group ?? s.slot)}</span>

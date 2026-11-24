@@ -1,6 +1,7 @@
 package service
 
 import (
+	"encoding/json"
 	"errors"
 	"slices"
 	"strings"
@@ -35,6 +36,15 @@ func gearProfile(twoHanded bool) models.SimProfile {
 		p.Equipped = append(p.Equipped, gearItem("off_hand", 32))
 	}
 	return p
+}
+
+func TestCurrentGearIsARowWithAnEmptyListOfSwaps(t *testing.T) {
+	rows := gearResults([]simSetJSON{{Name: "currentxoption1", Mean: 100}}, 90,
+		[]gearCombo{{name: "currentxoption1", swaps: currentGear().swaps, consumable: "Flask A"}})
+	out, err := json.Marshal(rows)
+	if err != nil || !strings.Contains(string(out), `"swaps":[]`) {
+		t.Errorf("rows = %s (%v), want swaps as an empty list so the page can read it", out, err)
+	}
 }
 
 func TestTopGearCombosAllowNothingToTryWhenComparing(t *testing.T) {

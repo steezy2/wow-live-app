@@ -39,6 +39,10 @@ type gearCombo struct {
 	consumable string
 }
 
+// currentGear is the equipped gear as a combination, with no swaps (an empty list, not nil, which the page reads), run
+// beside the others when a Top Gear sim compares consumables.
+func currentGear() gearCombo { return gearCombo{name: "current", swaps: []models.SimSwap{}} }
+
 // gearGroups are the ways to fill each group of slots with the picked items (indexes into p's Equipped and Bags) and
 // extra candidates (a picked item's changed copies): a combination takes one way from each group. A slot with nothing
 // picked keeps its item; two rings or trinkets are never the same item, and a two-handed weapon (twoHanded says which
