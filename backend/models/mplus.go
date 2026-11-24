@@ -11,6 +11,9 @@ const (
 // Key is one Mythic+ run as the combat log shows it: the dungeon, level and affixes, when it started (ms since the
 // epoch, also its ID once saved), how it ended, and what happened on the key's clock.
 type Key struct {
+	// slim and hadAbilities are set by Slim, which drops the lists a fight's own page reads.
+	slim, hadAbilities bool
+
 	Dungeon string         `json:"dungeon"`
 	MapID   int            `json:"mapID"`
 	Level   int            `json:"level"`

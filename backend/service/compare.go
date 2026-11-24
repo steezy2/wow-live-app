@@ -264,6 +264,10 @@ func (c Comparer) load(kind models.FightKind, start int64, player string) (fight
 		f.local.Talents = pull.Talents[player]
 		_, pulls := c.Keys.History()
 		for _, p := range similarPulls(pulls, pull, player) {
+			p, err := whole(c.Keys.raid.store, p)
+			if err != nil {
+				return fightRun{}, err
+			}
 			t, err := readTrack(c.Keys.RaidTrack, p.Start, ErrNoSuchPull)
 			if err != nil {
 				return fightRun{}, err
@@ -291,6 +295,10 @@ func (c Comparer) load(kind models.FightKind, start int64, player string) (fight
 	f.local.Talents = key.Talents[player]
 	keys, _ := c.Keys.History()
 	for _, k := range similarKeys(keys, key, player) {
+		k, err := whole(c.Keys.store, k)
+		if err != nil {
+			return fightRun{}, err
+		}
 		t, err := readTrack(c.Keys.Track, k.Start, ErrNoSuchKey)
 		if err != nil {
 			return fightRun{}, err
@@ -322,22 +330,22 @@ func character(player string, realms map[string]string) string {
 func similarKeys(keys []models.Key, key models.Key, player string) []models.Key {
 	similar := slices.DeleteFunc(slices.Clone(keys), func(k models.Key) bool {
 		return k.MapID != key.MapID || abs(int64(k.Level-key.Level)) > yourKeysLevels ||
-			!otherRunSameSpec(player, key.Start, k.Start, key.Specs, k.Specs, len(k.Abilities))
+			!otherRunSameSpec(player, key.Start, k.Start, key.Specs, k.Specs, k.HasAbilities())
 	})
 	return similar[:min(len(similar), yourRunsMax)]
 }
 
 // otherRunSameSpec is whether a saved run (start, specs, abilities saved) is another run than the one reviewed where
-// the player played the same spec; abilities is 0 for runs saved before they were kept, which would read as no casts.
-func otherRunSameSpec(player string, start, otherStart int64, specs, otherSpecs map[string]int, abilities int) bool {
-	return otherStart != start && otherSpecs[player] != 0 && otherSpecs[player] == specs[player] && abilities > 0
+// the player played the same spec; runs saved before abilities were kept would read as no casts.
+func otherRunSameSpec(player string, start, otherStart int64, specs, otherSpecs map[string]int, abilities bool) bool {
+	return otherStart != start && otherSpecs[player] != 0 && otherSpecs[player] == specs[player] && abilities
 }
 
 // similarPulls are a raider's other pulls of the same boss and difficulty in the same spec, with abilities saved.
 func similarPulls(pulls []models.RaidPull, pull models.RaidPull, player string) []models.RaidPull {
 	similar := slices.DeleteFunc(slices.Clone(pulls), func(p models.RaidPull) bool {
 		return p.Boss != pull.Boss || p.Difficulty != pull.Difficulty ||
-			!otherRunSameSpec(player, pull.Start, p.Start, pull.Specs, p.Specs, len(p.Abilities))
+			!otherRunSameSpec(player, pull.Start, p.Start, pull.Specs, p.Specs, p.HasAbilities())
 	})
 	return similar[:min(len(similar), yourRunsMax)]
 }

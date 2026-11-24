@@ -1,14 +1,16 @@
 import { afterEach, expect, test, vi } from 'vitest'
-import { FALLBACK_POLL_MS, fetchMobs, fetchSpell, subscribe } from './api'
+import { FALLBACK_POLL_MS, fetchMobs, fetchSavedKeys, fetchSpell, subscribe } from './api'
 
 class FakeEventSource {
   static last: FakeEventSource
+  static opened = 0
   onopen: (() => void) | null = null
   onerror: (() => void) | null = null
   listeners: (() => void)[] = []
   closed = false
   constructor() {
     FakeEventSource.last = this
+    FakeEventSource.opened++
   }
   addEventListener(_type: string, listener: () => void) {
     this.listeners.push(listener)
@@ -63,6 +65,24 @@ test('subscribe reads now and on each change, polls while the stream is down and
   expect(source.closed).toBe(true)
 })
 
+test('subscribers share one event stream, open while any listens', () => {
+  vi.stubGlobal('EventSource', FakeEventSource)
+  vi.stubGlobal('location', { host: 'localhost:8080' })
+  stubPage()
+  FakeEventSource.opened = 0
+  const [a, b] = [vi.fn(), vi.fn()]
+  const stopA = subscribe(a)
+  const stopB = subscribe(b)
+  const source = FakeEventSource.last
+  expect(FakeEventSource.opened).toBe(1)
+  source.listeners.forEach((listener) => listener())
+  expect([a.mock.calls.length, b.mock.calls.length]).toEqual([2, 2])
+  stopA()
+  expect(source.closed).toBe(false)
+  stopB()
+  expect(source.closed).toBe(true)
+})
+
 test('subscribe holds changes while the page is hidden and reads once when it shows', () => {
   vi.stubGlobal('EventSource', FakeEventSource)
   vi.stubGlobal('location', { host: 'localhost:8080' })
@@ -78,6 +98,18 @@ test('subscribe holds changes while the page is hidden and reads once when it sh
   expect(onChange).toHaveBeenCalledTimes(1)
   unsubscribe()
   expect(page.listeners).toHaveLength(0)
+})
+
+test('saved keys asked at once share one request, and a signal ends only its own ask', async () => {
+  const fetchMock = vi.fn(async () => new Response('[]'))
+  vi.stubGlobal('fetch', fetchMock)
+  const controller = new AbortController()
+  const stopped = fetchSavedKeys('Ann', controller.signal)
+  controller.abort()
+  const [a, b] = await Promise.all([fetchSavedKeys('Ann'), fetchSavedKeys('Ann')])
+  await expect(stopped).rejects.toBeDefined()
+  expect(a).toEqual(b)
+  expect(fetchMock).toHaveBeenCalledTimes(1)
 })
 
 test('fetchSpell asks once, keeps an unknown spell ID, and asks again after a failure or an unknown name', async () => {
