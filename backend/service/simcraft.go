@@ -118,7 +118,7 @@ func removeFrom(ref models.SimReference, item models.SimItem, what string) (mode
 			return item, bad()
 		}
 		item = withoutBonus(ref, item, held)
-	case "socket": // only the socket a variant added: an item's own ones stay
+	case "socket": // the one the socket bonus ID gives: an item's own sockets have no bonus ID and stay
 		i := slices.Index(item.Opts["bonus_id"], ref.SocketBonus)
 		if i < 0 {
 			return item, bad()
