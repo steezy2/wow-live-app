@@ -55,7 +55,7 @@ func gearGroups(p models.SimProfile, equipped, bags []int, extra []gearCandidate
 		return nil, err
 	}
 	for _, c := range extra {
-		pool[gearKey(c.item.Slot)] = append(pool[gearKey(c.item.Slot)], c)
+		pool[models.SlotGroup(c.item.Slot)] = append(pool[models.SlotGroup(c.item.Slot)], c)
 	}
 	worn := map[string]*models.SimItem{}
 	for i := range p.Equipped {
@@ -67,10 +67,10 @@ func gearGroups(p models.SimProfile, equipped, bags []int, extra []gearCandidate
 	}
 	groups := [][][]models.SimSwap{weapons}
 	for _, pair := range gearPairs {
-		groups = append(groups, pairOptions(pair, pool[gearKey(pair[0])], worn))
+		groups = append(groups, pairOptions(pair, pool[models.SlotGroup(pair[0])], worn))
 	}
 	for _, slot := range simSlots {
-		if gearKey(slot) == slot && slot != "main_hand" && slot != "off_hand" {
+		if models.SlotGroup(slot) == slot && slot != "main_hand" && slot != "off_hand" {
 			groups = append(groups, slotOptions(slot, pool[slot], worn))
 		}
 	}
@@ -143,11 +143,6 @@ func topGearCombos(ref models.SimReference, p models.SimProfile, equipped, bags 
 	return combos, nil
 }
 
-// gearKey is the pool a slot's candidates share: "finger" for both rings, "trinket" for both trinkets, else the slot.
-func gearKey(slot string) string {
-	return strings.TrimRight(slot, "12")
-}
-
 // gearPool is the picked items by gearKey, equipped ones first, each once; an index outside p is ErrBadSimOptions.
 func gearPool(p models.SimProfile, equipped, bags []int) (map[string][]gearCandidate, error) {
 	pool := map[string][]gearCandidate{}
@@ -164,7 +159,7 @@ func gearPool(p models.SimProfile, equipped, bags []int) (map[string][]gearCandi
 			if list.worn {
 				c.worn = c.item.Slot
 			}
-			pool[gearKey(c.item.Slot)] = append(pool[gearKey(c.item.Slot)], c)
+			pool[models.SlotGroup(c.item.Slot)] = append(pool[models.SlotGroup(c.item.Slot)], c)
 		}
 	}
 	return pool, nil

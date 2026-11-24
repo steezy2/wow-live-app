@@ -6965,6 +6965,16 @@ const docTemplate = `{
         "models.SimEnchant": {
             "type": "object",
             "properties": {
+                "groups": {
+                    "description": "Groups are the slots' SlotGroups, set when the reference is loaded.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "finger"
+                    ]
+                },
                 "icon": {
                     "type": "string"
                 },

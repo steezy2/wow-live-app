@@ -140,7 +140,7 @@ func (s *Sims) Choices() models.SimChoices {
 	}
 	groups := make([]string, len(simSlots))
 	for i, slot := range simSlots {
-		groups[i] = gearKey(slot)
+		groups[i] = models.SlotGroup(slot)
 	}
 	return models.SimChoices{FightStyles: simFightStyles, Accuracies: accuracies, MinLength: minSimLength,
 		MaxLength: maxSimLength, MaxTargets: maxSimTargets, MaxCombos: maxCombos, MaxCompare: maxCompareValues,

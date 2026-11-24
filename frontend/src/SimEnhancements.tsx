@@ -1,13 +1,6 @@
 import { iconURL, type SimEnhancements, type SimReference } from './api'
-import { enchantsFor, groupLabel } from './simOptions'
+import { groupLabel } from './simOptions'
 import { tip } from './tipAttrs'
-
-/** The slots (a ring's is "finger") the reference has enchants for, and a slot name enchantsFor takes for each. */
-function enchantSlots(reference: SimReference): [string, string][] {
-  const keys = new Map<string, string>()
-  for (const e of reference.enchants) for (const s of e.slots) keys.set(s.replace(/[12]$/, ''), s)
-  return [...keys]
-}
 
 /** The Enhancements card of Top Gear: enchants for each slot and gems to try on every ticked item that can take them,
  * each beside the item as it is. An item with no socket takes no gem, and a unique gem goes in one socket only. */
@@ -27,11 +20,11 @@ export function EnhancementsCard(props: {
         Pick enchants for a slot and gems to try on the items you tick below: each is sim&apos;d as a changed copy of
         the item, beside the item as it is. A unique gem is only ever on one item.
       </p>
-      {enchantSlots(reference).map(([key, slot]) => (
+      {[...new Set(reference.enchants.flatMap((e) => e.groups ?? []))].map((key) => (
         <div key={key} className="sim-consumable-kind">
           <h3>{groupLabel(key)}</h3>
           <div className="sim-omnium-node">
-            {enchantsFor(reference, slot).map((e) => (
+            {reference.enchants.filter((e) => e.groups?.includes(key)).map((e) => (
               <button
                 key={e.id}
                 className={value.enchants?.[key]?.includes(e.id) ? 'sim-rune picked' : 'sim-rune'}

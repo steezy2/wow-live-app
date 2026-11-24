@@ -2976,6 +2976,13 @@ definitions:
     type: object
   models.SimEnchant:
     properties:
+      groups:
+        description: Groups are the slots' SlotGroups, set when the reference is loaded.
+        example:
+        - finger
+        items:
+          type: string
+        type: array
       icon:
         type: string
       id:
