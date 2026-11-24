@@ -244,10 +244,8 @@ func (s *Sims) Plan(req models.SimRequest) (models.SimPlan, error) {
 	if err != nil {
 		return models.SimPlan{}, err
 	}
-	runs := float64(plan.Combos + 1) // the sim's own run besides its profilesets
-	if stages := smartStages(plan.Combos, simTargetError(req.Options, true)); len(stages) > 0 {
-		runs = smartRuns(plan.Combos, stages, simTargetError(req.Options, true)) + 1
-	}
+	final := simTargetError(req.Options, true)
+	runs := smartRuns(plan.Combos, smartStages(plan.Combos, final), final) + 1 // the sim's own run besides its sets
 	if req.Kind == "stats" {
 		runs = statsRuns
 	}
@@ -395,14 +393,14 @@ func (s *Sims) Start(req models.SimRequest) (models.Sim, error) {
 
 // simArgs are simc's arguments: the input file, the options, the target error (in % of the DPS) to stop each sim at and
 // the JSON file to write (always last). Nothing but those validated values goes in, and no shell reads them. A sim with
-// profilesets works on several at once.
+// profilesets runs several at once, each on profilesetThreads threads (fewer on a small PC, so at least two run).
 func simArgs(input, output string, o models.SimOptions, targetError float64, profilesets bool) []string {
 	args := []string{input, "fight_style=" + o.FightStyle, "max_time=" + strconv.Itoa(o.Length),
 		"desired_targets=" + strconv.Itoa(o.Targets),
 		"target_error=" + strconv.FormatFloat(targetError, 'f', -1, 64),
 		"iterations=" + strconv.Itoa(maxSimIterations), "threads=" + strconv.Itoa(simThreads())}
 	if profilesets {
-		args = append(args, "profileset_work_threads="+strconv.Itoa(min(profilesetWorkers, max(1, simThreads()/2))))
+		args = append(args, "profileset_work_threads="+strconv.Itoa(min(profilesetThreads, max(1, simThreads()/2))))
 	}
 	return append(args, "json2="+output)
 }
@@ -449,7 +447,7 @@ func (s *Sims) execute(ctx context.Context, id, input, output, head string, comb
 		if sets, runErr = readSets(output); runErr != nil {
 			break
 		}
-		stages = append(stages, stageInfo(len(cands), targetError))
+		stages = append(stages, models.SimStage{Combos: len(cands), Error: targetError})
 		cands, from = survivors(cands, sets), to
 	}
 	var result *models.SimResult
@@ -457,7 +455,7 @@ func (s *Sims) execute(ctx context.Context, id, input, output, head string, comb
 	if runErr == nil {
 		if len(early) > 0 {
 			s.setStage(id, stageText(len(early)+1, len(early)+1, len(cands), final))
-			stages = append(stages, stageInfo(len(cands), final))
+			stages = append(stages, models.SimStage{Combos: len(cands), Error: final})
 		}
 		if complaint, runErr = s.stage(ctx, id, input, output, head, cands, sim.Options, final, from, 100); runErr == nil {
 			result, parseErr = readSimResult(output, cands)
@@ -478,9 +476,7 @@ func (s *Sims) execute(ctx context.Context, id, input, output, head string, comb
 		for i := range equipped {
 			result.Equipped = append(result.Equipped, *slimItem(&equipped[i]))
 		}
-		if len(early) > 0 {
-			result.Stages = stages
-		}
+		result.Stages = stages // none for a sim run once
 		if len(result.Weights) > 0 {
 			result.Pawn = pawnString(sim.Character+"-"+sim.Spec, result.Weights)
 		}

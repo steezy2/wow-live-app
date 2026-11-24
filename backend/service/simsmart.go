@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"os"
 	"slices"
-
-	"wow-live/backend/models"
 )
 
 const (
@@ -19,9 +17,10 @@ const (
 	smartKeep = 25
 	// smartZ is how many standard errors apart two means must be for the worse one to be dropped.
 	smartZ = 3.0
-	// profilesetWorkers is the most profilesets simc works on at once: 24 profilesets took 17.5 s with simc's default
-	// and 12.6 s with 4 (15 took 13.1 s) on a 16-thread PC.
-	profilesetWorkers = 4
+	// profilesetThreads is how many threads each profileset runs on (simc's profileset_work_threads), so simc runs
+	// threads/profilesetThreads of them at once: 24 profilesets took 17.5 s with simc's default and 12.6 s with 4 (15
+	// took 13.1 s) on a 16-thread PC.
+	profilesetThreads = 4
 )
 
 // smartErrors are the target errors (in % of the DPS) of the early stages of a raced sim, coarsest first; a stage no
@@ -89,9 +88,4 @@ func readSets(path string) ([]simSetJSON, error) {
 // stageText says what a raced sim's stage is doing: "Stage 2 of 3: 140 combinations at 0.5%".
 func stageText(stage, stages, combos int, targetError float64) string {
 	return fmt.Sprintf("Stage %d of %d: %d combinations at %g%%", stage, stages, combos, targetError)
-}
-
-// stageInfo is a stage as the report lists it.
-func stageInfo(combos int, targetError float64) models.SimStage {
-	return models.SimStage{Combos: combos, Error: targetError}
 }
