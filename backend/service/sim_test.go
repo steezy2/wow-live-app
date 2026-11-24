@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"wow-live/backend/clients/cachefile"
 	"wow-live/backend/models"
 )
 
@@ -222,20 +223,25 @@ func TestSimsRefuseIDsThatAreNotTheirs(t *testing.T) {
 	}
 }
 
-func TestSimsKeepTheLastTwenty(t *testing.T) {
+func TestSimsDeleteTheOnesOlderThanKeepDays(t *testing.T) {
 	s := newTestSims(t, "ok")
-	for i := range keepSims + 3 {
+	for i, age := range []int{1, 10, 29, 31, 60} { // days old; some saved plain, as an earlier version did
 		id := fmt.Sprintf("%016x", i+1)
-		data := fmt.Sprintf(`{"id":%q,"startedMS":%d,"state":"done"}`, id, i+1)
-		if err := os.WriteFile(filepath.Join(s.Dir, id+".json"), []byte(data), 0o644); err != nil {
+		sim := models.Sim{ID: id, State: models.SimDone, StartedMS: s.Now().AddDate(0, 0, -age).UnixMilli()}
+		name := id + ".json.gz"
+		if i%2 == 1 {
+			name = id + ".json"
+		}
+		if err := cachefile.WriteJSON(filepath.Join(s.Dir, name), sim); err != nil {
 			t.Fatal(err)
 		}
 	}
-	s.prune()
-	list, err := s.List()
-	if err != nil || len(list) != keepSims || list[0].StartedMS != keepSims+3 || list[keepSims-1].StartedMS != 4 {
-		t.Errorf("kept %d, newest %d, oldest %d, %v: want the newest %d", len(list), list[0].StartedMS,
-			list[len(list)-1].StartedMS, err, keepSims)
+	for _, c := range []struct{ days, want int }{{0, 5}, {30, 3}, {7, 1}} {
+		s.KeepDays = func() int { return c.days }
+		s.Prune()
+		if list, err := s.List(); err != nil || len(list) != c.want {
+			t.Errorf("kept %d of the sims with %d days, %v, want %d", len(list), c.days, err, c.want)
+		}
 	}
 }
 

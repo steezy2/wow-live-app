@@ -186,15 +186,18 @@ func onEach(files []models.LogFile, do func(path string) error) []error {
 	return failed
 }
 
-// Tidy runs the settings' auto rule (service.AutoPicks): archives the old game logs and deletes the old imports it
-// picks. It does nothing without settings, with the rule off, or while another log job runs (the next key or pull
-// that ends tries again).
+// Tidy deletes the saved sims past their setting, then runs the settings' auto rule (service.AutoPicks): archives the
+// old game logs and deletes the old imports it picks. The log rule does nothing while it is off or another log job
+// runs (the next key or pull that ends tries again); both need settings.
 func (s *Site) Tidy() error {
 	if s.opts.Settings == nil {
 		return nil
 	}
+	if s.Sims != nil {
+		s.Sims.Prune()
+	}
 	auto := s.opts.Settings.Settings.Get().Auto
-	if auto == (models.AutoSettings{}) || !s.logJob.TryLock() {
+	if auto.ArchiveGameLogsDays == 0 && auto.DeleteImportsDays == 0 || !s.logJob.TryLock() {
 		return nil
 	}
 	defer s.logJob.Unlock()

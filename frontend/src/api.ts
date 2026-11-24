@@ -1052,7 +1052,7 @@ export interface Settings {
   character: string
   /** The auto rules, in days (0 for off): archive the game's logs read and this old, delete imports this long after
    * they were imported. */
-  auto: { archiveGameLogsDays: number; deleteImportsDays: number }
+  auto: { archiveGameLogsDays: number; deleteImportsDays: number; deleteSimsDays: number }
   /** The Home tab's setup guide is done or dismissed. */
   setupDone: boolean
 }
@@ -1894,9 +1894,9 @@ export interface SimChoices {
   gearGroups: string[]
 }
 
-/** The kinds of sim: one DPS number, the best combination of the gear carried, and each drop's gain. (A sim saved by an
- * earlier version can also say 'consumables'.) */
-export type SimKind = 'quick' | 'topgear' | 'drops'
+/** The kinds of sim: one DPS number, the best combination of the gear carried, each drop's gain, and what a point of
+ * each stat is worth. (A sim saved by an earlier version can also say 'consumables'.) */
+export type SimKind = 'quick' | 'topgear' | 'drops' | 'stats'
 
 /** The consumables a sim uses: the values (simc names) picked of each kind (one of SimChoices.consumableKinds). A kind
  * with none keeps simc's default, one value is used by the whole sim, and two or more are compared: every combination
@@ -2045,6 +2045,16 @@ export interface SimResult {
   buffs: SimBuff[]
   combos?: SimCombo[]
   options?: SimOptionRow[]
+  equipped?: SimItem[]
+  weights?: SimStatWeight[]
+  pawn?: string
+}
+
+/** What a point of one stat is worth: its weight against the main stat's (1) and the DPS a point of rating adds. */
+export interface SimStatWeight {
+  stat: string
+  weight: number
+  dps: number
 }
 
 /** One sim run: how far along it is, then its result. */

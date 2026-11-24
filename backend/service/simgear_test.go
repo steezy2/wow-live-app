@@ -38,6 +38,15 @@ func gearProfile(twoHanded bool) models.SimProfile {
 	return p
 }
 
+func TestSavedRowsKeepNoSimcOptions(t *testing.T) {
+	in := models.SimItem{Slot: "head", ID: 1, Name: "Crown", Opts: map[string][]int{"bonus_id": {1, 2}}}
+	rows := gearResults([]simSetJSON{{Name: "c1", Mean: 100}}, 90,
+		[]gearCombo{{name: "c1", swaps: []models.SimSwap{{Slot: "head", In: &in}}}})
+	if got := rows[0].Swaps[0].In; got.Opts != nil || got.Name != "Crown" || in.Opts == nil {
+		t.Errorf("row item = %+v, want the name kept, the options dropped and the original left alone", got)
+	}
+}
+
 func TestCurrentGearIsARowWithAnEmptyListOfSwaps(t *testing.T) {
 	rows := gearResults([]simSetJSON{{Name: "currentxoption1", Mean: 100}}, 90,
 		[]gearCombo{{name: "currentxoption1", swaps: currentGear().swaps, consumable: "Flask A"}})

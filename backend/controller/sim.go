@@ -179,15 +179,15 @@ func (a SimAPI) Reference(c *gin.Context) {
 
 // Plan godoc
 //
-//	@Summary		How many gear combinations a Top Gear request would run
-//	@Description	Counts them without starting the sim, so the page can show the cost (and that it is over the limit)
-//	@Description	before a run. Takes the same body as starting a Top Gear sim.
+//	@Summary		What a sim request would run, and about how long it takes
+//	@Description	Counts the runs without starting the sim, so the page can show the cost (and that it is over the limit)
+//	@Description	before a run. Takes the same body as starting a sim.
 //	@Tags			sim
 //	@Accept			json
 //	@Produce		json
-//	@Param			body	body		models.SimRequest	true	"a Top Gear request, with the consumables it compares"
+//	@Param			body	body		models.SimRequest	true	"a sim request of any kind"
 //	@Success		200		{object}	models.SimPlan
-//	@Failure		400		{object}	ErrorResponse	"not a Top Gear request, bad consumables, or items and variants that don't fit the export"
+//	@Failure		400		{object}	ErrorResponse	"bad options or consumables, or items and variants that do not fit the export"
 //	@Failure		500		{object}	ErrorResponse	"a weapon's type couldn't be read from Wowhead"
 //	@Router			/api/sim/plan [post]
 func (a SimAPI) Plan(c *gin.Context) {

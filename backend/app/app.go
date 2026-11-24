@@ -138,7 +138,8 @@ func Start(ctx context.Context, opts Options) (*Site, error) {
 	if opts.Settings != nil {
 		opts.Settings.Logs, opts.Settings.Characters = s, characters
 		s.Sims = &service.Sims{Engine: simc.Client{Dir: filepath.Join(opts.Cache, simEngineDir)}, Items: wowheadClient,
-			Drops: opts.Drops, Ref: opts.SimRef, Dir: filepath.Join(opts.Cache, simsDir), Now: opts.Now, Ctx: ctx}
+			Drops: opts.Drops, Ref: opts.SimRef, Dir: filepath.Join(opts.Cache, simsDir), Now: opts.Now, Ctx: ctx,
+			KeepDays: func() int { return opts.Settings.Settings.Get().Auto.DeleteSimsDays }}
 		opts.Settings.Sim = &controller.SimAPI{Runs: s.Sims, Items: service.Items{Source: wowheadClient}}
 		if opts.WCL != nil {
 			s.Import = s.importer(characters, store, pulls)

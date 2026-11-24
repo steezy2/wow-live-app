@@ -105,10 +105,11 @@ type SimRequest struct {
 }
 
 // SimKinds are the kinds of sim: one character's DPS ("quick"), the best combination of the gear they carry
-// ("topgear") and the gain of each piece the season's raid and dungeons drop ("drops"). Any of them can compare
+// ("topgear"), the gain of each piece the season's raid and dungeons drop ("drops") and what a point of each stat is
+// worth ("stats"). Any of them but the last can compare
 // several flasks, foods, potions, augment runes or weapon oils (SimRequest.Consumables). A sim saved by an earlier
 // version can also be "consumables", a quick sim that only compared them.
-var SimKinds = []string{"quick", "topgear", "drops"}
+var SimKinds = []string{"quick", "topgear", "drops", "stats"}
 
 // The states a sim is in (Sim.State).
 const (
@@ -122,7 +123,7 @@ const (
 // how long it took, and, once State is "done", its Result; a failed one says why in Error. The list leaves Result out.
 type Sim struct {
 	ID        string     `json:"id" example:"9f3a1c5e7b2d4a60"`
-	Kind      string     `json:"kind" enums:"quick,topgear,drops,consumables"`
+	Kind      string     `json:"kind" enums:"quick,topgear,drops,stats,consumables"`
 	State     string     `json:"state" enums:"running,done,failed,cancelled"`
 	Character string     `json:"character" example:"Steezy"`
 	Spec      string     `json:"spec" example:"elemental"`
@@ -145,6 +146,11 @@ type SimResult struct {
 	Abilities []SimAbility `json:"abilities"`
 	Buffs     []SimBuff    `json:"buffs"`
 	Combos    []SimCombo   `json:"combos,omitempty"`
+	// Equipped is the gear the sim started from, so a report can show the best combination in full.
+	Equipped []SimItem `json:"equipped,omitempty"`
+	// Weights and Pawn are a "stats" sim's stat weights and the Pawn string that carries them.
+	Weights []SimStatWeight `json:"weights,omitempty"`
+	Pawn    string          `json:"pawn,omitempty"`
 	// Options are the values a Quick Sim compared, best first.
 	Options []SimOptionRow `json:"options,omitempty"`
 }
@@ -181,6 +187,14 @@ type SimAbility struct {
 	Share   float64 `json:"share"`
 	Casts   float64 `json:"casts"`
 	PerCast float64 `json:"perCast"`
+}
+
+// SimStatWeight is what a point of one stat is worth: its Weight against the main stat's (1), and the DPS a point of
+// its rating adds.
+type SimStatWeight struct {
+	Stat   string  `json:"stat" example:"Crit"`
+	Weight float64 `json:"weight" example:"0.52"`
+	DPS    float64 `json:"dps" example:"23.17"`
 }
 
 // SimBuff is a buff and the share of the fight it was up, in percent.

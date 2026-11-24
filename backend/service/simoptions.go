@@ -20,6 +20,8 @@ const (
 	// and referenceThreads the threads that PC ran it on.
 	comboSeconds     = 0.73
 	referenceThreads = 15
+	// statsRuns is how many sims a stat weights sim costs: its own and one more for each stat it scales.
+	statsRuns = 8
 )
 
 // simOptionLines are the start of the simc line each kind of consumable sets (models.SimConsumableKinds); a weapon oil
@@ -346,16 +348,10 @@ func variantCandidates(ref models.SimReference, p models.SimProfile,
 	return out, nil
 }
 
-// planOf is what a Top Gear request would run: the combinations it makes (counted without making them, so a request
-// over the limit says by how much), why it is refused if it is, and about how long they take on this PC with o. A
-// sim's time grows with the fight's length and the iterations, which go as 1/target error².
-func planOf(combos int, o models.SimOptions) models.SimPlan {
+// planSeconds is about how long runs sims take on this PC, for o's fight length and accuracy.
+func planSeconds(runs int, o models.SimOptions) int {
 	errorRatio := simTargetError(simDefaults, true) / simTargetError(o, true)
-	seconds := float64(combos) * comboSeconds * referenceThreads / float64(simThreads()) *
+	seconds := float64(runs) * comboSeconds * referenceThreads / float64(simThreads()) *
 		float64(o.Length) / float64(simDefaults.Length) * errorRatio * errorRatio
-	plan := models.SimPlan{Combos: combos, Seconds: int(seconds + 0.5)}
-	if err := comboRefusal(combos); err != nil {
-		plan.Error = err.Error()
-	}
-	return plan
+	return int(seconds + 0.5)
 }

@@ -102,6 +102,10 @@ definitions:
         maximum: 365
         minimum: 0
         type: integer
+      deleteSimsDays:
+        maximum: 365
+        minimum: 0
+        type: integer
     type: object
   models.BuffGap:
     properties:
@@ -2782,6 +2786,7 @@ definitions:
         - quick
         - topgear
         - drops
+        - stats
         - consumables
         type: string
       options:
@@ -3255,11 +3260,37 @@ definitions:
         type: number
       dpsError:
         type: number
+      equipped:
+        description: Equipped is the gear the sim started from, so a report can show
+          the best combination in full.
+        items:
+          $ref: '#/definitions/models.SimItem'
+        type: array
       options:
         description: Options are the values a Quick Sim compared, best first.
         items:
           $ref: '#/definitions/models.SimOptionRow'
         type: array
+      pawn:
+        type: string
+      weights:
+        description: Weights and Pawn are a "stats" sim's stat weights and the Pawn
+          string that carries them.
+        items:
+          $ref: '#/definitions/models.SimStatWeight'
+        type: array
+    type: object
+  models.SimStatWeight:
+    properties:
+      dps:
+        example: 23.17
+        type: number
+      stat:
+        example: Crit
+        type: string
+      weight:
+        example: 0.52
+        type: number
     type: object
   models.SimSwap:
     properties:
@@ -5240,10 +5271,10 @@ paths:
       consumes:
       - application/json
       description: |-
-        Counts them without starting the sim, so the page can show the cost (and that it is over the limit)
-        before a run. Takes the same body as starting a Top Gear sim.
+        Counts the runs without starting the sim, so the page can show the cost (and that it is over the limit)
+        before a run. Takes the same body as starting a sim.
       parameters:
-      - description: a Top Gear request, with the consumables it compares
+      - description: a sim request of any kind
         in: body
         name: body
         required: true
@@ -5257,15 +5288,15 @@ paths:
           schema:
             $ref: '#/definitions/models.SimPlan'
         "400":
-          description: not a Top Gear request, bad consumables, or items and variants
-            that don't fit the export
+          description: bad options or consumables, or items and variants that do not
+            fit the export
           schema:
             $ref: '#/definitions/controller.ErrorResponse'
         "500":
           description: a weapon's type couldn't be read from Wowhead
           schema:
             $ref: '#/definitions/controller.ErrorResponse'
-      summary: How many gear combinations a Top Gear request would run
+      summary: What a sim request would run, and about how long it takes
       tags:
       - sim
   /api/sim/profile:

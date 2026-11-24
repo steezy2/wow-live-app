@@ -315,6 +315,25 @@ type simSetJSON struct {
 	MeanStdDev float64 `json:"mean_stddev"`
 }
 
+// slimItem is the item as a saved report keeps it, without the simc options (bonus IDs, gems) the page never reads.
+func slimItem(i *models.SimItem) *models.SimItem {
+	if i == nil {
+		return nil
+	}
+	c := *i
+	c.Opts = nil
+	return &c
+}
+
+// slimmed is swaps as a saved report keeps them: with slim items, and an empty list rather than nil for none.
+func slimmed(swaps []models.SimSwap) []models.SimSwap {
+	out := make([]models.SimSwap, len(swaps))
+	for i, s := range swaps {
+		out[i] = models.SimSwap{Slot: s.Slot, Out: slimItem(s.Out), In: slimItem(s.In)}
+	}
+	return out
+}
+
 // gearResults are the combinations simc ran, best first, with their gain over the baseline's DPS. A drop that fills
 // two slots (a ring) keeps its better row.
 func gearResults(sets []simSetJSON, baseline float64, combos []gearCombo) []models.SimCombo {
@@ -322,7 +341,7 @@ func gearResults(sets []simSetJSON, baseline float64, combos []gearCombo) []mode
 	for _, set := range sets {
 		if i := slices.IndexFunc(combos, func(c gearCombo) bool { return c.name == set.Name }); i >= 0 {
 			rows = append(rows, models.SimCombo{DPS: set.Mean, DPSError: set.MeanStdDev, Gain: set.Mean - baseline,
-				Swaps: combos[i].swaps, Source: combos[i].source, Boss: combos[i].boss, Consumable: combos[i].consumable})
+				Swaps: slimmed(combos[i].swaps), Source: combos[i].source, Boss: combos[i].boss, Consumable: combos[i].consumable})
 		}
 	}
 	slices.SortStableFunc(rows, func(a, b models.SimCombo) int { return cmp.Compare(b.DPS, a.DPS) })

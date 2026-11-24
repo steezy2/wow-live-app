@@ -24,14 +24,12 @@ import {
 import { amount, errorText, sizeText } from './format'
 import { OmniumFolio } from './OmniumFolio'
 import { ConsumablesCard } from './SimConsumables'
-import { EnhancementsCard } from './SimEnhancements'
 import { SimGear, SimHeader } from './SimGear'
 import { useItemInfo } from './simItems'
 import { usePlan } from './simPlan'
 import { SimResult } from './SimResult'
 import {
   comparedCount,
-  enhancementVariants,
   omniumCompared,
   omniumPicks,
   omniumString,
@@ -47,6 +45,7 @@ const KINDS: [SimKind, string, string][] = [
   ['quick', 'Quick Sim', 'One DPS number with each ability and buff'],
   ['topgear', 'Top Gear', 'The best combination of the gear you carry'],
   ['drops', 'Droptimizer', "Each piece the season's raid and dungeons drop, by its gain"],
+  ['stats', 'Stat Weights', 'What a point of each stat is worth for your character'],
 ]
 
 /** What a sim is called in the list of saved sims: its kind's label (a sim saved before consumables moved into each
@@ -100,17 +99,27 @@ function EngineBar(props: {
   )
 }
 
-/** What a Top Gear request makes, in words: how many combinations (of the max that run) and about how long, or why the
- * app would refuse it. */
-function PlanText({ plan, max }: { plan: { plan: SimPlan | null; error: string | null }; max: number }) {
+/** A time estimate in words ("45 s", "12 min"). */
+const aboutText = (seconds: number) => (seconds < 90 ? `${seconds} s` : `${Math.round(seconds / 60)} min`)
+
+/** What a request makes, in words: the runs besides the sim's own (of the max that run) and about how long it all
+ * takes, or why the app would refuse it. */
+function PlanText(props: { plan: { plan: SimPlan | null; error: string | null }; kind: SimKind; choices: SimChoices }) {
+  const { plan, kind, choices } = props
   const refusal = plan.error ?? plan.plan?.error
   if (refusal) return <p className="warning">{refusal}</p>
-  if (!plan.plan) return <p className="muted small">Counting the combinations…</p>
+  if (!plan.plan) return <p className="muted small">Estimating the time…</p>
   const { combos, seconds } = plan.plan
-  const about = seconds < 90 ? `${seconds} s` : `${Math.round(seconds / 60)} min`
+  const counted: Partial<Record<SimKind, [string, number]>> = {
+    topgear: ['combination', choices.maxCombos],
+    drops: ['drop', choices.maxDrops],
+    quick: ['compared', choices.maxCompare],
+  }
+  const [noun, max] = counted[kind] ?? ['', 0]
+  const what = combos > 0 && noun ? `${combos} ${noun}${combos > 1 && noun !== 'compared' ? 's' : ''} of ${max} · ` : ''
   return (
     <p className="muted small">
-      {combos} combination{combos > 1 ? 's' : ''} of {max} · about {about}
+      {what}about {aboutText(seconds)}
     </p>
   )
 }
@@ -198,7 +207,7 @@ function OptionsPanel(props: {
         </>
       )}
       {optionsError && <p className="warning">{optionsError}</p>}
-      {props.plan && <PlanText plan={props.plan} max={choices.maxCombos} />}
+      {props.plan && <PlanText plan={props.plan} kind={kind} choices={choices} />}
       {props.why && !running && <p className="warning">{props.why}</p>}
       <button className="sim-run" disabled={!props.canRun || !!running || !!optionsError} onClick={props.onRun}>
         {running ? 'Simming…' : 'Sim'}
@@ -226,8 +235,6 @@ export function SimPage() {
   const [difficulty, setDifficulty] = useState('')
   const [keyLevel, setKeyLevel] = useState(0)
   const [maxUpgrade, setMaxUpgrade] = useState(false)
-  const [enchants, setEnchants] = useState<number[]>([]) // the Enhancements card's picks
-  const [gems, setGems] = useState<number[]>([])
   const [run, setRun] = useState<Sim | null>(null) // the sim started here, or found running, as last polled
   const [sim, setSim] = useState<Sim | null>(null) // the finished sim shown
   const [saved, setSaved] = useState<Sim[]>([])
@@ -304,8 +311,6 @@ export function SimPage() {
       setEquipped(p.equipped.map((_, i) => i)) // worn items are candidates until unticked
       setBags([])
       setVariants([])
-      setEnchants([])
-      setGems([])
       setOmnium(omniumPicks(p.omnium))
     })
   const same = (a: SimVariant, b: SimVariant) => JSON.stringify(a) === JSON.stringify(b)
@@ -314,26 +319,24 @@ export function SimPage() {
     if (!options) return null
     const mine = omniumString(reference?.omnium ?? [], omnium)
     const theirs = omniumString(reference?.omnium ?? [], omniumPicks(profile?.omnium))
-    const picked = reference && profile ? enhancementVariants(profile.equipped, reference, enchants, gems) : []
     return {
       kind,
       export: text,
       options,
       consumables,
       ...(mine !== theirs && { omnium: mine }),
-      ...(kind === 'topgear' && {
-        equipped,
-        bags,
-        variants: [...variants, ...picked.filter((v) => !variants.some((o) => same(o, v)))],
-      }),
+      ...(kind === 'topgear' && { equipped, bags, variants }),
       ...(kind === 'drops' && { difficulty, keyLevel, maxUpgrade }),    }
   }
-  const planRequest = kind === 'topgear' && profile ? request() : null
+  const planRequest = profile ? request() : null
   const plan = usePlan(planRequest)
+  const [estimate, setEstimate] = useState(0) // the seconds the plan said when the running sim was started
   const start = () =>
     act(async () => {
       const req = request()
-      if (req) setRun(await startSim(req))
+      if (!req) return
+      setEstimate(plan.plan?.seconds ?? 0)
+      setRun(await startSim(req))
     })
   const toggle = (worn: boolean, i: number) => {
     const [list, set] = worn ? [equipped, setEquipped] : [bags, setBags]
@@ -356,7 +359,7 @@ export function SimPage() {
           onRemoveVariant: (v: SimVariant) => setVariants((all) => all.filter((o) => !same(o, v))),
         }
       : undefined
-  const planBlocks = kind === 'topgear' && (!!plan.error || !plan.plan || !!plan.plan.error)
+  const planBlocks = !!plan.error || !!plan.plan?.error || (kind === 'topgear' && !plan.plan)
   const compared = comparedCount(consumables) * omniumCompared(reference.omnium, omnium)
   const compareBlocks = compared > choices.maxCompare
   // Why Sim is off, in words (a Top Gear plan says its own refusal beside the button).
@@ -364,11 +367,46 @@ export function SimPage() {
     ? 'Download the engine first.'
     : engine.installing
       ? 'The engine is still downloading.'
-      : compareBlocks
-        ? `The consumables and runes picked make ${compared} combinations to compare, and a sim compares at most ${
+      : kind === 'stats' && compared > 1
+        ? 'Stat weights are for one setup: pick one value of each consumable and rune.'
+        : compareBlocks
+          ? `The consumables and runes picked make ${compared} combinations to compare, and a sim compares at most ${
             choices.maxCompare
           }: untick some.`
-        : null
+          : null
+  if (running) {
+    return (
+      <main className="page settings sim">
+        <section className="panel sim-progress">
+          <h2>{kindLabel(running.kind)}</h2>
+          <p className="muted">
+            {running.character} · {running.spec}
+          </p>
+          <progress value={running.progress} max={100} aria-label="Sim progress" />
+          <p>
+            {running.progress}%{estimate > 0 && <span className="muted"> · about {aboutText(estimate)} in all</span>}
+          </p>
+          <div className="actions">
+            <button onClick={() => act(() => removeSim(running.id))}>Cancel</button>
+          </div>
+        </section>
+        {error && <p className="warning">{error}</p>}
+      </main>
+    )
+  }
+  if (sim) {
+    return (
+      <main className="page settings sim">
+        <div className="actions">
+          <button onClick={() => setSim(null)}>← Back to the sim</button>
+        </div>
+        {error && <p className="warning">{error}</p>}
+        {sim.state === 'failed' && <p className="warning">{sim.error}</p>}
+        {sim.state === 'cancelled' && <p className="muted">Cancelled.</p>}
+        <SimResult sim={sim} chunk={choices.maxItemLookups} />
+      </main>
+    )
+  }
   return (
     <main className="page settings sim">
       <EngineBar engine={engine} busy={!!running} act={act} onEngine={setEngine} />
@@ -453,15 +491,6 @@ export function SimPage() {
             max={choices.maxCompare}
             onChange={setConsumables}
           />
-          {kind === 'topgear' && (
-            <EnhancementsCard
-              reference={reference}
-              enchants={enchants}
-              gems={gems}
-              onEnchants={setEnchants}
-              onGems={setGems}
-            />
-          )}
           {reference.omnium.length > 0 && (
             <OmniumFolio
               nodes={reference.omnium}
@@ -473,21 +502,7 @@ export function SimPage() {
         </>
       )}
 
-      {running && (
-        <section className="panel sim-progress">
-          {running.character} · {kindLabel(running.kind)}{' '}
-          <progress value={running.progress} max={100} aria-label="Sim progress" /> {running.progress}%
-          <button onClick={() => act(() => removeSim(running.id))}>Cancel</button>
-        </section>
-      )}
       {error && <p className="warning">{error}</p>}
-      {sim && (
-        <>
-          {sim.state === 'failed' && <p className="warning">{sim.error}</p>}
-          {sim.state === 'cancelled' && <p className="muted">Cancelled.</p>}
-          <SimResult sim={sim} chunk={choices.maxItemLookups} />
-        </>
-      )}
 
       {saved.length > 0 && (
         <section className="panel">

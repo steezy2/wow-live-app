@@ -2421,7 +2421,7 @@ const docTemplate = `{
         },
         "/api/sim/plan": {
             "post": {
-                "description": "Counts them without starting the sim, so the page can show the cost (and that it is over the limit)\nbefore a run. Takes the same body as starting a Top Gear sim.",
+                "description": "Counts the runs without starting the sim, so the page can show the cost (and that it is over the limit)\nbefore a run. Takes the same body as starting a sim.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2431,10 +2431,10 @@ const docTemplate = `{
                 "tags": [
                     "sim"
                 ],
-                "summary": "How many gear combinations a Top Gear request would run",
+                "summary": "What a sim request would run, and about how long it takes",
                 "parameters": [
                     {
-                        "description": "a Top Gear request, with the consumables it compares",
+                        "description": "a sim request of any kind",
                         "name": "body",
                         "in": "body",
                         "required": true,
@@ -2451,7 +2451,7 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "not a Top Gear request, bad consumables, or items and variants that don't fit the export",
+                        "description": "bad options or consumables, or items and variants that do not fit the export",
                         "schema": {
                             "$ref": "#/definitions/controller.ErrorResponse"
                         }
@@ -2846,6 +2846,11 @@ const docTemplate = `{
                     "minimum": 0
                 },
                 "deleteImportsDays": {
+                    "type": "integer",
+                    "maximum": 365,
+                    "minimum": 0
+                },
+                "deleteSimsDays": {
                     "type": "integer",
                     "maximum": 365,
                     "minimum": 0
@@ -6667,6 +6672,7 @@ const docTemplate = `{
                         "quick",
                         "topgear",
                         "drops",
+                        "stats",
                         "consumables"
                     ]
                 },
@@ -7312,12 +7318,46 @@ const docTemplate = `{
                 "dpsError": {
                     "type": "number"
                 },
+                "equipped": {
+                    "description": "Equipped is the gear the sim started from, so a report can show the best combination in full.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.SimItem"
+                    }
+                },
                 "options": {
                     "description": "Options are the values a Quick Sim compared, best first.",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/models.SimOptionRow"
                     }
+                },
+                "pawn": {
+                    "type": "string"
+                },
+                "weights": {
+                    "description": "Weights and Pawn are a \"stats\" sim's stat weights and the Pawn string that carries them.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.SimStatWeight"
+                    }
+                }
+            }
+        },
+        "models.SimStatWeight": {
+            "type": "object",
+            "properties": {
+                "dps": {
+                    "type": "number",
+                    "example": 23.17
+                },
+                "stat": {
+                    "type": "string",
+                    "example": "Crit"
+                },
+                "weight": {
+                    "type": "number",
+                    "example": 0.52
                 }
             }
         },

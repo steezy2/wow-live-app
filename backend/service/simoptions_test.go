@@ -274,6 +274,30 @@ func TestVariantsJoinTheTopGearCandidates(t *testing.T) {
 	}
 }
 
+func TestPlanTimesEveryKindOfSim(t *testing.T) {
+	s := newTestSims(t, "ok")
+	s.Ref = testRef()
+	req := simRequest(t)
+	quick, err := s.Plan(req)
+	if err != nil || quick.Combos != 0 || quick.Seconds == 0 || quick.Error != "" {
+		t.Fatalf("quick plan = %+v, %v; want a time and no combinations", quick, err)
+	}
+	req.Consumables = models.SimConsumables{"flask": {"flask_a_2", "flask_b_2"}}
+	compared, err := s.Plan(req)
+	if err != nil || compared.Combos != 2 || compared.Seconds <= quick.Seconds {
+		t.Errorf("compared plan = %+v, %v; want 2 combinations and a longer time than %d s", compared, err, quick.Seconds)
+	}
+	req.Kind = "stats"
+	if plan, err := s.Plan(req); err != nil || plan.Error == "" {
+		t.Errorf("stats plan with a comparison = %+v, %v; want Start's refusal", plan, err)
+	}
+	req.Consumables = nil
+	stats, err := s.Plan(req)
+	if err != nil || stats.Seconds <= quick.Seconds || stats.Error != "" {
+		t.Errorf("stats plan = %+v, %v; want a longer time than a quick sim's %d s", stats, err, quick.Seconds)
+	}
+}
+
 func TestPlanRefusesInStartsWords(t *testing.T) {
 	s := newTestSims(t, "ok")
 	req := simRequest(t)
