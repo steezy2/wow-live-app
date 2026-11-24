@@ -26,7 +26,7 @@ func topGearExtras(ref models.SimReference, p models.SimProfile, req models.SimR
 }
 
 // enhancementCandidates are changed copies of the picked items, each in its slot: with each enchant picked for the
-// slot (Enhancements.Enchants by gearKey, a ring's slot is "finger") that it can take, and with each gem picked in its
+// slot (Enchants by SlotGroup, a ring's slot is "finger") that it can take, and with each gem picked in its
 // sockets (a unique gem, one per limit category, in the first socket only; any other in every socket). An item
 // already as changed makes no copy. An enchant or gem the reference doesn't know is ErrBadSimOptions.
 func enhancementCandidates(ref models.SimReference, p models.SimProfile,
@@ -41,7 +41,7 @@ func enhancementCandidates(ref models.SimReference, p models.SimProfile,
 				continue // gearPool refuses the index
 			}
 			item := list.items[i]
-			for _, id := range req.Enhancements.Enchants[gearKey(item.Slot)] {
+			for _, id := range req.Enhancements.Enchants[models.SlotGroup(item.Slot)] {
 				if slices.Contains(item.Opts["enchant_id"], id) {
 					continue
 				}

@@ -170,7 +170,7 @@ func parseSimItem(line, comment string) (models.SimItem, bool) {
 	if !slices.Contains(simSlots, slot) {
 		return models.SimItem{}, false
 	}
-	item := models.SimItem{Slot: slot, Group: gearKey(slot)}
+	item := models.SimItem{Slot: slot, Group: models.SlotGroup(slot)}
 	if m := simItemComment.FindStringSubmatch(comment); m != nil {
 		item.Name = m[1]
 		item.Level, _ = strconv.Atoi(m[2])

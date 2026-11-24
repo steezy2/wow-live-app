@@ -1999,6 +1999,8 @@ export interface SimEnchant {
   icon: string
   quality?: number
   slots: string[]
+  /** The slots' groups ("finger" for both rings): the keys of SimEnhancements.enchants. */
+  groups?: string[]
 }
 
 export interface SimGem {

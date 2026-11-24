@@ -1,5 +1,7 @@
 package models
 
+import "strings"
+
 // SimReference is reference/sim-options.json (written by cmd/simoptref, from Raidbots' public game data): what the Sim
 // tab offers besides the pasted gear. Names that go into a simc input are looked up here, never taken from a request.
 type SimReference struct {
@@ -48,7 +50,12 @@ type SimEnchant struct {
 	Icon    string   `json:"icon"`
 	Quality int      `json:"quality,omitempty"`
 	Slots   []string `json:"slots"`
+	// Groups are the slots' SlotGroups, set when the reference is loaded.
+	Groups []string `json:"groups,omitempty" example:"finger"`
 }
+
+// SlotGroup is the pool a slot's candidates share: "finger" for both rings, "trinket" for both trinkets, else the slot.
+func SlotGroup(slot string) string { return strings.TrimRight(slot, "12") }
 
 // SimGem is a gem: its item ID (simc's gem_id), name, icon, stats and crafting quality.
 type SimGem struct {

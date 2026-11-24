@@ -289,7 +289,7 @@ const maxSockets = 3
 // (SimReference.SocketSlots: the head, wrist and waist) takes one, up to what that slot allows, and no item holds more
 // than maxSockets. Weapons, trinkets, rings and the neck never do.
 func canAddSocket(ref models.SimReference, item models.SimItem) bool {
-	return bonusSockets(ref, item) < ref.SocketSlots[gearKey(item.Slot)] && socketsOf(ref, item) < maxSockets
+	return bonusSockets(ref, item) < ref.SocketSlots[models.SlotGroup(item.Slot)] && socketsOf(ref, item) < maxSockets
 }
 
 // withChoices is the profile's items with the sockets they have, whether one can be added, and what a crafted item can
@@ -306,7 +306,8 @@ func withChoices(ref models.SimReference, p models.SimProfile) models.SimProfile
 				item.Converts = to.Name
 			}
 			for _, what := range removable {
-				probe := models.SimItem{ID: item.ID, Name: item.Name, Opts: cloneOpts(item.Opts)}
+				probe := *item
+				probe.Opts = cloneOpts(item.Opts)
 				if _, err := removeFrom(ref, probe, what); err == nil {
 					item.Removable = append(item.Removable, what)
 				}

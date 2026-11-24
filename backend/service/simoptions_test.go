@@ -394,7 +394,7 @@ func TestApplyVariantCraftingAndRemoval(t *testing.T) {
 			"finger1=,id=5,bonus_id=7/50/60/10397/8790,crafted_stats=32/36,enchant_id=7964,gem_id=240883\n",
 			"recraft Crit / Haste", ""},
 		{"the embellishment it has", crafted, models.SimVariant{Embellishment: 1}, "", "", "can't take"},
-		{"the recraft it has", crafted, models.SimVariant{Recraft: 4}, "", "", "can't be recrafted"},
+		{"the recraft it has", crafted, models.SimVariant{Recraft: 4}, "", "", "can't take recraft"},
 		{"a reagent of another recipe", crafted, models.SimVariant{Embellishment: 99}, "", "", "can't take"},
 		{"an item that isn't crafted", func() models.SimItem { i := crafted(); i.ID = 6; return i },
 			models.SimVariant{Embellishment: 2}, "", "", "can't take"},

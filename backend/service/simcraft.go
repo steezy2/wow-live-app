@@ -58,33 +58,41 @@ func recraftName(r models.CraftingReagent) string {
 	return strings.Join(names, " / ")
 }
 
-// changeCrafting is item with the embellishment or recraft stat pair (reagent IDs) a variant asks for, and the note
-// saying so. A reagent the item's recipe doesn't take, or one it already has, is ErrBadSimOptions.
+// swapReagent is item with the reagent id of kind (an embellishment or a recraft) in place of the one it is made
+// with, and that reagent; a reagent the item's recipe doesn't take, or one it already has, is ErrBadSimOptions.
 // item.Opts is already a copy.
+func swapReagent(ref models.SimReference, item models.SimItem, kind string, id int) (models.SimItem,
+	models.CraftingReagent, error) {
+	held := heldReagent(ref, item, kind)
+	if !slices.Contains(itemReagents(ref, item, kind), id) || id == held {
+		return item, models.CraftingReagent{}, fmt.Errorf("%w: %s can't take %s %d", ErrBadSimOptions,
+			cmp.Or(item.Name, "the item"), kind, id)
+	}
+	r := ref.Crafting.Reagents[id]
+	item = withoutBonus(ref, item, held)
+	item.Opts["bonus_id"] = append(item.Opts["bonus_id"], r.BonusIDs...)
+	return item, r, nil
+}
+
+// changeCrafting is item with the embellishment or recraft stat pair (reagent IDs) a variant asks for, and the note
+// saying so.
 func changeCrafting(ref models.SimReference, item models.SimItem,
 	v models.SimVariant) (models.SimItem, []string, error) {
 	var notes []string
 	if v.Embellishment != 0 {
-		held := heldReagent(ref, item, models.ReagentEmbellishment)
-		if !slices.Contains(itemReagents(ref, item, models.ReagentEmbellishment), v.Embellishment) ||
-			v.Embellishment == held {
-			return item, nil, fmt.Errorf("%w: %s can't take embellishment %d", ErrBadSimOptions,
-				cmp.Or(item.Name, "the item"), v.Embellishment)
+		var r models.CraftingReagent
+		var err error
+		if item, r, err = swapReagent(ref, item, models.ReagentEmbellishment, v.Embellishment); err != nil {
+			return item, nil, err
 		}
-		r := ref.Crafting.Reagents[v.Embellishment]
-		item = withoutBonus(ref, item, held)
-		item.Opts["bonus_id"] = append(item.Opts["bonus_id"], r.BonusIDs...)
 		notes = append(notes, r.Name)
 	}
 	if v.Recraft != 0 {
-		held := heldReagent(ref, item, models.ReagentRecraft)
-		if !slices.Contains(itemReagents(ref, item, models.ReagentRecraft), v.Recraft) || v.Recraft == held {
-			return item, nil, fmt.Errorf("%w: %s can't be recrafted to %d", ErrBadSimOptions,
-				cmp.Or(item.Name, "the item"), v.Recraft)
+		var r models.CraftingReagent
+		var err error
+		if item, r, err = swapReagent(ref, item, models.ReagentRecraft, v.Recraft); err != nil {
+			return item, nil, err
 		}
-		r := ref.Crafting.Reagents[v.Recraft]
-		item = withoutBonus(ref, item, held)
-		item.Opts["bonus_id"] = append(item.Opts["bonus_id"], r.BonusIDs...)
 		item.Opts["crafted_stats"] = slices.Clone(r.Stats)
 		notes = append(notes, "recraft "+recraftName(r))
 	}
@@ -94,28 +102,26 @@ func changeCrafting(ref models.SimReference, item models.SimItem,
 // removeFrom is item with what a variant removes taken off (SimVariant.Remove); nothing to remove, or a thing that
 // isn't one of removable, is ErrBadSimOptions. item.Opts is already a copy.
 func removeFrom(ref models.SimReference, item models.SimItem, what string) (models.SimItem, error) {
-	bad := fmt.Errorf("%w: %s has no %s to remove", ErrBadSimOptions, cmp.Or(item.Name, "the item"), what)
+	bad := func() error {
+		return fmt.Errorf("%w: %s has no %s to remove", ErrBadSimOptions, cmp.Or(item.Name, "the item"), what)
+	}
 	switch what {
-	case "gems":
-		if len(item.Opts["gem_id"]) == 0 {
-			return item, bad
+	case "gems", "enchant":
+		key := map[string]string{"gems": "gem_id", "enchant": "enchant_id"}[what]
+		if len(item.Opts[key]) == 0 {
+			return item, bad()
 		}
-		delete(item.Opts, "gem_id")
-	case "enchant":
-		if len(item.Opts["enchant_id"]) == 0 {
-			return item, bad
-		}
-		delete(item.Opts, "enchant_id")
+		delete(item.Opts, key)
 	case "embellishment":
 		held := heldReagent(ref, item, models.ReagentEmbellishment)
 		if held == 0 {
-			return item, bad
+			return item, bad()
 		}
 		item = withoutBonus(ref, item, held)
 	case "socket": // only the socket a variant added: an item's own ones stay
 		i := slices.Index(item.Opts["bonus_id"], ref.SocketBonus)
 		if i < 0 {
-			return item, bad
+			return item, bad()
 		}
 		left := socketsOf(ref, item) - 1
 		item.Opts["bonus_id"] = slices.Delete(item.Opts["bonus_id"], i, i+1)
