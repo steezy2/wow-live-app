@@ -11,8 +11,8 @@ import (
 )
 
 const (
-	// maxCombos is the most gear combinations a Top Gear sim runs.
-	maxCombos = 100
+	// maxCombos is the most gear combinations a Top Gear sim runs: 100 took 73 s on a 16-thread PC, so 500 take minutes.
+	maxCombos = 500
 	// setTargetError is the finest target error (in % of the DPS) profilesets run at, so 100 of them stay near a minute.
 	setTargetError = 0.2
 )

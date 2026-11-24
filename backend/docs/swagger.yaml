@@ -2877,12 +2877,12 @@ definitions:
       maxCombos:
         description: MaxCombos is the most gear combinations a Top Gear sim runs;
           a request over it is refused.
-        example: 100
+        example: 500
         type: integer
       maxCompare:
         description: MaxCompare is the most combinations of compared consumables one
           sim runs.
-        example: 40
+        example: 200
         type: integer
       maxDrops:
         description: MaxDrops is the most drops a Droptimizer sims.

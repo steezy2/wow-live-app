@@ -11,8 +11,9 @@ import (
 )
 
 const (
-	// maxCompareValues is the most values a "consumables" sim tries, so one stays about as long as a Top Gear sim.
-	maxCompareValues = 40
+	// maxCompareValues is the most combinations of consumables and Omnium runes a sim compares, so a Quick Sim stays
+	// well within a Top Gear sim's time.
+	maxCompareValues = 200
 	// maxPlanCombos is where a plan stops counting: a request that makes more than maxCombos is refused anyway.
 	maxPlanCombos = 1_000_000
 	// comboSeconds is how long one Top Gear combination took on a 16-thread PC at the default fight (100 took 73 s),

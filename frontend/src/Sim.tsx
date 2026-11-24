@@ -24,11 +24,19 @@ import {
 import { amount, errorText, sizeText } from './format'
 import { OmniumFolio } from './OmniumFolio'
 import { ConsumablesCard } from './SimConsumables'
+import { EnhancementsCard } from './SimEnhancements'
 import { SimGear, SimHeader } from './SimGear'
 import { useItemInfo } from './simItems'
 import { usePlan } from './simPlan'
 import { SimResult } from './SimResult'
-import { comparedCount, omniumCompared, omniumPicks, omniumString, simOptionsError } from './simOptions'
+import {
+  comparedCount,
+  enhancementVariants,
+  omniumCompared,
+  omniumPicks,
+  omniumString,
+  simOptionsError,
+} from './simOptions'
 import { Skeleton } from './Skeleton'
 import { tip } from './tipAttrs'
 
@@ -122,6 +130,7 @@ function OptionsPanel(props: {
   maxUpgrade: boolean
   setMaxUpgrade: (m: boolean) => void
   plan: { plan: SimPlan | null; error: string | null } | null
+  why: string | null
   canRun: boolean
   running: Sim | null
   onRun: () => void
@@ -190,6 +199,7 @@ function OptionsPanel(props: {
       )}
       {optionsError && <p className="warning">{optionsError}</p>}
       {props.plan && <PlanText plan={props.plan} max={choices.maxCombos} />}
+      {props.why && !running && <p className="warning">{props.why}</p>}
       <button className="sim-run" disabled={!props.canRun || !!running || !!optionsError} onClick={props.onRun}>
         {running ? 'Simming…' : 'Sim'}
       </button>
@@ -216,6 +226,8 @@ export function SimPage() {
   const [difficulty, setDifficulty] = useState('')
   const [keyLevel, setKeyLevel] = useState(0)
   const [maxUpgrade, setMaxUpgrade] = useState(false)
+  const [enchants, setEnchants] = useState<number[]>([]) // the Enhancements card's picks
+  const [gems, setGems] = useState<number[]>([])
   const [run, setRun] = useState<Sim | null>(null) // the sim started here, or found running, as last polled
   const [sim, setSim] = useState<Sim | null>(null) // the finished sim shown
   const [saved, setSaved] = useState<Sim[]>([])
@@ -292,20 +304,28 @@ export function SimPage() {
       setEquipped(p.equipped.map((_, i) => i)) // worn items are candidates until unticked
       setBags([])
       setVariants([])
+      setEnchants([])
+      setGems([])
       setOmnium(omniumPicks(p.omnium))
     })
+  const same = (a: SimVariant, b: SimVariant) => JSON.stringify(a) === JSON.stringify(b)
   const optionsError = choices && options ? simOptionsError(options, choices) : null
   const request = (): SimRequest | null => {
     if (!options) return null
     const mine = omniumString(reference?.omnium ?? [], omnium)
     const theirs = omniumString(reference?.omnium ?? [], omniumPicks(profile?.omnium))
+    const picked = reference && profile ? enhancementVariants(profile.equipped, reference, enchants, gems) : []
     return {
       kind,
       export: text,
       options,
       consumables,
       ...(mine !== theirs && { omnium: mine }),
-      ...(kind === 'topgear' && { equipped, bags, variants }),
+      ...(kind === 'topgear' && {
+        equipped,
+        bags,
+        variants: [...variants, ...picked.filter((v) => !variants.some((o) => same(o, v)))],
+      }),
       ...(kind === 'drops' && { difficulty, keyLevel, maxUpgrade }),    }
   }
   const planRequest = kind === 'topgear' && profile ? request() : null
@@ -323,7 +343,6 @@ export function SimPage() {
   if (!choices || !options || !reference) {
     return error ? <p className="warning">{error}</p> : <Skeleton height={320} lines={5} />
   }
-  const same = (a: SimVariant, b: SimVariant) => JSON.stringify(a) === JSON.stringify(b)
   const pick =
     kind === 'topgear'
       ? {
@@ -338,8 +357,18 @@ export function SimPage() {
         }
       : undefined
   const planBlocks = kind === 'topgear' && (!!plan.error || !plan.plan || !!plan.plan.error)
-  const compareBlocks =
-    comparedCount(consumables) * omniumCompared(reference?.omnium ?? [], omnium) > choices.maxCompare
+  const compared = comparedCount(consumables) * omniumCompared(reference.omnium, omnium)
+  const compareBlocks = compared > choices.maxCompare
+  // Why Sim is off, in words (a Top Gear plan says its own refusal beside the button).
+  const why = !engine?.installed
+    ? 'Download the engine first.'
+    : engine.installing
+      ? 'The engine is still downloading.'
+      : compareBlocks
+        ? `The consumables and runes picked make ${compared} combinations to compare, and a sim compares at most ${
+            choices.maxCompare
+          }: untick some.`
+        : null
   return (
     <main className="page settings sim">
       <EngineBar engine={engine} busy={!!running} act={act} onEngine={setEngine} />
@@ -411,7 +440,8 @@ export function SimPage() {
               maxUpgrade={maxUpgrade}
               setMaxUpgrade={setMaxUpgrade}
               plan={planRequest ? plan : null}
-              canRun={!!engine?.installed && !engine.installing && !planBlocks && !compareBlocks}
+              why={why}
+              canRun={!why && !planBlocks}
               running={running}
               onRun={start}
             />
@@ -423,6 +453,15 @@ export function SimPage() {
             max={choices.maxCompare}
             onChange={setConsumables}
           />
+          {kind === 'topgear' && (
+            <EnhancementsCard
+              reference={reference}
+              enchants={enchants}
+              gems={gems}
+              onEnchants={setEnchants}
+              onGems={setGems}
+            />
+          )}
           {reference.omnium.length > 0 && (
             <OmniumFolio
               nodes={reference.omnium}

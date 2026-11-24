@@ -55,9 +55,9 @@ type SimChoices struct {
 	MaxLength   int      `json:"maxLength"`
 	MaxTargets  int      `json:"maxTargets"`
 	// MaxCombos is the most gear combinations a Top Gear sim runs; a request over it is refused.
-	MaxCombos int `json:"maxCombos" example:"100"`
+	MaxCombos int `json:"maxCombos" example:"500"`
 	// MaxCompare is the most combinations of compared consumables one sim runs.
-	MaxCompare int `json:"maxCompare" example:"40"`
+	MaxCompare int `json:"maxCompare" example:"200"`
 	// ConsumableKinds are the kinds of consumable a sim can be told to use, in the order the page lists them.
 	ConsumableKinds []string `json:"consumableKinds"`
 	// MaxDrops is the most drops a Droptimizer sims.

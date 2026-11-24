@@ -2,6 +2,7 @@ import { expect, test } from 'vitest'
 import type { SimChoices, SimItem, SimReference } from './api'
 import {
   comparedCount,
+  enhancementVariants,
   enchantsFor,
   gainShare,
   gearGroups,
@@ -109,4 +110,17 @@ test('togglePick adds an entry beside the others of its node and removes a picke
   expect(togglePick([11, 21], 12)).toEqual([11, 21, 12])
   expect(togglePick([11, 21], 11)).toEqual([21])
   expect(togglePick([], 21)).toEqual([21])
+})
+
+test('enhancementVariants tries each enchant and gem on the worn items they fit, leaving out what is worn', () => {
+  const worn: SimItem[] = [
+    { slot: 'finger1', group: 'finger', id: 1, opts: { enchant_id: [7964], gem_id: [240883] } },
+    { slot: 'finger2', group: 'finger', id: 2, opts: { gem_id: [240883] } },
+    { slot: 'head', group: 'head', id: 3 },
+  ]
+  expect(enhancementVariants(worn, ref, [7964], [240883, 5])).toEqual([
+    { worn: true, index: 0, gem: 5 },
+    { worn: true, index: 1, enchant: 7964 },
+    { worn: true, index: 1, gem: 5 },
+  ])
 })

@@ -7,6 +7,7 @@ import type {
   SimReference,
   SimUpgradeLevel,
   SimUpgradeTrack,
+  SimVariant,
   TalentNode,
 } from './api'
 
@@ -97,6 +98,26 @@ export const omniumCompared = (nodes: TalentNode[], picks: number[]): number =>
     const here = node.entries.filter((e) => picks.includes(e.id)).length
     return here > 1 ? n * here : n
   }, 1)
+
+/** The variants an Enhancements card's picks make: each picked enchant on each worn item whose slot it fits (unless the
+ * item has it), and each picked gem in the first socket of each worn item that has one (unless it holds that gem
+ * there). */
+export function enhancementVariants(
+  equipped: SimItem[],
+  reference: SimReference,
+  enchants: number[],
+  gems: number[],
+): SimVariant[] {
+  return equipped.flatMap((item, index) => [
+    ...enchants
+      .filter((id) => reference.enchants.some((e) => e.id === id && e.slots.includes(item.slot)))
+      .filter((id) => item.opts?.enchant_id?.[0] !== id)
+      .map((enchant): SimVariant => ({ worn: true, index, enchant })),
+    ...(item.opts?.gem_id?.length ? gems.filter((id) => item.opts?.gem_id?.[0] !== id) : []).map(
+      (gem): SimVariant => ({ worn: true, index, gem }),
+    ),
+  ])
+}
 
 /** The picks after clicking an entry: it is picked as well as the others of its node, or unpicked when it was. */
 export const togglePick = (picks: number[], entry: number): number[] =>

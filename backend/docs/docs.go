@@ -6798,12 +6798,12 @@ const docTemplate = `{
                 "maxCombos": {
                     "description": "MaxCombos is the most gear combinations a Top Gear sim runs; a request over it is refused.",
                     "type": "integer",
-                    "example": 100
+                    "example": 500
                 },
                 "maxCompare": {
                     "description": "MaxCompare is the most combinations of compared consumables one sim runs.",
                     "type": "integer",
-                    "example": 40
+                    "example": 200
                 },
                 "maxDrops": {
                     "description": "MaxDrops is the most drops a Droptimizer sims.",
