@@ -2202,14 +2202,14 @@ const docTemplate = `{
         },
         "/api/sim": {
             "get": {
-                "description": "Newest first, the last 20, without their results.",
+                "description": "The running sims, then the saved ones (kept AutoSettings.deleteSimsDays days), each newest first and\nwithout their results.",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "sim"
                 ],
-                "summary": "The running sim and the saved ones",
+                "summary": "The running sims and the saved ones",
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -2229,7 +2229,7 @@ const docTemplate = `{
                 }
             },
             "post": {
-                "description": "Runs SimulationCraft on this PC in the background, one at a time: the pasted export (read again,\nnever passed to simc as it is) with the options. Poll the sim by its ID. A Top Gear request also\nsends ` + "`" + `equipped` + "`" + ` and ` + "`" + `bags` + "`" + `: the indexes of the items it may put on.",
+                "description": "Runs SimulationCraft on this PC in the background, up to SimChoices.maxParallel at once: the pasted\nexport (read again, never passed to simc as it is) with the options. Poll the sim by its ID. A Top Gear\nrequest also sends ` + "`" + `equipped` + "`" + ` and ` + "`" + `bags` + "`" + `: the indexes of the items it may put on.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2265,7 +2265,7 @@ const docTemplate = `{
                         }
                     },
                     "409": {
-                        "description": "a sim or a download is running, or no engine is installed",
+                        "description": "as many sims as can run at once are running, the engine is downloading, or none is installed",
                         "schema": {
                             "$ref": "#/definitions/controller.ErrorResponse"
                         }
@@ -2548,7 +2548,7 @@ const docTemplate = `{
                 "tags": [
                     "sim"
                 ],
-                "summary": "Stop a running sim, or delete a saved one",
+                "summary": "Stop a running sim, forget one that failed or was cancelled, or delete a saved one",
                 "parameters": [
                     {
                         "type": "string",

@@ -86,10 +86,10 @@ type SimVariant struct {
 	Enchant int  `json:"enchant,omitempty" example:"7964"`
 }
 
-// SimPlan is what a Top Gear request would run: how many gear combinations it makes and about how long that takes on
-// this PC, for its fight length and accuracy. Error is why a sim of them would be refused (none, or over
-// SimChoices.MaxCombos), in the words starting it gives; Notes say what each of the request's variants changes, in its
-// order.
+// SimPlan is what a sim request would run: the runs besides the sim's own it makes (a Top Gear sim's gear
+// combinations, a Droptimizer's drops, a comparison's combinations) and about how long it all takes on this PC, for
+// its fight length and accuracy. Error is why the sim would be refused, in the words starting it gives; Notes say what
+// each of a Top Gear request's variants changes, in its order.
 type SimPlan struct {
 	Combos  int      `json:"combos"`
 	Seconds int      `json:"seconds"`
