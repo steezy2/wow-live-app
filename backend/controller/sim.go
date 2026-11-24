@@ -132,7 +132,7 @@ func (a SimAPI) ParseProfile(c *gin.Context) {
 //	@Tags			sim
 //	@Accept			json
 //	@Produce		json
-//	@Param			body	body		models.SimRequest	true	"the kind, the export and the options"
+//	@Param			body	body		models.SimRequest	true	"the kind, the export, the options, for topgear the picked equipped and bag indexes, and for drops the difficulty and keyLevel"
 //	@Success		202		{object}	models.Sim
 //	@Failure		400		{object}	ErrorResponse	"bad options or indexes, not an export, nothing to try or over maxCombos"
 //	@Failure		409		{object}	ErrorResponse	"a sim or a download is running, or no engine is installed"

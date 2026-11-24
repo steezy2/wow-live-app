@@ -2242,7 +2242,7 @@ const docTemplate = `{
                 "summary": "Start a sim",
                 "parameters": [
                     {
-                        "description": "the kind, the export and the options",
+                        "description": "the kind, the export, the options, for topgear the picked equipped and bag indexes, and for drops the difficulty and keyLevel",
                         "name": "body",
                         "in": "body",
                         "required": true,
@@ -6557,7 +6557,8 @@ const docTemplate = `{
                     "type": "string",
                     "enum": [
                         "quick",
-                        "topgear"
+                        "topgear",
+                        "drops"
                     ]
                 },
                 "options": {
@@ -6642,16 +6643,35 @@ const docTemplate = `{
                 "defaults": {
                     "$ref": "#/definitions/models.SimOptions"
                 },
+                "difficulties": {
+                    "description": "Difficulties are the raid difficulties a Droptimizer can sim the raid at.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "fightStyles": {
                     "type": "array",
                     "items": {
                         "type": "string"
                     }
                 },
+                "keyLevels": {
+                    "description": "KeyLevels are the Mythic+ key levels a Droptimizer can sim the dungeons at.",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
                 "maxCombos": {
                     "description": "MaxCombos is the most gear combinations a Top Gear sim runs; a request over it is refused.",
                     "type": "integer",
                     "example": 100
+                },
+                "maxDrops": {
+                    "description": "MaxDrops is the most drops a Droptimizer sims.",
+                    "type": "integer",
+                    "example": 300
                 },
                 "maxLength": {
                     "type": "integer"
@@ -6667,6 +6687,9 @@ const docTemplate = `{
         "models.SimCombo": {
             "type": "object",
             "properties": {
+                "boss": {
+                    "type": "string"
+                },
                 "dps": {
                     "type": "number"
                 },
@@ -6675,6 +6698,9 @@ const docTemplate = `{
                 },
                 "gain": {
                     "type": "number"
+                },
+                "source": {
+                    "type": "string"
                 },
                 "swaps": {
                     "type": "array",
@@ -6839,6 +6865,17 @@ const docTemplate = `{
                         "type": "integer"
                     }
                 },
+                "difficulty": {
+                    "description": "Difficulty is the raid difficulty a Droptimizer's drops are at, one of SimChoices.Difficulties.",
+                    "type": "string",
+                    "enum": [
+                        "lfr",
+                        "normal",
+                        "heroic",
+                        "mythic"
+                    ],
+                    "example": "heroic"
+                },
                 "equipped": {
                     "description": "Equipped and Bags are the items a Top Gear sim may put on, as indexes into the parsed profile's Equipped and\nBags. A slot with nothing ticked keeps its item; rings and trinkets with fewer than two ticked are made up from\nthe equipped ones.",
                     "type": "array",
@@ -6848,6 +6885,11 @@ const docTemplate = `{
                 },
                 "export": {
                     "type": "string"
+                },
+                "keyLevel": {
+                    "description": "KeyLevel is the Mythic+ key level a Droptimizer's dungeon drops are at, one of SimChoices.KeyLevels.",
+                    "type": "integer",
+                    "example": 10
                 },
                 "kind": {
                     "type": "string",

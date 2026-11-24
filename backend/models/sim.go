@@ -49,12 +49,19 @@ type SimChoices struct {
 	MaxLength   int      `json:"maxLength"`
 	MaxTargets  int      `json:"maxTargets"`
 	// MaxCombos is the most gear combinations a Top Gear sim runs; a request over it is refused.
-	MaxCombos int        `json:"maxCombos" example:"100"`
+	MaxCombos int `json:"maxCombos" example:"100"`
+	// MaxDrops is the most drops a Droptimizer sims.
+	MaxDrops int `json:"maxDrops" example:"300"`
+	// Difficulties are the raid difficulties a Droptimizer can sim the raid at.
+	Difficulties []string `json:"difficulties"`
+	// KeyLevels are the Mythic+ key levels a Droptimizer can sim the dungeons at.
+	KeyLevels []int      `json:"keyLevels"`
 	Defaults  SimOptions `json:"defaults"`
 }
 
 // SimRequest starts a sim: its Kind (one of SimKinds), the pasted SimC export (parsed again on every request) and
-// the options.
+// the options. A Top Gear sim also sends the items it may put on, and a Droptimizer sim the Difficulty and KeyLevel
+// its drops are at.
 type SimRequest struct {
 	Kind    string     `json:"kind" binding:"required" example:"quick"`
 	Export  string     `json:"export" binding:"required"`
@@ -64,11 +71,15 @@ type SimRequest struct {
 	// the equipped ones.
 	Equipped []int `json:"equipped"`
 	Bags     []int `json:"bags"`
+	// Difficulty is the raid difficulty a Droptimizer's drops are at, one of SimChoices.Difficulties.
+	Difficulty string `json:"difficulty,omitempty" enums:"lfr,normal,heroic,mythic" example:"heroic"`
+	// KeyLevel is the Mythic+ key level a Droptimizer's dungeon drops are at, one of SimChoices.KeyLevels.
+	KeyLevel int `json:"keyLevel,omitempty" example:"10"`
 }
 
-// SimKinds are the kinds of sim: one character's DPS ("quick") and the best combination of the gear they carry
-// ("topgear").
-var SimKinds = []string{"quick", "topgear"}
+// SimKinds are the kinds of sim: one character's DPS ("quick"), the best combination of the gear they carry
+// ("topgear") and the gain of each piece the season's raid and dungeons drop ("drops").
+var SimKinds = []string{"quick", "topgear", "drops"}
 
 // The states a sim is in (Sim.State).
 const (
@@ -82,7 +93,7 @@ const (
 // how long it took, and, once State is "done", its Result; a failed one says why in Error. The list leaves Result out.
 type Sim struct {
 	ID        string     `json:"id" example:"9f3a1c5e7b2d4a60"`
-	Kind      string     `json:"kind" enums:"quick,topgear"`
+	Kind      string     `json:"kind" enums:"quick,topgear,drops"`
 	State     string     `json:"state" enums:"running,done,failed,cancelled"`
 	Character string     `json:"character" example:"Steezy"`
 	Spec      string     `json:"spec" example:"elemental"`
@@ -106,12 +117,15 @@ type SimResult struct {
 }
 
 // SimCombo is one gear combination a Top Gear sim ran: its DPS, the standard error of that mean, its gain over the
-// equipped gear (negative for a loss) and the slots it changes.
+// equipped gear (negative for a loss) and the slots it changes. A Droptimizer row says where the item drops: its
+// Source (the raid's or dungeon's name, as "The Venomous Abyss") and Boss.
 type SimCombo struct {
 	DPS      float64   `json:"dps"`
 	DPSError float64   `json:"dpsError"`
 	Gain     float64   `json:"gain"`
 	Swaps    []SimSwap `json:"swaps"`
+	Source   string    `json:"source,omitempty"`
+	Boss     string    `json:"boss,omitempty"`
 }
 
 // SimSwap is one slot a combination changes: the equipped item taken off (Out, none when the slot was empty) and the

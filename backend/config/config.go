@@ -99,6 +99,7 @@ type Loaded struct {
 	Bosses    map[string]models.RaidBoss
 	Tier      map[string][]int
 	Talents   map[int]models.TalentTree
+	Drops     models.SimDrops
 	// RefErr is a reference file that wouldn't load: cmd/site goes on without it, the app (which builds both in) stops.
 	RefErr error
 }
@@ -115,8 +116,9 @@ func Load(fsys fs.FS) (Loaded, error) {
 	dungeons, dungeonsErr := loadJSON[models.MPlusReference](fsys, "reference/mplus-dungeons.json", "mplusref")
 	raid, raidErr := loadJSON[models.RaidReference](fsys, "reference/raid-bosses.json", "raidref")
 	talents, talentsErr := loadJSON[models.TalentTrees](fsys, "reference/talent-trees.json", "talentref")
-	l.Dungeons, l.Bosses, l.Tier, l.Talents = dungeons.Dungeons, raid.Bosses, raid.Tier, talents.BySpec()
-	l.RefErr = errors.Join(dungeonsErr, raidErr, talentsErr)
+	drops, dropsErr := loadJSON[models.SimDrops](fsys, "reference/sim-drops.json", "simref")
+	l.Dungeons, l.Bosses, l.Tier, l.Talents, l.Drops = dungeons.Dungeons, raid.Bosses, raid.Tier, talents.BySpec(), drops
+	l.RefErr = errors.Join(dungeonsErr, raidErr, talentsErr, dropsErr)
 	return l, nil
 }
 
@@ -188,6 +190,21 @@ func LoadRaidMechanics(path string) (models.RaidMechanics, error) {
 // LoadRaidReference reads the raid's boss mechanics (RaidReferencePath).
 func LoadRaidReference(path string) (models.RaidReference, error) {
 	return loadJSON[models.RaidReference](os.DirFS(filepath.Dir(path)), filepath.Base(path), "raidref")
+}
+
+// SimDropsPath is the Droptimizer's gear, written by cmd/simref.
+func SimDropsPath(root string) string {
+	return filepath.Join(root, "reference", "sim-drops.json")
+}
+
+// SimDropLevelsPath is the hand-kept item levels cmd/simref gives the Droptimizer's gear.
+func SimDropLevelsPath(root string) string {
+	return filepath.Join(root, "reference", "sim-drops.toml")
+}
+
+// LoadSimDropLevels reads the hand-kept drop item levels (SimDropLevelsPath).
+func LoadSimDropLevels(path string) (models.SimDropLevels, error) {
+	return loadTOML[models.SimDropLevels](path)
 }
 
 // loadJSON reads a generated reference file, saying which command writes it when it's missing.

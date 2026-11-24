@@ -88,6 +88,7 @@ type ItemTypes interface {
 type Sims struct {
 	Engine SimEngineSource
 	Items  ItemTypes
+	Drops  models.SimDrops // reference/sim-drops.json, for a Droptimizer
 	Dir    string
 	Now    func() time.Time
 	Ctx    context.Context // the app's: canceled on Quit, which stops a running sim and download
@@ -112,8 +113,13 @@ func (s *Sims) Choices() models.SimChoices {
 	for i, a := range simAccuracies {
 		accuracies[i] = a.Name
 	}
+	keyLevels := make([]int, len(s.Drops.Keys))
+	for i, k := range s.Drops.Keys {
+		keyLevels[i] = k.Level
+	}
 	return models.SimChoices{FightStyles: simFightStyles, Accuracies: accuracies, MinLength: minSimLength,
-		MaxLength: maxSimLength, MaxTargets: maxSimTargets, MaxCombos: maxCombos, Defaults: simDefaults}
+		MaxLength: maxSimLength, MaxTargets: maxSimTargets, MaxCombos: maxCombos, MaxDrops: maxDrops,
+		Difficulties: simDifficulties, KeyLevels: keyLevels, Defaults: simDefaults}
 }
 
 // simAccuracyOf is the accuracy named name, false when there is none.
@@ -187,11 +193,15 @@ func (s *Sims) Start(req models.SimRequest) (models.Sim, error) {
 		return models.Sim{}, err
 	}
 	var combos []gearCombo
-	if req.Kind == "topgear" {
+	switch req.Kind {
+	case "topgear":
 		twoHanded := func(id int) (bool, error) { return s.Items.TwoHanded(s.Ctx, id) }
-		if combos, err = topGearCombos(profile, req.Equipped, req.Bags, twoHanded); err != nil {
-			return models.Sim{}, err
-		}
+		combos, err = topGearCombos(profile, req.Equipped, req.Bags, twoHanded)
+	case "drops":
+		combos, err = dropCombos(profile, s.Drops, req.Difficulty, req.KeyLevel)
+	}
+	if err != nil {
+		return models.Sim{}, err
 	}
 	if !s.Engine.Installed().Installed {
 		return models.Sim{}, ErrNoEngine

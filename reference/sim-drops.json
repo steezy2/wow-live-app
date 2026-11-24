@@ -1,0 +1,5444 @@
+{
+  "season": "season-mn-2",
+  "sources": {
+    "items": "wago.tools' tables of the live game (JournalInstance, JournalEncounter, JournalEncounterItem, Item, ItemSparse): every weapon and armor piece each boss drops",
+    "levels": "reference/sim-drops.toml (kept by hand from the wiki; see the toml for what was checked)",
+    "specs": "ItemSpecOverride, else the game's ItemSpec rule over the item's kind and primary stats; ChrClasses and ChrSpecialization for the names"
+  },
+  "specs": {
+    "102": {
+      "class": "druid",
+      "spec": "balance"
+    },
+    "103": {
+      "class": "druid",
+      "spec": "feral"
+    },
+    "104": {
+      "class": "druid",
+      "spec": "guardian"
+    },
+    "105": {
+      "class": "druid",
+      "spec": "restoration"
+    },
+    "1467": {
+      "class": "evoker",
+      "spec": "devastation"
+    },
+    "1468": {
+      "class": "evoker",
+      "spec": "preservation"
+    },
+    "1473": {
+      "class": "evoker",
+      "spec": "augmentation"
+    },
+    "1480": {
+      "class": "demonhunter",
+      "spec": "devourer"
+    },
+    "250": {
+      "class": "deathknight",
+      "spec": "blood"
+    },
+    "251": {
+      "class": "deathknight",
+      "spec": "frost"
+    },
+    "252": {
+      "class": "deathknight",
+      "spec": "unholy"
+    },
+    "253": {
+      "class": "hunter",
+      "spec": "beast_mastery"
+    },
+    "254": {
+      "class": "hunter",
+      "spec": "marksmanship"
+    },
+    "255": {
+      "class": "hunter",
+      "spec": "survival"
+    },
+    "256": {
+      "class": "priest",
+      "spec": "discipline"
+    },
+    "257": {
+      "class": "priest",
+      "spec": "holy"
+    },
+    "258": {
+      "class": "priest",
+      "spec": "shadow"
+    },
+    "259": {
+      "class": "rogue",
+      "spec": "assassination"
+    },
+    "260": {
+      "class": "rogue",
+      "spec": "outlaw"
+    },
+    "261": {
+      "class": "rogue",
+      "spec": "subtlety"
+    },
+    "262": {
+      "class": "shaman",
+      "spec": "elemental"
+    },
+    "263": {
+      "class": "shaman",
+      "spec": "enhancement"
+    },
+    "264": {
+      "class": "shaman",
+      "spec": "restoration"
+    },
+    "265": {
+      "class": "warlock",
+      "spec": "affliction"
+    },
+    "266": {
+      "class": "warlock",
+      "spec": "demonology"
+    },
+    "267": {
+      "class": "warlock",
+      "spec": "destruction"
+    },
+    "268": {
+      "class": "monk",
+      "spec": "brewmaster"
+    },
+    "269": {
+      "class": "monk",
+      "spec": "windwalker"
+    },
+    "270": {
+      "class": "monk",
+      "spec": "mistweaver"
+    },
+    "577": {
+      "class": "demonhunter",
+      "spec": "havoc"
+    },
+    "581": {
+      "class": "demonhunter",
+      "spec": "vengeance"
+    },
+    "62": {
+      "class": "mage",
+      "spec": "arcane"
+    },
+    "63": {
+      "class": "mage",
+      "spec": "fire"
+    },
+    "64": {
+      "class": "mage",
+      "spec": "frost"
+    },
+    "65": {
+      "class": "paladin",
+      "spec": "holy"
+    },
+    "66": {
+      "class": "paladin",
+      "spec": "protection"
+    },
+    "70": {
+      "class": "paladin",
+      "spec": "retribution"
+    },
+    "71": {
+      "class": "warrior",
+      "spec": "arms"
+    },
+    "72": {
+      "class": "warrior",
+      "spec": "fury"
+    },
+    "73": {
+      "class": "warrior",
+      "spec": "protection"
+    }
+  },
+  "raids": [
+    {
+      "instanceID": 1320,
+      "mapID": 3004,
+      "name": "The Venomous Abyss",
+      "bosses": [
+        {
+          "name": "Nek'zali the Soulcoiler",
+          "levels": {
+            "lfr": 279,
+            "normal": 292,
+            "heroic": 305,
+            "mythic": 318
+          },
+          "items": [
+            {
+              "id": 268203,
+              "name": "Hexing Spiritrender",
+              "slot": "one_hand",
+              "specs": [
+                62,
+                63,
+                64,
+                102,
+                105,
+                256,
+                257,
+                258,
+                262,
+                264,
+                265,
+                266,
+                267,
+                1467,
+                1468,
+                1473,
+                1480
+              ]
+            },
+            {
+              "id": 268208,
+              "name": "Strongblood's Ceremonial Cleaver",
+              "slot": "one_hand",
+              "specs": [
+                66,
+                73,
+                251
+              ]
+            },
+            {
+              "id": 268216,
+              "name": "Cursed Reliquary Cincture",
+              "slot": "waist",
+              "armor": "mail",
+              "specs": [
+                253,
+                254,
+                255,
+                262,
+                263,
+                264,
+                1467,
+                1468,
+                1473
+              ]
+            },
+            {
+              "id": 268218,
+              "name": "Nek'zali's Spiritwalkers",
+              "slot": "feet",
+              "armor": "cloth",
+              "specs": [
+                62,
+                63,
+                64,
+                256,
+                257,
+                258,
+                265,
+                266,
+                267
+              ]
+            },
+            {
+              "id": 268229,
+              "name": "Skullguard of the Risen Sacrifice",
+              "slot": "head",
+              "armor": "plate",
+              "specs": [
+                65,
+                66,
+                70,
+                71,
+                72,
+                73,
+                250,
+                251,
+                252
+              ]
+            },
+            {
+              "id": 268230,
+              "name": "Crown of the Eternal Fang",
+              "slot": "head",
+              "armor": "mail",
+              "specs": [
+                253,
+                254,
+                255,
+                262,
+                263,
+                264,
+                1467,
+                1468,
+                1473
+              ]
+            },
+            {
+              "id": 268235,
+              "name": "Vestment of the Awakening",
+              "slot": "chest",
+              "armor": "leather",
+              "specs": [
+                102,
+                103,
+                104,
+                105,
+                259,
+                260,
+                261,
+                268,
+                269,
+                270,
+                577,
+                581,
+                1480
+              ]
+            },
+            {
+              "id": 268236,
+              "name": "Initiate's Sacrificial Tights",
+              "slot": "legs",
+              "armor": "cloth",
+              "specs": [
+                62,
+                63,
+                64,
+                256,
+                257,
+                258,
+                265,
+                266,
+                267
+              ]
+            },
+            {
+              "id": 268240,
+              "name": "Restless Spirit Shackles",
+              "slot": "wrist",
+              "armor": "leather",
+              "specs": [
+                102,
+                103,
+                104,
+                105,
+                259,
+                260,
+                261,
+                268,
+                269,
+                270,
+                577,
+                581,
+                1480
+              ]
+            },
+            {
+              "id": 268245,
+              "name": "Entombed Cultist's Sabatons",
+              "slot": "feet",
+              "armor": "plate",
+              "specs": [
+                65,
+                66,
+                70,
+                71,
+                72,
+                73,
+                250,
+                251,
+                252
+              ]
+            },
+            {
+              "id": 268248,
+              "name": "Amani Summoning Shawl",
+              "slot": "back"
+            },
+            {
+              "id": 270162,
+              "name": "Soulcoiler Ritual Vessel",
+              "slot": "trinket",
+              "specs": [
+                65,
+                105,
+                256,
+                257,
+                264,
+                270,
+                1468
+              ]
+            },
+            {
+              "id": 270930,
+              "name": "Tomb-Creeper's Claw",
+              "slot": "one_hand",
+              "specs": [
+                260,
+                263,
+                268,
+                269,
+                577,
+                581
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Entombed Sentinels",
+          "levels": {
+            "lfr": 282,
+            "normal": 295,
+            "heroic": 308,
+            "mythic": 321
+          },
+          "items": [
+            {
+              "id": 268197,
+              "name": "Spine of the Hissing Abyss",
+              "slot": "off_hand",
+              "specs": [
+                62,
+                63,
+                64,
+                65,
+                102,
+                105,
+                256,
+                257,
+                258,
+                262,
+                264,
+                265,
+                266,
+                267,
+                270,
+                1467,
+                1468,
+                1473,
+                1480
+              ]
+            },
+            {
+              "id": 268198,
+              "name": "Caustic Keeper-Crusher",
+              "slot": "two_hand",
+              "specs": [
+                70,
+                71,
+                72,
+                250,
+                251,
+                252
+              ]
+            },
+            {
+              "id": 268204,
+              "name": "Ancient Construct's Venomshiv",
+              "slot": "one_hand",
+              "specs": [
+                255,
+                259,
+                261
+              ]
+            },
+            {
+              "id": 268219,
+              "name": "Shadow Hunter's Warmask",
+              "slot": "head",
+              "armor": "leather",
+              "specs": [
+                102,
+                103,
+                104,
+                105,
+                259,
+                260,
+                261,
+                268,
+                269,
+                270,
+                577,
+                581,
+                1480
+              ]
+            },
+            {
+              "id": 268224,
+              "name": "Venom Warden's Greaves",
+              "slot": "legs",
+              "armor": "plate",
+              "specs": [
+                65,
+                66,
+                70,
+                71,
+                72,
+                73,
+                250,
+                251,
+                252
+              ]
+            },
+            {
+              "id": 268228,
+              "name": "Venom-Singed Cuffs",
+              "slot": "wrist",
+              "armor": "cloth",
+              "specs": [
+                62,
+                63,
+                64,
+                256,
+                257,
+                258,
+                265,
+                266,
+                267
+              ]
+            },
+            {
+              "id": 268250,
+              "name": "Sentinel's Vitriolic Chain",
+              "slot": "neck"
+            },
+            {
+              "id": 270165,
+              "name": "Keeper's Seething Core",
+              "slot": "trinket",
+              "specs": [
+                66,
+                70,
+                71,
+                72,
+                73,
+                103,
+                104,
+                250,
+                251,
+                252,
+                253,
+                254,
+                255,
+                259,
+                260,
+                261,
+                263,
+                268,
+                269,
+                577,
+                581
+              ]
+            }
+          ]
+        },
+        {
+          "name": "The Lost Explorers",
+          "levels": {
+            "lfr": 282,
+            "normal": 295,
+            "heroic": 308,
+            "mythic": 321
+          },
+          "items": [
+            {
+              "id": 268196,
+              "name": "Venom-Slashed Scuteward",
+              "slot": "off_hand",
+              "specs": [
+                65,
+                66,
+                73,
+                262,
+                264
+              ]
+            },
+            {
+              "id": 268200,
+              "name": "Gebbo's Backup Blaster",
+              "slot": "two_hand",
+              "specs": [
+                253,
+                254
+              ]
+            },
+            {
+              "id": 268210,
+              "name": "Malevolent Spiritcudgel",
+              "slot": "one_hand",
+              "specs": [
+                65,
+                102,
+                105,
+                256,
+                257,
+                258,
+                262,
+                264,
+                270,
+                1467,
+                1468,
+                1473
+              ]
+            },
+            {
+              "id": 268227,
+              "name": "Unpossessed Skullsash",
+              "slot": "waist",
+              "armor": "leather",
+              "specs": [
+                102,
+                103,
+                104,
+                105,
+                259,
+                260,
+                261,
+                268,
+                269,
+                270,
+                577,
+                581,
+                1480
+              ]
+            },
+            {
+              "id": 268239,
+              "name": "Shellbound Bracers",
+              "slot": "wrist",
+              "armor": "plate",
+              "specs": [
+                65,
+                66,
+                70,
+                71,
+                72,
+                73,
+                250,
+                251,
+                252
+              ]
+            },
+            {
+              "id": 268242,
+              "name": "Errant Scrollsage's Hood",
+              "slot": "head",
+              "armor": "cloth",
+              "specs": [
+                62,
+                63,
+                64,
+                256,
+                257,
+                258,
+                265,
+                266,
+                267
+              ]
+            },
+            {
+              "id": 268258,
+              "name": "Boots of the Reckless Wayfarer",
+              "slot": "feet",
+              "armor": "mail",
+              "specs": [
+                253,
+                254,
+                255,
+                262,
+                263,
+                264,
+                1467,
+                1468,
+                1473
+              ]
+            },
+            {
+              "id": 270160,
+              "name": "First Mate's Shellward",
+              "slot": "trinket",
+              "specs": [
+                66,
+                73,
+                104,
+                250,
+                268,
+                581
+              ]
+            },
+            {
+              "id": 270164,
+              "name": "Gebbo's Bottomless Bag",
+              "slot": "trinket"
+            }
+          ]
+        },
+        {
+          "name": "Vashnik the Malignant",
+          "levels": {
+            "lfr": 285,
+            "normal": 298,
+            "heroic": 311,
+            "mythic": 324
+          },
+          "items": [
+            {
+              "id": 268205,
+              "name": "Venomancer's Winged Channeler",
+              "slot": "two_hand",
+              "specs": [
+                62,
+                63,
+                64,
+                102,
+                105,
+                256,
+                257,
+                258,
+                262,
+                264,
+                265,
+                266,
+                267,
+                270,
+                1467,
+                1468,
+                1473
+              ]
+            },
+            {
+              "id": 268214,
+              "name": "Malignant Toothed Edge",
+              "slot": "two_hand",
+              "specs": [
+                70,
+                71,
+                72,
+                250,
+                251,
+                252
+              ]
+            },
+            {
+              "id": 268246,
+              "name": "Frothing Venom Spaulders",
+              "slot": "shoulder",
+              "armor": "leather",
+              "specs": [
+                102,
+                103,
+                104,
+                105,
+                259,
+                260,
+                261,
+                268,
+                269,
+                270,
+                577,
+                581,
+                1480
+              ]
+            },
+            {
+              "id": 268249,
+              "name": "Vile Alchemist's Band",
+              "slot": "finger"
+            },
+            {
+              "id": 268254,
+              "name": "Serpentine Mixing Belt",
+              "slot": "waist",
+              "armor": "mail",
+              "specs": [
+                253,
+                254,
+                255,
+                262,
+                263,
+                264,
+                1467,
+                1468,
+                1473
+              ]
+            },
+            {
+              "id": 268260,
+              "name": "Scaled Fiend's Warboots",
+              "slot": "feet",
+              "armor": "plate",
+              "specs": [
+                65,
+                66,
+                70,
+                71,
+                72,
+                73,
+                250,
+                251,
+                252
+              ]
+            },
+            {
+              "id": 270161,
+              "name": "Fang of Umbral Malignance",
+              "slot": "trinket",
+              "specs": [
+                62,
+                63,
+                64,
+                102,
+                258,
+                262,
+                265,
+                266,
+                267,
+                1467,
+                1473,
+                1480
+              ]
+            },
+            {
+              "id": 270166,
+              "name": "Vashnik's Sanguine Rancor",
+              "slot": "trinket",
+              "specs": [
+                103,
+                253,
+                254,
+                255,
+                259,
+                260,
+                261,
+                263,
+                269,
+                577
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Sszorak",
+          "levels": {
+            "lfr": 285,
+            "normal": 298,
+            "heroic": 311,
+            "mythic": 324
+          },
+          "items": [
+            {
+              "id": 268201,
+              "name": "Venomous Boneglaive",
+              "slot": "one_hand",
+              "specs": [
+                577,
+                581,
+                1480
+              ]
+            },
+            {
+              "id": 268206,
+              "name": "Slithering Savage's Gavel",
+              "slot": "one_hand",
+              "specs": [
+                260,
+                263,
+                268,
+                269
+              ]
+            },
+            {
+              "id": 268233,
+              "name": "Ferocious Scaleboots",
+              "slot": "feet",
+              "armor": "mail",
+              "specs": [
+                253,
+                254,
+                255,
+                262,
+                263,
+                264,
+                1467,
+                1468,
+                1473
+              ]
+            },
+            {
+              "id": 268234,
+              "name": "Ruthless Slaughtergrips",
+              "slot": "hands",
+              "armor": "leather",
+              "specs": [
+                102,
+                103,
+                104,
+                105,
+                259,
+                260,
+                261,
+                268,
+                269,
+                270,
+                577,
+                581,
+                1480
+              ]
+            },
+            {
+              "id": 268252,
+              "name": "Apex Brute's Claw Ring",
+              "slot": "finger"
+            },
+            {
+              "id": 268257,
+              "name": "Caustic Chain-Wrapped Sash",
+              "slot": "waist",
+              "armor": "cloth",
+              "specs": [
+                62,
+                63,
+                64,
+                256,
+                257,
+                258,
+                265,
+                266,
+                267
+              ]
+            },
+            {
+              "id": 270163,
+              "name": "Sszorak's Ferocity",
+              "slot": "trinket",
+              "specs": [
+                66,
+                70,
+                71,
+                72,
+                73,
+                250,
+                251,
+                252
+              ]
+            },
+            {
+              "id": 270174,
+              "name": "Idol of the Howling Nexus",
+              "slot": "trinket",
+              "specs": [
+                66,
+                73,
+                104,
+                250,
+                268,
+                581
+              ]
+            }
+          ]
+        },
+        {
+          "name": "The Twin Fangs",
+          "levels": {
+            "lfr": 285,
+            "normal": 298,
+            "heroic": 311,
+            "mythic": 324
+          },
+          "items": [
+            {
+              "id": 268220,
+              "name": "Scaleplate Strangulators",
+              "slot": "hands",
+              "armor": "plate",
+              "specs": [
+                65,
+                66,
+                70,
+                71,
+                72,
+                73,
+                250,
+                251,
+                252
+              ]
+            },
+            {
+              "id": 268223,
+              "name": "Ophidian Fangmail",
+              "slot": "chest",
+              "armor": "mail",
+              "specs": [
+                253,
+                254,
+                255,
+                262,
+                263,
+                264,
+                1467,
+                1468,
+                1473
+              ]
+            },
+            {
+              "id": 268241,
+              "name": "Ornaments of the Eternal Coil",
+              "slot": "shoulder",
+              "armor": "cloth",
+              "specs": [
+                62,
+                63,
+                64,
+                256,
+                257,
+                258,
+                265,
+                266,
+                267
+              ]
+            },
+            {
+              "id": 268251,
+              "name": "Amulet of the Twin Fangs",
+              "slot": "neck"
+            },
+            {
+              "id": 268261,
+              "name": "Bespittled Slitherslippers",
+              "slot": "feet",
+              "armor": "leather",
+              "specs": [
+                102,
+                103,
+                104,
+                105,
+                259,
+                260,
+                261,
+                268,
+                269,
+                270,
+                577,
+                581,
+                1480
+              ]
+            },
+            {
+              "id": 268264,
+              "name": "Ravenous Feaster's Fang",
+              "slot": "one_hand",
+              "specs": [
+                255,
+                259,
+                261
+              ]
+            },
+            {
+              "id": 270170,
+              "name": "Vexhul's Everflowing Gland",
+              "slot": "trinket",
+              "specs": [
+                62,
+                63,
+                64,
+                102,
+                258,
+                262,
+                265,
+                266,
+                267,
+                1467,
+                1473,
+                1480
+              ]
+            },
+            {
+              "id": 270171,
+              "name": "Preternatural Antivenom",
+              "slot": "trinket",
+              "specs": [
+                65,
+                105,
+                256,
+                257,
+                264,
+                270,
+                1468
+              ]
+            }
+          ]
+        },
+        {
+          "name": "The Coiled Altar",
+          "levels": {
+            "lfr": 289,
+            "normal": 302,
+            "heroic": 315,
+            "mythic": 344
+          },
+          "items": [
+            {
+              "id": 268209,
+              "name": "Aman'muso, Warlord's Vengeance",
+              "slot": "main_hand",
+              "specs": [
+                66,
+                73,
+                251,
+                255,
+                260,
+                263,
+                268,
+                269,
+                577,
+                581
+              ]
+            },
+            {
+              "id": 268211,
+              "name": "Baleful Hexblade",
+              "slot": "one_hand",
+              "specs": [
+                62,
+                63,
+                64,
+                65,
+                265,
+                266,
+                267,
+                270,
+                1467,
+                1468,
+                1473,
+                1480
+              ]
+            },
+            {
+              "id": 268213,
+              "name": "Maze-roa, Warlord's Fury",
+              "slot": "two_hand",
+              "specs": [
+                70,
+                71,
+                72,
+                250,
+                251,
+                252,
+                255
+              ]
+            },
+            {
+              "id": 268222,
+              "name": "Reckless Spirit Breastplate",
+              "slot": "chest",
+              "armor": "plate",
+              "specs": [
+                65,
+                66,
+                70,
+                71,
+                72,
+                73,
+                250,
+                251,
+                252
+              ]
+            },
+            {
+              "id": 268225,
+              "name": "Coiled Hex Legguards",
+              "slot": "legs",
+              "armor": "leather",
+              "specs": [
+                102,
+                103,
+                104,
+                105,
+                259,
+                260,
+                261,
+                268,
+                269,
+                270,
+                577,
+                581,
+                1480
+              ]
+            },
+            {
+              "id": 268231,
+              "name": "Soulslither Spaulders",
+              "slot": "shoulder",
+              "armor": "mail",
+              "specs": [
+                253,
+                254,
+                255,
+                262,
+                263,
+                264,
+                1467,
+                1468,
+                1473
+              ]
+            },
+            {
+              "id": 268237,
+              "name": "Cuisses of the Uncoiled Union",
+              "slot": "legs",
+              "armor": "mail",
+              "specs": [
+                253,
+                254,
+                255,
+                262,
+                263,
+                264,
+                1467,
+                1468,
+                1473
+              ]
+            },
+            {
+              "id": 268243,
+              "name": "Grasps of the Eternal Shadow",
+              "slot": "hands",
+              "armor": "cloth",
+              "specs": [
+                62,
+                63,
+                64,
+                256,
+                257,
+                258,
+                265,
+                266,
+                267
+              ]
+            },
+            {
+              "id": 268253,
+              "name": "Silken Voodoo Drape",
+              "slot": "back"
+            },
+            {
+              "id": 268255,
+              "name": "Cackling Soultreads",
+              "slot": "feet",
+              "armor": "cloth",
+              "specs": [
+                62,
+                63,
+                64,
+                256,
+                257,
+                258,
+                265,
+                266,
+                267
+              ]
+            },
+            {
+              "id": 268256,
+              "name": "Sash of the Forlorn Vessel",
+              "slot": "waist",
+              "armor": "leather",
+              "specs": [
+                102,
+                103,
+                104,
+                105,
+                259,
+                260,
+                261,
+                268,
+                269,
+                270,
+                577,
+                581,
+                1480
+              ]
+            },
+            {
+              "id": 268259,
+              "name": "Girdle of Toxic Regret",
+              "slot": "waist",
+              "armor": "plate",
+              "specs": [
+                65,
+                66,
+                70,
+                71,
+                72,
+                73,
+                250,
+                251,
+                252
+              ]
+            },
+            {
+              "id": 270169,
+              "name": "Hex Lord's Dooming Idol",
+              "slot": "trinket",
+              "specs": [
+                62,
+                63,
+                64,
+                65,
+                102,
+                105,
+                256,
+                257,
+                258,
+                262,
+                264,
+                265,
+                266,
+                267,
+                270,
+                1467,
+                1468,
+                1473,
+                1480
+              ]
+            },
+            {
+              "id": 270173,
+              "name": "Zul'jin's Guillotine Technique",
+              "slot": "trinket",
+              "specs": [
+                66,
+                70,
+                71,
+                72,
+                73,
+                103,
+                104,
+                250,
+                251,
+                252,
+                253,
+                254,
+                255,
+                259,
+                260,
+                261,
+                263,
+                268,
+                269,
+                577,
+                581
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Ula'tek",
+          "levels": {
+            "lfr": 289,
+            "normal": 302,
+            "heroic": 315,
+            "mythic": 344
+          },
+          "items": [
+            {
+              "id": 268202,
+              "name": "Jaw of the Shackled Goddess",
+              "slot": "one_hand",
+              "specs": [
+                66,
+                73,
+                251
+              ]
+            },
+            {
+              "id": 268207,
+              "name": "Caustic Repose Greatbow",
+              "slot": "two_hand",
+              "specs": [
+                253,
+                254
+              ]
+            },
+            {
+              "id": 268215,
+              "name": "Abyssal Broodfiend's Bardiche",
+              "slot": "two_hand",
+              "specs": [
+                103,
+                104,
+                255,
+                268,
+                269
+              ]
+            },
+            {
+              "id": 268265,
+              "name": "Aqirbane Reliquary",
+              "slot": "neck"
+            },
+            {
+              "id": 270168,
+              "name": "Font of Venomous Rage",
+              "slot": "trinket",
+              "specs": [
+                62,
+                63,
+                64,
+                70,
+                71,
+                72,
+                102,
+                103,
+                251,
+                252,
+                253,
+                254,
+                255,
+                258,
+                259,
+                260,
+                261,
+                262,
+                263,
+                265,
+                266,
+                267,
+                269,
+                577,
+                1467,
+                1473,
+                1480
+              ]
+            },
+            {
+              "id": 270175,
+              "name": "Voracious Heart of Ula'tek",
+              "slot": "trinket",
+              "specs": [
+                66,
+                70,
+                71,
+                72,
+                73,
+                103,
+                104,
+                250,
+                251,
+                252,
+                253,
+                254,
+                255,
+                259,
+                260,
+                261,
+                263,
+                268,
+                269,
+                577,
+                581
+              ]
+            },
+            {
+              "id": 271092,
+              "name": "Jan'thrazet, the Soul Fang",
+              "slot": "one_hand",
+              "specs": [
+                62,
+                63,
+                64,
+                102,
+                105,
+                256,
+                257,
+                258,
+                262,
+                264,
+                265,
+                266,
+                267,
+                1467,
+                1468,
+                1473,
+                1480
+              ]
+            },
+            {
+              "id": 271093,
+              "name": "Zatha'tek, Breath of Corruption",
+              "slot": "one_hand",
+              "specs": [
+                255,
+                259,
+                261
+              ]
+            },
+            {
+              "id": 271874,
+              "name": "Venomkeeper's Horrific Cowl",
+              "slot": "head",
+              "armor": "cloth",
+              "specs": [
+                62,
+                63,
+                64,
+                256,
+                257,
+                258,
+                265,
+                266,
+                267
+              ]
+            },
+            {
+              "id": 271875,
+              "name": "Gaze of the Coiled Watcher",
+              "slot": "head",
+              "armor": "leather",
+              "specs": [
+                102,
+                103,
+                104,
+                105,
+                259,
+                260,
+                261,
+                268,
+                269,
+                270,
+                577,
+                581,
+                1480
+              ]
+            },
+            {
+              "id": 271876,
+              "name": "Awoken Dreadfang Cuirass",
+              "slot": "chest",
+              "armor": "mail",
+              "specs": [
+                253,
+                254,
+                255,
+                262,
+                263,
+                264,
+                1467,
+                1468,
+                1473
+              ]
+            },
+            {
+              "id": 271878,
+              "name": "Chausses of Unbound Rancor",
+              "slot": "legs",
+              "armor": "plate",
+              "specs": [
+                65,
+                66,
+                70,
+                71,
+                72,
+                73,
+                250,
+                251,
+                252
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "dungeons": [
+    {
+      "instanceID": 1322,
+      "mapID": 2993,
+      "name": "Altar of Fangs",
+      "bosses": [
+        {
+          "name": "Rav'i",
+          "items": [
+            {
+              "id": 273775,
+              "name": "Hydra Scale Wristguards",
+              "slot": "wrist",
+              "armor": "mail",
+              "specs": [
+                253,
+                254,
+                255,
+                262,
+                263,
+                264,
+                1467,
+                1468,
+                1473
+              ]
+            },
+            {
+              "id": 273777,
+              "name": "Poison-Proof Stompers",
+              "slot": "feet",
+              "armor": "plate",
+              "specs": [
+                65,
+                66,
+                70,
+                71,
+                72,
+                73,
+                250,
+                251,
+                252
+              ]
+            },
+            {
+              "id": 273780,
+              "name": "Venom-Etched Crescent",
+              "slot": "one_hand",
+              "specs": [
+                65,
+                262,
+                264,
+                270,
+                1467,
+                1468,
+                1473,
+                1480
+              ]
+            },
+            {
+              "id": 273785,
+              "name": "Primordial Robe of Rites",
+              "slot": "chest",
+              "armor": "cloth",
+              "specs": [
+                62,
+                63,
+                64,
+                256,
+                257,
+                258,
+                265,
+                266,
+                267
+              ]
+            },
+            {
+              "id": 273793,
+              "name": "Hydraspine Twinblade",
+              "slot": "one_hand",
+              "specs": [
+                577,
+                581,
+                1480
+              ]
+            },
+            {
+              "id": 273795,
+              "name": "Coiled Fangstone",
+              "slot": "trinket",
+              "specs": [
+                66,
+                70,
+                71,
+                72,
+                73,
+                250,
+                251,
+                252
+              ]
+            },
+            {
+              "id": 273796,
+              "name": "Vile Vial of Volatile Venom",
+              "slot": "trinket"
+            }
+          ]
+        },
+        {
+          "name": "The Writhing Coil",
+          "items": [
+            {
+              "id": 273774,
+              "name": "Snakeskin Spaulders",
+              "slot": "shoulder",
+              "armor": "leather",
+              "specs": [
+                102,
+                103,
+                104,
+                105,
+                259,
+                260,
+                261,
+                268,
+                269,
+                270,
+                577,
+                581,
+                1480
+              ]
+            },
+            {
+              "id": 273779,
+              "name": "Nocuous Focal Fang",
+              "slot": "off_hand",
+              "specs": [
+                62,
+                63,
+                64,
+                65,
+                102,
+                105,
+                256,
+                257,
+                258,
+                262,
+                264,
+                265,
+                266,
+                267,
+                270,
+                1467,
+                1468,
+                1473,
+                1480
+              ]
+            },
+            {
+              "id": 273781,
+              "name": "Strand of Warding Fangs",
+              "slot": "neck"
+            },
+            {
+              "id": 273782,
+              "name": "Vile Writhefang Glaive",
+              "slot": "two_hand",
+              "specs": [
+                70,
+                71,
+                72,
+                250,
+                251,
+                252
+              ]
+            },
+            {
+              "id": 273783,
+              "name": "Toxin-Coated Warstaff",
+              "slot": "two_hand",
+              "specs": [
+                103,
+                104,
+                255,
+                268,
+                269
+              ]
+            },
+            {
+              "id": 273786,
+              "name": "Leggings of Entwined Serpents",
+              "slot": "legs",
+              "armor": "cloth",
+              "specs": [
+                62,
+                63,
+                64,
+                256,
+                257,
+                258,
+                265,
+                266,
+                267
+              ]
+            },
+            {
+              "id": 273787,
+              "name": "Aged Interwoven Scaleplate",
+              "slot": "chest",
+              "armor": "plate",
+              "specs": [
+                65,
+                66,
+                70,
+                71,
+                72,
+                73,
+                250,
+                251,
+                252
+              ]
+            },
+            {
+              "id": 273794,
+              "name": "Knot of Writhing Serpents",
+              "slot": "trinket",
+              "specs": [
+                62,
+                63,
+                64,
+                102,
+                258,
+                262,
+                265,
+                266,
+                267,
+                1467,
+                1473,
+                1480
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Zul'jan",
+          "items": [
+            {
+              "id": 273773,
+              "name": "Handwraps of Blasphemous Rites",
+              "slot": "hands",
+              "armor": "cloth",
+              "specs": [
+                62,
+                63,
+                64,
+                256,
+                257,
+                258,
+                265,
+                266,
+                267
+              ]
+            },
+            {
+              "id": 273776,
+              "name": "Ancient General's Obsidian Pillars",
+              "slot": "legs",
+              "armor": "plate",
+              "specs": [
+                65,
+                66,
+                70,
+                71,
+                72,
+                73,
+                250,
+                251,
+                252
+              ]
+            },
+            {
+              "id": 273778,
+              "name": "Polished Lightwood Channeler",
+              "slot": "one_hand",
+              "specs": [
+                62,
+                63,
+                64,
+                102,
+                105,
+                256,
+                257,
+                258,
+                262,
+                264,
+                265,
+                266,
+                267,
+                1467,
+                1468,
+                1473,
+                1480
+              ]
+            },
+            {
+              "id": 273784,
+              "name": "Ancestral Amani Recurve",
+              "slot": "two_hand",
+              "specs": [
+                253,
+                254
+              ]
+            },
+            {
+              "id": 273789,
+              "name": "Chestguard of Corroded Scales",
+              "slot": "chest",
+              "armor": "mail",
+              "specs": [
+                253,
+                254,
+                255,
+                262,
+                263,
+                264,
+                1467,
+                1468,
+                1473
+              ]
+            },
+            {
+              "id": 273791,
+              "name": "Spare Speaker's Hood",
+              "slot": "head",
+              "armor": "leather",
+              "specs": [
+                102,
+                103,
+                104,
+                105,
+                259,
+                260,
+                261,
+                268,
+                269,
+                270,
+                577,
+                581,
+                1480
+              ]
+            },
+            {
+              "id": 273792,
+              "name": "Band of the Amani Warlord",
+              "slot": "finger"
+            },
+            {
+              "id": 273797,
+              "name": "Tattered Amani War Banner",
+              "slot": "trinket",
+              "specs": [
+                70,
+                71,
+                72,
+                103,
+                251,
+                252,
+                253,
+                254,
+                255,
+                259,
+                260,
+                261,
+                263,
+                269,
+                577
+              ]
+            },
+            {
+              "id": 275070,
+              "name": "Sharpened Lightwood Slasher",
+              "slot": "one_hand",
+              "specs": [
+                255,
+                259,
+                261
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "instanceID": 1311,
+      "mapID": 2825,
+      "name": "Den of Nalorakk",
+      "bosses": [
+        {
+          "name": "The Hoardmonger",
+          "items": [
+            {
+              "id": 250248,
+              "name": "Mycolic Medicine",
+              "slot": "trinket",
+              "specs": [
+                65,
+                105,
+                256,
+                257,
+                264,
+                270,
+                1468
+              ]
+            },
+            {
+              "id": 251143,
+              "name": "Grim Harvest Gloves",
+              "slot": "one_hand",
+              "specs": [
+                260,
+                263,
+                268,
+                269,
+                577,
+                581
+              ]
+            },
+            {
+              "id": 251144,
+              "name": "Autumn's Boon Belt",
+              "slot": "waist",
+              "armor": "plate",
+              "specs": [
+                65,
+                66,
+                70,
+                71,
+                72,
+                73,
+                250,
+                251,
+                252
+              ]
+            },
+            {
+              "id": 251145,
+              "name": "Forgotten Tribe Footguards",
+              "slot": "feet",
+              "armor": "mail",
+              "specs": [
+                253,
+                254,
+                255,
+                262,
+                263,
+                264,
+                1467,
+                1468,
+                1473
+              ]
+            },
+            {
+              "id": 251146,
+              "name": "Scavenger's Spaulders",
+              "slot": "shoulder",
+              "armor": "leather",
+              "specs": [
+                102,
+                103,
+                104,
+                105,
+                259,
+                260,
+                261,
+                268,
+                269,
+                270,
+                577,
+                581,
+                1480
+              ]
+            },
+            {
+              "id": 251147,
+              "name": "Hoarded Harvest Wrap",
+              "slot": "chest",
+              "armor": "cloth",
+              "specs": [
+                62,
+                63,
+                64,
+                256,
+                257,
+                258,
+                265,
+                266,
+                267
+              ]
+            },
+            {
+              "id": 251148,
+              "name": "Pilfered Precious Band",
+              "slot": "finger"
+            }
+          ]
+        },
+        {
+          "name": "Sentinel of Winter",
+          "items": [
+            {
+              "id": 250244,
+              "name": "Permafrost Essence",
+              "slot": "trinket",
+              "specs": [
+                66,
+                73,
+                104,
+                250,
+                268,
+                581
+              ]
+            },
+            {
+              "id": 251149,
+              "name": "Victor's Flashfrozen Blade",
+              "slot": "two_hand",
+              "specs": [
+                103,
+                104,
+                255,
+                268,
+                269
+              ]
+            },
+            {
+              "id": 251150,
+              "name": "Tempest's Shelter",
+              "slot": "off_hand",
+              "specs": [
+                65,
+                66,
+                73,
+                262,
+                264
+              ]
+            },
+            {
+              "id": 251151,
+              "name": "Sentinel Challenger's Prize",
+              "slot": "chest",
+              "armor": "plate",
+              "specs": [
+                65,
+                66,
+                70,
+                71,
+                72,
+                73,
+                250,
+                251,
+                252
+              ]
+            },
+            {
+              "id": 251152,
+              "name": "Season's Turn Gauntlets",
+              "slot": "hands",
+              "armor": "mail",
+              "specs": [
+                253,
+                254,
+                255,
+                262,
+                263,
+                264,
+                1467,
+                1468,
+                1473
+              ]
+            },
+            {
+              "id": 251153,
+              "name": "Arctic Explorer's Legwraps",
+              "slot": "feet",
+              "armor": "leather",
+              "specs": [
+                102,
+                103,
+                104,
+                105,
+                259,
+                260,
+                261,
+                268,
+                269,
+                270,
+                577,
+                581,
+                1480
+              ]
+            },
+            {
+              "id": 251154,
+              "name": "Winter's Embrace Bracers",
+              "slot": "wrist",
+              "armor": "cloth",
+              "specs": [
+                62,
+                63,
+                64,
+                256,
+                257,
+                258,
+                265,
+                266,
+                267
+              ]
+            },
+            {
+              "id": 251155,
+              "name": "Tribal Defender's Cord",
+              "slot": "waist",
+              "armor": "mail",
+              "specs": [
+                253,
+                254,
+                255,
+                262,
+                263,
+                264,
+                1467,
+                1468,
+                1473
+              ]
+            },
+            {
+              "id": 271681,
+              "name": "Perennial Frostbound Charm",
+              "slot": "off_hand",
+              "specs": [
+                62,
+                63,
+                64,
+                65,
+                102,
+                105,
+                256,
+                257,
+                258,
+                262,
+                264,
+                265,
+                266,
+                267,
+                270,
+                1467,
+                1468,
+                1473,
+                1480
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Nalorakk",
+          "items": [
+            {
+              "id": 250229,
+              "name": "Idol of the War Loa",
+              "slot": "trinket",
+              "specs": [
+                66,
+                70,
+                71,
+                72,
+                73,
+                250,
+                251,
+                252
+              ]
+            },
+            {
+              "id": 251156,
+              "name": "Fallen Speaker's Staff",
+              "slot": "two_hand",
+              "specs": [
+                62,
+                63,
+                64,
+                102,
+                105,
+                256,
+                257,
+                258,
+                262,
+                264,
+                265,
+                266,
+                267,
+                270,
+                1467,
+                1468,
+                1473
+              ]
+            },
+            {
+              "id": 251158,
+              "name": "Nalorakk's Nightmare",
+              "slot": "head",
+              "armor": "mail",
+              "specs": [
+                253,
+                254,
+                255,
+                262,
+                263,
+                264,
+                1467,
+                1468,
+                1473
+              ]
+            },
+            {
+              "id": 251159,
+              "name": "War Trial Vestments",
+              "slot": "chest",
+              "armor": "leather",
+              "specs": [
+                102,
+                103,
+                104,
+                105,
+                259,
+                260,
+                261,
+                268,
+                269,
+                270,
+                577,
+                581,
+                1480
+              ]
+            },
+            {
+              "id": 251160,
+              "name": "Forest Dream Leg-guards",
+              "slot": "legs",
+              "armor": "cloth",
+              "specs": [
+                62,
+                63,
+                64,
+                256,
+                257,
+                258,
+                265,
+                266,
+                267
+              ]
+            },
+            {
+              "id": 251173,
+              "name": "Yoke of the Charging Bear",
+              "slot": "neck"
+            },
+            {
+              "id": 251214,
+              "name": "Bonds of the Hash'ura",
+              "slot": "hands",
+              "armor": "plate",
+              "specs": [
+                65,
+                66,
+                70,
+                71,
+                72,
+                73,
+                250,
+                251,
+                252
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "instanceID": 1041,
+      "mapID": 1762,
+      "name": "Kings' Rest",
+      "bosses": [
+        {
+          "name": "The Golden Serpent",
+          "items": [
+            {
+              "id": 159137,
+              "name": "Gilded Serpent's Tooth",
+              "slot": "one_hand",
+              "specs": [
+                62,
+                63,
+                64,
+                102,
+                105,
+                256,
+                257,
+                258,
+                262,
+                264,
+                265,
+                266,
+                267,
+                1467,
+                1468,
+                1473,
+                1480
+              ]
+            },
+            {
+              "id": 159234,
+              "name": "Down-Lined Breeches",
+              "slot": "legs",
+              "armor": "cloth",
+              "specs": [
+                62,
+                63,
+                64,
+                256,
+                257,
+                258,
+                265,
+                266,
+                267
+              ]
+            },
+            {
+              "id": 159304,
+              "name": "Goldfeather Boots",
+              "slot": "feet",
+              "armor": "leather",
+              "specs": [
+                102,
+                103,
+                104,
+                105,
+                259,
+                260,
+                261,
+                268,
+                269,
+                270,
+                577,
+                581,
+                1480
+              ]
+            },
+            {
+              "id": 159313,
+              "name": "Breeches of the Sacred Hall",
+              "slot": "legs",
+              "armor": "leather",
+              "specs": [
+                102,
+                103,
+                104,
+                105,
+                259,
+                260,
+                261,
+                268,
+                269,
+                270,
+                577,
+                581,
+                1480
+              ]
+            },
+            {
+              "id": 159369,
+              "name": "Belt of the Consecrated Tomb",
+              "slot": "waist",
+              "armor": "mail",
+              "specs": [
+                253,
+                254,
+                255,
+                262,
+                263,
+                264,
+                1467,
+                1468,
+                1473
+              ]
+            },
+            {
+              "id": 159412,
+              "name": "Auric Puddle Stompers",
+              "slot": "feet",
+              "armor": "plate",
+              "specs": [
+                65,
+                66,
+                70,
+                71,
+                72,
+                73,
+                250,
+                251,
+                252
+              ]
+            },
+            {
+              "id": 159413,
+              "name": "Gauntlets of the Avian Sentinel",
+              "slot": "hands",
+              "armor": "plate",
+              "specs": [
+                65,
+                66,
+                70,
+                71,
+                72,
+                73,
+                250,
+                251,
+                252
+              ]
+            },
+            {
+              "id": 159617,
+              "name": "Lustrous Golden Plumage",
+              "slot": "trinket",
+              "specs": [
+                103,
+                104,
+                253,
+                254,
+                255,
+                259,
+                260,
+                261,
+                263,
+                268,
+                269,
+                577,
+                581
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Mchimba the Embalmer",
+          "items": [
+            {
+              "id": 159312,
+              "name": "Desiccator's Blessed Gloves",
+              "slot": "hands",
+              "armor": "leather",
+              "specs": [
+                102,
+                103,
+                104,
+                105,
+                259,
+                260,
+                261,
+                268,
+                269,
+                270,
+                577,
+                581,
+                1480
+              ]
+            },
+            {
+              "id": 159409,
+              "name": "Embalmer's Steadying Bracers",
+              "slot": "wrist",
+              "armor": "plate",
+              "specs": [
+                65,
+                66,
+                70,
+                71,
+                72,
+                73,
+                250,
+                251,
+                252
+              ]
+            },
+            {
+              "id": 159459,
+              "name": "Ritual Binder's Ring",
+              "slot": "finger"
+            },
+            {
+              "id": 159618,
+              "name": "Mchimba's Ritual Bandages",
+              "slot": "trinket",
+              "specs": [
+                66,
+                73,
+                104,
+                250,
+                268,
+                581
+              ]
+            },
+            {
+              "id": 159642,
+              "name": "Royal Purifier's Spade",
+              "slot": "two_hand",
+              "specs": [
+                103,
+                104,
+                255,
+                268,
+                269
+              ]
+            },
+            {
+              "id": 159667,
+              "name": "Vessel of Last Rites",
+              "slot": "off_hand",
+              "specs": [
+                62,
+                63,
+                64,
+                65,
+                102,
+                105,
+                256,
+                257,
+                258,
+                262,
+                264,
+                265,
+                266,
+                267,
+                270,
+                1467,
+                1468,
+                1473,
+                1480
+              ]
+            },
+            {
+              "id": 160213,
+              "name": "Sepulchral Construct's Gloves",
+              "slot": "hands",
+              "armor": "mail",
+              "specs": [
+                253,
+                254,
+                255,
+                262,
+                263,
+                264,
+                1467,
+                1468,
+                1473
+              ]
+            }
+          ]
+        },
+        {
+          "name": "The Council of Tribes",
+          "items": [
+            {
+              "id": 159136,
+              "name": "Jeweled Dagger of Subjugation",
+              "slot": "one_hand",
+              "specs": [
+                255,
+                259,
+                261
+              ]
+            },
+            {
+              "id": 159243,
+              "name": "Sandals of Wise Voodoo",
+              "slot": "feet",
+              "armor": "cloth",
+              "specs": [
+                62,
+                63,
+                64,
+                256,
+                257,
+                258,
+                265,
+                266,
+                267
+              ]
+            },
+            {
+              "id": 159288,
+              "name": "Cloak of the Restless Tribes",
+              "slot": "back"
+            },
+            {
+              "id": 159300,
+              "name": "Kula's Butchering Wristwraps",
+              "slot": "wrist",
+              "armor": "leather",
+              "specs": [
+                102,
+                103,
+                104,
+                105,
+                259,
+                260,
+                261,
+                268,
+                269,
+                270,
+                577,
+                581,
+                1480
+              ]
+            },
+            {
+              "id": 159371,
+              "name": "Boots of the Headlong Conqueror",
+              "slot": "feet",
+              "armor": "mail",
+              "specs": [
+                253,
+                254,
+                255,
+                262,
+                263,
+                264,
+                1467,
+                1468,
+                1473
+              ]
+            },
+            {
+              "id": 159418,
+              "name": "Girdle of Pestilent Purification",
+              "slot": "waist",
+              "armor": "plate",
+              "specs": [
+                65,
+                66,
+                70,
+                71,
+                72,
+                73,
+                250,
+                251,
+                252
+              ]
+            },
+            {
+              "id": 159643,
+              "name": "Crossbow of Forgotten Majesty",
+              "slot": "two_hand",
+              "specs": [
+                253,
+                254
+              ]
+            },
+            {
+              "id": 160216,
+              "name": "Crackling Jade Kilij",
+              "slot": "one_hand",
+              "specs": [
+                62,
+                63,
+                64,
+                65,
+                265,
+                266,
+                267,
+                270,
+                1467,
+                1468,
+                1473,
+                1480
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Dazar, The First King",
+          "items": [
+            {
+              "id": 158344,
+              "name": "Mantle of Ceremonial Ascension",
+              "slot": "shoulder",
+              "armor": "cloth",
+              "specs": [
+                62,
+                63,
+                64,
+                256,
+                257,
+                258,
+                265,
+                266,
+                267
+              ]
+            },
+            {
+              "id": 158355,
+              "name": "Loa-Blessed Chestguard",
+              "slot": "chest",
+              "armor": "mail",
+              "specs": [
+                253,
+                254,
+                255,
+                262,
+                263,
+                264,
+                1467,
+                1468,
+                1473
+              ]
+            },
+            {
+              "id": 159236,
+              "name": "Headdress of the First Empire",
+              "slot": "head",
+              "armor": "cloth",
+              "specs": [
+                62,
+                63,
+                64,
+                256,
+                257,
+                258,
+                265,
+                266,
+                267
+              ]
+            },
+            {
+              "id": 159301,
+              "name": "Primal Dinomancer's Belt",
+              "slot": "waist",
+              "armor": "leather",
+              "specs": [
+                102,
+                103,
+                104,
+                105,
+                259,
+                260,
+                261,
+                268,
+                269,
+                270,
+                577,
+                581,
+                1480
+              ]
+            },
+            {
+              "id": 159303,
+              "name": "Vest of Reverent Adoration",
+              "slot": "chest",
+              "armor": "leather",
+              "specs": [
+                102,
+                103,
+                104,
+                105,
+                259,
+                260,
+                261,
+                268,
+                269,
+                270,
+                577,
+                581,
+                1480
+              ]
+            },
+            {
+              "id": 159368,
+              "name": "Spaulders of Prime Emperor",
+              "slot": "shoulder",
+              "armor": "mail",
+              "specs": [
+                253,
+                254,
+                255,
+                262,
+                263,
+                264,
+                1467,
+                1468,
+                1473
+              ]
+            },
+            {
+              "id": 159422,
+              "name": "Helm of the Raptor King",
+              "slot": "head",
+              "armor": "plate",
+              "specs": [
+                65,
+                66,
+                70,
+                71,
+                72,
+                73,
+                250,
+                251,
+                252
+              ]
+            },
+            {
+              "id": 159423,
+              "name": "Pauldrons of the Great Unifier",
+              "slot": "shoulder",
+              "armor": "plate",
+              "specs": [
+                65,
+                66,
+                70,
+                71,
+                72,
+                73,
+                250,
+                251,
+                252
+              ]
+            },
+            {
+              "id": 159644,
+              "name": "Geti'ikku, Cut of Death",
+              "slot": "two_hand",
+              "specs": [
+                70,
+                71,
+                72,
+                250,
+                251,
+                252
+              ]
+            },
+            {
+              "id": 159645,
+              "name": "Headcracker of Supplication",
+              "slot": "one_hand",
+              "specs": [
+                260,
+                263,
+                268,
+                269
+              ]
+            },
+            {
+              "id": 239045,
+              "name": "Mantle of Ceremonial Ascension",
+              "slot": "shoulder",
+              "armor": "cloth",
+              "specs": [
+                62,
+                63,
+                64,
+                256,
+                257,
+                258,
+                265,
+                266,
+                267
+              ]
+            },
+            {
+              "id": 239046,
+              "name": "Loa-Blessed Chestguard",
+              "slot": "chest",
+              "armor": "mail",
+              "specs": [
+                253,
+                254,
+                255,
+                262,
+                263,
+                264,
+                1467,
+                1468,
+                1473
+              ]
+            },
+            {
+              "id": 239047,
+              "name": "Headdress of the First Empire",
+              "slot": "head",
+              "armor": "cloth",
+              "specs": [
+                62,
+                63,
+                64,
+                256,
+                257,
+                258,
+                265,
+                266,
+                267
+              ]
+            },
+            {
+              "id": 239048,
+              "name": "Vest of Reverent Adoration",
+              "slot": "chest",
+              "armor": "leather",
+              "specs": [
+                102,
+                103,
+                104,
+                105,
+                259,
+                260,
+                261,
+                268,
+                269,
+                270,
+                577,
+                581,
+                1480
+              ]
+            },
+            {
+              "id": 239049,
+              "name": "Spaulders of Prime Emperor",
+              "slot": "shoulder",
+              "armor": "mail",
+              "specs": [
+                253,
+                254,
+                255,
+                262,
+                263,
+                264,
+                1467,
+                1468,
+                1473
+              ]
+            },
+            {
+              "id": 239050,
+              "name": "Helm of the Raptor King",
+              "slot": "head",
+              "armor": "plate",
+              "specs": [
+                65,
+                66,
+                70,
+                71,
+                72,
+                73,
+                250,
+                251,
+                252
+              ]
+            },
+            {
+              "id": 239051,
+              "name": "Pauldrons of the Great Unifier",
+              "slot": "shoulder",
+              "armor": "plate",
+              "specs": [
+                65,
+                66,
+                70,
+                71,
+                72,
+                73,
+                250,
+                251,
+                252
+              ]
+            },
+            {
+              "id": 273649,
+              "name": "Stormbound Emblem of Dazar",
+              "slot": "trinket",
+              "specs": [
+                62,
+                63,
+                64,
+                65,
+                102,
+                105,
+                256,
+                257,
+                258,
+                262,
+                264,
+                265,
+                266,
+                267,
+                270,
+                1467,
+                1468,
+                1473,
+                1480
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "instanceID": 1304,
+      "mapID": 2813,
+      "name": "Murder Row",
+      "bosses": [
+        {
+          "name": "Kystia Manaheart",
+          "items": [
+            {
+              "id": 250243,
+              "name": "Manaheart's Binding Flame",
+              "slot": "trinket",
+              "specs": [
+                66,
+                73,
+                104,
+                250,
+                268,
+                581
+              ]
+            },
+            {
+              "id": 251123,
+              "name": "Nibbles' Training Rod",
+              "slot": "two_hand",
+              "specs": [
+                62,
+                63,
+                64,
+                102,
+                105,
+                256,
+                257,
+                258,
+                262,
+                264,
+                265,
+                266,
+                267,
+                270,
+                1467,
+                1468,
+                1473
+              ]
+            },
+            {
+              "id": 251124,
+              "name": "Gauntlets of Fevered Defense",
+              "slot": "hands",
+              "armor": "leather",
+              "specs": [
+                102,
+                103,
+                104,
+                105,
+                259,
+                260,
+                261,
+                268,
+                269,
+                270,
+                577,
+                581,
+                1480
+              ]
+            },
+            {
+              "id": 251125,
+              "name": "Felsoaked Soles",
+              "slot": "feet",
+              "armor": "mail",
+              "specs": [
+                253,
+                254,
+                255,
+                262,
+                263,
+                264,
+                1467,
+                1468,
+                1473
+              ]
+            },
+            {
+              "id": 251126,
+              "name": "Greathelm of Temptation",
+              "slot": "head",
+              "armor": "plate",
+              "specs": [
+                65,
+                66,
+                70,
+                71,
+                72,
+                73,
+                250,
+                251,
+                252
+              ]
+            },
+            {
+              "id": 251127,
+              "name": "Nibbling Armbands",
+              "slot": "wrist",
+              "armor": "cloth",
+              "specs": [
+                62,
+                63,
+                64,
+                256,
+                257,
+                258,
+                265,
+                266,
+                267
+              ]
+            },
+            {
+              "id": 271680,
+              "name": "Sinseared Repeater",
+              "slot": "two_hand",
+              "specs": [
+                253,
+                254
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Zaen Bladesorrow",
+          "items": [
+            {
+              "id": 250215,
+              "name": "Freightrunner's Flask",
+              "slot": "trinket",
+              "specs": [
+                62,
+                63,
+                64,
+                65,
+                102,
+                103,
+                104,
+                105,
+                253,
+                254,
+                255,
+                256,
+                257,
+                258,
+                259,
+                260,
+                261,
+                262,
+                263,
+                264,
+                265,
+                266,
+                267,
+                268,
+                269,
+                270,
+                577,
+                581,
+                1467,
+                1468,
+                1473,
+                1480
+              ]
+            },
+            {
+              "id": 251128,
+              "name": "Bladesorrow",
+              "slot": "one_hand",
+              "specs": [
+                255,
+                259,
+                261
+              ]
+            },
+            {
+              "id": 251129,
+              "name": "Counterfeit Clutches",
+              "slot": "hands",
+              "armor": "cloth",
+              "specs": [
+                62,
+                63,
+                64,
+                256,
+                257,
+                258,
+                265,
+                266,
+                267
+              ]
+            },
+            {
+              "id": 251130,
+              "name": "Breeches of Deft Deals",
+              "slot": "legs",
+              "armor": "leather",
+              "specs": [
+                102,
+                103,
+                104,
+                105,
+                259,
+                260,
+                261,
+                268,
+                269,
+                270,
+                577,
+                581,
+                1480
+              ]
+            },
+            {
+              "id": 251131,
+              "name": "Jangling Felpaulets",
+              "slot": "shoulder",
+              "armor": "mail",
+              "specs": [
+                253,
+                254,
+                255,
+                262,
+                263,
+                264,
+                1467,
+                1468,
+                1473
+              ]
+            },
+            {
+              "id": 251132,
+              "name": "Speakeasy Shroud",
+              "slot": "back"
+            },
+            {
+              "id": 251133,
+              "name": "Overseer's Vambraces",
+              "slot": "wrist",
+              "armor": "plate",
+              "specs": [
+                65,
+                66,
+                70,
+                71,
+                72,
+                73,
+                250,
+                251,
+                252
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Xathuux the Annihilator",
+          "items": [
+            {
+              "id": 250228,
+              "name": "Resonant Bellowstone",
+              "slot": "trinket",
+              "specs": [
+                66,
+                70,
+                71,
+                72,
+                73,
+                103,
+                104,
+                250,
+                251,
+                252,
+                253,
+                254,
+                255,
+                259,
+                260,
+                261,
+                263,
+                268,
+                269,
+                577,
+                581
+              ]
+            },
+            {
+              "id": 251134,
+              "name": "Xathuux's Cleave",
+              "slot": "two_hand",
+              "specs": [
+                70,
+                71,
+                72,
+                250,
+                251,
+                252
+              ]
+            },
+            {
+              "id": 251135,
+              "name": "Fury-fletched Armlets",
+              "slot": "wrist",
+              "armor": "leather",
+              "specs": [
+                102,
+                103,
+                104,
+                105,
+                259,
+                260,
+                261,
+                268,
+                269,
+                270,
+                577,
+                581,
+                1480
+              ]
+            },
+            {
+              "id": 251136,
+              "name": "Signet of Snarling Servitude",
+              "slot": "finger"
+            },
+            {
+              "id": 251137,
+              "name": "Tempestuous Sandals",
+              "slot": "feet",
+              "armor": "cloth",
+              "specs": [
+                62,
+                63,
+                64,
+                256,
+                257,
+                258,
+                265,
+                266,
+                267
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Lithiel Cinderfury",
+          "items": [
+            {
+              "id": 250255,
+              "name": "Unstable Felheart Crystal",
+              "slot": "trinket",
+              "specs": [
+                65,
+                105,
+                256,
+                257,
+                264,
+                270,
+                1468
+              ]
+            },
+            {
+              "id": 251138,
+              "name": "Cinderfury Shoulderguards",
+              "slot": "shoulder",
+              "armor": "plate",
+              "specs": [
+                65,
+                66,
+                70,
+                71,
+                72,
+                73,
+                250,
+                251,
+                252
+              ]
+            },
+            {
+              "id": 251139,
+              "name": "Summoner's Searing Shirt",
+              "slot": "chest",
+              "armor": "cloth",
+              "specs": [
+                62,
+                63,
+                64,
+                256,
+                257,
+                258,
+                265,
+                266,
+                267
+              ]
+            },
+            {
+              "id": 251140,
+              "name": "Vilefiend's Guise",
+              "slot": "head",
+              "armor": "leather",
+              "specs": [
+                102,
+                103,
+                104,
+                105,
+                259,
+                260,
+                261,
+                268,
+                269,
+                270,
+                577,
+                581,
+                1480
+              ]
+            },
+            {
+              "id": 251141,
+              "name": "Lithiel's Linked Leggings",
+              "slot": "legs",
+              "armor": "mail",
+              "specs": [
+                253,
+                254,
+                255,
+                262,
+                263,
+                264,
+                1467,
+                1468,
+                1473
+              ]
+            },
+            {
+              "id": 251142,
+              "name": "Pendant of Malefic Fury",
+              "slot": "neck"
+            },
+            {
+              "id": 258045,
+              "name": "Dawnblade's Glaives",
+              "slot": "one_hand",
+              "specs": [
+                577,
+                581,
+                1480
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "instanceID": 1202,
+      "mapID": 2521,
+      "name": "Ruby Life Pools",
+      "bosses": [
+        {
+          "name": "Melidrussa Chillworn",
+          "items": [
+            {
+              "id": 193728,
+              "name": "Scaleguard's Stalwart Greatboots",
+              "slot": "feet",
+              "armor": "plate",
+              "specs": [
+                65,
+                66,
+                70,
+                71,
+                72,
+                73,
+                250,
+                251,
+                252
+              ]
+            },
+            {
+              "id": 193757,
+              "name": "Ruby Whelp Shell",
+              "slot": "trinket"
+            },
+            {
+              "id": 193758,
+              "name": "Subjugator's Chilling Grips",
+              "slot": "hands",
+              "armor": "leather",
+              "specs": [
+                102,
+                103,
+                104,
+                105,
+                259,
+                260,
+                261,
+                268,
+                269,
+                270,
+                577,
+                581,
+                1480
+              ]
+            },
+            {
+              "id": 193759,
+              "name": "Egg Tender's Leggings",
+              "slot": "legs",
+              "armor": "mail",
+              "specs": [
+                253,
+                254,
+                255,
+                262,
+                263,
+                264,
+                1467,
+                1468,
+                1473
+              ]
+            },
+            {
+              "id": 193761,
+              "name": "Chillworn's Infusion Staff",
+              "slot": "two_hand",
+              "specs": [
+                62,
+                63,
+                64,
+                102,
+                105,
+                256,
+                257,
+                258,
+                262,
+                264,
+                265,
+                266,
+                267,
+                270,
+                1467,
+                1468,
+                1473
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Kokia Blazehoof",
+          "items": [
+            {
+              "id": 193762,
+              "name": "Blazebinder's Hoof",
+              "slot": "trinket",
+              "specs": [
+                66,
+                70,
+                71,
+                72,
+                73,
+                250,
+                251,
+                252
+              ]
+            },
+            {
+              "id": 193763,
+              "name": "Fireproof Drape",
+              "slot": "back"
+            },
+            {
+              "id": 193764,
+              "name": "Invader's Firestorm Chestguard",
+              "slot": "chest",
+              "armor": "leather",
+              "specs": [
+                102,
+                103,
+                104,
+                105,
+                259,
+                260,
+                261,
+                268,
+                269,
+                270,
+                577,
+                581,
+                1480
+              ]
+            },
+            {
+              "id": 193765,
+              "name": "Blazebound Lieutenant's Helm",
+              "slot": "head",
+              "armor": "mail",
+              "specs": [
+                253,
+                254,
+                255,
+                262,
+                263,
+                264,
+                1467,
+                1468,
+                1473
+              ]
+            },
+            {
+              "id": 193766,
+              "name": "Kokia's Burnout Rod",
+              "slot": "off_hand",
+              "specs": [
+                62,
+                63,
+                64,
+                65,
+                102,
+                105,
+                256,
+                257,
+                258,
+                262,
+                264,
+                265,
+                266,
+                267,
+                270,
+                1467,
+                1468,
+                1473,
+                1480
+              ]
+            },
+            {
+              "id": 193767,
+              "name": "Havoc Crusher",
+              "slot": "one_hand",
+              "specs": [
+                260,
+                263,
+                268,
+                269
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Kyrakka and Erkhart Stormvein",
+          "items": [
+            {
+              "id": 193691,
+              "name": "Sky Saddle Cord",
+              "slot": "waist",
+              "armor": "cloth",
+              "specs": [
+                62,
+                63,
+                64,
+                256,
+                257,
+                258,
+                265,
+                266,
+                267
+              ]
+            },
+            {
+              "id": 193748,
+              "name": "Kyrakka's Searing Embers",
+              "slot": "trinket",
+              "specs": [
+                65,
+                105,
+                256,
+                257,
+                264,
+                270,
+                1468
+              ]
+            },
+            {
+              "id": 193750,
+              "name": "Wind Soarer's Breeches",
+              "slot": "legs",
+              "armor": "cloth",
+              "specs": [
+                62,
+                63,
+                64,
+                256,
+                257,
+                258,
+                265,
+                266,
+                267
+              ]
+            },
+            {
+              "id": 193751,
+              "name": "Crown of Roaring Storms",
+              "slot": "head",
+              "armor": "leather",
+              "specs": [
+                102,
+                103,
+                104,
+                105,
+                259,
+                260,
+                261,
+                268,
+                269,
+                270,
+                577,
+                581,
+                1480
+              ]
+            },
+            {
+              "id": 193752,
+              "name": "Galerattle Gauntlets",
+              "slot": "hands",
+              "armor": "mail",
+              "specs": [
+                253,
+                254,
+                255,
+                262,
+                263,
+                264,
+                1467,
+                1468,
+                1473
+              ]
+            },
+            {
+              "id": 193753,
+              "name": "Breastplate of Soaring Terror",
+              "slot": "chest",
+              "armor": "plate",
+              "specs": [
+                65,
+                66,
+                70,
+                71,
+                72,
+                73,
+                250,
+                251,
+                252
+              ]
+            },
+            {
+              "id": 193754,
+              "name": "Drake Rider's Stecktarge",
+              "slot": "off_hand",
+              "specs": [
+                65,
+                66,
+                73,
+                262,
+                264
+              ]
+            },
+            {
+              "id": 193755,
+              "name": "Backdraft Cleaver",
+              "slot": "two_hand",
+              "specs": [
+                70,
+                71,
+                72,
+                250,
+                251,
+                252
+              ]
+            },
+            {
+              "id": 193756,
+              "name": "Skyferno Rondel",
+              "slot": "one_hand",
+              "specs": [
+                255,
+                259,
+                261
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "instanceID": 1030,
+      "mapID": 1877,
+      "name": "Temple of Sethraliss",
+      "bosses": [
+        {
+          "name": "Adderis and Aspix",
+          "items": [
+            {
+              "id": 158370,
+              "name": "Twin-Strike Polearm",
+              "slot": "two_hand",
+              "specs": [
+                103,
+                104,
+                255,
+                268,
+                269
+              ]
+            },
+            {
+              "id": 159259,
+              "name": "Sandswept Sandals",
+              "slot": "feet",
+              "armor": "cloth",
+              "specs": [
+                62,
+                63,
+                64,
+                256,
+                257,
+                258,
+                265,
+                266,
+                267
+              ]
+            },
+            {
+              "id": 159263,
+              "name": "Bindings of the Slithering Current",
+              "slot": "wrist",
+              "armor": "cloth",
+              "specs": [
+                62,
+                63,
+                64,
+                256,
+                257,
+                258,
+                265,
+                266,
+                267
+              ]
+            },
+            {
+              "id": 159317,
+              "name": "Whirling Dervish Sash",
+              "slot": "waist",
+              "armor": "leather",
+              "specs": [
+                102,
+                103,
+                104,
+                105,
+                259,
+                260,
+                261,
+                268,
+                269,
+                270,
+                577,
+                581,
+                1480
+              ]
+            },
+            {
+              "id": 159329,
+              "name": "Leggings of the Galeforce Viper",
+              "slot": "legs",
+              "armor": "leather",
+              "specs": [
+                102,
+                103,
+                104,
+                105,
+                259,
+                260,
+                261,
+                268,
+                269,
+                270,
+                577,
+                581,
+                1480
+              ]
+            },
+            {
+              "id": 159380,
+              "name": "Arc-Glass Bindings",
+              "slot": "wrist",
+              "armor": "mail",
+              "specs": [
+                253,
+                254,
+                255,
+                262,
+                263,
+                264,
+                1467,
+                1468,
+                1473
+              ]
+            },
+            {
+              "id": 159388,
+              "name": "Sabatons of Coruscating Energy",
+              "slot": "feet",
+              "armor": "mail",
+              "specs": [
+                253,
+                254,
+                255,
+                262,
+                263,
+                264,
+                1467,
+                1468,
+                1473
+              ]
+            },
+            {
+              "id": 159425,
+              "name": "Shard-Tipped Vambraces",
+              "slot": "wrist",
+              "armor": "plate",
+              "specs": [
+                65,
+                66,
+                70,
+                71,
+                72,
+                73,
+                250,
+                251,
+                252
+              ]
+            },
+            {
+              "id": 159435,
+              "name": "Legplates of Charged Duality",
+              "slot": "legs",
+              "armor": "plate",
+              "specs": [
+                65,
+                66,
+                70,
+                71,
+                72,
+                73,
+                250,
+                251,
+                252
+              ]
+            },
+            {
+              "id": 159636,
+              "name": "Staff of the Lightning Serpent",
+              "slot": "two_hand",
+              "specs": [
+                62,
+                63,
+                64,
+                102,
+                105,
+                256,
+                257,
+                258,
+                262,
+                264,
+                265,
+                266,
+                267,
+                270,
+                1467,
+                1468,
+                1473
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Merektha",
+          "items": [
+            {
+              "id": 158367,
+              "name": "Merektha's Fang",
+              "slot": "trinket",
+              "specs": [
+                66,
+                70,
+                71,
+                72,
+                73,
+                250,
+                251,
+                252
+              ]
+            },
+            {
+              "id": 158714,
+              "name": "Swarm's Edge",
+              "slot": "one_hand",
+              "specs": [
+                255,
+                260,
+                268,
+                269,
+                577,
+                581
+              ]
+            },
+            {
+              "id": 159255,
+              "name": "Ouroborial Sash",
+              "slot": "waist",
+              "armor": "cloth",
+              "specs": [
+                62,
+                63,
+                64,
+                256,
+                257,
+                258,
+                265,
+                266,
+                267
+              ]
+            },
+            {
+              "id": 159327,
+              "name": "Sand-Shined Snakeskin Sandals",
+              "slot": "feet",
+              "armor": "leather",
+              "specs": [
+                102,
+                103,
+                104,
+                105,
+                259,
+                260,
+                261,
+                268,
+                269,
+                270,
+                577,
+                581,
+                1480
+              ]
+            },
+            {
+              "id": 159375,
+              "name": "Legguards of the Awakening Brood",
+              "slot": "legs",
+              "armor": "mail",
+              "specs": [
+                253,
+                254,
+                255,
+                262,
+                263,
+                264,
+                1467,
+                1468,
+                1473
+              ]
+            },
+            {
+              "id": 159437,
+              "name": "Fangproof Gauntlets",
+              "slot": "hands",
+              "armor": "plate",
+              "specs": [
+                65,
+                66,
+                70,
+                71,
+                72,
+                73,
+                250,
+                251,
+                252
+              ]
+            },
+            {
+              "id": 159637,
+              "name": "Snakebite Recurve",
+              "slot": "two_hand",
+              "specs": [
+                253,
+                254
+              ]
+            },
+            {
+              "id": 162544,
+              "name": "Jade Ophidian Band",
+              "slot": "finger"
+            }
+          ]
+        },
+        {
+          "name": "Galvazzt",
+          "items": [
+            {
+              "id": 158366,
+              "name": "Charged Sandstone Band",
+              "slot": "finger"
+            },
+            {
+              "id": 158369,
+              "name": "Galvanized Stormcrusher",
+              "slot": "one_hand",
+              "specs": [
+                65,
+                102,
+                105,
+                256,
+                257,
+                258,
+                262,
+                264,
+                270,
+                1467,
+                1468,
+                1473
+              ]
+            },
+            {
+              "id": 158374,
+              "name": "Tiny Electromental in a Jar",
+              "slot": "trinket",
+              "specs": [
+                103,
+                253,
+                254,
+                255,
+                259,
+                260,
+                261,
+                263,
+                269,
+                577
+              ]
+            },
+            {
+              "id": 159247,
+              "name": "Handwraps of Oscillating Polarity",
+              "slot": "hands",
+              "armor": "cloth",
+              "specs": [
+                62,
+                63,
+                64,
+                256,
+                257,
+                258,
+                265,
+                266,
+                267
+              ]
+            },
+            {
+              "id": 159442,
+              "name": "Sand-Scoured Greatbelt",
+              "slot": "waist",
+              "armor": "plate",
+              "specs": [
+                65,
+                66,
+                70,
+                71,
+                72,
+                73,
+                250,
+                251,
+                252
+              ]
+            },
+            {
+              "id": 159664,
+              "name": "Bulwark of Brimming Potential",
+              "slot": "off_hand",
+              "specs": [
+                65,
+                66,
+                73,
+                262,
+                264
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Avatar of Sethraliss",
+          "items": [
+            {
+              "id": 158368,
+              "name": "Sethraliss' Defiled Relic",
+              "slot": "trinket",
+              "specs": [
+                62,
+                63,
+                64,
+                102,
+                258,
+                262,
+                265,
+                266,
+                267,
+                1467,
+                1473,
+                1480
+              ]
+            },
+            {
+              "id": 158373,
+              "name": "Resonating Crystal Scimitar",
+              "slot": "one_hand",
+              "specs": [
+                66,
+                73,
+                251
+              ]
+            },
+            {
+              "id": 159254,
+              "name": "Brood Cleanser's Amice",
+              "slot": "shoulder",
+              "armor": "cloth",
+              "specs": [
+                62,
+                63,
+                64,
+                256,
+                257,
+                258,
+                265,
+                266,
+                267
+              ]
+            },
+            {
+              "id": 159257,
+              "name": "Robes of the Reborn Serpent",
+              "slot": "chest",
+              "armor": "cloth",
+              "specs": [
+                62,
+                63,
+                64,
+                256,
+                257,
+                258,
+                265,
+                266,
+                267
+              ]
+            },
+            {
+              "id": 159318,
+              "name": "Hood of the Slithering Loa",
+              "slot": "head",
+              "armor": "leather",
+              "specs": [
+                102,
+                103,
+                104,
+                105,
+                259,
+                260,
+                261,
+                268,
+                269,
+                270,
+                577,
+                581,
+                1480
+              ]
+            },
+            {
+              "id": 159337,
+              "name": "Grips of Electrified Defense",
+              "slot": "hands",
+              "armor": "leather",
+              "specs": [
+                102,
+                103,
+                104,
+                105,
+                259,
+                260,
+                261,
+                268,
+                269,
+                270,
+                577,
+                581,
+                1480
+              ]
+            },
+            {
+              "id": 159370,
+              "name": "Corrupted Hexxer's Vestments",
+              "slot": "chest",
+              "armor": "mail",
+              "specs": [
+                253,
+                254,
+                255,
+                262,
+                263,
+                264,
+                1467,
+                1468,
+                1473
+              ]
+            },
+            {
+              "id": 159374,
+              "name": "Sethraliss' Fanged Helm",
+              "slot": "head",
+              "armor": "mail",
+              "specs": [
+                253,
+                254,
+                255,
+                262,
+                263,
+                264,
+                1467,
+                1468,
+                1473
+              ]
+            },
+            {
+              "id": 159424,
+              "name": "Desert Guardian's Breastplate",
+              "slot": "chest",
+              "armor": "plate",
+              "specs": [
+                65,
+                66,
+                70,
+                71,
+                72,
+                73,
+                250,
+                251,
+                252
+              ]
+            },
+            {
+              "id": 159439,
+              "name": "C'thraxxi Binders Pauldrons",
+              "slot": "shoulder",
+              "armor": "plate",
+              "specs": [
+                65,
+                66,
+                70,
+                71,
+                72,
+                73,
+                250,
+                251,
+                252
+              ]
+            },
+            {
+              "id": 239031,
+              "name": "Brood Cleanser's Amice",
+              "slot": "shoulder",
+              "armor": "cloth",
+              "specs": [
+                62,
+                63,
+                64,
+                256,
+                257,
+                258,
+                265,
+                266,
+                267
+              ]
+            },
+            {
+              "id": 239032,
+              "name": "Robes of the Reborn Serpent",
+              "slot": "chest",
+              "armor": "cloth",
+              "specs": [
+                62,
+                63,
+                64,
+                256,
+                257,
+                258,
+                265,
+                266,
+                267
+              ]
+            },
+            {
+              "id": 239033,
+              "name": "Hood of the Slithering Loa",
+              "slot": "head",
+              "armor": "leather",
+              "specs": [
+                102,
+                103,
+                104,
+                105,
+                259,
+                260,
+                261,
+                268,
+                269,
+                270,
+                577,
+                581,
+                1480
+              ]
+            },
+            {
+              "id": 239034,
+              "name": "Corrupted Hexxer's Vestments",
+              "slot": "chest",
+              "armor": "mail",
+              "specs": [
+                253,
+                254,
+                255,
+                262,
+                263,
+                264,
+                1467,
+                1468,
+                1473
+              ]
+            },
+            {
+              "id": 239035,
+              "name": "Sethraliss' Fanged Helm",
+              "slot": "head",
+              "armor": "mail",
+              "specs": [
+                253,
+                254,
+                255,
+                262,
+                263,
+                264,
+                1467,
+                1468,
+                1473
+              ]
+            },
+            {
+              "id": 239036,
+              "name": "Desert Guardian's Breastplate",
+              "slot": "chest",
+              "armor": "plate",
+              "specs": [
+                65,
+                66,
+                70,
+                71,
+                72,
+                73,
+                250,
+                251,
+                252
+              ]
+            },
+            {
+              "id": 239037,
+              "name": "C'thraxxi Binders Pauldrons",
+              "slot": "shoulder",
+              "armor": "plate",
+              "specs": [
+                65,
+                66,
+                70,
+                71,
+                72,
+                73,
+                250,
+                251,
+                252
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "instanceID": 1309,
+      "mapID": 2859,
+      "name": "The Blinding Vale",
+      "bosses": [
+        {
+          "name": "Lightblossom Trinity",
+          "items": [
+            {
+              "id": 250254,
+              "name": "Seed of Radiant Hope",
+              "slot": "trinket",
+              "specs": [
+                65,
+                105,
+                256,
+                257,
+                264,
+                270,
+                1468
+              ]
+            },
+            {
+              "id": 251180,
+              "name": "Thornblade",
+              "slot": "one_hand",
+              "specs": [
+                255,
+                259,
+                261
+              ]
+            },
+            {
+              "id": 251181,
+              "name": "Pruning Lance",
+              "slot": "two_hand",
+              "specs": [
+                70,
+                71,
+                72,
+                250,
+                251,
+                252
+              ]
+            },
+            {
+              "id": 251182,
+              "name": "Bedrock Breeches",
+              "slot": "legs",
+              "armor": "plate",
+              "specs": [
+                65,
+                66,
+                70,
+                71,
+                72,
+                73,
+                250,
+                251,
+                252
+              ]
+            },
+            {
+              "id": 251183,
+              "name": "Rootwarden Wraps",
+              "slot": "wrist",
+              "armor": "leather",
+              "specs": [
+                102,
+                103,
+                104,
+                105,
+                259,
+                260,
+                261,
+                268,
+                269,
+                270,
+                577,
+                581,
+                1480
+              ]
+            },
+            {
+              "id": 251184,
+              "name": "Ironroot Collar",
+              "slot": "shoulder",
+              "armor": "mail",
+              "specs": [
+                253,
+                254,
+                255,
+                262,
+                263,
+                264,
+                1467,
+                1468,
+                1473
+              ]
+            },
+            {
+              "id": 251185,
+              "name": "Lightblossom Cinch",
+              "slot": "waist",
+              "armor": "cloth",
+              "specs": [
+                62,
+                63,
+                64,
+                256,
+                257,
+                258,
+                265,
+                266,
+                267
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Ikuzz the Light Hunter",
+          "items": [
+            {
+              "id": 250238,
+              "name": "Seed of the Devouring Wild",
+              "slot": "trinket",
+              "specs": [
+                66,
+                70,
+                71,
+                72,
+                73,
+                250,
+                251,
+                252
+              ]
+            },
+            {
+              "id": 251186,
+              "name": "Thorntalon Edge",
+              "slot": "one_hand",
+              "specs": [
+                260,
+                263,
+                268,
+                269,
+                577,
+                581
+              ]
+            },
+            {
+              "id": 251187,
+              "name": "Amirdrassil's Reach",
+              "slot": "two_hand",
+              "specs": [
+                253,
+                254
+              ]
+            },
+            {
+              "id": 251188,
+              "name": "Doompetal",
+              "slot": "two_hand",
+              "specs": [
+                62,
+                63,
+                64,
+                256,
+                257,
+                258,
+                265,
+                266,
+                267
+              ]
+            },
+            {
+              "id": 251189,
+              "name": "Rootwalker Harness",
+              "slot": "waist",
+              "armor": "leather",
+              "specs": [
+                102,
+                103,
+                104,
+                105,
+                259,
+                260,
+                261,
+                268,
+                269,
+                270,
+                577,
+                581,
+                1480
+              ]
+            },
+            {
+              "id": 251190,
+              "name": "Bloodthorn Burnous",
+              "slot": "back"
+            }
+          ]
+        },
+        {
+          "name": "Lightwarden Ruia",
+          "items": [
+            {
+              "id": 250214,
+              "name": "Lightspire Core",
+              "slot": "trinket",
+              "specs": [
+                62,
+                63,
+                64,
+                65,
+                102,
+                103,
+                104,
+                105,
+                253,
+                254,
+                255,
+                256,
+                257,
+                258,
+                259,
+                260,
+                261,
+                262,
+                263,
+                264,
+                265,
+                266,
+                267,
+                268,
+                269,
+                270,
+                577,
+                581,
+                1467,
+                1468,
+                1473,
+                1480
+              ]
+            },
+            {
+              "id": 251165,
+              "name": "Pulverizing Pads",
+              "slot": "hands",
+              "armor": "mail",
+              "specs": [
+                253,
+                254,
+                255,
+                262,
+                263,
+                264,
+                1467,
+                1468,
+                1473
+              ]
+            },
+            {
+              "id": 251191,
+              "name": "Luminescent Sprout",
+              "slot": "off_hand",
+              "specs": [
+                62,
+                63,
+                64,
+                65,
+                102,
+                105,
+                256,
+                257,
+                258,
+                262,
+                264,
+                265,
+                266,
+                267,
+                270,
+                1467,
+                1468,
+                1473,
+                1480
+              ]
+            },
+            {
+              "id": 251192,
+              "name": "Branch of Pride",
+              "slot": "two_hand",
+              "specs": [
+                103,
+                104,
+                255,
+                268,
+                269
+              ]
+            },
+            {
+              "id": 251193,
+              "name": "Taproot Ribs",
+              "slot": "chest",
+              "armor": "plate",
+              "specs": [
+                65,
+                66,
+                70,
+                71,
+                72,
+                73,
+                250,
+                251,
+                252
+              ]
+            },
+            {
+              "id": 251194,
+              "name": "Lightwarden's Bind",
+              "slot": "finger"
+            }
+          ]
+        },
+        {
+          "name": "Ziekket",
+          "items": [
+            {
+              "id": 250259,
+              "name": "Sapling of the Dawnroot",
+              "slot": "trinket",
+              "specs": [
+                62,
+                63,
+                64,
+                70,
+                71,
+                72,
+                102,
+                103,
+                251,
+                252,
+                253,
+                254,
+                255,
+                258,
+                259,
+                260,
+                261,
+                262,
+                263,
+                265,
+                266,
+                267,
+                269,
+                577,
+                1467,
+                1473,
+                1480
+              ]
+            },
+            {
+              "id": 251195,
+              "name": "Thorned Reply",
+              "slot": "one_hand",
+              "specs": [
+                66,
+                73,
+                251
+              ]
+            },
+            {
+              "id": 251196,
+              "name": "Teldrassil's Sacrifice",
+              "slot": "off_hand",
+              "specs": [
+                65,
+                66,
+                73,
+                262,
+                264
+              ]
+            },
+            {
+              "id": 251197,
+              "name": "Thornspike Gauntlets",
+              "slot": "hands",
+              "armor": "plate",
+              "specs": [
+                65,
+                66,
+                70,
+                71,
+                72,
+                73,
+                250,
+                251,
+                252
+              ]
+            },
+            {
+              "id": 251198,
+              "name": "Lightspore Leggings",
+              "slot": "legs",
+              "armor": "leather",
+              "specs": [
+                102,
+                103,
+                104,
+                105,
+                259,
+                260,
+                261,
+                268,
+                269,
+                270,
+                577,
+                581,
+                1480
+              ]
+            },
+            {
+              "id": 251199,
+              "name": "Worldroot Canopy",
+              "slot": "head",
+              "armor": "cloth",
+              "specs": [
+                62,
+                63,
+                64,
+                256,
+                257,
+                258,
+                265,
+                266,
+                267
+              ]
+            },
+            {
+              "id": 251200,
+              "name": "Saptorbane Guards",
+              "slot": "wrist",
+              "armor": "mail",
+              "specs": [
+                253,
+                254,
+                255,
+                262,
+                263,
+                264,
+                1467,
+                1468,
+                1473
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "instanceID": 1313,
+      "mapID": 2923,
+      "name": "Voidscar Arena",
+      "bosses": [
+        {
+          "name": "Taz'Rah",
+          "items": [
+            {
+              "id": 250225,
+              "name": "Void Execution Mandate",
+              "slot": "trinket",
+              "specs": [
+                103,
+                104,
+                253,
+                254,
+                255,
+                259,
+                260,
+                261,
+                263,
+                268,
+                269,
+                577,
+                581
+              ]
+            },
+            {
+              "id": 251218,
+              "name": "Taz'Rah's Cosmic Edge",
+              "slot": "one_hand",
+              "specs": [
+                66,
+                73,
+                251
+              ]
+            },
+            {
+              "id": 251219,
+              "name": "Riftworn Stompers",
+              "slot": "feet",
+              "armor": "cloth",
+              "specs": [
+                62,
+                63,
+                64,
+                256,
+                257,
+                258,
+                265,
+                266,
+                267
+              ]
+            },
+            {
+              "id": 251220,
+              "name": "Voidscarred Crown",
+              "slot": "head",
+              "armor": "mail",
+              "specs": [
+                253,
+                254,
+                255,
+                262,
+                263,
+                264,
+                1467,
+                1468,
+                1473
+              ]
+            },
+            {
+              "id": 251221,
+              "name": "Despondent's Gauntlets",
+              "slot": "hands",
+              "armor": "plate",
+              "specs": [
+                65,
+                66,
+                70,
+                71,
+                72,
+                73,
+                250,
+                251,
+                252
+              ]
+            },
+            {
+              "id": 251222,
+              "name": "Ethereal Netherwrap",
+              "slot": "waist",
+              "armor": "cloth",
+              "specs": [
+                62,
+                63,
+                64,
+                256,
+                257,
+                258,
+                265,
+                266,
+                267
+              ]
+            },
+            {
+              "id": 251223,
+              "name": "Somber Spaulders",
+              "slot": "shoulder",
+              "armor": "leather",
+              "specs": [
+                102,
+                103,
+                104,
+                105,
+                259,
+                260,
+                261,
+                268,
+                269,
+                270,
+                577,
+                581,
+                1480
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Atroxus",
+          "items": [
+            {
+              "id": 250245,
+              "name": "Tumor of the Swarm",
+              "slot": "trinket",
+              "specs": [
+                66,
+                73,
+                104,
+                250,
+                268,
+                581
+              ]
+            },
+            {
+              "id": 251224,
+              "name": "Hulking Handaxe",
+              "slot": "one_hand",
+              "specs": [
+                255,
+                260,
+                263,
+                268,
+                269,
+                577,
+                581
+              ]
+            },
+            {
+              "id": 251225,
+              "name": "Fang of Contagion",
+              "slot": "one_hand",
+              "specs": [
+                62,
+                63,
+                64,
+                102,
+                105,
+                256,
+                257,
+                258,
+                262,
+                264,
+                265,
+                266,
+                267,
+                1467,
+                1468,
+                1473,
+                1480
+              ]
+            },
+            {
+              "id": 251226,
+              "name": "Hide of Pestilence",
+              "slot": "chest",
+              "armor": "leather",
+              "specs": [
+                102,
+                103,
+                104,
+                105,
+                259,
+                260,
+                261,
+                268,
+                269,
+                270,
+                577,
+                581,
+                1480
+              ]
+            },
+            {
+              "id": 251227,
+              "name": "Poisoner's Pauldrons",
+              "slot": "shoulder",
+              "armor": "cloth",
+              "specs": [
+                62,
+                63,
+                64,
+                256,
+                257,
+                258,
+                265,
+                266,
+                267
+              ]
+            },
+            {
+              "id": 251228,
+              "name": "Behemoth Waistband",
+              "slot": "waist",
+              "armor": "mail",
+              "specs": [
+                253,
+                254,
+                255,
+                262,
+                263,
+                264,
+                1467,
+                1468,
+                1473
+              ]
+            },
+            {
+              "id": 251229,
+              "name": "Visor of the Predator",
+              "slot": "head",
+              "armor": "plate",
+              "specs": [
+                65,
+                66,
+                70,
+                71,
+                72,
+                73,
+                250,
+                251,
+                252
+              ]
+            },
+            {
+              "id": 252258,
+              "name": "Sickening Signet of Atroxus",
+              "slot": "finger"
+            }
+          ]
+        },
+        {
+          "name": "Charonus",
+          "items": [
+            {
+              "id": 250224,
+              "name": "Mindpiercer's Sigil",
+              "slot": "trinket",
+              "specs": [
+                62,
+                63,
+                64,
+                102,
+                258,
+                262,
+                265,
+                266,
+                267,
+                1467,
+                1473,
+                1480
+              ]
+            },
+            {
+              "id": 251230,
+              "name": "Charonic Crescent",
+              "slot": "two_hand",
+              "specs": [
+                70,
+                71,
+                72,
+                250,
+                251,
+                252
+              ]
+            },
+            {
+              "id": 251231,
+              "name": "Singularity Slicer",
+              "slot": "one_hand",
+              "specs": [
+                577,
+                581,
+                1480
+              ]
+            },
+            {
+              "id": 251232,
+              "name": "Overseer's Diadem",
+              "slot": "head",
+              "armor": "cloth",
+              "specs": [
+                62,
+                63,
+                64,
+                256,
+                257,
+                258,
+                265,
+                266,
+                267
+              ]
+            },
+            {
+              "id": 251233,
+              "name": "Manipulator's Vest",
+              "slot": "chest",
+              "armor": "mail",
+              "specs": [
+                253,
+                254,
+                255,
+                262,
+                263,
+                264,
+                1467,
+                1468,
+                1473
+              ]
+            },
+            {
+              "id": 251234,
+              "name": "Graft of the Domanaar",
+              "slot": "neck"
+            },
+            {
+              "id": 251235,
+              "name": "Gravitic Girdle",
+              "slot": "waist",
+              "armor": "leather",
+              "specs": [
+                102,
+                103,
+                104,
+                105,
+                259,
+                260,
+                261,
+                268,
+                269,
+                270,
+                577,
+                581,
+                1480
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "keys": [
+    {
+      "level": 0,
+      "loot": 292
+    },
+    {
+      "level": 2,
+      "loot": 295
+    },
+    {
+      "level": 3,
+      "loot": 295
+    },
+    {
+      "level": 4,
+      "loot": 298
+    },
+    {
+      "level": 5,
+      "loot": 302
+    },
+    {
+      "level": 6,
+      "loot": 305
+    },
+    {
+      "level": 7,
+      "loot": 305
+    },
+    {
+      "level": 8,
+      "loot": 308
+    },
+    {
+      "level": 9,
+      "loot": 308
+    },
+    {
+      "level": 10,
+      "loot": 311
+    }
+  ]
+}
