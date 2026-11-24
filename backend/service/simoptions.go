@@ -41,58 +41,99 @@ func consumableLine(kind string, c models.SimConsumable) string {
 	return simOptionLines[kind] + c.Value + "\n"
 }
 
-// consumableLines are the lines for the consumables picked (a kind left empty keeps simc's default), or
-// ErrBadSimOptions for a kind or value the reference doesn't have.
-func consumableLines(ref models.SimReference, picked models.SimConsumables) (string, error) {
-	for kind := range picked {
-		if !slices.Contains(models.SimConsumableKinds, kind) {
-			return "", fmt.Errorf("%w: no consumable kind %q (%v)", ErrBadSimOptions, kind, models.SimConsumableKinds)
-		}
-	}
-	var b strings.Builder
-	for _, kind := range models.SimConsumableKinds {
-		value := picked[kind]
-		if value == "" {
-			continue
-		}
-		c, ok := consumableOf(ref, kind, value)
-		if !ok {
-			return "", fmt.Errorf("%w: no %s called %q", ErrBadSimOptions, kind, value)
-		}
-		b.WriteString(consumableLine(kind, c))
-	}
-	return b.String(), nil
+// kindPicks are the consumables picked of one kind.
+type kindPicks struct {
+	kind  string
+	picks []models.SimConsumable
 }
 
-// compareCombos are the profilesets of a consumables comparison: the default (or picked) consumables with one of the
-// compared kind changed, in the order given. Each is one value, at most maxCompareValues, none twice.
-func compareCombos(ref models.SimReference, cmpr *models.SimCompare) ([]gearCombo, error) {
-	if cmpr == nil || !slices.Contains(models.SimConsumableKinds, cmpr.Kind) {
-		return nil, fmt.Errorf("%w: pick what to compare (%v)", ErrBadSimOptions, models.SimConsumableKinds)
+// consumablesPicked are the consumables picked, by kind in the app's order (a kind with none is left out), or
+// ErrBadSimOptions for a kind, or a value or a repeat of one, the reference doesn't have.
+func consumablesPicked(ref models.SimReference, picked models.SimConsumables) ([]kindPicks, error) {
+	for kind := range picked {
+		if !slices.Contains(models.SimConsumableKinds, kind) {
+			return nil, fmt.Errorf("%w: no consumable kind %q (%v)", ErrBadSimOptions, kind, models.SimConsumableKinds)
+		}
 	}
-	n := len(cmpr.Values)
-	if n == 0 || n > maxCompareValues || len(slices.Compact(slices.Sorted(slices.Values(cmpr.Values)))) != n {
-		return nil, fmt.Errorf("%w: compare 1 to %d different %s values", ErrBadSimOptions, maxCompareValues, cmpr.Kind)
+	var out []kindPicks
+	for _, kind := range models.SimConsumableKinds {
+		var picks []models.SimConsumable
+		for _, value := range picked[kind] {
+			c, ok := consumableOf(ref, kind, value)
+			if !ok || slices.ContainsFunc(picks, func(p models.SimConsumable) bool { return p.Value == value }) {
+				return nil, fmt.Errorf("%w: no %s called %q, or it is picked twice", ErrBadSimOptions, kind, value)
+			}
+			picks = append(picks, c)
+		}
+		if len(picks) > 0 {
+			out = append(out, kindPicks{kind, picks})
+		}
+	}
+	return out, nil
+}
+
+// consumableLines are the lines for the consumables a sim uses as they are: the kinds with one value picked (a kind
+// with none keeps simc's default, with several is compared: see compareCombos), or ErrBadSimOptions for a bad pick.
+func consumableLines(ref models.SimReference, picked models.SimConsumables) (string, error) {
+	all, err := consumablesPicked(ref, picked)
+	var b strings.Builder
+	for _, k := range all {
+		if len(k.picks) == 1 {
+			b.WriteString(consumableLine(k.kind, k.picks[0]))
+		}
+	}
+	return b.String(), err
+}
+
+// compareCombos are the profilesets of a consumables comparison: every combination of the values picked of the kinds
+// with two or more (the other kinds stay as they are), in the order picked, at most maxCompareValues of them; none when
+// nothing is compared.
+func compareCombos(ref models.SimReference, picked models.SimConsumables) ([]gearCombo, error) {
+	all, err := consumablesPicked(ref, picked)
+	if err != nil {
+		return nil, err
+	}
+	n, compared := 1, []kindPicks{}
+	for _, k := range all {
+		if len(k.picks) > 1 {
+			n *= len(k.picks)
+			compared = append(compared, k)
+		}
+	}
+	if len(compared) == 0 {
+		return nil, nil
+	}
+	if n > maxCompareValues {
+		return nil, fmt.Errorf("%w: the consumables picked make %d combinations, and a sim compares at most %d",
+			ErrBadSimOptions, n, maxCompareValues)
 	}
 	combos := make([]gearCombo, n)
-	for i, v := range cmpr.Values {
-		c, ok := consumableOf(ref, cmpr.Kind, v)
-		if !ok {
-			return nil, fmt.Errorf("%w: no %s called %q", ErrBadSimOptions, cmpr.Kind, v)
+	for i := range combos {
+		var line string
+		var values, names []string
+		for j, rest := len(compared)-1, i; j >= 0; j-- { // the last kind changes fastest
+			c := compared[j].picks[rest%len(compared[j].picks)]
+			rest /= len(compared[j].picks)
+			line = consumableLine(compared[j].kind, c) + line
+			values, names = append([]string{c.Value}, values...), append([]string{c.Name}, names...)
 		}
-		combos[i] = gearCombo{name: "option" + strconv.Itoa(i+1), line: consumableLine(cmpr.Kind, c),
-			option: &models.SimOptionRow{Value: c.Value, Name: c.Name}}
+		combos[i] = gearCombo{name: "option" + strconv.Itoa(i+1), line: line,
+			option: &models.SimOptionRow{Value: strings.Join(values, "+"), Name: strings.Join(names, " + ")}}
 	}
 	return combos, nil
 }
 
-// withCompare is a sim's combinations with the consumables compared: a Quick Sim's are the values alone, any other
-// sim's each gear combination run once with every value (ErrBadSimOptions when that is more than limit profilesets).
-func withCompare(ref models.SimReference, cmpr *models.SimCompare, quick bool, gear []gearCombo, limit int,
+// withCompare is a sim's combinations with the consumables picked compared: a Quick Sim's are the combinations of
+// them alone, any other sim's each gear combination run once for every one (ErrBadSimOptions when that is more than
+// limit profilesets). With nothing to compare it returns gear as it is.
+func withCompare(ref models.SimReference, picked models.SimConsumables, quick bool, gear []gearCombo, limit int,
 ) ([]gearCombo, error) {
-	values, err := compareCombos(ref, cmpr)
-	if err != nil || quick {
-		return values, err
+	values, err := compareCombos(ref, picked)
+	if err != nil || len(values) == 0 {
+		return gear, err
+	}
+	if quick {
+		return values, nil
 	}
 	if len(gear)*len(values) > limit {
 		return nil, fmt.Errorf("%w: %d combinations with %d consumables are %d sims, and this one runs at most %d",

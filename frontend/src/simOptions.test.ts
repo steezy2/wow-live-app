@@ -1,12 +1,12 @@
 import { expect, test } from 'vitest'
 import type { SimChoices, SimItem, SimReference } from './api'
 import {
+  comparedCount,
   enchantsFor,
   gainShare,
   gearGroups,
   omniumPicks,
   omniumString,
-  pickedConsumables,
   simOptionsError,
   togglePick,
   upgradeTrackOf,
@@ -86,8 +86,10 @@ test('enchantsFor lists the enchants of a slot', () => {
   expect(enchantsFor(ref, 'head')).toEqual([])
 })
 
-test('pickedConsumables leaves out the kinds on simc default', () => {
-  expect(pickedConsumables({ flask: 'a', food: '' })).toEqual({ flask: 'a' })
+test('comparedCount multiplies the kinds with two or more values picked', () => {
+  expect(comparedCount({})).toBe(1)
+  expect(comparedCount({ flask: ['a'], food: [] })).toBe(1)
+  expect(comparedCount({ flask: ['a', 'b'], food: ['x', 'y', 'z'], potion: ['p'] })).toBe(6)
 })
 
 test('the Omnium Folio picks read from, and write to, the export format', () => {

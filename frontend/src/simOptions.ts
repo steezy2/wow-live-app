@@ -72,10 +72,10 @@ export function upgradeTrackOf(
 export const enchantsFor = (ref: SimReference, slot: string): SimEnchant[] =>
   ref.enchants.filter((e) => e.slots.includes(slot))
 
-/** The consumables set, without the kinds left on simc's default. */
-export function pickedConsumables(c: SimConsumables): SimConsumables {
-  return Object.fromEntries(Object.entries(c).filter(([, v]) => v))
-}
+/** How many combinations the consumables picked make: the product of the values of each kind with two or more (1 when
+ * nothing is compared). */
+export const comparedCount = (c: SimConsumables): number =>
+  Object.values(c).reduce((n, values) => (values.length > 1 ? n * values.length : n), 1)
 
 /** The entry IDs of an Omnium Folio string ("136814:1/136817:1"). */
 export const omniumPicks = (text: string | undefined): number[] =>

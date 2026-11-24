@@ -3,6 +3,7 @@ package service
 import (
 	"errors"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -90,15 +91,18 @@ func TestApplyVariantNeedsATrackForAnUpgrade(t *testing.T) {
 }
 
 func TestConsumableLines(t *testing.T) {
-	got, err := consumableLines(testRef(), models.SimConsumables{"flask": "flask_b_2", "weapon": "oil_2", "food": "feast"})
+	got, err := consumableLines(testRef(),
+		models.SimConsumables{"flask": {"flask_b_2"}, "weapon": {"oil_2"}, "food": {"feast"}})
 	want := "flask=flask_b_2\nfood=feast\ntemporary_enchant=main_hand:oil_2\n"
 	if err != nil || got != want {
 		t.Errorf("consumableLines = %q, %v, want %q", got, err, want)
 	}
-	if got, err := consumableLines(testRef(), models.SimConsumables{}); err != nil || got != "" {
-		t.Errorf("no picks = %q, %v, want simc's defaults (nothing written)", got, err)
+	compared := models.SimConsumables{"flask": {"flask_a_2", "flask_b_2"}, "food": {}}
+	if got, err := consumableLines(testRef(), compared); err != nil || got != "" {
+		t.Errorf("kinds compared or empty = %q, %v, want simc's defaults (nothing written)", got, err)
 	}
-	for _, bad := range []models.SimConsumables{{"flask": "feast"}, {"potion": "x\nthreads=1"}, {"ring": "feast"}} {
+	for _, bad := range []models.SimConsumables{{"flask": {"feast"}}, {"potion": {"x\nthreads=1"}}, {"ring": {"feast"}},
+		{"flask": {"flask_a_2", "flask_a_2"}}} {
 		if _, err := consumableLines(testRef(), bad); !errors.Is(err, ErrBadSimOptions) {
 			t.Errorf("%+v: err = %v, want ErrBadSimOptions", bad, err)
 		}
@@ -106,29 +110,42 @@ func TestConsumableLines(t *testing.T) {
 }
 
 func TestCompareCombos(t *testing.T) {
-	combos, err := compareCombos(testRef(), &models.SimCompare{Kind: "flask", Values: []string{"flask_b_2", "flask_a_2"}})
-	if err != nil || len(combos) != 2 {
+	ref := testRef()
+	ref.Consumables["food"] = append(ref.Consumables["food"], models.SimConsumable{Value: "snack", Name: "Snack"})
+	combos, err := compareCombos(ref, models.SimConsumables{"flask": {"flask_b_2", "flask_a_2"},
+		"food": {"feast", "snack"}, "weapon": {"oil_2"}})
+	if err != nil || len(combos) != 4 {
 		t.Fatalf("compareCombos = %v, %v", combos, err)
 	}
-	want := "profileset.option1+=flask=flask_b_2\nprofileset.option2+=flask=flask_a_2\n"
+	want := "profileset.option1+=flask=flask_b_2\nfood=feast\nprofileset.option2+=flask=flask_b_2\nfood=snack\n" +
+		"profileset.option3+=flask=flask_a_2\nfood=feast\nprofileset.option4+=flask=flask_a_2\nfood=snack\n"
 	if got := gearProfilesets(combos); got != want {
-		t.Errorf("profilesets = %q", got)
+		t.Errorf("profilesets = %q, want every flask with every food and the single oil left to the baseline", got)
 	}
-	tests := []struct {
-		name string
-		in   *models.SimCompare
-	}{
-		{"nothing asked", nil},
-		{"an unknown kind", &models.SimCompare{Kind: "ring", Values: []string{"a"}}},
-		{"no values", &models.SimCompare{Kind: "flask"}},
-		{"a value twice", &models.SimCompare{Kind: "flask", Values: []string{"flask_a_2", "flask_a_2"}}},
-		{"a value twice, not side by side",
-			&models.SimCompare{Kind: "flask", Values: []string{"flask_a_2", "flask_b_2", "flask_a_2"}}},
-		{"a value of another kind", &models.SimCompare{Kind: "flask", Values: []string{"feast"}}},
+	if got := combos[1].option; got.Name != "Flask B + Snack" || got.Value != "flask_b_2+snack" {
+		t.Errorf("second combination = %+v, want Flask B with the snack", got)
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if _, err := compareCombos(testRef(), tt.in); !errors.Is(err, ErrBadSimOptions) {
+	if got, err := compareCombos(ref, models.SimConsumables{"flask": {"flask_a_2"}}); err != nil || got != nil {
+		t.Errorf("one value is used as it is, not compared: %v, %v", got, err)
+	}
+}
+
+func TestCompareCombosRefuse(t *testing.T) {
+	ref := testRef()
+	var many []string
+	for i := range maxCompareValues + 1 {
+		v := "flask_" + strconv.Itoa(i)
+		ref.Consumables["flask"] = append(ref.Consumables["flask"], models.SimConsumable{Value: v, Name: v})
+		many = append(many, v)
+	}
+	for name, picked := range map[string]models.SimConsumables{
+		"too many combinations":   {"flask": many},
+		"an unknown kind":         {"ring": {"a", "b"}},
+		"a value twice":           {"flask": {"flask_a_2", "flask_b_2", "flask_a_2"}},
+		"a value of another kind": {"flask": {"flask_a_2", "feast"}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if _, err := compareCombos(ref, picked); !errors.Is(err, ErrBadSimOptions) {
 				t.Errorf("err = %v, want ErrBadSimOptions", err)
 			}
 		})
@@ -136,9 +153,9 @@ func TestCompareCombos(t *testing.T) {
 }
 
 func TestWithCompareRunsEachGearComboOncePerValue(t *testing.T) {
-	cmpr := &models.SimCompare{Kind: "flask", Values: []string{"flask_b_2", "flask_a_2"}}
+	picked := models.SimConsumables{"flask": {"flask_b_2", "flask_a_2"}}
 	gear := []gearCombo{{name: "drop1", source: "Raid"}, {name: "drop2"}}
-	combos, err := withCompare(testRef(), cmpr, false, gear, 4)
+	combos, err := withCompare(testRef(), picked, false, gear, 4)
 	if err != nil || len(combos) != 4 {
 		t.Fatalf("withCompare = %v, %v", combos, err)
 	}
@@ -150,12 +167,16 @@ func TestWithCompareRunsEachGearComboOncePerValue(t *testing.T) {
 	if c := combos[1]; c.consumable != "Flask A" || c.source != "Raid" || c.option != nil {
 		t.Errorf("second combo = %+v, want Raid's drop with Flask A", c)
 	}
-	if _, err := withCompare(testRef(), cmpr, false, gear, 3); !errors.Is(err, ErrBadSimOptions) {
+	if _, err := withCompare(testRef(), picked, false, gear, 3); !errors.Is(err, ErrBadSimOptions) {
 		t.Errorf("over the limit: err = %v, want ErrBadSimOptions", err)
 	}
-	quick, err := withCompare(testRef(), cmpr, true, nil, 0)
+	quick, err := withCompare(testRef(), picked, true, nil, 0)
 	if err != nil || len(quick) != 2 || quick[0].option == nil {
 		t.Errorf("a quick sim compares the values alone: %v, %v", quick, err)
+	}
+	if same, err := withCompare(testRef(), models.SimConsumables{"flask": {"flask_a_2"}}, false, gear, 4); err != nil ||
+		len(same) != 2 {
+		t.Errorf("nothing compared keeps the gear as it is: %v, %v", same, err)
 	}
 }
 

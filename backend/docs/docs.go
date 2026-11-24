@@ -2242,7 +2242,7 @@ const docTemplate = `{
                 "summary": "Start a sim",
                 "parameters": [
                     {
-                        "description": "the kind, the export, the options and consumables, for topgear the picked equipped and bag indexes and variants, for drops the difficulty, keyLevel and maxUpgrade, and for any kind a compare of consumables",
+                        "description": "the kind, the export, the options and consumables, for topgear the picked equipped and bag indexes and variants, for drops the difficulty, keyLevel and maxUpgrade, and for any kind the consumables picked (two or more of a kind are compared)",
                         "name": "body",
                         "in": "body",
                         "required": true,
@@ -2451,7 +2451,7 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "not a Top Gear request, a bad compare, or items and variants that don't fit the export",
+                        "description": "not a Top Gear request, bad consumables, or items and variants that don't fit the export",
                         "schema": {
                             "$ref": "#/definitions/controller.ErrorResponse"
                         }
@@ -6801,7 +6801,7 @@ const docTemplate = `{
                     "example": 100
                 },
                 "maxCompare": {
-                    "description": "MaxCompare is the most values of one consumable a sim compares.",
+                    "description": "MaxCompare is the most combinations of compared consumables one sim runs.",
                     "type": "integer",
                     "example": 40
                 },
@@ -6856,21 +6856,6 @@ const docTemplate = `{
                 }
             }
         },
-        "models.SimCompare": {
-            "type": "object",
-            "properties": {
-                "kind": {
-                    "type": "string",
-                    "example": "flask"
-                },
-                "values": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
-                }
-            }
-        },
         "models.SimConsumable": {
             "type": "object",
             "properties": {
@@ -6896,7 +6881,10 @@ const docTemplate = `{
         "models.SimConsumables": {
             "type": "object",
             "additionalProperties": {
-                "type": "string"
+                "type": "array",
+                "items": {
+                    "type": "string"
+                }
             }
         },
         "models.SimEnchant": {
@@ -7234,16 +7222,8 @@ const docTemplate = `{
                         "type": "integer"
                     }
                 },
-                "compare": {
-                    "description": "Compare is the consumable a sim tries each value of (any kind of sim; a Top Gear or Droptimizer sim runs every\ncombination once for each value, within its limit).",
-                    "allOf": [
-                        {
-                            "$ref": "#/definitions/models.SimCompare"
-                        }
-                    ]
-                },
                 "consumables": {
-                    "description": "Consumables are what every kind of sim uses instead of simc's defaults.",
+                    "description": "Consumables are what every kind of sim uses instead of simc's defaults, and what it compares.",
                     "allOf": [
                         {
                             "$ref": "#/definitions/models.SimConsumables"

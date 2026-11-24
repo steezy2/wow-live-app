@@ -68,9 +68,11 @@ type SimUpgradeLevel struct {
 	ItemLevel int `json:"itemLevel" example:"388"`
 }
 
-// SimConsumables are the consumables a sim uses instead of simc's defaults: a SimConsumable.Value by its kind (one of
-// SimConsumableKinds; a kind left out, or empty, keeps simc's default).
-type SimConsumables map[string]string
+// SimConsumables are the consumables a sim uses instead of simc's defaults: the SimConsumable.Values picked of each
+// kind (one of SimConsumableKinds). A kind left out or empty keeps simc's default, one value is used by the whole sim,
+// and two or more are compared: every combination of the compared kinds' values is simmed (a Top Gear or Droptimizer
+// sim runs each of its own combinations once for each).
+type SimConsumables map[string][]string
 
 // SimVariant is a changed copy of a Top Gear candidate, sim'd beside it: the item at Index of the profile's Equipped
 // (Worn) or Bags, moved to upgrade level Upgrade of its track (0 keeps it), given one more socket (Socket), a gem
@@ -82,13 +84,6 @@ type SimVariant struct {
 	Socket  bool `json:"socket,omitempty"`
 	Gem     int  `json:"gem,omitempty" example:"240883"`
 	Enchant int  `json:"enchant,omitempty" example:"7964"`
-}
-
-// SimCompare is the consumable a sim compares and the values it tries, each a SimConsumable.Value of Kind (one of
-// SimConsumableKinds).
-type SimCompare struct {
-	Kind   string   `json:"kind" example:"flask"`
-	Values []string `json:"values"`
 }
 
 // SimPlan is what a Top Gear request would run: how many gear combinations it makes and about how long that takes on

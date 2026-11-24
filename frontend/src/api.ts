@@ -1897,9 +1897,11 @@ export interface SimChoices {
  * earlier version can also say 'consumables'.) */
 export type SimKind = 'quick' | 'topgear' | 'drops'
 
-/** The consumables a sim uses, by kind (one of SimChoices.consumableKinds); a kind left out or empty keeps simc's
- * default. */
-export type SimConsumables = Record<string, string>
+/** The consumables a sim uses: the values (simc names) picked of each kind (one of SimChoices.consumableKinds). A kind
+ * with none keeps simc's default, one value is used by the whole sim, and two or more are compared: every combination
+ * of the compared kinds' values is simmed (a Top Gear or Droptimizer sim runs each of its combinations once for
+ * each). */
+export type SimConsumables = Record<string, string[]>
 
 /** A changed copy of a Top Gear candidate: the item at `index` of the profile's equipped (`worn`) or bags, moved to
  * upgrade level `upgrade` of its track, given a socket, a gem (item ID) and an enchant (enchant ID). */
@@ -1910,13 +1912,6 @@ export interface SimVariant {
   socket?: boolean
   gem?: number
   enchant?: number
-}
-
-/** The consumable a sim compares: the kind and the values (simc names) it tries; a Top Gear or Droptimizer sim runs
- * each combination once for every value. */
-export interface SimCompare {
-  kind: string
-  values: string[]
 }
 
 /** A sim to start: the export is read again by the app, `equipped` and `bags` are indexes into the profile read from
@@ -1934,7 +1929,6 @@ export interface SimRequest {
   maxUpgrade?: boolean
   consumables?: SimConsumables
   omnium?: string
-  compare?: SimCompare
 }
 
 /** A flask, food, potion, augment rune or weapon oil. */

@@ -226,13 +226,11 @@ func (s *Sims) Plan(req models.SimRequest) (models.SimPlan, error) {
 		return models.SimPlan{}, err
 	}
 	combos := comboCount(groups, maxPlanCombos)
-	if req.Compare != nil {
-		values, err := compareCombos(s.Ref, req.Compare)
-		if err != nil {
-			return models.SimPlan{}, err
-		}
-		combos *= len(values)
+	values, err := compareCombos(s.Ref, req.Consumables)
+	if err != nil {
+		return models.SimPlan{}, err
 	}
+	combos *= max(1, len(values))
 	plan := planOf(combos, req.Options)
 	plan.Notes = make([]string, len(extra))
 	for i, c := range extra {
@@ -277,8 +275,8 @@ func (s *Sims) Start(req models.SimRequest) (models.Sim, error) {
 		}
 		combos, err = dropCombos(profile, s.Drops, req.Difficulty, req.KeyLevel, upgrades)
 	}
-	if err == nil && req.Compare != nil {
-		combos, err = withCompare(s.Ref, req.Compare, req.Kind == "quick", combos, limit)
+	if err == nil {
+		combos, err = withCompare(s.Ref, req.Consumables, req.Kind == "quick", combos, limit)
 	}
 	if err != nil {
 		return models.Sim{}, err

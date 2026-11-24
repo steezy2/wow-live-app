@@ -11,7 +11,6 @@ import {
   startSim,
   type Sim,
   type SimChoices,
-  type SimCompare,
   type SimConsumables,
   type SimEngineStatus,
   type SimKind,
@@ -24,12 +23,12 @@ import {
 } from './api'
 import { amount, errorText, sizeText } from './format'
 import { OmniumFolio } from './OmniumFolio'
-import { ConsumableCompare, ConsumableSelects } from './SimConsumables'
+import { ConsumablesCard } from './SimConsumables'
 import { SimGear, SimHeader } from './SimGear'
 import { useItemInfo } from './simItems'
 import { usePlan } from './simPlan'
 import { SimResult } from './SimResult'
-import { omniumPicks, omniumString, pickedConsumables, simOptionsError } from './simOptions'
+import { comparedCount, omniumPicks, omniumString, simOptionsError } from './simOptions'
 import { Skeleton } from './Skeleton'
 import { tip } from './tipAttrs'
 
@@ -108,9 +107,8 @@ function PlanText({ plan, max }: { plan: { plan: SimPlan | null; error: string |
   )
 }
 
-/** The fight's options, the consumables (the ones to sim with, and one kind's values to compare) and for a Droptimizer
- * where the drops come from and whether they are upgraded, with the Sim button and a running sim's progress, in the
- * panel beside the gear. */
+/** The fight's options and for a Droptimizer where the drops come from and whether they are upgraded, with the Sim
+ * button and a running sim's progress, in the panel beside the gear. */
 function OptionsPanel(props: {
   kind: SimKind
   choices: SimChoices
@@ -121,11 +119,6 @@ function OptionsPanel(props: {
   keyLevel: number
   setKeyLevel: (k: number) => void
   optionsError: string | null
-  reference: SimReference
-  consumables: SimConsumables
-  setConsumables: (c: SimConsumables) => void
-  compare: SimCompare
-  setCompare: (c: SimCompare) => void
   maxUpgrade: boolean
   setMaxUpgrade: (m: boolean) => void
   plan: { plan: SimPlan | null; error: string | null } | null
@@ -195,20 +188,6 @@ function OptionsPanel(props: {
           </label>
         </>
       )}
-      <h2>Consumables</h2>
-      <ConsumableSelects
-        kinds={choices.consumableKinds}
-        reference={props.reference}
-        value={props.consumables}
-        onChange={props.setConsumables}
-      />
-      <ConsumableCompare
-        kinds={choices.consumableKinds}
-        reference={props.reference}
-        compare={props.compare}
-        max={choices.maxCompare}
-        onChange={props.setCompare}
-      />
       {optionsError && <p className="warning">{optionsError}</p>}
       {props.plan && <PlanText plan={props.plan} max={choices.maxCombos} />}
       <button className="sim-run" disabled={!props.canRun || !!running || !!optionsError} onClick={props.onRun}>
@@ -233,7 +212,6 @@ export function SimPage() {
   const [bags, setBags] = useState<number[]>([])
   const [variants, setVariants] = useState<SimVariant[]>([])
   const [consumables, setConsumables] = useState<SimConsumables>({})
-  const [compare, setCompare] = useState<SimCompare>({ kind: '', values: [] })
   const [omnium, setOmnium] = useState<number[]>([])
   const [difficulty, setDifficulty] = useState('')
   const [keyLevel, setKeyLevel] = useState(0)
@@ -264,7 +242,6 @@ export function SimPage() {
         setOptions(c.defaults)
         setDifficulty(c.defaultDifficulty)
         setKeyLevel(c.defaultKeyLevel)
-        setCompare({ kind: c.consumableKinds[0], values: [] })
       },
       (err: unknown) => !controller.signal.aborted && setError(errorText(err)),
     )
@@ -326,12 +303,10 @@ export function SimPage() {
       kind,
       export: text,
       options,
-      consumables: pickedConsumables(consumables),
+      consumables,
       ...(mine !== theirs && { omnium: mine }),
       ...(kind === 'topgear' && { equipped, bags, variants }),
-      ...(kind === 'drops' && { difficulty, keyLevel, maxUpgrade }),
-      ...(compare.values.length > 0 && { compare }),
-    }
+      ...(kind === 'drops' && { difficulty, keyLevel, maxUpgrade }),    }
   }
   const planRequest = kind === 'topgear' && profile ? request() : null
   const plan = usePlan(planRequest)
@@ -363,6 +338,7 @@ export function SimPage() {
         }
       : undefined
   const planBlocks = kind === 'topgear' && (!!plan.error || !plan.plan || !!plan.plan.error)
+  const compareBlocks = comparedCount(consumables) > choices.maxCompare
   return (
     <main className="page settings sim">
       <EngineBar engine={engine} busy={!!running} act={act} onEngine={setEngine} />
@@ -431,19 +407,21 @@ export function SimPage() {
               keyLevel={keyLevel}
               setKeyLevel={setKeyLevel}
               optionsError={optionsError}
-              reference={reference}
-              consumables={consumables}
-              setConsumables={setConsumables}
-              compare={compare}
-              setCompare={setCompare}
               maxUpgrade={maxUpgrade}
               setMaxUpgrade={setMaxUpgrade}
               plan={planRequest ? plan : null}
-              canRun={!!engine?.installed && !engine.installing && !planBlocks}
+              canRun={!!engine?.installed && !engine.installing && !planBlocks && !compareBlocks}
               running={running}
               onRun={start}
             />
           </div>
+          <ConsumablesCard
+            kinds={choices.consumableKinds}
+            reference={reference}
+            value={consumables}
+            max={choices.maxCompare}
+            onChange={setConsumables}
+          />
           {reference.omnium.length > 0 && (
             <OmniumFolio
               nodes={reference.omnium}

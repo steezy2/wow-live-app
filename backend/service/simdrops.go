@@ -25,9 +25,10 @@ func raidLevel(l models.DifficultyLevels, difficulty string) int {
 }
 
 // Ascendant Venomstones (10 of them, used at the Catalyst) raise a fully upgraded Hero or Myth weapon, trinket or neck
-// by venomstoneLevels item levels. Wowhead's item 280562 (patch 12.1.5) names the tracks and slots but not the amount;
-// +6 is a commenter's, NOT YET CHECKED in the game (the first note said +10).
-const venomstoneLevels = 6
+// by venomstoneLevels item levels (Myth 334 to 341, Hero 321 to 328: the owner's check in the game and Raidbots' "328
+// Venomforged"). Wowhead's item 280562 (patch 12.1.5) names the tracks and slots but not the amount. A crafted item
+// gets +6, to 337, but none drops.
+const venomstoneLevels = 7
 
 var (
 	venomstoneTracks = []string{"Hero", "Myth"}

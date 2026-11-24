@@ -56,7 +56,7 @@ type SimChoices struct {
 	MaxTargets  int      `json:"maxTargets"`
 	// MaxCombos is the most gear combinations a Top Gear sim runs; a request over it is refused.
 	MaxCombos int `json:"maxCombos" example:"100"`
-	// MaxCompare is the most values of one consumable a sim compares.
+	// MaxCompare is the most combinations of compared consumables one sim runs.
 	MaxCompare int `json:"maxCompare" example:"40"`
 	// ConsumableKinds are the kinds of consumable a sim can be told to use, in the order the page lists them.
 	ConsumableKinds []string `json:"consumableKinds"`
@@ -97,20 +97,17 @@ type SimRequest struct {
 	// MaxUpgrade sims every drop of a Droptimizer fully upgraded: at the top rank of its upgrade track, and a Hero or Myth
 	// weapon, trinket or neck also with its Ascendant Venomstones.
 	MaxUpgrade bool `json:"maxUpgrade,omitempty"`
-	// Consumables are what every kind of sim uses instead of simc's defaults.
+	// Consumables are what every kind of sim uses instead of simc's defaults, and what it compares.
 	Consumables SimConsumables `json:"consumables"`
 	// Omnium is the Omnium Folio's runes (entry:rank pairs, as the export writes them): nil keeps the export's, empty
 	// is none.
 	Omnium *string `json:"omnium,omitempty" example:"136822:1/136817:1"`
-	// Compare is the consumable a sim tries each value of (any kind of sim; a Top Gear or Droptimizer sim runs every
-	// combination once for each value, within its limit).
-	Compare *SimCompare `json:"compare,omitempty"`
 }
 
 // SimKinds are the kinds of sim: one character's DPS ("quick"), the best combination of the gear they carry
 // ("topgear") and the gain of each piece the season's raid and dungeons drop ("drops"). Any of them can compare
-// several flasks, foods, potions, augment runes or weapon oils (SimRequest.Compare). A sim saved by an earlier version
-// can also be "consumables", a quick sim that only compared them.
+// several flasks, foods, potions, augment runes or weapon oils (SimRequest.Consumables). A sim saved by an earlier
+// version can also be "consumables", a quick sim that only compared them.
 var SimKinds = []string{"quick", "topgear", "drops"}
 
 // The states a sim is in (Sim.State).
