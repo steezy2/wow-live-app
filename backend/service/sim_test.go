@@ -1,6 +1,7 @@
 package service
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -22,10 +23,15 @@ type fakeEngine struct {
 	built     time.Time
 	mode      string
 	args      []string // the last run's
+	input     string   // the last run's input file
+	result    string   // the result file to write; testdata/sim-result.json when empty
 }
 
 func (f *fakeEngine) Run(ctx context.Context, args []string, out io.Writer) error {
 	f.args = args
+	if data, err := os.ReadFile(args[0]); err == nil {
+		f.input = string(data)
+	}
 	fmt.Fprint(out, "Generating Baseline: 1/1 [====>...] 50/100 1.0 Mean=1 Error=1%\r")
 	switch f.mode {
 	case "fail":
@@ -35,7 +41,7 @@ func (f *fakeEngine) Run(ctx context.Context, args []string, out io.Writer) erro
 		<-ctx.Done()
 		return ctx.Err()
 	}
-	data, err := os.ReadFile("testdata/sim-result.json")
+	data, err := os.ReadFile(cmp.Or(f.result, "testdata/sim-result.json"))
 	if err != nil {
 		return err
 	}
@@ -124,7 +130,7 @@ func TestSimsStartRefuses(t *testing.T) {
 		change func(*models.SimRequest, *Sims)
 		want   error
 	}{
-		{"unknown kind", func(r *models.SimRequest, _ *Sims) { r.Kind = "topgear" }, ErrBadSimOptions},
+		{"unknown kind", func(r *models.SimRequest, _ *Sims) { r.Kind = "stat_weights" }, ErrBadSimOptions},
 		{"unknown fight style", func(r *models.SimRequest, _ *Sims) { r.Options.FightStyle = "Route" }, ErrBadSimOptions},
 		{"too long", func(r *models.SimRequest, _ *Sims) { r.Options.Length = maxSimLength + 1 }, ErrBadSimOptions},
 		{"no options", func(r *models.SimRequest, _ *Sims) { r.Options = models.SimOptions{} }, ErrBadSimOptions},
@@ -267,7 +273,7 @@ func TestParseSimProgress(t *testing.T) {
 }
 
 func TestReadSimResult(t *testing.T) {
-	result, err := readSimResult("testdata/sim-result.json")
+	result, err := readSimResult("testdata/sim-result.json", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -285,7 +291,7 @@ func TestReadSimResult(t *testing.T) {
 			t.Errorf("buffs %+v: want longest first and at least 1%%", result.Buffs)
 		}
 	}
-	if _, err := readSimResult("testdata/simc-export.txt"); err == nil {
+	if _, err := readSimResult("testdata/simc-export.txt", nil); err == nil {
 		t.Error("a file that isn't simc's JSON should fail")
 	}
 }

@@ -79,9 +79,15 @@ type SimEngineSource interface {
 	UseFile(ctx context.Context, path string) (models.SimEngine, error)
 }
 
+// ItemTypes says whether an item is a two-handed weapon, which the SimC export doesn't (wowhead.Client).
+type ItemTypes interface {
+	TwoHanded(ctx context.Context, id int) (bool, error)
+}
+
 // Sims runs sims on this PC one at a time with the downloaded SimulationCraft and keeps the last keepSims in Dir.
 type Sims struct {
 	Engine SimEngineSource
+	Items  ItemTypes
 	Dir    string
 	Now    func() time.Time
 	Ctx    context.Context // the app's: canceled on Quit, which stops a running sim and download
@@ -94,7 +100,7 @@ type Sims struct {
 	installErr string
 }
 
-// simRun is the sim running: what the page sees of it, and how to stop it.
+// simRun is the sim running: what the page sees of it and how to stop it.
 type simRun struct {
 	sim    models.Sim
 	cancel context.CancelFunc
@@ -107,7 +113,7 @@ func (s *Sims) Choices() models.SimChoices {
 		accuracies[i] = a.Name
 	}
 	return models.SimChoices{FightStyles: simFightStyles, Accuracies: accuracies, MinLength: minSimLength,
-		MaxLength: maxSimLength, MaxTargets: maxSimTargets, Defaults: simDefaults}
+		MaxLength: maxSimLength, MaxTargets: maxSimTargets, MaxCombos: maxCombos, Defaults: simDefaults}
 }
 
 // simAccuracyOf is the accuracy named name, false when there is none.
@@ -180,6 +186,13 @@ func (s *Sims) Start(req models.SimRequest) (models.Sim, error) {
 	if err != nil {
 		return models.Sim{}, err
 	}
+	var combos []gearCombo
+	if req.Kind == "topgear" {
+		twoHanded := func(id int) (bool, error) { return s.Items.TwoHanded(s.Ctx, id) }
+		if combos, err = topGearCombos(profile, req.Equipped, req.Bags, twoHanded); err != nil {
+			return models.Sim{}, err
+		}
+	}
 	if !s.Engine.Installed().Installed {
 		return models.Sim{}, ErrNoEngine
 	}
@@ -197,30 +210,34 @@ func (s *Sims) Start(req models.SimRequest) (models.Sim, error) {
 		return models.Sim{}, fmt.Errorf("making %s: %w", work, err)
 	}
 	input, output := filepath.Join(work, id+".simc"), filepath.Join(work, id+".json")
-	if err := os.WriteFile(input, []byte(SimInput(profile)), 0o644); err != nil {
+	if err := os.WriteFile(input, []byte(SimInput(profile)+gearProfilesets(combos)), 0o644); err != nil {
 		return models.Sim{}, fmt.Errorf("writing %s: %w", input, err)
 	}
 	ctx, cancel := context.WithTimeout(s.Ctx, simTimeout)
 	sim := models.Sim{ID: id, Kind: req.Kind, State: models.SimRunning, Character: profile.Name, Spec: profile.Spec,
 		Options: req.Options, StartedMS: s.Now().UnixMilli()}
 	s.run, s.last = &simRun{sim: sim, cancel: cancel}, nil
-	s.work.Go(func() { s.execute(ctx, input, output) })
+	s.work.Go(func() { s.execute(ctx, input, output, combos) })
 	return sim, nil
 }
 
 // simArgs are simc's arguments: the input file, the options and the JSON file to write. Nothing but those validated
-// values goes in, and no shell reads them.
-func simArgs(input, output string, o models.SimOptions) []string {
+// values goes in, and no shell reads them. A sim with profilesets runs no finer than setTargetError.
+func simArgs(input, output string, o models.SimOptions, profilesets bool) []string {
 	accuracy, _ := simAccuracyOf(o.Accuracy)
+	targetError := accuracy.TargetError
+	if profilesets {
+		targetError = max(targetError, setTargetError)
+	}
 	return []string{input, "fight_style=" + o.FightStyle, "max_time=" + strconv.Itoa(o.Length),
 		"desired_targets=" + strconv.Itoa(o.Targets),
-		"target_error=" + strconv.FormatFloat(accuracy.TargetError, 'f', -1, 64),
+		"target_error=" + strconv.FormatFloat(targetError, 'f', -1, 64),
 		"iterations=" + strconv.Itoa(maxSimIterations), "threads=" + strconv.Itoa(max(1, runtime.NumCPU()-1)),
 		"json2=" + output}
 }
 
 // execute runs simc for the running sim, following its progress, and saves what it found.
-func (s *Sims) execute(ctx context.Context, input, output string) {
+func (s *Sims) execute(ctx context.Context, input, output string, combos []gearCombo) {
 	defer func() {
 		os.Remove(input)
 		os.Remove(output)
@@ -231,14 +248,14 @@ func (s *Sims) execute(ctx context.Context, input, output string) {
 	pr, pw := io.Pipe()
 	said := make(chan string)
 	go func() { said <- s.follow(pr) }()
-	runErr := s.Engine.Run(ctx, simArgs(input, output, sim.Options), pw)
+	runErr := s.Engine.Run(ctx, simArgs(input, output, sim.Options, len(combos) > 0), pw)
 	pw.Close()
 	complaint := <-said
 
 	var result *models.SimResult
 	var parseErr error
 	if runErr == nil {
-		result, parseErr = readSimResult(output)
+		result, parseErr = readSimResult(output, combos)
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -313,9 +330,13 @@ func parseSimProgress(line string) (int, bool) {
 	return min(99, max(0, int(p))), true
 }
 
-// simJSON is the part of simc's json2 file a result reads: the first player's DPS, abilities and buffs.
+// simJSON is the part of simc's json2 file a result reads: the first player's DPS, abilities and buffs, and the
+// profilesets' DPS.
 type simJSON struct {
 	Sim struct {
+		Profilesets struct {
+			Results []simSetJSON `json:"results"`
+		} `json:"profilesets"`
 		Players []struct {
 			Collected struct {
 				DPS struct {
@@ -349,8 +370,8 @@ type simJSON struct {
 	} `json:"sim"`
 }
 
-// readSimResult is the result in simc's json2 file at path.
-func readSimResult(path string) (*models.SimResult, error) {
+// readSimResult is the result in simc's json2 file at path, with the DPS of each of a Top Gear sim's combos.
+func readSimResult(path string, combos []gearCombo) (*models.SimResult, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("simc wrote no result: %w", err)
@@ -381,6 +402,9 @@ func readSimResult(path string) (*models.SimResult, error) {
 	slices.SortStableFunc(result.Buffs, func(a, b models.SimBuff) int { return cmp.Compare(b.Uptime, a.Uptime) })
 	result.Abilities = result.Abilities[:min(len(result.Abilities), maxSimRows)]
 	result.Buffs = result.Buffs[:min(len(result.Buffs), maxSimRows)]
+	if len(combos) > 0 {
+		result.Combos = gearResults(out.Sim.Profilesets.Results, result.DPS, combos)
+	}
 	return result, nil
 }
 

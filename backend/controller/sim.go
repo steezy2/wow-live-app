@@ -127,15 +127,16 @@ func (a SimAPI) ParseProfile(c *gin.Context) {
 //
 //	@Summary		Start a sim
 //	@Description	Runs SimulationCraft on this PC in the background, one at a time: the pasted export (read again,
-//	@Description	never passed to simc as it is) with the options. Poll the sim by its ID.
+//	@Description	never passed to simc as it is) with the options. Poll the sim by its ID. A Top Gear request also
+//	@Description	sends `equipped` and `bags`: the indexes of the items it may put on.
 //	@Tags			sim
 //	@Accept			json
 //	@Produce		json
 //	@Param			body	body		models.SimRequest	true	"the kind, the export and the options"
 //	@Success		202		{object}	models.Sim
-//	@Failure		400		{object}	ErrorResponse	"options outside the choices, or not an export"
+//	@Failure		400		{object}	ErrorResponse	"bad options or indexes, not an export, nothing to try or over maxCombos"
 //	@Failure		409		{object}	ErrorResponse	"a sim or a download is running, or no engine is installed"
-//	@Failure		500		{object}	ErrorResponse
+//	@Failure		500		{object}	ErrorResponse	"a weapon's type couldn't be read from Wowhead"
 //	@Router			/api/sim [post]
 func (a SimAPI) Start(c *gin.Context) {
 	var req models.SimRequest

@@ -2229,7 +2229,7 @@ const docTemplate = `{
                 }
             },
             "post": {
-                "description": "Runs SimulationCraft on this PC in the background, one at a time: the pasted export (read again,\nnever passed to simc as it is) with the options. Poll the sim by its ID.",
+                "description": "Runs SimulationCraft on this PC in the background, one at a time: the pasted export (read again,\nnever passed to simc as it is) with the options. Poll the sim by its ID. A Top Gear request also\nsends ` + "`" + `equipped` + "`" + ` and ` + "`" + `bags` + "`" + `: the indexes of the items it may put on.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2259,7 +2259,7 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "options outside the choices, or not an export",
+                        "description": "bad options or indexes, not an export, nothing to try or over maxCombos",
                         "schema": {
                             "$ref": "#/definitions/controller.ErrorResponse"
                         }
@@ -2271,7 +2271,7 @@ const docTemplate = `{
                         }
                     },
                     "500": {
-                        "description": "Internal Server Error",
+                        "description": "a weapon's type couldn't be read from Wowhead",
                         "schema": {
                             "$ref": "#/definitions/controller.ErrorResponse"
                         }
@@ -6556,7 +6556,8 @@ const docTemplate = `{
                 "kind": {
                     "type": "string",
                     "enum": [
-                        "quick"
+                        "quick",
+                        "topgear"
                     ]
                 },
                 "options": {
@@ -6647,6 +6648,11 @@ const docTemplate = `{
                         "type": "string"
                     }
                 },
+                "maxCombos": {
+                    "description": "MaxCombos is the most gear combinations a Top Gear sim runs; a request over it is refused.",
+                    "type": "integer",
+                    "example": 100
+                },
                 "maxLength": {
                     "type": "integer"
                 },
@@ -6655,6 +6661,26 @@ const docTemplate = `{
                 },
                 "minLength": {
                     "type": "integer"
+                }
+            }
+        },
+        "models.SimCombo": {
+            "type": "object",
+            "properties": {
+                "dps": {
+                    "type": "number"
+                },
+                "dpsError": {
+                    "type": "number"
+                },
+                "gain": {
+                    "type": "number"
+                },
+                "swaps": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.SimSwap"
+                    }
                 }
             }
         },
@@ -6807,6 +6833,19 @@ const docTemplate = `{
                 "kind"
             ],
             "properties": {
+                "bags": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "equipped": {
+                    "description": "Equipped and Bags are the items a Top Gear sim may put on, as indexes into the parsed profile's Equipped and\nBags. A slot with nothing ticked keeps its item; rings and trinkets with fewer than two ticked are made up from\nthe equipped ones.",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
                 "export": {
                     "type": "string"
                 },
@@ -6834,11 +6873,32 @@ const docTemplate = `{
                         "$ref": "#/definitions/models.SimBuff"
                     }
                 },
+                "combos": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.SimCombo"
+                    }
+                },
                 "dps": {
                     "type": "number"
                 },
                 "dpsError": {
                     "type": "number"
+                }
+            }
+        },
+        "models.SimSwap": {
+            "type": "object",
+            "properties": {
+                "in": {
+                    "$ref": "#/definitions/models.SimItem"
+                },
+                "out": {
+                    "$ref": "#/definitions/models.SimItem"
+                },
+                "slot": {
+                    "type": "string",
+                    "example": "finger2"
                 }
             }
         },
