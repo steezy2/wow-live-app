@@ -21,13 +21,14 @@ import {
   type SimRequest,
   type SimVariant,
 } from './api'
-import { amount, errorText, sizeText } from './format'
+import { errorText, sizeText } from './format'
 import { OmniumFolio } from './OmniumFolio'
 import { ConsumablesCard } from './SimConsumables'
 import { SimGear, SimHeader } from './SimGear'
 import { useItemInfo } from './simItems'
 import { usePlan } from './simPlan'
 import { SimResult } from './SimResult'
+import { SavedSims } from './SimSaved'
 import { kindLabel, omniumPicks, omniumString, simOptionsError } from './simOptions'
 import { Skeleton } from './Skeleton'
 import { tip } from './tipAttrs'
@@ -169,8 +170,8 @@ function OptionsPanel(props: {
   keyLevel: number
   setKeyLevel: (k: number) => void
   optionsError: string | null
-  maxUpgrade: boolean
-  setMaxUpgrade: (m: boolean) => void
+  upgrade: string
+  setUpgrade: (u: string) => void
   plan: { plan: SimPlan | null; error: string | null } | null
   why: string | null
   canRun: boolean
@@ -232,9 +233,18 @@ function OptionsPanel(props: {
               ))}
             </select>
           </label>
-          <label className="inline">
-            <input type="checkbox" checked={props.maxUpgrade} onChange={(e) => props.setMaxUpgrade(e.target.checked)} />
-            Upgrade every drop fully, with Ascendant Venomstones where they apply
+          <label>
+            Upgrade drops
+            <select value={props.upgrade} onChange={(e) => props.setUpgrade(e.target.value)}>
+              <option value="">As dropped</option>
+              <option value="max">Fully, with Ascendant Venomstones</option>
+              <option value="match">To the rank of the gear you wear</option>
+              {Array.from({ length: choices.upgradeRanks }, (_, i) => (
+                <option key={i} value={String(i + 1)}>
+                  To rank {i + 1}
+                </option>
+              ))}
+            </select>
           </label>
         </>
       )}
@@ -266,7 +276,7 @@ export function SimPage() {
   const [omnium, setOmnium] = useState<number[]>([])
   const [difficulty, setDifficulty] = useState('')
   const [keyLevel, setKeyLevel] = useState(0)
-  const [maxUpgrade, setMaxUpgrade] = useState(false)
+  const [upgrade, setUpgrade] = useState('')
   const [runs, setRuns] = useState<Sim[]>([]) // the sims running now, as last polled
   const [watching, setWatching] = useState<string | null>(null) // the running sim whose progress card shows
   const [estimates, setEstimates] = useState<Record<string, number>>({}) // seconds each started sim's plan said
@@ -366,7 +376,7 @@ export function SimPage() {
       consumables,
       ...(mine !== theirs && { omnium: mine }),
       ...(kind === 'topgear' && { equipped, bags, variants }),
-      ...(kind === 'drops' && { difficulty, keyLevel, maxUpgrade }),
+      ...(kind === 'drops' && { difficulty, keyLevel, upgrade }),
     }
   }
   const planRequest = profile ? request() : null
@@ -515,7 +525,7 @@ export function SimPage() {
                   {choices.maxCombos} combinations run.
                 </p>
               )}
-              <SimGear profile={profile} order={choices.gearGroups} info={info} pick={pick} />
+              <SimGear profile={profile} order={choices.gearGroups} info={info} pick={pick} gems={reference.gems} />
             </section>
             <OptionsPanel
               kind={kind}
@@ -527,8 +537,8 @@ export function SimPage() {
               keyLevel={keyLevel}
               setKeyLevel={setKeyLevel}
               optionsError={optionsError}
-              maxUpgrade={maxUpgrade}
-              setMaxUpgrade={setMaxUpgrade}
+              upgrade={upgrade}
+              setUpgrade={setUpgrade}
               plan={planRequest ? plan : null}
               why={why}
               canRun={!why && !planBlocks}
@@ -557,29 +567,16 @@ export function SimPage() {
       {saved.length > 0 && (
         <section className="panel">
           <h2>Saved sims</h2>
-          <ul className="sim-saved">
-            {saved.map((s) => (
-              <li key={s.id}>
-                <button className="link" onClick={() => act(async () => setSim(await fetchSim(s.id)))}>
-                  <strong>{s.character}</strong> · {s.spec} · {kindLabel(s.kind)}
-                  {s.dps ? ` · ${amount(s.dps)} DPS` : ''}
-                </button>
-                <span className="muted small">{new Date(s.startedMS).toLocaleString()}</span>
-                <button
-                  className="delete"
-                  aria-label="Delete"
-                  onClick={() =>
-                    act(async () => {
-                      await removeSim(s.id)
-                      await readSaved()
-                    })
-                  }
-                >
-                  ×
-                </button>
-              </li>
-            ))}
-          </ul>
+          <SavedSims
+            sims={saved}
+            onOpen={(id) => act(async () => setSim(await fetchSim(id)))}
+            onDelete={(id) =>
+              act(async () => {
+                await removeSim(id)
+                await readSaved()
+              })
+            }
+          />
         </section>
       )}
     </main>

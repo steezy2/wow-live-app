@@ -2773,6 +2773,9 @@ definitions:
       character:
         example: Steezy
         type: string
+      class:
+        example: mage
+        type: string
       dps:
         description: DPS is the result's DPS, kept when the list leaves Result out.
         type: number
@@ -2833,9 +2836,13 @@ definitions:
     type: object
   models.SimBuff:
     properties:
+      count:
+        type: number
       id:
         type: integer
       name:
+        type: string
+      school:
         type: string
       uptime:
         type: number
@@ -2912,6 +2919,12 @@ definitions:
       maxTargets:
         type: integer
       minLength:
+        type: integer
+      upgradeRanks:
+        description: |-
+          UpgradeRanks is how many ranks of an upgrade track a Droptimizer can upgrade drops to (the ranks past it are
+          Mythic raid only).
+        example: 6
         type: integer
     type: object
   models.SimCombo:
@@ -3019,6 +3032,8 @@ definitions:
     type: object
   models.SimItem:
     properties:
+      addSocket:
+        type: boolean
       group:
         example: finger
         type: string
@@ -3039,6 +3054,11 @@ definitions:
         type: object
       slot:
         type: string
+      sockets:
+        description: |-
+          Sockets is how many sockets the item has (filled or not; their gems are Opts["gem_id"]), and AddSocket whether
+          one more can be added in a Top Gear variant. Only a parsed export carries them.
+        type: integer
     type: object
   models.SimItemInfo:
     properties:
@@ -3058,6 +3078,36 @@ definitions:
       quality:
         example: 4
         type: integer
+    type: object
+  models.SimLogBuff:
+    properties:
+      id:
+        type: integer
+      name:
+        example: Icicles
+        type: string
+      stacks:
+        type: integer
+    type: object
+  models.SimLogEntry:
+    properties:
+      buffs:
+        items:
+          $ref: '#/definitions/models.SimLogBuff'
+        type: array
+      id:
+        type: integer
+      name:
+        example: Flurry
+        type: string
+      pre:
+        type: boolean
+      target:
+        example: Fluffy Pillow
+        type: string
+      time:
+        example: 2.894
+        type: number
     type: object
   models.SimOptionRow:
     properties:
@@ -3183,6 +3233,19 @@ definitions:
         description: SocketBonus is the bonus ID that gives an item one more socket.
         example: 10397
         type: integer
+      socketSlots:
+        additionalProperties:
+          type: integer
+        description: |-
+          SocketSlots are the slots (a ring is "finger") the season lets a socket be added to, and how many it can have
+          added: Raidbots' season data, where only the head, wrist and waist can (through the Great Vault's choice).
+        type: object
+      sockets:
+        additionalProperties:
+          type: integer
+        description: Sockets are the bonus IDs that give sockets, and how many each
+          gives.
+        type: object
       source:
         type: string
       upgrades:
@@ -3231,11 +3294,6 @@ definitions:
       kind:
         example: quick
         type: string
-      maxUpgrade:
-        description: |-
-          MaxUpgrade sims every drop of a Droptimizer fully upgraded: at the top rank of its upgrade track, and a Hero or Myth
-          weapon, trinket or neck also with its Ascendant Venomstones.
-        type: boolean
       omnium:
         description: |-
           Omnium is the Omnium Folio's runes (entry:rank pairs, as the export writes them): nil keeps the export's, empty
@@ -3244,6 +3302,13 @@ definitions:
         type: string
       options:
         $ref: '#/definitions/models.SimOptions'
+      upgrade:
+        description: |-
+          Upgrade is how a Droptimizer upgrades its drops along their track: empty keeps the item level they drop at, "max"
+          is the top rank (a Hero or Myth weapon, trinket or neck also with its Ascendant Venomstones), "match" the rank of
+          the item worn in each drop's slot, and a number that rank of the track (the top when it has fewer).
+        example: max
+        type: string
       variants:
         description: Variants are changed copies of a Top Gear sim's candidates.
         items:
@@ -3276,6 +3341,12 @@ definitions:
           the best combination in full.
         items:
           $ref: '#/definitions/models.SimItem'
+        type: array
+      log:
+        description: 'Log is the sample ability log of a Quick Sim: one iteration''s
+          actions in order (it is no guide to play by).'
+        items:
+          $ref: '#/definitions/models.SimLogEntry'
         type: array
       options:
         description: Options are the values a Quick Sim compared, best first.
@@ -3375,6 +3446,9 @@ definitions:
       cooldown:
         type: string
       description:
+        type: string
+      icon:
+        example: spell_frost_frostbolt02
         type: string
       id:
         type: integer
@@ -5114,8 +5188,8 @@ paths:
       parameters:
       - description: the kind, the export, the options and consumables, for topgear
           the picked equipped and bag indexes and variants, for drops the difficulty,
-          keyLevel and maxUpgrade, and for any kind the consumables picked (two or
-          more of a kind are compared)
+          keyLevel and upgrade, and for any kind the consumables picked (two or more
+          of a kind are compared)
         in: body
         name: body
         required: true
@@ -5355,6 +5429,33 @@ paths:
           schema:
             $ref: '#/definitions/controller.ErrorResponse'
       summary: Read a pasted SimulationCraft addon export
+      tags:
+      - sim
+  /api/sim/spells:
+    get:
+      description: |-
+        Wowhead's name, icon (for GET /api/icons/{name}), cooldown and text of each spell ID, as many as it
+        knows: a spell it can't look up is left out. The report draws its abilities and buffs with them.
+      parameters:
+      - description: spell IDs, comma separated (at most SimChoices.maxItemLookups)
+        in: query
+        name: ids
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.SpellInfo'
+            type: array
+        "400":
+          description: no IDs, too many or not numbers
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+      summary: Names, icons and texts of spells
       tags:
       - sim
   /api/spells:

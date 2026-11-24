@@ -114,6 +114,30 @@ func build(client *http.Client) (models.SimReference, error) {
 		return ref, fmt.Errorf("bonus %d no longer adds one socket: pick another from bonus-sockets.json", socketBonus)
 	}
 	ref.SocketBonus = socketBonus
+	ref.Sockets = map[int]int{}
+	for id, n := range sockets {
+		if bonusID, err := strconv.Atoi(id); err == nil {
+			ref.Sockets[bonusID] = n
+		}
+	}
+	var seasons []struct {
+		Active  bool `json:"active"`
+		Sockets []struct {
+			Slot  string `json:"slot"`
+			Vault int    `json:"vault"`
+		} `json:"sockets"`
+	}
+	if err := raidbots.Get(client, "seasons.json", &seasons); err != nil {
+		return ref, err
+	}
+	ref.SocketSlots = map[string]int{}
+	for _, season := range seasons {
+		for _, s := range season.Sockets {
+			if season.Active && s.Vault > 0 {
+				ref.SocketSlots[s.Slot] = s.Vault
+			}
+		}
+	}
 	var omnium struct {
 		Nodes []raidbots.Node `json:"nodes"`
 	}

@@ -25,6 +25,8 @@ func testRef() models.SimReference {
 			{BonusID: 100, Level: 1, ItemLevel: 318}, {BonusID: 101, Level: 2, ItemLevel: 321},
 			{BonusID: 102, Level: 3, ItemLevel: 324}}}},
 		SocketBonus: 10397,
+		Sockets:     map[int]int{9: 1, 10397: 1},
+		SocketSlots: map[string]int{"head": 1, "wrist": 1, "waist": 1},
 		Omnium: []models.TalentNode{
 			{ID: 1, Choice: true, Entries: []models.TalentEntry{{ID: 11}, {ID: 12}}},
 			{ID: 2, Entries: []models.TalentEntry{{ID: 21}}},
@@ -49,13 +51,13 @@ func TestApplyVariant(t *testing.T) {
 	}{
 		{"an upgrade swaps the track's bonus", "finger1", models.SimVariant{Upgrade: 3},
 			"finger1=,id=5,bonus_id=7/102\n", "Myth 3/3", 324, ""},
-		{"a socket and a gem", "finger1", models.SimVariant{Socket: true, Gem: 240883},
-			"finger1=,id=5,bonus_id=7/100/10397,gem_id=240883\n", "socket, Quick Lapis", 318, ""},
+		{"a socket and a gem", "head", models.SimVariant{Socket: true, Gem: 240883},
+			"head=,id=5,bonus_id=7/100/10397,gem_id=240883\n", "socket, Quick Lapis", 318, ""},
 		{"an enchant", "finger1", models.SimVariant{Enchant: 7964},
 			"finger1=,id=5,bonus_id=7/100,enchant_id=7964\n", "Amani Mastery", 318, ""},
 		{"nothing changed", "finger1", models.SimVariant{}, "", "", 0, "changes something"},
 		{"an upgrade past the track", "finger1", models.SimVariant{Upgrade: 4}, "", "", 0, "no upgrade level 4"},
-		{"an unknown gem", "finger1", models.SimVariant{Gem: 1}, "", "", 0, "no gem 1"},
+		{"an unknown gem", "head", models.SimVariant{Socket: true, Gem: 1}, "", "", 0, "no gem 1"},
 		{"an enchant for another slot", "head", models.SimVariant{Enchant: 7964}, "", "", 0, "no enchant"},
 	}
 	for _, tt := range tests {
@@ -79,6 +81,45 @@ func TestApplyVariant(t *testing.T) {
 				t.Errorf("the original item changed: %v", item.Opts)
 			}
 		})
+	}
+}
+
+func TestSocketRules(t *testing.T) {
+	item := func(slot string, opts map[string][]int) models.SimItem { return models.SimItem{Slot: slot, Opts: opts} }
+	bare, socketed := map[string][]int{"bonus_id": {7}}, map[string][]int{"bonus_id": {7, 9}}
+	tests := []struct {
+		name    string
+		item    models.SimItem
+		sockets int
+		canAdd  bool
+	}{
+		{"a bare head takes one", item("head", bare), 0, true},
+		{"a wrist takes one", item("wrist", bare), 0, true},
+		{"a head with its socket takes no more", item("head", socketed), 1, false},
+		{"a chest takes none", item("chest", bare), 0, false},
+		{"a ring takes none", item("finger1", bare), 0, false},
+		{"a neck takes none", item("neck", bare), 0, false},
+		{"a trinket takes none", item("trinket1", bare), 0, false},
+		{"a weapon takes none", item("main_hand", bare), 0, false},
+		{"a gem counts as a socket", item("chest", map[string][]int{"gem_id": {240883}}), 1, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := socketsOf(testRef(), tt.item); got != tt.sockets {
+				t.Errorf("sockets = %d, want %d", got, tt.sockets)
+			}
+			if got := canAddSocket(testRef(), tt.item); got != tt.canAdd {
+				t.Errorf("canAddSocket = %v, want %v", got, tt.canAdd)
+			}
+			_, err := applyVariant(testRef(), tt.item, models.SimVariant{Socket: true})
+			if (err == nil) != tt.canAdd {
+				t.Errorf("a socket variant: err = %v, want it to work only when a socket can be added", err)
+			}
+		})
+	}
+	if _, err := applyVariant(testRef(), item("head", bare), models.SimVariant{Gem: 240883}); !errors.Is(err,
+		ErrBadSimOptions) {
+		t.Errorf("a gem in an item with no socket: err = %v, want ErrBadSimOptions", err)
 	}
 }
 

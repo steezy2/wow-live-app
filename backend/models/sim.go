@@ -36,6 +36,10 @@ type SimItem struct {
 	ID    int              `json:"id"`
 	Opts  map[string][]int `json:"opts,omitempty"`
 	Note  string           `json:"note,omitempty" example:"Myth 3/8, socket"`
+	// Sockets is how many sockets the item has (filled or not; their gems are Opts["gem_id"]), and AddSocket whether
+	// one more can be added in a Top Gear variant. Only a parsed export carries them.
+	Sockets   int  `json:"sockets,omitempty"`
+	AddSocket bool `json:"addSocket,omitempty"`
 }
 
 // SimOptions are the fight a sim runs: its style (one of SimChoices.FightStyles), its length in seconds, how many
@@ -58,6 +62,9 @@ type SimChoices struct {
 	MaxCombos int `json:"maxCombos" example:"1000"`
 	// MaxCompare is the most combinations of compared consumables one sim runs.
 	MaxCompare int `json:"maxCompare" example:"1000"`
+	// UpgradeRanks is how many ranks of an upgrade track a Droptimizer can upgrade drops to (the ranks past it are
+	// Mythic raid only).
+	UpgradeRanks int `json:"upgradeRanks" example:"6"`
 	// MaxParallel is how many sims run at once (they share the PC); starting one more is refused.
 	MaxParallel int `json:"maxParallel" example:"4"`
 	// ConsumableKinds are the kinds of consumable a sim can be told to use, in the order the page lists them.
@@ -96,9 +103,10 @@ type SimRequest struct {
 	Difficulty string `json:"difficulty,omitempty" enums:"lfr,normal,heroic,mythic" example:"heroic"`
 	// KeyLevel is the Mythic+ key level a Droptimizer's dungeon drops are at, one of SimChoices.KeyLevels.
 	KeyLevel int `json:"keyLevel,omitempty" example:"10"`
-	// MaxUpgrade sims every drop of a Droptimizer fully upgraded: at the top rank of its upgrade track, and a Hero or Myth
-	// weapon, trinket or neck also with its Ascendant Venomstones.
-	MaxUpgrade bool `json:"maxUpgrade,omitempty"`
+	// Upgrade is how a Droptimizer upgrades its drops along their track: empty keeps the item level they drop at, "max"
+	// is the top rank (a Hero or Myth weapon, trinket or neck also with its Ascendant Venomstones), "match" the rank of
+	// the item worn in each drop's slot, and a number that rank of the track (the top when it has fewer).
+	Upgrade string `json:"upgrade,omitempty" example:"max"`
 	// Consumables are what every kind of sim uses instead of simc's defaults, and what it compares.
 	Consumables SimConsumables `json:"consumables"`
 	// Omnium is the Omnium Folio's runes (entry:rank pairs, as the export writes them): nil keeps the export's, empty
@@ -128,6 +136,7 @@ type Sim struct {
 	Kind      string     `json:"kind" enums:"quick,topgear,drops,stats,consumables"`
 	State     string     `json:"state" enums:"running,done,failed,cancelled"`
 	Character string     `json:"character" example:"Steezy"`
+	Class     string     `json:"class,omitempty" example:"mage"`
 	Spec      string     `json:"spec" example:"elemental"`
 	Options   SimOptions `json:"options"`
 	Progress  int        `json:"progress"`
@@ -150,6 +159,8 @@ type SimResult struct {
 	Abilities []SimAbility `json:"abilities"`
 	Buffs     []SimBuff    `json:"buffs"`
 	Combos    []SimCombo   `json:"combos,omitempty"`
+	// Log is the sample ability log of a Quick Sim: one iteration's actions in order (it is no guide to play by).
+	Log []SimLogEntry `json:"log,omitempty"`
 	// Stages are the stages of a raced sim (SimStage), the last one the report's.
 	Stages []SimStage `json:"stages,omitempty"`
 	// Equipped is the gear the sim started from, so a report can show the best combination in full.
@@ -214,7 +225,27 @@ type SimStatWeight struct {
 type SimBuff struct {
 	Name   string  `json:"name"`
 	ID     int     `json:"id"`
+	School string  `json:"school,omitempty"`
 	Uptime float64 `json:"uptime"`
+	Count  float64 `json:"count"`
+}
+
+// SimLogEntry is one action of the sample iteration a Quick Sim keeps (SimResult.Log): when it was taken (seconds into
+// the fight, before the pull when Pre), the ability, its target and the buffs up then.
+type SimLogEntry struct {
+	Time   float64      `json:"time" example:"2.894"`
+	Pre    bool         `json:"pre,omitempty"`
+	Name   string       `json:"name" example:"Flurry"`
+	ID     int          `json:"id"`
+	Target string       `json:"target,omitempty" example:"Fluffy Pillow"`
+	Buffs  []SimLogBuff `json:"buffs,omitempty"`
+}
+
+// SimLogBuff is a buff up at a SimLogEntry, with its stacks.
+type SimLogBuff struct {
+	Name   string `json:"name" example:"Icicles"`
+	ID     int    `json:"id"`
+	Stacks int    `json:"stacks"`
 }
 
 // SimEngineStatus is the engine and what the app is doing about it: Installing while a download runs, Error when the

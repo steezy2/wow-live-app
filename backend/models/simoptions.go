@@ -14,6 +14,11 @@ type SimReference struct {
 	Upgrades []SimUpgradeTrack `json:"upgrades"`
 	// SocketBonus is the bonus ID that gives an item one more socket.
 	SocketBonus int `json:"socketBonus" example:"10397"`
+	// Sockets are the bonus IDs that give sockets, and how many each gives.
+	Sockets map[int]int `json:"sockets"`
+	// SocketSlots are the slots (a ring is "finger") the season lets a socket be added to, and how many it can have
+	// added: Raidbots' season data, where only the head, wrist and waist can (through the Great Vault's choice).
+	SocketSlots map[string]int `json:"socketSlots"`
 	// Omnium is the Omnium Folio's rune tree (nodes of one or more choices; picks are entry IDs).
 	Omnium []TalentNode `json:"omnium"`
 }

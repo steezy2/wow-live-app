@@ -28,6 +28,9 @@ func (f fakeSims) Reference() models.SimReference { return models.SimReference{}
 func (f fakeSims) Plan(models.SimRequest) (models.SimPlan, error) {
 	return models.SimPlan{}, f.err
 }
+func (f fakeSims) ParseProfile(export string) (models.SimProfile, error) {
+	return service.ParseSimC(export)
+}
 func (f fakeSims) EngineStatus() models.SimEngineStatus { return models.SimEngineStatus{} }
 func (f fakeSims) InstallEngine(string) error           { return f.err }
 func (f fakeSims) Get(string) (models.Sim, error)       { return models.Sim{}, f.err }
@@ -104,6 +107,14 @@ func (fakeItems) Infos(_ context.Context, ids []int) ([]models.SimItemInfo, erro
 		items[i] = models.SimItemInfo{ID: id, Name: "Item"}
 	}
 	return items, nil
+}
+
+func (fakeItems) SpellInfos(_ context.Context, ids []int) ([]models.SpellInfo, error) {
+	spells := make([]models.SpellInfo, len(ids))
+	for i, id := range ids {
+		spells[i] = models.SpellInfo{ID: id, Name: "Spell"}
+	}
+	return spells, nil
 }
 
 func TestSimAPIItemsReadTheIDs(t *testing.T) {

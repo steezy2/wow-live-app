@@ -255,8 +255,9 @@ func omniumInput(ref models.SimReference, p models.SimProfile, requested *string
 }
 
 // upgradeOf is the track an item is on and its level in it, found by the item's bonus IDs.
-func upgradeOf(ref models.SimReference, item models.SimItem) (models.SimUpgradeTrack, models.SimUpgradeLevel, bool) {
-	for _, track := range ref.Upgrades {
+func upgradeOf(tracks []models.SimUpgradeTrack, item models.SimItem) (models.SimUpgradeTrack, models.SimUpgradeLevel,
+	bool) {
+	for _, track := range tracks {
 		for _, level := range track.Levels {
 			if slices.Contains(item.Opts["bonus_id"], level.BonusID) {
 				return track, level, true
@@ -264,6 +265,41 @@ func upgradeOf(ref models.SimReference, item models.SimItem) (models.SimUpgradeT
 		}
 	}
 	return models.SimUpgradeTrack{}, models.SimUpgradeLevel{}, false
+}
+
+// socketsOf is how many sockets item has: those its bonus IDs give, or the gems in it when there are more (an item's
+// own sockets have no bonus ID).
+func socketsOf(ref models.SimReference, item models.SimItem) int {
+	return max(bonusSockets(ref, item), len(item.Opts["gem_id"]))
+}
+
+// bonusSockets is how many sockets item's bonus IDs give: the ones a socket added to it takes.
+func bonusSockets(ref models.SimReference, item models.SimItem) int {
+	n := 0
+	for _, id := range item.Opts["bonus_id"] {
+		n += ref.Sockets[id]
+	}
+	return n
+}
+
+// maxSockets is how many sockets an item holds at most, added or not.
+const maxSockets = 3
+
+// canAddSocket is whether a Top Gear variant can give item a socket, by Raidbots' rule: only a slot the season lets
+// (SimReference.SocketSlots: the head, wrist and waist) takes one, up to what that slot allows, and no item holds more
+// than maxSockets. Weapons, trinkets, rings and the neck never do.
+func canAddSocket(ref models.SimReference, item models.SimItem) bool {
+	return bonusSockets(ref, item) < ref.SocketSlots[gearKey(item.Slot)] && socketsOf(ref, item) < maxSockets
+}
+
+// withSockets is the profile's items with the sockets they have and whether one can be added (SimItem.Sockets).
+func withSockets(ref models.SimReference, p models.SimProfile) models.SimProfile {
+	for _, items := range [][]models.SimItem{p.Equipped, p.Bags} {
+		for i := range items {
+			items[i].Sockets, items[i].AddSocket = socketsOf(ref, items[i]), canAddSocket(ref, items[i])
+		}
+	}
+	return p
 }
 
 // applyVariant is item changed as v says: moved to an upgrade level of its track, given a socket, a gem and an enchant.
@@ -276,7 +312,7 @@ func applyVariant(ref models.SimReference, item models.SimItem, v models.SimVari
 	item.Opts = cloneOpts(item.Opts)
 	var notes []string
 	if v.Upgrade != 0 {
-		track, current, ok := upgradeOf(ref, item)
+		track, current, ok := upgradeOf(ref.Upgrades, item)
 		i := slices.IndexFunc(track.Levels, func(l models.SimUpgradeLevel) bool { return l.Level == v.Upgrade })
 		if !ok || i < 0 {
 			return bad("%s has no upgrade level %d to move to", cmp.Or(item.Name, "the item"), v.Upgrade)
@@ -285,6 +321,13 @@ func applyVariant(ref models.SimReference, item models.SimItem, v models.SimVari
 		item.Opts["bonus_id"] = append(item.Opts["bonus_id"], track.Levels[i].BonusID)
 		item.Level = track.Levels[i].ItemLevel
 		notes = append(notes, fmt.Sprintf("%s %d/%d", track.Name, v.Upgrade, len(track.Levels)))
+	}
+	if v.Socket && !canAddSocket(ref, item) {
+		return bad("%s can't take a socket: only a head, wrist or waist item can, and only one",
+			cmp.Or(item.Name, "the item"))
+	}
+	if v.Gem != 0 && !v.Socket && socketsOf(ref, item) == 0 {
+		return bad("%s has no socket for a gem", cmp.Or(item.Name, "the item"))
 	}
 	if v.Socket {
 		item.Opts["bonus_id"] = append(item.Opts["bonus_id"], ref.SocketBonus)

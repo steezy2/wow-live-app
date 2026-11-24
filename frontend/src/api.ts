@@ -1379,9 +1379,11 @@ export async function fetchRecapTopTimes(
 }
 
 /** What an ability does (models.SpellInfo). */
-interface SpellInfo {
+/** What a spell's hover box shows, and its icon (a name for iconURL) when the answer has one. */
+export interface SpellInfo {
   id: number
   name: string
+  icon?: string
   /** "2 min cooldown", empty for none. */
   cooldown?: string
   description: string
@@ -1829,6 +1831,9 @@ export interface SimItem {
   id: number
   opts?: Record<string, number[]>
   note?: string
+  /** How many sockets the item has, and whether a variant can add one (a parsed export only). */
+  sockets?: number
+  addSocket?: boolean
 }
 
 /** An item's name, icon (an icon name for iconURL) and quality (0 poor to 5 legendary), from Wowhead. */
@@ -1843,6 +1848,11 @@ export interface SimItemInfo {
 /** Names, icons, qualities and what using them does, of items; the ones Wowhead can't give are left out. */
 export async function fetchSimItems(ids: number[], signal?: AbortSignal): Promise<SimItemInfo[]> {
   return json(`/api/sim/items?ids=${ids.join(',')}`, { signal })
+}
+
+/** Wowhead's name, icon, cooldown and text of each of the spell IDs (at most SimChoices.maxItemLookups). */
+export async function fetchSimSpells(ids: number[], signal?: AbortSignal): Promise<SpellInfo[]> {
+  return json(`/api/sim/spells?ids=${ids.join(',')}`, { signal })
 }
 
 /** A character read from a pasted SimulationCraft addon export. */
@@ -1882,6 +1892,8 @@ export interface SimChoices {
   maxCombos: number
   maxCompare: number
   maxParallel: number
+  /** How many ranks of a track a Droptimizer can upgrade to (the rest are Mythic raid only). */
+  upgradeRanks: number
   consumableKinds: string[]
   maxDrops: number
   difficulties: string[]
@@ -1928,7 +1940,8 @@ export interface SimRequest {
   variants?: SimVariant[]
   difficulty?: string
   keyLevel?: number
-  maxUpgrade?: boolean
+  /** How a Droptimizer upgrades its drops: '' as dropped, 'max', 'match' (the worn gear's rank) or a rank number. */
+  upgrade?: string
   consumables?: SimConsumables
   omnium?: string
 }
@@ -2016,7 +2029,9 @@ export interface SimAbility {
 export interface SimBuff {
   name: string
   id: number
+  school?: string
   uptime: number
+  count: number
 }
 
 /** A slot a gear combination changes: what comes off and what goes on (none: the slot is emptied). */
@@ -2045,11 +2060,24 @@ export interface SimResult {
   abilities: SimAbility[]
   buffs: SimBuff[]
   combos?: SimCombo[]
+  /** A Quick Sim's sample ability log: one iteration's actions. */
+  log?: SimLogEntry[]
   options?: SimOptionRow[]
   stages?: SimStage[]
   equipped?: SimItem[]
   weights?: SimStatWeight[]
   pawn?: string
+}
+
+/** One action of a sample ability log: when (seconds into the fight, before the pull when pre), what, at whom and the
+ * buffs up with their stacks. */
+export interface SimLogEntry {
+  time: number
+  pre?: boolean
+  name: string
+  id: number
+  target?: string
+  buffs?: { name: string; id: number; stacks: number }[]
 }
 
 /** One stage of a raced sim: its combinations and the target error (in %) it ran at. */
@@ -2071,6 +2099,7 @@ export interface Sim {
   kind: SimKind
   state: 'running' | 'done' | 'failed' | 'cancelled'
   character: string
+  class?: string
   spec: string
   options: SimOptions
   progress: number

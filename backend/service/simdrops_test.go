@@ -47,7 +47,7 @@ func TestDropCombosFollowTheSpecAndDifficulty(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p.Equipped[2].ID = tt.ring2
-			combos, err := dropCombos(p, testDrops(), tt.difficulty, tt.key, nil)
+			combos, err := dropCombos(p, testDrops(), tt.difficulty, tt.key, dropUpgrade{})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -62,48 +62,113 @@ func TestDropCombosFollowTheSpecAndDifficulty(t *testing.T) {
 	}
 }
 
-func TestMaxedLevel(t *testing.T) {
+func testTracks() []models.SimUpgradeTrack {
 	track := func(group int, name string, levels ...int) models.SimUpgradeTrack {
 		t := models.SimUpgradeTrack{Group: group, Name: name}
 		for i, l := range levels {
-			t.Levels = append(t.Levels, models.SimUpgradeLevel{Level: i + 1, ItemLevel: l})
+			t.Levels = append(t.Levels, models.SimUpgradeLevel{BonusID: group*10 + i, Level: i + 1, ItemLevel: l})
 		}
 		return t
 	}
-	tracks := []models.SimUpgradeTrack{track(615, "Veteran", 279, 282, 285, 289, 292, 295),
+	return []models.SimUpgradeTrack{track(615, "Veteran", 279, 282, 285, 289, 292, 295),
 		track(616, "Champion", 292, 295, 298, 302, 305, 308), track(618, "Myth", 318, 321, 324, 328, 331, 334)}
+}
+
+func TestTrackOfAndRankLevel(t *testing.T) {
+	tracks := testTracks()
 	for level, want := range map[int]struct {
-		level int
+		top   int
 		track string
 	}{279: {295, "Veteran"}, 292: {308, "Champion"}, 295: {308, "Champion"}, 318: {334, "Myth"}, 334: {334, "Myth"},
 		344: {344, ""}, 100: {100, ""}} {
-		if got, track := maxedLevel(tracks, level); got != want.level || track != want.track {
-			t.Errorf("maxedLevel(%d) = %d, %q, want %d, %q", level, got, track, want.level, want.track)
+		track := trackOf(tracks, level)
+		if want.track == "" {
+			if track != nil {
+				t.Errorf("trackOf(%d) = %s, want none", level, track.Name)
+			}
+			continue
+		}
+		if track.Name != want.track || rankLevel(*track, 0) != want.top {
+			t.Errorf("trackOf(%d) = %s, top %d, want %s, %d", level, track.Name, rankLevel(*track, 0), want.track, want.top)
 		}
 	}
-	if got, _ := maxedLevel(nil, 292); got != 292 {
-		t.Errorf("no tracks: %d, want the level kept", got)
+	if got := rankLevel(tracks[2], 3); got != 324 {
+		t.Errorf("rank 3 of Myth = %d, want 324", got)
+	}
+	if got := rankLevel(tracks[2], 9); got != 334 {
+		t.Errorf("a rank past the top = %d, want the top 334", got)
+	}
+	eight := models.SimUpgradeTrack{Name: "Myth"}
+	for i := range 8 {
+		eight.Levels = append(eight.Levels, models.SimUpgradeLevel{Level: i + 1, ItemLevel: 400 + i})
+	}
+	if got := rankLevel(eight, 0); got != 405 {
+		t.Errorf("the top of an eight-rank track = %d, want rank 6 (405)", got)
 	}
 }
 
-func TestDropCombosUpgradeToTheTop(t *testing.T) {
+func TestDropCombosUpgrade(t *testing.T) {
 	p := gearProfile(false)
 	p.Class, p.Spec = "shaman", "elemental"
-	tracks := []models.SimUpgradeTrack{{Group: 1, Name: "Hero",
-		Levels: []models.SimUpgradeLevel{{Level: 1, ItemLevel: 120}, {Level: 2, ItemLevel: 130}}}}
-	combos, err := dropCombos(p, testDrops(), "heroic", 0, tracks)
-	if err != nil {
-		t.Fatal(err)
+	tracks := []models.SimUpgradeTrack{{Group: 1, Name: "Hero", Levels: []models.SimUpgradeLevel{
+		{BonusID: 11, Level: 1, ItemLevel: 120}, {BonusID: 12, Level: 2, ItemLevel: 130},
+		{BonusID: 13, Level: 3, ItemLevel: 140}}}}
+	tests := []struct {
+		name string
+		up   dropUpgrade
+		want map[string]int // item level by drop name
+	}{
+		{"as dropped", dropUpgrade{}, map[string]int{"Ring": 120, "Staff": 120, "Wand": 120, "Trinket": 90}},
+		{"the top rank, with Venomstones on a weapon", dropUpgrade{Tracks: tracks},
+			map[string]int{"Ring": 140, "Staff": 140 + venomstoneLevels, "Wand": 140 + venomstoneLevels, "Trinket": 90}},
+		{"rank 2", dropUpgrade{Tracks: tracks, Rank: 2}, map[string]int{"Ring": 130, "Staff": 130, "Wand": 130}},
+		{"a rank past the top", dropUpgrade{Tracks: tracks, Rank: 9}, map[string]int{"Ring": 140, "Staff": 140}},
+		{"matching the worn ring's rank", dropUpgrade{Tracks: tracks, Match: true},
+			map[string]int{"Ring": 130, "Staff": 120}},
 	}
-	for _, c := range combos {
-		in := c.swaps[0].In
-		want := map[string]int{"Ring": 130, // the top rank
-			"Staff": 130 + venomstoneLevels, "Wand": 130 + venomstoneLevels, // a Hero weapon takes Venomstones
-			"Trinket": 90, // the dungeon's level is on no track
-		}[in.Name]
-		if in.Level != want || in.Opts["ilevel"][0] != want {
-			t.Errorf("%s: level %d, ilevel %v, want %d", in.Name, in.Level, in.Opts["ilevel"], want)
+	p.Equipped[1].Opts = map[string][]int{"bonus_id": {12}} // the worn first ring is at rank 2
+	p.Equipped[2].Opts = map[string][]int{"bonus_id": {12}}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			combos, err := dropCombos(p, testDrops(), "heroic", 0, tt.up)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, c := range combos {
+				in := c.swaps[0].In
+				if want, ok := tt.want[in.Name]; ok && (in.Level != want || in.Opts["ilevel"][0] != want) {
+					t.Errorf("%s: level %d, ilevel %v, want %d", in.Name, in.Level, in.Opts["ilevel"], want)
+				}
+			}
+		})
+	}
+}
+
+func TestDropCombosSkipWhatIsWorn(t *testing.T) {
+	p := gearProfile(false)
+	p.Class, p.Spec = "shaman", "elemental"
+	p.Equipped = append(p.Equipped, models.SimItem{Slot: "trinket1", Group: "trinket", ID: 5, Level: 105},
+		models.SimItem{Slot: "trinket2", Group: "trinket", ID: 6, Level: 90})
+	names := func(level int) []string {
+		d := testDrops()
+		d.Keys[1].Loot = level
+		combos, err := dropCombos(p, d, "heroic", 10, dropUpgrade{})
+		if err != nil {
+			t.Fatal(err)
 		}
+		var got []string
+		for _, c := range combos {
+			if c.swaps[0].In.ID == 5 {
+				got = append(got, c.swaps[0].Slot)
+			}
+		}
+		return got
+	}
+	if got := names(105); len(got) != 0 {
+		t.Errorf("a trinket worn at its drop's level: %v, want none", got)
+	}
+	if got := names(110); !slices.Equal(got, []string{"trinket1"}) {
+		t.Errorf("a higher level of the worn trinket: %v, want its own slot only (unique-equipped)", got)
 	}
 }
 
@@ -111,7 +176,7 @@ func TestDropCombosKeepTheWornEnchant(t *testing.T) {
 	p := gearProfile(false)
 	p.Class, p.Spec = "shaman", "elemental"
 	p.Equipped[1].Opts = map[string][]int{"enchant_id": {7}} // finger1
-	combos, err := dropCombos(p, testDrops(), "heroic", 0, nil)
+	combos, err := dropCombos(p, testDrops(), "heroic", 0, dropUpgrade{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -126,7 +191,7 @@ func TestDropCombosKeepTheWornEnchant(t *testing.T) {
 func TestDropCombosEmptyTheOffHandForATwoHander(t *testing.T) {
 	p := gearProfile(false) // wears an off-hand
 	p.Class, p.Spec = "shaman", "elemental"
-	combos, err := dropCombos(p, testDrops(), "normal", 0, nil)
+	combos, err := dropCombos(p, testDrops(), "normal", 0, dropUpgrade{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -159,7 +224,7 @@ func TestDropCombosRefuse(t *testing.T) {
 		"more than maxDrops":    {p, big, "heroic", 0},
 		"nothing that can drop": {p, models.SimDrops{Specs: testDrops().Specs, Keys: testDrops().Keys}, "heroic", 0},
 	} {
-		if _, err := dropCombos(tc.p, tc.d, tc.difficulty, tc.key, nil); !errors.Is(err, ErrBadSimOptions) {
+		if _, err := dropCombos(tc.p, tc.d, tc.difficulty, tc.key, dropUpgrade{}); !errors.Is(err, ErrBadSimOptions) {
 			t.Errorf("%s: err %v, want ErrBadSimOptions", name, err)
 		}
 	}
@@ -168,7 +233,7 @@ func TestDropCombosRefuse(t *testing.T) {
 func TestGearResultsKeepARingsBetterSlot(t *testing.T) {
 	p := gearProfile(false)
 	p.Class, p.Spec = "shaman", "elemental"
-	combos, _ := dropCombos(p, testDrops(), "heroic", 0, nil)
+	combos, _ := dropCombos(p, testDrops(), "heroic", 0, dropUpgrade{})
 	sets := []simSetJSON{{Name: "drop1", Mean: 90}, {Name: "drop2", Mean: 110}, {Name: "drop3", Mean: 100}}
 	rows := gearResults(sets, 100, combos)
 	if len(rows) != 2 || rows[0].Swaps[0].Slot != "finger2" || rows[0].Gain != 10 || rows[0].Source != "Raid" ||
@@ -182,7 +247,7 @@ func TestDropCombosSkipAnOffHandBesideATwoHander(t *testing.T) {
 	d.Raids[0].Bosses[0].Items = []models.DropItem{{ID: 6, Name: "Shield", Slot: "off_hand"}}
 	p := gearProfile(true) // wears a two-hander
 	p.Class, p.Spec = "shaman", "elemental"
-	combos, err := dropCombos(p, d, "normal", 0, nil)
+	combos, err := dropCombos(p, d, "normal", 0, dropUpgrade{})
 	if err != nil {
 		t.Fatal(err)
 	}

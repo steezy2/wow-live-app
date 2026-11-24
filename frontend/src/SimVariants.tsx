@@ -33,13 +33,15 @@ function VariantForm(props: { item: SimItem; reference: SimReference; onAdd: (v:
           </select>
         </label>
       )}
-      <label className="inline">
-        <input type="checkbox" checked={socket} onChange={(e) => setSocket(e.target.checked)} /> Add a socket
-      </label>
+      {item.addSocket && (
+        <label className="inline">
+          <input type="checkbox" checked={socket} onChange={(e) => setSocket(e.target.checked)} /> Add a socket
+        </label>
+      )}
       <label>
         {socket ? 'Gem in the new socket' : 'Gem in its first socket'}
-        <select value={gem} onChange={(e) => setGem(Number(e.target.value))}>
-          <option value={0}>None</option>
+        <select value={gem} disabled={!socket && !item.sockets} onChange={(e) => setGem(Number(e.target.value))}>
+          <option value={0}>{socket || item.sockets ? 'None' : 'No socket'}</option>
           {reference.gems.map((g) => (
             <option key={g.id} value={g.id}>
               {optionText(g)}

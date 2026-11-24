@@ -5,6 +5,7 @@ package models
 type SpellInfo struct {
 	ID          int    `json:"id"`
 	Name        string `json:"name"`
+	Icon        string `json:"icon,omitempty" example:"spell_frost_frostbolt02"`
 	Cooldown    string `json:"cooldown,omitempty"`
 	Description string `json:"description"`
 }

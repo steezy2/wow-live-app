@@ -2242,7 +2242,7 @@ const docTemplate = `{
                 "summary": "Start a sim",
                 "parameters": [
                     {
-                        "description": "the kind, the export, the options and consumables, for topgear the picked equipped and bag indexes and variants, for drops the difficulty, keyLevel and maxUpgrade, and for any kind the consumables picked (two or more of a kind are compared)",
+                        "description": "the kind, the export, the options and consumables, for topgear the picked equipped and bag indexes and variants, for drops the difficulty, keyLevel and upgrade, and for any kind the consumables picked (two or more of a kind are compared)",
                         "name": "body",
                         "in": "body",
                         "required": true,
@@ -2498,6 +2498,44 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/sim/spells": {
+            "get": {
+                "description": "Wowhead's name, icon (for GET /api/icons/{name}), cooldown and text of each spell ID, as many as it\nknows: a spell it can't look up is left out. The report draws its abilities and buffs with them.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "sim"
+                ],
+                "summary": "Names, icons and texts of spells",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "spell IDs, comma separated (at most SimChoices.maxItemLookups)",
+                        "name": "ids",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.SpellInfo"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "no IDs, too many or not numbers",
                         "schema": {
                             "$ref": "#/definitions/controller.ErrorResponse"
                         }
@@ -6655,6 +6693,10 @@ const docTemplate = `{
                     "type": "string",
                     "example": "Steezy"
                 },
+                "class": {
+                    "type": "string",
+                    "example": "mage"
+                },
                 "dps": {
                     "description": "DPS is the result's DPS, kept when the list leaves Result out.",
                     "type": "number"
@@ -6739,10 +6781,16 @@ const docTemplate = `{
         "models.SimBuff": {
             "type": "object",
             "properties": {
+                "count": {
+                    "type": "number"
+                },
                 "id": {
                     "type": "integer"
                 },
                 "name": {
+                    "type": "string"
+                },
+                "school": {
                     "type": "string"
                 },
                 "uptime": {
@@ -6838,6 +6886,11 @@ const docTemplate = `{
                 },
                 "minLength": {
                     "type": "integer"
+                },
+                "upgradeRanks": {
+                    "description": "UpgradeRanks is how many ranks of an upgrade track a Droptimizer can upgrade drops to (the ranks past it are\nMythic raid only).",
+                    "type": "integer",
+                    "example": 6
                 }
             }
         },
@@ -6995,6 +7048,9 @@ const docTemplate = `{
         "models.SimItem": {
             "type": "object",
             "properties": {
+                "addSocket": {
+                    "type": "boolean"
+                },
                 "group": {
                     "type": "string",
                     "example": "finger"
@@ -7023,6 +7079,10 @@ const docTemplate = `{
                 },
                 "slot": {
                     "type": "string"
+                },
+                "sockets": {
+                    "description": "Sockets is how many sockets the item has (filled or not; their gems are Opts[\"gem_id\"]), and AddSocket whether\none more can be added in a Top Gear variant. Only a parsed export carries them.",
+                    "type": "integer"
                 }
             }
         },
@@ -7048,6 +7108,50 @@ const docTemplate = `{
                 "quality": {
                     "type": "integer",
                     "example": 4
+                }
+            }
+        },
+        "models.SimLogBuff": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Icicles"
+                },
+                "stacks": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.SimLogEntry": {
+            "type": "object",
+            "properties": {
+                "buffs": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.SimLogBuff"
+                    }
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Flurry"
+                },
+                "pre": {
+                    "type": "boolean"
+                },
+                "target": {
+                    "type": "string",
+                    "example": "Fluffy Pillow"
+                },
+                "time": {
+                    "type": "number",
+                    "example": 2.894
                 }
             }
         },
@@ -7219,6 +7323,20 @@ const docTemplate = `{
                     "type": "integer",
                     "example": 10397
                 },
+                "socketSlots": {
+                    "description": "SocketSlots are the slots (a ring is \"finger\") the season lets a socket be added to, and how many it can have\nadded: Raidbots' season data, where only the head, wrist and waist can (through the Great Vault's choice).",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer"
+                    }
+                },
+                "sockets": {
+                    "description": "Sockets are the bonus IDs that give sockets, and how many each gives.",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer"
+                    }
+                },
                 "source": {
                     "type": "string"
                 },
@@ -7282,10 +7400,6 @@ const docTemplate = `{
                     "type": "string",
                     "example": "quick"
                 },
-                "maxUpgrade": {
-                    "description": "MaxUpgrade sims every drop of a Droptimizer fully upgraded: at the top rank of its upgrade track, and a Hero or Myth\nweapon, trinket or neck also with its Ascendant Venomstones.",
-                    "type": "boolean"
-                },
                 "omnium": {
                     "description": "Omnium is the Omnium Folio's runes (entry:rank pairs, as the export writes them): nil keeps the export's, empty\nis none. Two or more entries of a node are compared, as consumables are.",
                     "type": "string",
@@ -7293,6 +7407,11 @@ const docTemplate = `{
                 },
                 "options": {
                     "$ref": "#/definitions/models.SimOptions"
+                },
+                "upgrade": {
+                    "description": "Upgrade is how a Droptimizer upgrades its drops along their track: empty keeps the item level they drop at, \"max\"\nis the top rank (a Hero or Myth weapon, trinket or neck also with its Ascendant Venomstones), \"match\" the rank of\nthe item worn in each drop's slot, and a number that rank of the track (the top when it has fewer).",
+                    "type": "string",
+                    "example": "max"
                 },
                 "variants": {
                     "description": "Variants are changed copies of a Top Gear sim's candidates.",
@@ -7335,6 +7454,13 @@ const docTemplate = `{
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/models.SimItem"
+                    }
+                },
+                "log": {
+                    "description": "Log is the sample ability log of a Quick Sim: one iteration's actions in order (it is no guide to play by).",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.SimLogEntry"
                     }
                 },
                 "options": {
@@ -7477,6 +7603,10 @@ const docTemplate = `{
                 },
                 "description": {
                     "type": "string"
+                },
+                "icon": {
+                    "type": "string",
+                    "example": "spell_frost_frostbolt02"
                 },
                 "id": {
                     "type": "integer"

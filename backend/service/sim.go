@@ -42,6 +42,8 @@ const (
 	minSimLength     = 30
 	maxSimLength     = 900
 	maxSimTargets    = 20
+	// maxSimLog is how many actions a Quick Sim keeps of its sample iteration.
+	maxSimLog = 600
 	// maxSimRows is how many abilities and buffs a result keeps.
 	maxSimRows = 40
 	// defaultDropDifficulty and defaultDropKey are what the Droptimizer starts on (the key when the drops offer it).
@@ -139,7 +141,7 @@ func (s *Sims) Choices() models.SimChoices {
 	}
 	return models.SimChoices{FightStyles: simFightStyles, Accuracies: accuracies, MinLength: minSimLength,
 		MaxLength: maxSimLength, MaxTargets: maxSimTargets, MaxCombos: maxCombos, MaxCompare: maxCompareValues,
-		MaxParallel:     maxParallelSims,
+		MaxParallel: maxParallelSims, UpgradeRanks: upgradeRanks,
 		ConsumableKinds: models.SimConsumableKinds, MaxDrops: maxDrops,
 		Difficulties: simDifficulties, KeyLevels: keyLevels, Defaults: simDefaults,
 		DefaultDifficulty: defaultDropDifficulty, DefaultKeyLevel: defaultKey, GearGroups: slices.Compact(groups),
@@ -209,6 +211,13 @@ func (s *Sims) Wait() { s.work.Wait() }
 // Reference is what a request may pick besides its gear (reference/sim-options.json, which the app won't start
 // without).
 func (s *Sims) Reference() models.SimReference { return s.Ref }
+
+// ParseProfile is the character in a pasted export, each item with its sockets (SimItem.Sockets). ErrBadSimC for an
+// export that is none.
+func (s *Sims) ParseProfile(export string) (models.SimProfile, error) {
+	p, err := ParseSimC(export)
+	return withSockets(s.Ref, p), err
+}
 
 // Plan is what a request would run, counted without starting it, and about how long that takes: the runs besides the
 // sim's own (a Top Gear sim's gear combinations, a Droptimizer's drops, a comparison's combinations) and, for Top Gear,
@@ -281,7 +290,11 @@ func (s *Sims) planTopGear(req models.SimRequest, p models.SimProfile, values in
 // planDrops counts a Droptimizer request's drops (each once for every compared value) into plan, with what Start
 // would refuse it for.
 func (s *Sims) planDrops(req models.SimRequest, p models.SimProfile, dims []compareDim, plan *models.SimPlan) error {
-	drops, err := dropCombos(p, s.Drops, req.Difficulty, req.KeyLevel, s.upgradesFor(req))
+	up, err := s.dropUpgrade(req)
+	var drops []gearCombo
+	if err == nil {
+		drops, err = dropCombos(p, s.Drops, req.Difficulty, req.KeyLevel, up)
+	}
 	if err == nil {
 		drops, err = withCompare(dims, false, drops, maxDrops)
 	}
@@ -292,12 +305,23 @@ func (s *Sims) planDrops(req models.SimRequest, p models.SimProfile, dims []comp
 	return err
 }
 
-// upgradesFor are the upgrade tracks a Droptimizer request tops its drops up to: none unless it asks for it.
-func (s *Sims) upgradesFor(req models.SimRequest) []models.SimUpgradeTrack {
-	if req.MaxUpgrade {
-		return s.Ref.Upgrades
+// dropUpgrade is how a Droptimizer request upgrades its drops (SimRequest.Upgrade). ErrBadSimOptions for a value that
+// is none of those.
+func (s *Sims) dropUpgrade(req models.SimRequest) (dropUpgrade, error) {
+	switch req.Upgrade {
+	case "":
+		return dropUpgrade{}, nil
+	case "max":
+		return dropUpgrade{Tracks: s.Ref.Upgrades}, nil
+	case "match":
+		return dropUpgrade{Tracks: s.Ref.Upgrades, Match: true}, nil
 	}
-	return nil
+	rank, err := strconv.Atoi(req.Upgrade)
+	if err != nil || rank < 1 || rank > upgradeRanks {
+		return dropUpgrade{}, fmt.Errorf("%w: upgrade is \"max\", \"match\" or a rank from 1 to %d", ErrBadSimOptions,
+			upgradeRanks)
+	}
+	return dropUpgrade{Tracks: s.Ref.Upgrades, Rank: rank}, nil
 }
 
 // twoHanded asks Items whether the item is a two-handed weapon.
@@ -351,7 +375,10 @@ func (s *Sims) Start(req models.SimRequest) (models.Sim, error) {
 		}
 	case "drops":
 		limit = maxDrops
-		combos, err = dropCombos(profile, s.Drops, req.Difficulty, req.KeyLevel, s.upgradesFor(req))
+		var up dropUpgrade
+		if up, err = s.dropUpgrade(req); err == nil {
+			combos, err = dropCombos(profile, s.Drops, req.Difficulty, req.KeyLevel, up)
+		}
 	}
 	if err == nil && req.Kind == "stats" && len(dims) > 0 {
 		err = errStatsOneSetup
@@ -381,8 +408,8 @@ func (s *Sims) Start(req models.SimRequest) (models.Sim, error) {
 	input, output := filepath.Join(work, id+".simc"), filepath.Join(work, id+".json")
 	head := SimInput(profile) + consumables + scaleLine(req.Kind)
 	ctx, cancel := context.WithTimeout(s.Ctx, simTimeout)
-	sim := models.Sim{ID: id, Kind: req.Kind, State: models.SimRunning, Character: profile.Name, Spec: profile.Spec,
-		Options: req.Options, StartedMS: s.Now().UnixMilli()}
+	sim := models.Sim{ID: id, Kind: req.Kind, State: models.SimRunning, Character: profile.Name, Class: profile.Class,
+		Spec: profile.Spec, Options: req.Options, StartedMS: s.Now().UnixMilli()}
 	if s.runs == nil {
 		s.runs = map[string]*simRun{}
 	}
@@ -597,6 +624,8 @@ type simJSON struct {
 					Mean       float64 `json:"mean"`
 					MeanStdDev float64 `json:"mean_std_dev"`
 				} `json:"dps"`
+				Pre      []simActionJSON `json:"action_sequence_precombat"`
+				Sequence []simActionJSON `json:"action_sequence"`
 			} `json:"collected_data"`
 			ScaleFactors map[string]float64 `json:"scale_factors"`
 			Stats        []struct {
@@ -618,11 +647,44 @@ type simJSON struct {
 			Buffs []struct {
 				SpellName string  `json:"spell_name"`
 				Name      string  `json:"name"`
+				School    string  `json:"spell_school"`
 				Spell     int     `json:"spell"`
 				Uptime    float64 `json:"uptime"`
+				Starts    float64 `json:"start_count"`
 			} `json:"buffs"`
 		} `json:"players"`
 	} `json:"sim"`
+}
+
+// simActionJSON is one action of simc's sample iteration.
+type simActionJSON struct {
+	Time      float64 `json:"time"`
+	ID        int     `json:"id"`
+	SpellName string  `json:"spell_name"`
+	Target    string  `json:"target"`
+	Buffs     []struct {
+		ID     int    `json:"id"`
+		Name   string `json:"name"`
+		Stacks int    `json:"stacks"`
+	} `json:"buffs"`
+}
+
+// sampleLog is the sample iteration's actions, those before the pull first, with each buff named as the buffs list
+// (simc's own names are snake_case, the list's are the spell's).
+func sampleLog(pre, seq []simActionJSON, names map[string]string) []models.SimLogEntry {
+	var log []models.SimLogEntry
+	for i, a := range append(slices.Clone(pre), seq...) {
+		e := models.SimLogEntry{Time: a.Time, Pre: i < len(pre), Name: a.SpellName, ID: a.ID,
+			Target: strings.ReplaceAll(a.Target, "_", " ")}
+		if e.Target == "none" {
+			e.Target = ""
+		}
+		for _, b := range a.Buffs {
+			e.Buffs = append(e.Buffs, models.SimLogBuff{Name: cmp.Or(names[b.Name], b.Name), ID: b.ID, Stacks: b.Stacks})
+		}
+		log = append(log, e)
+	}
+	return log[:min(len(log), maxSimLog)]
 }
 
 // readSimResult is the result in simc's json2 file at path, with the DPS of each of a Top Gear sim's combos.
@@ -649,10 +711,16 @@ func readSimResult(path string, combos []gearCombo) (*models.SimResult, error) {
 			result.Abilities = append(result.Abilities, ability)
 		}
 	}
+	names := map[string]string{}
 	for _, b := range player.Buffs {
+		names[b.Name] = cmp.Or(b.SpellName, b.Name)
 		if b.Uptime >= 1 {
-			result.Buffs = append(result.Buffs, models.SimBuff{Name: cmp.Or(b.SpellName, b.Name), ID: b.Spell, Uptime: b.Uptime})
+			result.Buffs = append(result.Buffs, models.SimBuff{Name: names[b.Name], ID: b.Spell, School: b.School,
+				Uptime: b.Uptime, Count: b.Starts})
 		}
+	}
+	if len(combos) == 0 {
+		result.Log = sampleLog(player.Collected.Pre, player.Collected.Sequence, names)
 	}
 	slices.SortStableFunc(result.Abilities, func(a, b models.SimAbility) int { return cmp.Compare(b.DPS, a.DPS) })
 	slices.SortStableFunc(result.Buffs, func(a, b models.SimBuff) int { return cmp.Compare(b.Uptime, a.Uptime) })

@@ -1,5 +1,5 @@
-import type { SimItemInfo, SimProfile, SimReference, SimVariant } from './api'
-import { ItemLine } from './SimItem'
+import type { SimGem, SimItemInfo, SimProfile, SimReference, SimVariant } from './api'
+import { ItemLine, Sockets } from './SimItem'
 import { gearGroups } from './simOptions'
 import { ItemVariants } from './SimVariants'
 
@@ -21,8 +21,9 @@ export function SimGear(props: {
   }
   order: string[]
   info: Map<number, SimItemInfo>
+  gems: SimGem[] // to draw the gems in the sockets
 }) {
-  const { profile, order, pick, info } = props
+  const { profile, order, pick, info, gems } = props
   const groups = gearGroups(profile.equipped, pick ? profile.bags : [], order)
   return (
     <div className="sim-doll">
@@ -46,7 +47,12 @@ export function SimGear(props: {
                       <ItemLine
                         item={item}
                         info={info.get(item.id)}
-                        extra={worn && <span className="sim-worn">worn</span>}
+                        extra={
+                          <>
+                            {worn && <span className="sim-worn">worn</span>}
+                            <Sockets item={item} gems={gems} />
+                          </>
+                        }
                       />
                     </label>
                     {pick && (
