@@ -28,9 +28,6 @@ const DOLL_COLUMNS: Record<string, number> = {
   hands: 1, waist: 1, legs: 1, feet: 1, finger: 1, trinket: 1,
 }
 
-/** An item as the page names it: its name (or ID) and item level. */
-export const itemText = (item: SimItem) => `${item.name ?? `item ${item.id}`}${item.level ? ` (${item.level})` : ''}`
-
 /** The items of each group in order (SimChoices.gearGroups), as indexes into the profile's equipped and bags lists,
  * worn ones first; empty groups left out. */
 export function gearGroups(equipped: SimItem[], bags: SimItem[], order: string[]) {
