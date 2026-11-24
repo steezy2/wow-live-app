@@ -7,8 +7,7 @@ the same change; move it to **Done** (with the PR) when it lands. Size: S under 
 
 | # | Item | Where | Why it matters | Size |
 |---|------|-------|----------------|------|
-| 1 | Every saved key and pull is kept fully in memory | `LogTracker.history` / `pulls` in `service/mplus.go` (about 40 call sites) | Memory grows with history; load on demand instead | L |
-| 2 | The overlay window is always created, even hidden | `cmd/app/main.go` | A second WebView2 renderer costs tens of MB when the overlay is off | M |
+| 1 | Every saved key and pull is kept fully in memory: 623 raid pulls are about 109 MB of heap, `Abilities`, `Taken` and `Targets` being about 65% of a pull's JSON (30% of a key's) | `LogTracker.history` / `pulls` in `service/mplus.go` (about 40 call sites) | Keep those lists out of memory and read them from the file on demand. Hazards: `wclimport.go` saves the in-memory fights back (links), so a trimmed one would overwrite a file; `recap.go` sums `Taken` over every pull (a per-boss total saved with the pull would do); `similarKeys` counts `Abilities`. Needs the golden-fixture test (item 7) first | L |
 | 3 | `Tabs` mounts every panel up front | `Tabs.tsx` | A key page fetches routes, comparison, dungeon map and mobs even if the Route tab never opens. Lazy mount conflicts with the "as tall as the tallest" layout | M |
 | 7 | The byte-for-byte Learn check is manual | CLAUDE.md rule, `app.readInto` | A small golden-fixture test would catch changes to saved keys and pulls in CI | M |
 | 8 | Gin could be `net/http` `ServeMux` | `controller/` | The app links 350 packages; Gin's binding pulls in `validator` and `protobuf`. Smaller binary, fewer dependencies; check that swaggo still works | L |
@@ -33,6 +32,7 @@ the same change; move it to **Done** (with the PR) when it lands. Size: S under 
 
 ## Done
 
+- The overlay window (`perf/lazy-history-overlay`) is created on first show (`newOverlay` in `cmd/app/main.go`), item 2.
 - Tracks (`perf/compact-tracks`): saved tracks are `.json.gz` (`cachefile` gzips by the `.gz` name; `keystore.CompressTracks` converts the old ones at start) and `keystore.Recent` keeps the last two decoded (items 13 and 15). Item 14 is dropped: columnar `t[]`/`x[]`/`y[]` points measured 11% off a track before gzip and 4% after, since the points are a small part of it.
 - Shared state (`chore/frontend-shared-state`): one browser event stream (`subscribe`), one clock per tick (`useNow`), the keys list shared while in flight (`sharedRead`), `KeyRoute`'s `live` flag; the page keeps its width while a tab loads; one button look.
 - Whole-repo review bugs, fixed in `fix/review-bugs`: a stale cache stands in when the download fails (an over-time key was saved as Timed); a saved key's or pull's error clears (`useSaved`); open buffs, spike stretches and mass kills come out in a fixed order; `Reload` keeps keys and pulls not yet saved; a cancelled hover no longer blocks a spell; `LinkReports` and `RemoveImported` write outside the tracker's lock; the Recap's key length is the key's clock; an empty overlay column list is kept and duplicates are refused; a second launch during start-up can't panic; the waiting card follows the log; the missing-credentials message is neutral.
