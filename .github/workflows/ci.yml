@@ -59,7 +59,7 @@ jobs:
       - name: Embed the page and rules (cmd/app needs them to compile)
         shell: bash
         run: bash backend/cmd/app/build.sh
-      - run: go test ./cmd/app
+      - run: go test ./...
         working-directory: backend
 
   frontend:
