@@ -15,7 +15,7 @@ const maxCustomBytes = 16 << 10
 // (override.bloodlust=0). The ones the app sets itself (fight style, length, targets, accuracy, threads) are not here,
 // and neither is anything that reads or writes a file. Add a key here to allow it.
 var customOptions = []string{
-	"optimal_raid", "fixed_time", "vary_combat_length", "override.", "apl_variable.",
+	"fixed_time", "vary_combat_length", "override.", "apl_variable.",
 	"bloodlust_percent", "bloodlust_time", "allow_potions", "allow_food", "allow_flasks", "allow_augmentations",
 	"seed", "deterministic", "skill", "position", "world_lag", "world_lag_stddev",
 }

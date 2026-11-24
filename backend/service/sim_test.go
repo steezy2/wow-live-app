@@ -447,3 +447,28 @@ func TestASmallSimRunsOnce(t *testing.T) {
 		t.Errorf("%d runs, stages %v, want one run and no stages", n, sim.Result.Stages)
 	}
 }
+
+func TestScenariosAreValidFightsAndRaidBuffsCanBeLeftOut(t *testing.T) {
+	for _, sc := range simScenarios {
+		o := models.SimOptions{FightStyle: sc.FightStyle, Length: sc.Length, Targets: sc.Targets, Accuracy: "normal"}
+		if err := validateSimOptions("quick", o); err != nil {
+			t.Errorf("scenario %q: %v", sc.Name, err)
+		}
+	}
+}
+
+func TestRaidBuffsOffComeBeforeTheCustomLines(t *testing.T) {
+	s := newTestSims(t, "ok")
+	req := simRequest(t)
+	req.Options.NoRaidBuffs, req.Custom = true, "override.bloodlust=1"
+	started, err := s.Start(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	waitSim(t, s, started.ID)
+	input := s.Engine.(*fakeEngine).input
+	off, custom := strings.Index(input, "optimal_raid=0"), strings.Index(input, "override.bloodlust=1")
+	if off < 0 || custom < off {
+		t.Errorf("optimal_raid=0 at %d, the custom line at %d: want it first so the override isn't reset", off, custom)
+	}
+}

@@ -2920,6 +2920,12 @@ definitions:
         type: integer
       minLength:
         type: integer
+      scenarios:
+        description: Scenarios are named fights to start the options from (Raid, M+
+          AoE).
+        items:
+          $ref: '#/definitions/models.SimScenario'
+        type: array
       upgradeRanks:
         description: |-
           UpgradeRanks is how many ranks of an upgrade track a Droptimizer can upgrade drops to (the ranks past it are
@@ -3133,6 +3139,8 @@ definitions:
       length:
         example: 300
         type: integer
+      noRaidBuffs:
+        type: boolean
       targets:
         example: 1
         type: integer
@@ -3373,6 +3381,21 @@ definitions:
         items:
           $ref: '#/definitions/models.SimStatWeight'
         type: array
+    type: object
+  models.SimScenario:
+    properties:
+      fightStyle:
+        example: HecticAddCleave
+        type: string
+      length:
+        example: 180
+        type: integer
+      name:
+        example: M+ AoE
+        type: string
+      targets:
+        example: 3
+        type: integer
     type: object
   models.SimStage:
     properties:

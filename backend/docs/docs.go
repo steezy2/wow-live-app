@@ -6887,6 +6887,13 @@ const docTemplate = `{
                 "minLength": {
                     "type": "integer"
                 },
+                "scenarios": {
+                    "description": "Scenarios are named fights to start the options from (Raid, M+ AoE).",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.SimScenario"
+                    }
+                },
                 "upgradeRanks": {
                     "description": "UpgradeRanks is how many ranks of an upgrade track a Droptimizer can upgrade drops to (the ranks past it are\nMythic raid only).",
                     "type": "integer",
@@ -7190,6 +7197,9 @@ const docTemplate = `{
                     "type": "integer",
                     "example": 300
                 },
+                "noRaidBuffs": {
+                    "type": "boolean"
+                },
                 "targets": {
                     "type": "integer",
                     "example": 1
@@ -7491,6 +7501,27 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/models.SimStatWeight"
                     }
+                }
+            }
+        },
+        "models.SimScenario": {
+            "type": "object",
+            "properties": {
+                "fightStyle": {
+                    "type": "string",
+                    "example": "HecticAddCleave"
+                },
+                "length": {
+                    "type": "integer",
+                    "example": 180
+                },
+                "name": {
+                    "type": "string",
+                    "example": "M+ AoE"
+                },
+                "targets": {
+                    "type": "integer",
+                    "example": 3
                 }
             }
         },

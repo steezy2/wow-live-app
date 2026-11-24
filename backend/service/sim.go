@@ -72,6 +72,9 @@ var (
 		"DungeonSlice"}
 	simAccuracies = []simAccuracy{{"quick", 0.3}, {"normal", 0.1}, {"high", 0.05}}
 	simDefaults   = models.SimOptions{FightStyle: "Patchwerk", Length: 300, Targets: 1, Accuracy: "normal"}
+	simScenarios  = []models.SimScenario{{Name: "Patchwerk (1 target)", FightStyle: "Patchwerk", Length: 300, Targets: 1},
+		{Name: "M+ AoE", FightStyle: "HecticAddCleave", Length: 180, Targets: 3},
+		{Name: "Raid (5 targets)", FightStyle: "HecticAddCleave", Length: 360, Targets: 5}}
 
 	simIDPattern = regexp.MustCompile(`^[0-9a-f]{16}$`)
 	// simProgress is simc's progress line: "Generating Profileset: t50 2/76 [====>...] 1122/4300 146.2 Mean=...", the
@@ -143,7 +146,7 @@ func (s *Sims) Choices() models.SimChoices {
 		MaxLength: maxSimLength, MaxTargets: maxSimTargets, MaxCombos: maxCombos, MaxCompare: maxCompareValues,
 		MaxParallel: maxParallelSims, UpgradeRanks: upgradeRanks,
 		ConsumableKinds: models.SimConsumableKinds, MaxDrops: maxDrops,
-		Difficulties: simDifficulties, KeyLevels: keyLevels, Defaults: simDefaults,
+		Difficulties: simDifficulties, KeyLevels: keyLevels, Defaults: simDefaults, Scenarios: simScenarios,
 		DefaultDifficulty: defaultDropDifficulty, DefaultKeyLevel: defaultKey, GearGroups: slices.Compact(groups),
 		MaxItemLookups: maxItemLookups}
 }
@@ -413,7 +416,11 @@ func (s *Sims) Start(req models.SimRequest) (models.Sim, error) {
 		return models.Sim{}, fmt.Errorf("making %s: %w", work, err)
 	}
 	input, output := filepath.Join(work, id+".simc"), filepath.Join(work, id+".json")
-	head := SimInput(profile) + customInput(custom) + consumables + scaleLine(req.Kind)
+	head := SimInput(profile)
+	if req.Options.NoRaidBuffs { // before the custom lines, so their override.* settings aren't reset by it
+		head += "optimal_raid=0\n"
+	}
+	head += customInput(custom) + consumables + scaleLine(req.Kind)
 	ctx, cancel := context.WithTimeout(s.Ctx, simTimeout)
 	sim := models.Sim{ID: id, Kind: req.Kind, State: models.SimRunning, Character: profile.Name, Class: profile.Class,
 		Spec: profile.Spec, Options: req.Options, StartedMS: s.Now().UnixMilli()}
