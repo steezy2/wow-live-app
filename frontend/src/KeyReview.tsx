@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { fetchReview, makeReview, type KeyReview as Review, type KeyView, type ReviewMetric } from './api'
 import { amount, errorText } from './format'
+import { Name } from './Seek'
 import { tip } from './tipAttrs'
 
 /** The cell's tone: deaths red, a combat potion green. */
@@ -25,6 +26,7 @@ const WAIT_MS = 90_000
 export function KeyReview(props: { keyView: KeyView; justEnded: boolean; onReview: (review: Review) => void }) {
   const { keyView: key, justEnded, onReview } = props
   const [review, setReview] = useState<Review | null>(null)
+  const classes = useMemo(() => Object.fromEntries(key.overall.rows.map((r) => [r.player, r.class])), [key.overall])
   useEffect(() => {
     if (review) onReview(review)
   }, [review, onReview])
@@ -85,9 +87,6 @@ export function KeyReview(props: { keyView: KeyView; justEnded: boolean; onRevie
         {review.baseline}
         {review.party && ` · ${review.party}`}
       </p>
-      {review.notes?.map((n) => (
-        <p key={n}>{n}</p>
-      ))}
       <div className="table-scroll">
         <table className="review-table">
           <thead>
@@ -105,7 +104,7 @@ export function KeyReview(props: { keyView: KeyView; justEnded: boolean; onRevie
             {review.players.map((p) => (
               <tr key={p.player}>
                 <td {...tip(p.spec)}>
-                  <b>{p.player}</b>
+                  <Name player={p.player} classes={classes} />
                 </td>
                 {p.metrics.map((m) => {
                   const show = (v: number) => (m.amount ? amount(v) : String(Math.round(v)))
@@ -129,9 +128,17 @@ export function KeyReview(props: { keyView: KeyView; justEnded: boolean; onRevie
         </table>
       </div>
       <div className="review-players">
+        {!!review.notes?.length && (
+          <div className="review-player">
+            <b>Party</b>
+            {review.notes.map((n) => (
+              <p key={n}>• {n}</p>
+            ))}
+          </div>
+        )}
         {review.players.map((p) => (
           <div key={p.player} className="review-player">
-            <b>{p.player}</b>
+            <Name player={p.player} classes={classes} />
             <p className="good">✓ {p.positive}</p>
             {p.advice.map((a) => (
               <p key={a}>• {a}</p>

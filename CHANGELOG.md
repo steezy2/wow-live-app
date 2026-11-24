@@ -5,6 +5,9 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 ## [Unreleased]
 
 ### Changed
+- **The key review's player names have their class colour**, and its party lines (deaths added to the clock, must-stops, time between pulls, priority target) are a bulleted *Party* card beside the players' cards.
+- **The tabs under a key or pull are buttons:** boxed, the open one filled.
+- **A death line on the overlay is a button** (boxed and tinted red) while the overlay takes clicks.
 - **Less memory for saved keys and raid pulls:** the app keeps them without their per-ability lists (about a third of a key, two thirds of a pull) and reads the whole fight from its file when a page, a review or a link needs it. On the owner's 209 keys and 623 pulls the heap for them went from 134 MB to 65 MB.
 - **The overlay's window is made the first time it is shown**, not at start: with the overlay off (or no key running yet) its second WebView2 renderer, tens of MB, never starts.
 - **Saved tracks are gzipped** (about 5x smaller: 2.5 MB to 0.5 MB), and the app compresses the ones already saved once, in the background, when it starts. A saved key's map, route and review read the last two tracks from memory instead of decoding the file each time.
@@ -13,6 +16,7 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 - **A key's Route tab** reads its comparison again only while the key runs and the tab is open (it took the track just as a trigger).
 
 ### Fixed
+- **One long phrase can't shrink the overlay:** a line of text (a death's ability, a fix, a boss's name) wraps to the width of the cards and bars instead of setting it, so the overlay's zoom no longer drops to its minimum.
 - **A page no longer starts narrow and moves to the middle** when its tab opens: the page keeps its full width while its content loads.
 - **Names in a damage spike's list** have their class colour.
 
