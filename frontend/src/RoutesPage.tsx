@@ -212,23 +212,22 @@ export function RoutesPage({ visible, character }: { visible: boolean; character
           </div>
         ))}
         {dungeon !== null && (
-          <button className="clear" onClick={() => add(() => createRoute(dungeon, 'New route'))}>
-            New route
-          </button>
-        )}
-        {dungeon !== null &&
-          (armed?.mapID === dungeon ? (
-            <>
-              <p className="muted small">Waiting for the next key in this dungeon to end, then recording its pulls.</p>
+          <div className="route-tools boxed">
+            <button onClick={() => add(() => createRoute(dungeon, 'New route'))}>New route</button>
+            {armed?.mapID === dungeon ? (
               <button className="action" onClick={() => setArmed(null)}>
                 Cancel recording
               </button>
-            </>
-          ) : (
-            <button className="action" onClick={() => setArmed({ mapID: dungeon, after: endedHere })}>
-              Record next run as new route
-            </button>
-          ))}
+            ) : (
+              <button className="action" onClick={() => setArmed({ mapID: dungeon, after: endedHere })}>
+                Record next run as new route
+              </button>
+            )}
+          </div>
+        )}
+        {dungeon !== null && armed?.mapID === dungeon && (
+          <p className="muted small">Waiting for the next key in this dungeon to end, then recording its pulls.</p>
+        )}
         <h2>Import a string</h2>
         <textarea
           rows={3}
@@ -237,16 +236,18 @@ export function RoutesPage({ visible, character }: { visible: boolean; character
           placeholder="Paste a Mythic Dungeon Tools export string"
           aria-label="export string"
         />
-        <button
-          disabled={!code.trim()}
-          onClick={() => add(() => importRoute(code.trim()).then((r) => (setCode(''), r)))}
-        >
-          Import string
-        </button>
+        <div className="route-tools boxed">
+          <button
+            disabled={!code.trim()}
+            onClick={() => add(() => importRoute(code.trim()).then((r) => (setCode(''), r)))}
+          >
+            Import string
+          </button>
+        </div>
         <h2>From MDT's saves</h2>
         {savedHere.length === 0 && <p className="muted small">No saved routes for this dungeon.</p>}
         {savedHere.map((s) => (
-          <div key={s.uid} className="item">
+          <div key={s.uid} className="item boxed">
             <span className="open">
               <span>{s.name}</span>
               <span className="muted small">
@@ -267,7 +268,7 @@ export function RoutesPage({ visible, character }: { visible: boolean; character
         {notice && <p className="muted">{notice}</p>}
         {route && rows && route.id === shown?.id ? (
           <>
-            <div className="title">
+            <div className="title boxed">
               <input
                 className="route-name"
                 value={draft.name}
@@ -323,7 +324,7 @@ export function RoutesPage({ visible, character }: { visible: boolean; character
                 limits={route.limits}
               />
               <div>
-                <div className="route-tools">
+                <div className="route-tools boxed">
                   {mobs && (
                     <label className="route-level" {...tip('The key level the health and damage are at')}>
                       +

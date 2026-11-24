@@ -3,6 +3,7 @@ package service
 import (
 	"errors"
 	"io/fs"
+	"log"
 	"slices"
 	"strconv"
 	"strings"
@@ -20,8 +21,11 @@ func (k *LogTracker) RaidLive(now int64) models.RaidLive {
 		live.Pulling, live.Boss, live.Since = true, run.key.Dungeon, run.key.Start
 	}
 	if len(k.pulls) > 0 {
-		last := k.compared(k.pulls[0])
-		live.Last = &last
+		if last, err := k.compared(k.pulls[0]); err != nil {
+			log.Printf("showing the last raid pull: %v", err)
+		} else {
+			live.Last = &last
+		}
 	}
 	live.BetweenPulls = k.betweenPulls(now)
 	return live
@@ -80,7 +84,7 @@ func (k *LogTracker) RaidPull(start int64) (models.RaidPull, error) {
 	if i < 0 {
 		return models.RaidPull{}, ErrNoSuchPull
 	}
-	return k.compared(k.pulls[i]), nil
+	return k.compared(k.pulls[i])
 }
 
 // numbered is a pull with its number among the night's pulls on its boss and difficulty, from the pulls known now
@@ -92,9 +96,13 @@ func (k *LogTracker) numbered(p models.RaidPull) models.RaidPull {
 	return p
 }
 
-// compared is a pull, numbered, with tonight's best and the best ever on its boss and difficulty, each left out
-// when it's the pull itself.
-func (k *LogTracker) compared(p models.RaidPull) models.RaidPull {
+// compared is a pull in full (read from its file when the tracker holds it slim), numbered, with tonight's best and
+// the best ever on its boss and difficulty, each left out when it's the pull itself.
+func (k *LogTracker) compared(p models.RaidPull) (models.RaidPull, error) {
+	p, err := whole(k.raid.store, p)
+	if err != nil {
+		return models.RaidPull{}, err
+	}
 	p = k.numbered(p)
 	p.Maps, p.Lanes = list(k.raid.bosses[p.Boss].Maps), list(p.Lanes) // pulls saved before Nov 9 have no lanes
 	var tonight, ever *models.RaidPull
@@ -125,7 +133,7 @@ func (k *LogTracker) compared(p models.RaidPull) models.RaidPull {
 		p.Comparisons = &c
 	}
 	p.Suggestions = list(suggestions(p, best, k.raid.rules.Suggestions))
-	return p
+	return p, nil
 }
 
 // better is whether pull a got further than b: a kill, else a later phase, else less boss health left, else the

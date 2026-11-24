@@ -179,6 +179,10 @@ type RaidGuideLine struct {
 // RaidPull is one raid pull as the overview shows it: the boss, difficulty and pull number tonight, how far it got,
 // the deaths, what went wrong by kind of mechanic, the meters and the cooldowns, and the pulls it's compared with.
 type RaidPull struct {
+	// slim, hadAbilities and takenBy are set by Slim, which drops the lists a fight's own page reads.
+	slim, hadAbilities bool
+	takenBy            map[string]int64
+
 	// Report is the Warcraft Logs fight this pull is, when one is known (imported, or matched to a report).
 	Report *ReportLink `json:"report,omitempty"`
 	// Imported marks a pull built from a Warcraft Logs report instead of a local combat log.
