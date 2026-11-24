@@ -2798,6 +2798,10 @@ definitions:
       spec:
         example: elemental
         type: string
+      stage:
+        description: 'Stage says which stage of a raced sim is running ("Stage 2 of
+          3: 140 combinations at 0.5%").'
+        type: string
       startedMS:
         type: integer
       state:
@@ -3280,12 +3284,27 @@ definitions:
         type: array
       pawn:
         type: string
+      stages:
+        description: Stages are the stages of a raced sim (SimStage), the last one
+          the report's.
+        items:
+          $ref: '#/definitions/models.SimStage'
+        type: array
       weights:
         description: Weights and Pawn are a "stats" sim's stat weights and the Pawn
           string that carries them.
         items:
           $ref: '#/definitions/models.SimStatWeight'
         type: array
+    type: object
+  models.SimStage:
+    properties:
+      combos:
+        example: 1000
+        type: integer
+      error:
+        example: 1
+        type: number
     type: object
   models.SimStatWeight:
     properties:

@@ -295,8 +295,10 @@ func gearSwaps(worn map[string]*models.SimItem, fills ...gearFill) []models.SimS
 func gearProfilesets(combos []gearCombo) string {
 	var b strings.Builder
 	for _, c := range combos {
-		if c.line != "" {
-			fmt.Fprintf(&b, "profileset.%s+=%s", c.name, c.line)
+		for _, line := range strings.SplitAfter(c.line, "\n") { // each of a combination's own lines is a profileset line
+			if line != "" {
+				fmt.Fprintf(&b, "profileset.%s+=%s", c.name, line)
+			}
 		}
 		for _, s := range c.swaps {
 			line := s.Slot + "=\n"

@@ -6682,6 +6682,10 @@
                     "type": "string",
                     "example": "elemental"
                 },
+                "stage": {
+                    "description": "Stage says which stage of a raced sim is running (\"Stage 2 of 3: 140 combinations at 0.5%\").",
+                    "type": "string"
+                },
                 "startedMS": {
                     "type": "integer"
                 },
@@ -7336,12 +7340,32 @@
                 "pawn": {
                     "type": "string"
                 },
+                "stages": {
+                    "description": "Stages are the stages of a raced sim (SimStage), the last one the report's.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.SimStage"
+                    }
+                },
                 "weights": {
                     "description": "Weights and Pawn are a \"stats\" sim's stat weights and the Pawn string that carries them.",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/models.SimStatWeight"
                     }
+                }
+            }
+        },
+        "models.SimStage": {
+            "type": "object",
+            "properties": {
+                "combos": {
+                    "type": "integer",
+                    "example": 1000
+                },
+                "error": {
+                    "type": "number",
+                    "example": 1
                 }
             }
         },
