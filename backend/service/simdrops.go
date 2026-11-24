@@ -24,18 +24,29 @@ func raidLevel(l models.DifficultyLevels, difficulty string) int {
 	return []int{l.LFR, l.Normal, l.Heroic, l.Mythic}[slices.Index(simDifficulties, difficulty)]
 }
 
-// maxedLevel is the item level a drop of level reaches at the top rank of its upgrade track: the track that has level
-// at its lowest rank (the higher track of two), or level itself when no track has it (an item past its track's top).
-func maxedLevel(tracks []models.SimUpgradeTrack, level int) int {
-	maxed, rank, group := level, 0, 0
+// Ascendant Venomstones (10 of them, used at the Catalyst) raise a fully upgraded Hero or Myth weapon, trinket or neck
+// by venomstoneLevels item levels. Wowhead's item 280562 (patch 12.1.5) names the tracks and slots but not the amount;
+// +6 is a commenter's, NOT YET CHECKED in the game (the first note said +10).
+const venomstoneLevels = 6
+
+var (
+	venomstoneTracks = []string{"Hero", "Myth"}
+	venomstoneSlots  = []string{"one_hand", "two_hand", "main_hand", "off_hand", "trinket", "neck"}
+)
+
+// maxedLevel is the item level a drop of level reaches at the top rank of its upgrade track, and the track's name: the
+// track that has level at its lowest rank (the higher track of two), or level itself and no track when none has it
+// (an item past its track's top).
+func maxedLevel(tracks []models.SimUpgradeTrack, level int) (int, string) {
+	maxed, name, rank, group := level, "", 0, 0
 	for _, t := range tracks {
 		for _, l := range t.Levels {
 			if l.ItemLevel == level && (rank == 0 || l.Level < rank || l.Level == rank && t.Group > group) {
-				maxed, rank, group = t.Levels[len(t.Levels)-1].ItemLevel, l.Level, t.Group
+				maxed, name, rank, group = t.Levels[len(t.Levels)-1].ItemLevel, t.Name, l.Level, t.Group
 			}
 		}
 	}
-	return maxed
+	return maxed, name
 }
 
 // dropCombos is one combination per piece of gear the season's raid bosses (at difficulty) and dungeons (at key level
@@ -63,11 +74,15 @@ func dropCombos(p models.SimProfile, d models.SimDrops, difficulty string, keyLe
 	}
 
 	var combos []gearCombo
-	add := func(source models.DropSource, boss models.DropBoss, level int) {
-		level = maxedLevel(upgrades, level)
+	add := func(source models.DropSource, boss models.DropBoss, dropped int) {
+		maxed, track := maxedLevel(upgrades, dropped)
 		for _, item := range boss.Items {
 			if len(item.Specs) > 0 && !slices.Contains(item.Specs, spec) {
 				continue
+			}
+			level := maxed
+			if slices.Contains(venomstoneTracks, track) && slices.Contains(venomstoneSlots, item.Slot) {
+				level += venomstoneLevels
 			}
 			slots, ok := dropSlots[item.Slot]
 			if !ok {

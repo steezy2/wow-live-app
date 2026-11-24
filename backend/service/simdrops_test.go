@@ -63,21 +63,25 @@ func TestDropCombosFollowTheSpecAndDifficulty(t *testing.T) {
 }
 
 func TestMaxedLevel(t *testing.T) {
-	track := func(group int, levels ...int) models.SimUpgradeTrack {
-		t := models.SimUpgradeTrack{Group: group}
+	track := func(group int, name string, levels ...int) models.SimUpgradeTrack {
+		t := models.SimUpgradeTrack{Group: group, Name: name}
 		for i, l := range levels {
 			t.Levels = append(t.Levels, models.SimUpgradeLevel{Level: i + 1, ItemLevel: l})
 		}
 		return t
 	}
-	tracks := []models.SimUpgradeTrack{track(615, 279, 282, 285, 289, 292, 295), track(616, 292, 295, 298, 302, 305, 308),
-		track(618, 318, 321, 324, 328, 331, 334)}
-	for level, want := range map[int]int{279: 295, 292: 308, 295: 308, 318: 334, 334: 334, 344: 344, 100: 100} {
-		if got := maxedLevel(tracks, level); got != want {
-			t.Errorf("maxedLevel(%d) = %d, want %d", level, got, want)
+	tracks := []models.SimUpgradeTrack{track(615, "Veteran", 279, 282, 285, 289, 292, 295),
+		track(616, "Champion", 292, 295, 298, 302, 305, 308), track(618, "Myth", 318, 321, 324, 328, 331, 334)}
+	for level, want := range map[int]struct {
+		level int
+		track string
+	}{279: {295, "Veteran"}, 292: {308, "Champion"}, 295: {308, "Champion"}, 318: {334, "Myth"}, 334: {334, "Myth"},
+		344: {344, ""}, 100: {100, ""}} {
+		if got, track := maxedLevel(tracks, level); got != want.level || track != want.track {
+			t.Errorf("maxedLevel(%d) = %d, %q, want %d, %q", level, got, track, want.level, want.track)
 		}
 	}
-	if got := maxedLevel(nil, 292); got != 292 {
+	if got, _ := maxedLevel(nil, 292); got != 292 {
 		t.Errorf("no tracks: %d, want the level kept", got)
 	}
 }
@@ -85,18 +89,18 @@ func TestMaxedLevel(t *testing.T) {
 func TestDropCombosUpgradeToTheTop(t *testing.T) {
 	p := gearProfile(false)
 	p.Class, p.Spec = "shaman", "elemental"
-	tracks := []models.SimUpgradeTrack{{Group: 1, Levels: []models.SimUpgradeLevel{{Level: 1, ItemLevel: 120},
-		{Level: 2, ItemLevel: 130}}}}
+	tracks := []models.SimUpgradeTrack{{Group: 1, Name: "Hero",
+		Levels: []models.SimUpgradeLevel{{Level: 1, ItemLevel: 120}, {Level: 2, ItemLevel: 130}}}}
 	combos, err := dropCombos(p, testDrops(), "heroic", 0, tracks)
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, c := range combos {
 		in := c.swaps[0].In
-		want := 130
-		if in.Name == "Trinket" {
-			want = 90 // the dungeon's level is on no track
-		}
+		want := map[string]int{"Ring": 130, // the top rank
+			"Staff": 130 + venomstoneLevels, "Wand": 130 + venomstoneLevels, // a Hero weapon takes Venomstones
+			"Trinket": 90, // the dungeon's level is on no track
+		}[in.Name]
 		if in.Level != want || in.Opts["ilevel"][0] != want {
 			t.Errorf("%s: level %d, ilevel %v, want %d", in.Name, in.Level, in.Opts["ilevel"], want)
 		}

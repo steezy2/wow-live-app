@@ -7281,7 +7281,7 @@ const docTemplate = `{
                     "example": "quick"
                 },
                 "maxUpgrade": {
-                    "description": "MaxUpgrade sims every drop of a Droptimizer at the top rank of its upgrade track, as if fully upgraded.",
+                    "description": "MaxUpgrade sims every drop of a Droptimizer fully upgraded: at the top rank of its upgrade track, and a Hero or Myth\nweapon, trinket or neck also with its Ascendant Venomstones.",
                     "type": "boolean"
                 },
                 "omnium": {

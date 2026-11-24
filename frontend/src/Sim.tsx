@@ -191,7 +191,7 @@ function OptionsPanel(props: {
           </label>
           <label className="inline">
             <input type="checkbox" checked={props.maxUpgrade} onChange={(e) => props.setMaxUpgrade(e.target.checked)} />
-            Upgrade every drop to the top of its track
+            Upgrade every drop fully, with Ascendant Venomstones where they apply
           </label>
         </>
       )}

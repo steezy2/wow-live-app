@@ -94,7 +94,8 @@ type SimRequest struct {
 	Difficulty string `json:"difficulty,omitempty" enums:"lfr,normal,heroic,mythic" example:"heroic"`
 	// KeyLevel is the Mythic+ key level a Droptimizer's dungeon drops are at, one of SimChoices.KeyLevels.
 	KeyLevel int `json:"keyLevel,omitempty" example:"10"`
-	// MaxUpgrade sims every drop of a Droptimizer at the top rank of its upgrade track, as if fully upgraded.
+	// MaxUpgrade sims every drop of a Droptimizer fully upgraded: at the top rank of its upgrade track, and a Hero or Myth
+	// weapon, trinket or neck also with its Ascendant Venomstones.
 	MaxUpgrade bool `json:"maxUpgrade,omitempty"`
 	// Consumables are what every kind of sim uses instead of simc's defaults.
 	Consumables SimConsumables `json:"consumables"`
