@@ -1,13 +1,24 @@
-import type { SimItemInfo, SimProfile } from './api'
+import type { SimItemInfo, SimProfile, SimReference, SimVariant } from './api'
 import { ItemLine } from './SimItem'
 import { gearGroups } from './simOptions'
+import { ItemVariants } from './SimVariants'
 
 /** The gear of a read character laid out like the paper doll: a column down each side and the weapons along the
- * bottom, each slot a card with what is worn and, for Top Gear (pick set), the bag items that fit, each with a
- * checkbox. equipped and bags are the picked indexes into the profile's lists. */
+ * bottom, each slot a card with what is worn and, for Top Gear (pick set), the bag items that fit, the highest item
+ * level first, each with a checkbox and a form for variants of it. equipped and bags are the picked indexes into the
+ * profile's lists. */
 export function SimGear(props: {
   profile: SimProfile
-  pick?: { equipped: number[]; bags: number[]; onToggle: (worn: boolean, index: number) => void }
+  pick?: {
+    equipped: number[]
+    bags: number[]
+    onToggle: (worn: boolean, index: number) => void
+    reference: SimReference
+    variants: SimVariant[]
+    notes: string[] // what each variant changes, in the app's words (the plan's)
+    onAddVariant: (v: SimVariant) => void
+    onRemoveVariant: (v: SimVariant) => void
+  }
   order: string[]
   info: Map<number, SimItemInfo>
 }) {
@@ -23,20 +34,34 @@ export function SimGear(props: {
               <div key={g.key} className="sim-slot">
                 <h3>{g.label}</h3>
                 {g.items.map(({ item, index, worn }) => (
-                  <label key={`${worn}-${index}`} className={pick ? 'sim-pick' : 'sim-pick fixed'}>
+                  <div key={`${worn}-${index}`} className="sim-entry">
+                    <label className={pick ? 'sim-pick' : 'sim-pick fixed'}>
+                      {pick && (
+                        <input
+                          type="checkbox"
+                          checked={(worn ? pick.equipped : pick.bags).includes(index)}
+                          onChange={() => pick.onToggle(worn, index)}
+                        />
+                      )}
+                      <ItemLine
+                        item={item}
+                        info={info.get(item.id)}
+                        extra={worn && <span className="sim-worn">worn</span>}
+                      />
+                    </label>
                     {pick && (
-                      <input
-                        type="checkbox"
-                        checked={(worn ? pick.equipped : pick.bags).includes(index)}
-                        onChange={() => pick.onToggle(worn, index)}
+                      <ItemVariants
+                        item={item}
+                        worn={worn}
+                        index={index}
+                        reference={pick.reference}
+                        variants={pick.variants}
+                        notes={pick.notes}
+                        onAdd={pick.onAddVariant}
+                        onRemove={pick.onRemoveVariant}
                       />
                     )}
-                    <ItemLine
-                      item={item}
-                      info={info.get(item.id)}
-                      extra={worn && <span className="sim-worn">worn</span>}
-                    />
-                  </label>
+                  </div>
                 ))}
               </div>
             ))}

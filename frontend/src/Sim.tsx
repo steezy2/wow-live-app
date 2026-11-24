@@ -3,6 +3,7 @@ import {
   fetchSim,
   fetchSimChoices,
   fetchSimEngine,
+  fetchSimReference,
   fetchSims,
   installSimEngine,
   parseSimExport,
@@ -10,16 +11,25 @@ import {
   startSim,
   type Sim,
   type SimChoices,
+  type SimCompare,
+  type SimConsumables,
   type SimEngineStatus,
   type SimKind,
   type SimOptions,
+  type SimPlan,
   type SimProfile,
+  type SimReference,
+  type SimRequest,
+  type SimVariant,
 } from './api'
 import { amount, errorText, sizeText } from './format'
+import { OmniumFolio } from './OmniumFolio'
+import { ConsumableCompare, ConsumableSelects } from './SimConsumables'
 import { SimGear, SimHeader } from './SimGear'
 import { useItemInfo } from './simItems'
+import { usePlan } from './simPlan'
 import { SimResult } from './SimResult'
-import { simOptionsError } from './simOptions'
+import { omniumPicks, omniumString, pickedConsumables, simOptionsError } from './simOptions'
 import { Skeleton } from './Skeleton'
 import { tip } from './tipAttrs'
 
@@ -30,6 +40,7 @@ const KINDS: [SimKind, string, string][] = [
   ['quick', 'Quick Sim', 'One DPS number with each ability and buff'],
   ['topgear', 'Top Gear', 'The best combination of the gear you carry'],
   ['drops', 'Droptimizer', "Each piece the season's raid and dungeons drop, by its gain"],
+  ['consumables', 'Consumables', 'Flasks, food, potions, augment runes or weapon oils against each other'],
 ]
 
 /** The engine on one line: what is installed (or the plain words about the download), with its buttons. */
@@ -79,9 +90,118 @@ function EngineBar(props: {
   )
 }
 
+/** What a Top Gear request makes, in words: how many combinations (of the max that run) and about how long, or why the
+ * app would refuse it. */
+function PlanText({ plan, max }: { plan: { plan: SimPlan | null; error: string | null }; max: number }) {
+  const refusal = plan.error ?? plan.plan?.error
+  if (refusal) return <p className="warning">{refusal}</p>
+  if (!plan.plan) return <p className="muted small">Counting the combinations…</p>
+  const { combos, seconds } = plan.plan
+  const about = seconds < 90 ? `${seconds} s` : `${Math.round(seconds / 60)} min`
+  return (
+    <p className="muted small">
+      {combos} combination{combos > 1 ? 's' : ''} of {max} · about {about}
+    </p>
+  )
+}
+
+/** The fight's options, the consumables and for a Droptimizer where the drops come from, with the Sim button and a
+ * running sim's progress, in the panel beside the gear. */
+function OptionsPanel(props: {
+  kind: SimKind
+  choices: SimChoices
+  options: SimOptions
+  setOptions: (o: SimOptions) => void
+  difficulty: string
+  setDifficulty: (d: string) => void
+  keyLevel: number
+  setKeyLevel: (k: number) => void
+  optionsError: string | null
+  reference: SimReference
+  consumables: SimConsumables
+  setConsumables: (c: SimConsumables) => void
+  plan: { plan: SimPlan | null; error: string | null } | null
+  canRun: boolean
+  running: Sim | null
+  onRun: () => void
+}) {
+  const { kind, choices, options, setOptions, optionsError, running } = props
+  return (
+    <aside className="panel sim-options">
+      <h2>Fight</h2>
+      <label>
+        Style
+        <select value={options.fightStyle} onChange={(e) => setOptions({ ...options, fightStyle: e.target.value })}>
+          {choices.fightStyles.map((s) => (
+            <option key={s}>{s}</option>
+          ))}
+        </select>
+      </label>
+      <label>
+        Length (s)
+        <input
+          type="number"
+          value={options.length}
+          onChange={(e) => setOptions({ ...options, length: Number(e.target.value) })}
+        />
+      </label>
+      <label>
+        Targets
+        <input
+          type="number"
+          value={options.targets}
+          onChange={(e) => setOptions({ ...options, targets: Number(e.target.value) })}
+        />
+      </label>
+      <label>
+        Accuracy
+        <select value={options.accuracy} onChange={(e) => setOptions({ ...options, accuracy: e.target.value })}>
+          {choices.accuracies.map((a) => (
+            <option key={a}>{a}</option>
+          ))}
+        </select>
+      </label>
+      {kind === 'drops' && (
+        <>
+          <label>
+            Raid difficulty
+            <select value={props.difficulty} onChange={(e) => props.setDifficulty(e.target.value)}>
+              {choices.difficulties.map((d) => (
+                <option key={d}>{d}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Mythic+ key
+            <select value={props.keyLevel} onChange={(e) => props.setKeyLevel(Number(e.target.value))}>
+              {choices.keyLevels.map((k) => (
+                <option key={k} value={k}>
+                  {k === 0 ? 'Mythic 0' : `+${k}`}
+                </option>
+              ))}
+            </select>
+          </label>
+        </>
+      )}
+      <h2>Consumables</h2>
+      <ConsumableSelects
+        kinds={choices.consumableKinds}
+        reference={props.reference}
+        value={props.consumables}
+        onChange={props.setConsumables}
+      />
+      {optionsError && <p className="warning">{optionsError}</p>}
+      {props.plan && <PlanText plan={props.plan} max={choices.maxCombos} />}
+      <button className="sim-run" disabled={!props.canRun || !!running || !!optionsError} onClick={props.onRun}>
+        {running ? 'Simming…' : 'Sim'}
+      </button>
+    </aside>
+  )
+}
+
 /** The Sim tab (desktop app only): a compact engine bar, the pasted /simc export read into a character with its gear
- * laid out like Raidbots, the kind of sim (Quick Sim, Top Gear or Droptimizer) with its options beside the gear, the
- * running sim's progress, its result and the saved sims. */
+ * laid out like Raidbots, the kind of sim (Quick Sim, Top Gear, Droptimizer or Consumables) with its options beside
+ * the gear, the Omnium Folio, the running sim's progress, its result and the saved sims. */
 export function SimPage() {
   const [choices, setChoices] = useState<SimChoices | null>(null)
   const [engine, setEngine] = useState<SimEngineStatus | null>(null)
@@ -89,8 +209,13 @@ export function SimPage() {
   const [profile, setProfile] = useState<SimProfile | null>(null)
   const [kind, setKind] = useState<SimKind>('quick')
   const [options, setOptions] = useState<SimOptions | null>(null)
+  const [reference, setReference] = useState<SimReference | null>(null)
   const [equipped, setEquipped] = useState<number[]>([])
   const [bags, setBags] = useState<number[]>([])
+  const [variants, setVariants] = useState<SimVariant[]>([])
+  const [consumables, setConsumables] = useState<SimConsumables>({})
+  const [compare, setCompare] = useState<SimCompare>({ kind: '', values: [] })
+  const [omnium, setOmnium] = useState<number[]>([])
   const [difficulty, setDifficulty] = useState('')
   const [keyLevel, setKeyLevel] = useState(0)
   const [run, setRun] = useState<Sim | null>(null) // the sim started here, or found running, as last polled
@@ -119,7 +244,12 @@ export function SimPage() {
         setOptions(c.defaults)
         setDifficulty(c.defaultDifficulty)
         setKeyLevel(c.defaultKeyLevel)
+        setCompare({ kind: c.consumableKinds[0], values: [] })
       },
+      (err: unknown) => !controller.signal.aborted && setError(errorText(err)),
+    )
+    fetchSimReference(controller.signal).then(
+      setReference,
       (err: unknown) => !controller.signal.aborted && setError(errorText(err)),
     )
     fetchSimEngine(controller.signal).then(setEngine, (err: unknown) => setError(errorText(err)))
@@ -164,28 +294,56 @@ export function SimPage() {
       setProfile(p)
       setEquipped(p.equipped.map((_, i) => i)) // worn items are candidates until unticked
       setBags([])
+      setVariants([])
+      setOmnium(omniumPicks(p.omnium))
     })
   const optionsError = choices && options ? simOptionsError(options, choices) : null
+  const request = (): SimRequest | null => {
+    if (!options) return null
+    const mine = omniumString(reference?.omnium ?? [], omnium)
+    const theirs = omniumString(reference?.omnium ?? [], omniumPicks(profile?.omnium))
+    return {
+      kind,
+      export: text,
+      options,
+      consumables: pickedConsumables(consumables),
+      ...(mine !== theirs && { omnium: mine }),
+      ...(kind === 'topgear' && { equipped, bags, variants }),
+      ...(kind === 'drops' && { difficulty, keyLevel }),
+      ...(kind === 'consumables' && { compare }),
+    }
+  }
+  const planRequest = kind === 'topgear' && profile ? request() : null
+  const plan = usePlan(planRequest)
   const start = () =>
     act(async () => {
-      if (!options) return
-      setRun(
-        await startSim({
-          kind,
-          export: text,
-          options,
-          ...(kind === 'topgear' && { equipped, bags }),
-          ...(kind === 'drops' && { difficulty, keyLevel }),
-        }),
-      )
+      const req = request()
+      if (req) setRun(await startSim(req))
     })
   const toggle = (worn: boolean, i: number) => {
     const [list, set] = worn ? [equipped, setEquipped] : [bags, setBags]
     set(list.includes(i) ? list.filter((n) => n !== i) : [...list, i])
   }
 
-  if (!choices || !options) return error ? <p className="warning">{error}</p> : <Skeleton height={320} lines={5} />
-  const pick = kind === 'topgear' ? { equipped, bags, onToggle: toggle } : undefined
+  if (!choices || !options || !reference) {
+    return error ? <p className="warning">{error}</p> : <Skeleton height={320} lines={5} />
+  }
+  const same = (a: SimVariant, b: SimVariant) => JSON.stringify(a) === JSON.stringify(b)
+  const pick =
+    kind === 'topgear'
+      ? {
+          equipped,
+          bags,
+          onToggle: toggle,
+          reference,
+          variants,
+          notes: plan.plan?.notes ?? [],
+          onAddVariant: (v: SimVariant) => setVariants((all) => (all.some((o) => same(o, v)) ? all : [...all, v])),
+          onRemoveVariant: (v: SimVariant) => setVariants((all) => all.filter((o) => !same(o, v))),
+        }
+      : undefined
+  const planBlocks = kind === 'topgear' && (!!plan.error || !plan.plan || !!plan.plan.error)
+  const compareBlocks = kind === 'consumables' && compare.values.length === 0
   return (
     <main className="page settings sim">
       <EngineBar engine={engine} busy={!!running} act={act} onEngine={setEngine} />
@@ -234,90 +392,64 @@ export function SimPage() {
           </div>
           <div className="sim-layout">
             <section className="panel sim-gear">
-              <h2>{kind === 'topgear' ? 'Gear to try' : 'Worn gear'}</h2>
-              {kind === 'topgear' && (
-                <p className="muted small">
-                  Tick what it may wear: worn items stay candidates, carried ones are added. At most{' '}
-                  {choices.maxCombos} combinations run.
-                </p>
-              )}
-              <SimGear profile={profile} order={choices.gearGroups} info={info} pick={pick} />
-            </section>
-            <aside className="panel sim-options">
-              <h2>Fight</h2>
-              <label>
-                Style
-                <select
-                  value={options.fightStyle}
-                  onChange={(e) => setOptions({ ...options, fightStyle: e.target.value })}
-                >
-                  {choices.fightStyles.map((s) => (
-                    <option key={s}>{s}</option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                Length (s)
-                <input
-                  type="number"
-                  value={options.length}
-                  onChange={(e) => setOptions({ ...options, length: Number(e.target.value) })}
-                />
-              </label>
-              <label>
-                Targets
-                <input
-                  type="number"
-                  value={options.targets}
-                  onChange={(e) => setOptions({ ...options, targets: Number(e.target.value) })}
-                />
-              </label>
-              <label>
-                Accuracy
-                <select
-                  value={options.accuracy}
-                  onChange={(e) => setOptions({ ...options, accuracy: e.target.value })}
-                >
-                  {choices.accuracies.map((a) => (
-                    <option key={a}>{a}</option>
-                  ))}
-                </select>
-              </label>
-              {kind === 'drops' && (
+              {kind === 'consumables' ? (
                 <>
-                  <label>
-                    Raid difficulty
-                    <select value={difficulty} onChange={(e) => setDifficulty(e.target.value)}>
-                      {choices.difficulties.map((d) => (
-                        <option key={d}>{d}</option>
-                      ))}
-                    </select>
-                  </label>
-                  <label>
-                    Mythic+ key
-                    <select value={keyLevel} onChange={(e) => setKeyLevel(Number(e.target.value))}>
-                      {choices.keyLevels.map((k) => (
-                        <option key={k} value={k}>
-                          {k === 0 ? 'Mythic 0' : `+${k}`}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+                  <h2>Consumables to compare</h2>
+                  <p className="muted small">
+                    Each ticked one is simmed in place of the one you pick for it (or simc's default); at most{' '}
+                    {choices.maxCompare}.
+                  </p>
+                  <ConsumableCompare
+                    kinds={choices.consumableKinds}
+                    reference={reference}
+                    compare={compare}
+                    max={choices.maxCompare}
+                    onChange={setCompare}
+                  />
+                </>
+              ) : (
+                <>
+                  <h2>{kind === 'topgear' ? 'Gear to try' : 'Worn gear'}</h2>
+                  {kind === 'topgear' && (
+                    <p className="muted small">
+                      Tick what it may wear, highest item level first: worn items stay candidates, carried ones are
+                      added. Each item can also be tried upgraded, with a socket and gem, or with an enchant. At
+                      most {choices.maxCombos} combinations run.
+                    </p>
+                  )}
+                  <SimGear profile={profile} order={choices.gearGroups} info={info} pick={pick} />
                 </>
               )}
-              {optionsError && <p className="warning">{optionsError}</p>}
-              <button
-                className="sim-run"
-                disabled={!engine?.installed || engine.installing || !!running || !!optionsError}
-                onClick={start}
-              >
-                {running ? 'Simming…' : 'Sim'}
-              </button>
-            </aside>
+            </section>
+            <OptionsPanel
+              kind={kind}
+              choices={choices}
+              options={options}
+              setOptions={setOptions}
+              difficulty={difficulty}
+              setDifficulty={setDifficulty}
+              keyLevel={keyLevel}
+              setKeyLevel={setKeyLevel}
+              optionsError={optionsError}
+              reference={reference}
+              consumables={consumables}
+              setConsumables={setConsumables}
+              plan={planRequest ? plan : null}
+              canRun={!!engine?.installed && !engine.installing && !planBlocks && !compareBlocks}
+              running={running}
+              onRun={start}
+            />
           </div>
+          {reference.omnium.length > 0 && (
+            <OmniumFolio
+              nodes={reference.omnium}
+              picks={omnium}
+              original={omniumPicks(profile.omnium)}
+              onChange={setOmnium}
+            />
+          )}
         </>
       )}
-
 
       {running && (
         <section className="panel sim-progress">

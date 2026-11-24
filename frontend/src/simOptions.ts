@@ -1,4 +1,14 @@
-import type { SimChoices, SimItem, SimOptions } from './api'
+import type {
+  SimChoices,
+  SimConsumables,
+  SimEnchant,
+  SimItem,
+  SimOptions,
+  SimReference,
+  SimUpgradeLevel,
+  SimUpgradeTrack,
+  TalentNode,
+} from './api'
 
 /** What is wrong with the fight options, in words, or null when they fit choices (the app refuses the same ones). */
 export function simOptionsError(o: SimOptions, c: SimChoices): string | null {
@@ -29,7 +39,8 @@ const DOLL_COLUMNS: Record<string, number> = {
 }
 
 /** The items of each group in order (SimChoices.gearGroups), as indexes into the profile's equipped and bags lists,
- * worn ones first; empty groups left out. */
+ * the highest item level first (worn or carried; items with no level last, in the export's order); empty groups left
+ * out. */
 export function gearGroups(equipped: SimItem[], bags: SimItem[], order: string[]) {
   return order
     .map((group) => ({
@@ -39,9 +50,52 @@ export function gearGroups(equipped: SimItem[], bags: SimItem[], order: string[]
       items: [
         ...equipped.flatMap((item, index) => (item.group === group ? [{ item, index, worn: true }] : [])),
         ...bags.flatMap((item, index) => (item.group === group ? [{ item, index, worn: false }] : [])),
-      ],
+      ].sort((a, b) => (b.item.level ?? 0) - (a.item.level ?? 0)),
     }))
     .filter((g) => g.items.length > 0)
+}
+
+/** The upgrade track an item is on and its level in it, found by its bonus IDs; null for an item on none. */
+export function upgradeTrackOf(
+  ref: SimReference,
+  item: SimItem,
+): { track: SimUpgradeTrack; level: SimUpgradeLevel } | null {
+  const bonuses = item.opts?.bonus_id ?? []
+  for (const track of ref.upgrades) {
+    const level = track.levels.find((l) => bonuses.includes(l.bonusID))
+    if (level) return { track, level }
+  }
+  return null
+}
+
+/** The enchants that fit a slot ("finger1", "main_hand"). */
+export const enchantsFor = (ref: SimReference, slot: string): SimEnchant[] =>
+  ref.enchants.filter((e) => e.slots.includes(slot))
+
+/** The consumables set, without the kinds left on simc's default. */
+export function pickedConsumables(c: SimConsumables): SimConsumables {
+  return Object.fromEntries(Object.entries(c).filter(([, v]) => v))
+}
+
+/** The entry IDs of an Omnium Folio string ("136814:1/136817:1"). */
+export const omniumPicks = (text: string | undefined): number[] =>
+  (text ?? '').split('/').flatMap((pair) => (/^\d+:\d+$/.test(pair) ? [Number(pair.split(':')[0])] : []))
+
+/** The picks as the export writes them, in the tree's node order, one entry to a node. */
+export function omniumString(nodes: TalentNode[], picks: number[]): string {
+  return [...nodes]
+    .sort((a, b) => a.id - b.id)
+    .flatMap((n) => {
+      const entry = n.entries.find((e) => picks.includes(e.id))
+      return entry ? [`${entry.id}:1`] : []
+    })
+    .join('/')
+}
+
+/** The picks after clicking an entry: it is picked (replacing another of its node) or, when it was, unpicked. */
+export function togglePick(node: TalentNode, picks: number[], entry: number): number[] {
+  const others = picks.filter((p) => !node.entries.some((e) => e.id === p))
+  return picks.includes(entry) ? others : [...others, entry]
 }
 
 /** The distinct item IDs of items. */

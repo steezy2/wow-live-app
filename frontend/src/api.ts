@@ -516,8 +516,8 @@ async function jsonOrNull<T>(path: string, signal?: AbortSignal): Promise<T | nu
 }
 
 /** Sends body as JSON with method and reads the JSON answer. */
-async function sendJSON<T>(path: string, method: string, body: unknown): Promise<T> {
-  return json(path, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+async function sendJSON<T>(path: string, method: string, body: unknown, signal?: AbortSignal): Promise<T> {
+  return json(path, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal })
 }
 
 /** The site's own error message for a failed answer, or its status. */
@@ -1745,7 +1745,7 @@ export interface TalentEntry {
 export interface TalentNode {
   id: number
   name: string
-  tree: 'class' | 'spec' | 'hero'
+  tree: 'class' | 'spec' | 'hero' | 'omnium'
   subTree?: number
   choice?: boolean
   x: number
@@ -1819,7 +1819,8 @@ function compareURL(kind: FightKind, start: number, player: string): string {
 }
 
 /** A piece of gear: its slot as simc names it, the slots' group it is listed under ("finger" for both rings), the
- * name and item level the export gives, its item ID and its other numbers. */
+ * name and item level the export gives, its item ID and its other numbers. A Top Gear variant's note says what was
+ * changed ("Myth 3/6, socket"). */
 export interface SimItem {
   slot: string
   group: string
@@ -1827,6 +1828,7 @@ export interface SimItem {
   level?: number
   id: number
   opts?: Record<string, number[]>
+  note?: string
 }
 
 /** An item's name, icon (an icon name for iconURL) and quality (0 poor to 5 legendary), from Wowhead. */
@@ -1852,6 +1854,8 @@ export interface SimProfile {
   server: string
   role?: string
   spec: string
+  /** The Omnium Folio's picks as the export writes them ("136814:1/136817:1"). */
+  omnium?: string
   talents: string
   equipped: SimItem[]
   bags: SimItem[]
@@ -1875,6 +1879,8 @@ export interface SimChoices {
   maxLength: number
   maxTargets: number
   maxCombos: number
+  maxCompare: number
+  consumableKinds: string[]
   maxDrops: number
   difficulties: string[]
   keyLevels: number[]
@@ -1887,19 +1893,114 @@ export interface SimChoices {
   gearGroups: string[]
 }
 
-/** The kinds of sim: one DPS number, the best combination of the gear carried, and each drop's gain. */
-export type SimKind = 'quick' | 'topgear' | 'drops'
+/** The kinds of sim: one DPS number, the best combination of the gear carried, each drop's gain, and each
+ * consumable's gain. */
+export type SimKind = 'quick' | 'topgear' | 'drops' | 'consumables'
+
+/** The consumables a sim uses, by kind (one of SimChoices.consumableKinds); a kind left out or empty keeps simc's
+ * default. */
+export type SimConsumables = Record<string, string>
+
+/** A changed copy of a Top Gear candidate: the item at `index` of the profile's equipped (`worn`) or bags, moved to
+ * upgrade level `upgrade` of its track, given a socket, a gem (item ID) and an enchant (enchant ID). */
+export interface SimVariant {
+  worn?: boolean
+  index: number
+  upgrade?: number
+  socket?: boolean
+  gem?: number
+  enchant?: number
+}
+
+/** What a "consumables" sim compares: the kind and the values (simc names) it tries. */
+export interface SimCompare {
+  kind: string
+  values: string[]
+}
 
 /** A sim to start: the export is read again by the app, `equipped` and `bags` are indexes into the profile read from
- * it. */
+ * it. `omnium` is the Omnium Folio's picks as the export writes them (empty for none), sent only when they differ
+ * from the export's. */
 export interface SimRequest {
   kind: SimKind
   export: string
   options: SimOptions
   equipped?: number[]
   bags?: number[]
+  variants?: SimVariant[]
   difficulty?: string
   keyLevel?: number
+  consumables?: SimConsumables
+  omnium?: string
+  compare?: SimCompare
+}
+
+/** A flask, food, potion, augment rune or weapon oil. */
+export interface SimConsumable {
+  value: string
+  name: string
+  icon: string
+  itemID: number
+  quality?: number
+}
+
+export interface SimEnchant {
+  id: number
+  name: string
+  stats?: string
+  icon: string
+  quality?: number
+  slots: string[]
+}
+
+export interface SimGem {
+  id: number
+  name: string
+  stats?: string
+  icon: string
+  quality?: number
+}
+
+export interface SimUpgradeLevel {
+  bonusID: number
+  level: number
+  itemLevel: number
+}
+
+/** An upgrade track ("Myth") and its levels, lowest first. */
+export interface SimUpgradeTrack {
+  group: number
+  name: string
+  levels: SimUpgradeLevel[]
+}
+
+/** What a sim can be given besides its gear (GET /api/sim/options). */
+export interface SimReference {
+  build: string
+  consumables: Record<string, SimConsumable[]>
+  enchants: SimEnchant[]
+  gems: SimGem[]
+  upgrades: SimUpgradeTrack[]
+  socketBonus: number
+  omnium: TalentNode[]
+}
+
+/** How many gear combinations a Top Gear request makes and about how long they take; `error` is why the app would
+ * refuse to run it, and `notes` say what each of its variants changes, in its order. */
+export interface SimPlan {
+  combos: number
+  seconds: number
+  error?: string
+  notes: string[]
+}
+
+/** One value of a "consumables" sim: its DPS and gain over the sim's baseline. */
+export interface SimOptionRow {
+  value: string
+  name: string
+  dps: number
+  dpsError: number
+  gain: number
 }
 
 /** One ability's damage in a sim: its spell ID, DPS, share of the total (0 to 1), casts and amount per cast. */
@@ -1945,6 +2046,7 @@ export interface SimResult {
   abilities: SimAbility[]
   buffs: SimBuff[]
   combos?: SimCombo[]
+  options?: SimOptionRow[]
 }
 
 /** One sim run: how far along it is, then its result. */
@@ -1980,6 +2082,16 @@ export interface SimEngineStatus {
 /** The options a sim can start with, their limits and the ones the page starts on. */
 export async function fetchSimChoices(signal?: AbortSignal): Promise<SimChoices> {
   return json('/api/sim/choices', { signal })
+}
+
+/** The consumables, enchants, gems, upgrade tracks and Omnium Folio a sim can use. */
+export async function fetchSimReference(signal?: AbortSignal): Promise<SimReference> {
+  return json('/api/sim/options', { signal })
+}
+
+/** What a Top Gear request would run, without starting it. */
+export async function planSim(request: SimRequest, signal?: AbortSignal): Promise<SimPlan> {
+  return sendJSON('/api/sim/plan', 'POST', request, signal)
 }
 
 /** The engine's status: installed or not, downloading, failed or stale. */

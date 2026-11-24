@@ -1,10 +1,26 @@
 import { useState } from 'react'
-import type { Sim, SimCombo } from './api'
+import type { Sim, SimCombo, SimOptionRow } from './api'
 import { amount, clock } from './format'
 import { Spell } from './Spell'
 import { ItemLine } from './SimItem'
 import { useItemInfo } from './simItems'
 import { gainShare, groupLabel } from './simOptions'
+
+/** A ranked row's gain over the sim's baseline, its DPS and a bar for the gain against the best one's. */
+function Gain({ gain, dps, best }: { gain: number; dps: number; best: number }) {
+  return (
+    <div className="sim-gain">
+      <span className={gain >= 0 ? 'good' : 'warning'}>
+        {gain >= 0 ? '+' : ''}
+        {amount(gain)}
+      </span>
+      <span className="muted small">{amount(dps)} DPS</span>
+      <span className="sim-gain-bar">
+        <span style={{ width: `${gainShare(gain, best)}%` }} />
+      </span>
+    </div>
+  )
+}
 
 /** The gear combinations or drops of a Top Gear or Droptimizer sim, best first: each a row with its rank, a bar for
  * its gain over the equipped gear, its DPS, and what changes (icons and item levels) and where a drop comes from.
@@ -34,16 +50,7 @@ function Combos({ combos, drops, chunk }: { combos: SimCombo[]; drops: boolean; 
         {shown.map((c, i) => (
           <li key={i}>
             <span className="sim-rank">{i + 1}</span>
-            <div className="sim-gain">
-              <span className={c.gain >= 0 ? 'good' : 'warning'}>
-                {c.gain >= 0 ? '+' : ''}
-                {amount(c.gain)}
-              </span>
-              <span className="muted small">{amount(c.dps)} DPS</span>
-              <span className="sim-gain-bar">
-                <span style={{ width: `${gainShare(c.gain, best)}%` }} />
-              </span>
-            </div>
+            <Gain gain={c.gain} dps={c.dps} best={best} />
             <div className="sim-swaps">
               {c.swaps.map((s) => (
                 <div key={s.slot} className="sim-swap">
@@ -66,8 +73,28 @@ function Combos({ combos, drops, chunk }: { combos: SimCombo[]; drops: boolean; 
   )
 }
 
-/** A finished sim: the DPS, a Top Gear or Droptimizer's ranked rows (their items asked chunk at a time), each
- * ability's share of the damage and the buffs that were up. */
+/** A "consumables" sim's values, best first: each a row with its rank, a bar for its gain over the sim's own
+ * consumables and its DPS. */
+function OptionRows({ rows }: { rows: SimOptionRow[] }) {
+  const best = Math.max(0, ...rows.map((r) => r.gain))
+  return (
+    <section className="panel">
+      <h2>Consumables</h2>
+      <ol className="sim-combos">
+        {rows.map((r, i) => (
+          <li key={r.value}>
+            <span className="sim-rank">{i + 1}</span>
+            <Gain gain={r.gain} dps={r.dps} best={best} />
+            <div className="sim-swaps">{r.name}</div>
+          </li>
+        ))}
+      </ol>
+    </section>
+  )
+}
+
+/** A finished sim: the DPS, a Top Gear or Droptimizer's ranked rows (their items asked chunk at a time) or a
+ * consumables sim's, each ability's share of the damage and the buffs that were up. */
 export function SimResult({ sim, chunk }: { sim: Sim; chunk: number }) {
   const result = sim.result
   if (!result) return null
@@ -86,6 +113,7 @@ export function SimResult({ sim, chunk }: { sim: Sim; chunk: number }) {
         </p>
       </section>
       {result.combos && <Combos combos={result.combos} drops={sim.kind === 'drops'} chunk={chunk} />}
+      {result.options && <OptionRows rows={result.options} />}
       <section className="panel">
         <h2>Abilities</h2>
         <div className="table-scroll">

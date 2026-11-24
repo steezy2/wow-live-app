@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Builds WoW Live (bin/WoW Live.exe): the page, the icon (cmd/appicon), then the app with the page, the M+, raid and
-# spec rules, the season's dungeon facts, the raid's boss mechanics, the talent trees, the sim drops and the icon built
-# in. Run from anywhere, in Git Bash on Windows.
+# spec rules, the season's dungeon facts, the raid's boss mechanics, the talent trees, the sim drops and options and
+# the icon built in. Run from anywhere, in Git Bash on Windows.
 set -euo pipefail
 repo="$(cd "$(dirname "$0")/../../.." && pwd)"
 (cd "$repo/frontend" && npm ci && npm run build)
@@ -11,7 +11,7 @@ cp -r "$repo/frontend/dist" "$embed/dist"
 cp "$repo/mplus.toml" "$repo/raid-rules.toml" "$repo/spec-rules.toml" "$embed/"
 mkdir -p "$embed/reference"
 cp "$repo/reference/mplus-dungeons.json" "$repo/reference/raid-bosses.json" "$repo/reference/talent-trees.json" \
-  "$repo/reference/sim-drops.json" "$embed/reference/"
+  "$repo/reference/sim-drops.json" "$repo/reference/sim-options.json" "$embed/reference/"
 cd "$repo/backend" && go run ./cmd/appicon
 go build -trimpath -ldflags "-H windowsgui -s -w" -o "$repo/bin/WoW Live.exe" ./cmd/app
 echo "built $repo/bin/WoW Live.exe"

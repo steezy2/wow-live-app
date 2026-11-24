@@ -1,6 +1,16 @@
 import { expect, test } from 'vitest'
-import type { SimChoices, SimItem } from './api'
-import { gainShare, gearGroups, simOptionsError } from './simOptions'
+import type { SimChoices, SimItem, SimReference } from './api'
+import {
+  enchantsFor,
+  gainShare,
+  gearGroups,
+  omniumPicks,
+  omniumString,
+  pickedConsumables,
+  simOptionsError,
+  togglePick,
+  upgradeTrackOf,
+} from './simOptions'
 
 const choices = { minLength: 30, maxLength: 900, maxTargets: 20 } as SimChoices
 const opts = { fightStyle: 'Patchwerk', length: 300, targets: 1, accuracy: 'normal' }
@@ -12,7 +22,7 @@ test('simOptionsError says which option is out of range', () => {
   expect(simOptionsError({ ...opts, length: 300.5 }, choices)).toContain('fight length')
 })
 
-test("gearGroups lists groups in the API's order, worn ones first, and leaves empty groups out", () => {
+test("gearGroups lists groups in the API's order and leaves empty groups out", () => {
   const equipped: SimItem[] = [
     { slot: 'finger2', group: 'finger', id: 2 },
     { slot: 'head', group: 'head', id: 1 },
@@ -30,4 +40,65 @@ test('gainShare scales a gain to the best one and shows a loss as no bar', () =>
   expect(gainShare(50, 100)).toBe(50)
   expect(gainShare(-5, 100)).toBe(0)
   expect(gainShare(10, 0)).toBe(0)
+})
+
+const ref = {
+  upgrades: [
+    {
+      group: 618,
+      name: 'Myth',
+      levels: [
+        { bonusID: 100, level: 1, itemLevel: 318 },
+        { bonusID: 101, level: 2, itemLevel: 321 },
+      ],
+    },
+  ],
+  enchants: [
+    { id: 7964, name: 'Amani Mastery', icon: '', slots: ['finger1', 'finger2'] },
+    { id: 8038, name: 'Acuity', icon: '', slots: ['main_hand'] },
+  ],
+  gems: [{ id: 240883, name: 'Quick Lapis', icon: '' }],
+  omnium: [
+    { id: 1, choice: true, entries: [{ id: 11 }, { id: 12 }] },
+    { id: 2, entries: [{ id: 21 }] },
+  ],
+} as unknown as SimReference
+
+test('gearGroups lists the highest item level first, worn or carried, and items without a level last', () => {
+  const equipped: SimItem[] = [{ slot: 'finger1', group: 'finger', id: 1, level: 300 }]
+  const bags: SimItem[] = [
+    { slot: 'finger1', group: 'finger', id: 2, level: 320 },
+    { slot: 'finger1', group: 'finger', id: 3 },
+    { slot: 'finger1', group: 'finger', id: 4, level: 310 },
+  ]
+  expect(gearGroups(equipped, bags, ['finger'])[0].items.map((i) => i.item.id)).toEqual([2, 4, 1, 3])
+})
+
+test('upgradeTrackOf finds the track and level from the bonus IDs, and says none for an item on no track', () => {
+  const on = upgradeTrackOf(ref, { slot: 'finger1', group: 'finger', id: 1, opts: { bonus_id: [7, 101] } })
+  expect([on?.track.name, on?.level.level]).toEqual(['Myth', 2])
+  expect(upgradeTrackOf(ref, { slot: 'finger1', group: 'finger', id: 1, opts: { bonus_id: [7] } })).toBeNull()
+  expect(upgradeTrackOf(ref, { slot: 'finger1', group: 'finger', id: 1 })).toBeNull()
+})
+
+test('enchantsFor lists the enchants of a slot', () => {
+  expect(enchantsFor(ref, 'finger2').map((e) => e.id)).toEqual([7964])
+  expect(enchantsFor(ref, 'head')).toEqual([])
+})
+
+test('pickedConsumables leaves out the kinds on simc default', () => {
+  expect(pickedConsumables({ flask: 'a', food: '' })).toEqual({ flask: 'a' })
+})
+
+test('the Omnium Folio picks read from, and write to, the export format', () => {
+  expect(omniumPicks('136814:1/21:1')).toEqual([136814, 21])
+  expect(omniumPicks(undefined)).toEqual([])
+  expect(omniumString(ref.omnium, [21, 12])).toBe('12:1/21:1')
+})
+
+test('togglePick replaces another entry of a choice node and unpicks a picked one', () => {
+  const [choice, single] = ref.omnium
+  expect(togglePick(choice, [11, 21], 12)).toEqual([21, 12])
+  expect(togglePick(choice, [11, 21], 11)).toEqual([21])
+  expect(togglePick(single, [], 21)).toEqual([21])
 })

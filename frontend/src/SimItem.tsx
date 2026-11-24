@@ -12,6 +12,7 @@ export function ItemLine({ item, info, extra }: { item: SimItem; info?: SimItemI
       </span>
       <span className={`sim-item-name ${quality}`}>{info?.name ?? item.name ?? `item ${item.id}`}</span>
       {item.level ? <span className="muted small">{item.level}</span> : null}
+      {item.note && <span className="sim-note">{item.note}</span>}
       {extra}
     </span>
   )

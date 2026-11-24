@@ -1,0 +1,2484 @@
+{
+ "build": "12.1.5.70783",
+ "source": "https://www.raidbots.com/static/data/live/",
+ "consumables": {
+  "augment": [
+   {
+    "value": "void_touched",
+    "name": "Void-Touched Augment Rune",
+    "icon": "inv_10_enchanting_crystal_color2",
+    "itemID": 259085
+   }
+  ],
+  "flask": [
+   {
+    "value": "flask_of_the_shattered_sun_2",
+    "name": "Flask of the Shattered Sun (Quality 2)",
+    "icon": "inv_12_profession_alchemy_flask_sindoreipotion_red__",
+    "itemID": 241326,
+    "quality": 2
+   },
+   {
+    "value": "flask_of_the_shattered_sun_1",
+    "name": "Flask of the Shattered Sun (Quality 1)",
+    "icon": "inv_12_profession_alchemy_flask_sindoreipotion_red__",
+    "itemID": 241327,
+    "quality": 1
+   },
+   {
+    "value": "flask_of_the_blood_knights_2",
+    "name": "Flask of the Blood Knights (Quality 2)",
+    "icon": "inv_12_profession_alchemy_flask_sindoreipotion_white_",
+    "itemID": 241324,
+    "quality": 2
+   },
+   {
+    "value": "flask_of_the_blood_knights_1",
+    "name": "Flask of the Blood Knights (Quality 1)",
+    "icon": "inv_12_profession_alchemy_flask_sindoreipotion_white_",
+    "itemID": 241325,
+    "quality": 1
+   },
+   {
+    "value": "flask_of_the_magisters_2",
+    "name": "Flask of the Magisters (Quality 2)",
+    "icon": "inv_12_profession_alchemy_flask_sindoreipotion_black",
+    "itemID": 241322,
+    "quality": 2
+   },
+   {
+    "value": "flask_of_the_magisters_1",
+    "name": "Flask of the Magisters (Quality 1)",
+    "icon": "inv_12_profession_alchemy_flask_sindoreipotion_black",
+    "itemID": 241323,
+    "quality": 1
+   },
+   {
+    "value": "flask_of_thalassian_resistance_2",
+    "name": "Flask of Thalassian Resistance (Quality 2)",
+    "icon": "inv_12_profession_alchemy_flask_sindoreipotion_yellow",
+    "itemID": 241320,
+    "quality": 2
+   },
+   {
+    "value": "flask_of_thalassian_resistance_1",
+    "name": "Flask of Thalassian Resistance (Quality 1)",
+    "icon": "inv_12_profession_alchemy_flask_sindoreipotion_yellow",
+    "itemID": 241321,
+    "quality": 1
+   }
+  ],
+  "food": [
+   {
+    "value": "amani_cornucopia",
+    "name": "Amani Cornucopia",
+    "icon": "inv_misc_food_legion_heartyfeast",
+    "itemID": 275264
+   },
+   {
+    "value": "loas_gathering",
+    "name": "Loa's Gathering",
+    "icon": "inv_cooking_10_grandbanquet",
+    "itemID": 275265
+   },
+   {
+    "value": "silvermoon_parade",
+    "name": "Silvermoon Parade",
+    "icon": "inv_tradeskill_cooking_feastofblood",
+    "itemID": 255845
+   },
+   {
+    "value": "queldorei_medley",
+    "name": "Quel'dorei Medley",
+    "icon": "inv_cooking_10_draconicdelicacies",
+    "itemID": 242272
+   },
+   {
+    "value": "blooming_feast",
+    "name": "Blooming Feast",
+    "icon": "inv_misc_food_cooked_greatpabanquet_wok",
+    "itemID": 242273
+   },
+   {
+    "value": "harandar_celebration",
+    "name": "Harandar Celebration",
+    "icon": "inv_misc_1h_soup_b_01_misc_1h_soup_b_01",
+    "itemID": 255846
+   },
+   {
+    "value": "royal_roast",
+    "name": "Royal Roast",
+    "icon": "inv_cooking_100_roastduck",
+    "itemID": 242275
+   },
+   {
+    "value": "impossibly_royal_roast",
+    "name": "Impossibly Royal Roast",
+    "icon": "inv_cooking_100_roastduck",
+    "itemID": 255847
+   },
+   {
+    "value": "flora_frenzy",
+    "name": "Flora Frenzy",
+    "icon": "inv_cooking_100_sidesalad_color04",
+    "itemID": 255848
+   },
+   {
+    "value": "champions_bento",
+    "name": "Champion's Bento",
+    "icon": "inv_misc_food_vendor_poundedricecake_1",
+    "itemID": 242274
+   },
+   {
+    "value": "warped_wise_wings",
+    "name": "Warped Wise Wings",
+    "icon": "inv_cooking_10_grandbanquet",
+    "itemID": 242285
+   },
+   {
+    "value": "voidkissed_fish_rolls",
+    "name": "Void-Kissed Fish Rolls",
+    "icon": "inv_cooking_80_ravenberrytart",
+    "itemID": 242284
+   },
+   {
+    "value": "sunseared_lumifin",
+    "name": "Sun-Seared Lumifin",
+    "icon": "inv_misc_food_cooked_wildfowlroast",
+    "itemID": 242283
+   },
+   {
+    "value": "null_and_void_plate",
+    "name": "Null and Void Plate",
+    "icon": "inv_misc_food_draenor_saltedskulker_color01",
+    "itemID": 242282
+   },
+   {
+    "value": "glitter_skewers",
+    "name": "Glitter Skewers",
+    "icon": "inv_misc_food_160_fish_87",
+    "itemID": 242281
+   },
+   {
+    "value": "felkissed_filet",
+    "name": "Fel-Kissed Filet",
+    "icon": "inv_cooking_100_revengeservedcold_color02",
+    "itemID": 242286
+   },
+   {
+    "value": "buttered_root_crab",
+    "name": "Buttered Root Crab",
+    "icon": "inv_misc_food_draenor_steamedscorpion",
+    "itemID": 242280
+   },
+   {
+    "value": "arcano_cutlets",
+    "name": "Arcano Cutlets",
+    "icon": "inv_cooking_81_paleosteakandpotatoes_color04",
+    "itemID": 242287
+   },
+   {
+    "value": "tasty_smoked_tetra",
+    "name": "Tasty Smoked Tetra",
+    "icon": "inv_cooking_100_revengeservedcold",
+    "itemID": 242278
+   },
+   {
+    "value": "crimson_calamari",
+    "name": "Crimson Calamari",
+    "icon": "inv_misc_food_cooked_valleystirfry",
+    "itemID": 242277
+   },
+   {
+    "value": "braised_blood_hunter",
+    "name": "Braised Blood Hunter",
+    "icon": "inv_misc_food_legion_fishbrulspecial",
+    "itemID": 242276
+   },
+   {
+    "value": "hearthflame_supper",
+    "name": "Hearthflame Supper",
+    "icon": "inv_misc_food_dimsum",
+    "itemID": 242295
+   },
+   {
+    "value": "eversong_pudding",
+    "name": "Eversong Pudding",
+    "icon": "inv_cooking_90_bananabeefpudding",
+    "itemID": 242292
+   },
+   {
+    "value": "wise_tails",
+    "name": "Wise Tails",
+    "icon": "inv_misc_food_158_fish_redish",
+    "itemID": 242290
+   },
+   {
+    "value": "bloodthistlewrapped_cutlets",
+    "name": "Bloodthistle-Wrapped Cutlets",
+    "icon": "inv_misc_food_168_ricecake01",
+    "itemID": 242296
+   },
+   {
+    "value": "sunwell_delight",
+    "name": "Sunwell Delight",
+    "icon": "inv_misc_food_cooked_sauteedcarrots",
+    "itemID": 242293
+   },
+   {
+    "value": "fried_bloomtail",
+    "name": "Fried Bloomtail",
+    "icon": "inv_misc_food_legion_driedmackerelstrips",
+    "itemID": 242291
+   }
+  ],
+  "potion": [
+   {
+    "value": "liquid_luster_2",
+    "name": "Liquid Luster (Quality 2)",
+    "icon": "inv_121_professions_alchemy_potion_amani_blue",
+    "itemID": 271887,
+    "quality": 2
+   },
+   {
+    "value": "liquid_luster_1",
+    "name": "Liquid Luster (Quality 1)",
+    "icon": "inv_121_professions_alchemy_potion_amani_blue",
+    "itemID": 271886,
+    "quality": 1
+   },
+   {
+    "value": "alluring_nostrum_2",
+    "name": "Alluring Nostrum (Quality 2)",
+    "icon": "inv_121_professions_alchemy_potion_amani_purple",
+    "itemID": 271890,
+    "quality": 2
+   },
+   {
+    "value": "alluring_nostrum_1",
+    "name": "Alluring Nostrum (Quality 1)",
+    "icon": "inv_121_professions_alchemy_potion_amani_purple",
+    "itemID": 271889,
+    "quality": 1
+   },
+   {
+    "value": "lights_potential_2",
+    "name": "Light's Potential (Quality 2)",
+    "icon": "inv_12_profession_alchemy_lightpotion_yellow",
+    "itemID": 241308,
+    "quality": 2
+   },
+   {
+    "value": "lights_potential_1",
+    "name": "Light's Potential (Quality 1)",
+    "icon": "inv_12_profession_alchemy_lightpotion_yellow",
+    "itemID": 241309,
+    "quality": 1
+   },
+   {
+    "value": "potion_of_zealotry_2",
+    "name": "Potion of Zealotry (Quality 2)",
+    "icon": "inv_12_profession_alchemy_lightpotion_green",
+    "itemID": 241296,
+    "quality": 2
+   },
+   {
+    "value": "potion_of_zealotry_1",
+    "name": "Potion of Zealotry (Quality 1)",
+    "icon": "inv_12_profession_alchemy_lightpotion_green",
+    "itemID": 241297,
+    "quality": 1
+   },
+   {
+    "value": "potion_of_recklessness_2",
+    "name": "Potion of Recklessness (Quality 2)",
+    "icon": "inv_12_profession_alchemy_voidpotion_red",
+    "itemID": 241288,
+    "quality": 2
+   },
+   {
+    "value": "potion_of_recklessness_1",
+    "name": "Potion of Recklessness (Quality 1)",
+    "icon": "inv_12_profession_alchemy_voidpotion_red",
+    "itemID": 241289,
+    "quality": 1
+   },
+   {
+    "value": "draught_of_rampant_abandon_2",
+    "name": "Draught of Rampant Abandon (Quality 2)",
+    "icon": "inv_12_profession_alchemy_voidpotion_purple",
+    "itemID": 241292,
+    "quality": 2
+   },
+   {
+    "value": "draught_of_rampant_abandon_1",
+    "name": "Draught of Rampant Abandon (Quality 1)",
+    "icon": "inv_12_profession_alchemy_voidpotion_purple",
+    "itemID": 241293,
+    "quality": 1
+   }
+  ],
+  "weapon": [
+   {
+    "value": "refulgent_whetstone_2",
+    "name": "Refulgent Whetstone (Quality 2)",
+    "icon": "inv_12_profession_blacksmithing_whetstones_silver",
+    "itemID": 237371,
+    "quality": 2
+   },
+   {
+    "value": "refulgent_whetstone_1",
+    "name": "Refulgent Whetstone (Quality 1)",
+    "icon": "inv_12_profession_blacksmithing_whetstones_green",
+    "itemID": 237370,
+    "quality": 1
+   },
+   {
+    "value": "refulgent_weightstone_2",
+    "name": "Refulgent Weightstone (Quality 2)",
+    "icon": "inv_12_profession_blacksmithing_weightstone_silver",
+    "itemID": 237369,
+    "quality": 2
+   },
+   {
+    "value": "refulgent_weightstone_1",
+    "name": "Refulgent Weightstone (Quality 1)",
+    "icon": "inv_12_profession_blacksmithing_weightstone_green",
+    "itemID": 237367,
+    "quality": 1
+   },
+   {
+    "value": "thalassian_phoenix_oil_2",
+    "name": "Thalassian Phoenix Oil (Quality 2)",
+    "icon": "inv_12_profession_enchanting_manaoil_red",
+    "itemID": 243734,
+    "quality": 2
+   },
+   {
+    "value": "thalassian_phoenix_oil_1",
+    "name": "Thalassian Phoenix Oil (Quality 1)",
+    "icon": "inv_12_profession_enchanting_manaoil_red",
+    "itemID": 243733,
+    "quality": 1
+   },
+   {
+    "value": "oil_of_dawn_2",
+    "name": "Oil of Dawn (Quality 2)",
+    "icon": "inv_12_profession_enchanting_manaoil_orange",
+    "itemID": 243736,
+    "quality": 2
+   },
+   {
+    "value": "oil_of_dawn_1",
+    "name": "Oil of Dawn (Quality 1)",
+    "icon": "inv_12_profession_enchanting_manaoil_orange",
+    "itemID": 243735,
+    "quality": 1
+   },
+   {
+    "value": "smugglers_enchanted_edge_2",
+    "name": "Smuggler's Enchanted Edge (Quality 2)",
+    "icon": "inv_12_profession_enchanting_manaoil_purple",
+    "itemID": 243738,
+    "quality": 2
+   },
+   {
+    "value": "smugglers_enchanted_edge_1",
+    "name": "Smuggler's Enchanted Edge (Quality 1)",
+    "icon": "inv_12_profession_enchanting_manaoil_purple",
+    "itemID": 243737,
+    "quality": 1
+   },
+   {
+    "value": "laced_zoomshots_2",
+    "name": "Laced Zoomshots (Quality 2)",
+    "icon": "inv_ammo_bullet_06",
+    "itemID": 257750,
+    "quality": 2
+   },
+   {
+    "value": "laced_zoomshots_1",
+    "name": "Laced Zoomshots (Quality 1)",
+    "icon": "inv_ammo_bullet_06",
+    "itemID": 257749,
+    "quality": 1
+   },
+   {
+    "value": "weighted_boomshots_2",
+    "name": "Weighted Boomshots (Quality 2)",
+    "icon": "inv_ammo_bullet_05",
+    "itemID": 257752,
+    "quality": 2
+   },
+   {
+    "value": "weighted_boomshots_1",
+    "name": "Weighted Boomshots (Quality 1)",
+    "icon": "inv_ammo_bullet_05",
+    "itemID": 257751,
+    "quality": 1
+   }
+  ]
+ },
+ "enchants": [
+  {
+   "id": 8038,
+   "name": "Acuity of the Ren'dorei",
+   "icon": "inv_12_profession_enchanting_enchantedvellum_purple",
+   "quality": 1,
+   "slots": [
+    "main_hand",
+    "off_hand"
+   ]
+  },
+  {
+   "id": 8039,
+   "name": "Acuity of the Ren'dorei",
+   "icon": "inv_12_profession_enchanting_enchantedvellum_purple",
+   "quality": 2,
+   "slots": [
+    "main_hand",
+    "off_hand"
+   ]
+  },
+  {
+   "id": 7972,
+   "name": "Akil'zon's Swiftness",
+   "stats": "52 Runspeed",
+   "icon": "inv_12_profession_enchanting_enchantedvellum_blue",
+   "quality": 1,
+   "slots": [
+    "shoulder"
+   ]
+  },
+  {
+   "id": 7973,
+   "name": "Akil'zon's Swiftness",
+   "stats": "65 Runspeed",
+   "icon": "inv_12_profession_enchanting_enchantedvellum_blue",
+   "quality": 2,
+   "slots": [
+    "shoulder"
+   ]
+  },
+  {
+   "id": 7964,
+   "name": "Amani Mastery",
+   "stats": "22 Mastery",
+   "icon": "inv_12_profession_enchanting_enchantedvellum_green",
+   "quality": 1,
+   "slots": [
+    "finger1",
+    "finger2"
+   ]
+  },
+  {
+   "id": 7965,
+   "name": "Amani Mastery",
+   "stats": "24 Mastery",
+   "icon": "inv_12_profession_enchanting_enchantedvellum_green",
+   "quality": 2,
+   "slots": [
+    "finger1",
+    "finger2"
+   ]
+  },
+  {
+   "id": 8000,
+   "name": "Amirdrassil's Grace",
+   "stats": "89 Avoidance",
+   "icon": "inv_12_profession_enchanting_enchantedvellum_blue",
+   "quality": 1,
+   "slots": [
+    "shoulder"
+   ]
+  },
+  {
+   "id": 8001,
+   "name": "Amirdrassil's Grace",
+   "stats": "111 Avoidance",
+   "icon": "inv_12_profession_enchanting_enchantedvellum_blue",
+   "quality": 2,
+   "slots": [
+    "shoulder"
+   ]
+  },
+  {
+   "id": 8730,
+   "name": "Ancient Hash'ey Battle Art: Eye of the Lynx",
+   "icon": "inv_10_inscription2_repcontracts_trade_archaeology_apexisscroll_uprez_color3",
+   "slots": [
+    "hands"
+   ]
+  },
+  {
+   "id": 8727,
+   "name": "Ancient Hash'ey Battle Art: Falco Strikes",
+   "icon": "inv_10_inscription2_repcontracts_trade_archaeology_apexisscroll_uprez",
+   "slots": [
+    "hands"
+   ]
+  },
+  {
+   "id": 8729,
+   "name": "Ancient Hash'ey Battle Art: Heat Wave",
+   "icon": "inv_10_inscription2_repcontracts_trade_archaeology_apexisscroll_uprez_color2",
+   "slots": [
+    "hands"
+   ]
+  },
+  {
+   "id": 8728,
+   "name": "Ancient Hash'ey Battle Art: Ursine's Ironhide",
+   "icon": "inv_10_inscription2_repcontracts_trade_archaeology_apexisscroll_uprez_color1",
+   "slots": [
+    "hands"
+   ]
+  },
+  {
+   "id": 8040,
+   "name": "Arcane Mastery",
+   "icon": "inv_12_profession_enchanting_enchantedvellum_purple",
+   "quality": 1,
+   "slots": [
+    "main_hand",
+    "off_hand"
+   ]
+  },
+  {
+   "id": 8041,
+   "name": "Arcane Mastery",
+   "icon": "inv_12_profession_enchanting_enchantedvellum_purple",
+   "quality": 2,
+   "slots": [
+    "main_hand",
+    "off_hand"
+   ]
+  },
+  {
+   "id": 7936,
+   "name": "Arcanoweave Spellthread",
+   "stats": "32 Int",
+   "icon": "inv_12_tailoring_spellthread_violet_spellthread",
+   "quality": 1,
+   "slots": [
+    "legs"
+   ]
+  },
+  {
+   "id": 7937,
+   "name": "Arcanoweave Spellthread",
+   "stats": "41 Int",
+   "icon": "inv_12_tailoring_spellthread_violet_spellthread",
+   "quality": 2,
+   "slots": [
+    "legs"
+   ]
+  },
+  {
+   "id": 7982,
+   "name": "Berserker's Rage",
+   "icon": "inv_12_profession_enchanting_enchantedvellum_purple",
+   "quality": 1,
+   "slots": [
+    "main_hand",
+    "off_hand"
+   ]
+  },
+  {
+   "id": 7983,
+   "name": "Berserker's Rage",
+   "icon": "inv_12_profession_enchanting_enchantedvellum_purple",
+   "quality": 2,
+   "slots": [
+    "main_hand",
+    "off_hand"
+   ]
+  },
+  {
+   "id": 7988,
+   "name": "Blessing of Speed",
+   "stats": "9 Runspeed",
+   "icon": "inv_12_profession_enchanting_enchantedvellum_green",
+   "quality": 1,
+   "slots": [
+    "head"
+   ]
+  },
+  {
+   "id": 7989,
+   "name": "Blessing of Speed",
+   "stats": "13 Runspeed",
+   "icon": "inv_12_profession_enchanting_enchantedvellum_green",
+   "quality": 2,
+   "slots": [
+    "head"
+   ]
+  },
+  {
+   "id": 8162,
+   "name": "Blood Knight's Armor Kit",
+   "stats": "32 Stragi",
+   "icon": "inv_12_profession_leatherworking_thalassian_amor_kit",
+   "quality": 1,
+   "slots": [
+    "legs"
+   ]
+  },
+  {
+   "id": 8163,
+   "name": "Blood Knight's Armor Kit",
+   "stats": "41 Stragi",
+   "icon": "inv_12_profession_leatherworking_thalassian_amor_kit",
+   "quality": 2,
+   "slots": [
+    "legs"
+   ]
+  },
+  {
+   "id": 7938,
+   "name": "Bright Linen Spellthread",
+   "stats": "16 Int",
+   "icon": "inv_12_tailoring_spellthread_blue_spellthread",
+   "quality": 1,
+   "slots": [
+    "legs"
+   ]
+  },
+  {
+   "id": 7939,
+   "name": "Bright Linen Spellthread",
+   "stats": "24 Int",
+   "icon": "inv_12_tailoring_spellthread_blue_spellthread",
+   "quality": 2,
+   "slots": [
+    "legs"
+   ]
+  },
+  {
+   "id": 7990,
+   "name": "Empowered Blessing of Speed",
+   "stats": "17 Runspeed",
+   "icon": "inv_12_profession_enchanting_enchantedvellum_blue",
+   "quality": 1,
+   "slots": [
+    "head"
+   ]
+  },
+  {
+   "id": 7991,
+   "name": "Empowered Blessing of Speed",
+   "stats": "22 Runspeed",
+   "icon": "inv_12_profession_enchanting_enchantedvellum_blue",
+   "quality": 2,
+   "slots": [
+    "head"
+   ]
+  },
+  {
+   "id": 7960,
+   "name": "Empowered Hex of Leeching",
+   "stats": "44 Leech",
+   "icon": "inv_12_profession_enchanting_enchantedvellum_blue",
+   "quality": 1,
+   "slots": [
+    "head"
+   ]
+  },
+  {
+   "id": 7961,
+   "name": "Empowered Hex of Leeching",
+   "stats": "55 Leech",
+   "icon": "inv_12_profession_enchanting_enchantedvellum_blue",
+   "quality": 2,
+   "slots": [
+    "head"
+   ]
+  },
+  {
+   "id": 8016,
+   "name": "Empowered Rune of Avoidance",
+   "stats": "30 Avoidance",
+   "icon": "inv_12_profession_enchanting_enchantedvellum_blue",
+   "quality": 1,
+   "slots": [
+    "head"
+   ]
+  },
+  {
+   "id": 8017,
+   "name": "Empowered Rune of Avoidance",
+   "stats": "37 Avoidance",
+   "icon": "inv_12_profession_enchanting_enchantedvellum_blue",
+   "quality": 2,
+   "slots": [
+    "head"
+   ]
+  },
+  {
+   "id": 7966,
+   "name": "Eyes of the Eagle",
+   "icon": "inv_12_profession_enchanting_enchantedvellum_blue",
+   "quality": 1,
+   "slots": [
+    "finger1",
+    "finger2"
+   ]
+  },
+  {
+   "id": 7967,
+   "name": "Eyes of the Eagle",
+   "icon": "inv_12_profession_enchanting_enchantedvellum_blue",
+   "quality": 2,
+   "slots": [
+    "finger1",
+    "finger2"
+   ]
+  },
+  {
+   "id": 8614,
+   "name": "Farstrider's Hawkeye",
+   "icon": "inv_10_engineering_scope_color4",
+   "quality": 1,
+   "slots": [
+    "main_hand",
+    "off_hand"
+   ]
+  },
+  {
+   "id": 8615,
+   "name": "Farstrider's Hawkeye",
+   "icon": "inv_10_engineering_scope_color4",
+   "quality": 2,
+   "slots": [
+    "main_hand",
+    "off_hand"
+   ]
+  },
+  {
+   "id": 8018,
+   "name": "Farstrider's Hunt",
+   "stats": "9 Runspeed \u0026 186 Sta",
+   "icon": "inv_12_profession_enchanting_enchantedvellum_blue",
+   "quality": 1,
+   "slots": [
+    "feet"
+   ]
+  },
+  {
+   "id": 8019,
+   "name": "Farstrider's Hunt",
+   "stats": "11 Runspeed \u0026 232 Sta",
+   "icon": "inv_12_profession_enchanting_enchantedvellum_blue",
+   "quality": 2,
+   "slots": [
+    "feet"
+   ]
+  },
+  {
+   "id": 8036,
+   "name": "Flames of the Sin'dorei",
+   "icon": "inv_12_profession_enchanting_enchantedvellum_purple",
+   "quality": 1,
+   "slots": [
+    "main_hand",
+    "off_hand"
+   ]
+  },
+  {
+   "id": 8037,
+   "name": "Flames of the Sin'dorei",
+   "icon": "inv_12_profession_enchanting_enchantedvellum_purple",
+   "quality": 2,
+   "slots": [
+    "main_hand",
+    "off_hand"
+   ]
+  },
+  {
+   "id": 7970,
+   "name": "Flight of the Eagle",
+   "stats": "26 Runspeed",
+   "icon": "inv_12_profession_enchanting_enchantedvellum_green",
+   "quality": 1,
+   "slots": [
+    "shoulder"
+   ]
+  },
+  {
+   "id": 7971,
+   "name": "Flight of the Eagle",
+   "stats": "39 Runspeed",
+   "icon": "inv_12_profession_enchanting_enchantedvellum_green",
+   "quality": 2,
+   "slots": [
+    "shoulder"
+   ]
+  },
+  {
+   "id": 8158,
+   "name": "Forest Hunter's Armor Kit",
+   "stats": "70 Sta \u0026 32 Stragi",
+   "icon": "inv_12_profession_leatherworking_amani_armor_kit",
+   "quality": 1,
+   "slots": [
+    "legs"
+   ]
+  },
+  {
+   "id": 8159,
+   "name": "Forest Hunter's Armor Kit",
+   "stats": "115 Sta \u0026 41 Stragi",
+   "icon": "inv_12_profession_leatherworking_amani_armor_kit",
+   "quality": 2,
+   "slots": [
+    "legs"
+   ]
+  },
+  {
+   "id": 7958,
+   "name": "Hex of Leeching",
+   "stats": "22 Leech",
+   "icon": "inv_12_profession_enchanting_enchantedvellum_green",
+   "quality": 1,
+   "slots": [
+    "head"
+   ]
+  },
+  {
+   "id": 7959,
+   "name": "Hex of Leeching",
+   "stats": "33 Leech",
+   "icon": "inv_12_profession_enchanting_enchantedvellum_green",
+   "quality": 2,
+   "slots": [
+    "head"
+   ]
+  },
+  {
+   "id": 7980,
+   "name": "Jan'alai's Precision",
+   "icon": "inv_12_profession_enchanting_enchantedvellum_purple",
+   "quality": 1,
+   "slots": [
+    "main_hand",
+    "off_hand"
+   ]
+  },
+  {
+   "id": 7981,
+   "name": "Jan'alai's Precision",
+   "icon": "inv_12_profession_enchanting_enchantedvellum_purple",
+   "quality": 2,
+   "slots": [
+    "main_hand",
+    "off_hand"
+   ]
+  },
+  {
+   "id": 7962,
+   "name": "Lynx's Dexterity",
+   "stats": "15 Avoidance \u0026 186 Sta",
+   "icon": "inv_12_profession_enchanting_enchantedvellum_blue",
+   "quality": 1,
+   "slots": [
+    "feet"
+   ]
+  },
+  {
+   "id": 7963,
+   "name": "Lynx's Dexterity",
+   "stats": "19 Avoidance \u0026 232 Sta",
+   "icon": "inv_12_profession_enchanting_enchantedvellum_blue",
+   "quality": 2,
+   "slots": [
+    "feet"
+   ]
+  },
+  {
+   "id": 7956,
+   "name": "Mark of Nalorakk",
+   "stats": "32 Str \u0026 93 Sta",
+   "icon": "inv_12_profession_enchanting_enchantedvellum_blue",
+   "quality": 1,
+   "slots": [
+    "chest"
+   ]
+  },
+  {
+   "id": 7957,
+   "name": "Mark of Nalorakk",
+   "stats": "40 Str \u0026 116 Sta",
+   "icon": "inv_12_profession_enchanting_enchantedvellum_blue",
+   "quality": 2,
+   "slots": [
+    "chest"
+   ]
+  },
+  {
+   "id": 8012,
+   "name": "Mark of the Magister",
+   "stats": "32 Int",
+   "icon": "inv_12_profession_enchanting_enchantedvellum_blue",
+   "quality": 1,
+   "slots": [
+    "chest"
+   ]
+  },
+  {
+   "id": 8013,
+   "name": "Mark of the Magister",
+   "stats": "40 Int",
+   "icon": "inv_12_profession_enchanting_enchantedvellum_blue",
+   "quality": 2,
+   "slots": [
+    "chest"
+   ]
+  },
+  {
+   "id": 7984,
+   "name": "Mark of the Rootwarden",
+   "stats": "32 Agi \u0026 12 Runspeed",
+   "icon": "inv_12_profession_enchanting_enchantedvellum_blue",
+   "quality": 1,
+   "slots": [
+    "chest"
+   ]
+  },
+  {
+   "id": 7985,
+   "name": "Mark of the Rootwarden",
+   "stats": "40 Agi \u0026 15 Runspeed",
+   "icon": "inv_12_profession_enchanting_enchantedvellum_blue",
+   "quality": 2,
+   "slots": [
+    "chest"
+   ]
+  },
+  {
+   "id": 7986,
+   "name": "Mark of the Worldsoul",
+   "stats": "36 Main stat",
+   "icon": "inv_12_profession_enchanting_enchantedvellum_blue",
+   "quality": 1,
+   "slots": [
+    "chest"
+   ]
+  },
+  {
+   "id": 7987,
+   "name": "Mark of the Worldsoul",
+   "stats": "50 Main stat",
+   "icon": "inv_12_profession_enchanting_enchantedvellum_blue",
+   "quality": 2,
+   "slots": [
+    "chest"
+   ]
+  },
+  {
+   "id": 7996,
+   "name": "Nature's Fury",
+   "stats": "27 Crit",
+   "icon": "inv_12_profession_enchanting_enchantedvellum_blue",
+   "quality": 1,
+   "slots": [
+    "finger1",
+    "finger2"
+   ]
+  },
+  {
+   "id": 7997,
+   "name": "Nature's Fury",
+   "stats": "29 Crit",
+   "icon": "inv_12_profession_enchanting_enchantedvellum_blue",
+   "quality": 2,
+   "slots": [
+    "finger1",
+    "finger2"
+   ]
+  },
+  {
+   "id": 7998,
+   "name": "Nature's Grace",
+   "stats": "44 Avoidance",
+   "icon": "inv_12_profession_enchanting_enchantedvellum_green",
+   "quality": 1,
+   "slots": [
+    "shoulder"
+   ]
+  },
+  {
+   "id": 7999,
+   "name": "Nature's Grace",
+   "stats": "67 Avoidance",
+   "icon": "inv_12_profession_enchanting_enchantedvellum_green",
+   "quality": 2,
+   "slots": [
+    "shoulder"
+   ]
+  },
+  {
+   "id": 7994,
+   "name": "Nature's Wrath",
+   "stats": "22 Crit",
+   "icon": "inv_12_profession_enchanting_enchantedvellum_green",
+   "quality": 1,
+   "slots": [
+    "finger1",
+    "finger2"
+   ]
+  },
+  {
+   "id": 7995,
+   "name": "Nature's Wrath",
+   "stats": "24 Crit",
+   "icon": "inv_12_profession_enchanting_enchantedvellum_green",
+   "quality": 2,
+   "slots": [
+    "finger1",
+    "finger2"
+   ]
+  },
+  {
+   "id": 8688,
+   "name": "Rite of the Hash'ey",
+   "icon": "inv_12_profession_enchanting_enchantedvellum_purple",
+   "quality": 1,
+   "slots": [
+    "main_hand",
+    "off_hand"
+   ]
+  },
+  {
+   "id": 8689,
+   "name": "Rite of the Hash'ey",
+   "icon": "inv_12_profession_enchanting_enchantedvellum_purple",
+   "quality": 2,
+   "slots": [
+    "main_hand",
+    "off_hand"
+   ]
+  },
+  {
+   "id": 8014,
+   "name": "Rune of Avoidance",
+   "stats": "15 Avoidance",
+   "icon": "inv_12_profession_enchanting_enchantedvellum_green",
+   "quality": 1,
+   "slots": [
+    "head"
+   ]
+  },
+  {
+   "id": 8015,
+   "name": "Rune of Avoidance",
+   "stats": "22 Avoidance",
+   "icon": "inv_12_profession_enchanting_enchantedvellum_green",
+   "quality": 2,
+   "slots": [
+    "head"
+   ]
+  },
+  {
+   "id": 8702,
+   "name": "Schematic: R0CKY",
+   "icon": "inv_10_inscription2_repcontracts_80_scroll_uprez",
+   "slots": [
+    "head"
+   ]
+  },
+  {
+   "id": 7992,
+   "name": "Shaladrassil's Roots",
+   "stats": "22 Leech \u0026 186 Sta",
+   "icon": "inv_12_profession_enchanting_enchantedvellum_blue",
+   "quality": 1,
+   "slots": [
+    "feet"
+   ]
+  },
+  {
+   "id": 7993,
+   "name": "Shaladrassil's Roots",
+   "stats": "28 Leech \u0026 232 Sta",
+   "icon": "inv_12_profession_enchanting_enchantedvellum_blue",
+   "quality": 2,
+   "slots": [
+    "feet"
+   ]
+  },
+  {
+   "id": 8024,
+   "name": "Silvermoon's Alacrity",
+   "stats": "27 Haste",
+   "icon": "inv_12_profession_enchanting_enchantedvellum_blue",
+   "quality": 1,
+   "slots": [
+    "finger1",
+    "finger2"
+   ]
+  },
+  {
+   "id": 8025,
+   "name": "Silvermoon's Alacrity",
+   "stats": "29 Haste",
+   "icon": "inv_12_profession_enchanting_enchantedvellum_blue",
+   "quality": 2,
+   "slots": [
+    "finger1",
+    "finger2"
+   ]
+  },
+  {
+   "id": 8030,
+   "name": "Silvermoon's Mending",
+   "stats": "132 Leech",
+   "icon": "inv_12_profession_enchanting_enchantedvellum_blue",
+   "quality": 1,
+   "slots": [
+    "shoulder"
+   ]
+  },
+  {
+   "id": 8031,
+   "name": "Silvermoon's Mending",
+   "stats": "166 Leech",
+   "icon": "inv_12_profession_enchanting_enchantedvellum_blue",
+   "quality": 2,
+   "slots": [
+    "shoulder"
+   ]
+  },
+  {
+   "id": 8026,
+   "name": "Silvermoon's Tenacity",
+   "stats": "27 Vers",
+   "icon": "inv_12_profession_enchanting_enchantedvellum_blue",
+   "quality": 1,
+   "slots": [
+    "finger1",
+    "finger2"
+   ]
+  },
+  {
+   "id": 8027,
+   "name": "Silvermoon's Tenacity",
+   "stats": "29 Vers",
+   "icon": "inv_12_profession_enchanting_enchantedvellum_blue",
+   "quality": 2,
+   "slots": [
+    "finger1",
+    "finger2"
+   ]
+  },
+  {
+   "id": 8612,
+   "name": "Smuggler's Lynxeye",
+   "icon": "inv_10_engineering_scope_color2",
+   "quality": 1,
+   "slots": [
+    "main_hand",
+    "off_hand"
+   ]
+  },
+  {
+   "id": 8613,
+   "name": "Smuggler's Lynxeye",
+   "icon": "inv_10_engineering_scope_color2",
+   "quality": 2,
+   "slots": [
+    "main_hand",
+    "off_hand"
+   ]
+  },
+  {
+   "id": 7978,
+   "name": "Strength of Halazzi",
+   "icon": "inv_12_profession_enchanting_enchantedvellum_purple",
+   "quality": 1,
+   "slots": [
+    "main_hand",
+    "off_hand"
+   ]
+  },
+  {
+   "id": 7979,
+   "name": "Strength of Halazzi",
+   "icon": "inv_12_profession_enchanting_enchantedvellum_purple",
+   "quality": 2,
+   "slots": [
+    "main_hand",
+    "off_hand"
+   ]
+  },
+  {
+   "id": 7934,
+   "name": "Sunfire Silk Spellthread",
+   "stats": "32 Int \u0026 70 Sta",
+   "icon": "inv_tailoring_spellthread_orange_spellthread",
+   "quality": 1,
+   "slots": [
+    "legs"
+   ]
+  },
+  {
+   "id": 7935,
+   "name": "Sunfire Silk Spellthread",
+   "stats": "41 Int \u0026 115 Sta",
+   "icon": "inv_tailoring_spellthread_orange_spellthread",
+   "quality": 2,
+   "slots": [
+    "legs"
+   ]
+  },
+  {
+   "id": 8020,
+   "name": "Thalassian Haste",
+   "stats": "22 Haste",
+   "icon": "inv_12_profession_enchanting_enchantedvellum_green",
+   "quality": 1,
+   "slots": [
+    "finger1",
+    "finger2"
+   ]
+  },
+  {
+   "id": 8021,
+   "name": "Thalassian Haste",
+   "stats": "24 Haste",
+   "icon": "inv_12_profession_enchanting_enchantedvellum_green",
+   "quality": 2,
+   "slots": [
+    "finger1",
+    "finger2"
+   ]
+  },
+  {
+   "id": 8028,
+   "name": "Thalassian Recovery",
+   "stats": "66 Leech",
+   "icon": "inv_12_profession_enchanting_enchantedvellum_green",
+   "quality": 1,
+   "slots": [
+    "shoulder"
+   ]
+  },
+  {
+   "id": 8029,
+   "name": "Thalassian Recovery",
+   "stats": "99 Leech",
+   "icon": "inv_12_profession_enchanting_enchantedvellum_green",
+   "quality": 2,
+   "slots": [
+    "shoulder"
+   ]
+  },
+  {
+   "id": 8160,
+   "name": "Thalassian Scout Armor Kit",
+   "stats": "16 Stragi",
+   "icon": "inv_12_profession_leatherworking_standart_armor_kit",
+   "quality": 1,
+   "slots": [
+    "legs"
+   ]
+  },
+  {
+   "id": 8161,
+   "name": "Thalassian Scout Armor Kit",
+   "stats": "24 Stragi",
+   "icon": "inv_12_profession_leatherworking_standart_armor_kit",
+   "quality": 2,
+   "slots": [
+    "legs"
+   ]
+  },
+  {
+   "id": 8022,
+   "name": "Thalassian Versatility",
+   "stats": "22 Vers",
+   "icon": "inv_12_profession_enchanting_enchantedvellum_green",
+   "quality": 1,
+   "slots": [
+    "finger1",
+    "finger2"
+   ]
+  },
+  {
+   "id": 8023,
+   "name": "Thalassian Versatility",
+   "stats": "24 Vers",
+   "icon": "inv_12_profession_enchanting_enchantedvellum_green",
+   "quality": 2,
+   "slots": [
+    "finger1",
+    "finger2"
+   ]
+  },
+  {
+   "id": 8008,
+   "name": "Worldsoul Aegis",
+   "icon": "inv_12_profession_enchanting_enchantedvellum_purple",
+   "quality": 1,
+   "slots": [
+    "main_hand",
+    "off_hand"
+   ]
+  },
+  {
+   "id": 8009,
+   "name": "Worldsoul Aegis",
+   "icon": "inv_12_profession_enchanting_enchantedvellum_purple",
+   "quality": 2,
+   "slots": [
+    "main_hand",
+    "off_hand"
+   ]
+  },
+  {
+   "id": 8006,
+   "name": "Worldsoul Cradle",
+   "icon": "inv_12_profession_enchanting_enchantedvellum_purple",
+   "quality": 1,
+   "slots": [
+    "main_hand",
+    "off_hand"
+   ]
+  },
+  {
+   "id": 8007,
+   "name": "Worldsoul Cradle",
+   "icon": "inv_12_profession_enchanting_enchantedvellum_purple",
+   "quality": 2,
+   "slots": [
+    "main_hand",
+    "off_hand"
+   ]
+  },
+  {
+   "id": 8010,
+   "name": "Worldsoul Tenacity",
+   "icon": "inv_12_profession_enchanting_enchantedvellum_purple",
+   "quality": 1,
+   "slots": [
+    "main_hand",
+    "off_hand"
+   ]
+  },
+  {
+   "id": 8011,
+   "name": "Worldsoul Tenacity",
+   "icon": "inv_12_profession_enchanting_enchantedvellum_purple",
+   "quality": 2,
+   "slots": [
+    "main_hand",
+    "off_hand"
+   ]
+  },
+  {
+   "id": 7968,
+   "name": "Zul'jin's Mastery",
+   "stats": "27 Mastery",
+   "icon": "inv_12_profession_enchanting_enchantedvellum_blue",
+   "quality": 1,
+   "slots": [
+    "finger1",
+    "finger2"
+   ]
+  },
+  {
+   "id": 7969,
+   "name": "Zul'jin's Mastery",
+   "stats": "29 Mastery",
+   "icon": "inv_12_profession_enchanting_enchantedvellum_blue",
+   "quality": 2,
+   "slots": [
+    "finger1",
+    "finger2"
+   ]
+  }
+ ],
+ "gems": [
+  {
+   "id": 241143,
+   "name": "Cognitive Heliotrope",
+   "stats": "23 Main stat",
+   "icon": "inv_misc_epicgem_01"
+  },
+  {
+   "id": 240865,
+   "name": "Deadly Amethyst",
+   "stats": "11 Mastery \u0026 4 Crit",
+   "icon": "inv_12_profession_jewelcrafting_uncommon_gem_cut_fire_purple",
+   "quality": 1
+  },
+  {
+   "id": 240866,
+   "name": "Deadly Amethyst",
+   "stats": "12 Mastery \u0026 5 Crit",
+   "icon": "inv_12_profession_jewelcrafting_uncommon_gem_cut_fire_purple",
+   "quality": 2
+  },
+  {
+   "id": 240871,
+   "name": "Deadly Garnet",
+   "stats": "12 Crit",
+   "icon": "inv_12_profession_jewelcrafting_uncommon_gem_cut_fire_red",
+   "quality": 1
+  },
+  {
+   "id": 240872,
+   "name": "Deadly Garnet",
+   "stats": "13 Crit",
+   "icon": "inv_12_profession_jewelcrafting_uncommon_gem_cut_fire_red",
+   "quality": 2
+  },
+  {
+   "id": 240881,
+   "name": "Deadly Lapis",
+   "stats": "11 Vers \u0026 4 Crit",
+   "icon": "inv_12_profession_jewelcrafting_uncommon_gem_cut_fire_blue",
+   "quality": 1
+  },
+  {
+   "id": 240882,
+   "name": "Deadly Lapis",
+   "stats": "12 Vers \u0026 5 Crit",
+   "icon": "inv_12_profession_jewelcrafting_uncommon_gem_cut_fire_blue",
+   "quality": 2
+  },
+  {
+   "id": 240857,
+   "name": "Deadly Peridot",
+   "stats": "11 Haste \u0026 4 Crit",
+   "icon": "inv_12_profession_jewelcrafting_uncommon_gem_cut_fire_green",
+   "quality": 1
+  },
+  {
+   "id": 240858,
+   "name": "Deadly Peridot",
+   "stats": "12 Haste \u0026 5 Crit",
+   "icon": "inv_12_profession_jewelcrafting_uncommon_gem_cut_fire_green",
+   "quality": 2
+  },
+  {
+   "id": 241142,
+   "name": "Determined Heliotrope",
+   "stats": "23 Main stat",
+   "icon": "inv_misc_epicgem_uncut_01"
+  },
+  {
+   "id": 241144,
+   "name": "Enduring Heliotrope",
+   "stats": "23 Main stat",
+   "icon": "inv_misc_cutgemsuperior6"
+  },
+  {
+   "id": 240897,
+   "name": "Flawless Deadly Amethyst",
+   "stats": "14 Mastery \u0026 6 Crit",
+   "icon": "inv_12_profession_jewelcrafting_rare_gem_cut_fire_purple",
+   "quality": 1
+  },
+  {
+   "id": 240898,
+   "name": "Flawless Deadly Amethyst",
+   "stats": "16 Mastery \u0026 7 Crit",
+   "icon": "inv_12_profession_jewelcrafting_rare_gem_cut_fire_purple",
+   "quality": 2
+  },
+  {
+   "id": 240903,
+   "name": "Flawless Deadly Garnet",
+   "stats": "15 Crit",
+   "icon": "inv_12_profession_jewelcrafting_rare_gem_cut_fire_red",
+   "quality": 1
+  },
+  {
+   "id": 240904,
+   "name": "Flawless Deadly Garnet",
+   "stats": "17 Crit",
+   "icon": "inv_12_profession_jewelcrafting_rare_gem_cut_fire_red",
+   "quality": 2
+  },
+  {
+   "id": 240913,
+   "name": "Flawless Deadly Lapis",
+   "stats": "14 Vers \u0026 6 Crit",
+   "icon": "inv_12_profession_jewelcrafting_rare_gem_cut_fire_blue",
+   "quality": 1
+  },
+  {
+   "id": 240914,
+   "name": "Flawless Deadly Lapis",
+   "stats": "16 Vers \u0026 7 Crit",
+   "icon": "inv_12_profession_jewelcrafting_rare_gem_cut_fire_blue",
+   "quality": 2
+  },
+  {
+   "id": 240889,
+   "name": "Flawless Deadly Peridot",
+   "stats": "14 Haste \u0026 6 Crit",
+   "icon": "inv_12_profession_jewelcrafting_rare_gem_cut_fire_green",
+   "quality": 1
+  },
+  {
+   "id": 240890,
+   "name": "Flawless Deadly Peridot",
+   "stats": "16 Haste \u0026 7 Crit",
+   "icon": "inv_12_profession_jewelcrafting_rare_gem_cut_fire_green",
+   "quality": 2
+  },
+  {
+   "id": 240895,
+   "name": "Flawless Masterful Amethyst",
+   "stats": "15 Mastery",
+   "icon": "inv_12_profession_jewelcrafting_rare_gem_cut_void_purple",
+   "quality": 1
+  },
+  {
+   "id": 240896,
+   "name": "Flawless Masterful Amethyst",
+   "stats": "17 Mastery",
+   "icon": "inv_12_profession_jewelcrafting_rare_gem_cut_void_purple",
+   "quality": 2
+  },
+  {
+   "id": 240907,
+   "name": "Flawless Masterful Garnet",
+   "stats": "14 Crit \u0026 6 Mastery",
+   "icon": "inv_12_profession_jewelcrafting_rare_gem_cut_void_red",
+   "quality": 1
+  },
+  {
+   "id": 240908,
+   "name": "Flawless Masterful Garnet",
+   "stats": "16 Crit \u0026 7 Mastery",
+   "icon": "inv_12_profession_jewelcrafting_rare_gem_cut_void_red",
+   "quality": 2
+  },
+  {
+   "id": 240917,
+   "name": "Flawless Masterful Lapis",
+   "stats": "14 Vers \u0026 6 Mastery",
+   "icon": "inv_12_profession_jewelcrafting_rare_gem_cut_void_blue",
+   "quality": 1
+  },
+  {
+   "id": 240918,
+   "name": "Flawless Masterful Lapis",
+   "stats": "16 Vers \u0026 7 Mastery",
+   "icon": "inv_12_profession_jewelcrafting_rare_gem_cut_void_blue",
+   "quality": 2
+  },
+  {
+   "id": 240891,
+   "name": "Flawless Masterful Peridot",
+   "stats": "14 Haste \u0026 6 Mastery",
+   "icon": "inv_12_profession_jewelcrafting_rare_gem_cut_void_green",
+   "quality": 1
+  },
+  {
+   "id": 240892,
+   "name": "Flawless Masterful Peridot",
+   "stats": "16 Haste \u0026 7 Mastery",
+   "icon": "inv_12_profession_jewelcrafting_rare_gem_cut_void_green",
+   "quality": 2
+  },
+  {
+   "id": 240899,
+   "name": "Flawless Quick Amethyst",
+   "stats": "14 Mastery \u0026 6 Haste",
+   "icon": "inv_12_profession_jewelcrafting_rare_gem_cut_nature_purple",
+   "quality": 1
+  },
+  {
+   "id": 240900,
+   "name": "Flawless Quick Amethyst",
+   "stats": "16 Mastery \u0026 7 Haste",
+   "icon": "inv_12_profession_jewelcrafting_rare_gem_cut_nature_purple",
+   "quality": 2
+  },
+  {
+   "id": 240905,
+   "name": "Flawless Quick Garnet",
+   "stats": "14 Crit \u0026 6 Haste",
+   "icon": "inv_12_profession_jewelcrafting_rare_gem_cut_nature_red",
+   "quality": 1
+  },
+  {
+   "id": 240906,
+   "name": "Flawless Quick Garnet",
+   "stats": "16 Crit \u0026 7 Haste",
+   "icon": "inv_12_profession_jewelcrafting_rare_gem_cut_nature_red",
+   "quality": 2
+  },
+  {
+   "id": 240915,
+   "name": "Flawless Quick Lapis",
+   "stats": "14 Vers \u0026 6 Haste",
+   "icon": "inv_12_profession_jewelcrafting_rare_gem_cut_nature_blue",
+   "quality": 1
+  },
+  {
+   "id": 240916,
+   "name": "Flawless Quick Lapis",
+   "stats": "16 Vers \u0026 7 Haste",
+   "icon": "inv_12_profession_jewelcrafting_rare_gem_cut_nature_blue",
+   "quality": 2
+  },
+  {
+   "id": 240887,
+   "name": "Flawless Quick Peridot",
+   "stats": "15 Haste",
+   "icon": "inv_12_profession_jewelcrafting_rare_gem_cut_nature_green",
+   "quality": 1
+  },
+  {
+   "id": 240888,
+   "name": "Flawless Quick Peridot",
+   "stats": "17 Haste",
+   "icon": "inv_12_profession_jewelcrafting_rare_gem_cut_nature_green",
+   "quality": 2
+  },
+  {
+   "id": 240901,
+   "name": "Flawless Versatile Amethyst",
+   "stats": "14 Mastery \u0026 6 Vers",
+   "icon": "inv_12_profession_jewelcrafting_rare_gem_cut_frost_purple",
+   "quality": 1
+  },
+  {
+   "id": 240902,
+   "name": "Flawless Versatile Amethyst",
+   "stats": "16 Mastery \u0026 7 Vers",
+   "icon": "inv_12_profession_jewelcrafting_rare_gem_cut_frost_purple",
+   "quality": 2
+  },
+  {
+   "id": 240909,
+   "name": "Flawless Versatile Garnet",
+   "stats": "14 Crit \u0026 6 Vers",
+   "icon": "inv_12_profession_jewelcrafting_rare_gem_cut_frost_red",
+   "quality": 1
+  },
+  {
+   "id": 240910,
+   "name": "Flawless Versatile Garnet",
+   "stats": "16 Crit \u0026 7 Vers",
+   "icon": "inv_12_profession_jewelcrafting_rare_gem_cut_frost_red",
+   "quality": 2
+  },
+  {
+   "id": 240911,
+   "name": "Flawless Versatile Lapis",
+   "stats": "15 Vers",
+   "icon": "inv_12_profession_jewelcrafting_rare_gem_cut_frost_blue",
+   "quality": 1
+  },
+  {
+   "id": 240912,
+   "name": "Flawless Versatile Lapis",
+   "stats": "17 Vers",
+   "icon": "inv_12_profession_jewelcrafting_rare_gem_cut_frost_blue",
+   "quality": 2
+  },
+  {
+   "id": 240893,
+   "name": "Flawless Versatile Peridot",
+   "stats": "14 Haste \u0026 6 Vers",
+   "icon": "inv_12_profession_jewelcrafting_rare_gem_cut_frost_green",
+   "quality": 1
+  },
+  {
+   "id": 240894,
+   "name": "Flawless Versatile Peridot",
+   "stats": "16 Haste \u0026 7 Vers",
+   "icon": "inv_12_profession_jewelcrafting_rare_gem_cut_frost_green",
+   "quality": 2
+  },
+  {
+   "id": 240982,
+   "name": "Indecipherable Eversong Diamond",
+   "stats": "26 Main stat",
+   "icon": "inv_12_profession_jewelcrafting_epic_gem_cut_green",
+   "quality": 1
+  },
+  {
+   "id": 240983,
+   "name": "Indecipherable Eversong Diamond",
+   "stats": "32 Main stat",
+   "icon": "inv_12_profession_jewelcrafting_epic_gem_cut_green",
+   "quality": 2
+  },
+  {
+   "id": 240863,
+   "name": "Masterful Amethyst",
+   "stats": "12 Mastery",
+   "icon": "inv_12_profession_jewelcrafting_uncommon_gem_cut_void_purple",
+   "quality": 1
+  },
+  {
+   "id": 240864,
+   "name": "Masterful Amethyst",
+   "stats": "13 Mastery",
+   "icon": "inv_12_profession_jewelcrafting_uncommon_gem_cut_void_purple",
+   "quality": 2
+  },
+  {
+   "id": 240875,
+   "name": "Masterful Garnet",
+   "stats": "11 Crit \u0026 4 Mastery",
+   "icon": "inv_12_profession_jewelcrafting_uncommon_gem_cut_void_red",
+   "quality": 1
+  },
+  {
+   "id": 240876,
+   "name": "Masterful Garnet",
+   "stats": "12 Crit \u0026 5 Mastery",
+   "icon": "inv_12_profession_jewelcrafting_uncommon_gem_cut_void_red",
+   "quality": 2
+  },
+  {
+   "id": 240885,
+   "name": "Masterful Lapis",
+   "stats": "11 Vers \u0026 4 Mastery",
+   "icon": "inv_12_profession_jewelcrafting_uncommon_gem_cut_void_blue",
+   "quality": 1
+  },
+  {
+   "id": 240886,
+   "name": "Masterful Lapis",
+   "stats": "12 Vers \u0026 5 Mastery",
+   "icon": "inv_12_profession_jewelcrafting_uncommon_gem_cut_void_blue",
+   "quality": 2
+  },
+  {
+   "id": 240859,
+   "name": "Masterful Peridot",
+   "stats": "11 Haste \u0026 4 Mastery",
+   "icon": "inv_12_profession_jewelcrafting_uncommon_gem_cut_void_green",
+   "quality": 1
+  },
+  {
+   "id": 240860,
+   "name": "Masterful Peridot",
+   "stats": "12 Haste \u0026 5 Mastery",
+   "icon": "inv_12_profession_jewelcrafting_uncommon_gem_cut_void_green",
+   "quality": 2
+  },
+  {
+   "id": 240966,
+   "name": "Powerful Eversong Diamond",
+   "stats": "18 Main stat",
+   "icon": "inv_12_profession_jewelcrafting_epic_gem_cut_orange",
+   "quality": 1
+  },
+  {
+   "id": 240967,
+   "name": "Powerful Eversong Diamond",
+   "stats": "23 Main stat",
+   "icon": "inv_12_profession_jewelcrafting_epic_gem_cut_orange",
+   "quality": 2
+  },
+  {
+   "id": 240867,
+   "name": "Quick Amethyst",
+   "stats": "11 Mastery \u0026 4 Haste",
+   "icon": "inv_12_profession_jewelcrafting_uncommon_gem_cut_nature_purple",
+   "quality": 1
+  },
+  {
+   "id": 240868,
+   "name": "Quick Amethyst",
+   "stats": "12 Mastery \u0026 5 Haste",
+   "icon": "inv_12_profession_jewelcrafting_uncommon_gem_cut_nature_purple",
+   "quality": 2
+  },
+  {
+   "id": 240873,
+   "name": "Quick Garnet",
+   "stats": "11 Crit \u0026 4 Haste",
+   "icon": "inv_12_profession_jewelcrafting_uncommon_gem_cut_nature_red",
+   "quality": 1
+  },
+  {
+   "id": 240874,
+   "name": "Quick Garnet",
+   "stats": "12 Crit \u0026 5 Haste",
+   "icon": "inv_12_profession_jewelcrafting_uncommon_gem_cut_nature_red",
+   "quality": 2
+  },
+  {
+   "id": 240883,
+   "name": "Quick Lapis",
+   "stats": "11 Vers \u0026 4 Haste",
+   "icon": "inv_12_profession_jewelcrafting_uncommon_gem_cut_nature_blue",
+   "quality": 1
+  },
+  {
+   "id": 240884,
+   "name": "Quick Lapis",
+   "stats": "12 Vers \u0026 5 Haste",
+   "icon": "inv_12_profession_jewelcrafting_uncommon_gem_cut_nature_blue",
+   "quality": 2
+  },
+  {
+   "id": 240855,
+   "name": "Quick Peridot",
+   "stats": "12 Haste",
+   "icon": "inv_12_profession_jewelcrafting_uncommon_gem_cut_nature_green",
+   "quality": 1
+  },
+  {
+   "id": 240856,
+   "name": "Quick Peridot",
+   "stats": "13 Haste",
+   "icon": "inv_12_profession_jewelcrafting_uncommon_gem_cut_nature_green",
+   "quality": 2
+  },
+  {
+   "id": 240970,
+   "name": "Stoic Eversong Diamond",
+   "stats": "18 Main stat",
+   "icon": "inv_12_profession_jewelcrafting_epic_gem_cut_pink",
+   "quality": 1
+  },
+  {
+   "id": 240971,
+   "name": "Stoic Eversong Diamond",
+   "stats": "23 Main stat",
+   "icon": "inv_12_profession_jewelcrafting_epic_gem_cut_pink",
+   "quality": 2
+  },
+  {
+   "id": 240968,
+   "name": "Telluric Eversong Diamond",
+   "stats": "18 Main stat",
+   "icon": "inv_12_profession_jewelcrafting_epic_gem_cut_blue",
+   "quality": 1
+  },
+  {
+   "id": 240969,
+   "name": "Telluric Eversong Diamond",
+   "stats": "23 Main stat",
+   "icon": "inv_12_profession_jewelcrafting_epic_gem_cut_blue",
+   "quality": 2
+  },
+  {
+   "id": 240869,
+   "name": "Versatile Amethyst",
+   "stats": "11 Mastery \u0026 4 Vers",
+   "icon": "inv_12_profession_jewelcrafting_uncommon_gem_cut_frost_purple",
+   "quality": 1
+  },
+  {
+   "id": 240870,
+   "name": "Versatile Amethyst",
+   "stats": "12 Mastery \u0026 5 Vers",
+   "icon": "inv_12_profession_jewelcrafting_uncommon_gem_cut_frost_purple",
+   "quality": 2
+  },
+  {
+   "id": 240877,
+   "name": "Versatile Garnet",
+   "stats": "11 Crit \u0026 4 Vers",
+   "icon": "inv_12_profession_jewelcrafting_uncommon_gem_cut_frost_red",
+   "quality": 1
+  },
+  {
+   "id": 240878,
+   "name": "Versatile Garnet",
+   "stats": "12 Crit \u0026 5 Vers",
+   "icon": "inv_12_profession_jewelcrafting_uncommon_gem_cut_frost_red",
+   "quality": 2
+  },
+  {
+   "id": 240879,
+   "name": "Versatile Lapis",
+   "stats": "12 Vers",
+   "icon": "inv_12_profession_jewelcrafting_uncommon_gem_cut_frost_blue",
+   "quality": 1
+  },
+  {
+   "id": 240880,
+   "name": "Versatile Lapis",
+   "stats": "13 Vers",
+   "icon": "inv_12_profession_jewelcrafting_uncommon_gem_cut_frost_blue",
+   "quality": 2
+  },
+  {
+   "id": 240861,
+   "name": "Versatile Peridot",
+   "stats": "11 Haste \u0026 4 Vers",
+   "icon": "inv_12_profession_jewelcrafting_uncommon_gem_cut_frost_green",
+   "quality": 1
+  },
+  {
+   "id": 240862,
+   "name": "Versatile Peridot",
+   "stats": "12 Haste \u0026 5 Vers",
+   "icon": "inv_12_profession_jewelcrafting_uncommon_gem_cut_frost_green",
+   "quality": 2
+  }
+ ],
+ "upgrades": [
+  {
+   "group": 630,
+   "name": "Myth",
+   "levels": [
+    {
+     "bonusID": 12897,
+     "level": 1,
+     "itemLevel": 388
+    },
+    {
+     "bonusID": 12898,
+     "level": 2,
+     "itemLevel": 391
+    },
+    {
+     "bonusID": 12899,
+     "level": 3,
+     "itemLevel": 395
+    },
+    {
+     "bonusID": 12900,
+     "level": 4,
+     "itemLevel": 398
+    },
+    {
+     "bonusID": 12901,
+     "level": 5,
+     "itemLevel": 401
+    },
+    {
+     "bonusID": 12902,
+     "level": 6,
+     "itemLevel": 404
+    },
+    {
+     "bonusID": 12903,
+     "level": 7,
+     "itemLevel": 408
+    },
+    {
+     "bonusID": 12904,
+     "level": 8,
+     "itemLevel": 411
+    }
+   ]
+  },
+  {
+   "group": 629,
+   "name": "Hero",
+   "levels": [
+    {
+     "bonusID": 12889,
+     "level": 1,
+     "itemLevel": 375
+    },
+    {
+     "bonusID": 12890,
+     "level": 2,
+     "itemLevel": 378
+    },
+    {
+     "bonusID": 12891,
+     "level": 3,
+     "itemLevel": 382
+    },
+    {
+     "bonusID": 12892,
+     "level": 4,
+     "itemLevel": 385
+    },
+    {
+     "bonusID": 12893,
+     "level": 5,
+     "itemLevel": 388
+    },
+    {
+     "bonusID": 12894,
+     "level": 6,
+     "itemLevel": 391
+    },
+    {
+     "bonusID": 12895,
+     "level": 7,
+     "itemLevel": 395
+    },
+    {
+     "bonusID": 12896,
+     "level": 8,
+     "itemLevel": 398
+    }
+   ]
+  },
+  {
+   "group": 628,
+   "name": "Champion",
+   "levels": [
+    {
+     "bonusID": 12881,
+     "level": 1,
+     "itemLevel": 362
+    },
+    {
+     "bonusID": 12882,
+     "level": 2,
+     "itemLevel": 365
+    },
+    {
+     "bonusID": 12883,
+     "level": 3,
+     "itemLevel": 369
+    },
+    {
+     "bonusID": 12884,
+     "level": 4,
+     "itemLevel": 372
+    },
+    {
+     "bonusID": 12885,
+     "level": 5,
+     "itemLevel": 375
+    },
+    {
+     "bonusID": 12886,
+     "level": 6,
+     "itemLevel": 378
+    },
+    {
+     "bonusID": 12887,
+     "level": 7,
+     "itemLevel": 382
+    },
+    {
+     "bonusID": 12888,
+     "level": 8,
+     "itemLevel": 385
+    }
+   ]
+  },
+  {
+   "group": 627,
+   "name": "Veteran",
+   "levels": [
+    {
+     "bonusID": 12873,
+     "level": 1,
+     "itemLevel": 349
+    },
+    {
+     "bonusID": 12874,
+     "level": 2,
+     "itemLevel": 352
+    },
+    {
+     "bonusID": 12875,
+     "level": 3,
+     "itemLevel": 356
+    },
+    {
+     "bonusID": 12876,
+     "level": 4,
+     "itemLevel": 359
+    },
+    {
+     "bonusID": 12877,
+     "level": 5,
+     "itemLevel": 362
+    },
+    {
+     "bonusID": 12878,
+     "level": 6,
+     "itemLevel": 365
+    },
+    {
+     "bonusID": 12879,
+     "level": 7,
+     "itemLevel": 369
+    },
+    {
+     "bonusID": 12880,
+     "level": 8,
+     "itemLevel": 372
+    }
+   ]
+  },
+  {
+   "group": 626,
+   "name": "Adventurer",
+   "levels": [
+    {
+     "bonusID": 12865,
+     "level": 1,
+     "itemLevel": 336
+    },
+    {
+     "bonusID": 12866,
+     "level": 2,
+     "itemLevel": 339
+    },
+    {
+     "bonusID": 12867,
+     "level": 3,
+     "itemLevel": 343
+    },
+    {
+     "bonusID": 12868,
+     "level": 4,
+     "itemLevel": 346
+    },
+    {
+     "bonusID": 12869,
+     "level": 5,
+     "itemLevel": 349
+    },
+    {
+     "bonusID": 12870,
+     "level": 6,
+     "itemLevel": 352
+    },
+    {
+     "bonusID": 12871,
+     "level": 7,
+     "itemLevel": 356
+    },
+    {
+     "bonusID": 12872,
+     "level": 8,
+     "itemLevel": 359
+    }
+   ]
+  },
+  {
+   "group": 618,
+   "name": "Myth",
+   "levels": [
+    {
+     "bonusID": 12849,
+     "level": 1,
+     "itemLevel": 318
+    },
+    {
+     "bonusID": 12850,
+     "level": 2,
+     "itemLevel": 321
+    },
+    {
+     "bonusID": 12851,
+     "level": 3,
+     "itemLevel": 324
+    },
+    {
+     "bonusID": 12852,
+     "level": 4,
+     "itemLevel": 328
+    },
+    {
+     "bonusID": 12853,
+     "level": 5,
+     "itemLevel": 331
+    },
+    {
+     "bonusID": 12854,
+     "level": 6,
+     "itemLevel": 334
+    }
+   ]
+  },
+  {
+   "group": 617,
+   "name": "Hero",
+   "levels": [
+    {
+     "bonusID": 12841,
+     "level": 1,
+     "itemLevel": 305
+    },
+    {
+     "bonusID": 12842,
+     "level": 2,
+     "itemLevel": 308
+    },
+    {
+     "bonusID": 12843,
+     "level": 3,
+     "itemLevel": 311
+    },
+    {
+     "bonusID": 12844,
+     "level": 4,
+     "itemLevel": 315
+    },
+    {
+     "bonusID": 12845,
+     "level": 5,
+     "itemLevel": 318
+    },
+    {
+     "bonusID": 12846,
+     "level": 6,
+     "itemLevel": 321
+    }
+   ]
+  },
+  {
+   "group": 616,
+   "name": "Champion",
+   "levels": [
+    {
+     "bonusID": 12833,
+     "level": 1,
+     "itemLevel": 292
+    },
+    {
+     "bonusID": 12834,
+     "level": 2,
+     "itemLevel": 295
+    },
+    {
+     "bonusID": 12835,
+     "level": 3,
+     "itemLevel": 298
+    },
+    {
+     "bonusID": 12836,
+     "level": 4,
+     "itemLevel": 302
+    },
+    {
+     "bonusID": 12837,
+     "level": 5,
+     "itemLevel": 305
+    },
+    {
+     "bonusID": 12838,
+     "level": 6,
+     "itemLevel": 308
+    }
+   ]
+  },
+  {
+   "group": 615,
+   "name": "Veteran",
+   "levels": [
+    {
+     "bonusID": 12825,
+     "level": 1,
+     "itemLevel": 279
+    },
+    {
+     "bonusID": 12826,
+     "level": 2,
+     "itemLevel": 282
+    },
+    {
+     "bonusID": 12827,
+     "level": 3,
+     "itemLevel": 285
+    },
+    {
+     "bonusID": 12828,
+     "level": 4,
+     "itemLevel": 289
+    },
+    {
+     "bonusID": 12829,
+     "level": 5,
+     "itemLevel": 292
+    },
+    {
+     "bonusID": 12830,
+     "level": 6,
+     "itemLevel": 295
+    }
+   ]
+  },
+  {
+   "group": 614,
+   "name": "Adventurer",
+   "levels": [
+    {
+     "bonusID": 12817,
+     "level": 1,
+     "itemLevel": 266
+    },
+    {
+     "bonusID": 12818,
+     "level": 2,
+     "itemLevel": 269
+    },
+    {
+     "bonusID": 12819,
+     "level": 3,
+     "itemLevel": 272
+    },
+    {
+     "bonusID": 12820,
+     "level": 4,
+     "itemLevel": 276
+    },
+    {
+     "bonusID": 12821,
+     "level": 5,
+     "itemLevel": 279
+    },
+    {
+     "bonusID": 12822,
+     "level": 6,
+     "itemLevel": 282
+    }
+   ]
+  }
+ ],
+ "socketBonus": 10397,
+ "omnium": [
+  {
+   "id": 110271,
+   "name": "Rune of Overload / Rune of Residual Energy / Rune of Echoes",
+   "tree": "omnium",
+   "choice": true,
+   "x": 2700,
+   "y": 4500,
+   "maxRanks": 1,
+   "next": [],
+   "entries": [
+    {
+     "id": 136814,
+     "spellID": 1279614,
+     "name": "Rune of Overload",
+     "icon": "ability_siege_engineer_overload"
+    },
+    {
+     "id": 136824,
+     "spellID": 1279615,
+     "name": "Rune of Residual Energy",
+     "icon": "inv_112_raidtrinkets_etherealenergystoragesphere_purple"
+    },
+    {
+     "id": 136826,
+     "spellID": 1279616,
+     "name": "Rune of Echoes",
+     "icon": "spell_rogue_shadow_reflection"
+    }
+   ]
+  },
+  {
+   "id": 110272,
+   "name": "Rune of Critical Power / Rune of Burning Haste / Rune of Masterful Cunning / Rune of the Versatile Warrior",
+   "tree": "omnium",
+   "choice": true,
+   "x": 2700,
+   "y": 3900,
+   "maxRanks": 1,
+   "next": [
+    110271
+   ],
+   "entries": [
+    {
+     "id": 136815,
+     "spellID": 1279609,
+     "name": "Rune of Critical Power",
+     "icon": "spell_mage_overpowered"
+    },
+    {
+     "id": 136821,
+     "spellID": 1279610,
+     "name": "Rune of Burning Haste",
+     "icon": "spell_fire_burningspeed"
+    },
+    {
+     "id": 136818,
+     "spellID": 1279612,
+     "name": "Rune of Masterful Cunning",
+     "icon": "ability_hunter_fervor"
+    },
+    {
+     "id": 136820,
+     "spellID": 1279613,
+     "name": "Rune of the Versatile Warrior",
+     "icon": "ability_warrior_stalwartprotector"
+    }
+   ]
+  },
+  {
+   "id": 110273,
+   "name": "Rune of Lingering",
+   "tree": "omnium",
+   "x": 2700,
+   "y": 3000,
+   "maxRanks": 1,
+   "next": [
+    110272
+   ],
+   "entries": [
+    {
+     "id": 136817,
+     "spellID": 1287555,
+     "name": "Rune of Lingering",
+     "icon": "item_shadowcloth"
+    }
+   ]
+  },
+  {
+   "id": 110274,
+   "name": "Rune of Self-Mending / Rune of Void-Tainted Shell / Rune of Lynxlike Reflexes",
+   "tree": "omnium",
+   "choice": true,
+   "x": 2700,
+   "y": 2100,
+   "maxRanks": 1,
+   "next": [
+    110273
+   ],
+   "entries": [
+    {
+     "id": 136819,
+     "spellID": 1279603,
+     "name": "Rune of Self-Mending",
+     "icon": "spell_shadow_felmending"
+    },
+    {
+     "id": 136816,
+     "spellID": 1279604,
+     "name": "Rune of Void-Tainted Shell",
+     "icon": "ability_rhyolith_magmaflow_wave"
+    },
+    {
+     "id": 136823,
+     "spellID": 1279605,
+     "name": "Rune of Lynxlike Reflexes",
+     "icon": "inv_babyarathilynx_gold"
+    }
+   ]
+  },
+  {
+   "id": 110275,
+   "name": "Rune of Void-Touched Orbs / Rune of Unleashed Fire",
+   "tree": "omnium",
+   "choice": true,
+   "x": 2700,
+   "y": 1500,
+   "maxRanks": 1,
+   "next": [
+    110274
+   ],
+   "entries": [
+    {
+     "id": 136825,
+     "spellID": 1279596,
+     "name": "Rune of Void-Touched Orbs",
+     "icon": "inv_12_dh_void_ability_soulfragments"
+    },
+    {
+     "id": 136822,
+     "spellID": 1279599,
+     "name": "Rune of Unleashed Fire",
+     "icon": "inv_summerfest_firespirit"
+    }
+   ]
+  }
+ ]
+}

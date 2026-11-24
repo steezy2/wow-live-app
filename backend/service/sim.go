@@ -92,9 +92,12 @@ type Sims struct {
 	Engine SimEngineSource
 	Items  ItemTypes
 	Drops  models.SimDrops // reference/sim-drops.json, for a Droptimizer
-	Dir    string
-	Now    func() time.Time
-	Ctx    context.Context // the app's: canceled on Quit, which stops a running sim and download
+	// Ref is reference/sim-options.json: the consumables, enchants, gems, upgrade tracks and Omnium Folio a request may
+	// use.
+	Ref models.SimReference
+	Dir string
+	Now func() time.Time
+	Ctx context.Context // the app's: canceled on Quit, which stops a running sim and download
 
 	work       sync.WaitGroup // the running sim and download, for Wait
 	mu         sync.Mutex
@@ -129,7 +132,8 @@ func (s *Sims) Choices() models.SimChoices {
 		groups[i] = gearKey(slot)
 	}
 	return models.SimChoices{FightStyles: simFightStyles, Accuracies: accuracies, MinLength: minSimLength,
-		MaxLength: maxSimLength, MaxTargets: maxSimTargets, MaxCombos: maxCombos, MaxDrops: maxDrops,
+		MaxLength: maxSimLength, MaxTargets: maxSimTargets, MaxCombos: maxCombos, MaxCompare: maxCompareValues,
+		ConsumableKinds: models.SimConsumableKinds, MaxDrops: maxDrops,
 		Difficulties: simDifficulties, KeyLevels: keyLevels, Defaults: simDefaults,
 		DefaultDifficulty: defaultDropDifficulty, DefaultKeyLevel: defaultKey, GearGroups: slices.Compact(groups),
 		MaxItemLookups: maxItemLookups}
@@ -195,6 +199,43 @@ func (s *Sims) InstallEngine(path string) error {
 // Wait returns once the running sim and download, if any, have ended: after Ctx is canceled, once simc is stopped.
 func (s *Sims) Wait() { s.work.Wait() }
 
+// Reference is what a request may pick besides its gear (reference/sim-options.json, which the app won't start
+// without).
+func (s *Sims) Reference() models.SimReference { return s.Ref }
+
+// Plan is what a Top Gear request would run, counted without starting it, with what each variant changes; a count
+// Start would refuse says why in its Error. ErrBadSimOptions for another kind, options outside Choices, or items and
+// variants that don't fit the export.
+func (s *Sims) Plan(req models.SimRequest) (models.SimPlan, error) {
+	if req.Kind != "topgear" {
+		return models.SimPlan{}, fmt.Errorf("%w: only Top Gear has a plan", ErrBadSimOptions)
+	}
+	if err := validateSimOptions(req.Kind, req.Options); err != nil {
+		return models.SimPlan{}, err
+	}
+	profile, err := ParseSimC(req.Export)
+	if err != nil {
+		return models.SimPlan{}, err
+	}
+	extra, err := variantCandidates(s.Ref, profile, req.Variants)
+	if err != nil {
+		return models.SimPlan{}, err
+	}
+	groups, err := gearGroups(profile, req.Equipped, req.Bags, extra, s.twoHanded)
+	if err != nil {
+		return models.SimPlan{}, err
+	}
+	plan := planOf(comboCount(groups, maxPlanCombos), req.Options)
+	plan.Notes = make([]string, len(extra))
+	for i, c := range extra {
+		plan.Notes[i] = c.item.Note
+	}
+	return plan, nil
+}
+
+// twoHanded asks Items whether the item is a two-handed weapon.
+func (s *Sims) twoHanded(id int) (bool, error) { return s.Items.TwoHanded(s.Ctx, id) }
+
 // Start parses the export and starts the sim in the background; poll Get. Errors: ErrBadSimOptions, ErrBadSimC,
 // ErrNoEngine, ErrSimBusy.
 func (s *Sims) Start(req models.SimRequest) (models.Sim, error) {
@@ -205,13 +246,24 @@ func (s *Sims) Start(req models.SimRequest) (models.Sim, error) {
 	if err != nil {
 		return models.Sim{}, err
 	}
+	consumables, err := consumableLines(s.Ref, req.Consumables)
+	if err != nil {
+		return models.Sim{}, err
+	}
+	if profile.Omnium, err = omniumInput(s.Ref, profile, req.Omnium); err != nil {
+		return models.Sim{}, err
+	}
 	var combos []gearCombo
 	switch req.Kind {
 	case "topgear":
-		twoHanded := func(id int) (bool, error) { return s.Items.TwoHanded(s.Ctx, id) }
-		combos, err = topGearCombos(profile, req.Equipped, req.Bags, twoHanded)
+		var extra []gearCandidate
+		if extra, err = variantCandidates(s.Ref, profile, req.Variants); err == nil {
+			combos, err = topGearCombos(profile, req.Equipped, req.Bags, extra, s.twoHanded)
+		}
 	case "drops":
 		combos, err = dropCombos(profile, s.Drops, req.Difficulty, req.KeyLevel)
+	case "consumables":
+		combos, err = compareCombos(s.Ref, req.Compare)
 	}
 	if err != nil {
 		return models.Sim{}, err
@@ -233,7 +285,7 @@ func (s *Sims) Start(req models.SimRequest) (models.Sim, error) {
 		return models.Sim{}, fmt.Errorf("making %s: %w", work, err)
 	}
 	input, output := filepath.Join(work, id+".simc"), filepath.Join(work, id+".json")
-	if err := os.WriteFile(input, []byte(SimInput(profile)+gearProfilesets(combos)), 0o644); err != nil {
+	if err := os.WriteFile(input, []byte(SimInput(profile)+consumables+gearProfilesets(combos)), 0o644); err != nil {
 		return models.Sim{}, fmt.Errorf("writing %s: %w", input, err)
 	}
 	ctx, cancel := context.WithTimeout(s.Ctx, simTimeout)
@@ -247,17 +299,25 @@ func (s *Sims) Start(req models.SimRequest) (models.Sim, error) {
 // simArgs are simc's arguments: the input file, the options and the JSON file to write. Nothing but those validated
 // values goes in, and no shell reads them. A sim with profilesets runs no finer than setTargetError.
 func simArgs(input, output string, o models.SimOptions, profilesets bool) []string {
-	accuracy, _ := simAccuracyOf(o.Accuracy)
-	targetError := accuracy.TargetError
-	if profilesets {
-		targetError = max(targetError, setTargetError)
-	}
 	return []string{input, "fight_style=" + o.FightStyle, "max_time=" + strconv.Itoa(o.Length),
 		"desired_targets=" + strconv.Itoa(o.Targets),
-		"target_error=" + strconv.FormatFloat(targetError, 'f', -1, 64),
-		"iterations=" + strconv.Itoa(maxSimIterations), "threads=" + strconv.Itoa(max(1, runtime.NumCPU()-1)),
+		"target_error=" + strconv.FormatFloat(simTargetError(o, profilesets), 'f', -1, 64),
+		"iterations=" + strconv.Itoa(maxSimIterations), "threads=" + strconv.Itoa(simThreads()),
 		"json2=" + output}
 }
+
+// simTargetError is the target error a sim with o runs at: its accuracy's, no finer than setTargetError with
+// profilesets.
+func simTargetError(o models.SimOptions, profilesets bool) float64 {
+	accuracy, _ := simAccuracyOf(o.Accuracy)
+	if profilesets {
+		return max(accuracy.TargetError, setTargetError)
+	}
+	return accuracy.TargetError
+}
+
+// simThreads is how many threads a sim runs on: all but one, so the PC stays usable.
+func simThreads() int { return max(1, runtime.NumCPU()-1) }
 
 // execute runs simc for the running sim, following its progress, and saves what it found.
 func (s *Sims) execute(ctx context.Context, input, output string, combos []gearCombo) {
@@ -425,7 +485,11 @@ func readSimResult(path string, combos []gearCombo) (*models.SimResult, error) {
 	slices.SortStableFunc(result.Buffs, func(a, b models.SimBuff) int { return cmp.Compare(b.Uptime, a.Uptime) })
 	result.Abilities = result.Abilities[:min(len(result.Abilities), maxSimRows)]
 	result.Buffs = result.Buffs[:min(len(result.Buffs), maxSimRows)]
-	if len(combos) > 0 {
+	switch {
+	case len(combos) == 0:
+	case combos[0].option != nil:
+		result.Options = optionResults(out.Sim.Profilesets.Results, result.DPS, combos)
+	default:
 		result.Combos = gearResults(out.Sim.Profilesets.Results, result.DPS, combos)
 	}
 	return result, nil
