@@ -27,14 +27,16 @@ type gearCandidate struct {
 }
 
 // gearCombo is one profileset a sim runs: its name and the slots it changes, for a Droptimizer's drop where it drops,
-// and for a "consumables" sim the simc line it sets (line) and the value it stands for (option).
+// and for a sim that compares consumables the simc line it sets (line), the value it stands for (option, for a Quick
+// Sim) or the name of the consumable a gear combination runs with (consumable).
 type gearCombo struct {
-	name   string
-	swaps  []models.SimSwap
-	source string
-	boss   string
-	line   string
-	option *models.SimOptionRow
+	name       string
+	swaps      []models.SimSwap
+	source     string
+	boss       string
+	line       string
+	option     *models.SimOptionRow
+	consumable string
 }
 
 // gearGroups are the ways to fill each group of slots with the picked items (indexes into p's Equipped and Bags) and
@@ -87,13 +89,14 @@ func comboCount(groups [][][]models.SimSwap, limit int) int {
 	return all - same
 }
 
-// comboRefusal is why a Top Gear sim of n combinations is refused (ErrBadSimOptions), nil when it may run.
+// comboRefusal is why a Top Gear sim of n combinations (times the consumables compared) is refused
+// (ErrBadSimOptions), nil when it may run.
 func comboRefusal(n int) error {
 	switch {
 	case n == 0:
 		return fmt.Errorf("%w: tick at least one item that isn't equipped, or add a variant", ErrBadSimOptions)
 	case n > maxCombos:
-		return fmt.Errorf("%w: the picked items make over %d gear combinations; untick some", ErrBadSimOptions,
+		return fmt.Errorf("%w: the picked items and consumables make over %d sims; untick some", ErrBadSimOptions,
 			maxCombos)
 	}
 	return nil
@@ -310,20 +313,20 @@ func gearResults(sets []simSetJSON, baseline float64, combos []gearCombo) []mode
 	for _, set := range sets {
 		if i := slices.IndexFunc(combos, func(c gearCombo) bool { return c.name == set.Name }); i >= 0 {
 			rows = append(rows, models.SimCombo{DPS: set.Mean, DPSError: set.MeanStdDev, Gain: set.Mean - baseline,
-				Swaps: combos[i].swaps, Source: combos[i].source, Boss: combos[i].boss})
+				Swaps: combos[i].swaps, Source: combos[i].source, Boss: combos[i].boss, Consumable: combos[i].consumable})
 		}
 	}
 	slices.SortStableFunc(rows, func(a, b models.SimCombo) int { return cmp.Compare(b.DPS, a.DPS) })
 	type dropKey struct {
-		source, boss string
-		id           int
+		source, boss, consumable string
+		id                       int
 	}
 	seen := map[dropKey]bool{}
 	return slices.DeleteFunc(rows, func(r models.SimCombo) bool {
 		if r.Source == "" {
 			return false
 		}
-		key := dropKey{r.Source, r.Boss, r.Swaps[0].In.ID}
+		key := dropKey{r.Source, r.Boss, r.Consumable, r.Swaps[0].In.ID}
 		dup := seen[key]
 		seen[key] = true
 		return dup

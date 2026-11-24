@@ -2242,7 +2242,7 @@ const docTemplate = `{
                 "summary": "Start a sim",
                 "parameters": [
                     {
-                        "description": "the kind, the export, the options and consumables, for topgear the picked equipped and bag indexes and variants, for drops the difficulty and keyLevel, and for consumables the compare",
+                        "description": "the kind, the export, the options and consumables, for topgear the picked equipped and bag indexes and variants, for drops the difficulty, keyLevel and maxUpgrade, and for any kind a compare of consumables",
                         "name": "body",
                         "in": "body",
                         "required": true,
@@ -2434,7 +2434,7 @@ const docTemplate = `{
                 "summary": "How many gear combinations a Top Gear request would run",
                 "parameters": [
                     {
-                        "description": "a Top Gear request",
+                        "description": "a Top Gear request, with the consumables it compares",
                         "name": "body",
                         "in": "body",
                         "required": true,
@@ -2451,7 +2451,7 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "not a Top Gear request, or items and variants that don't fit the export",
+                        "description": "not a Top Gear request, a bad compare, or items and variants that don't fit the export",
                         "schema": {
                             "$ref": "#/definitions/controller.ErrorResponse"
                         }
@@ -6801,7 +6801,7 @@ const docTemplate = `{
                     "example": 100
                 },
                 "maxCompare": {
-                    "description": "MaxCompare is the most values a \"consumables\" sim tries.",
+                    "description": "MaxCompare is the most values of one consumable a sim compares.",
                     "type": "integer",
                     "example": 40
                 },
@@ -6831,6 +6831,10 @@ const docTemplate = `{
             "properties": {
                 "boss": {
                     "type": "string"
+                },
+                "consumable": {
+                    "type": "string",
+                    "example": "Flask of Tempered Aggression"
                 },
                 "dps": {
                     "type": "number"
@@ -7231,7 +7235,7 @@ const docTemplate = `{
                     }
                 },
                 "compare": {
-                    "description": "Compare is what a \"consumables\" sim ranks.",
+                    "description": "Compare is the consumable a sim tries each value of (any kind of sim; a Top Gear or Droptimizer sim runs every\ncombination once for each value, within its limit).",
                     "allOf": [
                         {
                             "$ref": "#/definitions/models.SimCompare"
@@ -7275,6 +7279,10 @@ const docTemplate = `{
                 "kind": {
                     "type": "string",
                     "example": "quick"
+                },
+                "maxUpgrade": {
+                    "description": "MaxUpgrade sims every drop of a Droptimizer at the top rank of its upgrade track, as if fully upgraded.",
+                    "type": "boolean"
                 },
                 "omnium": {
                     "description": "Omnium is the Omnium Folio's runes (entry:rank pairs, as the export writes them): nil keeps the export's, empty\nis none.",
@@ -7321,7 +7329,7 @@ const docTemplate = `{
                     "type": "number"
                 },
                 "options": {
-                    "description": "Options are a \"consumables\" sim's values, best first.",
+                    "description": "Options are the values a Quick Sim compared, best first.",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/models.SimOptionRow"

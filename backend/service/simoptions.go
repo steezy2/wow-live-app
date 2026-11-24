@@ -64,7 +64,7 @@ func consumableLines(ref models.SimReference, picked models.SimConsumables) (str
 	return b.String(), nil
 }
 
-// compareCombos are the profilesets of a "consumables" sim: the default (or picked) consumables with one of the
+// compareCombos are the profilesets of a consumables comparison: the default (or picked) consumables with one of the
 // compared kind changed, in the order given. Each is one value, at most maxCompareValues, none twice.
 func compareCombos(ref models.SimReference, cmpr *models.SimCompare) ([]gearCombo, error) {
 	if cmpr == nil || !slices.Contains(models.SimConsumableKinds, cmpr.Kind) {
@@ -84,6 +84,29 @@ func compareCombos(ref models.SimReference, cmpr *models.SimCompare) ([]gearComb
 			option: &models.SimOptionRow{Value: c.Value, Name: c.Name}}
 	}
 	return combos, nil
+}
+
+// withCompare is a sim's combinations with the consumables compared: a Quick Sim's are the values alone, any other
+// sim's each gear combination run once with every value (ErrBadSimOptions when that is more than limit profilesets).
+func withCompare(ref models.SimReference, cmpr *models.SimCompare, quick bool, gear []gearCombo, limit int,
+) ([]gearCombo, error) {
+	values, err := compareCombos(ref, cmpr)
+	if err != nil || quick {
+		return values, err
+	}
+	if len(gear)*len(values) > limit {
+		return nil, fmt.Errorf("%w: %d combinations with %d consumables are %d sims, and this one runs at most %d",
+			ErrBadSimOptions, len(gear), len(values), len(gear)*len(values), limit)
+	}
+	out := make([]gearCombo, 0, len(gear)*len(values))
+	for _, g := range gear {
+		for _, v := range values {
+			c := g
+			c.name, c.line, c.consumable = g.name+"x"+v.name, v.line, v.option.Name
+			out = append(out, c)
+		}
+	}
+	return out, nil
 }
 
 // optionResults are the compared values' DPS, best first, with their gain over the baseline's.

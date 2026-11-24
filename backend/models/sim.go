@@ -56,7 +56,7 @@ type SimChoices struct {
 	MaxTargets  int      `json:"maxTargets"`
 	// MaxCombos is the most gear combinations a Top Gear sim runs; a request over it is refused.
 	MaxCombos int `json:"maxCombos" example:"100"`
-	// MaxCompare is the most values a "consumables" sim tries.
+	// MaxCompare is the most values of one consumable a sim compares.
 	MaxCompare int `json:"maxCompare" example:"40"`
 	// ConsumableKinds are the kinds of consumable a sim can be told to use, in the order the page lists them.
 	ConsumableKinds []string `json:"consumableKinds"`
@@ -94,19 +94,23 @@ type SimRequest struct {
 	Difficulty string `json:"difficulty,omitempty" enums:"lfr,normal,heroic,mythic" example:"heroic"`
 	// KeyLevel is the Mythic+ key level a Droptimizer's dungeon drops are at, one of SimChoices.KeyLevels.
 	KeyLevel int `json:"keyLevel,omitempty" example:"10"`
+	// MaxUpgrade sims every drop of a Droptimizer at the top rank of its upgrade track, as if fully upgraded.
+	MaxUpgrade bool `json:"maxUpgrade,omitempty"`
 	// Consumables are what every kind of sim uses instead of simc's defaults.
 	Consumables SimConsumables `json:"consumables"`
 	// Omnium is the Omnium Folio's runes (entry:rank pairs, as the export writes them): nil keeps the export's, empty
 	// is none.
 	Omnium *string `json:"omnium,omitempty" example:"136822:1/136817:1"`
-	// Compare is what a "consumables" sim ranks.
+	// Compare is the consumable a sim tries each value of (any kind of sim; a Top Gear or Droptimizer sim runs every
+	// combination once for each value, within its limit).
 	Compare *SimCompare `json:"compare,omitempty"`
 }
 
 // SimKinds are the kinds of sim: one character's DPS ("quick"), the best combination of the gear they carry
-// ("topgear"), the gain of each piece the season's raid and dungeons drop ("drops") and the gain of each of several
-// flasks, foods, potions, augment runes or weapon oils ("consumables").
-var SimKinds = []string{"quick", "topgear", "drops", "consumables"}
+// ("topgear") and the gain of each piece the season's raid and dungeons drop ("drops"). Any of them can compare
+// several flasks, foods, potions, augment runes or weapon oils (SimRequest.Compare). A sim saved by an earlier version
+// can also be "consumables", a quick sim that only compared them.
+var SimKinds = []string{"quick", "topgear", "drops"}
 
 // The states a sim is in (Sim.State).
 const (
@@ -143,20 +147,22 @@ type SimResult struct {
 	Abilities []SimAbility `json:"abilities"`
 	Buffs     []SimBuff    `json:"buffs"`
 	Combos    []SimCombo   `json:"combos,omitempty"`
-	// Options are a "consumables" sim's values, best first.
+	// Options are the values a Quick Sim compared, best first.
 	Options []SimOptionRow `json:"options,omitempty"`
 }
 
 // SimCombo is one gear combination a Top Gear sim ran: its DPS, the standard error of that mean, its gain over the
 // equipped gear (negative for a loss) and the slots it changes. A Droptimizer row says where the item drops: its
-// Source (the raid's or dungeon's name, as "The Venomous Abyss") and Boss.
+// Source (the raid's or dungeon's name, as "The Venomous Abyss") and Boss. A sim that compares consumables runs each
+// combination once per value and names it in Consumable.
 type SimCombo struct {
-	DPS      float64   `json:"dps"`
-	DPSError float64   `json:"dpsError"`
-	Gain     float64   `json:"gain"`
-	Swaps    []SimSwap `json:"swaps"`
-	Source   string    `json:"source,omitempty"`
-	Boss     string    `json:"boss,omitempty"`
+	DPS        float64   `json:"dps"`
+	DPSError   float64   `json:"dpsError"`
+	Gain       float64   `json:"gain"`
+	Swaps      []SimSwap `json:"swaps"`
+	Source     string    `json:"source,omitempty"`
+	Boss       string    `json:"boss,omitempty"`
+	Consumable string    `json:"consumable,omitempty" example:"Flask of Tempered Aggression"`
 }
 
 // SimSwap is one slot a combination changes: the equipped item taken off (Out, none when the slot was empty) and the

@@ -84,8 +84,8 @@ type SimVariant struct {
 	Enchant int  `json:"enchant,omitempty" example:"7964"`
 }
 
-// SimCompare is the consumable a "consumables" sim compares and the values it tries, each a SimConsumable.Value of
-// Kind (one of SimConsumableKinds).
+// SimCompare is the consumable a sim compares and the values it tries, each a SimConsumable.Value of Kind (one of
+// SimConsumableKinds).
 type SimCompare struct {
 	Kind   string   `json:"kind" example:"flask"`
 	Values []string `json:"values"`
@@ -102,7 +102,7 @@ type SimPlan struct {
 	Notes   []string `json:"notes"`
 }
 
-// SimOptionRow is one value of a "consumables" sim: its simc name and display name, its DPS, the standard error of
+// SimOptionRow is one value a Quick Sim compared: its simc name and display name, its DPS, the standard error of
 // that mean and its gain over the sim's default (negative for a loss).
 type SimOptionRow struct {
 	Value    string  `json:"value"`

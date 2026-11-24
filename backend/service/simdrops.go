@@ -24,12 +24,28 @@ func raidLevel(l models.DifficultyLevels, difficulty string) int {
 	return []int{l.LFR, l.Normal, l.Heroic, l.Mythic}[slices.Index(simDifficulties, difficulty)]
 }
 
+// maxedLevel is the item level a drop of level reaches at the top rank of its upgrade track: the track that has level
+// at its lowest rank (the higher track of two), or level itself when no track has it (an item past its track's top).
+func maxedLevel(tracks []models.SimUpgradeTrack, level int) int {
+	maxed, rank, group := level, 0, 0
+	for _, t := range tracks {
+		for _, l := range t.Levels {
+			if l.ItemLevel == level && (rank == 0 || l.Level < rank || l.Level == rank && t.Group > group) {
+				maxed, rank, group = t.Levels[len(t.Levels)-1].ItemLevel, l.Level, t.Group
+			}
+		}
+	}
+	return maxed
+}
+
 // dropCombos is one combination per piece of gear the season's raid bosses (at difficulty) and dungeons (at key level
-// keyLevel) drop that the character's spec can loot, each replacing what is worn in its slot. A ring or trinket is
-// tried in both slots, except the one beside a copy of it (unique-equipped); a two-hander empties the off-hand. A
-// one-hander only ever goes in the main hand, so a dual-wielder's off-hand isn't covered, and beside a worn two-hander
-// it is simmed with an empty off-hand. Nothing to sim, or over maxDrops, is ErrBadSimOptions.
-func dropCombos(p models.SimProfile, d models.SimDrops, difficulty string, keyLevel int) ([]gearCombo, error) {
+// keyLevel) drop that the character's spec can loot, each replacing what is worn in its slot, at the top rank of its
+// upgrade track in upgrades (none keeps the level it drops at). A ring or trinket is tried in both slots, except the
+// one beside a copy of it (unique-equipped); a two-hander empties the off-hand. A one-hander only ever goes in the
+// main hand, so a dual-wielder's off-hand isn't covered, and beside a worn two-hander it is simmed with an empty
+// off-hand. Nothing to sim, or over maxDrops, is ErrBadSimOptions.
+func dropCombos(p models.SimProfile, d models.SimDrops, difficulty string, keyLevel int,
+	upgrades []models.SimUpgradeTrack) ([]gearCombo, error) {
 	spec := 0
 	for id, s := range d.Specs {
 		if s.Class == p.Class && s.Spec == p.Spec {
@@ -48,6 +64,7 @@ func dropCombos(p models.SimProfile, d models.SimDrops, difficulty string, keyLe
 
 	var combos []gearCombo
 	add := func(source models.DropSource, boss models.DropBoss, level int) {
+		level = maxedLevel(upgrades, level)
 		for _, item := range boss.Items {
 			if len(item.Specs) > 0 && !slices.Contains(item.Specs, spec) {
 				continue

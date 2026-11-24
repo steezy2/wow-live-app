@@ -1893,9 +1893,9 @@ export interface SimChoices {
   gearGroups: string[]
 }
 
-/** The kinds of sim: one DPS number, the best combination of the gear carried, each drop's gain, and each
- * consumable's gain. */
-export type SimKind = 'quick' | 'topgear' | 'drops' | 'consumables'
+/** The kinds of sim: one DPS number, the best combination of the gear carried, and each drop's gain. (A sim saved by an
+ * earlier version can also say 'consumables'.) */
+export type SimKind = 'quick' | 'topgear' | 'drops'
 
 /** The consumables a sim uses, by kind (one of SimChoices.consumableKinds); a kind left out or empty keeps simc's
  * default. */
@@ -1912,7 +1912,8 @@ export interface SimVariant {
   enchant?: number
 }
 
-/** What a "consumables" sim compares: the kind and the values (simc names) it tries. */
+/** The consumable a sim compares: the kind and the values (simc names) it tries; a Top Gear or Droptimizer sim runs
+ * each combination once for every value. */
 export interface SimCompare {
   kind: string
   values: string[]
@@ -1930,6 +1931,7 @@ export interface SimRequest {
   variants?: SimVariant[]
   difficulty?: string
   keyLevel?: number
+  maxUpgrade?: boolean
   consumables?: SimConsumables
   omnium?: string
   compare?: SimCompare
@@ -2037,6 +2039,7 @@ export interface SimCombo {
   swaps: SimSwap[]
   source?: string
   boss?: string
+  consumable?: string
 }
 
 /** What a finished sim found: the DPS and its error, each ability, the buffs, and a Top Gear or Droptimizer's rows. */

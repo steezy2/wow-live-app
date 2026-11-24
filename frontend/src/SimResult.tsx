@@ -65,6 +65,7 @@ function Combos({ combos, drops, chunk }: { combos: SimCombo[]; drops: boolean; 
                   {c.boss} · {c.source}
                 </span>
               )}
+              {c.consumable && <span className="muted small">with {c.consumable}</span>}
             </div>
           </li>
         ))}
@@ -73,7 +74,7 @@ function Combos({ combos, drops, chunk }: { combos: SimCombo[]; drops: boolean; 
   )
 }
 
-/** A "consumables" sim's values, best first: each a row with its rank, a bar for its gain over the sim's own
+/** A Quick Sim's compared values, best first: each a row with its rank, a bar for its gain over the sim's own
  * consumables and its DPS. */
 function OptionRows({ rows }: { rows: SimOptionRow[] }) {
   const best = Math.max(0, ...rows.map((r) => r.gain))
@@ -93,8 +94,8 @@ function OptionRows({ rows }: { rows: SimOptionRow[] }) {
   )
 }
 
-/** A finished sim: the DPS, a Top Gear or Droptimizer's ranked rows (their items asked chunk at a time) or a
- * consumables sim's, each ability's share of the damage and the buffs that were up. */
+/** A finished sim: the DPS, a Top Gear or Droptimizer's ranked rows (their items asked chunk at a time) or
+ * a Quick Sim's compared consumables, each ability's share of the damage and the buffs that were up. */
 export function SimResult({ sim, chunk }: { sim: Sim; chunk: number }) {
   const result = sim.result
   if (!result) return null

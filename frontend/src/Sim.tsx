@@ -40,8 +40,11 @@ const KINDS: [SimKind, string, string][] = [
   ['quick', 'Quick Sim', 'One DPS number with each ability and buff'],
   ['topgear', 'Top Gear', 'The best combination of the gear you carry'],
   ['drops', 'Droptimizer', "Each piece the season's raid and dungeons drop, by its gain"],
-  ['consumables', 'Consumables', 'Flasks, food, potions, augment runes or weapon oils against each other'],
 ]
+
+/** What a sim is called in the list of saved sims: its kind's label (a sim saved before consumables moved into each
+ * kind says "consumables"). */
+const kindLabel = (kind: string) => KINDS.find(([k]) => k === kind)?.[1] ?? kind
 
 /** The engine on one line: what is installed (or the plain words about the download), with its buttons. */
 function EngineBar(props: {
@@ -105,8 +108,9 @@ function PlanText({ plan, max }: { plan: { plan: SimPlan | null; error: string |
   )
 }
 
-/** The fight's options, the consumables and for a Droptimizer where the drops come from, with the Sim button and a
- * running sim's progress, in the panel beside the gear. */
+/** The fight's options, the consumables (the ones to sim with, and one kind's values to compare) and for a Droptimizer
+ * where the drops come from and whether they are upgraded, with the Sim button and a running sim's progress, in the
+ * panel beside the gear. */
 function OptionsPanel(props: {
   kind: SimKind
   choices: SimChoices
@@ -120,6 +124,10 @@ function OptionsPanel(props: {
   reference: SimReference
   consumables: SimConsumables
   setConsumables: (c: SimConsumables) => void
+  compare: SimCompare
+  setCompare: (c: SimCompare) => void
+  maxUpgrade: boolean
+  setMaxUpgrade: (m: boolean) => void
   plan: { plan: SimPlan | null; error: string | null } | null
   canRun: boolean
   running: Sim | null
@@ -181,6 +189,10 @@ function OptionsPanel(props: {
               ))}
             </select>
           </label>
+          <label className="inline">
+            <input type="checkbox" checked={props.maxUpgrade} onChange={(e) => props.setMaxUpgrade(e.target.checked)} />
+            Upgrade every drop to the top of its track
+          </label>
         </>
       )}
       <h2>Consumables</h2>
@@ -189,6 +201,13 @@ function OptionsPanel(props: {
         reference={props.reference}
         value={props.consumables}
         onChange={props.setConsumables}
+      />
+      <ConsumableCompare
+        kinds={choices.consumableKinds}
+        reference={props.reference}
+        compare={props.compare}
+        max={choices.maxCompare}
+        onChange={props.setCompare}
       />
       {optionsError && <p className="warning">{optionsError}</p>}
       {props.plan && <PlanText plan={props.plan} max={choices.maxCombos} />}
@@ -200,7 +219,7 @@ function OptionsPanel(props: {
 }
 
 /** The Sim tab (desktop app only): a compact engine bar, the pasted /simc export read into a character with its gear
- * laid out like Raidbots, the kind of sim (Quick Sim, Top Gear, Droptimizer or Consumables) with its options beside
+ * laid out like Raidbots, the kind of sim (Quick Sim, Top Gear or Droptimizer) with its options beside
  * the gear, the Omnium Folio, the running sim's progress, its result and the saved sims. */
 export function SimPage() {
   const [choices, setChoices] = useState<SimChoices | null>(null)
@@ -218,6 +237,7 @@ export function SimPage() {
   const [omnium, setOmnium] = useState<number[]>([])
   const [difficulty, setDifficulty] = useState('')
   const [keyLevel, setKeyLevel] = useState(0)
+  const [maxUpgrade, setMaxUpgrade] = useState(false)
   const [run, setRun] = useState<Sim | null>(null) // the sim started here, or found running, as last polled
   const [sim, setSim] = useState<Sim | null>(null) // the finished sim shown
   const [saved, setSaved] = useState<Sim[]>([])
@@ -309,8 +329,8 @@ export function SimPage() {
       consumables: pickedConsumables(consumables),
       ...(mine !== theirs && { omnium: mine }),
       ...(kind === 'topgear' && { equipped, bags, variants }),
-      ...(kind === 'drops' && { difficulty, keyLevel }),
-      ...(kind === 'consumables' && { compare }),
+      ...(kind === 'drops' && { difficulty, keyLevel, maxUpgrade }),
+      ...(compare.values.length > 0 && { compare }),
     }
   }
   const planRequest = kind === 'topgear' && profile ? request() : null
@@ -343,7 +363,6 @@ export function SimPage() {
         }
       : undefined
   const planBlocks = kind === 'topgear' && (!!plan.error || !plan.plan || !!plan.plan.error)
-  const compareBlocks = kind === 'consumables' && compare.values.length === 0
   return (
     <main className="page settings sim">
       <EngineBar engine={engine} busy={!!running} act={act} onEngine={setEngine} />
@@ -392,34 +411,15 @@ export function SimPage() {
           </div>
           <div className="sim-layout">
             <section className="panel sim-gear">
-              {kind === 'consumables' ? (
-                <>
-                  <h2>Consumables to compare</h2>
-                  <p className="muted small">
-                    Each ticked one is simmed in place of the one you pick for it (or simc's default); at most{' '}
-                    {choices.maxCompare}.
-                  </p>
-                  <ConsumableCompare
-                    kinds={choices.consumableKinds}
-                    reference={reference}
-                    compare={compare}
-                    max={choices.maxCompare}
-                    onChange={setCompare}
-                  />
-                </>
-              ) : (
-                <>
-                  <h2>{kind === 'topgear' ? 'Gear to try' : 'Worn gear'}</h2>
-                  {kind === 'topgear' && (
-                    <p className="muted small">
-                      Tick what it may wear, highest item level first: worn items stay candidates, carried ones are
-                      added. Each item can also be tried upgraded, with a socket and gem, or with an enchant. At
-                      most {choices.maxCombos} combinations run.
-                    </p>
-                  )}
-                  <SimGear profile={profile} order={choices.gearGroups} info={info} pick={pick} />
-                </>
+              <h2>{kind === 'topgear' ? 'Gear to try' : 'Worn gear'}</h2>
+              {kind === 'topgear' && (
+                <p className="muted small">
+                  Tick what it may wear, highest item level first: worn items stay candidates, carried ones are added.
+                  Each item can also be tried upgraded, with a socket and gem, or with an enchant. At most{' '}
+                  {choices.maxCombos} combinations run.
+                </p>
               )}
+              <SimGear profile={profile} order={choices.gearGroups} info={info} pick={pick} />
             </section>
             <OptionsPanel
               kind={kind}
@@ -434,8 +434,12 @@ export function SimPage() {
               reference={reference}
               consumables={consumables}
               setConsumables={setConsumables}
+              compare={compare}
+              setCompare={setCompare}
+              maxUpgrade={maxUpgrade}
+              setMaxUpgrade={setMaxUpgrade}
               plan={planRequest ? plan : null}
-              canRun={!!engine?.installed && !engine.installing && !planBlocks && !compareBlocks}
+              canRun={!!engine?.installed && !engine.installing && !planBlocks}
               running={running}
               onRun={start}
             />
@@ -453,7 +457,7 @@ export function SimPage() {
 
       {running && (
         <section className="panel sim-progress">
-          {running.character} · {KINDS.find(([k]) => k === running.kind)?.[1]}{' '}
+          {running.character} · {kindLabel(running.kind)}{' '}
           <progress value={running.progress} max={100} aria-label="Sim progress" /> {running.progress}%
           <button onClick={() => act(() => removeSim(running.id))}>Cancel</button>
         </section>
@@ -474,7 +478,7 @@ export function SimPage() {
             {saved.map((s) => (
               <li key={s.id}>
                 <button className="link" onClick={() => act(async () => setSim(await fetchSim(s.id)))}>
-                  <strong>{s.character}</strong> · {s.spec} · {KINDS.find(([k]) => k === s.kind)?.[1]}
+                  <strong>{s.character}</strong> · {s.spec} · {kindLabel(s.kind)}
                   {s.dps ? ` · ${amount(s.dps)} DPS` : ''}
                 </button>
                 <span className="muted small">{new Date(s.startedMS).toLocaleString()}</span>

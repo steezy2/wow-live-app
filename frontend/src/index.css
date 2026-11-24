@@ -2569,8 +2569,9 @@ table.compare td:first-child {
   margin: 0;
   padding: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: var(--s1) var(--s3);
+  gap: var(--s1);
+  max-height: 16rem; /* up to 40 values beside the Sim button, in a panel 280 px wide */
+  overflow-y: auto;
 }
 
 .sim-omnium-tree {

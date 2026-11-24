@@ -225,7 +225,15 @@ func (s *Sims) Plan(req models.SimRequest) (models.SimPlan, error) {
 	if err != nil {
 		return models.SimPlan{}, err
 	}
-	plan := planOf(comboCount(groups, maxPlanCombos), req.Options)
+	combos := comboCount(groups, maxPlanCombos)
+	if req.Compare != nil {
+		values, err := compareCombos(s.Ref, req.Compare)
+		if err != nil {
+			return models.SimPlan{}, err
+		}
+		combos *= len(values)
+	}
+	plan := planOf(combos, req.Options)
 	plan.Notes = make([]string, len(extra))
 	for i, c := range extra {
 		plan.Notes[i] = c.item.Note
@@ -254,6 +262,7 @@ func (s *Sims) Start(req models.SimRequest) (models.Sim, error) {
 		return models.Sim{}, err
 	}
 	var combos []gearCombo
+	limit := maxCombos
 	switch req.Kind {
 	case "topgear":
 		var extra []gearCandidate
@@ -261,9 +270,15 @@ func (s *Sims) Start(req models.SimRequest) (models.Sim, error) {
 			combos, err = topGearCombos(profile, req.Equipped, req.Bags, extra, s.twoHanded)
 		}
 	case "drops":
-		combos, err = dropCombos(profile, s.Drops, req.Difficulty, req.KeyLevel)
-	case "consumables":
-		combos, err = compareCombos(s.Ref, req.Compare)
+		limit = maxDrops
+		var upgrades []models.SimUpgradeTrack
+		if req.MaxUpgrade {
+			upgrades = s.Ref.Upgrades
+		}
+		combos, err = dropCombos(profile, s.Drops, req.Difficulty, req.KeyLevel, upgrades)
+	}
+	if err == nil && req.Compare != nil {
+		combos, err = withCompare(s.Ref, req.Compare, req.Kind == "quick", combos, limit)
 	}
 	if err != nil {
 		return models.Sim{}, err

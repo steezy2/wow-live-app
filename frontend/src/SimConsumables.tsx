@@ -38,8 +38,9 @@ export function ConsumableSelects(props: {
   )
 }
 
-/** The compare mode: pick a consumable kind and tick the values to sim against each other (and against the
- * baseline, which is the sim's own consumables). */
+/** Compare consumables, folded away until opened: pick a consumable kind and tick the values to sim against each
+ * other. Each ticked one replaces the baseline's for its kind; a Top Gear or Droptimizer sim runs every combination
+ * once per value, within its limit. */
 export function ConsumableCompare(props: {
   kinds: string[]
   reference: SimReference
@@ -50,9 +51,13 @@ export function ConsumableCompare(props: {
   const { kinds, reference, compare, max, onChange } = props
   const values = reference.consumables[compare.kind]
   return (
-    <div className="sim-compare">
+    <details className="sim-compare">
+      <summary>
+        Compare {labelOf(compare.kind).toLowerCase()}s
+        {compare.values.length > 0 && <span className="muted small"> · {compare.values.length} ticked</span>}
+      </summary>
       <label>
-        Compare
+        Kind
         <select value={compare.kind} onChange={(e) => onChange({ kind: e.target.value, values: [] })}>
           {kinds.map((k) => (
             <option key={k} value={k}>
@@ -64,7 +69,6 @@ export function ConsumableCompare(props: {
       <div className="actions">
         <button onClick={() => onChange({ ...compare, values: values.slice(0, max).map((c) => c.value) })}>All</button>
         <button onClick={() => onChange({ ...compare, values: [] })}>None</button>
-        <span className="muted small">{compare.values.length} ticked</span>
       </div>
       <ul className="sim-compare-list">
         {values.map((c) => (
@@ -88,6 +92,6 @@ export function ConsumableCompare(props: {
           </li>
         ))}
       </ul>
-    </div>
+    </details>
   )
 }

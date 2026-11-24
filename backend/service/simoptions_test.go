@@ -135,6 +135,30 @@ func TestCompareCombos(t *testing.T) {
 	}
 }
 
+func TestWithCompareRunsEachGearComboOncePerValue(t *testing.T) {
+	cmpr := &models.SimCompare{Kind: "flask", Values: []string{"flask_b_2", "flask_a_2"}}
+	gear := []gearCombo{{name: "drop1", source: "Raid"}, {name: "drop2"}}
+	combos, err := withCompare(testRef(), cmpr, false, gear, 4)
+	if err != nil || len(combos) != 4 {
+		t.Fatalf("withCompare = %v, %v", combos, err)
+	}
+	want := "profileset.drop1xoption1+=flask=flask_b_2\nprofileset.drop1xoption2+=flask=flask_a_2\n" +
+		"profileset.drop2xoption1+=flask=flask_b_2\nprofileset.drop2xoption2+=flask=flask_a_2\n"
+	if got := gearProfilesets(combos); got != want {
+		t.Errorf("profilesets = %q", got)
+	}
+	if c := combos[1]; c.consumable != "Flask A" || c.source != "Raid" || c.option != nil {
+		t.Errorf("second combo = %+v, want Raid's drop with Flask A", c)
+	}
+	if _, err := withCompare(testRef(), cmpr, false, gear, 3); !errors.Is(err, ErrBadSimOptions) {
+		t.Errorf("over the limit: err = %v, want ErrBadSimOptions", err)
+	}
+	quick, err := withCompare(testRef(), cmpr, true, nil, 0)
+	if err != nil || len(quick) != 2 || quick[0].option == nil {
+		t.Errorf("a quick sim compares the values alone: %v, %v", quick, err)
+	}
+}
+
 func TestOptionResults(t *testing.T) {
 	combos := []gearCombo{
 		{name: "option1", option: &models.SimOptionRow{Value: "a", Name: "A"}},
