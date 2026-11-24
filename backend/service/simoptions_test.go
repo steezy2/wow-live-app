@@ -127,8 +127,10 @@ func TestCompareCombos(t *testing.T) {
 	if err != nil || len(combos) != 4 {
 		t.Fatalf("compareCombos = %v, %v", combos, err)
 	}
-	want := "profileset.option1+=flask=flask_b_2\nfood=feast\nprofileset.option2+=flask=flask_b_2\nfood=snack\n" +
-		"profileset.option3+=flask=flask_a_2\nfood=feast\nprofileset.option4+=flask=flask_a_2\nfood=snack\n"
+	want := "profileset.option1+=flask=flask_b_2\nprofileset.option1+=food=feast\n" +
+		"profileset.option2+=flask=flask_b_2\nprofileset.option2+=food=snack\n" +
+		"profileset.option3+=flask=flask_a_2\nprofileset.option3+=food=feast\n" +
+		"profileset.option4+=flask=flask_a_2\nprofileset.option4+=food=snack\n"
 	if got := gearProfilesets(combos); got != want {
 		t.Errorf("profilesets = %q, want every flask with every food and the single oil left to the baseline", got)
 	}
