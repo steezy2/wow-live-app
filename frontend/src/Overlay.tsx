@@ -110,7 +110,7 @@ export function Overlay() {
     >
       <div ref={content} className="overlay-fit">
         {moving && (
-          <p className="small overlay-wrap">Drag to move, drag a corner to resize; Ctrl+Alt+O or Settings when done.</p>
+          <p className="small">Drag to move, drag a corner to resize; Ctrl+Alt+O or Settings when done.</p>
         )}
         {!settings ? null : preview === 'raid' ? (
           <OverlayRaid pull={DEMO_RAID} settings={settings} />
@@ -173,7 +173,7 @@ function OverlayKey(props: { keyView: KeyView; clockMS: number; settings: Overla
       {timer > 0 && <TimerBar clockMS={clockMS} timerMS={timer} keyView={key} best={projection?.best ?? []} />}
       {key.forces && <ForcesBar forces={key.forces} level={key.level} />}
       <button
-        className="row-button small overlay-wrap"
+        className="row-button death-button small"
         disabled={key.deaths.length === 0}
         onClick={() => setDeathsOpen(true)}
       >
@@ -181,7 +181,7 @@ function OverlayKey(props: { keyView: KeyView; clockMS: number; settings: Overla
         {latest && ` · last ${deathText(latest)}`}
       </button>
       <div className="overlay-extra">
-        {key.route && <p className="small overlay-wrap">{routeLine(key.route)}</p>}
+        {key.route && <p className="small">{routeLine(key.route)}</p>}
         {deathsOpen ? (
           <DeathsDrill keyView={key} onBack={closeDeaths} />
         ) : fresh ? (

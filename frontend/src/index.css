@@ -517,9 +517,9 @@ button {
 .tabs [role='tablist'],
 .sim-tabs {
   display: flex;
-  gap: var(--s4);
+  flex-wrap: wrap;
+  gap: var(--s2);
   margin-bottom: var(--s3);
-  border-bottom: 1px solid var(--panel);
 }
 
 .tab-panels {
@@ -535,17 +535,25 @@ button {
   visibility: hidden;
 }
 
+/* Tabs are buttons: boxed, the open one filled. */
 .tabs [role='tab'],
-.sim-tabs button[aria-pressed] {
-  padding: var(--s2) 0;
-  color: var(--muted);
-  border-bottom: 2px solid transparent;
+.sim-tabs button {
+  padding: var(--s2) var(--s3);
+  color: var(--text);
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.tabs [role='tab']:hover,
+.sim-tabs button:hover {
+  border-color: var(--accent);
 }
 
 .tabs [role='tab'][aria-selected='true'],
 .sim-tabs button[aria-pressed='true'] {
-  color: var(--text);
-  border-bottom-color: var(--accent);
+  background: var(--accent);
+  border-color: var(--accent);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -984,18 +992,19 @@ html:has(.overlay) {
   background: color-mix(in srgb, var(--bg) var(--overlay-bg, 75%), transparent); /* the opacity setting */
 }
 
-/* The content is as wide as it wants (the overlay's zoom scales it to the window, see useFitZoom); a text line
- * doesn't set that width, it wraps to it. */
+/* The content is as wide as its cards and bars want (the overlay's zoom scales it to the window, see useFitZoom); a
+ * line of text never sets that width, it wraps to it, so one long phrase can't shrink the whole overlay. */
 .overlay-fit {
   box-sizing: border-box;
   width: max-content;
+  min-width: 18em;
   align-content: start;
   display: grid;
   gap: 2px;
   padding: var(--s1);
 }
 
-.overlay-wrap {
+.overlay-fit :is(p, li, .row-button, .overlay-clock) {
   contain: inline-size;
 }
 
@@ -1062,6 +1071,19 @@ html:has(.overlay) {
 /* With clicks on, a death line shows it opens: a pointer, an arrow and an underline on hover. */
 .overlay.clicks .row-button:not(:disabled) {
   cursor: pointer;
+}
+
+/* A death line is a button: boxed and tinted red, so it reads as something to press. */
+.overlay.clicks .death-button:not(:disabled) {
+  padding: var(--s1) var(--s2);
+  border: 1px solid color-mix(in srgb, var(--bad) 55%, transparent);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--bad) 18%, transparent);
+}
+
+.overlay.clicks .death-button:not(:disabled):hover {
+  background: color-mix(in srgb, var(--bad) 32%, transparent);
+  text-decoration: none;
 }
 
 .overlay.clicks .row-button:not(:disabled)::after {
@@ -2225,14 +2247,6 @@ table.compare td:first-child {
   align-items: center;
   gap: var(--s4);
   font-size: var(--t-h2);
-}
-
-/* The kind of sim is a button group drawn as the tabs (.tabs [role='tab']), without Settings' boxed buttons. */
-.sim-tabs button {
-  border: 0;
-  border-radius: 0;
-  background: none;
-  font-weight: inherit;
 }
 
 .sim-layout {

@@ -8,7 +8,12 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 - A **Sim** tab in the desktop app runs character sims on your PC with SimulationCraft, laid out like Raidbots (the character on top with its item level as the game counts it, the kinds as a button group, the gear by slot with Wowhead's item icons and quality colours, the fight's options beside it, results as ranked rows with each swap's icons and a bar for the gain): paste the `/simc` export from the SimulationCraft addon, then run a **Quick Sim** (DPS, each ability's share and the buffs that were up), **Top Gear** (the best combination of the gear you carry; tick the candidates, at most 100 combinations) or a **Droptimizer** (the gain of each piece the season's raid bosses, at a difficulty you pick, and Mythic+ dungeons, at a key level you pick, drop for your spec; at most 300 pieces). The first run asks you to download SimulationCraft's `simc.exe` (the official nightly from this repo's `simc-engine` release over HTTPS, checked against its sha256; a weekly workflow, `simc.yml`, refreshes it from simulationcraft/simc-publish; or use a `simc.exe` you already have); the page warns when the build is more than 14 days old. One sim runs at a time, can be cancelled, and the last 20 are saved. The export is read again by the app on every request and simc only gets a file the app writes from the fields it validated. Only the gear's item IDs leave the PC, to Wowhead for names and icons (`GET /api/sim/items?ids=`, `service.Items`). API: `/api/sim` (desktop app only). Code: `service/sim.go`, `simprofile.go`, `simgear.go`, `simdrops.go`, `clients/simc`, `Sim.tsx`.
 - `go run ./cmd/simref` writes `reference/sim-drops.json` (each boss's and dungeon's gear, from wago.tools' journal tables) beside the hand-kept `reference/sim-drops.toml` (item levels per difficulty and key level, taken from the Midnight Season 2 wiki page and not yet checked in game). Tier tokens aren't in it.
 
+## [0.5.5] - 2026-11-23
+
 ### Changed
+- **The key review's player names have their class colour**, and its party lines (deaths added to the clock, must-stops, time between pulls, priority target) are a bulleted *Party* card beside the players' cards.
+- **The tabs under a key or pull are buttons:** boxed, the open one filled.
+- **A death line on the overlay is a button** (boxed and tinted red) while the overlay takes clicks.
 - **Less memory for saved keys and raid pulls:** the app keeps them without their per-ability lists (about a third of a key, two thirds of a pull) and reads the whole fight from its file when a page, a review or a link needs it. On the owner's 209 keys and 623 pulls the heap for them went from 134 MB to 65 MB.
 - **The overlay's window is made the first time it is shown**, not at start: with the overlay off (or no key running yet) its second WebView2 renderer, tens of MB, never starts.
 - **Saved tracks are gzipped** (about 5x smaller: 2.5 MB to 0.5 MB), and the app compresses the ones already saved once, in the background, when it starts. A saved key's map, route and review read the last two tracks from memory instead of decoding the file each time.
@@ -17,6 +22,7 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 - **A key's Route tab** reads its comparison again only while the key runs and the tab is open (it took the track just as a trigger).
 
 ### Fixed
+- **One long phrase can't shrink the overlay:** a line of text (a death's ability, a fix, a boss's name) wraps to the width of the cards and bars instead of setting it, so the overlay's zoom no longer drops to its minimum.
 - **A page no longer starts narrow and moves to the middle** when its tab opens: the page keeps its full width while its content loads.
 - **Names in a damage spike's list** have their class colour.
 
