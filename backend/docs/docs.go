@@ -2858,7 +2858,7 @@ const docTemplate = `{
                     "items": {
                         "type": "array",
                         "items": {
-                            "type": "integer",
+                            "type": "integer"
                         }
                     }
                 }
@@ -3119,7 +3119,7 @@ const docTemplate = `{
                     "items": {
                         "type": "array",
                         "items": {
-                            "type": "number",
+                            "type": "number"
                         }
                     }
                 },
@@ -3902,7 +3902,7 @@ const docTemplate = `{
                     "description": "TopBosses is how long each boss took in the similar top runs (the median, by boss name; missing in reviews\nsaved before Nov 11).",
                     "type": "object",
                     "additionalProperties": {
-                        "type": "integer",
+                        "type": "integer"
                     }
                 }
             }
@@ -4210,7 +4210,7 @@ const docTemplate = `{
                     "description": "Activity is each player's share of their time alive in pulls with a cast going or a hit landing (in %).",
                     "type": "object",
                     "additionalProperties": {
-                        "type": "number",
+                        "type": "number"
                     }
                 },
                 "affixes": {
@@ -4229,7 +4229,7 @@ const docTemplate = `{
                 "bestBosses": {
                     "type": "object",
                     "additionalProperties": {
-                        "type": "integer",
+                        "type": "integer"
                     }
                 },
                 "bestFinalMS": {
@@ -4769,7 +4769,7 @@ const docTemplate = `{
                     "items": {
                         "type": "array",
                         "items": {
-                            "type": "number",
+                            "type": "number"
                         }
                     }
                 }
@@ -5208,7 +5208,7 @@ const docTemplate = `{
                 "activity": {
                     "type": "object",
                     "additionalProperties": {
-                        "type": "number",
+                        "type": "number"
                     }
                 },
                 "adds": {
@@ -7369,6 +7369,11 @@ const docTemplate = `{
                             "$ref": "#/definitions/models.SimConsumables"
                         }
                     ]
+                },
+                "custom": {
+                    "description": "Custom is extra simc lines (an action list, a few options) every kind of sim adds after the character; only an\nallowlist of them is accepted (service customLines), the rest is ErrBadSimOptions.",
+                    "type": "string",
+                    "example": "override.bloodlust=0"
                 },
                 "difficulty": {
                     "description": "Difficulty is the raid difficulty a Droptimizer's drops are at, one of SimChoices.Difficulties.",
