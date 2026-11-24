@@ -29,3 +29,18 @@ export function schoolBar(school: number | undefined, fallback: string): { color
   const stops = colors.map((c) => `color-mix(in srgb, ${c} 22%, transparent)`).join(', ')
   return { color: colors[0], fill: `linear-gradient(90deg, ${stops})` }
 }
+
+/** simc's school name ("frost", "frostfire") as the combat log's school field. */
+export function simSchool(name?: string): number {
+  const names = ['physical', 'holy', 'fire', 'nature', 'frost', 'shadow', 'arcane']
+  return names.reduce((bits, n, i) => bits | (name?.includes(n) ? 1 << i : 0), 0)
+}
+
+/** A report bar's colours for a simc school: its colour (the first of several), and a fill running from the school's
+ * colour to the next, or fading out, for the bar. */
+export function simSchoolBar(name: string | undefined, fallback: string): { color: string; fill: string } {
+  const colors = of(simSchool(name)).map((s) => s.color)
+  const color = colors[0] ?? fallback
+  const end = colors[1] ?? `color-mix(in srgb, ${color} 45%, transparent)`
+  return { color, fill: `linear-gradient(90deg, ${color}, ${end})` }
+}

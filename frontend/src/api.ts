@@ -2019,7 +2019,9 @@ export interface SimAbility {
 export interface SimBuff {
   name: string
   id: number
+  school?: string
   uptime: number
+  count: number
 }
 
 /** A slot a gear combination changes: what comes off and what goes on (none: the slot is emptied). */
@@ -2048,11 +2050,24 @@ export interface SimResult {
   abilities: SimAbility[]
   buffs: SimBuff[]
   combos?: SimCombo[]
+  /** A Quick Sim's sample ability log: one iteration's actions. */
+  log?: SimLogEntry[]
   options?: SimOptionRow[]
   stages?: SimStage[]
   equipped?: SimItem[]
   weights?: SimStatWeight[]
   pawn?: string
+}
+
+/** One action of a sample ability log: when (seconds into the fight, before the pull when pre), what, at whom and the
+ * buffs up with their stacks. */
+export interface SimLogEntry {
+  time: number
+  pre?: boolean
+  name: string
+  id: number
+  target?: string
+  buffs?: { name: string; id: number; stacks: number }[]
 }
 
 /** One stage of a raced sim: its combinations and the target error (in %) it ran at. */

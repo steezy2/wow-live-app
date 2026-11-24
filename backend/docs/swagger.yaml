@@ -2836,9 +2836,13 @@ definitions:
     type: object
   models.SimBuff:
     properties:
+      count:
+        type: number
       id:
         type: integer
       name:
+        type: string
+      school:
         type: string
       uptime:
         type: number
@@ -3068,6 +3072,36 @@ definitions:
         example: 4
         type: integer
     type: object
+  models.SimLogBuff:
+    properties:
+      id:
+        type: integer
+      name:
+        example: Icicles
+        type: string
+      stacks:
+        type: integer
+    type: object
+  models.SimLogEntry:
+    properties:
+      buffs:
+        items:
+          $ref: '#/definitions/models.SimLogBuff'
+        type: array
+      id:
+        type: integer
+      name:
+        example: Flurry
+        type: string
+      pre:
+        type: boolean
+      target:
+        example: Fluffy Pillow
+        type: string
+      time:
+        example: 2.894
+        type: number
+    type: object
   models.SimOptionRow:
     properties:
       dps:
@@ -3287,6 +3321,12 @@ definitions:
           the best combination in full.
         items:
           $ref: '#/definitions/models.SimItem'
+        type: array
+      log:
+        description: 'Log is the sample ability log of a Quick Sim: one iteration''s
+          actions in order (it is no guide to play by).'
+        items:
+          $ref: '#/definitions/models.SimLogEntry'
         type: array
       options:
         description: Options are the values a Quick Sim compared, best first.

@@ -42,6 +42,8 @@ const (
 	minSimLength     = 30
 	maxSimLength     = 900
 	maxSimTargets    = 20
+	// maxSimLog is how many actions a Quick Sim keeps of its sample iteration.
+	maxSimLog = 600
 	// maxSimRows is how many abilities and buffs a result keeps.
 	maxSimRows = 40
 	// defaultDropDifficulty and defaultDropKey are what the Droptimizer starts on (the key when the drops offer it).
@@ -615,6 +617,8 @@ type simJSON struct {
 					Mean       float64 `json:"mean"`
 					MeanStdDev float64 `json:"mean_std_dev"`
 				} `json:"dps"`
+				Pre      []simActionJSON `json:"action_sequence_precombat"`
+				Sequence []simActionJSON `json:"action_sequence"`
 			} `json:"collected_data"`
 			ScaleFactors map[string]float64 `json:"scale_factors"`
 			Stats        []struct {
@@ -636,11 +640,44 @@ type simJSON struct {
 			Buffs []struct {
 				SpellName string  `json:"spell_name"`
 				Name      string  `json:"name"`
+				School    string  `json:"spell_school"`
 				Spell     int     `json:"spell"`
 				Uptime    float64 `json:"uptime"`
+				Starts    float64 `json:"start_count"`
 			} `json:"buffs"`
 		} `json:"players"`
 	} `json:"sim"`
+}
+
+// simActionJSON is one action of simc's sample iteration.
+type simActionJSON struct {
+	Time      float64 `json:"time"`
+	ID        int     `json:"id"`
+	SpellName string  `json:"spell_name"`
+	Target    string  `json:"target"`
+	Buffs     []struct {
+		ID     int    `json:"id"`
+		Name   string `json:"name"`
+		Stacks int    `json:"stacks"`
+	} `json:"buffs"`
+}
+
+// sampleLog is the sample iteration's actions, those before the pull first, with each buff named as the buffs list
+// (simc's own names are snake_case, the list's are the spell's).
+func sampleLog(pre, seq []simActionJSON, names map[string]string) []models.SimLogEntry {
+	var log []models.SimLogEntry
+	for i, a := range append(slices.Clone(pre), seq...) {
+		e := models.SimLogEntry{Time: a.Time, Pre: i < len(pre), Name: a.SpellName, ID: a.ID,
+			Target: strings.ReplaceAll(a.Target, "_", " ")}
+		if e.Target == "none" {
+			e.Target = ""
+		}
+		for _, b := range a.Buffs {
+			e.Buffs = append(e.Buffs, models.SimLogBuff{Name: cmp.Or(names[b.Name], b.Name), ID: b.ID, Stacks: b.Stacks})
+		}
+		log = append(log, e)
+	}
+	return log[:min(len(log), maxSimLog)]
 }
 
 // readSimResult is the result in simc's json2 file at path, with the DPS of each of a Top Gear sim's combos.
@@ -667,10 +704,16 @@ func readSimResult(path string, combos []gearCombo) (*models.SimResult, error) {
 			result.Abilities = append(result.Abilities, ability)
 		}
 	}
+	names := map[string]string{}
 	for _, b := range player.Buffs {
+		names[b.Name] = cmp.Or(b.SpellName, b.Name)
 		if b.Uptime >= 1 {
-			result.Buffs = append(result.Buffs, models.SimBuff{Name: cmp.Or(b.SpellName, b.Name), ID: b.Spell, Uptime: b.Uptime})
+			result.Buffs = append(result.Buffs, models.SimBuff{Name: names[b.Name], ID: b.Spell, School: b.School,
+				Uptime: b.Uptime, Count: b.Starts})
 		}
+	}
+	if len(combos) == 0 {
+		result.Log = sampleLog(player.Collected.Pre, player.Collected.Sequence, names)
 	}
 	slices.SortStableFunc(result.Abilities, func(a, b models.SimAbility) int { return cmp.Compare(b.DPS, a.DPS) })
 	slices.SortStableFunc(result.Buffs, func(a, b models.SimBuff) int { return cmp.Compare(b.Uptime, a.Uptime) })

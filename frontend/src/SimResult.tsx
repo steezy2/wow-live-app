@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import type { Sim, SimCombo, SimItem, SimOptionRow, SimResult as Result, SimStatWeight } from './api'
 import { clock } from './format'
-import { Spell } from './Spell'
+import { AbilityBars, AbilityLog, BuffBars } from './SimBreakdown'
 import { ItemLine } from './SimItem'
 import { useItemInfo } from './simItems'
+import { simClassColor, simClassName } from './classColors'
 import { gainShare, groupLabel, kindLabel } from './simOptions'
 
 /** A DPS number in full, as Raidbots shows it ("200,918"). */
@@ -39,6 +40,9 @@ function Gain({ gain, dps, best }: { gain: number; dps: number; best: number }) 
 /** The top of a report: what was simmed, the character, and the one number it comes to. */
 function ReportHead({ sim, result }: { sim: Sim; result: Result }) {
   const best = result.combos?.[0] ?? result.options?.[0]
+  const who = [sim.spec && sim.spec[0].toUpperCase() + sim.spec.slice(1), simClassName(sim.class)]
+    .filter(Boolean)
+    .join(' ')
   const headline = Math.max(result.dps, best?.dps ?? 0)
   const ranked = sim.kind === 'topgear' || sim.kind === 'drops' || !!result.options
   const better = !!best && best.dps > result.dps
@@ -50,11 +54,15 @@ function ReportHead({ sim, result }: { sim: Sim; result: Result }) {
         ? 'Best drop'
         : 'Best combination'
   return (
-    <section className="panel sim-report-head">
+    <section
+      className="panel sim-report-head"
+      style={{ '--class': simClassColor(sim.class) ?? 'var(--accent)' } as React.CSSProperties}
+    >
       <div>
         <h2>{kindLabel(sim.kind)}</h2>
         <p className="sim-who">
-          <strong>{sim.character}</strong> <span className="muted">{sim.spec}</span>
+          <strong>{sim.character}</strong>{' '}
+          <span className="muted">{who}</span>
         </p>
         <p className="muted small">
           {sim.options.fightStyle}, {sim.options.length} s, {sim.options.targets} target
@@ -273,8 +281,6 @@ function Details({ sim, result }: { sim: Sim; result: Result }) {
 export function SimResult({ sim, chunk }: { sim: Sim; chunk: number }) {
   const result = sim.result
   if (!result) return null
-  const top = Math.max(1, ...result.abilities.map((a) => a.dps))
-  const share = (dps: number) => (dps / top) * 100
   return (
     <>
       <ReportHead sim={sim} result={result} />
@@ -286,51 +292,9 @@ export function SimResult({ sim, chunk }: { sim: Sim; chunk: number }) {
       )}
       {result.options && <OptionRows rows={result.options} />}
       {result.weights && <StatWeights weights={result.weights} pawn={result.pawn} />}
-      <section className="panel">
-        <h2>Abilities</h2>
-        <div className="table-scroll">
-          <table className="review-table">
-            <thead>
-              <tr>
-                <th>Ability</th>
-                <th>DPS</th>
-                <th>Share</th>
-                <th>Casts</th>
-                <th>Per cast</th>
-              </tr>
-            </thead>
-            <tbody>
-              {result.abilities.map((a) => (
-                <tr key={a.id || a.name}>
-                  <td
-                    style={{
-                      backgroundImage: `linear-gradient(to right, var(--border) ${share(a.dps)}%, transparent 0)`,
-                    }}
-                  >
-                    <Spell name={a.name} id={a.id} />
-                  </td>
-                  <td>{full(a.dps)}</td>
-                  <td>{Math.round(a.share * 100)}%</td>
-                  <td>{a.casts.toFixed(1)}</td>
-                  <td>{full(a.perCast)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
-      {result.buffs.length > 0 && (
-        <section className="panel">
-          <h2>Buffs</h2>
-          <ul className="list">
-            {result.buffs.map((b) => (
-              <li key={b.id || b.name}>
-                <Spell name={b.name} id={b.id} /> <span className="muted">{Math.round(b.uptime)}%</span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+      <AbilityBars abilities={result.abilities} />
+      {result.buffs.length > 0 && <BuffBars buffs={result.buffs} />}
+      {sim.kind === 'quick' && result.log && result.log.length > 0 && <AbilityLog log={result.log} />}
       <Details sim={sim} result={result} />
     </>
   )

@@ -155,6 +155,8 @@ type SimResult struct {
 	Abilities []SimAbility `json:"abilities"`
 	Buffs     []SimBuff    `json:"buffs"`
 	Combos    []SimCombo   `json:"combos,omitempty"`
+	// Log is the sample ability log of a Quick Sim: one iteration's actions in order (it is no guide to play by).
+	Log []SimLogEntry `json:"log,omitempty"`
 	// Stages are the stages of a raced sim (SimStage), the last one the report's.
 	Stages []SimStage `json:"stages,omitempty"`
 	// Equipped is the gear the sim started from, so a report can show the best combination in full.
@@ -219,7 +221,27 @@ type SimStatWeight struct {
 type SimBuff struct {
 	Name   string  `json:"name"`
 	ID     int     `json:"id"`
+	School string  `json:"school,omitempty"`
 	Uptime float64 `json:"uptime"`
+	Count  float64 `json:"count"`
+}
+
+// SimLogEntry is one action of the sample iteration a Quick Sim keeps (SimResult.Log): when it was taken (seconds into
+// the fight, before the pull when Pre), the ability, its target and the buffs up then.
+type SimLogEntry struct {
+	Time   float64      `json:"time" example:"2.894"`
+	Pre    bool         `json:"pre,omitempty"`
+	Name   string       `json:"name" example:"Flurry"`
+	ID     int          `json:"id"`
+	Target string       `json:"target,omitempty" example:"Fluffy Pillow"`
+	Buffs  []SimLogBuff `json:"buffs,omitempty"`
+}
+
+// SimLogBuff is a buff up at a SimLogEntry, with its stacks.
+type SimLogBuff struct {
+	Name   string `json:"name" example:"Icicles"`
+	ID     int    `json:"id"`
+	Stacks int    `json:"stacks"`
 }
 
 // SimEngineStatus is the engine and what the app is doing about it: Installing while a download runs, Error when the

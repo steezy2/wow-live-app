@@ -6743,10 +6743,16 @@ const docTemplate = `{
         "models.SimBuff": {
             "type": "object",
             "properties": {
+                "count": {
+                    "type": "number"
+                },
                 "id": {
                     "type": "integer"
                 },
                 "name": {
+                    "type": "string"
+                },
+                "school": {
                     "type": "string"
                 },
                 "uptime": {
@@ -7060,6 +7066,50 @@ const docTemplate = `{
                 }
             }
         },
+        "models.SimLogBuff": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Icicles"
+                },
+                "stacks": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.SimLogEntry": {
+            "type": "object",
+            "properties": {
+                "buffs": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.SimLogBuff"
+                    }
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Flurry"
+                },
+                "pre": {
+                    "type": "boolean"
+                },
+                "target": {
+                    "type": "string",
+                    "example": "Fluffy Pillow"
+                },
+                "time": {
+                    "type": "number",
+                    "example": 2.894
+                }
+            }
+        },
         "models.SimOptionRow": {
             "type": "object",
             "properties": {
@@ -7345,6 +7395,13 @@ const docTemplate = `{
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/models.SimItem"
+                    }
+                },
+                "log": {
+                    "description": "Log is the sample ability log of a Quick Sim: one iteration's actions in order (it is no guide to play by).",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.SimLogEntry"
                     }
                 },
                 "options": {

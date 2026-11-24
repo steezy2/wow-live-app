@@ -372,6 +372,24 @@ func TestReadSimResult(t *testing.T) {
 	}
 }
 
+func TestSampleLog(t *testing.T) {
+	pre := []simActionJSON{{SpellName: "Frostfire Bolt", ID: 431044, Target: "Fluffy_Pillow"}}
+	seq := []simActionJSON{{Time: 2.894, SpellName: "Flurry", ID: 44614, Target: "Fluffy_Pillow", Buffs: []struct {
+		ID     int    `json:"id"`
+		Name   string `json:"name"`
+		Stacks int    `json:"stacks"`
+	}{{ID: 1, Name: "akilzons_rite", Stacks: 2}, {ID: 2, Name: "unlisted_buff", Stacks: 1}}},
+		{Time: 3, SpellName: "Potion of Recklessness", Target: "none"}}
+	log := sampleLog(pre, seq, map[string]string{"akilzons_rite": "Akil'zon's Rite"})
+	if len(log) != 3 || !log[0].Pre || log[1].Pre || log[0].Target != "Fluffy Pillow" || log[2].Target != "" {
+		t.Fatalf("log %+v: want the pre-pull action first, targets cleaned up and none left out", log)
+	}
+	b := log[1].Buffs
+	if len(b) != 2 || b[0].Name != "Akil'zon's Rite" || b[0].Stacks != 2 || b[1].Name != "unlisted_buff" {
+		t.Errorf("buffs %+v: want listed buffs named as the spell and others as simc has them", b)
+	}
+}
+
 func TestABigSimIsRacedInStages(t *testing.T) {
 	s := newTestSims(t, "echo")
 	s.Ref = testRef()

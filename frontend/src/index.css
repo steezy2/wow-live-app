@@ -2460,6 +2460,8 @@ table.compare td:first-child {
 }
 
 .sim-report-head {
+  border-left: 4px solid var(--class);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--class) 16%, var(--panel)), var(--panel) 60%);
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
@@ -2478,6 +2480,11 @@ table.compare td:first-child {
   font-size: var(--t-h2);
 }
 
+.sim-who strong {
+  color: var(--class);
+  font-size: 1.4rem;
+}
+
 .sim-headline {
   display: grid;
   justify-items: end;
@@ -2486,7 +2493,7 @@ table.compare td:first-child {
 .sim-headline .sim-dps {
   font-size: 2rem;
   font-weight: 700;
-  color: var(--accent);
+  color: var(--class, var(--accent));
 }
 
 .sim-doll {
@@ -2728,4 +2735,119 @@ table.compare td:first-child {
 .sim .sim-rune.picked {
   opacity: 1;
   border-color: var(--accent);
+}
+
+.sim-breakdown ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.sim-bar-row {
+  display: grid;
+  grid-template-columns: minmax(150px, 1.1fr) 52px minmax(80px, 3fr) 84px 56px;
+  align-items: center;
+  gap: var(--s3);
+  padding: 3px 0;
+}
+
+.sim-bar-row .spell {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sim-bar-pct,
+.sim-bar-num {
+  text-align: right;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.sim-bar-head .sim-bar-pct,
+.sim-bar-head .sim-bar-num {
+  color: inherit;
+}
+
+.sim-bar {
+  height: 12px;
+  border-radius: 2px;
+  background: var(--panel-2);
+  overflow: hidden;
+}
+
+.sim-bar span {
+  display: block;
+  height: 100%;
+}
+
+.sim-log-warning {
+  margin: 0 0 var(--s2);
+  padding: var(--s2) var(--s3);
+  border-radius: 4px;
+  background: var(--warn);
+  color: #111;
+  font-weight: 600;
+  text-align: center;
+}
+
+.sim-log-rows {
+  max-height: 460px;
+  overflow-y: auto;
+  padding-right: var(--s2);
+}
+
+.sim-log-rows h3 {
+  margin: var(--s3) 0 var(--s1);
+  padding-bottom: var(--s1);
+  border-bottom: 1px solid var(--border);
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  font-size: var(--t-small);
+}
+
+.sim-log-row {
+  display: grid;
+  grid-template-columns: 76px minmax(130px, 220px) minmax(80px, 120px) minmax(0, 1fr);
+  align-items: baseline;
+  gap: var(--s3);
+  padding: 3px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 50%, transparent);
+}
+
+.sim-log-buffs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+
+.sim-log-buff {
+  padding: 0 6px;
+  border-radius: 8px;
+  background: var(--panel-2);
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.sim-log-buff sup {
+  margin-left: 2px;
+  color: var(--text);
+}
+
+@media (max-width: 900px) {
+  .sim-bar-row {
+    grid-template-columns: minmax(0, 1fr) 52px minmax(60px, 1fr);
+  }
+
+  .sim-bar-num {
+    display: none;
+  }
+
+  .sim-log-row {
+    grid-template-columns: 76px minmax(0, 1fr);
+  }
+
+  .sim-log-buffs {
+    grid-column: 1 / -1;
+  }
 }
