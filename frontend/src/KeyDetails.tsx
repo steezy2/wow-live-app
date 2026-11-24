@@ -78,12 +78,12 @@ export function KeyDetails({
         name: 'Bosses',
         body: <BossList keyView={key} track={track} topBosses={review?.topBosses} onSeek={setAt} />,
       },
-      // A running key's route is compared again as its track grows, but only while its tab is open (a saved key's
+      // A running key's route is compared again as the key grows, but only while its tab is open (a saved key's
       // once).
       {
         id: 'route',
         name: 'Route',
-        body: <KeyRoute keyView={key} track={routeOpen || key.status !== 'running' ? track : null} seek={seek} />,
+        body: <KeyRoute keyView={key} live={routeOpen && key.status === 'running'} seek={seek} />,
       },
       ...fightTabs(
         { ...key, lanes: key.lanes ?? [] },

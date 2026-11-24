@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -142,14 +143,10 @@ func run() error {
 		window.Focus()
 	}
 	showWindow.Store(&show)
-	// See-through takes WebView2's composition hosting without Wails' frameless decorations, and click-through
-	// switched on once the page is up: a window made click-through at creation is layered, which paints the page's
-	// transparent parts white (tried Nov 8).
-	overlay := wails.Window.NewWithOptions(application.WebviewWindowOptions{Name: "overlay", Title: name + " overlay",
-		Width: overlayW, Height: overlayH, URL: "/overlay", Frameless: true, AlwaysOnTop: true, Hidden: true,
-		BackgroundType: application.BackgroundTypeTransparent, BackgroundColour: application.NewRGBA(0, 0, 0, 0),
-		Windows: application.WindowsWindow{HiddenOnTaskbar: true, WebView2CompositionHosting: true,
-			DisableFramelessWindowDecorations: true}})
+	// The overlay's window is made the first time it is shown (newOverlay, set up below): a second WebView2 renderer
+	// costs tens of MB, and a session with the overlay off never needs it. overlayWin is nil until then.
+	var overlayWin atomic.Pointer[application.WebviewWindow]
+	var newOverlay func() *application.WebviewWindow
 	running := func() bool {
 		key, ok := site.Keys.Latest(time.Now().UnixMilli())
 		return ok && key.Status == models.StatusRunning
@@ -166,11 +163,15 @@ func run() error {
 		wanted := show == "always" || show == "keys" && (running() || betweenPulls())
 		return moving.Load() || preview.Load() != "" || !hidden.Load() && wanted
 	}
+	overlayVisible := func() bool {
+		w := overlayWin.Load()
+		return w != nil && w.IsVisible()
+	}
 	showOrHide := func(show string) {
 		if up(show) {
-			overlay.Show()
-		} else {
-			overlay.Hide()
+			newOverlay().Show()
+		} else if w := overlayWin.Load(); w != nil {
+			w.Hide()
 		}
 	}
 	menu := wails.NewMenu()
@@ -179,7 +180,11 @@ func run() error {
 	clickItem := menu.AddCheckbox("Overlay takes clicks", !settings.Current().Overlay.ClickThrough)
 	hideItem := menu.AddCheckbox("Hide the overlay until the next key or pull", false)
 	// passClicks lets clicks through to the game unless the overlay is being moved or takes them.
-	passClicks := func(o models.OverlaySettings) { overlay.SetIgnoreMouseEvents(o.ClickThrough && !moving.Load()) }
+	passClicks := func(o models.OverlaySettings) {
+		if w := overlayWin.Load(); w != nil {
+			w.SetIgnoreMouseEvents(o.ClickThrough && !moving.Load())
+		}
+	}
 	setMoving := func(on bool) {
 		moving.Store(on)
 		moveItem.SetChecked(on)
@@ -228,29 +233,49 @@ func run() error {
 		}
 		wails.Event.Emit("overlay-previewing", preview.Load())
 	})
-	defaultPlace := func() {
+	defaultPlace := func(w *application.WebviewWindow) {
 		area := wails.Screen.GetPrimary().WorkArea
-		overlay.SetBounds(application.Rect{X: area.X + area.Width - overlayW - overlayMargin, Y: area.Y + overlayMargin,
+		w.SetBounds(application.Rect{X: area.X + area.Width - overlayW - overlayMargin, Y: area.Y + overlayMargin,
 			Width: overlayW, Height: overlayH})
 	}
-	wails.Event.On("overlay-reset", func(*application.CustomEvent) { defaultPlace() })
-	// The overlay page's content shape: the window follows it while it is moved or resized.
-	shape := &holdShape{window: overlay}
-	wails.Event.On("overlay-shape", func(e *application.CustomEvent) {
-		if size, ok := e.Data.([]any); ok && len(size) == 4 {
-			var n [4]float64
-			for i := range n {
-				n[i], _ = size[i].(float64)
-			}
-			if n[0] > 0 && n[1] > 0 {
-				shape.report(n[0], n[1], n[2], n[3])
-			}
+	wails.Event.On("overlay-reset", func(*application.CustomEvent) { // a window never shown has no place to reset
+		if w := overlayWin.Load(); w != nil {
+			defaultPlace(w)
 		}
 	})
-	overlay.OnWindowEvent(events.Common.WindowDidResize, func(*application.WindowEvent) {
-		if moving.Load() {
-			shape.apply()
-		}
+	// See-through takes WebView2's composition hosting without Wails' frameless decorations, and click-through
+	// switched on once the page is up: a window made click-through at creation is layered, which paints the page's
+	// transparent parts white (tried Nov 8).
+	newOverlay = sync.OnceValue(func() *application.WebviewWindow {
+		overlay := wails.Window.NewWithOptions(application.WebviewWindowOptions{Name: "overlay", Title: name + " overlay",
+			Width: overlayW, Height: overlayH, URL: "/overlay", Frameless: true, AlwaysOnTop: true, Hidden: true,
+			BackgroundType: application.BackgroundTypeTransparent, BackgroundColour: application.NewRGBA(0, 0, 0, 0),
+			Windows: application.WindowsWindow{HiddenOnTaskbar: true, WebView2CompositionHosting: true,
+				DisableFramelessWindowDecorations: true}})
+		// The overlay page's content shape: the window follows it while it is moved or resized.
+		shape := &holdShape{window: overlay}
+		wails.Event.On("overlay-shape", func(e *application.CustomEvent) {
+			if size, ok := e.Data.([]any); ok && len(size) == 4 {
+				var n [4]float64
+				for i := range n {
+					n[i], _ = size[i].(float64)
+				}
+				if n[0] > 0 && n[1] > 0 {
+					shape.report(n[0], n[1], n[2], n[3])
+				}
+			}
+		})
+		overlay.OnWindowEvent(events.Common.WindowDidResize, func(*application.WindowEvent) {
+			if moving.Load() {
+				shape.apply()
+			}
+		})
+		keepPlace(wails, overlay, "overlay", settings, func() { defaultPlace(overlay) })
+		overlay.OnWindowEvent(events.Common.WindowRuntimeReady, func(*application.WindowEvent) {
+			go passClicks(settings.Current().Overlay)
+		})
+		overlayWin.Store(overlay)
+		return overlay
 	})
 	// A full review page's Pop out button.
 	wails.Event.On("open-review", func(e *application.CustomEvent) {
@@ -272,10 +297,6 @@ func run() error {
 		following, stopFollowing = next.LogsDir, follow(ctx, site, next.LogsDir)
 	}
 	keepPlace(wails, window, "main", settings, nil)
-	keepPlace(wails, overlay, "overlay", settings, defaultPlace)
-	overlay.OnWindowEvent(events.Common.WindowRuntimeReady, func(*application.WindowEvent) {
-		go passClicks(settings.Current().Overlay)
-	})
 	// Once the app runs: a hotkey that clashes with another app's reaches this log (before that Wails only queues it).
 	wails.Event.OnApplicationEvent(events.Common.ApplicationStarted, func(*application.ApplicationEvent) {
 		showOrHide(settings.Current().Overlay.Show)
@@ -314,7 +335,7 @@ func run() error {
 					hide.Stop()
 					hide = nil
 				}
-				overlay.Show()
+				newOverlay().Show()
 				if forRaid = betweenPulls(); forRaid { // no change comes between pulls to take it down
 					hide = time.AfterFunc(service.RaidLinger, func() { showOrHide(settings.Current().Overlay.Show) })
 				}
@@ -322,7 +343,7 @@ func run() error {
 				hide.Stop()
 				hide, forRaid = nil, false
 				showOrHide(settings.Current().Overlay.Show)
-			case hide == nil && overlay.IsVisible():
+			case hide == nil && overlayVisible():
 				hide = time.AfterFunc(overlayLinger, func() { showOrHide(settings.Current().Overlay.Show) })
 			}
 		}
