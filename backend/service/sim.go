@@ -281,7 +281,11 @@ func (s *Sims) planTopGear(req models.SimRequest, p models.SimProfile, values in
 // planDrops counts a Droptimizer request's drops (each once for every compared value) into plan, with what Start
 // would refuse it for.
 func (s *Sims) planDrops(req models.SimRequest, p models.SimProfile, dims []compareDim, plan *models.SimPlan) error {
-	drops, err := dropCombos(p, s.Drops, req.Difficulty, req.KeyLevel, s.upgradesFor(req))
+	up, err := s.dropUpgrade(req)
+	var drops []gearCombo
+	if err == nil {
+		drops, err = dropCombos(p, s.Drops, req.Difficulty, req.KeyLevel, up)
+	}
 	if err == nil {
 		drops, err = withCompare(dims, false, drops, maxDrops)
 	}
@@ -292,12 +296,22 @@ func (s *Sims) planDrops(req models.SimRequest, p models.SimProfile, dims []comp
 	return err
 }
 
-// upgradesFor are the upgrade tracks a Droptimizer request tops its drops up to: none unless it asks for it.
-func (s *Sims) upgradesFor(req models.SimRequest) []models.SimUpgradeTrack {
-	if req.MaxUpgrade {
-		return s.Ref.Upgrades
+// dropUpgrade is how a Droptimizer request upgrades its drops (SimRequest.Upgrade). ErrBadSimOptions for a value that
+// is none of those.
+func (s *Sims) dropUpgrade(req models.SimRequest) (dropUpgrade, error) {
+	switch req.Upgrade {
+	case "":
+		return dropUpgrade{}, nil
+	case "max":
+		return dropUpgrade{Tracks: s.Ref.Upgrades}, nil
+	case "match":
+		return dropUpgrade{Tracks: s.Ref.Upgrades, Match: true}, nil
 	}
-	return nil
+	rank, err := strconv.Atoi(req.Upgrade)
+	if err != nil || rank < 1 {
+		return dropUpgrade{}, fmt.Errorf("%w: upgrade is \"max\", \"match\" or a rank from 1", ErrBadSimOptions)
+	}
+	return dropUpgrade{Tracks: s.Ref.Upgrades, Rank: rank}, nil
 }
 
 // twoHanded asks Items whether the item is a two-handed weapon.
@@ -351,7 +365,10 @@ func (s *Sims) Start(req models.SimRequest) (models.Sim, error) {
 		}
 	case "drops":
 		limit = maxDrops
-		combos, err = dropCombos(profile, s.Drops, req.Difficulty, req.KeyLevel, s.upgradesFor(req))
+		var up dropUpgrade
+		if up, err = s.dropUpgrade(req); err == nil {
+			combos, err = dropCombos(profile, s.Drops, req.Difficulty, req.KeyLevel, up)
+		}
 	}
 	if err == nil && req.Kind == "stats" && len(dims) > 0 {
 		err = errStatsOneSetup

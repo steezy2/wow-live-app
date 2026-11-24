@@ -35,19 +35,36 @@ var (
 	venomstoneSlots  = []string{"one_hand", "two_hand", "main_hand", "off_hand", "trinket", "neck"}
 )
 
-// maxedLevel is the item level a drop of level reaches at the top rank of its upgrade track, and the track's name: the
-// track that has level at its lowest rank (the higher track of two), or level itself and no track when none has it
-// (an item past its track's top).
-func maxedLevel(tracks []models.SimUpgradeTrack, level int) (int, string) {
-	maxed, name, rank, group := level, "", 0, 0
-	for _, t := range tracks {
+// trackOf is the upgrade track a drop of item level level starts on: the track that has level at its lowest rank (the
+// higher track of two), or nil when none has it (an item past its track's top).
+func trackOf(tracks []models.SimUpgradeTrack, level int) *models.SimUpgradeTrack {
+	var found *models.SimUpgradeTrack
+	rank := 0
+	for i, t := range tracks {
 		for _, l := range t.Levels {
-			if l.ItemLevel == level && (rank == 0 || l.Level < rank || l.Level == rank && t.Group > group) {
-				maxed, name, rank, group = t.Levels[len(t.Levels)-1].ItemLevel, t.Name, l.Level, t.Group
+			if l.ItemLevel == level && (found == nil || l.Level < rank || l.Level == rank && t.Group > found.Group) {
+				found, rank = &tracks[i], l.Level
 			}
 		}
 	}
-	return maxed, name
+	return found
+}
+
+// rankLevel is the item level at rank (from 1) of t: its top rank when rank is 0 or past it.
+func rankLevel(t models.SimUpgradeTrack, rank int) int {
+	if rank <= 0 || rank > len(t.Levels) {
+		rank = len(t.Levels)
+	}
+	return t.Levels[rank-1].ItemLevel
+}
+
+// dropUpgrade is how a Droptimizer upgrades its drops along their tracks: Rank is the rank each is moved to (0 the top
+// of its track, with Venomstones), and Match moves each to the rank of the item worn in its slot. No Tracks keeps the
+// level a drop has.
+type dropUpgrade struct {
+	Tracks []models.SimUpgradeTrack
+	Rank   int
+	Match  bool
 }
 
 // dropCombos is one combination per piece of gear the season's raid bosses (at difficulty) and dungeons (at key level
@@ -57,7 +74,7 @@ func maxedLevel(tracks []models.SimUpgradeTrack, level int) (int, string) {
 // main hand, so a dual-wielder's off-hand isn't covered, and beside a worn two-hander it is simmed with an empty
 // off-hand. Nothing to sim, or over maxDrops, is ErrBadSimOptions.
 func dropCombos(p models.SimProfile, d models.SimDrops, difficulty string, keyLevel int,
-	upgrades []models.SimUpgradeTrack) ([]gearCombo, error) {
+	up dropUpgrade) ([]gearCombo, error) {
 	spec := 0
 	for id, s := range d.Specs {
 		if s.Class == p.Class && s.Spec == p.Spec {
@@ -76,27 +93,27 @@ func dropCombos(p models.SimProfile, d models.SimDrops, difficulty string, keyLe
 
 	var combos []gearCombo
 	add := func(source models.DropSource, boss models.DropBoss, dropped int) {
-		maxed, track := maxedLevel(upgrades, dropped)
+		track := trackOf(up.Tracks, dropped)
 		for _, item := range boss.Items {
 			if len(item.Specs) > 0 && !slices.Contains(item.Specs, spec) {
 				continue
-			}
-			level := maxed
-			if slices.Contains(venomstoneTracks, track) && slices.Contains(venomstoneSlots, item.Slot) {
-				level += venomstoneLevels
 			}
 			slots, ok := dropSlots[item.Slot]
 			if !ok {
 				slots = []string{item.Slot}
 			}
 			for i, slot := range slots {
-				pair := worn[slots[len(slots)-1-i]]
-				if slot == "off_hand" && wearsTwoHander(worn) || len(slots) == 2 && pair != nil && pair.ID == item.ID {
+				pair, own, level := worn[slots[len(slots)-1-i]], worn[slot], dropped
+				if track != nil {
+					level = upgradedLevel(up, *track, item.Slot, own, dropped)
+				}
+				if slot == "off_hand" && wearsTwoHander(worn) || len(slots) == 2 && pair != nil && pair.ID == item.ID ||
+					own != nil && own.ID == item.ID && level <= own.Level {
 					continue
 				}
 				opts := map[string][]int{"ilevel": {level}}
-				if w := worn[slot]; w != nil && w.Opts["enchant_id"] != nil {
-					opts["enchant_id"] = w.Opts["enchant_id"] // the enchant goes on the new piece, as in game
+				if own != nil && own.Opts["enchant_id"] != nil {
+					opts["enchant_id"] = own.Opts["enchant_id"] // the enchant goes on the new piece, as in game
 				}
 				drop := models.SimItem{Group: gearKey(slot), Name: item.Name, Level: level, ID: item.ID, Opts: opts}
 				fills := []gearFill{{slot, &gearCandidate{item: drop}}}
@@ -125,4 +142,26 @@ func dropCombos(p models.SimProfile, d models.SimDrops, difficulty string, keyLe
 			maxDrops)
 	}
 	return combos, nil
+}
+
+// upgradedLevel is the item level of a drop (of level dropped, for the slot named slot) that starts on track, when it
+// replaces worn: at the rank up asks for. Matching a worn item that is on no track keeps the dropped level, and a fully
+// upgraded Hero or Myth weapon, trinket or neck also takes its Venomstones.
+func upgradedLevel(up dropUpgrade, track models.SimUpgradeTrack, slot string, worn *models.SimItem, dropped int) int {
+	rank := up.Rank
+	if up.Match {
+		if worn == nil {
+			return dropped
+		}
+		_, current, ok := upgradeOf(up.Tracks, *worn)
+		if !ok {
+			return dropped
+		}
+		rank = current.Level
+	}
+	level := rankLevel(track, rank)
+	if rank == 0 && slices.Contains(venomstoneTracks, track.Name) && slices.Contains(venomstoneSlots, slot) {
+		level += venomstoneLevels
+	}
+	return level
 }

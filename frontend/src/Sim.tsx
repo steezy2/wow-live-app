@@ -169,8 +169,9 @@ function OptionsPanel(props: {
   keyLevel: number
   setKeyLevel: (k: number) => void
   optionsError: string | null
-  maxUpgrade: boolean
-  setMaxUpgrade: (m: boolean) => void
+  upgrade: string
+  setUpgrade: (u: string) => void
+  ranks: number // the most ranks an upgrade track has
   plan: { plan: SimPlan | null; error: string | null } | null
   why: string | null
   canRun: boolean
@@ -232,9 +233,18 @@ function OptionsPanel(props: {
               ))}
             </select>
           </label>
-          <label className="inline">
-            <input type="checkbox" checked={props.maxUpgrade} onChange={(e) => props.setMaxUpgrade(e.target.checked)} />
-            Upgrade every drop fully, with Ascendant Venomstones where they apply
+          <label>
+            Upgrade drops
+            <select value={props.upgrade} onChange={(e) => props.setUpgrade(e.target.value)}>
+              <option value="">As dropped</option>
+              <option value="max">Fully, with Ascendant Venomstones</option>
+              <option value="match">To the rank of the gear you wear</option>
+              {Array.from({ length: props.ranks }, (_, i) => (
+                <option key={i} value={String(i + 1)}>
+                  To rank {i + 1}
+                </option>
+              ))}
+            </select>
           </label>
         </>
       )}
@@ -266,7 +276,7 @@ export function SimPage() {
   const [omnium, setOmnium] = useState<number[]>([])
   const [difficulty, setDifficulty] = useState('')
   const [keyLevel, setKeyLevel] = useState(0)
-  const [maxUpgrade, setMaxUpgrade] = useState(false)
+  const [upgrade, setUpgrade] = useState('')
   const [runs, setRuns] = useState<Sim[]>([]) // the sims running now, as last polled
   const [watching, setWatching] = useState<string | null>(null) // the running sim whose progress card shows
   const [estimates, setEstimates] = useState<Record<string, number>>({}) // seconds each started sim's plan said
@@ -366,7 +376,7 @@ export function SimPage() {
       consumables,
       ...(mine !== theirs && { omnium: mine }),
       ...(kind === 'topgear' && { equipped, bags, variants }),
-      ...(kind === 'drops' && { difficulty, keyLevel, maxUpgrade }),
+      ...(kind === 'drops' && { difficulty, keyLevel, upgrade }),
     }
   }
   const planRequest = profile ? request() : null
@@ -527,8 +537,9 @@ export function SimPage() {
               keyLevel={keyLevel}
               setKeyLevel={setKeyLevel}
               optionsError={optionsError}
-              maxUpgrade={maxUpgrade}
-              setMaxUpgrade={setMaxUpgrade}
+              upgrade={upgrade}
+              setUpgrade={setUpgrade}
+              ranks={Math.max(0, ...reference.upgrades.map((t) => t.levels.length))}
               plan={planRequest ? plan : null}
               why={why}
               canRun={!why && !planBlocks}

@@ -1928,7 +1928,8 @@ export interface SimRequest {
   variants?: SimVariant[]
   difficulty?: string
   keyLevel?: number
-  maxUpgrade?: boolean
+  /** How a Droptimizer upgrades its drops: '' as dropped, 'max', 'match' (the worn gear's rank) or a rank number. */
+  upgrade?: string
   consumables?: SimConsumables
   omnium?: string
 }

@@ -2242,7 +2242,7 @@ const docTemplate = `{
                 "summary": "Start a sim",
                 "parameters": [
                     {
-                        "description": "the kind, the export, the options and consumables, for topgear the picked equipped and bag indexes and variants, for drops the difficulty, keyLevel and maxUpgrade, and for any kind the consumables picked (two or more of a kind are compared)",
+                        "description": "the kind, the export, the options and consumables, for topgear the picked equipped and bag indexes and variants, for drops the difficulty, keyLevel and upgrade, and for any kind the consumables picked (two or more of a kind are compared)",
                         "name": "body",
                         "in": "body",
                         "required": true,
@@ -2820,7 +2820,7 @@ const docTemplate = `{
                     "items": {
                         "type": "array",
                         "items": {
-                            "type": "integer"
+                            "type": "integer",
                         }
                     }
                 }
@@ -3081,7 +3081,7 @@ const docTemplate = `{
                     "items": {
                         "type": "array",
                         "items": {
-                            "type": "number"
+                            "type": "number",
                         }
                     }
                 },
@@ -3864,7 +3864,7 @@ const docTemplate = `{
                     "description": "TopBosses is how long each boss took in the similar top runs (the median, by boss name; missing in reviews\nsaved before Nov 11).",
                     "type": "object",
                     "additionalProperties": {
-                        "type": "integer"
+                        "type": "integer",
                     }
                 }
             }
@@ -4172,7 +4172,7 @@ const docTemplate = `{
                     "description": "Activity is each player's share of their time alive in pulls with a cast going or a hit landing (in %).",
                     "type": "object",
                     "additionalProperties": {
-                        "type": "number"
+                        "type": "number",
                     }
                 },
                 "affixes": {
@@ -4191,7 +4191,7 @@ const docTemplate = `{
                 "bestBosses": {
                     "type": "object",
                     "additionalProperties": {
-                        "type": "integer"
+                        "type": "integer",
                     }
                 },
                 "bestFinalMS": {
@@ -4731,7 +4731,7 @@ const docTemplate = `{
                     "items": {
                         "type": "array",
                         "items": {
-                            "type": "number"
+                            "type": "number",
                         }
                     }
                 }
@@ -5170,7 +5170,7 @@ const docTemplate = `{
                 "activity": {
                     "type": "object",
                     "additionalProperties": {
-                        "type": "number"
+                        "type": "number",
                     }
                 },
                 "adds": {
@@ -7282,10 +7282,6 @@ const docTemplate = `{
                     "type": "string",
                     "example": "quick"
                 },
-                "maxUpgrade": {
-                    "description": "MaxUpgrade sims every drop of a Droptimizer fully upgraded: at the top rank of its upgrade track, and a Hero or Myth\nweapon, trinket or neck also with its Ascendant Venomstones.",
-                    "type": "boolean"
-                },
                 "omnium": {
                     "description": "Omnium is the Omnium Folio's runes (entry:rank pairs, as the export writes them): nil keeps the export's, empty\nis none. Two or more entries of a node are compared, as consumables are.",
                     "type": "string",
@@ -7293,6 +7289,11 @@ const docTemplate = `{
                 },
                 "options": {
                     "$ref": "#/definitions/models.SimOptions"
+                },
+                "upgrade": {
+                    "description": "Upgrade is how a Droptimizer upgrades its drops along their track: empty keeps the item level they drop at, \"max\"\nis the top rank (a Hero or Myth weapon, trinket or neck also with its Ascendant Venomstones), \"match\" the rank of\nthe item worn in each drop's slot, and a number that rank of the track (the top when it has fewer).",
+                    "type": "string",
+                    "example": "max"
                 },
                 "variants": {
                     "description": "Variants are changed copies of a Top Gear sim's candidates.",

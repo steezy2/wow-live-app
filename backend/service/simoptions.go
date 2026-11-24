@@ -255,8 +255,9 @@ func omniumInput(ref models.SimReference, p models.SimProfile, requested *string
 }
 
 // upgradeOf is the track an item is on and its level in it, found by the item's bonus IDs.
-func upgradeOf(ref models.SimReference, item models.SimItem) (models.SimUpgradeTrack, models.SimUpgradeLevel, bool) {
-	for _, track := range ref.Upgrades {
+func upgradeOf(tracks []models.SimUpgradeTrack, item models.SimItem) (models.SimUpgradeTrack, models.SimUpgradeLevel,
+	bool) {
+	for _, track := range tracks {
 		for _, level := range track.Levels {
 			if slices.Contains(item.Opts["bonus_id"], level.BonusID) {
 				return track, level, true
@@ -276,7 +277,7 @@ func applyVariant(ref models.SimReference, item models.SimItem, v models.SimVari
 	item.Opts = cloneOpts(item.Opts)
 	var notes []string
 	if v.Upgrade != 0 {
-		track, current, ok := upgradeOf(ref, item)
+		track, current, ok := upgradeOf(ref.Upgrades, item)
 		i := slices.IndexFunc(track.Levels, func(l models.SimUpgradeLevel) bool { return l.Level == v.Upgrade })
 		if !ok || i < 0 {
 			return bad("%s has no upgrade level %d to move to", cmp.Or(item.Name, "the item"), v.Upgrade)

@@ -213,7 +213,7 @@ func (a SimAPI) Plan(c *gin.Context) {
 //	@Tags			sim
 //	@Accept			json
 //	@Produce		json
-//	@Param			body	body		models.SimRequest	true	"the kind, the export, the options and consumables, for topgear the picked equipped and bag indexes and variants, for drops the difficulty, keyLevel and maxUpgrade, and for any kind the consumables picked (two or more of a kind are compared)"
+//	@Param			body	body		models.SimRequest	true	"the kind, the export, the options and consumables, for topgear the picked equipped and bag indexes and variants, for drops the difficulty, keyLevel and upgrade, and for any kind the consumables picked (two or more of a kind are compared)"
 //	@Success		202		{object}	models.Sim
 //	@Failure		400		{object}	ErrorResponse	"bad options, indexes, variants, consumables or Omnium picks, not an export, nothing to try or over maxCombos"
 //	@Failure		409		{object}	ErrorResponse	"as many sims as can run at once are running, the engine is downloading, or none is installed"
