@@ -2961,6 +2961,7 @@ table.compare td:first-child {
   display: block;
   width: 100%;
   height: 100%;
+}
 
 .sim-custom > summary {
   cursor: pointer;
