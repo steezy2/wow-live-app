@@ -1837,9 +1837,10 @@ export interface SimItemInfo {
   name: string
   icon: string
   quality: number
+  effect?: string
 }
 
-/** Names, icons and qualities of items; the ones Wowhead can't give are left out. */
+/** Names, icons, qualities and what using them does, of items; the ones Wowhead can't give are left out. */
 export async function fetchSimItems(ids: number[], signal?: AbortSignal): Promise<SimItemInfo[]> {
   return json(`/api/sim/items?ids=${ids.join(',')}`, { signal })
 }

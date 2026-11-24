@@ -1,6 +1,6 @@
 import { iconURL, type SimConsumables, type SimReference } from './api'
 import { comparedCount } from './simOptions'
-import { tip } from './tipAttrs'
+import { itemTip, tip } from './tipAttrs'
 
 /** The page's name for each consumable kind; a kind it doesn't know shows as the app names it. */
 const CONSUMABLE_LABELS: Record<string, string> = {
@@ -63,7 +63,7 @@ export function ConsumablesCard(props: {
                 className={picked(kind).includes(c.value) ? 'sim-rune picked' : 'sim-rune'}
                 aria-pressed={picked(kind).includes(c.value)}
                 onClick={() => toggle(kind, c.value)}
-                {...tip(c.name)}
+                {...itemTip(c.itemID, c.name)}
               >
                 <span className="sim-icon">{c.icon && <img src={iconURL(c.icon)} alt="" loading="lazy" />}</span>
                 <span className="small">{c.name}</span>

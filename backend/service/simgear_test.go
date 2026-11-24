@@ -37,6 +37,16 @@ func gearProfile(twoHanded bool) models.SimProfile {
 	return p
 }
 
+func TestTopGearCombosAllowNothingToTryWhenComparing(t *testing.T) {
+	p := gearProfile(false)
+	if _, err := topGearCombos(p, nil, nil, nil, false, twoHanders(t)); !errors.Is(err, ErrBadSimOptions) {
+		t.Errorf("nothing ticked: err = %v, want ErrBadSimOptions", err)
+	}
+	if combos, err := topGearCombos(p, nil, nil, nil, true, twoHanders(t)); err != nil || len(combos) != 0 {
+		t.Errorf("nothing ticked while comparing = %v, %v, want none and no error", combos, err)
+	}
+}
+
 func TestTopGearCombosFollowTheSlotRules(t *testing.T) {
 	tests := []struct {
 		name          string
@@ -64,7 +74,7 @@ func TestTopGearCombosFollowTheSlotRules(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p, twoHanded := gearProfile(slices.Contains(tt.twoHanders, 31)), twoHanders(t, tt.twoHanders...)
-			combos, err := topGearCombos(p, tt.equipped, tt.bag, nil, twoHanded)
+			combos, err := topGearCombos(p, tt.equipped, tt.bag, nil, false, twoHanded)
 			groups, _ := gearGroups(p, tt.equipped, tt.bag, nil, twoHanded)
 			if n := comboCount(groups, maxPlanCombos); n != len(combos) {
 				t.Errorf("comboCount = %d, want the %d topGearCombos makes", n, len(combos))
@@ -83,7 +93,7 @@ func TestTopGearCombosFollowTheSlotRules(t *testing.T) {
 }
 
 func TestTopGearWeaponsEmptyOrFillTheOffHand(t *testing.T) {
-	combos, err := topGearCombos(gearProfile(false), []int{5, 6}, []int{4, 5}, nil, twoHanders(t))
+	combos, err := topGearCombos(gearProfile(false), []int{5, 6}, []int{4, 5}, nil, false, twoHanders(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -95,7 +105,7 @@ func TestTopGearWeaponsEmptyOrFillTheOffHand(t *testing.T) {
 		}
 	}
 	// a one-handed bag main hand beside a worn two-hander takes the picked off-hand
-	combos, err = topGearCombos(gearProfile(true), []int{5}, []int{4, 5}, nil, twoHanders(t, 31))
+	combos, err = topGearCombos(gearProfile(true), []int{5}, []int{4, 5}, nil, false, twoHanders(t, 31))
 	if err != nil || len(combos) != 1 || len(combos[0].swaps) != 2 || combos[0].swaps[0].In.ID != 33 ||
 		combos[0].swaps[1].Slot != "off_hand" || combos[0].swaps[1].Out != nil || combos[0].swaps[1].In.ID != 34 {
 		t.Errorf("combos = %+v, %v", combos, err)
@@ -104,12 +114,12 @@ func TestTopGearWeaponsEmptyOrFillTheOffHand(t *testing.T) {
 		t.Errorf("profilesets = %q", got)
 	}
 	// a two-handed bag main hand takes the worn off-hand off
-	combos, err = topGearCombos(gearProfile(false), nil, []int{4}, nil, twoHanders(t, 33))
+	combos, err = topGearCombos(gearProfile(false), nil, []int{4}, nil, false, twoHanders(t, 33))
 	want := "profileset.combo1+=main_hand=,id=33\nprofileset.combo1+=off_hand=\n"
 	if got := gearProfilesets(combos); err != nil || got != want {
 		t.Errorf("profilesets = %q, %v", got, err)
 	}
-	if _, err := topGearCombos(gearProfile(false), nil, []int{4}, nil, func(int) (bool, error) {
+	if _, err := topGearCombos(gearProfile(false), nil, []int{4}, nil, false, func(int) (bool, error) {
 		return false, errors.New("offline")
 	}); err == nil {
 		t.Error("a weapon whose type can't be read should fail the sim, not guess")
@@ -123,11 +133,11 @@ func TestTopGearRefusesOverTheCap(t *testing.T) {
 		p.Bags = append(p.Bags, gearItem("head", 100+i), gearItem("neck", 200+i))
 		picked = append(picked, 2*i, 2*i+1)
 	}
-	if combos, err := topGearCombos(p, nil, picked, nil, twoHanders(t)); err != nil || len(combos) != maxCombos {
+	if combos, err := topGearCombos(p, nil, picked, nil, false, twoHanders(t)); err != nil || len(combos) != maxCombos {
 		t.Fatalf("10 heads by 10 necks: %d combos, %v; want %d", len(combos), err, maxCombos)
 	}
 	p.Bags = append(p.Bags, gearItem("head", 110))
-	if combos, err := topGearCombos(p, nil, append(picked, len(p.Bags)-1), nil, twoHanders(t)); !errors.Is(err,
+	if combos, err := topGearCombos(p, nil, append(picked, len(p.Bags)-1), nil, false, twoHanders(t)); !errors.Is(err,
 		ErrBadSimOptions) ||
 		combos != nil {
 		t.Errorf("11 heads by 10 necks: %d combos, %v; want refused, not cut", len(combos), err)

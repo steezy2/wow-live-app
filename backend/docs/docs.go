@@ -7011,6 +7011,10 @@ const docTemplate = `{
         "models.SimItemInfo": {
             "type": "object",
             "properties": {
+                "effect": {
+                    "description": "Effect is what using the item does, as its tooltip words it (\"Use: Increases your Critical Strike by 165 ...\").",
+                    "type": "string"
+                },
                 "icon": {
                     "type": "string",
                     "example": "inv_axe_1h_nerubianraid_d_01"

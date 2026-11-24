@@ -1,6 +1,6 @@
 import { iconURL, type TalentNode } from './api'
 import { omniumString, togglePick } from './simOptions'
-import { tip } from './tipAttrs'
+import { spellTip, tip } from './tipAttrs'
 
 /** The Omnium Folio's runes, a row of choices per node from the end of its path down to where it starts, each rune an
  * icon to click: the picked ones are lit. Two or more picked in a node are compared (every combination of the nodes
@@ -35,6 +35,7 @@ export function OmniumFolio(props: {
                   aria-pressed={picks.includes(e.id)}
                   onClick={() => onChange(togglePick(picks, e.id))}
                   {...tip(e.name)}
+                  {...(e.spellID ? spellTip(e.spellID) : {})}
                 >
                   <span className="sim-icon">
                     {e.icon && <img src={iconURL(e.icon)} alt="" loading="lazy" />}

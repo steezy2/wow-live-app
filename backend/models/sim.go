@@ -218,4 +218,6 @@ type SimItemInfo struct {
 	Name    string `json:"name" example:"Ansurek's Final Judgment"`
 	Icon    string `json:"icon" example:"inv_axe_1h_nerubianraid_d_01"`
 	Quality int    `json:"quality" example:"4"`
+	// Effect is what using the item does, as its tooltip words it ("Use: Increases your Critical Strike by 165 ...").
+	Effect string `json:"effect,omitempty"`
 }

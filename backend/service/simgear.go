@@ -103,14 +103,19 @@ func comboRefusal(n int) error {
 }
 
 // topGearCombos is every legal combination of the picked items and extra candidates other than the equipped gear
-// (gearGroups). More than maxCombos, or none, is ErrBadSimOptions: nothing is dropped.
-func topGearCombos(p models.SimProfile, equipped, bags []int, extra []gearCandidate,
+// (gearGroups). More than maxCombos is ErrBadSimOptions, and so is none unless the sim is comparing consumables (then
+// the equipped gear alone is worth a run): nothing is dropped.
+func topGearCombos(p models.SimProfile, equipped, bags []int, extra []gearCandidate, comparing bool,
 	twoHanded func(id int) (bool, error)) ([]gearCombo, error) {
 	groups, err := gearGroups(p, equipped, bags, extra, twoHanded)
 	if err != nil {
 		return nil, err
 	}
-	if err := comboRefusal(comboCount(groups, maxCombos+1)); err != nil {
+	n := comboCount(groups, maxCombos+1)
+	if n == 0 && comparing {
+		return nil, nil
+	}
+	if err := comboRefusal(n); err != nil {
 		return nil, err
 	}
 	var combos []gearCombo
