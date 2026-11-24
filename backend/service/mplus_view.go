@@ -144,7 +144,11 @@ func (k *LogTracker) SavedKey(start int64) (models.KeyView, error) {
 	if i < 0 {
 		return models.KeyView{}, ErrNoSuchKey
 	}
-	return finished(k.history[i], k.history), nil
+	key, err := whole(k.store, k.history[i])
+	if err != nil {
+		return models.KeyView{}, err
+	}
+	return finished(key, k.history), nil
 }
 
 // DeleteSaved removes one saved key, or every one when start is 0.

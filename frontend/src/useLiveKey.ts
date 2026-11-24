@@ -66,14 +66,42 @@ export function useLiveKey(onEnded?: () => void) {
   }
 }
 
+/** One clock per tick length, shared by every component that reads it and stopped while none does. */
+const clocks = new Map<number, { listeners: Set<() => void>; stop?: () => void }>()
+
+/** Joins the tickMS clock (started by the first to join); returns what leaves it. A clock reads again at once when
+ * the page shows after being hidden, and skips its ticks while it is hidden. */
+export function joinClock(tickMS: number, onTick: () => void): () => void {
+  let clock = clocks.get(tickMS)
+  if (!clock) {
+    clock = { listeners: new Set() }
+    clocks.set(tickMS, clock)
+  }
+  const shared = clock
+  const tick = () => shared.listeners.forEach((listener) => listener())
+  if (shared.listeners.size === 0) {
+    const timer = setInterval(() => document.hidden || tick(), tickMS)
+    const shown = () => document.hidden || tick()
+    document.addEventListener('visibilitychange', shown)
+    shared.stop = () => {
+      clearInterval(timer)
+      document.removeEventListener('visibilitychange', shown)
+    }
+  }
+  shared.listeners.add(onTick)
+  return () => {
+    shared.listeners.delete(onTick)
+    if (shared.listeners.size === 0) {
+      shared.stop?.()
+      clocks.delete(tickMS)
+    }
+  }
+}
+
 /** The time now, read again every tickMS (never, for 0). */
 export function useNow(tickMS: number): number {
   const [now, setNow] = useState(() => Date.now())
-  useEffect(() => {
-    if (!tickMS) return
-    const timer = setInterval(() => setNow(Date.now()), tickMS)
-    return () => clearInterval(timer)
-  }, [tickMS])
+  useEffect(() => (tickMS ? joinClock(tickMS, () => setNow(Date.now())) : undefined), [tickMS])
   return now
 }
 

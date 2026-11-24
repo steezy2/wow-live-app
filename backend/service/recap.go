@@ -461,8 +461,8 @@ func recapRaid(pulls []models.RaidPull, you string) models.RecapRaid {
 		if taken[b] == nil {
 			taken[b] = map[string]int64{}
 		}
-		for _, h := range p.Taken {
-			taken[b][h.Ability] += h.Damage
+		for ability, damage := range p.TakenByAbility() {
+			taken[b][ability] += damage
 		}
 	}
 	for _, b := range bosses {
