@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import type { Sim, SimCombo, SimItem, SimOptionRow, SimResult as Result, SimStatWeight } from './api'
 import { clock } from './format'
+import { SourceRanking } from './SimSources'
 import { AbilityBars, AbilityLog, BuffBars } from './SimBreakdown'
 import { ItemLine } from './SimItem'
-import { useItemInfo } from './simItems'
+import { useItemInfo, useSpellInfo } from './simItems'
 import { simClassColor, simClassName } from './classColors'
 import { gainShare, groupLabel, kindLabel } from './simOptions'
 
@@ -280,6 +281,9 @@ function Details({ sim, result }: { sim: Sim; result: Result }) {
  * weights, then the equipped setup's abilities and buffs and how the sim was run. Items are asked chunk at a time. */
 export function SimResult({ sim, chunk }: { sim: Sim; chunk: number }) {
   const result = sim.result
+  const log = sim.kind === 'quick' ? (result?.log ?? []) : []
+  const named = [...(result?.abilities ?? []), ...(result?.buffs ?? []), ...log, ...log.flatMap((e) => e.buffs ?? [])]
+  const spells = useSpellInfo([...new Set(named.map((n) => n.id).filter(Boolean))], chunk)
   if (!result) return null
   return (
     <>
@@ -287,14 +291,17 @@ export function SimResult({ sim, chunk }: { sim: Sim; chunk: number }) {
       {sim.kind === 'topgear' && result.equipped && (
         <BestGear equipped={result.equipped} best={result.combos?.[0]} chunk={chunk} />
       )}
+      {sim.kind === 'drops' && result.combos && (
+        <SourceRanking combos={result.combos} equipped={result.dps} chunk={chunk} />
+      )}
       {result.combos && (
         <Combos combos={result.combos} equipped={result.dps} drops={sim.kind === 'drops'} chunk={chunk} />
       )}
       {result.options && <OptionRows rows={result.options} />}
       {result.weights && <StatWeights weights={result.weights} pawn={result.pawn} />}
-      <AbilityBars abilities={result.abilities} />
-      {result.buffs.length > 0 && <BuffBars buffs={result.buffs} />}
-      {sim.kind === 'quick' && result.log && result.log.length > 0 && <AbilityLog log={result.log} />}
+      <AbilityBars abilities={result.abilities} info={spells} />
+      {result.buffs.length > 0 && <BuffBars buffs={result.buffs} info={spells} />}
+      {log.length > 0 && <AbilityLog log={log} info={spells} />}
       <Details sim={sim} result={result} />
     </>
   )

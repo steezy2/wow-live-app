@@ -1,22 +1,34 @@
 import { useEffect, useState } from 'react'
-import { fetchSimItems, type SimItem, type SimItemInfo } from './api'
+import { fetchSimItems, fetchSimSpells, type SimItem, type SimItemInfo, type SpellInfo } from './api'
 import { itemIDs } from './simOptions'
 
-/** What Wowhead says of each of items (by ID), asked chunk IDs at a time (SimChoices.maxItemLookups), as the answers
- * come; an item it doesn't know is missing. */
-export function useItemInfo(items: SimItem[], chunk: number): Map<number, SimItemInfo> {
-  const [info, setInfo] = useState<Map<number, SimItemInfo>>(new Map())
-  const key = itemIDs(items).join(',')
+/** What the server's lookup says of each of ids, asked chunk IDs at a time (SimChoices.maxItemLookups), as the answers
+ * come; an ID it doesn't know is missing. */
+function useLookups<T extends { id: number }>(
+  ids: number[],
+  chunk: number,
+  get: (ids: number[], signal: AbortSignal) => Promise<T[]>,
+): Map<number, T> {
+  const [info, setInfo] = useState<Map<number, T>>(new Map())
+  const key = ids.join(',')
   useEffect(() => {
     if (!key) return
     const controller = new AbortController()
-    const ids = key.split(',').map(Number)
-    for (let i = 0; i < ids.length; i += chunk)
-      fetchSimItems(ids.slice(i, i + chunk), controller.signal).then(
-        (found) => setInfo((old) => new Map([...old, ...found.map((f): [number, SimItemInfo] => [f.id, f])])),
-        () => undefined, // the page draws an item without its icon
+    const asked = key.split(',').map(Number)
+    for (let i = 0; i < asked.length; i += chunk)
+      get(asked.slice(i, i + chunk), controller.signal).then(
+        (found) => setInfo((old) => new Map([...old, ...found.map((f): [number, T] => [f.id, f])])),
+        () => undefined, // the page draws a name without its icon
       )
     return () => controller.abort()
-  }, [key, chunk])
+  }, [key, chunk, get])
   return info
 }
+
+/** What Wowhead says of each of items (by ID). */
+export const useItemInfo = (items: SimItem[], chunk: number): Map<number, SimItemInfo> =>
+  useLookups(itemIDs(items), chunk, fetchSimItems)
+
+/** What Wowhead says of each of spells (by ID): icon, cooldown and text. */
+export const useSpellInfo = (ids: number[], chunk: number): Map<number, SpellInfo> =>
+  useLookups(ids, chunk, fetchSimSpells)

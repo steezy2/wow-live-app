@@ -34,10 +34,11 @@ type SimRuns interface {
 	Remove(id string) error
 }
 
-// SimItems names and draws the items of a pasted character (service.Items); Infos's error wraps
-// service.ErrBadSimOptions for too many IDs.
+// SimItems names and draws the items of a pasted character and the spells of a result (service.Items); the errors
+// wrap service.ErrBadSimOptions for too many IDs.
 type SimItems interface {
 	Infos(ctx context.Context, ids []int) ([]models.SimItemInfo, error)
+	SpellInfos(ctx context.Context, ids []int) ([]models.SpellInfo, error)
 }
 
 // SimAPI serves the sim page; only the desktop app does, since a browser can't download an engine to the PC.
@@ -146,21 +147,54 @@ func (a SimAPI) ParseProfile(c *gin.Context) {
 //	@Failure		400	{object}	ErrorResponse	"no IDs, too many or not numbers"
 //	@Router			/api/sim/items [get]
 func (a SimAPI) ItemInfo(c *gin.Context) {
-	parts := strings.Split(c.Query("ids"), ",")
-	ids := make([]int, len(parts))
-	for i, p := range parts {
-		id, err := strconv.Atoi(p)
-		if err != nil || id <= 0 {
-			c.JSON(http.StatusBadRequest, ErrorResponse{Error: "send item IDs as ids=212401,212402"})
-			return
-		}
-		ids[i] = id
+	ids, ok := queryIDs(c, "item")
+	if !ok {
+		return
 	}
 	items, err := a.Items.Infos(c.Request.Context(), ids)
 	if simFailed(c, err) {
 		return
 	}
 	c.JSON(http.StatusOK, items)
+}
+
+// SpellInfo godoc
+//
+//	@Summary		Names, icons and texts of spells
+//	@Description	Wowhead's name, icon (for GET /api/icons/{name}), cooldown and text of each spell ID, as many as it
+//	@Description	knows: a spell it can't look up is left out. The report draws its abilities and buffs with them.
+//	@Tags			sim
+//	@Produce		json
+//	@Param			ids	query		string	true	"spell IDs, comma separated (at most SimChoices.maxItemLookups)"
+//	@Success		200	{array}		models.SpellInfo
+//	@Failure		400	{object}	ErrorResponse	"no IDs, too many or not numbers"
+//	@Router			/api/sim/spells [get]
+func (a SimAPI) SpellInfo(c *gin.Context) {
+	ids, ok := queryIDs(c, "spell")
+	if !ok {
+		return
+	}
+	spells, err := a.Items.SpellInfos(c.Request.Context(), ids)
+	if simFailed(c, err) {
+		return
+	}
+	c.JSON(http.StatusOK, spells)
+}
+
+// queryIDs is the comma-separated ids query as numbers; it answers 400 and returns false for none or a bad one (what
+// names the kind of ID in the message).
+func queryIDs(c *gin.Context, what string) ([]int, bool) {
+	parts := strings.Split(c.Query("ids"), ",")
+	ids := make([]int, len(parts))
+	for i, p := range parts {
+		id, err := strconv.Atoi(p)
+		if err != nil || id <= 0 {
+			c.JSON(http.StatusBadRequest, ErrorResponse{Error: "send " + what + " IDs as ids=212401,212402"})
+			return nil, false
+		}
+		ids[i] = id
+	}
+	return ids, true
 }
 
 // Reference godoc

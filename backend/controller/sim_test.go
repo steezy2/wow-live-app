@@ -106,6 +106,14 @@ func (fakeItems) Infos(_ context.Context, ids []int) ([]models.SimItemInfo, erro
 	return items, nil
 }
 
+func (fakeItems) SpellInfos(_ context.Context, ids []int) ([]models.SpellInfo, error) {
+	spells := make([]models.SpellInfo, len(ids))
+	for i, id := range ids {
+		spells[i] = models.SpellInfo{ID: id, Name: "Spell"}
+	}
+	return spells, nil
+}
+
 func TestSimAPIItemsReadTheIDs(t *testing.T) {
 	tests := []struct {
 		name, ids string

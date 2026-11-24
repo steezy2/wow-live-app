@@ -47,12 +47,13 @@ func (c Client) tooltip(ctx context.Context, kind string, id int, maxAge time.Du
 func ParseSpell(data []byte) (models.SpellInfo, error) {
 	var tooltip struct {
 		Name    string `json:"name"`
+		Icon    string `json:"icon"`
 		Tooltip string `json:"tooltip"`
 	}
 	if err := json.Unmarshal(data, &tooltip); err != nil || tooltip.Name == "" {
 		return models.SpellInfo{}, fmt.Errorf("no spell in the tooltip answer (%v)", err)
 	}
-	info := models.SpellInfo{Name: tooltip.Name}
+	info := models.SpellInfo{Name: tooltip.Name, Icon: tooltip.Icon}
 	if m := cooldown.FindStringSubmatch(tooltip.Tooltip); m != nil {
 		info.Cooldown = strings.TrimSpace(m[1])
 	}

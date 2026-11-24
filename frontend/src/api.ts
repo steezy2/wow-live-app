@@ -1379,9 +1379,11 @@ export async function fetchRecapTopTimes(
 }
 
 /** What an ability does (models.SpellInfo). */
-interface SpellInfo {
+/** What a spell's hover box shows, and its icon (a name for iconURL) when the answer has one. */
+export interface SpellInfo {
   id: number
   name: string
+  icon?: string
   /** "2 min cooldown", empty for none. */
   cooldown?: string
   description: string
@@ -1843,6 +1845,11 @@ export interface SimItemInfo {
 /** Names, icons, qualities and what using them does, of items; the ones Wowhead can't give are left out. */
 export async function fetchSimItems(ids: number[], signal?: AbortSignal): Promise<SimItemInfo[]> {
   return json(`/api/sim/items?ids=${ids.join(',')}`, { signal })
+}
+
+/** Wowhead's name, icon, cooldown and text of each of the spell IDs (at most SimChoices.maxItemLookups). */
+export async function fetchSimSpells(ids: number[], signal?: AbortSignal): Promise<SpellInfo[]> {
+  return json(`/api/sim/spells?ids=${ids.join(',')}`, { signal })
 }
 
 /** A character read from a pasted SimulationCraft addon export. */

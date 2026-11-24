@@ -34,12 +34,14 @@ func TestParseGuideReadsTheTableAndTips(t *testing.T) {
 }
 
 func TestParseSpellReadsNameCooldownAndDescription(t *testing.T) {
-	answer := `{"name":"Icebound Fortitude","tooltip":"<table><tr><td><b class=\"whtt-name\">Icebound Fortitude</b>` +
+	answer := `{"name":"Icebound Fortitude","icon":"spell_deathknight_iceboundfortitude",` +
+		`"tooltip":"<table><tr><td><b class=\"whtt-name\">Icebound Fortitude</b>` +
 		`<table width=\"100%\"><tr><td>Instant</td><th><!--cooldownText-->2 min cooldown<!--cooldownText-->` +
 		`<!--baseCooldown:2 min cooldown--></th></tr></table></td></tr></table><table><tr><td><div class=\"q\">` +
 		`Your blood freezes.<br />Reduces damage by 30% &amp; more.</div></td></tr></table>"}`
 	got, err := ParseSpell([]byte(answer))
-	if err != nil || got.Name != "Icebound Fortitude" || got.Cooldown != "2 min cooldown" ||
+	if err != nil || got.Name != "Icebound Fortitude" || got.Icon != "spell_deathknight_iceboundfortitude" ||
+		got.Cooldown != "2 min cooldown" ||
 		got.Description != "Your blood freezes.\nReduces damage by 30% & more." {
 		t.Fatalf("spell = %+v (%v); want its name, cooldown and description as text", got, err)
 	}

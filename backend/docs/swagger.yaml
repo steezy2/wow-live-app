@@ -3427,6 +3427,9 @@ definitions:
         type: string
       description:
         type: string
+      icon:
+        example: spell_frost_frostbolt02
+        type: string
       id:
         type: integer
       name:
@@ -5406,6 +5409,33 @@ paths:
           schema:
             $ref: '#/definitions/controller.ErrorResponse'
       summary: Read a pasted SimulationCraft addon export
+      tags:
+      - sim
+  /api/sim/spells:
+    get:
+      description: |-
+        Wowhead's name, icon (for GET /api/icons/{name}), cooldown and text of each spell ID, as many as it
+        knows: a spell it can't look up is left out. The report draws its abilities and buffs with them.
+      parameters:
+      - description: spell IDs, comma separated (at most SimChoices.maxItemLookups)
+        in: query
+        name: ids
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.SpellInfo'
+            type: array
+        "400":
+          description: no IDs, too many or not numbers
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+      summary: Names, icons and texts of spells
       tags:
       - sim
   /api/spells:

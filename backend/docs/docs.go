@@ -2505,6 +2505,44 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/sim/spells": {
+            "get": {
+                "description": "Wowhead's name, icon (for GET /api/icons/{name}), cooldown and text of each spell ID, as many as it\nknows: a spell it can't look up is left out. The report draws its abilities and buffs with them.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "sim"
+                ],
+                "summary": "Names, icons and texts of spells",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "spell IDs, comma separated (at most SimChoices.maxItemLookups)",
+                        "name": "ids",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.SpellInfo"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "no IDs, too many or not numbers",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/sim/{id}": {
             "get": {
                 "produces": [
@@ -7544,6 +7582,10 @@ const docTemplate = `{
                 },
                 "description": {
                     "type": "string"
+                },
+                "icon": {
+                    "type": "string",
+                    "example": "spell_frost_frostbolt02"
                 },
                 "id": {
                     "type": "integer"
