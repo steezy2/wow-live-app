@@ -348,10 +348,10 @@ func variantCandidates(ref models.SimReference, p models.SimProfile,
 	return out, nil
 }
 
-// planSeconds is about how long runs sims take on this PC, for o's fight length and accuracy.
-func planSeconds(runs int, o models.SimOptions) int {
+// planSeconds is about how long runs full-precision sims take on this PC, for o's fight length and accuracy.
+func planSeconds(runs float64, o models.SimOptions) int {
 	errorRatio := simTargetError(simDefaults, true) / simTargetError(o, true)
-	seconds := float64(runs) * comboSeconds * referenceThreads / float64(simThreads()) *
+	seconds := runs * comboSeconds * referenceThreads / float64(simThreads()) *
 		float64(o.Length) / float64(simDefaults.Length) * errorRatio * errorRatio
 	return int(seconds + 0.5)
 }

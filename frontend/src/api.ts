@@ -2046,9 +2046,16 @@ export interface SimResult {
   buffs: SimBuff[]
   combos?: SimCombo[]
   options?: SimOptionRow[]
+  stages?: SimStage[]
   equipped?: SimItem[]
   weights?: SimStatWeight[]
   pawn?: string
+}
+
+/** One stage of a raced sim: its combinations and the target error (in %) it ran at. */
+export interface SimStage {
+  combos: number
+  error: number
 }
 
 /** What a point of one stat is worth: its weight against the main stat's (1) and the DPS a point of rating adds. */
@@ -2070,6 +2077,8 @@ export interface Sim {
   startedMS: number
   tookMS?: number
   error?: string
+  /** Which stage of a raced sim is running ("Stage 2 of 3: 140 combinations at 0.5%"). */
+  stage?: string
   /** The result's DPS, kept in the list, which leaves result out. */
   dps?: number
   result?: SimResult

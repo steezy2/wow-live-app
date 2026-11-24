@@ -134,6 +134,8 @@ type Sim struct {
 	StartedMS int64      `json:"startedMS"`
 	TookMS    int64      `json:"tookMS,omitempty"`
 	Error     string     `json:"error,omitempty"`
+	// Stage says which stage of a raced sim is running ("Stage 2 of 3: 140 combinations at 0.5%").
+	Stage string `json:"stage,omitempty"`
 	// DPS is the result's DPS, kept when the list leaves Result out.
 	DPS    float64    `json:"dps,omitempty"`
 	Result *SimResult `json:"result,omitempty"`
@@ -148,6 +150,8 @@ type SimResult struct {
 	Abilities []SimAbility `json:"abilities"`
 	Buffs     []SimBuff    `json:"buffs"`
 	Combos    []SimCombo   `json:"combos,omitempty"`
+	// Stages are the stages of a raced sim (SimStage), the last one the report's.
+	Stages []SimStage `json:"stages,omitempty"`
 	// Equipped is the gear the sim started from, so a report can show the best combination in full.
 	Equipped []SimItem `json:"equipped,omitempty"`
 	// Weights and Pawn are a "stats" sim's stat weights and the Pawn string that carries them.
@@ -189,6 +193,13 @@ type SimAbility struct {
 	Share   float64 `json:"share"`
 	Casts   float64 `json:"casts"`
 	PerCast float64 `json:"perCast"`
+}
+
+// SimStage is one stage of a raced sim: a big sim runs all its combinations at a coarse error, then the ones that could
+// still be among the best at a finer one, down to the precision asked for (Error is the target error in %).
+type SimStage struct {
+	Combos int     `json:"combos" example:"1000"`
+	Error  float64 `json:"error" example:"1"`
 }
 
 // SimStatWeight is what a point of one stat is worth: its Weight against the main stat's (1), and the DPS a point of

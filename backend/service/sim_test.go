@@ -3,12 +3,14 @@ package service
 import (
 	"cmp"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -17,14 +19,16 @@ import (
 	"wow-live/backend/models"
 )
 
-// fakeEngine stands in for simc: mode "ok" writes testdata/sim-result.json as the result, "fail" prints why it
-// failed, and "hang" runs until it is stopped.
+// fakeEngine stands in for simc: mode "ok" writes testdata/sim-result.json as the result, "echo" writes it with a
+// result for each profileset in the input (the first the best, each 10 DPS below the one before), "fail" prints why
+// it failed, and "hang" runs until it is stopped.
 type fakeEngine struct {
 	installed bool
 	built     time.Time
 	mode      string
 	args      []string // the last run's
 	input     string   // the last run's input file
+	inputs    []string // every run's input file
 	result    string   // the result file to write; testdata/sim-result.json when empty
 }
 
@@ -32,6 +36,7 @@ func (f *fakeEngine) Run(ctx context.Context, args []string, out io.Writer) erro
 	f.args = args
 	if data, err := os.ReadFile(args[0]); err == nil {
 		f.input = string(data)
+		f.inputs = append(f.inputs, f.input)
 	}
 	fmt.Fprint(out, "Generating Baseline: 1/1 [====>...] 50/100 1.0 Mean=1 Error=1%\r")
 	switch f.mode {
@@ -46,7 +51,34 @@ func (f *fakeEngine) Run(ctx context.Context, args []string, out io.Writer) erro
 	if err != nil {
 		return err
 	}
+	if f.mode == "echo" {
+		if data, err = withProfilesets(data, f.input); err != nil {
+			return err
+		}
+	}
 	return os.WriteFile(strings.TrimPrefix(args[len(args)-1], "json2="), data, 0o644)
+}
+
+// profilesetName is a profileset line's name in a simc input.
+var profilesetName = regexp.MustCompile(`(?m)^profileset\.(\w+)\+=`)
+
+// withProfilesets is the result file data with a result for each profileset the input names, in its order, 10 DPS
+// apart and each 1 DPS sure.
+func withProfilesets(data []byte, input string) ([]byte, error) {
+	var doc map[string]any
+	if err := json.Unmarshal(data, &doc); err != nil {
+		return nil, err
+	}
+	var results []simSetJSON
+	seen := map[string]bool{}
+	for _, m := range profilesetName.FindAllStringSubmatch(input, -1) {
+		if !seen[m[1]] {
+			seen[m[1]] = true
+			results = append(results, simSetJSON{Name: m[1], Mean: 100000 - 10*float64(len(results)), MeanStdDev: 1})
+		}
+	}
+	doc["sim"].(map[string]any)["profilesets"] = map[string]any{"results": results}
+	return json.Marshal(doc)
 }
 
 func (f *fakeEngine) Installed() models.SimEngine {
@@ -337,5 +369,62 @@ func TestReadSimResult(t *testing.T) {
 	}
 	if _, err := readSimResult("testdata/simc-export.txt", nil); err == nil {
 		t.Error("a file that isn't simc's JSON should fail")
+	}
+}
+
+func TestABigSimIsRacedInStages(t *testing.T) {
+	s := newTestSims(t, "echo")
+	s.Ref = testRef()
+	var flasks, foods []string
+	for i := range 12 {
+		for _, kind := range []string{"flask", "food"} {
+			v := fmt.Sprintf("%s_%d", kind, i)
+			s.Ref.Consumables[kind] = append(s.Ref.Consumables[kind], models.SimConsumable{Value: v, Name: v})
+		}
+		flasks, foods = append(flasks, fmt.Sprintf("flask_%d", i)), append(foods, fmt.Sprintf("food_%d", i))
+	}
+	req := simRequest(t)
+	req.Consumables = models.SimConsumables{"flask": flasks, "food": foods}
+	started, err := s.Start(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sim := waitSim(t, s, started.ID)
+	if sim.State != models.SimDone {
+		t.Fatalf("sim = %+v", sim)
+	}
+	engine := s.Engine.(*fakeEngine)
+	counts := make([]int, len(engine.inputs))
+	for i, in := range engine.inputs {
+		names := map[string]bool{}
+		for _, m := range profilesetName.FindAllStringSubmatch(in, -1) {
+			names[m[1]] = true
+		}
+		counts[i] = len(names)
+	}
+	// 144 combinations run at 1%, then the 25 best of them (the rest are 3 errors below the 25th) at 0.5% and last.
+	if fmt.Sprint(counts) != "[144 25 25]" {
+		t.Errorf("combinations in each run = %v, want [144 25 25]", counts)
+	}
+	if got := fmt.Sprint(sim.Result.Stages); got != "[{144 1} {25 0.5} {25 0.2}]" {
+		t.Errorf("stages = %s", got)
+	}
+	if len(sim.Result.Options) != 25 || sim.Result.Options[0].Name != "flask_0 + food_0" {
+		t.Errorf("rows = %d, first %+v, want the 25 survivors, best first", len(sim.Result.Options), sim.Result.Options[0])
+	}
+}
+
+func TestASmallSimRunsOnce(t *testing.T) {
+	s := newTestSims(t, "echo")
+	s.Ref = testRef()
+	req := simRequest(t)
+	req.Consumables = models.SimConsumables{"flask": {"flask_a_2", "flask_b_2"}}
+	started, err := s.Start(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sim := waitSim(t, s, started.ID)
+	if n := len(s.Engine.(*fakeEngine).inputs); n != 1 || sim.Result.Stages != nil {
+		t.Errorf("%d runs, stages %v, want one run and no stages", n, sim.Result.Stages)
 	}
 }

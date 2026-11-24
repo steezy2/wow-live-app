@@ -244,7 +244,8 @@ func (s *Sims) Plan(req models.SimRequest) (models.SimPlan, error) {
 	if err != nil {
 		return models.SimPlan{}, err
 	}
-	runs := plan.Combos + 1 // the sim's own run besides its profilesets
+	final := simTargetError(req.Options, true)
+	runs := smartRuns(plan.Combos, smartStages(plan.Combos, final), final) + 1 // the sim's own run besides its sets
 	if req.Kind == "stats" {
 		runs = statsRuns
 	}
@@ -378,10 +379,7 @@ func (s *Sims) Start(req models.SimRequest) (models.Sim, error) {
 		return models.Sim{}, fmt.Errorf("making %s: %w", work, err)
 	}
 	input, output := filepath.Join(work, id+".simc"), filepath.Join(work, id+".json")
-	text := SimInput(profile) + consumables + scaleLine(req.Kind) + gearProfilesets(combos)
-	if err := os.WriteFile(input, []byte(text), 0o644); err != nil {
-		return models.Sim{}, fmt.Errorf("writing %s: %w", input, err)
-	}
+	head := SimInput(profile) + consumables + scaleLine(req.Kind)
 	ctx, cancel := context.WithTimeout(s.Ctx, simTimeout)
 	sim := models.Sim{ID: id, Kind: req.Kind, State: models.SimRunning, Character: profile.Name, Spec: profile.Spec,
 		Options: req.Options, StartedMS: s.Now().UnixMilli()}
@@ -389,18 +387,22 @@ func (s *Sims) Start(req models.SimRequest) (models.Sim, error) {
 		s.runs = map[string]*simRun{}
 	}
 	s.runs[id] = &simRun{sim: sim, cancel: cancel}
-	s.work.Go(func() { s.execute(ctx, id, input, output, combos, profile.Equipped) })
+	s.work.Go(func() { s.execute(ctx, id, input, output, head, combos, profile.Equipped) })
 	return sim, nil
 }
 
-// simArgs are simc's arguments: the input file, the options and the JSON file to write. Nothing but those validated
-// values goes in, and no shell reads them. A sim with profilesets runs no finer than setTargetError.
-func simArgs(input, output string, o models.SimOptions, profilesets bool) []string {
-	return []string{input, "fight_style=" + o.FightStyle, "max_time=" + strconv.Itoa(o.Length),
+// simArgs are simc's arguments: the input file, the options, the target error (in % of the DPS) to stop each sim at and
+// the JSON file to write (always last). Nothing but those validated values goes in, and no shell reads them. A sim with
+// profilesets runs several at once, each on profilesetThreads threads (fewer on a small PC, so at least two run).
+func simArgs(input, output string, o models.SimOptions, targetError float64, profilesets bool) []string {
+	args := []string{input, "fight_style=" + o.FightStyle, "max_time=" + strconv.Itoa(o.Length),
 		"desired_targets=" + strconv.Itoa(o.Targets),
-		"target_error=" + strconv.FormatFloat(simTargetError(o, profilesets), 'f', -1, 64),
-		"iterations=" + strconv.Itoa(maxSimIterations), "threads=" + strconv.Itoa(simThreads()),
-		"json2=" + output}
+		"target_error=" + strconv.FormatFloat(targetError, 'f', -1, 64),
+		"iterations=" + strconv.Itoa(maxSimIterations), "threads=" + strconv.Itoa(simThreads())}
+	if profilesets {
+		args = append(args, "profileset_work_threads="+strconv.Itoa(min(profilesetThreads, max(1, simThreads()/2))))
+	}
+	return append(args, "json2="+output)
 }
 
 // simTargetError is the target error a sim with o runs at: its accuracy's, no finer than setTargetError with
@@ -416,8 +418,11 @@ func simTargetError(o models.SimOptions, profilesets bool) float64 {
 // simThreads is how many threads a sim runs on: all but one, so the PC stays usable.
 func simThreads() int { return max(1, runtime.NumCPU()-1) }
 
-// execute runs simc for the running sim with this ID, following its progress, and saves what it found.
-func (s *Sims) execute(ctx context.Context, id, input, output string, combos []gearCombo, equipped []models.SimItem) {
+// execute runs simc for the running sim with this ID, following its progress, and saves what it found. A sim of many
+// combinations is raced: simc first runs all of them at a coarse error, then only those the results cannot rule out of
+// the best (survivors) at a finer one, down to the precision asked for.
+func (s *Sims) execute(ctx context.Context, id, input, output, head string, combos []gearCombo,
+	equipped []models.SimItem) {
 	defer func() {
 		os.Remove(input)
 		os.Remove(output)
@@ -425,22 +430,41 @@ func (s *Sims) execute(ctx context.Context, id, input, output string, combos []g
 	s.mu.Lock()
 	sim := s.runs[id].sim
 	s.mu.Unlock()
-	pr, pw := io.Pipe()
-	said := make(chan string)
-	go func() { said <- s.follow(pr, id) }()
-	runErr := s.Engine.Run(ctx, simArgs(input, output, sim.Options, len(combos) > 0), pw)
-	pw.Close()
-	complaint := <-said
-
+	final := simTargetError(sim.Options, len(combos) > 0)
+	early := smartStages(len(combos), final)
+	var stages []models.SimStage
+	var complaint string
+	var runErr error
+	from, cands := 0, combos
+	for i, targetError := range early {
+		s.setStage(id, stageText(i+1, len(early)+1, len(cands), targetError))
+		to := from + smartShares[i]
+		complaint, runErr = s.stage(ctx, id, input, output, head, cands, sim.Options, targetError, from, to)
+		if runErr != nil {
+			break
+		}
+		var sets []simSetJSON
+		if sets, runErr = readSets(output); runErr != nil {
+			break
+		}
+		stages = append(stages, models.SimStage{Combos: len(cands), Error: targetError})
+		cands, from = survivors(cands, sets), to
+	}
 	var result *models.SimResult
 	var parseErr error
 	if runErr == nil {
-		result, parseErr = readSimResult(output, combos)
+		if len(early) > 0 {
+			s.setStage(id, stageText(len(early)+1, len(early)+1, len(cands), final))
+			stages = append(stages, models.SimStage{Combos: len(cands), Error: final})
+		}
+		if complaint, runErr = s.stage(ctx, id, input, output, head, cands, sim.Options, final, from, 100); runErr == nil {
+			result, parseErr = readSimResult(output, cands)
+		}
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	sim = s.runs[id].sim
-	sim.TookMS = s.Now().UnixMilli() - sim.StartedMS
+	sim.TookMS, sim.Stage = s.Now().UnixMilli()-sim.StartedMS, ""
 	switch {
 	case errors.Is(ctx.Err(), context.Canceled):
 		sim.State = models.SimCancelled
@@ -452,6 +476,7 @@ func (s *Sims) execute(ctx context.Context, id, input, output string, combos []g
 		for i := range equipped {
 			result.Equipped = append(result.Equipped, *slimItem(&equipped[i]))
 		}
+		result.Stages = stages // none for a sim run once
 		if len(result.Weights) > 0 {
 			result.Pawn = pawnString(sim.Character+"-"+sim.Spec, result.Weights)
 		}
@@ -467,6 +492,30 @@ func (s *Sims) execute(ctx context.Context, id, input, output string, combos []g
 	delete(s.runs, id)
 	if sim.State != models.SimDone {
 		s.keepEnded(sim)
+	}
+}
+
+// stage writes the input for cands and runs simc on it, stopping each sim at targetError; its progress takes from to
+// to of the running sim's bar. It returns the last error line simc printed.
+func (s *Sims) stage(ctx context.Context, id, input, output, head string, cands []gearCombo, o models.SimOptions,
+	targetError float64, from, to int) (string, error) {
+	if err := os.WriteFile(input, []byte(head+gearProfilesets(cands)), 0o644); err != nil {
+		return "", fmt.Errorf("writing %s: %w", input, err)
+	}
+	pr, pw := io.Pipe()
+	said := make(chan string)
+	go func() { said <- s.follow(pr, id, from, to) }()
+	err := s.Engine.Run(ctx, simArgs(input, output, o, targetError, len(cands) > 0), pw)
+	pw.Close()
+	return <-said, err
+}
+
+// setStage says which stage of a raced sim the running sim with this ID is in.
+func (s *Sims) setStage(id, text string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if run := s.runs[id]; run != nil {
+		run.sim.Stage = text
 	}
 }
 
@@ -488,9 +537,9 @@ func (s *Sims) keepEnded(sim models.Sim) {
 	}
 }
 
-// follow reads simc's output, updating the progress of the running sim with this ID, and returns the last error line
-// it printed.
-func (s *Sims) follow(r io.Reader, id string) string {
+// follow reads simc's output, updating the progress of the running sim with this ID (simc's 0 to 100 spread over from
+// to to of the bar), and returns the last error line it printed.
+func (s *Sims) follow(r io.Reader, id string, from, to int) string {
 	var complaint string
 	scan := bufio.NewScanner(r)
 	scan.Split(splitProgress)
@@ -499,7 +548,7 @@ func (s *Sims) follow(r io.Reader, id string) string {
 		if p, ok := parseSimProgress(line); ok {
 			s.mu.Lock()
 			if run := s.runs[id]; run != nil {
-				run.sim.Progress = p
+				run.sim.Progress = from + p*(to-from)/100
 			}
 			s.mu.Unlock()
 		} else if strings.HasPrefix(line, "Error") {

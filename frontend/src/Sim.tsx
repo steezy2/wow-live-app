@@ -422,6 +422,7 @@ export function SimPage() {
             {watched.character} · {watched.spec}
           </p>
           <progress value={watched.progress} max={100} aria-label="Sim progress" />
+          {watched.stage && <p className="muted small">{watched.stage}</p>}
           <p>
             {watched.progress}%
             <span className="muted"> · {leftText(watched, estimates[watched.id] ?? 0, now) || 'starting'}</span>

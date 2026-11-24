@@ -249,6 +249,9 @@ function Details({ sim, result }: { sim: Sim; result: Result }) {
     ['Sim run', new Date(sim.startedMS).toLocaleString()],
     ['Margin of error', `~${full(result.dpsError)} DPS (${percent.toFixed(2)}%)`],
   ]
+  if (result.stages) {
+    rows.push(['Stages', result.stages.map((s) => `${s.combos} at ${s.error}%`).join(' → ')])
+  }
   if (sim.tookMS) rows.push(['Processing time', clock(sim.tookMS)])
   return (
     <section className="panel">
