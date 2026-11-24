@@ -1,6 +1,6 @@
 import { expect, test } from 'vitest'
 import type { SimChoices, SimItem } from './api'
-import { gearGroups, simOptionsError } from './simOptions'
+import { gainShare, gearGroups, simOptionsError } from './simOptions'
 
 const choices = { minLength: 30, maxLength: 900, maxTargets: 20 } as SimChoices
 const opts = { fightStyle: 'Patchwerk', length: 300, targets: 1, accuracy: 'normal' }
@@ -24,4 +24,10 @@ test("gearGroups lists groups in the API's order, worn ones first, and leaves em
     [2, 0, true],
     [3, 0, false],
   ])
+})
+
+test('gainShare scales a gain to the best one and shows a loss as no bar', () => {
+  expect(gainShare(50, 100)).toBe(50)
+  expect(gainShare(-5, 100)).toBe(0)
+  expect(gainShare(10, 0)).toBe(0)
 })

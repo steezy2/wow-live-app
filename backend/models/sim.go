@@ -19,6 +19,9 @@ type SimProfile struct {
 	// Equipped is what the character wears, and Bags the other gear they carry (each in the export's order).
 	Equipped []SimItem `json:"equipped"`
 	Bags     []SimItem `json:"bags"`
+	// ItemLevel is the equipped item level as the game counts it: the 16 slots without shirt and tabard, a main hand
+	// with nothing in the off-hand (a two-hander) counted twice, rounded down.
+	ItemLevel int `json:"itemLevel" example:"623"`
 }
 
 // SimItem is one piece of gear: its slot as simc names it ("finger1", "main_hand"; every carried ring is "finger1",
@@ -62,6 +65,8 @@ type SimChoices struct {
 	// DefaultDifficulty and DefaultKeyLevel are what the Droptimizer starts on.
 	DefaultDifficulty string `json:"defaultDifficulty" example:"heroic"`
 	DefaultKeyLevel   int    `json:"defaultKeyLevel" example:"10"`
+	// MaxItemLookups is the most item IDs one GET /api/sim/items takes; the page asks in chunks of it.
+	MaxItemLookups int `json:"maxItemLookups" example:"120"`
 	// GearGroups are the items' groups (SimItem.Group) in wearing order.
 	GearGroups []string `json:"gearGroups"`
 }
@@ -109,7 +114,9 @@ type Sim struct {
 	StartedMS int64      `json:"startedMS"`
 	TookMS    int64      `json:"tookMS,omitempty"`
 	Error     string     `json:"error,omitempty"`
-	Result    *SimResult `json:"result,omitempty"`
+	// DPS is the result's DPS, kept when the list leaves Result out.
+	DPS    float64    `json:"dps,omitempty"`
+	Result *SimResult `json:"result,omitempty"`
 }
 
 // SimResult is what a finished sim found: the character's DPS (DPSError is the 1 standard error of the mean), each
@@ -181,4 +188,13 @@ type SimEngine struct {
 	Patch     string `json:"patch,omitempty" example:"12.1.5.70529"`
 	BuiltMS   int64  `json:"builtMS,omitempty"`
 	Size      int64  `json:"size,omitempty"`
+}
+
+// SimItemInfo is what the Sim tab draws an item with: its name, its icon (a name for GET /api/icons/{name}) and its
+// quality (0 poor, 1 common, 2 uncommon, 3 rare, 4 epic, 5 legendary).
+type SimItemInfo struct {
+	ID      int    `json:"id" example:"212401"`
+	Name    string `json:"name" example:"Ansurek's Final Judgment"`
+	Icon    string `json:"icon" example:"inv_axe_1h_nerubianraid_d_01"`
+	Quality int    `json:"quality" example:"4"`
 }

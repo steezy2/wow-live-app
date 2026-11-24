@@ -18,8 +18,8 @@ WoW Live downloads public game data. None of these requests include anything fro
 - **Warcraft Logs** (warcraftlogs.com), when you've entered API keys: top runs for a dungeon, key level and spec to compare against, and the name and realm of a character, to list its public reports and download their fights (when you import or look up your own runs) or to read its parses (when you run a player review, for the player you picked, who can be anyone in your group). See Warcraft Logs' own privacy policy.
 - **Raider.IO** (raider.io): the season's dungeon timers and this week's affixes, for your region.
 - **Keystone.guru** (assets.keystone.guru): dungeon map images.
-- **Wowhead** (nether.wowhead.com and wow.zamimg.com): the text of a spell when you hover its name, and the icons of talents and spells.
-- **GitHub** (github.com, this repository's `simc-engine` release, which redirects to release-assets.githubusercontent.com), only when you press the Sim tab's download button: the SimulationCraft program (`simc.exe`) and its checksum, over HTTPS; the app checks the file against the checksum before it keeps it. A sim runs on your PC and sends nothing about the character you paste.
+- **Wowhead** (nether.wowhead.com and wow.zamimg.com): the text of a spell when you hover its name, the icons of talents and spells, and the names, icons and quality of the gear in a character you paste in the Sim tab (only the item IDs are sent, never the character's name or realm).
+- **GitHub** (github.com, this repository's `simc-engine` release, which redirects to release-assets.githubusercontent.com), only when you press the Sim tab's download button: the SimulationCraft program (`simc.exe`) and its checksum, over HTTPS; the app checks the file against the checksum before it keeps it. A sim runs on your PC; of the character you paste, only its gear's item IDs leave it (to Wowhead, above).
 - **Warcraft Logs' image server** (assets.rpglogs.com): raid room map images, for the raid replay.
 
 As with any web request, those sites can see your IP address. Each request names WoW Live and its GitHub page.

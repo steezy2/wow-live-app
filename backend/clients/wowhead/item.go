@@ -1,33 +1,56 @@
 package wowhead
 
 import (
-	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"path/filepath"
 	"regexp"
 	"time"
 
-	"wow-live/backend/clients/cachefile"
+	"wow-live/backend/models"
 )
 
-// itemMaxAge is how long a downloaded item tooltip is reused: a weapon's slot never changes.
-const itemMaxAge = 365 * 24 * time.Hour
+// itemMaxAge is how long a downloaded item is reused: an item's name, icon, quality and weapon slot never change.
+const itemMaxAge = 30 * 24 * time.Hour
 
 // weaponSlot is a weapon tooltip's slot and type: `<td>Two-Hand</td><th><!--scstart2:10--><span class="q1">Staff`.
 var weaponSlot = regexp.MustCompile(`<td>([^<]+)</td><th><!--scstart\d+:\d+--><span class="q1">([^<]+)<`)
 
+// Item is what Wowhead's tooltip knows of an item ID (fetched when the Sim tab draws it and kept in CacheDir).
+func (c Client) Item(ctx context.Context, id int) (models.SimItemInfo, error) {
+	data, err := c.tooltip(ctx, "item", id, itemMaxAge)
+	if err != nil {
+		return models.SimItemInfo{}, err
+	}
+	info, err := ParseItem(data)
+	info.ID = id
+	return info, err
+}
+
 // TwoHanded says whether the weapon with this item ID is two-handed, from Wowhead's tooltip (kept in CacheDir).
 func (c Client) TwoHanded(ctx context.Context, id int) (bool, error) {
-	file := filepath.Join(c.CacheDir, fmt.Sprintf("item-%d.json", id))
-	url := fmt.Sprintf("%s/tooltip/item/%d?dataEnv=1&locale=0", cmp.Or(c.BaseURL, "https://nether.wowhead.com"), id)
-	data, err := cachefile.Fresh(ctx, c.HTTP, url, file, itemMaxAge)
+	data, err := c.tooltip(ctx, "item", id, itemMaxAge)
 	if err != nil {
 		return false, err
 	}
 	return ParseTwoHanded(data)
+}
+
+// ParseItem reads a tooltip answer's name, icon and quality.
+func ParseItem(data []byte) (models.SimItemInfo, error) {
+	var tooltip struct {
+		Name    string `json:"name"`
+		Icon    string `json:"icon"`
+		Quality int    `json:"quality"`
+	}
+	if err := json.Unmarshal(data, &tooltip); err != nil {
+		return models.SimItemInfo{}, fmt.Errorf("reading the item tooltip: %w", err)
+	}
+	if tooltip.Name == "" {
+		return models.SimItemInfo{}, errors.New("no item in the tooltip answer")
+	}
+	return models.SimItemInfo{Name: tooltip.Name, Icon: tooltip.Icon, Quality: tooltip.Quality}, nil
 }
 
 // ParseTwoHanded reads an item tooltip answer: a "Two-Hand" weapon, or a "Ranged" one other than a wand (bows, guns

@@ -2,6 +2,7 @@ package controller
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -80,5 +81,46 @@ func TestSimAPIReadsAnExportWithoutRunningIt(t *testing.T) {
 	router.ServeHTTP(w, r)
 	if w.Code != http.StatusOK || !strings.Contains(w.Body.String(), `"class":"shaman"`) {
 		t.Errorf("%d %.200s", w.Code, w.Body)
+	}
+}
+
+// fakeItems knows every item, and refuses more than two IDs as the service refuses too many.
+type fakeItems struct{}
+
+func (fakeItems) Infos(_ context.Context, ids []int) ([]models.SimItemInfo, error) {
+	if len(ids) > 2 {
+		return nil, service.ErrBadSimOptions
+	}
+	items := make([]models.SimItemInfo, len(ids))
+	for i, id := range ids {
+		items[i] = models.SimItemInfo{ID: id, Name: "Item"}
+	}
+	return items, nil
+}
+
+func TestSimAPIItemsReadTheIDs(t *testing.T) {
+	tests := []struct {
+		name, ids string
+		code, got int
+	}{
+		{"two", "1,2", http.StatusOK, 2},
+		{"not a number", "1,x", http.StatusBadRequest, 0},
+		{"none", "", http.StatusBadRequest, 0},
+		{"too many", "1,2,3", http.StatusBadRequest, 0},
+	}
+	router := Router(MPlus{Keys: &fakeKeys{}, Now: time.Now}, nil,
+		&SettingsAPI{Sim: &SimAPI{Runs: fakeSims{}, Items: fakeItems{}}}, os.DirFS(t.TempDir()), LocalHosts(8080)...)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := httptest.NewRequest("GET", "/api/sim/items?ids="+tt.ids, nil)
+			r.Host = "localhost:8080"
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, r)
+			var items []models.SimItemInfo
+			_ = json.Unmarshal(w.Body.Bytes(), &items)
+			if w.Code != tt.code || len(items) != tt.got {
+				t.Errorf("%d with %d items (%.80s); want %d with %d", w.Code, len(items), w.Body, tt.code, tt.got)
+			}
+		})
 	}
 }

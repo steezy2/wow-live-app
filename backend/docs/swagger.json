@@ -2354,6 +2354,44 @@
                 }
             }
         },
+        "/api/sim/items": {
+            "get": {
+                "description": "Wowhead's name, icon (for GET /api/icons/{name}) and quality of each item ID, as many as it knows: an\nitem it can't look up is left out, so the page draws it by its export name.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "sim"
+                ],
+                "summary": "Names, icons and qualities of items",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "item IDs, comma separated (at most SimChoices.maxItemLookups)",
+                        "name": "ids",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.SimItemInfo"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "no IDs, too many or not numbers",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/sim/profile": {
             "post": {
                 "description": "The character, talents, equipped gear and carried gear in the export, so the page can show them.\nNothing is run or kept.",
@@ -6539,6 +6577,10 @@
                     "type": "string",
                     "example": "Steezy"
                 },
+                "dps": {
+                    "description": "DPS is the result's DPS, kept when the list leaves Result out.",
+                    "type": "number"
+                },
                 "error": {
                     "type": "string"
                 },
@@ -6682,6 +6724,11 @@
                     "type": "integer",
                     "example": 300
                 },
+                "maxItemLookups": {
+                    "description": "MaxItemLookups is the most item IDs one GET /api/sim/items takes; the page asks in chunks of it.",
+                    "type": "integer",
+                    "example": 120
+                },
                 "maxLength": {
                     "type": "integer"
                 },
@@ -6784,6 +6831,27 @@
                 }
             }
         },
+        "models.SimItemInfo": {
+            "type": "object",
+            "properties": {
+                "icon": {
+                    "type": "string",
+                    "example": "inv_axe_1h_nerubianraid_d_01"
+                },
+                "id": {
+                    "type": "integer",
+                    "example": 212401
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Ansurek's Final Judgment"
+                },
+                "quality": {
+                    "type": "integer",
+                    "example": 4
+                }
+            }
+        },
         "models.SimOptions": {
             "type": "object",
             "properties": {
@@ -6824,6 +6892,11 @@
                     "items": {
                         "$ref": "#/definitions/models.SimItem"
                     }
+                },
+                "itemLevel": {
+                    "description": "ItemLevel is the equipped item level as the game counts it: the 16 slots without shirt and tabard, a main hand\nwith nothing in the off-hand (a two-hander) counted twice, rounded down.",
+                    "type": "integer",
+                    "example": 623
                 },
                 "level": {
                     "type": "integer",

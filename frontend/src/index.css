@@ -12,6 +12,14 @@
   --best: color-mix(in srgb, var(--good) 60%, transparent);
   --warn: #fbbf24;
   --bad: #f87171;
+  /* WoW's item qualities (Warcraft Logs' parse colours too), the blue and purple a shade lighter for the dark
+   * background. */
+  --q-poor: #9d9d9d;
+  --q-common: var(--text);
+  --q-uncommon: #1eff00;
+  --q-rare: #4a9dff;
+  --q-epic: #b86cf5;
+  --q-legendary: #ff8000;
   --nav: 48px;
   /* Spacing and type scales: every gap and size below comes from these. */
   --s1: 4px;
@@ -506,7 +514,8 @@ button {
   transition: opacity 0.15s ease-out;
 }
 
-.tabs [role='tablist'] {
+.tabs [role='tablist'],
+.sim-tabs {
   display: flex;
   flex-wrap: wrap;
   gap: var(--s2);
@@ -527,7 +536,8 @@ button {
 }
 
 /* Tabs are buttons: boxed, the open one filled. */
-.tabs [role='tab'] {
+.tabs [role='tab'],
+.sim-tabs button {
   padding: var(--s2) var(--s3);
   color: var(--text);
   background: var(--panel-2);
@@ -535,11 +545,13 @@ button {
   border-radius: 6px;
 }
 
-.tabs [role='tab']:hover {
+.tabs [role='tab']:hover,
+.sim-tabs button:hover {
   border-color: var(--accent);
 }
 
-.tabs [role='tab'][aria-selected='true'] {
+.tabs [role='tab'][aria-selected='true'],
+.sim-tabs button[aria-pressed='true'] {
   background: var(--accent);
   border-color: var(--accent);
 }
@@ -680,10 +692,6 @@ button {
 .review-table th:not(:first-child),
 .review-table td:not(:first-child) {
   min-width: 56px;
-}
-
-.review-table td.left {
-  text-align: left;
 }
 
 .review-table tbody tr {
@@ -1567,21 +1575,21 @@ span.graph-damage {
   color: var(--text);
 }
 
-/* Warcraft Logs' parse colours, a shade lighter where the dark background needs it. */
+/* Warcraft Logs' parse colours: the item qualities, then its own pink and gold. */
 .parse.grey {
-  color: #9d9d9d;
+  color: var(--q-poor);
 }
 .parse.green {
-  color: #1eff00;
+  color: var(--q-uncommon);
 }
 .parse.blue {
-  color: #4a9dff;
+  color: var(--q-rare);
 }
 .parse.purple {
-  color: #b86cf5;
+  color: var(--q-epic);
 }
 .parse.orange {
-  color: #ff8000;
+  color: var(--q-legendary);
 }
 .parse.pink {
   color: #e268a8;
@@ -2199,4 +2207,295 @@ table.compare td:first-child {
 
 .talent-jump:hover {
   text-decoration: underline;
+}
+
+/* The Sim tab: the engine bar, the paper-doll gear, the options beside it and the ranked results. */
+.sim.settings {
+  gap: var(--s4);
+  max-width: 1100px;
+}
+
+.sim > .panel,
+.sim > .sim-layout > .panel {
+  margin-top: 0;
+}
+
+.sim-engine-row,
+.sim-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3);
+}
+
+.sim-header h2 {
+  margin: 0;
+  font-size: var(--t-h1);
+}
+
+.sim-header p {
+  margin: 0;
+}
+
+.sim-header-stats {
+  display: flex;
+  align-items: center;
+  gap: var(--s4);
+  font-size: var(--t-h2);
+}
+
+.sim-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: var(--s4);
+  align-items: start;
+}
+
+.sim-options {
+  position: sticky;
+  top: calc(var(--nav) + var(--s3));
+  display: grid;
+  gap: var(--s3);
+}
+
+.sim-options h2 {
+  margin: 0;
+}
+
+.sim .sim-run {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  font-size: var(--t-h2);
+  font-weight: 600;
+  padding: var(--s3) var(--s4);
+}
+
+.sim .sim-run:disabled {
+  opacity: 0.5;
+}
+
+.sim-progress {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s2);
+}
+
+.sim-doll {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s3);
+}
+
+.sim-doll-col {
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: var(--s2);
+}
+
+.sim-doll-col:last-child {
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.sim-slot {
+  min-width: 0;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: var(--s2) var(--s3);
+}
+
+.sim-slot h3 {
+  margin: 0 0 var(--s1);
+  font-size: var(--t-small);
+  font-weight: 500;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.sim .sim-pick {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  padding: 2px 0;
+  color: var(--text);
+}
+
+.sim-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+  min-width: 0;
+}
+
+.sim-item-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sim-worn {
+  font-size: var(--t-small);
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0 var(--s1);
+}
+
+/* An item's quality: its icon's frame and its name's colour (Blizzard's). */
+.sim-icon {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  box-sizing: border-box;
+  border: 2px solid currentColor;
+  border-radius: 4px;
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.sim-icon img {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.sim .q0 {
+  color: var(--q-poor);
+}
+
+.sim .q1 {
+  color: var(--q-common);
+}
+
+.sim .q2 {
+  color: var(--q-uncommon);
+}
+
+.sim .q3 {
+  color: var(--q-rare);
+}
+
+.sim .q4 {
+  color: var(--q-epic);
+}
+
+.sim .q5 {
+  color: var(--q-legendary);
+}
+
+.sim-dps {
+  font-size: var(--t-h1);
+}
+
+.sim-combos {
+  list-style: none;
+  margin: var(--s3) 0 0;
+  padding: 0;
+  display: grid;
+  gap: var(--s2);
+}
+
+.sim-combos li {
+  display: grid;
+  grid-template-columns: 28px 140px minmax(0, 1fr);
+  gap: var(--s3);
+  align-items: center;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: var(--s2) var(--s3);
+}
+
+.sim-rank {
+  color: var(--muted);
+  text-align: center;
+}
+
+.sim-gain {
+  display: grid;
+  gap: 2px;
+}
+
+.sim-gain > span:first-child {
+  font-size: var(--t-h2);
+  font-weight: 600;
+}
+
+.sim-gain-bar {
+  display: block;
+  height: 4px;
+  background: var(--border);
+  border-radius: 2px;
+}
+
+.sim-gain-bar span {
+  display: block;
+  height: 100%;
+  background: var(--good);
+  border-radius: 2px;
+}
+
+.sim-swaps {
+  display: grid;
+  gap: var(--s1);
+}
+
+.sim-swap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s2);
+}
+
+.sim-swap-slot {
+  width: 64px;
+  text-transform: capitalize;
+}
+
+.sim-saved {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--s1);
+}
+
+.sim-saved li {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+}
+
+.sim-saved li > button.link {
+  flex: 1;
+  text-align: left;
+}
+
+@media (max-width: 900px) {
+  .sim-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sim-options {
+    position: static;
+  }
+
+  .sim-doll {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sim-combos li {
+    grid-template-columns: 28px minmax(0, 1fr);
+  }
+
+  .sim-swaps {
+    grid-column: 1 / -1;
+  }
 }

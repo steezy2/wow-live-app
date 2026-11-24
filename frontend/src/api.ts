@@ -1763,6 +1763,9 @@ export interface TalentTree {
   nodes: TalentNode[]
 }
 
+/** The address of the icon called name (a talent's or an item's, from Wowhead). */
+export const iconURL = (name: string) => `/api/icons/${name}`
+
 /** A spec's talent tree layout; null for a spec the app has none for. */
 export async function fetchTalentTree(specID: number, signal?: AbortSignal): Promise<TalentTree | null> {
   return jsonOrNull<TalentTree>(`/api/talents/${specID}`, signal)
@@ -1826,6 +1829,19 @@ export interface SimItem {
   opts?: Record<string, number[]>
 }
 
+/** An item's name, icon (an icon name for iconURL) and quality (0 poor to 5 legendary), from Wowhead. */
+export interface SimItemInfo {
+  id: number
+  name: string
+  icon: string
+  quality: number
+}
+
+/** Names, icons and qualities of items; the ones Wowhead can't give are left out. */
+export async function fetchSimItems(ids: number[], signal?: AbortSignal): Promise<SimItemInfo[]> {
+  return json(`/api/sim/items?ids=${ids.join(',')}`, { signal })
+}
+
 /** A character read from a pasted SimulationCraft addon export. */
 export interface SimProfile {
   class: string
@@ -1839,6 +1855,8 @@ export interface SimProfile {
   talents: string
   equipped: SimItem[]
   bags: SimItem[]
+  /** The equipped item level as the game counts it. */
+  itemLevel: number
 }
 
 /** The fight a sim runs. */
@@ -1863,6 +1881,8 @@ export interface SimChoices {
   defaults: SimOptions
   defaultDifficulty: string
   defaultKeyLevel: number
+  /** The most item IDs one fetchSimItems takes. */
+  maxItemLookups: number
   /** The items' groups in wearing order, as Top Gear lists them. */
   gearGroups: string[]
 }
@@ -1939,6 +1959,8 @@ export interface Sim {
   startedMS: number
   tookMS?: number
   error?: string
+  /** The result's DPS, kept in the list, which leaves result out. */
+  dps?: number
   result?: SimResult
 }
 

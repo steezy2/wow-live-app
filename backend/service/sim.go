@@ -131,7 +131,8 @@ func (s *Sims) Choices() models.SimChoices {
 	return models.SimChoices{FightStyles: simFightStyles, Accuracies: accuracies, MinLength: minSimLength,
 		MaxLength: maxSimLength, MaxTargets: maxSimTargets, MaxCombos: maxCombos, MaxDrops: maxDrops,
 		Difficulties: simDifficulties, KeyLevels: keyLevels, Defaults: simDefaults,
-		DefaultDifficulty: defaultDropDifficulty, DefaultKeyLevel: defaultKey, GearGroups: slices.Compact(groups)}
+		DefaultDifficulty: defaultDropDifficulty, DefaultKeyLevel: defaultKey, GearGroups: slices.Compact(groups),
+		MaxItemLookups: maxItemLookups}
 }
 
 // simAccuracyOf is the accuracy named name, false when there is none.
@@ -473,7 +474,9 @@ func (s *Sims) List() ([]models.Sim, error) {
 		list = append(list, s.run.sim)
 	}
 	for _, sim := range saved {
-		sim.Result = nil
+		if sim.Result != nil {
+			sim.DPS, sim.Result = sim.Result.DPS, nil
+		}
 		list = append(list, sim)
 	}
 	return list, nil

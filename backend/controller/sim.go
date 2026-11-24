@@ -1,11 +1,14 @@
 package controller
 
 import (
+	"context"
 	"errors"
 	"io"
 	"io/fs"
 	"log"
 	"net/http"
+	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 
@@ -29,9 +32,16 @@ type SimRuns interface {
 	Remove(id string) error
 }
 
+// SimItems names and draws the items of a pasted character (service.Items); Infos's error wraps
+// service.ErrBadSimOptions for too many IDs.
+type SimItems interface {
+	Infos(ctx context.Context, ids []int) ([]models.SimItemInfo, error)
+}
+
 // SimAPI serves the sim page; only the desktop app does, since a browser can't download an engine to the PC.
 type SimAPI struct {
-	Runs SimRuns
+	Runs  SimRuns
+	Items SimItems
 }
 
 // SimExport is a pasted SimulationCraft addon export.
@@ -120,6 +130,35 @@ func (a SimAPI) ParseProfile(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, profile)
+}
+
+// ItemInfo godoc
+//
+//	@Summary		Names, icons and qualities of items
+//	@Description	Wowhead's name, icon (for GET /api/icons/{name}) and quality of each item ID, as many as it knows: an
+//	@Description	item it can't look up is left out, so the page draws it by its export name.
+//	@Tags			sim
+//	@Produce		json
+//	@Param			ids	query		string	true	"item IDs, comma separated (at most SimChoices.maxItemLookups)"
+//	@Success		200	{array}		models.SimItemInfo
+//	@Failure		400	{object}	ErrorResponse	"no IDs, too many or not numbers"
+//	@Router			/api/sim/items [get]
+func (a SimAPI) ItemInfo(c *gin.Context) {
+	parts := strings.Split(c.Query("ids"), ",")
+	ids := make([]int, len(parts))
+	for i, p := range parts {
+		id, err := strconv.Atoi(p)
+		if err != nil || id <= 0 {
+			c.JSON(http.StatusBadRequest, ErrorResponse{Error: "send item IDs as ids=212401,212402"})
+			return
+		}
+		ids[i] = id
+	}
+	items, err := a.Items.Infos(c.Request.Context(), ids)
+	if simFailed(c, err) {
+		return
+	}
+	c.JSON(http.StatusOK, items)
 }
 
 // Start godoc
