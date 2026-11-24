@@ -231,6 +231,9 @@ func (s *Sims) Plan(req models.SimRequest) (models.SimPlan, error) {
 	if err != nil {
 		return models.SimPlan{}, err
 	}
+	if _, err = customLines(req.Custom); err != nil {
+		return models.SimPlan{}, err
+	}
 	dims, err := s.compared(req, &profile)
 	if err != nil {
 		return models.SimPlan{}, err
@@ -354,6 +357,10 @@ func (s *Sims) Start(req models.SimRequest) (models.Sim, error) {
 	if err != nil {
 		return models.Sim{}, err
 	}
+	custom, err := customLines(req.Custom)
+	if err != nil {
+		return models.Sim{}, err
+	}
 	consumables, err := consumableLines(s.Ref, req.Consumables)
 	if err != nil {
 		return models.Sim{}, err
@@ -406,7 +413,7 @@ func (s *Sims) Start(req models.SimRequest) (models.Sim, error) {
 		return models.Sim{}, fmt.Errorf("making %s: %w", work, err)
 	}
 	input, output := filepath.Join(work, id+".simc"), filepath.Join(work, id+".json")
-	head := SimInput(profile) + consumables + scaleLine(req.Kind)
+	head := SimInput(profile) + customInput(custom) + consumables + scaleLine(req.Kind)
 	ctx, cancel := context.WithTimeout(s.Ctx, simTimeout)
 	sim := models.Sim{ID: id, Kind: req.Kind, State: models.SimRunning, Character: profile.Name, Class: profile.Class,
 		Spec: profile.Spec, Options: req.Options, StartedMS: s.Now().UnixMilli()}

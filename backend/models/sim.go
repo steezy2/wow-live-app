@@ -107,6 +107,9 @@ type SimRequest struct {
 	// is the top rank (a Hero or Myth weapon, trinket or neck also with its Ascendant Venomstones), "match" the rank of
 	// the item worn in each drop's slot, and a number that rank of the track (the top when it has fewer).
 	Upgrade string `json:"upgrade,omitempty" example:"max"`
+	// Custom is extra simc lines (an action list, a few options) every kind of sim adds after the character; only an
+	// allowlist of them is accepted (service customLines), the rest is ErrBadSimOptions.
+	Custom string `json:"custom,omitempty" example:"override.bloodlust=0"`
 	// Consumables are what every kind of sim uses instead of simc's defaults, and what it compares.
 	Consumables SimConsumables `json:"consumables"`
 	// Omnium is the Omnium Folio's runes (entry:rank pairs, as the export writes them): nil keeps the export's, empty

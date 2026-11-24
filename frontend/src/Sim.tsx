@@ -28,6 +28,7 @@ import { SimGear, SimHeader } from './SimGear'
 import { useItemInfo } from './simItems'
 import { usePlan } from './simPlan'
 import { SimResult } from './SimResult'
+import { CustomCard } from './SimCustom'
 import { SavedSims } from './SimSaved'
 import { kindLabel, omniumPicks, omniumString, simOptionsError } from './simOptions'
 import { Skeleton } from './Skeleton'
@@ -277,6 +278,7 @@ export function SimPage() {
   const [difficulty, setDifficulty] = useState('')
   const [keyLevel, setKeyLevel] = useState(0)
   const [upgrade, setUpgrade] = useState('')
+  const [custom, setCustom] = useState('')
   const [runs, setRuns] = useState<Sim[]>([]) // the sims running now, as last polled
   const [watching, setWatching] = useState<string | null>(null) // the running sim whose progress card shows
   const [estimates, setEstimates] = useState<Record<string, number>>({}) // seconds each started sim's plan said
@@ -374,6 +376,7 @@ export function SimPage() {
       export: text,
       options,
       consumables,
+      ...(custom.trim() && { custom }),
       ...(mine !== theirs && { omnium: mine }),
       ...(kind === 'topgear' && { equipped, bags, variants }),
       ...(kind === 'drops' && { difficulty, keyLevel, upgrade }),
@@ -545,6 +548,11 @@ export function SimPage() {
               onRun={start}
             />
           </div>
+          <CustomCard
+            value={custom}
+            onChange={setCustom}
+            error={custom.trim() && plan.error?.includes('custom') ? plan.error : null}
+          />
           <ConsumablesCard
             kinds={choices.consumableKinds}
             reference={reference}

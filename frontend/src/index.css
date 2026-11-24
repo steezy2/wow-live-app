@@ -2962,3 +2962,12 @@ table.compare td:first-child {
   width: 100%;
   height: 100%;
 }
+
+.sim-custom > summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.sim-custom[open] > summary {
+  margin-bottom: var(--s1);
+}
