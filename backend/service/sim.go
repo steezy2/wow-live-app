@@ -160,7 +160,7 @@ func (s *Sims) InstallEngine(path string) error {
 		defer s.mu.Unlock()
 		s.installing = false
 		if err != nil {
-			log.Printf("downloading the sim engine: %v", err)
+			log.Printf("installing the sim engine: %v", err)
 			s.installErr = err.Error()
 		}
 	})
