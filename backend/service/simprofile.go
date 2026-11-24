@@ -25,8 +25,9 @@ const (
 var ErrBadSimC = errors.New("not a SimulationCraft export")
 
 var (
-	simClasses = []string{"deathknight", "demonhunter", "druid", "evoker", "hunter", "mage", "monk", "paladin",
-		"priest", "rogue", "shaman", "warlock", "warrior"}
+	// classIDs are the game's class IDs by simc class name: the classes simc knows, and how the Catalyst lists them.
+	classIDs = map[string]int{"warrior": 1, "paladin": 2, "hunter": 3, "rogue": 4, "priest": 5, "deathknight": 6,
+		"shaman": 7, "mage": 8, "warlock": 9, "monk": 10, "druid": 11, "demonhunter": 12, "evoker": 13}
 	// simSlots are the gear slots simc knows.
 	simSlots = []string{"head", "neck", "shoulder", "back", "chest", "shirt", "tabard", "wrist", "hands", "waist",
 		"legs", "feet", "finger1", "finger2", "trinket1", "trinket2", "main_hand", "off_hand"}
@@ -120,7 +121,7 @@ func setSimField(p *models.SimProfile, line string) {
 	if !ok {
 		return
 	}
-	if m := simClassLine.FindStringSubmatch(line); m != nil && slices.Contains(simClasses, m[1]) {
+	if m := simClassLine.FindStringSubmatch(line); m != nil && classIDs[m[1]] != 0 {
 		if simName.MatchString(m[2]) {
 			p.Class, p.Name = m[1], m[2]
 		}

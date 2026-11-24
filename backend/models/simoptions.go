@@ -21,6 +21,8 @@ type SimReference struct {
 	// SocketSlots are the slots (a ring is "finger") the season lets a socket be added to, and how many it can have
 	// added: Raidbots' season data, where only the head, wrist and waist can (through the Great Vault's choice).
 	SocketSlots map[string]int `json:"socketSlots"`
+	// Crafting is reference/sim-crafting.json. It isn't served: ParseProfile says what each item can take.
+	Crafting SimCrafting `json:"-"`
 	// Omnium is the Omnium Folio's rune tree (nodes of one or more choices; picks are entry IDs).
 	Omnium []TalentNode `json:"omnium"`
 }
@@ -98,6 +100,14 @@ type SimVariant struct {
 	Socket  bool `json:"socket,omitempty"`
 	Gem     int  `json:"gem,omitempty" example:"240883"`
 	Enchant int  `json:"enchant,omitempty" example:"7964"`
+	// Embellishment is the reagent ID of the embellishment a crafted item is made with instead,
+	// Recraft the reagent ID of the stat pair it is recrafted to, and Remove takes "gems", "enchant", "socket" (one a
+	// variant added) or "embellishment" off.
+	Embellishment int    `json:"embellishment,omitempty"`
+	Recraft       int    `json:"recraft,omitempty"`
+	Remove        string `json:"remove,omitempty" enums:"gems,enchant,socket,embellishment"`
+	// Catalyst converts the item to its Catalyst item (it counts against SimRequest.CatalystCharges).
+	Catalyst bool `json:"catalyst,omitempty"`
 }
 
 // SimPlan is what a sim request would run: the runs besides the sim's own it makes (a Top Gear sim's gear

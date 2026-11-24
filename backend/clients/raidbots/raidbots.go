@@ -1,9 +1,11 @@
-// Package raidbots reads Raidbots' public game data, which cmd/talentref and cmd/simoptref turn into reference files.
+// Package raidbots reads Raidbots' public game data, which cmd/talentref, cmd/simoptref and cmd/simcraftref turn
+// into reference files.
 package raidbots
 
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 
 	"wow-live/backend/models"
@@ -14,18 +16,28 @@ const Source = "https://www.raidbots.com/static/data/live/"
 
 // Get reads Raidbots' file name ("talents.json") into v.
 func Get(client *http.Client, name string, v any) error {
-	resp, err := client.Get(Source + name)
+	body, err := Open(client, name)
 	if err != nil {
-		return fmt.Errorf("reading %s: %w", name, err)
+		return err
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("reading %s: %s", name, resp.Status)
-	}
-	if err := json.NewDecoder(resp.Body).Decode(v); err != nil {
+	defer body.Close()
+	if err := json.NewDecoder(body).Decode(v); err != nil {
 		return fmt.Errorf("reading %s: %w", name, err)
 	}
 	return nil
+}
+
+// Open is Raidbots' file name, for one too big to read whole (the caller closes it).
+func Open(client *http.Client, name string) (io.ReadCloser, error) {
+	resp, err := client.Get(Source + name)
+	if err != nil {
+		return nil, fmt.Errorf("reading %s: %w", name, err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		resp.Body.Close()
+		return nil, fmt.Errorf("reading %s: %s", name, resp.Status)
+	}
+	return resp.Body, nil
 }
 
 // Node is a talent node of Raidbots' files (a spec's trees, the Omnium Folio); only what the app draws is kept.

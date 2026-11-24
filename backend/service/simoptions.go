@@ -292,11 +292,26 @@ func canAddSocket(ref models.SimReference, item models.SimItem) bool {
 	return bonusSockets(ref, item) < ref.SocketSlots[models.SlotGroup(item.Slot)] && socketsOf(ref, item) < maxSockets
 }
 
-// withSockets is the profile's items with the sockets they have and whether one can be added (SimItem.Sockets).
-func withSockets(ref models.SimReference, p models.SimProfile) models.SimProfile {
+// withChoices is the profile's items with the sockets they have, whether one can be added, and what a crafted item can
+// be changed to or lose (SimItem.Sockets and the fields after it).
+func withChoices(ref models.SimReference, p models.SimProfile) models.SimProfile {
 	for _, items := range [][]models.SimItem{p.Equipped, p.Bags} {
 		for i := range items {
-			items[i].Sockets, items[i].AddSocket = socketsOf(ref, items[i]), canAddSocket(ref, items[i])
+			item := &items[i]
+			item.Sockets, item.AddSocket = socketsOf(ref, *item), canAddSocket(ref, *item)
+			item.Embellishments = reagentChoices(ref, *item, models.ReagentEmbellishment,
+				func(r models.CraftingReagent) string { return r.Name })
+			item.Recrafts = reagentChoices(ref, *item, models.ReagentRecraft, recraftName)
+			if to, ok := catalystItem(ref, p.Class, *item); ok {
+				item.Converts = to.Name
+			}
+			for _, what := range removable {
+				probe := *item
+				probe.Opts = cloneOpts(item.Opts)
+				if _, err := removeFrom(ref, probe, what); err == nil {
+					item.Removable = append(item.Removable, what)
+				}
+			}
 		}
 	}
 	return p
@@ -353,6 +368,24 @@ func applyVariant(ref models.SimReference, item models.SimItem, v models.SimVari
 		item.Opts["enchant_id"] = []int{v.Enchant}
 		notes = append(notes, ref.Enchants[i].Name)
 	}
+	if v.Embellishment != 0 || v.Recraft != 0 {
+		var crafted []string
+		var err error
+		if item, crafted, err = changeCrafting(ref, item, v); err != nil {
+			return models.SimItem{}, err
+		}
+		notes = append(notes, crafted...)
+	}
+	if v.Remove != "" {
+		var err error
+		if item, err = removeFrom(ref, item, v.Remove); err != nil {
+			return models.SimItem{}, err
+		}
+		notes = append(notes, "no "+v.Remove)
+	}
+	if v.Catalyst { // variantCandidates converted the item
+		notes = append(notes, "Catalyst")
+	}
 	if len(notes) == 0 {
 		return bad("a variant of an item changes something")
 	}
@@ -382,7 +415,14 @@ func variantCandidates(ref models.SimReference, p models.SimProfile,
 		if v.Index < 0 || v.Index >= len(list) {
 			return nil, fmt.Errorf("%w: no item %d to change", ErrBadSimOptions, v.Index)
 		}
-		item, err := applyVariant(ref, list[v.Index], v)
+		item := list[v.Index]
+		if v.Catalyst {
+			var err error
+			if item, err = converted(ref, p.Class, item); err != nil {
+				return nil, err
+			}
+		}
+		item, err := applyVariant(ref, item, v)
 		if err != nil {
 			return nil, err
 		}

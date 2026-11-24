@@ -1,7 +1,7 @@
 # WoW Live's everyday commands, from the repo root in Git Bash (with Go, Node and make): `make` lists them.
 SHELL := bash
 .DEFAULT_GOAL := help
-.PHONY: help app page site check fmt swag ref talents simref simoptions ref-check deps release
+.PHONY: help app page site check fmt swag ref talents simref simoptions simcrafting ref-check deps release
 
 help: ## List these commands
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | sed -E 's/:.*## /\t/' | expand -t 12
@@ -42,6 +42,9 @@ simref: ## Rewrite reference/sim-drops.json from wago.tools: check the diff
 
 simoptions: ## Rewrite reference/sim-options.json (consumables, enchants, gems, upgrade tracks, Omnium Folio) from Raidbots
 	cd backend && go run ./cmd/simoptref
+
+simcrafting: ## Rewrite reference/sim-crafting.json (crafted items' reagents, Catalyst conversions) from Raidbots (streams 53 MB)
+	cd backend && go run ./cmd/simcraftref
 
 ref-check: ## List what the logged keys show that the dungeon file lacks
 	cd backend && go run ./cmd/mplusref --check

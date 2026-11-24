@@ -10,6 +10,13 @@ import (
 // topGearExtras are the candidates beyond the picked items: the request's variants and the enchants and gems its
 // Enhancements try on the picked items.
 func topGearExtras(ref models.SimReference, p models.SimProfile, req models.SimRequest) ([]gearCandidate, error) {
+	if req.CatalystCharges < 0 || req.CatalystCharges > maxCatalystCharges {
+		return nil, fmt.Errorf("%w: Catalyst charges are 0 to %d", ErrBadSimOptions, maxCatalystCharges)
+	}
+	converts := func(v models.SimVariant) bool { return v.Catalyst }
+	if req.CatalystCharges == 0 && slices.ContainsFunc(req.Variants, converts) {
+		return nil, fmt.Errorf("%w: a Catalyst conversion needs at least one Catalyst charge", ErrBadSimOptions)
+	}
 	extra, err := variantCandidates(ref, p, req.Variants)
 	if err != nil || req.Enhancements == nil {
 		return extra, err
@@ -94,12 +101,8 @@ func uniqueGems(ref models.SimReference) map[int]int {
 	return limits
 }
 
-// uniqueGemsOK is whether the gear that results from swaps (on p's equipped items) carries at most one gem of each
-// limit category in unique (uniqueGems).
-func uniqueGemsOK(unique map[int]int, p models.SimProfile, swaps []models.SimSwap) bool {
-	if len(unique) == 0 {
-		return true
-	}
+// wornAfter are the items worn once swaps (on p's equipped items) are made.
+func wornAfter(p models.SimProfile, swaps []models.SimSwap) []*models.SimItem {
 	worn := map[string]*models.SimItem{}
 	for i := range p.Equipped {
 		worn[p.Equipped[i].Slot] = &p.Equipped[i]
@@ -107,11 +110,37 @@ func uniqueGemsOK(unique map[int]int, p models.SimProfile, swaps []models.SimSwa
 	for _, s := range swaps {
 		worn[s.Slot] = s.In
 	}
-	seen := map[int]bool{}
+	var out []*models.SimItem
 	for _, item := range worn {
-		if item == nil {
-			continue
+		if item != nil {
+			out = append(out, item)
 		}
+	}
+	return out
+}
+
+// maxEmbellished is how many embellished items a character may wear.
+const maxEmbellished = 2
+
+// embellishedOK is whether the gear that results from swaps wears at most maxEmbellished embellished items.
+func embellishedOK(ref models.SimReference, p models.SimProfile, swaps []models.SimSwap) bool {
+	n := 0
+	for _, item := range wornAfter(p, swaps) {
+		if heldReagent(ref, *item, models.ReagentEmbellishment) != 0 {
+			n++
+		}
+	}
+	return n <= maxEmbellished
+}
+
+// uniqueGemsOK is whether the gear that results from swaps (on p's equipped items) carries at most one gem of each
+// limit category in unique (uniqueGems).
+func uniqueGemsOK(unique map[int]int, p models.SimProfile, swaps []models.SimSwap) bool {
+	if len(unique) == 0 {
+		return true
+	}
+	seen := map[int]bool{}
+	for _, item := range wornAfter(p, swaps) {
 		for _, id := range item.Opts["gem_id"] {
 			if category := unique[id]; category != 0 {
 				if seen[category] {

@@ -120,6 +120,8 @@ func Load(fsys fs.FS) (Loaded, error) {
 	talents, talentsErr := loadJSON[models.TalentTrees](fsys, "reference/talent-trees.json", "talentref")
 	drops, dropsErr := loadJSON[models.SimDrops](fsys, "reference/sim-drops.json", "simref")
 	simRef, simRefErr := loadJSON[models.SimReference](fsys, "reference/sim-options.json", "simoptref")
+	crafting, craftingErr := loadJSON[models.SimCrafting](fsys, "reference/sim-crafting.json", "simcraftref")
+	simRef.Crafting = crafting
 	for i, e := range simRef.Enchants {
 		for _, slot := range e.Slots {
 			if g := models.SlotGroup(slot); !slices.Contains(simRef.Enchants[i].Groups, g) {
@@ -129,7 +131,7 @@ func Load(fsys fs.FS) (Loaded, error) {
 	}
 	l.Dungeons, l.Bosses, l.Tier, l.Talents = dungeons.Dungeons, raid.Bosses, raid.Tier, talents.BySpec()
 	l.Drops, l.SimRef = drops, simRef
-	l.RefErr = errors.Join(dungeonsErr, raidErr, talentsErr, dropsErr, simRefErr)
+	l.RefErr = errors.Join(dungeonsErr, raidErr, talentsErr, dropsErr, simRefErr, craftingErr)
 	return l, nil
 }
 
@@ -212,6 +214,11 @@ func SimDropsPath(root string) string {
 // cmd/simoptref.
 func SimOptionsPath(root string) string {
 	return filepath.Join(root, "reference", "sim-options.json")
+}
+
+// SimCraftingPath is the season's crafted items' reagents and the Catalyst's conversions, written by cmd/simcraftref.
+func SimCraftingPath(root string) string {
+	return filepath.Join(root, "reference", "sim-crafting.json")
 }
 
 // SimDropLevelsPath is the hand-kept item levels cmd/simref gives the Droptimizer's gear.

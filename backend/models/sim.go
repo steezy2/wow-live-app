@@ -40,6 +40,22 @@ type SimItem struct {
 	// one more can be added in a Top Gear variant. Only a parsed export carries them.
 	Sockets   int  `json:"sockets,omitempty"`
 	AddSocket bool `json:"addSocket,omitempty"`
+	// Embellishments and Recrafts are what a crafted item can be changed to, Removable what a variant can take off it
+	// (SimVariant.Embellishment, Recraft and Remove).
+	Embellishments []SimChoice `json:"embellishments,omitempty"`
+	Recrafts       []SimChoice `json:"recrafts,omitempty"`
+	Removable      []string    `json:"removable,omitempty"`
+	// Converts is the name of the item the Catalyst makes of this one (a variant can convert it), and Catalyst is set
+	// on a copy that was converted.
+	Converts string `json:"converts,omitempty"`
+	Catalyst bool   `json:"catalyst,omitempty"`
+}
+
+// SimChoice is a reagent a crafted item can be changed to: its reagent ID, name and icon.
+type SimChoice struct {
+	ID   int    `json:"id" example:"244604"`
+	Name string `json:"name" example:"Blessed Pango Charm"`
+	Icon string `json:"icon,omitempty"`
 }
 
 // SimOptions are the fight a sim runs: its style (one of SimChoices.FightStyles), its length in seconds, how many
@@ -74,6 +90,8 @@ type SimChoices struct {
 	// UpgradeRanks is how many ranks of an upgrade track a Droptimizer can upgrade drops to (the ranks past it are
 	// Mythic raid only).
 	UpgradeRanks int `json:"upgradeRanks" example:"6"`
+	// MaxCatalystCharges is the most SimRequest.CatalystCharges.
+	MaxCatalystCharges int `json:"maxCatalystCharges" example:"6"`
 	// MaxParallel is how many sims run at once (they share the PC); starting one more is refused.
 	MaxParallel int `json:"maxParallel" example:"4"`
 	// ConsumableKinds are the kinds of consumable a sim can be told to use, in the order the page lists them.
@@ -118,6 +136,9 @@ type SimRequest struct {
 	// is the top rank (a Hero or Myth weapon, trinket or neck also with its Ascendant Venomstones), "match" the rank of
 	// the item worn in each drop's slot, and a number that rank of the track (the top when it has fewer).
 	Upgrade string `json:"upgrade,omitempty" example:"max"`
+	// CatalystCharges is how many Catalyst conversions (SimVariant.Catalyst) one combination may hold, up to
+	// SimChoices.MaxCatalystCharges; 0 allows none, so a conversion variant needs it.
+	CatalystCharges int `json:"catalystCharges,omitempty"`
 	// Enhancements are gems and enchants a Top Gear sim tries on the items it picked.
 	Enhancements *SimEnhancements `json:"enhancements,omitempty"`
 	// Custom is extra simc lines (an action list, a few options) every kind of sim adds after the character; only an
