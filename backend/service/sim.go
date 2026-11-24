@@ -212,6 +212,13 @@ func (s *Sims) Wait() { s.work.Wait() }
 // without).
 func (s *Sims) Reference() models.SimReference { return s.Ref }
 
+// ParseProfile is the character in a pasted export, each item with its sockets (SimItem.Sockets). ErrBadSimC for an
+// export that is none.
+func (s *Sims) ParseProfile(export string) (models.SimProfile, error) {
+	p, err := ParseSimC(export)
+	return withSockets(s.Ref, p), err
+}
+
 // Plan is what a request would run, counted without starting it, and about how long that takes: the runs besides the
 // sim's own (a Top Gear sim's gear combinations, a Droptimizer's drops, a comparison's combinations) and, for Top Gear,
 // what each variant changes. A request Start would refuse says why in the plan's Error. ErrBadSimOptions for options

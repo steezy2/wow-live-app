@@ -525,7 +525,7 @@ export function SimPage() {
                   {choices.maxCombos} combinations run.
                 </p>
               )}
-              <SimGear profile={profile} order={choices.gearGroups} info={info} pick={pick} />
+              <SimGear profile={profile} order={choices.gearGroups} info={info} pick={pick} gems={reference.gems} />
             </section>
             <OptionsPanel
               kind={kind}

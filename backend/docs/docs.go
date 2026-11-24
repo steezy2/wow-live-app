@@ -7048,6 +7048,9 @@ const docTemplate = `{
         "models.SimItem": {
             "type": "object",
             "properties": {
+                "addSocket": {
+                    "type": "boolean"
+                },
                 "group": {
                     "type": "string",
                     "example": "finger"
@@ -7076,6 +7079,10 @@ const docTemplate = `{
                 },
                 "slot": {
                     "type": "string"
+                },
+                "sockets": {
+                    "description": "Sockets is how many sockets the item has (filled or not; their gems are Opts[\"gem_id\"]), and AddSocket whether\none more can be added in a Top Gear variant. Only a parsed export carries them.",
+                    "type": "integer"
                 }
             }
         },
@@ -7315,6 +7322,20 @@ const docTemplate = `{
                     "description": "SocketBonus is the bonus ID that gives an item one more socket.",
                     "type": "integer",
                     "example": 10397
+                },
+                "socketSlots": {
+                    "description": "SocketSlots are the slots (a ring is \"finger\") the season lets a socket be added to, and how many it can have\nadded: Raidbots' season data, where only the head, wrist and waist can (through the Great Vault's choice).",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer"
+                    }
+                },
+                "sockets": {
+                    "description": "Sockets are the bonus IDs that give sockets, and how many each gives.",
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer"
+                    }
                 },
                 "source": {
                     "type": "string"

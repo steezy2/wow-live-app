@@ -26,6 +26,7 @@ type SimRuns interface {
 	Choices() models.SimChoices
 	Reference() models.SimReference
 	Plan(req models.SimRequest) (models.SimPlan, error)
+	ParseProfile(export string) (models.SimProfile, error)
 	EngineStatus() models.SimEngineStatus
 	InstallEngine(path string) error
 	Start(req models.SimRequest) (models.Sim, error)
@@ -128,7 +129,7 @@ func (a SimAPI) ParseProfile(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "send the export text as {\"export\": \"...\"}"})
 		return
 	}
-	profile, err := service.ParseSimC(body.Export)
+	profile, err := a.Runs.ParseProfile(body.Export)
 	if simFailed(c, err) {
 		return
 	}

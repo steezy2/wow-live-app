@@ -1831,6 +1831,9 @@ export interface SimItem {
   id: number
   opts?: Record<string, number[]>
   note?: string
+  /** How many sockets the item has, and whether a variant can add one (a parsed export only). */
+  sockets?: number
+  addSocket?: boolean
 }
 
 /** An item's name, icon (an icon name for iconURL) and quality (0 poor to 5 legendary), from Wowhead. */

@@ -36,6 +36,10 @@ type SimItem struct {
 	ID    int              `json:"id"`
 	Opts  map[string][]int `json:"opts,omitempty"`
 	Note  string           `json:"note,omitempty" example:"Myth 3/8, socket"`
+	// Sockets is how many sockets the item has (filled or not; their gems are Opts["gem_id"]), and AddSocket whether
+	// one more can be added in a Top Gear variant. Only a parsed export carries them.
+	Sockets   int  `json:"sockets,omitempty"`
+	AddSocket bool `json:"addSocket,omitempty"`
 }
 
 // SimOptions are the fight a sim runs: its style (one of SimChoices.FightStyles), its length in seconds, how many

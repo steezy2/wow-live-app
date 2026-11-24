@@ -3032,6 +3032,8 @@ definitions:
     type: object
   models.SimItem:
     properties:
+      addSocket:
+        type: boolean
       group:
         example: finger
         type: string
@@ -3052,6 +3054,11 @@ definitions:
         type: object
       slot:
         type: string
+      sockets:
+        description: |-
+          Sockets is how many sockets the item has (filled or not; their gems are Opts["gem_id"]), and AddSocket whether
+          one more can be added in a Top Gear variant. Only a parsed export carries them.
+        type: integer
     type: object
   models.SimItemInfo:
     properties:
@@ -3226,6 +3233,19 @@ definitions:
         description: SocketBonus is the bonus ID that gives an item one more socket.
         example: 10397
         type: integer
+      socketSlots:
+        additionalProperties:
+          type: integer
+        description: |-
+          SocketSlots are the slots (a ring is "finger") the season lets a socket be added to, and how many it can have
+          added: Raidbots' season data, where only the head, wrist and waist can (through the Great Vault's choice).
+        type: object
+      sockets:
+        additionalProperties:
+          type: integer
+        description: Sockets are the bonus IDs that give sockets, and how many each
+          gives.
+        type: object
       source:
         type: string
       upgrades:
