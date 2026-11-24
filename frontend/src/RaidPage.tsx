@@ -292,7 +292,7 @@ export function RaidOverlayCard(props: {
       </p>
       <div className="overlay-extra overlay-rows">
         {pull.deaths.slice(0, OVERLAY_DEATHS).map((d, i) => (
-          <button key={`${d.player}-${i}`} className="row-button small" onClick={() => onPickDeath(d)}>
+          <button key={`${d.player}-${i}`} className="row-button death-button small" onClick={() => onPickDeath(d)}>
             <span className="muted">{clock(d.clockMS)}</span> <Name player={d.player} classes={classes} />{' '}
             {d.ability || 'unknown'}
           </button>
