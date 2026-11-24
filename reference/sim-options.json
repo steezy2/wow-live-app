@@ -1402,7 +1402,8 @@
    "id": 241143,
    "name": "Cognitive Heliotrope",
    "stats": "23 Main stat",
-   "icon": "inv_misc_epicgem_01"
+   "icon": "inv_misc_epicgem_01",
+   "unique": 698
   },
   {
    "id": 240865,
@@ -1464,13 +1465,15 @@
    "id": 241142,
    "name": "Determined Heliotrope",
    "stats": "23 Main stat",
-   "icon": "inv_misc_epicgem_uncut_01"
+   "icon": "inv_misc_epicgem_uncut_01",
+   "unique": 698
   },
   {
    "id": 241144,
    "name": "Enduring Heliotrope",
    "stats": "23 Main stat",
-   "icon": "inv_misc_cutgemsuperior6"
+   "icon": "inv_misc_cutgemsuperior6",
+   "unique": 698
   },
   {
    "id": 240897,
@@ -1701,14 +1704,16 @@
    "name": "Indecipherable Eversong Diamond",
    "stats": "26 Main stat",
    "icon": "inv_12_profession_jewelcrafting_epic_gem_cut_green",
-   "quality": 1
+   "quality": 1,
+   "unique": 698
   },
   {
    "id": 240983,
    "name": "Indecipherable Eversong Diamond",
    "stats": "32 Main stat",
    "icon": "inv_12_profession_jewelcrafting_epic_gem_cut_green",
-   "quality": 2
+   "quality": 2,
+   "unique": 698
   },
   {
    "id": 240863,
@@ -1771,14 +1776,16 @@
    "name": "Powerful Eversong Diamond",
    "stats": "18 Main stat",
    "icon": "inv_12_profession_jewelcrafting_epic_gem_cut_orange",
-   "quality": 1
+   "quality": 1,
+   "unique": 698
   },
   {
    "id": 240967,
    "name": "Powerful Eversong Diamond",
    "stats": "23 Main stat",
    "icon": "inv_12_profession_jewelcrafting_epic_gem_cut_orange",
-   "quality": 2
+   "quality": 2,
+   "unique": 698
   },
   {
    "id": 240867,
@@ -1841,28 +1848,32 @@
    "name": "Stoic Eversong Diamond",
    "stats": "18 Main stat",
    "icon": "inv_12_profession_jewelcrafting_epic_gem_cut_pink",
-   "quality": 1
+   "quality": 1,
+   "unique": 698
   },
   {
    "id": 240971,
    "name": "Stoic Eversong Diamond",
    "stats": "23 Main stat",
    "icon": "inv_12_profession_jewelcrafting_epic_gem_cut_pink",
-   "quality": 2
+   "quality": 2,
+   "unique": 698
   },
   {
    "id": 240968,
    "name": "Telluric Eversong Diamond",
    "stats": "18 Main stat",
    "icon": "inv_12_profession_jewelcrafting_epic_gem_cut_blue",
-   "quality": 1
+   "quality": 1,
+   "unique": 698
   },
   {
    "id": 240969,
    "name": "Telluric Eversong Diamond",
    "stats": "23 Main stat",
    "icon": "inv_12_profession_jewelcrafting_epic_gem_cut_blue",
-   "quality": 2
+   "quality": 2,
+   "unique": 698
   },
   {
    "id": 240869,

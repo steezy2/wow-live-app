@@ -183,6 +183,7 @@ type rawEnchant struct {
 	ItemIcon    string `json:"itemIcon"`
 	Expansion   int    `json:"expansion"`
 	Quality     int    `json:"craftingQuality"`
+	Unique      int    `json:"unique"`
 	Slot        string `json:"slot"`
 	Stats       []struct {
 		Type   string `json:"type"`
@@ -241,7 +242,7 @@ func enchantsAndGems(raw []rawEnchant) ([]models.SimEnchant, []models.SimGem) {
 		case r.Expansion != newest || r.ItemID == 0:
 		case r.Slot == "socket":
 			gems = append(gems, models.SimGem{ID: r.ItemID, Name: r.ItemName, Stats: statsText(r), Icon: wowheadIcon(r.ItemIcon),
-				Quality: r.Quality})
+				Quality: r.Quality, Unique: r.Unique})
 		case r.Requirements != nil:
 			if slots := slotsOf(r.Requirements.ItemClass, r.Requirements.InvTypes); len(slots) > 0 {
 				enchants = append(enchants, models.SimEnchant{ID: r.ID, Name: r.ItemName, Stats: statsText(r),

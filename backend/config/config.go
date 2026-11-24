@@ -10,6 +10,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/BurntSushi/toml"
@@ -119,6 +120,13 @@ func Load(fsys fs.FS) (Loaded, error) {
 	talents, talentsErr := loadJSON[models.TalentTrees](fsys, "reference/talent-trees.json", "talentref")
 	drops, dropsErr := loadJSON[models.SimDrops](fsys, "reference/sim-drops.json", "simref")
 	simRef, simRefErr := loadJSON[models.SimReference](fsys, "reference/sim-options.json", "simoptref")
+	for i, e := range simRef.Enchants {
+		for _, slot := range e.Slots {
+			if g := models.SlotGroup(slot); !slices.Contains(simRef.Enchants[i].Groups, g) {
+				simRef.Enchants[i].Groups = append(simRef.Enchants[i].Groups, g)
+			}
+		}
+	}
 	l.Dungeons, l.Bosses, l.Tier, l.Talents = dungeons.Dungeons, raid.Bosses, raid.Tier, talents.BySpec()
 	l.Drops, l.SimRef = drops, simRef
 	l.RefErr = errors.Join(dungeonsErr, raidErr, talentsErr, dropsErr, simRefErr)

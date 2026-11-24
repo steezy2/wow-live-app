@@ -6965,6 +6965,16 @@ const docTemplate = `{
         "models.SimEnchant": {
             "type": "object",
             "properties": {
+                "groups": {
+                    "description": "Groups are the slots' SlotGroups, set when the reference is loaded.",
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "finger"
+                    ]
+                },
                 "icon": {
                     "type": "string"
                 },
@@ -7029,6 +7039,26 @@ const docTemplate = `{
                 }
             }
         },
+        "models.SimEnhancements": {
+            "type": "object",
+            "properties": {
+                "enchants": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                            "type": "integer"
+                        }
+                    }
+                },
+                "gems": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                }
+            }
+        },
         "models.SimGem": {
             "type": "object",
             "properties": {
@@ -7049,6 +7079,10 @@ const docTemplate = `{
                 "stats": {
                     "type": "string",
                     "example": "11 Vers \u0026 4 Haste"
+                },
+                "unique": {
+                    "description": "Unique is the limit category of a unique-equipped gem (one of its category on all the gear), 0 for none.",
+                    "type": "integer"
                 }
             }
         },
@@ -7395,6 +7429,14 @@ const docTemplate = `{
                         "mythic"
                     ],
                     "example": "heroic"
+                },
+                "enhancements": {
+                    "description": "Enhancements are gems and enchants a Top Gear sim tries on the items it picked.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.SimEnhancements"
+                        }
+                    ]
                 },
                 "equipped": {
                     "description": "Equipped and Bags are the items a Top Gear sim may put on, as indexes into the parsed profile's Equipped and\nBags. A slot with nothing ticked keeps its item; rings and trinkets with fewer than two ticked are made up from\nthe equipped ones.",

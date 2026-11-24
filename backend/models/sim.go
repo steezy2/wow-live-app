@@ -118,6 +118,8 @@ type SimRequest struct {
 	// is the top rank (a Hero or Myth weapon, trinket or neck also with its Ascendant Venomstones), "match" the rank of
 	// the item worn in each drop's slot, and a number that rank of the track (the top when it has fewer).
 	Upgrade string `json:"upgrade,omitempty" example:"max"`
+	// Enhancements are gems and enchants a Top Gear sim tries on the items it picked.
+	Enhancements *SimEnhancements `json:"enhancements,omitempty"`
 	// Custom is extra simc lines (an action list, a few options) every kind of sim adds after the character; only an
 	// allowlist of them is accepted (service customLines), the rest is ErrBadSimOptions.
 	Custom string `json:"custom,omitempty" example:"override.bloodlust=0"`
@@ -126,6 +128,13 @@ type SimRequest struct {
 	// Omnium is the Omnium Folio's runes (entry:rank pairs, as the export writes them): nil keeps the export's, empty
 	// is none. Two or more entries of a node are compared, as consumables are.
 	Omnium *string `json:"omnium,omitempty" example:"136822:1/136817:1"`
+}
+
+// SimEnhancements are enchants (enchant IDs by slot, a ring's slot is "finger") and gems (gem item IDs) a Top Gear
+// sim tries, each as a changed copy of every picked item that can take it, beside the item as it is.
+type SimEnhancements struct {
+	Enchants map[string][]int `json:"enchants,omitempty"`
+	Gems     []int            `json:"gems,omitempty"`
 }
 
 // SimKinds are the kinds of sim: one character's DPS ("quick"), the best combination of the gear they carry

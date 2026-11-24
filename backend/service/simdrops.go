@@ -119,7 +119,7 @@ func dropCombos(p models.SimProfile, d models.SimDrops, difficulty string, keyLe
 				if own != nil && own.Opts["enchant_id"] != nil {
 					opts["enchant_id"] = own.Opts["enchant_id"] // the enchant goes on the new piece, as in game
 				}
-				drop := models.SimItem{Group: gearKey(slot), Name: item.Name, Level: level, ID: item.ID, Opts: opts}
+				drop := models.SimItem{Group: models.SlotGroup(slot), Name: item.Name, Level: level, ID: item.ID, Opts: opts}
 				fills := []gearFill{{slot, &gearCandidate{item: drop}}}
 				if item.Slot == "two_hand" {
 					fills = append(fills, gearFill{"off_hand", nil})

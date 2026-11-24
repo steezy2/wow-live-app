@@ -1,5 +1,7 @@
 package models
 
+import "strings"
+
 // SimReference is reference/sim-options.json (written by cmd/simoptref, from Raidbots' public game data): what the Sim
 // tab offers besides the pasted gear. Names that go into a simc input are looked up here, never taken from a request.
 type SimReference struct {
@@ -46,7 +48,12 @@ type SimEnchant struct {
 	Icon    string   `json:"icon"`
 	Quality int      `json:"quality,omitempty"`
 	Slots   []string `json:"slots"`
+	// Groups are the slots' SlotGroups, set when the reference is loaded.
+	Groups []string `json:"groups,omitempty" example:"finger"`
 }
+
+// SlotGroup is the pool a slot's candidates share: "finger" for both rings, "trinket" for both trinkets, else the slot.
+func SlotGroup(slot string) string { return strings.TrimRight(slot, "12") }
 
 // SimGem is a gem: its item ID (simc's gem_id), name, icon, stats and crafting quality.
 type SimGem struct {
@@ -55,6 +62,8 @@ type SimGem struct {
 	Stats   string `json:"stats,omitempty" example:"11 Vers & 4 Haste"`
 	Icon    string `json:"icon"`
 	Quality int    `json:"quality,omitempty"`
+	// Unique is the limit category of a unique-equipped gem (one of its category on all the gear), 0 for none.
+	Unique int `json:"unique,omitempty"`
 }
 
 // SimUpgradeTrack is a track items upgrade along ("Myth 1/8" to "Myth 8/8"): the group Blizzard keys it by, its name

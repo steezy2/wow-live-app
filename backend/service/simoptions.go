@@ -289,7 +289,7 @@ const maxSockets = 3
 // (SimReference.SocketSlots: the head, wrist and waist) takes one, up to what that slot allows, and no item holds more
 // than maxSockets. Weapons, trinkets, rings and the neck never do.
 func canAddSocket(ref models.SimReference, item models.SimItem) bool {
-	return bonusSockets(ref, item) < ref.SocketSlots[gearKey(item.Slot)] && socketsOf(ref, item) < maxSockets
+	return bonusSockets(ref, item) < ref.SocketSlots[models.SlotGroup(item.Slot)] && socketsOf(ref, item) < maxSockets
 }
 
 // withSockets is the profile's items with the sockets they have and whether one can be added (SimItem.Sockets).
