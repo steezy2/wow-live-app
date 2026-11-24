@@ -17,16 +17,15 @@ const pickText = (n: number) => (n === 0 ? 'simc default' : n === 1 ? 'used as i
 
 /** The consumables card, laid out like the Omnium Folio's: a row of icons for each kind (in the app's order), each
  * one to click. A kind with none picked keeps simc's default for the spec, one is used by the whole sim, and two or
- * more are compared, every combination of the compared kinds at most max of them (a Top Gear or Droptimizer sim runs
- * each of its combinations once for each). */
+ * more are compared, every combination of the compared kinds (a Top Gear or Droptimizer sim runs each of its
+ * combinations once for each; the plan says when that is too many). */
 export function ConsumablesCard(props: {
   kinds: string[]
   reference: SimReference
   value: SimConsumables
-  max: number
   onChange: (c: SimConsumables) => void
 }) {
-  const { kinds, reference, value, max, onChange } = props
+  const { kinds, reference, value, onChange } = props
   const combos = comparedCount(value)
   const picked = (kind: string) => value[kind] ?? []
   const toggle = (kind: string, v: string) => {
@@ -42,7 +41,6 @@ export function ConsumablesCard(props: {
         Pick what to sim with: nothing keeps simc&apos;s default, one is used by the whole sim, and two or more of a
         kind are compared. Top Gear and the Droptimizer run each of their combinations once for every one.
       </p>
-      {combos > max && <p className="warning">That is more than the {max} combinations a sim compares: untick some.</p>}
       {kinds.map((kind) => (
         <div key={kind} className="sim-consumable-kind">
           <h3>

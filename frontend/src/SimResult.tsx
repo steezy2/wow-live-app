@@ -4,19 +4,10 @@ import { clock } from './format'
 import { Spell } from './Spell'
 import { ItemLine } from './SimItem'
 import { useItemInfo } from './simItems'
-import { gainShare, groupLabel } from './simOptions'
+import { gainShare, groupLabel, kindLabel } from './simOptions'
 
 /** A DPS number in full, as Raidbots shows it ("200,918"). */
 const full = (n: number) => Math.round(n).toLocaleString('en-US')
-
-/** What each kind of sim is called at the top of its report. */
-const TITLES: Record<string, string> = {
-  quick: 'Quick Sim',
-  topgear: 'Top Gear',
-  drops: 'Droptimizer',
-  stats: 'Stat Weights',
-  consumables: 'Consumables',
-}
 
 /** The names the page gives simc's stats. */
 const STAT_NAMES: Record<string, string> = {
@@ -61,7 +52,7 @@ function ReportHead({ sim, result }: { sim: Sim; result: Result }) {
   return (
     <section className="panel sim-report-head">
       <div>
-        <h2>{TITLES[sim.kind] ?? sim.kind}</h2>
+        <h2>{kindLabel(sim.kind)}</h2>
         <p className="sim-who">
           <strong>{sim.character}</strong> <span className="muted">{sim.spec}</span>
         </p>

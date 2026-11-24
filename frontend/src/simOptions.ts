@@ -19,6 +19,18 @@ export function simOptionsError(o: SimOptions, c: SimChoices): string | null {
   return null
 }
 
+/** What each kind of sim is called (a sim saved before consumables moved into each kind says "consumables"). */
+const KIND_LABELS: Record<string, string> = {
+  quick: 'Quick Sim',
+  topgear: 'Top Gear',
+  drops: 'Droptimizer',
+  stats: 'Stat Weights',
+  consumables: 'Consumables',
+}
+
+/** A kind of sim's name on the page; a kind it doesn't know shows as the app names it. */
+export const kindLabel = (kind: string) => KIND_LABELS[kind] ?? kind
+
 /** The page's names for the items' groups (SimItem.group). */
 const GROUP_LABELS: Record<string, string> = {
   shoulder: 'Shoulders',
@@ -89,14 +101,6 @@ export function omniumString(nodes: TalentNode[], picks: number[]): string {
     .flatMap((n) => n.entries.filter((e) => picks.includes(e.id)).map((e) => `${e.id}:1`))
     .join('/')
 }
-
-/** How many combinations the Omnium Folio's picks make: the product of the picks of each node with two or more (1 when
- * nothing is compared). */
-export const omniumCompared = (nodes: TalentNode[], picks: number[]): number =>
-  nodes.reduce((n, node) => {
-    const here = node.entries.filter((e) => picks.includes(e.id)).length
-    return here > 1 ? n * here : n
-  }, 1)
 
 /** The picks after clicking an entry: it is picked as well as the others of its node, or unpicked when it was. */
 export const togglePick = (picks: number[], entry: number): number[] =>

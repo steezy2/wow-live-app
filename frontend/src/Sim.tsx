@@ -28,29 +28,20 @@ import { SimGear, SimHeader } from './SimGear'
 import { useItemInfo } from './simItems'
 import { usePlan } from './simPlan'
 import { SimResult } from './SimResult'
-import {
-  comparedCount,
-  omniumCompared,
-  omniumPicks,
-  omniumString,
-  simOptionsError,
-} from './simOptions'
+import { kindLabel, omniumPicks, omniumString, simOptionsError } from './simOptions'
 import { Skeleton } from './Skeleton'
 import { tip } from './tipAttrs'
 
 /** How often the engine download and a running sim are asked after. */
 const POLL_MS = 1000
 
-const KINDS: [SimKind, string, string][] = [
-  ['quick', 'Quick Sim', 'One DPS number with each ability and buff'],
-  ['topgear', 'Top Gear', 'The best combination of the gear you carry'],
-  ['drops', 'Droptimizer', "Each piece the season's raid and dungeons drop, by its gain"],
-  ['stats', 'Stat Weights', 'What a point of each stat is worth for your character'],
+/** The kinds of sim the page offers, each with its hover text. */
+const KINDS: [SimKind, string][] = [
+  ['quick', 'One DPS number with each ability and buff'],
+  ['topgear', 'The best combination of the gear you carry'],
+  ['drops', "Each piece the season's raid and dungeons drop, by its gain"],
+  ['stats', 'What a point of each stat is worth for your character'],
 ]
-
-/** What a sim is called in the list of saved sims: its kind's label (a sim saved before consumables moved into each
- * kind says "consumables"). */
-const kindLabel = (kind: string) => KINDS.find(([k]) => k === kind)?.[1] ?? kind
 
 /** The engine on one line: what is installed (or the plain words about the download), with its buttons. */
 function EngineBar(props: {
@@ -337,7 +328,11 @@ export function SimPage() {
     if (!watching || runs.some((r) => r.id === watching)) return
     void fetchSim(watching).then(
       (s) => {
-        if (s.state === 'running') return // started a moment ago, not in the last poll yet
+        // started a moment ago, not in the last poll yet: list it, so the poll runs even if it was the only one
+        if (s.state === 'running') {
+          setRuns((all) => (all.some((r) => r.id === s.id) ? all : [s, ...all]))
+          return
+        }
         setSim(s)
         setWatching(null)
       },
@@ -371,7 +366,8 @@ export function SimPage() {
       consumables,
       ...(mine !== theirs && { omnium: mine }),
       ...(kind === 'topgear' && { equipped, bags, variants }),
-      ...(kind === 'drops' && { difficulty, keyLevel, maxUpgrade }),    }
+      ...(kind === 'drops' && { difficulty, keyLevel, maxUpgrade }),
+    }
   }
   const planRequest = profile ? request() : null
   const plan = usePlan(planRequest)
@@ -406,20 +402,12 @@ export function SimPage() {
         }
       : undefined
   const planBlocks = !!plan.error || !!plan.plan?.error || (kind === 'topgear' && !plan.plan)
-  const compared = comparedCount(consumables) * omniumCompared(reference.omnium, omnium)
-  const compareBlocks = compared > choices.maxCompare
-  // Why Sim is off, in words (a Top Gear plan says its own refusal beside the button).
+  // Why Sim is off, in words (the plan says the request's own refusal beside the button).
   const whyNot = (): string | null => {
     if (!engine?.installed) return 'Download the engine first.'
     if (engine.installing) return 'The engine is still downloading.'
     if (runs.length >= choices.maxParallel) {
       return `${runs.length} sims are running, the most at once: wait for one to end, or cancel it.`
-    }
-    if (kind === 'stats' && compared > 1) {
-      return 'Stat weights are for one setup: pick one value of each consumable and rune.'
-    }
-    if (compareBlocks) {
-      return `${compared} combinations are compared, and a sim compares at most ${choices.maxCompare}: untick some.`
     }
     return null
   }
@@ -505,14 +493,14 @@ export function SimPage() {
             </div>
           </section>
           <div className="sim-tabs" role="group" aria-label="Kind of sim">
-            {KINDS.map(([k, label, hint]) => (
+            {KINDS.map(([k, hint]) => (
               <button
                 key={k}
                 aria-pressed={kind === k}
                 onClick={() => setKind(k)}
                 {...tip(hint)}
               >
-                {label}
+                {kindLabel(k)}
               </button>
             ))}
           </div>
@@ -550,7 +538,6 @@ export function SimPage() {
             kinds={choices.consumableKinds}
             reference={reference}
             value={consumables}
-            max={choices.maxCompare}
             onChange={setConsumables}
           />
           {reference.omnium.length > 0 && (
