@@ -151,17 +151,34 @@ func TestSimsStartRefuses(t *testing.T) {
 	}
 }
 
-func TestSimsRunOneAtATimeAndCancel(t *testing.T) {
+func TestSimsRunInParallelUpToTheMaxAndCancel(t *testing.T) {
 	s := newTestSims(t, "hang")
 	first, err := s.Start(simRequest(t))
 	if err != nil {
 		t.Fatal(err)
 	}
+	var others []models.Sim
+	for range maxParallelSims - 1 {
+		other, err := s.Start(simRequest(t))
+		if err != nil {
+			t.Fatalf("a sim beside the first: %v", err)
+		}
+		others = append(others, other)
+	}
 	if _, err := s.Start(simRequest(t)); !errors.Is(err, ErrSimBusy) {
-		t.Errorf("a second sim: err = %v, want ErrSimBusy", err)
+		t.Errorf("one sim too many: err = %v, want ErrSimBusy", err)
+	}
+	if list, _ := s.List(); len(list) != maxParallelSims {
+		t.Errorf("the list has %d sims, want the %d running", len(list), maxParallelSims)
 	}
 	if err := s.InstallEngine(""); !errors.Is(err, ErrSimBusy) {
 		t.Errorf("a download during a sim: err = %v, want ErrSimBusy", err)
+	}
+	for _, other := range others {
+		if err := s.Remove(other.ID); err != nil {
+			t.Fatal(err)
+		}
+		waitSim(t, s, other.ID)
 	}
 	for deadline := time.Now().Add(5 * time.Second); time.Now().Before(deadline); time.Sleep(20 * time.Millisecond) {
 		if sim, _ := s.Get(first.ID); sim.Progress == 50 {

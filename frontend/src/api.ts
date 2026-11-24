@@ -1881,6 +1881,7 @@ export interface SimChoices {
   maxTargets: number
   maxCombos: number
   maxCompare: number
+  maxParallel: number
   consumableKinds: string[]
   maxDrops: number
   difficulties: string[]
@@ -2081,6 +2082,7 @@ export interface SimEngineStatus {
   version?: string
   patch?: string
   builtMS?: number
+  updatedMS?: number
   size?: number
   installing: boolean
   stale: boolean

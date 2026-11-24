@@ -69,6 +69,7 @@ function EngineBar(props: {
           <span className="muted">
             SimulationCraft {engine.version} for WoW {engine.patch} · {sizeText(engine.size ?? 0)}
             {engine.builtMS ? ` · built ${new Date(engine.builtMS).toLocaleDateString()}` : ''}
+            {engine.updatedMS ? ` · updated ${new Date(engine.updatedMS).toLocaleString()}` : ''}
           </span>
         ) : (
           <span className="muted">
@@ -101,6 +102,47 @@ function EngineBar(props: {
 
 /** A time estimate in words ("45 s", "12 min"). */
 const aboutText = (seconds: number) => (seconds < 90 ? `${seconds} s` : `${Math.round(seconds / 60)} min`)
+
+/** About how long a running sim has left in words: worked out from its progress once it has some, else from the
+ * seconds its plan estimated; empty when neither says. */
+function leftText(run: Sim, estimate: number, now: number): string {
+  const elapsed = (now - run.startedMS) / 1000
+  const left =
+    run.progress >= 2 ? (elapsed * (100 - run.progress)) / run.progress : estimate > 0 ? estimate - elapsed : -1
+  if (left < 0) return estimate > 0 || run.progress >= 2 ? 'almost done' : ''
+  return `about ${aboutText(Math.round(left))} left`
+}
+
+/** The sims running now: each with its bar and time left, to watch (its progress card) or cancel. */
+function RunningSims(props: {
+  runs: Sim[]
+  estimates: Record<string, number>
+  now: number
+  onWatch: (id: string) => void
+  onCancel: (id: string) => void
+}) {
+  return (
+    <section className="panel sim-running">
+      <h2>Running</h2>
+      <ul className="sim-saved">
+        {props.runs.map((r) => (
+          <li key={r.id}>
+            <button className="link" onClick={() => props.onWatch(r.id)}>
+              <strong>{r.character}</strong> · {kindLabel(r.kind)}
+            </button>
+            <progress value={r.progress} max={100} aria-label="Sim progress" />
+            <span className="muted small">
+              {r.progress}% {leftText(r, props.estimates[r.id] ?? 0, props.now)}
+            </span>
+            <button className="delete" aria-label="Cancel" onClick={() => props.onCancel(r.id)}>
+              ×
+            </button>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}
 
 /** What a request makes, in words: the runs besides the sim's own (of the max that run) and about how long it all
  * takes, or why the app would refuse it. */
@@ -141,10 +183,9 @@ function OptionsPanel(props: {
   plan: { plan: SimPlan | null; error: string | null } | null
   why: string | null
   canRun: boolean
-  running: Sim | null
   onRun: () => void
 }) {
-  const { kind, choices, options, setOptions, optionsError, running } = props
+  const { kind, choices, options, setOptions, optionsError } = props
   return (
     <aside className="panel sim-options">
       <h2>Fight</h2>
@@ -208,9 +249,9 @@ function OptionsPanel(props: {
       )}
       {optionsError && <p className="warning">{optionsError}</p>}
       {props.plan && <PlanText plan={props.plan} kind={kind} choices={choices} />}
-      {props.why && !running && <p className="warning">{props.why}</p>}
-      <button className="sim-run" disabled={!props.canRun || !!running || !!optionsError} onClick={props.onRun}>
-        {running ? 'Simming…' : 'Sim'}
+      {props.why && <p className="warning">{props.why}</p>}
+      <button className="sim-run" disabled={!props.canRun || !!optionsError} onClick={props.onRun}>
+        Sim
       </button>
     </aside>
   )
@@ -235,7 +276,10 @@ export function SimPage() {
   const [difficulty, setDifficulty] = useState('')
   const [keyLevel, setKeyLevel] = useState(0)
   const [maxUpgrade, setMaxUpgrade] = useState(false)
-  const [run, setRun] = useState<Sim | null>(null) // the sim started here, or found running, as last polled
+  const [runs, setRuns] = useState<Sim[]>([]) // the sims running now, as last polled
+  const [watching, setWatching] = useState<string | null>(null) // the running sim whose progress card shows
+  const [estimates, setEstimates] = useState<Record<string, number>>({}) // seconds each started sim's plan said
+  const [now, setNow] = useState(() => Date.now()) // when the runs were last polled, for their time left
   const [sim, setSim] = useState<Sim | null>(null) // the finished sim shown
   const [saved, setSaved] = useState<Sim[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -245,11 +289,13 @@ export function SimPage() {
   )
 
   const readSaved = useCallback(
-    () =>
+    (watchNewest = false) =>
       fetchSims().then((list) => {
+        const running = list.filter((s) => s.state === 'running')
         setSaved(list.filter((s) => s.state !== 'running'))
-        const running = list.find((s) => s.state === 'running')
-        if (running) setRun(running)
+        setRuns(running)
+        setNow(Date.now())
+        if (watchNewest && running.length > 0) setWatching(running[0].id)
       }, () => undefined),
     [],
   )
@@ -269,7 +315,7 @@ export function SimPage() {
       (err: unknown) => !controller.signal.aborted && setError(errorText(err)),
     )
     fetchSimEngine(controller.signal).then(setEngine, (err: unknown) => setError(errorText(err)))
-    void readSaved()
+    void readSaved(true)
     return () => controller.abort()
   }, [readSaved])
   useEffect(() => {
@@ -280,25 +326,24 @@ export function SimPage() {
     )
     return () => clearInterval(timer)
   }, [engine?.installing])
-  const running = run?.state === 'running' ? run : null
-  const runningID = running?.id
+  const polling = runs.length > 0
   useEffect(() => {
-    if (!runningID) return
-    const timer = setInterval(
-      () =>
-        void fetchSim(runningID).then(
-          (s) => {
-            setRun(s)
-            if (s.state === 'running') return
-            setSim(s)
-            void readSaved()
-          },
-          (err: unknown) => setError(errorText(err)),
-        ),
-      POLL_MS,
-    )
+    if (!polling) return
+    const timer = setInterval(() => void readSaved(), POLL_MS)
     return () => clearInterval(timer)
-  }, [runningID, readSaved])
+  }, [polling, readSaved])
+  useEffect(() => {
+    // The sim being watched is no longer running: show its report (or why it ended).
+    if (!watching || runs.some((r) => r.id === watching)) return
+    void fetchSim(watching).then(
+      (s) => {
+        if (s.state === 'running') return // started a moment ago, not in the last poll yet
+        setSim(s)
+        setWatching(null)
+      },
+      (err: unknown) => setError(errorText(err)),
+    )
+  }, [watching, runs])
 
   const act = (call: () => Promise<unknown>) => {
     setError(null)
@@ -330,13 +375,14 @@ export function SimPage() {
   }
   const planRequest = profile ? request() : null
   const plan = usePlan(planRequest)
-  const [estimate, setEstimate] = useState(0) // the seconds the plan said when the running sim was started
   const start = () =>
     act(async () => {
       const req = request()
       if (!req) return
-      setEstimate(plan.plan?.seconds ?? 0)
-      setRun(await startSim(req))
+      const started = await startSim(req)
+      setEstimates((all) => ({ ...all, [started.id]: plan.plan?.seconds ?? 0 }))
+      setRuns((all) => [started, ...all.filter((r) => r.id !== started.id)])
+      setWatching(started.id)
     })
   const toggle = (worn: boolean, i: number) => {
     const [list, set] = worn ? [equipped, setEquipped] : [bags, setBags]
@@ -363,31 +409,39 @@ export function SimPage() {
   const compared = comparedCount(consumables) * omniumCompared(reference.omnium, omnium)
   const compareBlocks = compared > choices.maxCompare
   // Why Sim is off, in words (a Top Gear plan says its own refusal beside the button).
-  const why = !engine?.installed
-    ? 'Download the engine first.'
-    : engine.installing
-      ? 'The engine is still downloading.'
-      : kind === 'stats' && compared > 1
-        ? 'Stat weights are for one setup: pick one value of each consumable and rune.'
-        : compareBlocks
-          ? `The consumables and runes picked make ${compared} combinations to compare, and a sim compares at most ${
-            choices.maxCompare
-          }: untick some.`
-          : null
-  if (running) {
+  const whyNot = (): string | null => {
+    if (!engine?.installed) return 'Download the engine first.'
+    if (engine.installing) return 'The engine is still downloading.'
+    if (runs.length >= choices.maxParallel) {
+      return `${runs.length} sims are running, the most at once: wait for one to end, or cancel it.`
+    }
+    if (kind === 'stats' && compared > 1) {
+      return 'Stat weights are for one setup: pick one value of each consumable and rune.'
+    }
+    if (compareBlocks) {
+      return `${compared} combinations are compared, and a sim compares at most ${choices.maxCompare}: untick some.`
+    }
+    return null
+  }
+  const why = whyNot()
+  const watched = runs.find((r) => r.id === watching)
+  if (watched) {
     return (
       <main className="page settings sim">
         <section className="panel sim-progress">
-          <h2>{kindLabel(running.kind)}</h2>
+          <h2>{kindLabel(watched.kind)}</h2>
           <p className="muted">
-            {running.character} · {running.spec}
+            {watched.character} · {watched.spec}
           </p>
-          <progress value={running.progress} max={100} aria-label="Sim progress" />
+          <progress value={watched.progress} max={100} aria-label="Sim progress" />
           <p>
-            {running.progress}%{estimate > 0 && <span className="muted"> · about {aboutText(estimate)} in all</span>}
+            {watched.progress}%
+            <span className="muted"> · {leftText(watched, estimates[watched.id] ?? 0, now) || 'starting'}</span>
           </p>
+          {runs.length > 1 && <p className="muted small">{runs.length} sims are running; they share the PC.</p>}
           <div className="actions">
-            <button onClick={() => act(() => removeSim(running.id))}>Cancel</button>
+            <button onClick={() => setWatching(null)}>Run another sim</button>
+            <button onClick={() => act(() => removeSim(watched.id))}>Cancel</button>
           </div>
         </section>
         {error && <p className="warning">{error}</p>}
@@ -409,7 +463,16 @@ export function SimPage() {
   }
   return (
     <main className="page settings sim">
-      <EngineBar engine={engine} busy={!!running} act={act} onEngine={setEngine} />
+      <EngineBar engine={engine} busy={runs.length > 0} act={act} onEngine={setEngine} />
+      {runs.length > 0 && (
+        <RunningSims
+          runs={runs}
+          estimates={estimates}
+          now={now}
+          onWatch={setWatching}
+          onCancel={(id) => act(() => removeSim(id))}
+        />
+      )}
 
       {!profile && (
         <section className="panel">
@@ -480,7 +543,6 @@ export function SimPage() {
               plan={planRequest ? plan : null}
               why={why}
               canRun={!why && !planBlocks}
-              running={running}
               onRun={start}
             />
           </div>

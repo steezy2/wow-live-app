@@ -55,9 +55,11 @@ type SimChoices struct {
 	MaxLength   int      `json:"maxLength"`
 	MaxTargets  int      `json:"maxTargets"`
 	// MaxCombos is the most gear combinations a Top Gear sim runs; a request over it is refused.
-	MaxCombos int `json:"maxCombos" example:"500"`
+	MaxCombos int `json:"maxCombos" example:"1000"`
 	// MaxCompare is the most combinations of compared consumables one sim runs.
-	MaxCompare int `json:"maxCompare" example:"200"`
+	MaxCompare int `json:"maxCompare" example:"1000"`
+	// MaxParallel is how many sims run at once (they share the PC); starting one more is refused.
+	MaxParallel int `json:"maxParallel" example:"4"`
 	// ConsumableKinds are the kinds of consumable a sim can be told to use, in the order the page lists them.
 	ConsumableKinds []string `json:"consumableKinds"`
 	// MaxDrops is the most drops a Droptimizer sims.
@@ -215,13 +217,15 @@ type SimEngineStatus struct {
 
 // SimEngine is the SimulationCraft program the app installed: its file name (the nightly's, or the owner's own
 // simc.exe), the version and game patch it printed, when it was built (ms since the epoch; the owner's file's date)
-// and its size.
+// its size, and when it was last put in place (installed or updated, ms since the epoch: an update to the same build
+// moves this, not the build time).
 type SimEngine struct {
 	Installed bool   `json:"installed"`
 	File      string `json:"file,omitempty" example:"simc-1210.01.73a372b-win64.7z"`
 	Version   string `json:"version,omitempty" example:"1210-01"`
 	Patch     string `json:"patch,omitempty" example:"12.1.5.70529"`
 	BuiltMS   int64  `json:"builtMS,omitempty"`
+	UpdatedMS int64  `json:"updatedMS,omitempty"`
 	Size      int64  `json:"size,omitempty"`
 }
 

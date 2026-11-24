@@ -148,22 +148,24 @@ func TestTopGearWeaponsEmptyOrFillTheOffHand(t *testing.T) {
 func TestTopGearRefusesOverTheCap(t *testing.T) {
 	p := models.SimProfile{Equipped: []models.SimItem{gearItem("head", 1), gearItem("neck", 2)}}
 	var picked []int
-	for i := range 25 { // 25 heads by 20 necks make exactly maxCombos
+	const necks = 20
+	heads := maxCombos / necks // heads by necks make exactly maxCombos
+	for i := range heads {
 		p.Bags = append(p.Bags, gearItem("head", 100+i))
 		picked = append(picked, i)
 	}
-	for i := range 20 {
-		p.Bags = append(p.Bags, gearItem("neck", 200+i))
-		picked = append(picked, 25+i)
+	for i := range necks {
+		p.Bags = append(p.Bags, gearItem("neck", 2000+i))
+		picked = append(picked, heads+i)
 	}
 	if combos, err := topGearCombos(p, nil, picked, nil, false, twoHanders(t)); err != nil || len(combos) != maxCombos {
-		t.Fatalf("25 heads by 20 necks: %d combos, %v; want %d", len(combos), err, maxCombos)
+		t.Fatalf("%d heads by %d necks: %d combos, %v; want %d", heads, necks, len(combos), err, maxCombos)
 	}
-	p.Bags = append(p.Bags, gearItem("head", 130))
+	p.Bags = append(p.Bags, gearItem("head", 1999))
 	if combos, err := topGearCombos(p, nil, append(picked, len(p.Bags)-1), nil, false, twoHanders(t)); !errors.Is(err,
 		ErrBadSimOptions) ||
 		combos != nil {
-		t.Errorf("26 heads by 20 necks: %d combos, %v; want refused, not cut", len(combos), err)
+		t.Errorf("one head too many: %d combos, %v; want refused, not cut", len(combos), err)
 	}
 	if groups, _ := gearGroups(p, nil, append(picked, len(p.Bags)-1), nil, twoHanders(t)); comboCount(groups, 50) != 50 {
 		t.Errorf("comboCount of over maxCombos combinations = %d, want it to stop at the limit", comboCount(groups, 50))

@@ -6804,12 +6804,12 @@ const docTemplate = `{
                 "maxCombos": {
                     "description": "MaxCombos is the most gear combinations a Top Gear sim runs; a request over it is refused.",
                     "type": "integer",
-                    "example": 500
+                    "example": 1000
                 },
                 "maxCompare": {
                     "description": "MaxCompare is the most combinations of compared consumables one sim runs.",
                     "type": "integer",
-                    "example": 200
+                    "example": 1000
                 },
                 "maxDrops": {
                     "description": "MaxDrops is the most drops a Droptimizer sims.",
@@ -6823,6 +6823,11 @@ const docTemplate = `{
                 },
                 "maxLength": {
                     "type": "integer"
+                },
+                "maxParallel": {
+                    "description": "MaxParallel is how many sims run at once (they share the PC); starting one more is refused.",
+                    "type": "integer",
+                    "example": 4
                 },
                 "maxTargets": {
                     "type": "integer"
@@ -6950,6 +6955,9 @@ const docTemplate = `{
                 },
                 "stale": {
                     "type": "boolean"
+                },
+                "updatedMS": {
+                    "type": "integer"
                 },
                 "version": {
                     "type": "string",

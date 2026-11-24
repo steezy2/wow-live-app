@@ -90,13 +90,14 @@ func run(ctx context.Context, exe string, args []string, out io.Writer) error {
 // Installed is the engine in Dir; its Installed is false until Install or UseFile has run.
 func (c Client) Installed() models.SimEngine {
 	var e models.SimEngine
-	if _, err := os.Stat(c.Path()); err != nil {
+	info, err := os.Stat(c.Path())
+	if err != nil {
 		return e
 	}
 	if data, err := os.ReadFile(c.infoPath()); err == nil {
 		_ = json.Unmarshal(data, &e)
 	}
-	e.Installed = true
+	e.Installed, e.UpdatedMS = true, info.ModTime().UnixMilli() // the file is new each time it is installed or updated
 	return e
 }
 

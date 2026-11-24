@@ -28,8 +28,13 @@ import (
 )
 
 const (
-	// simTimeout ends a sim that runs this long (a 300-drop Droptimizer takes minutes on a slow PC).
-	simTimeout = 30 * time.Minute
+	// simTimeout ends a sim that runs this long (a 1000-combination Top Gear takes a quarter of an hour on a fast PC,
+	// and several sims at once share it).
+	simTimeout = 2 * time.Hour
+	// maxParallelSims is how many sims run at once; they share the PC, so each takes longer.
+	maxParallelSims = 4
+	// keepEnded is how many sims that ended without a result to save (failed or cancelled) the page can still read.
+	keepEnded = 10
 	// engineStaleDays is how old the installed simc may be before the page warns: each patch makes an older build wrong.
 	engineStaleDays = 14
 	// maxSimIterations caps a sim whatever its accuracy asks for.
@@ -46,7 +51,7 @@ const (
 
 var (
 	// ErrSimBusy is a sim or an engine download asked for while another runs.
-	ErrSimBusy = errors.New("a sim or the engine download is already running")
+	ErrSimBusy = errors.New("the engine is downloading, or as many sims as can run at once already are")
 	// ErrNoEngine is a sim asked for before the engine was downloaded.
 	ErrNoEngine = errors.New("download the SimulationCraft engine first")
 	// ErrBadSimOptions is a sim request with a kind or options outside SimChoices.
@@ -85,8 +90,8 @@ type ItemTypes interface {
 	TwoHanded(ctx context.Context, id int) (bool, error)
 }
 
-// Sims runs sims on this PC one at a time with the downloaded SimulationCraft and keeps the finished ones in Dir,
-// gzipped, until they are KeepDays old.
+// Sims runs sims on this PC, up to maxParallelSims at once, with the downloaded SimulationCraft and keeps the finished
+// ones in Dir, gzipped, until they are KeepDays old.
 type Sims struct {
 	Engine SimEngineSource
 	Items  ItemTypes
@@ -100,15 +105,15 @@ type Sims struct {
 	Now      func() time.Time
 	Ctx      context.Context // the app's: canceled on Quit, which stops a running sim and download
 
-	work       sync.WaitGroup // the running sim and download, for Wait
+	work       sync.WaitGroup // the running sims and download, for Wait
 	mu         sync.Mutex
-	run        *simRun     // the sim running now
-	last       *models.Sim // the last sim that ended without a result to save (failed or cancelled), for the page's poll
+	runs       map[string]*simRun    // the sims running now, by ID
+	ended      map[string]models.Sim // the last keepEnded sims that ended without a result to save, for the page's poll
 	installing bool
 	installErr string
 }
 
-// simRun is the sim running: what the page sees of it and how to stop it.
+// simRun is a sim running: what the page sees of it and how to stop it.
 type simRun struct {
 	sim    models.Sim
 	cancel context.CancelFunc
@@ -134,6 +139,7 @@ func (s *Sims) Choices() models.SimChoices {
 	}
 	return models.SimChoices{FightStyles: simFightStyles, Accuracies: accuracies, MinLength: minSimLength,
 		MaxLength: maxSimLength, MaxTargets: maxSimTargets, MaxCombos: maxCombos, MaxCompare: maxCompareValues,
+		MaxParallel:     maxParallelSims,
 		ConsumableKinds: models.SimConsumableKinds, MaxDrops: maxDrops,
 		Difficulties: simDifficulties, KeyLevels: keyLevels, Defaults: simDefaults,
 		DefaultDifficulty: defaultDropDifficulty, DefaultKeyLevel: defaultKey, GearGroups: slices.Compact(groups),
@@ -175,7 +181,7 @@ func (s *Sims) EngineStatus() models.SimEngineStatus {
 func (s *Sims) InstallEngine(path string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.run != nil || s.installing {
+	if len(s.runs) > 0 || s.installing {
 		return ErrSimBusy
 	}
 	s.installing, s.installErr = true, ""
@@ -360,7 +366,7 @@ func (s *Sims) Start(req models.SimRequest) (models.Sim, error) {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.run != nil || s.installing {
+	if len(s.runs) >= maxParallelSims || s.installing {
 		return models.Sim{}, ErrSimBusy
 	}
 	id, err := newSimID()
@@ -379,8 +385,11 @@ func (s *Sims) Start(req models.SimRequest) (models.Sim, error) {
 	ctx, cancel := context.WithTimeout(s.Ctx, simTimeout)
 	sim := models.Sim{ID: id, Kind: req.Kind, State: models.SimRunning, Character: profile.Name, Spec: profile.Spec,
 		Options: req.Options, StartedMS: s.Now().UnixMilli()}
-	s.run, s.last = &simRun{sim: sim, cancel: cancel}, nil
-	s.work.Go(func() { s.execute(ctx, input, output, combos, profile.Equipped) })
+	if s.runs == nil {
+		s.runs = map[string]*simRun{}
+	}
+	s.runs[id] = &simRun{sim: sim, cancel: cancel}
+	s.work.Go(func() { s.execute(ctx, id, input, output, combos, profile.Equipped) })
 	return sim, nil
 }
 
@@ -407,18 +416,18 @@ func simTargetError(o models.SimOptions, profilesets bool) float64 {
 // simThreads is how many threads a sim runs on: all but one, so the PC stays usable.
 func simThreads() int { return max(1, runtime.NumCPU()-1) }
 
-// execute runs simc for the running sim, following its progress, and saves what it found.
-func (s *Sims) execute(ctx context.Context, input, output string, combos []gearCombo, equipped []models.SimItem) {
+// execute runs simc for the running sim with this ID, following its progress, and saves what it found.
+func (s *Sims) execute(ctx context.Context, id, input, output string, combos []gearCombo, equipped []models.SimItem) {
 	defer func() {
 		os.Remove(input)
 		os.Remove(output)
 	}()
 	s.mu.Lock()
-	sim := s.run.sim
+	sim := s.runs[id].sim
 	s.mu.Unlock()
 	pr, pw := io.Pipe()
 	said := make(chan string)
-	go func() { said <- s.follow(pr) }()
+	go func() { said <- s.follow(pr, id) }()
 	runErr := s.Engine.Run(ctx, simArgs(input, output, sim.Options, len(combos) > 0), pw)
 	pw.Close()
 	complaint := <-said
@@ -430,7 +439,7 @@ func (s *Sims) execute(ctx context.Context, input, output string, combos []gearC
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	sim = s.run.sim
+	sim = s.runs[id].sim
 	sim.TookMS = s.Now().UnixMilli() - sim.StartedMS
 	switch {
 	case errors.Is(ctx.Err(), context.Canceled):
@@ -454,15 +463,34 @@ func (s *Sims) execute(ctx context.Context, input, output string, combos []gearC
 			s.prune()
 		}
 	}
-	s.run.cancel()
-	s.run, s.last = nil, nil
+	s.runs[id].cancel()
+	delete(s.runs, id)
 	if sim.State != models.SimDone {
-		s.last = &sim
+		s.keepEnded(sim)
 	}
 }
 
-// follow reads simc's output, updating the running sim's progress, and returns the last error line it printed.
-func (s *Sims) follow(r io.Reader) string {
+// keepEnded remembers a sim that ended without a result to save, so the page can read why, and forgets the oldest ones
+// past keepEnded. The caller holds s.mu.
+func (s *Sims) keepEnded(sim models.Sim) {
+	if s.ended == nil {
+		s.ended = map[string]models.Sim{}
+	}
+	s.ended[sim.ID] = sim
+	for len(s.ended) > keepEnded {
+		oldest := ""
+		for id, e := range s.ended {
+			if oldest == "" || e.StartedMS < s.ended[oldest].StartedMS {
+				oldest = id
+			}
+		}
+		delete(s.ended, oldest)
+	}
+}
+
+// follow reads simc's output, updating the progress of the running sim with this ID, and returns the last error line
+// it printed.
+func (s *Sims) follow(r io.Reader, id string) string {
 	var complaint string
 	scan := bufio.NewScanner(r)
 	scan.Split(splitProgress)
@@ -470,8 +498,8 @@ func (s *Sims) follow(r io.Reader) string {
 		line := scan.Text()
 		if p, ok := parseSimProgress(line); ok {
 			s.mu.Lock()
-			if s.run != nil {
-				s.run.sim.Progress = p
+			if run := s.runs[id]; run != nil {
+				run.sim.Progress = p
 			}
 			s.mu.Unlock()
 		} else if strings.HasPrefix(line, "Error") {
@@ -591,16 +619,16 @@ func readSimResult(path string, combos []gearCombo) (*models.SimResult, error) {
 	return result, nil
 }
 
-// Get is the sim with this ID: the running one with its progress, the last one that failed or was cancelled, or a
+// Get is the sim with this ID: a running one with its progress, one of the last that failed or were cancelled, or a
 // saved one; fs.ErrNotExist for any other.
 func (s *Sims) Get(id string) (models.Sim, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	switch {
-	case s.run != nil && s.run.sim.ID == id:
-		return s.run.sim, nil
-	case s.last != nil && s.last.ID == id:
-		return *s.last, nil
+	if run := s.runs[id]; run != nil {
+		return run.sim, nil
+	}
+	if sim, ok := s.ended[id]; ok {
+		return sim, nil
 	}
 	return s.read(id)
 }
@@ -637,7 +665,7 @@ func (s *Sims) removeSaved(id string) (bool, error) {
 	return found, nil
 }
 
-// List is the running sim, then the saved ones, newest first, without their results.
+// List is the running sims, then the saved ones, newest first, without their results.
 func (s *Sims) List() ([]models.Sim, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -646,9 +674,10 @@ func (s *Sims) List() ([]models.Sim, error) {
 		return nil, err
 	}
 	list := []models.Sim{}
-	if s.run != nil {
-		list = append(list, s.run.sim)
+	for _, run := range s.runs {
+		list = append(list, run.sim)
 	}
+	slices.SortFunc(list, func(a, b models.Sim) int { return cmp.Compare(b.StartedMS, a.StartedMS) })
 	for _, sim := range saved {
 		if sim.Result != nil {
 			sim.DPS, sim.Result = sim.Result.DPS, nil
@@ -695,16 +724,17 @@ func (s *Sims) prune() {
 	}
 }
 
-// Remove stops the running sim with this ID, or deletes the saved one; fs.ErrNotExist for any other.
+// Remove stops the running sim with this ID, forgets the failed or cancelled one, or deletes the saved one;
+// fs.ErrNotExist for any other.
 func (s *Sims) Remove(id string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.run != nil && s.run.sim.ID == id {
-		s.run.cancel()
+	if run := s.runs[id]; run != nil {
+		run.cancel()
 		return nil
 	}
-	if s.last != nil && s.last.ID == id {
-		s.last = nil
+	if _, ok := s.ended[id]; ok {
+		delete(s.ended, id)
 		return nil
 	}
 	if !simIDPattern.MatchString(id) {
