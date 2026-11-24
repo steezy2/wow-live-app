@@ -12,6 +12,8 @@ const FOLDER_LABELS: Record<Storage['folders'][number]['name'], string> = {
   raidPulls: 'Saved raid pulls',
   wclImport: 'Warcraft Logs imports',
   archive: 'Archived game logs',
+  simEngine: 'Sim engine (SimulationCraft)',
+  sims: 'Saved sims',
   gameLogs: "The game's combat logs",
 }
 

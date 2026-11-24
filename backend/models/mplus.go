@@ -778,8 +778,8 @@ type Storage struct {
 }
 
 // StorageFolder is one folder's size: the saved keys, the saved raid pulls, the Warcraft Logs imports, the archived
-// combat logs, or the game's combat logs (only WoWCombatLog files).
+// combat logs, the SimulationCraft engine, the saved sims, or the game's combat logs (only WoWCombatLog files).
 type StorageFolder struct {
-	Name  string `json:"name" enums:"localKeys,raidPulls,wclImport,archive,gameLogs"`
+	Name  string `json:"name" enums:"localKeys,raidPulls,wclImport,archive,simEngine,sims,gameLogs"`
 	Bytes int64  `json:"bytes"`
 }

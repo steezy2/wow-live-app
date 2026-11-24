@@ -348,6 +348,7 @@ func run() error {
 			}
 		}
 	}()
+	defer site.Sims.Wait() // Run cancels ctx as it returns; simc is only killed once the sim sees that
 	return wails.Run()
 }
 

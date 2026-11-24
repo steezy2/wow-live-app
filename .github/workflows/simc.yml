@@ -1,0 +1,109 @@
+# Keeps the SimulationCraft engine the app's Sim tab downloads: weekly, takes the newest official Windows nightly from
+# simulationcraft/simc-publish's Actions artifacts (HTTPS, checked against the sha256 GitHub lists for the artifact),
+# runs it once, and publishes simc.exe and engine.json (its sha256, source file and build time) on the release tagged
+# simc-engine. The app (backend/clients/simc) installs from that release and checks the sha256 itself, which catches a
+# broken download, not a swapped file (both come from the same release). Nothing is published when a step fails, so the
+# last good engine stays. Only runs on main: a release made from another branch would be a way to put a different
+# program in front of every user. The job that runs simc.exe holds no token that can write; the one that publishes
+# never runs it.
+name: SimulationCraft engine
+
+on:
+  schedule:
+    - cron: "0 12 * * 3" # Wednesdays, after the weekly hotfixes
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  check:
+    if: github.ref == 'refs/heads/main'
+    runs-on: windows-latest
+    timeout-minutes: 20
+    permissions:
+      actions: read # simc-publish's artifacts
+    defaults:
+      run:
+        shell: bash
+    env:
+      GH_REPO: ${{ github.repository }} # there is no checkout for gh to read the repo from
+    outputs:
+      skip: ${{ steps.skip.outputs.skip }}
+    steps:
+      - name: Newest official Windows nightly
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api 'repos/simulationcraft/simc-publish/actions/artifacts?per_page=30' --jq '
+            [.artifacts[] | select((.name | startswith("simc-nightly-win64")) and (.expired | not))][0]' > artifact.json
+          id=$(jq -r .id artifact.json)
+          [ "$id" != null ] || { echo "no unexpired simc-nightly-win64 artifact"; exit 1; }
+          gh api "repos/simulationcraft/simc-publish/actions/artifacts/$id/zip" > artifact.zip
+          want=$(jq -r '.digest | ltrimstr("sha256:")' artifact.json)
+          got=$(sha256sum artifact.zip | cut -d' ' -f1)
+          [ "$want" = "$got" ] || { echo "artifact sha256 $got is not GitHub's $want"; exit 1; }
+          7z x -oartifact artifact.zip > /dev/null
+          7z x -onightly artifact/simc-*-win64.7z > /dev/null
+          file=$(basename artifact/simc-*-win64.7z)
+          echo "file=$file" >> "$GITHUB_ENV"
+          echo "built=$(date -d "$(jq -r .created_at artifact.json)" +%s)000" >> "$GITHUB_ENV"
+      - name: Skip when the release already has it
+        id: skip
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          current=$(gh release download simc-engine --pattern engine.json --output - 2>/dev/null \
+            | jq -r 'select((.version // "") != "") | .file' || true) # a release without a version is published again
+          if [ "$current" = "$file" ]; then echo "skip=true" >> "$GITHUB_OUTPUT"; echo "$file is already published"; fi
+      - name: Check it runs
+        if: steps.skip.outputs.skip != 'true'
+        run: |
+          exe=$(find nightly -name simc.exe | head -1)
+          [ -n "$exe" ] || { echo "no simc.exe in $file"; exit 1; }
+          cp "$exe" simc.exe
+          ./simc.exe 2>&1 | tee banner.txt || true
+          # The same line as banner in backend/clients/simc/simc.go: change both together.
+          grep -q 'SimulationCraft .* for World of Warcraft' banner.txt
+          version=$(sed -n 's/.*SimulationCraft \([^ ]*\) for World of Warcraft.*/\1/p' banner.txt | head -1)
+          patch=$(sed -n 's/.*for World of Warcraft \([^ ]*\).*/\1/p' banner.txt | head -1)
+          sum=$(sha256sum simc.exe | cut -d' ' -f1)
+          jq -n --arg file "$file" --argjson built "$built" --arg sha "$sum" --arg version "$version" \
+            --arg patch "$patch" '{file: $file, builtMS: $built, sha256: $sha, version: $version, patch: $patch}' > engine.json
+      - if: steps.skip.outputs.skip != 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: simc-engine
+          path: |
+            simc.exe
+            engine.json
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    needs: check
+    if: needs.check.outputs.skip != 'true'
+    runs-on: ubuntu-latest # simc.exe is only uploaded here, never run
+    timeout-minutes: 10
+    permissions:
+      contents: write # only this job can change the release
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: simc-engine
+      - name: Publish
+        run: |
+          file=$(jq -r .file engine.json)
+          sum=$(jq -r .sha256 engine.json)
+          commit=${file%-win64.7z}; commit=${commit##*.}
+          notes="SimulationCraft nightly \`$file\` (source: https://github.com/simulationcraft/simc/commit/$commit), unchanged,"
+          notes="$notes from simulationcraft/simc-publish's Actions artifact, whose sha256 matched GitHub's. GPL-3.0."
+          notes="$notes sha256 of simc.exe: \`$sum\`."
+          gh release view simc-engine > /dev/null 2>&1 || gh release create simc-engine --latest=false \
+            --title "SimulationCraft engine" --notes "$notes" --target "$GITHUB_SHA"
+          gh release edit simc-engine --notes "$notes" --latest=false
+          # The two files are replaced one after the other: an app installing in between gets a sha256 mismatch and
+          # keeps its engine, and the next try works.
+          gh release upload simc-engine simc.exe engine.json --clobber

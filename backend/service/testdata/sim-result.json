@@ -1,0 +1,141 @@
+{
+ "version": "1210-01",
+ "sim": {
+  "players": [
+   {
+    "name": "Test",
+    "collected_data": {
+     "dps": {
+      "mean": 234030.3462604821,
+      "mean_std_dev": 117.78686396741851
+     }
+    },
+    "stats": [
+     {
+      "id": 1310088,
+      "spell_name": "Acidbrood Scourge",
+      "name": "acidbrood_scourge",
+      "school": "nature",
+      "num_executes": {
+       "mean": 24.592867068087077
+      },
+      "actual_amount": {
+       "mean": 261163.11208336233
+      },
+      "portion_aps": {
+       "mean": 872.7246607959781
+      },
+      "portion_amount": 0.0037283496229606116
+     },
+     {
+      "id": 1264426,
+      "spell_name": "Void-Touched",
+      "name": "augmentation",
+      "num_executes": {
+       "mean": 1.0
+      }
+     },
+     {
+      "id": 190319,
+      "spell_name": "Combustion",
+      "name": "combustion",
+      "school": "fire",
+      "num_executes": {
+       "mean": 5.076192681797128
+      }
+     },
+     {
+      "id": 108853,
+      "spell_name": "Fire Blast",
+      "name": "fire_blast",
+      "school": "fire",
+      "num_executes": {
+       "mean": 115.70889300602131
+      },
+      "actual_amount": {
+       "mean": 3467487.559283725
+      },
+      "portion_aps": {
+       "mean": 11583.970977023911
+      },
+      "portion_amount": 0.0495016537027232
+     },
+     {
+      "id": 133,
+      "spell_name": "Fireball",
+      "name": "fireball",
+      "school": "fire",
+      "num_executes": {
+       "mean": 46.02014821676702
+      },
+      "actual_amount": {
+       "mean": 2030441.933462517
+      },
+      "portion_aps": {
+       "mean": 6787.969265659503
+      },
+      "portion_amount": 0.028986472693938534
+     },
+     {
+      "id": 1235057,
+      "spell_name": "Flask of Thalassian Resistance",
+      "name": "flask",
+      "num_executes": {
+       "mean": 1.0
+      }
+     }
+    ],
+    "buffs": [
+     {
+      "name": "akilzons_rite",
+      "spell_name": "Akil'zon's Rite",
+      "spell": 1297664,
+      "uptime": 20.927347334974556
+     },
+     {
+      "name": "arcanoweave_insight",
+      "spell_name": "Arcanoweave Insight",
+      "spell": 1229746,
+      "uptime": 52.54582004988086
+     },
+     {
+      "name": "bloodlust",
+      "spell_name": "Bloodlust",
+      "spell": 2825,
+      "uptime": 13.542216688864723
+     },
+     {
+      "name": "brainstorm",
+      "spell_name": "Brainstorm",
+      "spell": 461531,
+      "uptime": 96.99297227247965
+     },
+     {
+      "name": "combustion",
+      "spell_name": "Combustion",
+      "spell": 190319,
+      "uptime": 23.358049347193028
+     },
+     {
+      "name": "critical_ritual",
+      "spell_name": "Critical Ritual",
+      "spell": 1295899,
+      "uptime": 18.695899349569828
+     },
+     {
+      "name": "debilitating_venom_Crit",
+      "spell_name": "Debilitating Venom",
+      "spell": 1295123,
+      "uptime": 2.613275142972688
+     },
+     {
+      "name": "debilitating_venom_Haste",
+      "spell_name": "Debilitating Venom",
+      "spell": 1295123,
+      "uptime": 2.659676273228269
+     }
+    ]
+   }
+  ]
+ }
+}

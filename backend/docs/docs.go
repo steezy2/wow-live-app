@@ -2200,6 +2200,279 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/sim": {
+            "get": {
+                "description": "Newest first, the last 20, without their results.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "sim"
+                ],
+                "summary": "The running sim and the saved ones",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.Sim"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "Runs SimulationCraft on this PC in the background, one at a time: the pasted export (read again,\nnever passed to simc as it is) with the options. Poll the sim by its ID.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "sim"
+                ],
+                "summary": "Start a sim",
+                "parameters": [
+                    {
+                        "description": "the kind, the export and the options",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/models.SimRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "$ref": "#/definitions/models.Sim"
+                        }
+                    },
+                    "400": {
+                        "description": "options outside the choices, or not an export",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "a sim or a download is running, or no engine is installed",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/sim/choices": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "sim"
+                ],
+                "summary": "The options a sim can run with",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.SimChoices"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/sim/engine": {
+            "get": {
+                "description": "Its version, game patch and build time, whether a download runs or failed, and whether the build is\nold enough that a patch has probably made it wrong.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "sim"
+                ],
+                "summary": "Whether the SimulationCraft engine is installed",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.SimEngineStatus"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "description": "With no body, downloads the newest simc.exe (about 116 MB) from this app's own GitHub release over\nHTTPS, checked against the sha256 in the release's engine.json (which catches a broken download, not a\nswapped file: both come from the same release); the release is rebuilt weekly from SimulationCraft's\nofficial nightly. With a path, copies that simc.exe instead. Runs in the background: poll the engine's\nstatus.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "sim"
+                ],
+                "summary": "Download or update the SimulationCraft engine, or use one the owner has",
+                "parameters": [
+                    {
+                        "description": "the path of a simc.exe to use",
+                        "name": "body",
+                        "in": "body",
+                        "schema": {
+                            "$ref": "#/definitions/controller.SimEngineFile"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "$ref": "#/definitions/models.SimEngineStatus"
+                        }
+                    },
+                    "400": {
+                        "description": "a body that isn't {\"path\": ...}",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "a sim or an install is running",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/sim/profile": {
+            "post": {
+                "description": "The character, talents, equipped gear and carried gear in the export, so the page can show them.\nNothing is run or kept.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "sim"
+                ],
+                "summary": "Read a pasted SimulationCraft addon export",
+                "parameters": [
+                    {
+                        "description": "the text of /simc",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/controller.SimExport"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.SimProfile"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/sim/{id}": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "sim"
+                ],
+                "summary": "One sim: its progress while it runs, then its result",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "the sim's ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.Sim"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "tags": [
+                    "sim"
+                ],
+                "summary": "Stop a running sim, or delete a saved one",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "the sim's ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/api/spells": {
             "get": {
                 "description": "The ability's description and cooldown, from Wowhead's tooltip (cached a week) for the spell ID\ngiven, else for the one the combat log gave its name. 404 for an ability the log hasn't shown since\nthe app started or a spell ID no dungeon mob casts, 502 when Wowhead can't be reached.",
@@ -2407,6 +2680,26 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "name": {
+                    "type": "string"
+                }
+            }
+        },
+        "controller.SimEngineFile": {
+            "type": "object",
+            "properties": {
+                "path": {
+                    "type": "string",
+                    "example": "C:/Tools/simc/simc.exe"
+                }
+            }
+        },
+        "controller.SimExport": {
+            "type": "object",
+            "required": [
+                "export"
+            ],
+            "properties": {
+                "export": {
                     "type": "string"
                 }
             }
@@ -6246,6 +6539,309 @@ const docTemplate = `{
                 }
             }
         },
+        "models.Sim": {
+            "type": "object",
+            "properties": {
+                "character": {
+                    "type": "string",
+                    "example": "Steezy"
+                },
+                "error": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "9f3a1c5e7b2d4a60"
+                },
+                "kind": {
+                    "type": "string",
+                    "enum": [
+                        "quick"
+                    ]
+                },
+                "options": {
+                    "$ref": "#/definitions/models.SimOptions"
+                },
+                "progress": {
+                    "type": "integer"
+                },
+                "result": {
+                    "$ref": "#/definitions/models.SimResult"
+                },
+                "spec": {
+                    "type": "string",
+                    "example": "elemental"
+                },
+                "startedMS": {
+                    "type": "integer"
+                },
+                "state": {
+                    "type": "string",
+                    "enum": [
+                        "running",
+                        "done",
+                        "failed",
+                        "cancelled"
+                    ]
+                },
+                "tookMS": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.SimAbility": {
+            "type": "object",
+            "properties": {
+                "casts": {
+                    "type": "number"
+                },
+                "dps": {
+                    "type": "number"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "perCast": {
+                    "type": "number"
+                },
+                "school": {
+                    "type": "string"
+                },
+                "share": {
+                    "type": "number"
+                }
+            }
+        },
+        "models.SimBuff": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "uptime": {
+                    "type": "number"
+                }
+            }
+        },
+        "models.SimChoices": {
+            "type": "object",
+            "properties": {
+                "accuracies": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "defaults": {
+                    "$ref": "#/definitions/models.SimOptions"
+                },
+                "fightStyles": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "maxLength": {
+                    "type": "integer"
+                },
+                "maxTargets": {
+                    "type": "integer"
+                },
+                "minLength": {
+                    "type": "integer"
+                }
+            }
+        },
+        "models.SimEngineStatus": {
+            "type": "object",
+            "properties": {
+                "builtMS": {
+                    "type": "integer"
+                },
+                "error": {
+                    "type": "string"
+                },
+                "file": {
+                    "type": "string",
+                    "example": "simc-1210.01.73a372b-win64.7z"
+                },
+                "installed": {
+                    "type": "boolean"
+                },
+                "installing": {
+                    "type": "boolean"
+                },
+                "patch": {
+                    "type": "string",
+                    "example": "12.1.5.70529"
+                },
+                "size": {
+                    "type": "integer"
+                },
+                "stale": {
+                    "type": "boolean"
+                },
+                "version": {
+                    "type": "string",
+                    "example": "1210-01"
+                }
+            }
+        },
+        "models.SimItem": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "level": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "opts": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                            "type": "integer"
+                        }
+                    }
+                },
+                "slot": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.SimOptions": {
+            "type": "object",
+            "properties": {
+                "accuracy": {
+                    "type": "string",
+                    "example": "normal"
+                },
+                "fightStyle": {
+                    "type": "string",
+                    "example": "Patchwerk"
+                },
+                "length": {
+                    "type": "integer",
+                    "example": 300
+                },
+                "targets": {
+                    "type": "integer",
+                    "example": 1
+                }
+            }
+        },
+        "models.SimProfile": {
+            "type": "object",
+            "properties": {
+                "bags": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.SimItem"
+                    }
+                },
+                "class": {
+                    "type": "string",
+                    "example": "shaman"
+                },
+                "equipped": {
+                    "description": "Equipped is what the character wears, and Bags the other gear they carry (each in the export's order).",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.SimItem"
+                    }
+                },
+                "level": {
+                    "type": "integer",
+                    "example": 90
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Steezy"
+                },
+                "omnium": {
+                    "type": "string"
+                },
+                "professions": {
+                    "description": "Professions is the export's \"enchanting=26/jewelcrafting=1\", and Omnium its omnium_talents, kept as written.",
+                    "type": "string"
+                },
+                "race": {
+                    "type": "string",
+                    "example": "dwarf"
+                },
+                "region": {
+                    "type": "string",
+                    "example": "us"
+                },
+                "role": {
+                    "type": "string",
+                    "example": "spell"
+                },
+                "server": {
+                    "type": "string",
+                    "example": "sargeras"
+                },
+                "spec": {
+                    "type": "string",
+                    "example": "elemental"
+                },
+                "talents": {
+                    "type": "string"
+                }
+            }
+        },
+        "models.SimRequest": {
+            "type": "object",
+            "required": [
+                "export",
+                "kind"
+            ],
+            "properties": {
+                "export": {
+                    "type": "string"
+                },
+                "kind": {
+                    "type": "string",
+                    "example": "quick"
+                },
+                "options": {
+                    "$ref": "#/definitions/models.SimOptions"
+                }
+            }
+        },
+        "models.SimResult": {
+            "type": "object",
+            "properties": {
+                "abilities": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.SimAbility"
+                    }
+                },
+                "buffs": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.SimBuff"
+                    }
+                },
+                "dps": {
+                    "type": "number"
+                },
+                "dpsError": {
+                    "type": "number"
+                }
+            }
+        },
         "models.SpellInfo": {
             "type": "object",
             "properties": {
@@ -6304,6 +6900,8 @@ const docTemplate = `{
                         "raidPulls",
                         "wclImport",
                         "archive",
+                        "simEngine",
+                        "sims",
                         "gameLogs"
                     ]
                 }
