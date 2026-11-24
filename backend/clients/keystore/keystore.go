@@ -24,62 +24,55 @@ import (
 type Folder[T models.SavedFight[T]] struct {
 	Dir string
 	// Recent keeps the last tracks read, so opening a saved key's map, route and review doesn't decode a few MB each
-	// time; nil keeps none.
+	// time. Build a Folder with NewStore or NewPulls, which set it.
 	Recent *Recent
 }
 
 // Pulls is the folder of finished raid pulls.
 type Pulls = Folder[models.RaidPull]
 
+// NewPulls is the folder of the finished raid pulls in dir.
+func NewPulls(dir string) Pulls { return Pulls{Dir: dir, Recent: &Recent{}} }
+
 // recentTracks is how many decoded tracks a Recent keeps.
 const recentTracks = 2
 
-// Recent is the last few decoded tracks of a folder, by fight start, each good while its file keeps the time it had
+// Recent is the last few decoded tracks of a folder, newest first, each good while its file keeps the time it had
 // (another process may write the cache). A track read from it is shared: callers must not modify it.
 type Recent struct {
-	mu      sync.Mutex
-	starts  []int64 // newest first
-	written []time.Time
-	tracks  []models.KeyTrack
+	mu     sync.Mutex
+	tracks []recentTrack
+}
+
+type recentTrack struct {
+	start   int64
+	written time.Time
+	track   models.KeyTrack
 }
 
 func (r *Recent) get(start int64, written time.Time) (models.KeyTrack, bool) {
-	if r == nil {
-		return models.KeyTrack{}, false
-	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if i := slices.Index(r.starts, start); i >= 0 && r.written[i].Equal(written) {
-		return r.tracks[i], true
+	for _, t := range r.tracks {
+		if t.start == start && t.written.Equal(written) {
+			return t.track, true
+		}
 	}
 	return models.KeyTrack{}, false
 }
 
 func (r *Recent) put(start int64, written time.Time, track models.KeyTrack) {
-	if r == nil {
-		return
-	}
 	r.drop(start)
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.starts = append([]int64{start}, r.starts...)
-	r.written = append([]time.Time{written}, r.written...)
-	r.tracks = append([]models.KeyTrack{track}, r.tracks...)
-	if len(r.starts) > recentTracks {
-		r.starts, r.written, r.tracks = r.starts[:recentTracks], r.written[:recentTracks], r.tracks[:recentTracks]
-	}
+	r.tracks = slices.Insert(r.tracks, 0, recentTrack{start, written, track})
+	r.tracks = r.tracks[:min(len(r.tracks), recentTracks)]
 }
 
 func (r *Recent) drop(start int64) {
-	if r == nil {
-		return
-	}
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	if i := slices.Index(r.starts, start); i >= 0 {
-		r.starts, r.written = slices.Delete(r.starts, i, i+1), slices.Delete(r.written, i, i+1)
-		r.tracks = slices.Delete(r.tracks, i, i+1)
-	}
+	r.tracks = slices.DeleteFunc(r.tracks, func(t recentTrack) bool { return t.start == start })
 }
 
 // Save writes a fight, replacing an earlier copy of it; a slim fight, which would overwrite the whole one, is refused.
@@ -144,9 +137,12 @@ func (s Folder[T]) CompressTracks() (int, error) {
 		if err != nil {
 			return i, fmt.Errorf("reading the name of %s: %w", path, err)
 		}
-		track, err := cachefile.ReadJSON[models.KeyTrack](path)
-		if err == nil {
+		if _, statErr := os.Stat(s.trackPath(start)); statErr == nil { // saved again since: the plain copy is older
+			err = remove(path)
+		} else if track, readErr := cachefile.ReadJSON[models.KeyTrack](path); readErr == nil {
 			err = s.SaveTrack(start, track)
+		} else {
+			err = readErr
 		}
 		if err != nil && !errors.Is(err, os.ErrNotExist) {
 			return i, err

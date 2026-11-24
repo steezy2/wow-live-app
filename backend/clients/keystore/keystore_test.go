@@ -117,3 +117,24 @@ func TestSaveRefusesASlimKeyAndLoadReadsTheWholeOne(t *testing.T) {
 		t.Fatalf("Load of an unsaved key = %v", err)
 	}
 }
+
+func TestCompressKeepsATrackSavedSincePlain(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "local-keys")
+	s := NewStore(dir)
+	plain := filepath.Join(dir, "tracks", "100.json")
+	if err := cachefile.WriteJSON(plain, models.KeyTrack{Health: []string{"old"}}); err != nil {
+		t.Fatal(err)
+	}
+	if err := cachefile.WriteJSON(s.trackPath(100), models.KeyTrack{Health: []string{"new"}}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.CompressTracks(); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := s.Track(100); err != nil || got.Health[0] != "new" {
+		t.Fatalf("track = %+v, %v; want the newer gzipped one", got, err)
+	}
+	if _, err := os.Stat(plain); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("the older plain copy stays: %v", err)
+	}
+}

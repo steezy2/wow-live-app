@@ -163,6 +163,10 @@ func run() error {
 		wanted := show == "always" || show == "keys" && (running() || betweenPulls())
 		return moving.Load() || preview.Load() != "" || !hidden.Load() && wanted
 	}
+	overlayVisible := func() bool {
+		w := overlayWin.Load()
+		return w != nil && w.IsVisible()
+	}
 	showOrHide := func(show string) {
 		if up(show) {
 			newOverlay().Show()
@@ -234,7 +238,11 @@ func run() error {
 		w.SetBounds(application.Rect{X: area.X + area.Width - overlayW - overlayMargin, Y: area.Y + overlayMargin,
 			Width: overlayW, Height: overlayH})
 	}
-	wails.Event.On("overlay-reset", func(*application.CustomEvent) { defaultPlace(newOverlay()) })
+	wails.Event.On("overlay-reset", func(*application.CustomEvent) { // a window never shown has no place to reset
+		if w := overlayWin.Load(); w != nil {
+			defaultPlace(w)
+		}
+	})
 	// See-through takes WebView2's composition hosting without Wails' frameless decorations, and click-through
 	// switched on once the page is up: a window made click-through at creation is layered, which paints the page's
 	// transparent parts white (tried Nov 8).
@@ -335,7 +343,7 @@ func run() error {
 				hide.Stop()
 				hide, forRaid = nil, false
 				showOrHide(settings.Current().Overlay.Show)
-			case hide == nil && overlayWin.Load() != nil && overlayWin.Load().IsVisible():
+			case hide == nil && overlayVisible():
 				hide = time.AfterFunc(overlayLinger, func() { showOrHide(settings.Current().Overlay.Show) })
 			}
 		}

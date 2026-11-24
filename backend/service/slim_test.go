@@ -48,4 +48,8 @@ func TestSlimFightsAreWholeWhereAPageOrAFileNeedsThem(t *testing.T) {
 	if saved := pulls.pulls[len(pulls.pulls)-1]; saved.IsSlim() || len(saved.Abilities) == 0 || saved.Report == nil {
 		t.Fatalf("saved pull after linking = %+v; want the whole pull with its report", saved)
 	}
+	pulls.pulls = nil // the file is gone: a page says so, never shows a pull without its lists
+	if _, err := keys.RaidPull(pullStart); err == nil {
+		t.Fatal("a slim pull whose file can't be read was shown without its abilities")
+	}
 }
