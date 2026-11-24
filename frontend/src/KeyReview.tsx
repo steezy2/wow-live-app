@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { fetchReview, makeReview, type KeyReview as Review, type KeyView, type ReviewMetric } from './api'
+import { classColors } from './classColors'
 import { amount, errorText } from './format'
 import { Name } from './Seek'
 import { tip } from './tipAttrs'
@@ -102,7 +103,7 @@ export function KeyReview(props: { keyView: KeyView; justEnded: boolean; onRevie
           </thead>
           <tbody>
             {review.players.map((p) => (
-              <tr key={p.player}>
+              <tr key={p.player} style={{ color: classColors[classes[p.player]] }}>
                 <td {...tip(p.spec)}>
                   <Name player={p.player} classes={classes} />
                 </td>
