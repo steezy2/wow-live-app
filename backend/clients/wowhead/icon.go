@@ -17,7 +17,7 @@ import (
 const iconMaxAge = 30 * 24 * time.Hour
 
 // iconName is what a Wowhead icon's name looks like; one that isn't is never put in a URL or a file name.
-var iconName = regexp.MustCompile(`^[a-z0-9_]{1,80}$`)
+var iconName = regexp.MustCompile(`^[a-z0-9_-]{1,80}$`)
 
 // Icon is the image of a spell icon by its Wowhead name ("spell_nature_starfall"), downloaded once and kept in
 // CacheDir. The page can't load images from Wowhead itself, so the app serves them.

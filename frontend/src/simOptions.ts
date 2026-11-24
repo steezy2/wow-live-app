@@ -81,22 +81,26 @@ export const comparedCount = (c: SimConsumables): number =>
 export const omniumPicks = (text: string | undefined): number[] =>
   (text ?? '').split('/').flatMap((pair) => (/^\d+:\d+$/.test(pair) ? [Number(pair.split(':')[0])] : []))
 
-/** The picks as the export writes them, in the tree's node order, one entry to a node. */
+/** The picks as the app sends them, in the tree's node order and each node's entry order: the export's format, but a
+ * node can have several picks (they are compared). */
 export function omniumString(nodes: TalentNode[], picks: number[]): string {
   return [...nodes]
     .sort((a, b) => a.id - b.id)
-    .flatMap((n) => {
-      const entry = n.entries.find((e) => picks.includes(e.id))
-      return entry ? [`${entry.id}:1`] : []
-    })
+    .flatMap((n) => n.entries.filter((e) => picks.includes(e.id)).map((e) => `${e.id}:1`))
     .join('/')
 }
 
-/** The picks after clicking an entry: it is picked (replacing another of its node) or, when it was, unpicked. */
-export function togglePick(node: TalentNode, picks: number[], entry: number): number[] {
-  const others = picks.filter((p) => !node.entries.some((e) => e.id === p))
-  return picks.includes(entry) ? others : [...others, entry]
-}
+/** How many combinations the Omnium Folio's picks make: the product of the picks of each node with two or more (1 when
+ * nothing is compared). */
+export const omniumCompared = (nodes: TalentNode[], picks: number[]): number =>
+  nodes.reduce((n, node) => {
+    const here = node.entries.filter((e) => picks.includes(e.id)).length
+    return here > 1 ? n * here : n
+  }, 1)
+
+/** The picks after clicking an entry: it is picked as well as the others of its node, or unpicked when it was. */
+export const togglePick = (picks: number[], entry: number): number[] =>
+  picks.includes(entry) ? picks.filter((p) => p !== entry) : [...picks, entry]
 
 /** The distinct item IDs of items. */
 export const itemIDs = (items: SimItem[]): number[] => [...new Set(items.map((i) => i.id))]

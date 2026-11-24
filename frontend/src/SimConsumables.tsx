@@ -49,6 +49,14 @@ export function ConsumablesCard(props: {
             {labelOf(kind)} <span className="muted small">{pickText(picked(kind).length)}</span>
           </h3>
           <div className="sim-omnium-node">
+            <button
+              className={picked(kind).length === 0 ? 'sim-rune picked' : 'sim-rune'}
+              aria-pressed={picked(kind).length === 0}
+              onClick={() => onChange({ ...value, [kind]: [] })}
+              {...tip('What SimulationCraft assumes for your spec; pick nothing unless you want to try something else')}
+            >
+              <span className="small">SimC default</span>
+            </button>
             {reference.consumables[kind].map((c) => (
               <button
                 key={c.value}

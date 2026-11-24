@@ -100,7 +100,7 @@ type SimRequest struct {
 	// Consumables are what every kind of sim uses instead of simc's defaults, and what it compares.
 	Consumables SimConsumables `json:"consumables"`
 	// Omnium is the Omnium Folio's runes (entry:rank pairs, as the export writes them): nil keeps the export's, empty
-	// is none.
+	// is none. Two or more entries of a node are compared, as consumables are.
 	Omnium *string `json:"omnium,omitempty" example:"136822:1/136817:1"`
 }
 

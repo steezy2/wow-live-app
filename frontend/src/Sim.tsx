@@ -28,7 +28,7 @@ import { SimGear, SimHeader } from './SimGear'
 import { useItemInfo } from './simItems'
 import { usePlan } from './simPlan'
 import { SimResult } from './SimResult'
-import { comparedCount, omniumPicks, omniumString, simOptionsError } from './simOptions'
+import { comparedCount, omniumCompared, omniumPicks, omniumString, simOptionsError } from './simOptions'
 import { Skeleton } from './Skeleton'
 import { tip } from './tipAttrs'
 
@@ -338,7 +338,8 @@ export function SimPage() {
         }
       : undefined
   const planBlocks = kind === 'topgear' && (!!plan.error || !plan.plan || !!plan.plan.error)
-  const compareBlocks = comparedCount(consumables) > choices.maxCompare
+  const compareBlocks =
+    comparedCount(consumables) * omniumCompared(reference?.omnium ?? [], omnium) > choices.maxCompare
   return (
     <main className="page settings sim">
       <EngineBar engine={engine} busy={!!running} act={act} onEngine={setEngine} />

@@ -7265,7 +7265,7 @@ const docTemplate = `{
                     "type": "boolean"
                 },
                 "omnium": {
-                    "description": "Omnium is the Omnium Folio's runes (entry:rank pairs, as the export writes them): nil keeps the export's, empty\nis none.",
+                    "description": "Omnium is the Omnium Folio's runes (entry:rank pairs, as the export writes them): nil keeps the export's, empty\nis none. Two or more entries of a node are compared, as consumables are.",
                     "type": "string",
                     "example": "136822:1/136817:1"
                 },

@@ -226,7 +226,11 @@ func (s *Sims) Plan(req models.SimRequest) (models.SimPlan, error) {
 		return models.SimPlan{}, err
 	}
 	combos := comboCount(groups, maxPlanCombos)
-	values, err := compareCombos(s.Ref, req.Consumables)
+	dims, err := s.compared(req, &profile)
+	if err != nil {
+		return models.SimPlan{}, err
+	}
+	values, err := compareCombos(dims)
 	if err != nil {
 		return models.SimPlan{}, err
 	}
@@ -242,6 +246,23 @@ func (s *Sims) Plan(req models.SimRequest) (models.SimPlan, error) {
 // twoHanded asks Items whether the item is a two-handed weapon.
 func (s *Sims) twoHanded(id int) (bool, error) { return s.Items.TwoHanded(s.Ctx, id) }
 
+// compared are the things a request compares, the consumables with several values picked and then the Omnium Folio's
+// runes, and sets p's own Omnium picks to the ones the sim itself uses. ErrBadSimOptions for a bad pick.
+func (s *Sims) compared(req models.SimRequest, p *models.SimProfile) ([]compareDim, error) {
+	dims, err := consumableDims(s.Ref, req.Consumables)
+	if err != nil {
+		return nil, err
+	}
+	var omnium compareDim
+	if p.Omnium, omnium, err = omniumInput(s.Ref, *p, req.Omnium); err != nil {
+		return nil, err
+	}
+	if omnium != nil {
+		dims = append(dims, omnium)
+	}
+	return dims, nil
+}
+
 // Start parses the export and starts the sim in the background; poll Get. Errors: ErrBadSimOptions, ErrBadSimC,
 // ErrNoEngine, ErrSimBusy.
 func (s *Sims) Start(req models.SimRequest) (models.Sim, error) {
@@ -256,7 +277,8 @@ func (s *Sims) Start(req models.SimRequest) (models.Sim, error) {
 	if err != nil {
 		return models.Sim{}, err
 	}
-	if profile.Omnium, err = omniumInput(s.Ref, profile, req.Omnium); err != nil {
+	dims, err := s.compared(req, &profile)
+	if err != nil {
 		return models.Sim{}, err
 	}
 	var combos []gearCombo
@@ -276,7 +298,7 @@ func (s *Sims) Start(req models.SimRequest) (models.Sim, error) {
 		combos, err = dropCombos(profile, s.Drops, req.Difficulty, req.KeyLevel, upgrades)
 	}
 	if err == nil {
-		combos, err = withCompare(s.Ref, req.Consumables, req.Kind == "quick", combos, limit)
+		combos, err = withCompare(dims, req.Kind == "quick", combos, limit)
 	}
 	if err != nil {
 		return models.Sim{}, err

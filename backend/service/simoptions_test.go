@@ -109,11 +109,21 @@ func TestConsumableLines(t *testing.T) {
 	}
 }
 
+// dimsOf are the consumable kinds picked with two or more values, failing the test for a bad pick.
+func dimsOf(t *testing.T, ref models.SimReference, picked models.SimConsumables) []compareDim {
+	t.Helper()
+	dims, err := consumableDims(ref, picked)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return dims
+}
+
 func TestCompareCombos(t *testing.T) {
 	ref := testRef()
 	ref.Consumables["food"] = append(ref.Consumables["food"], models.SimConsumable{Value: "snack", Name: "Snack"})
-	combos, err := compareCombos(ref, models.SimConsumables{"flask": {"flask_b_2", "flask_a_2"},
-		"food": {"feast", "snack"}, "weapon": {"oil_2"}})
+	combos, err := compareCombos(dimsOf(t, ref, models.SimConsumables{"flask": {"flask_b_2", "flask_a_2"},
+		"food": {"feast", "snack"}, "weapon": {"oil_2"}}))
 	if err != nil || len(combos) != 4 {
 		t.Fatalf("compareCombos = %v, %v", combos, err)
 	}
@@ -125,7 +135,7 @@ func TestCompareCombos(t *testing.T) {
 	if got := combos[1].option; got.Name != "Flask B + Snack" || got.Value != "flask_b_2+snack" {
 		t.Errorf("second combination = %+v, want Flask B with the snack", got)
 	}
-	if got, err := compareCombos(ref, models.SimConsumables{"flask": {"flask_a_2"}}); err != nil || got != nil {
+	if got, err := compareCombos(dimsOf(t, ref, models.SimConsumables{"flask": {"flask_a_2"}})); err != nil || got != nil {
 		t.Errorf("one value is used as it is, not compared: %v, %v", got, err)
 	}
 }
@@ -138,14 +148,16 @@ func TestCompareCombosRefuse(t *testing.T) {
 		ref.Consumables["flask"] = append(ref.Consumables["flask"], models.SimConsumable{Value: v, Name: v})
 		many = append(many, v)
 	}
+	if _, err := compareCombos(dimsOf(t, ref, models.SimConsumables{"flask": many})); !errors.Is(err, ErrBadSimOptions) {
+		t.Errorf("too many combinations: err = %v, want ErrBadSimOptions", err)
+	}
 	for name, picked := range map[string]models.SimConsumables{
-		"too many combinations":   {"flask": many},
 		"an unknown kind":         {"ring": {"a", "b"}},
 		"a value twice":           {"flask": {"flask_a_2", "flask_b_2", "flask_a_2"}},
 		"a value of another kind": {"flask": {"flask_a_2", "feast"}},
 	} {
 		t.Run(name, func(t *testing.T) {
-			if _, err := compareCombos(ref, picked); !errors.Is(err, ErrBadSimOptions) {
+			if _, err := consumableDims(ref, picked); !errors.Is(err, ErrBadSimOptions) {
 				t.Errorf("err = %v, want ErrBadSimOptions", err)
 			}
 		})
@@ -155,7 +167,8 @@ func TestCompareCombosRefuse(t *testing.T) {
 func TestWithCompareRunsEachGearComboOncePerValue(t *testing.T) {
 	picked := models.SimConsumables{"flask": {"flask_b_2", "flask_a_2"}}
 	gear := []gearCombo{{name: "drop1", source: "Raid"}, {name: "drop2"}}
-	combos, err := withCompare(testRef(), picked, false, gear, 4)
+	dims := dimsOf(t, testRef(), picked)
+	combos, err := withCompare(dims, false, gear, 4)
 	if err != nil || len(combos) != 4 {
 		t.Fatalf("withCompare = %v, %v", combos, err)
 	}
@@ -167,14 +180,14 @@ func TestWithCompareRunsEachGearComboOncePerValue(t *testing.T) {
 	if c := combos[1]; c.consumable != "Flask A" || c.source != "Raid" || c.option != nil {
 		t.Errorf("second combo = %+v, want Raid's drop with Flask A", c)
 	}
-	if _, err := withCompare(testRef(), picked, false, gear, 3); !errors.Is(err, ErrBadSimOptions) {
+	if _, err := withCompare(dims, false, gear, 3); !errors.Is(err, ErrBadSimOptions) {
 		t.Errorf("over the limit: err = %v, want ErrBadSimOptions", err)
 	}
-	quick, err := withCompare(testRef(), picked, true, nil, 0)
+	quick, err := withCompare(dims, true, nil, 0)
 	if err != nil || len(quick) != 2 || quick[0].option == nil {
 		t.Errorf("a quick sim compares the values alone: %v, %v", quick, err)
 	}
-	if same, err := withCompare(testRef(), models.SimConsumables{"flask": {"flask_a_2"}}, false, gear, 4); err != nil ||
+	if same, err := withCompare(nil, false, gear, 4); err != nil ||
 		len(same) != 2 {
 		t.Errorf("nothing compared keeps the gear as it is: %v, %v", same, err)
 	}
@@ -203,18 +216,34 @@ func TestOmniumInput(t *testing.T) {
 		{"the export's when none is sent", nil, "11:1/21:1", false},
 		{"none when an empty one is sent", new(""), "", false},
 		{"a pick is kept in the tree's order", new("21:1/12:1"), "12:1/21:1", false},
-		{"two entries of a node", new("11:1/12:1"), "", true},
 		{"an entry of no node", new("99:1"), "", true},
 		{"not a pair", new("11"), "", true},
 		{"a rank other than 1", new("11:2"), "", true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := omniumInput(testRef(), p, tt.requested)
+			got, dim, err := omniumInput(testRef(), p, tt.requested)
+			if dim != nil {
+				t.Errorf("omniumInput compares %v, want no comparison for one pick to a node", dim)
+			}
 			if (err != nil) != tt.wantErr || got != tt.want || (err != nil && !errors.Is(err, ErrBadSimOptions)) {
 				t.Errorf("omniumInput = %q, %v, want %q (error %v)", got, err, tt.want, tt.wantErr)
 			}
 		})
+	}
+}
+
+func TestOmniumInputComparesSeveralPicksOfANode(t *testing.T) {
+	p := models.SimProfile{Omnium: "11:1/21:1"}
+	got, dim, err := omniumInput(testRef(), p, new("21:1/11:1/12:1"))
+	if err != nil || got != "11:1/21:1" || len(dim) != 2 {
+		t.Fatalf("omniumInput = %q, %v, %v, want the first pick of the node and two values", got, dim, err)
+	}
+	if dim[0].line != "omnium_talents=11:1/21:1\n" || dim[1].line != "omnium_talents=12:1/21:1\n" {
+		t.Errorf("lines = %q, %q", dim[0].line, dim[1].line)
+	}
+	if _, _, err := omniumInput(testRef(), p, new("11:1/11:1")); !errors.Is(err, ErrBadSimOptions) {
+		t.Errorf("a rune twice: err = %v, want ErrBadSimOptions", err)
 	}
 }
 
