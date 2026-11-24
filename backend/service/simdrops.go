@@ -61,8 +61,12 @@ func dropCombos(p models.SimProfile, d models.SimDrops, difficulty string, keyLe
 				if slot == "off_hand" && wearsTwoHander(worn) || len(slots) == 2 && pair != nil && pair.ID == item.ID {
 					continue
 				}
+				opts := map[string][]int{"ilevel": {level}}
+				if w := worn[slot]; w != nil && w.Opts["enchant_id"] != nil {
+					opts["enchant_id"] = w.Opts["enchant_id"] // the enchant goes on the new piece, as in game
+				}
 				fills := []gearFill{{slot, &gearCandidate{item: models.SimItem{Name: item.Name, Level: level, ID: item.ID,
-					Opts: map[string][]int{"ilevel": {level}}}}}}
+					Opts: opts}}}}
 				if item.Slot == "two_hand" {
 					fills = append(fills, gearFill{"off_hand", nil})
 				}
