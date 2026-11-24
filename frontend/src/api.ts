@@ -1985,11 +1985,10 @@ export interface SimReference {
   omnium: TalentNode[]
 }
 
-/** How many gear combinations a Top Gear request makes, the most one runs and about how long it takes; `error` is why
- * the app would refuse to run it, and `notes` say what each of its variants changes, in its order. */
+/** How many gear combinations a Top Gear request makes and about how long they take; `error` is why the app would
+ * refuse to run it, and `notes` say what each of its variants changes, in its order. */
 export interface SimPlan {
   combos: number
-  max: number
   seconds: number
   error?: string
   notes: string[]

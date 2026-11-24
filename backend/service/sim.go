@@ -199,19 +199,9 @@ func (s *Sims) InstallEngine(path string) error {
 // Wait returns once the running sim and download, if any, have ended: after Ctx is canceled, once simc is stopped.
 func (s *Sims) Wait() { s.work.Wait() }
 
-// Reference is what a request may pick besides its gear (reference/sim-options.json). With none loaded (cmd/site
-// carries on without it) its lists are empty, not null, so the page draws nothing to pick.
-func (s *Sims) Reference() models.SimReference {
-	if s.Ref.Consumables != nil {
-		return s.Ref
-	}
-	ref := models.SimReference{Consumables: map[string][]models.SimConsumable{}, Enchants: []models.SimEnchant{},
-		Gems: []models.SimGem{}, Upgrades: []models.SimUpgradeTrack{}, Omnium: []models.TalentNode{}}
-	for _, kind := range models.SimConsumableKinds {
-		ref.Consumables[kind] = []models.SimConsumable{}
-	}
-	return ref
-}
+// Reference is what a request may pick besides its gear (reference/sim-options.json, which the app won't start
+// without).
+func (s *Sims) Reference() models.SimReference { return s.Ref }
 
 // Plan is what a Top Gear request would run, counted without starting it, with what each variant changes; a count
 // Start would refuse says why in its Error. ErrBadSimOptions for another kind, options outside Choices, or items and

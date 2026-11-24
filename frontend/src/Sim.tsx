@@ -90,13 +90,13 @@ function EngineBar(props: {
   )
 }
 
-/** What a Top Gear request makes, in words: how many combinations (of the most that run) and about how long, or why the
+/** What a Top Gear request makes, in words: how many combinations (of the max that run) and about how long, or why the
  * app would refuse it. */
-function PlanText({ plan }: { plan: { plan: SimPlan | null; error: string | null } }) {
+function PlanText({ plan, max }: { plan: { plan: SimPlan | null; error: string | null }; max: number }) {
   const refusal = plan.error ?? plan.plan?.error
   if (refusal) return <p className="warning">{refusal}</p>
   if (!plan.plan) return <p className="muted small">Counting the combinations…</p>
-  const { combos, max, seconds } = plan.plan
+  const { combos, seconds } = plan.plan
   const about = seconds < 90 ? `${seconds} s` : `${Math.round(seconds / 60)} min`
   return (
     <p className="muted small">
@@ -124,7 +124,6 @@ function OptionsPanel(props: {
   canRun: boolean
   running: Sim | null
   onRun: () => void
-  onCancel: () => void
 }) {
   const { kind, choices, options, setOptions, optionsError, running } = props
   return (
@@ -192,7 +191,7 @@ function OptionsPanel(props: {
         onChange={props.setConsumables}
       />
       {optionsError && <p className="warning">{optionsError}</p>}
-      {props.plan && <PlanText plan={props.plan} />}
+      {props.plan && <PlanText plan={props.plan} max={choices.maxCombos} />}
       <button className="sim-run" disabled={!props.canRun || !!running || !!optionsError} onClick={props.onRun}>
         {running ? 'Simming…' : 'Sim'}
       </button>
@@ -215,7 +214,7 @@ export function SimPage() {
   const [bags, setBags] = useState<number[]>([])
   const [variants, setVariants] = useState<SimVariant[]>([])
   const [consumables, setConsumables] = useState<SimConsumables>({})
-  const [compare, setCompare] = useState<SimCompare>({ kind: 'flask', values: [] })
+  const [compare, setCompare] = useState<SimCompare>({ kind: '', values: [] })
   const [omnium, setOmnium] = useState<number[]>([])
   const [difficulty, setDifficulty] = useState('')
   const [keyLevel, setKeyLevel] = useState(0)
@@ -245,6 +244,7 @@ export function SimPage() {
         setOptions(c.defaults)
         setDifficulty(c.defaultDifficulty)
         setKeyLevel(c.defaultKeyLevel)
+        setCompare({ kind: c.consumableKinds[0], values: [] })
       },
       (err: unknown) => !controller.signal.aborted && setError(errorText(err)),
     )
@@ -438,7 +438,6 @@ export function SimPage() {
               canRun={!!engine?.installed && !engine.installing && !planBlocks && !compareBlocks}
               running={running}
               onRun={start}
-              onCancel={() => running && act(() => removeSim(running.id))}
             />
           </div>
           {reference.omnium.length > 0 && (
@@ -451,7 +450,6 @@ export function SimPage() {
           )}
         </>
       )}
-
 
       {running && (
         <section className="panel sim-progress">

@@ -2242,7 +2242,7 @@ const docTemplate = `{
                 "summary": "Start a sim",
                 "parameters": [
                     {
-                        "description": "the kind, the export, the options, for topgear the picked equipped and bag indexes, and for drops the difficulty and keyLevel",
+                        "description": "the kind, the export, the options and consumables, for topgear the picked equipped and bag indexes and variants, for drops the difficulty and keyLevel, and for consumables the compare",
                         "name": "body",
                         "in": "body",
                         "required": true,
@@ -2259,7 +2259,7 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "bad options or indexes, not an export, nothing to try or over maxCombos",
+                        "description": "bad options, indexes, variants, consumables or Omnium picks, not an export, nothing to try or over maxCombos",
                         "schema": {
                             "$ref": "#/definitions/controller.ErrorResponse"
                         }
@@ -2452,6 +2452,12 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "not a Top Gear request, or items and variants that don't fit the export",
+                        "schema": {
+                            "$ref": "#/definitions/controller.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "a weapon's type couldn't be read from Wowhead",
                         "schema": {
                             "$ref": "#/definitions/controller.ErrorResponse"
                         }
@@ -7080,10 +7086,6 @@ const docTemplate = `{
                 },
                 "error": {
                     "type": "string"
-                },
-                "max": {
-                    "type": "integer",
-                    "example": 100
                 },
                 "notes": {
                     "type": "array",

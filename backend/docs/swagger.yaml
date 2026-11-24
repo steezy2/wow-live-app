@@ -3077,9 +3077,6 @@ definitions:
         type: integer
       error:
         type: string
-      max:
-        example: 100
-        type: integer
       notes:
         items:
           type: string
@@ -5055,8 +5052,9 @@ paths:
         never passed to simc as it is) with the options. Poll the sim by its ID. A Top Gear request also
         sends `equipped` and `bags`: the indexes of the items it may put on.
       parameters:
-      - description: the kind, the export, the options, for topgear the picked equipped
-          and bag indexes, and for drops the difficulty and keyLevel
+      - description: the kind, the export, the options and consumables, for topgear
+          the picked equipped and bag indexes and variants, for drops the difficulty
+          and keyLevel, and for consumables the compare
         in: body
         name: body
         required: true
@@ -5070,8 +5068,8 @@ paths:
           schema:
             $ref: '#/definitions/models.Sim'
         "400":
-          description: bad options or indexes, not an export, nothing to try or over
-            maxCombos
+          description: bad options, indexes, variants, consumables or Omnium picks,
+            not an export, nothing to try or over maxCombos
           schema:
             $ref: '#/definitions/controller.ErrorResponse'
         "409":
@@ -5259,6 +5257,10 @@ paths:
         "400":
           description: not a Top Gear request, or items and variants that don't fit
             the export
+          schema:
+            $ref: '#/definitions/controller.ErrorResponse'
+        "500":
+          description: a weapon's type couldn't be read from Wowhead
           schema:
             $ref: '#/definitions/controller.ErrorResponse'
       summary: How many gear combinations a Top Gear request would run

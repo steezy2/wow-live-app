@@ -5,7 +5,7 @@ import { errorText } from './format'
 /** How long the request must stay as it is before the plan is asked for, so ticking several boxes asks once. */
 const DEBOUNCE_MS = 300
 
-/** What a Top Gear request would run (its gear combinations, the most one runs and about how long they take), asked
+/** What a Top Gear request would run (its gear combinations and about how long they take), asked
  * for again a moment after the request changes; null for no request (another kind) or before the answer. A request
  * the app refuses gives its words as error. */
 export function usePlan(request: SimRequest | null): { plan: SimPlan | null; error: string | null } {

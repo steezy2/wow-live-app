@@ -6,6 +6,22 @@ import { ItemLine } from './SimItem'
 import { useItemInfo } from './simItems'
 import { gainShare, groupLabel } from './simOptions'
 
+/** A ranked row's gain over the sim's baseline, its DPS and a bar for the gain against the best one's. */
+function Gain({ gain, dps, best }: { gain: number; dps: number; best: number }) {
+  return (
+    <div className="sim-gain">
+      <span className={gain >= 0 ? 'good' : 'warning'}>
+        {gain >= 0 ? '+' : ''}
+        {amount(gain)}
+      </span>
+      <span className="muted small">{amount(dps)} DPS</span>
+      <span className="sim-gain-bar">
+        <span style={{ width: `${gainShare(gain, best)}%` }} />
+      </span>
+    </div>
+  )
+}
+
 /** The gear combinations or drops of a Top Gear or Droptimizer sim, best first: each a row with its rank, a bar for
  * its gain over the equipped gear, its DPS, and what changes (icons and item levels) and where a drop comes from.
  * Drops filter by source. */
@@ -34,16 +50,7 @@ function Combos({ combos, drops, chunk }: { combos: SimCombo[]; drops: boolean; 
         {shown.map((c, i) => (
           <li key={i}>
             <span className="sim-rank">{i + 1}</span>
-            <div className="sim-gain">
-              <span className={c.gain >= 0 ? 'good' : 'warning'}>
-                {c.gain >= 0 ? '+' : ''}
-                {amount(c.gain)}
-              </span>
-              <span className="muted small">{amount(c.dps)} DPS</span>
-              <span className="sim-gain-bar">
-                <span style={{ width: `${gainShare(c.gain, best)}%` }} />
-              </span>
-            </div>
+            <Gain gain={c.gain} dps={c.dps} best={best} />
             <div className="sim-swaps">
               {c.swaps.map((s) => (
                 <div key={s.slot} className="sim-swap">
@@ -77,16 +84,7 @@ function OptionRows({ rows }: { rows: SimOptionRow[] }) {
         {rows.map((r, i) => (
           <li key={r.value}>
             <span className="sim-rank">{i + 1}</span>
-            <div className="sim-gain">
-              <span className={r.gain >= 0 ? 'good' : 'warning'}>
-                {r.gain >= 0 ? '+' : ''}
-                {amount(r.gain)}
-              </span>
-              <span className="muted small">{amount(r.dps)} DPS</span>
-              <span className="sim-gain-bar">
-                <span style={{ width: `${gainShare(r.gain, best)}%` }} />
-              </span>
-            </div>
+            <Gain gain={r.gain} dps={r.dps} best={best} />
             <div className="sim-swaps">{r.name}</div>
           </li>
         ))}

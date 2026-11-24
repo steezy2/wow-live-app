@@ -188,6 +188,7 @@ func (a SimAPI) Reference(c *gin.Context) {
 //	@Param			body	body		models.SimRequest	true	"a Top Gear request"
 //	@Success		200		{object}	models.SimPlan
 //	@Failure		400		{object}	ErrorResponse	"not a Top Gear request, or items and variants that don't fit the export"
+//	@Failure		500		{object}	ErrorResponse	"a weapon's type couldn't be read from Wowhead"
 //	@Router			/api/sim/plan [post]
 func (a SimAPI) Plan(c *gin.Context) {
 	var req models.SimRequest
@@ -212,9 +213,9 @@ func (a SimAPI) Plan(c *gin.Context) {
 //	@Tags			sim
 //	@Accept			json
 //	@Produce		json
-//	@Param			body	body		models.SimRequest	true	"the kind, the export, the options, for topgear the picked equipped and bag indexes, and for drops the difficulty and keyLevel"
+//	@Param			body	body		models.SimRequest	true	"the kind, the export, the options and consumables, for topgear the picked equipped and bag indexes and variants, for drops the difficulty and keyLevel, and for consumables the compare"
 //	@Success		202		{object}	models.Sim
-//	@Failure		400		{object}	ErrorResponse	"bad options or indexes, not an export, nothing to try or over maxCombos"
+//	@Failure		400		{object}	ErrorResponse	"bad options, indexes, variants, consumables or Omnium picks, not an export, nothing to try or over maxCombos"
 //	@Failure		409		{object}	ErrorResponse	"a sim or a download is running, or no engine is installed"
 //	@Failure		500		{object}	ErrorResponse	"a weapon's type couldn't be read from Wowhead"
 //	@Router			/api/sim [post]

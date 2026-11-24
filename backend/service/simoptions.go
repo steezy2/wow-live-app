@@ -235,7 +235,7 @@ func planOf(combos int, o models.SimOptions) models.SimPlan {
 	errorRatio := simTargetError(simDefaults, true) / simTargetError(o, true)
 	seconds := float64(combos) * comboSeconds * referenceThreads / float64(simThreads()) *
 		float64(o.Length) / float64(simDefaults.Length) * errorRatio * errorRatio
-	plan := models.SimPlan{Combos: combos, Max: maxCombos, Seconds: int(seconds + 0.5)}
+	plan := models.SimPlan{Combos: combos, Seconds: int(seconds + 0.5)}
 	if err := comboRefusal(combos); err != nil {
 		plan.Error = err.Error()
 	}

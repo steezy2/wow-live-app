@@ -91,13 +91,12 @@ type SimCompare struct {
 	Values []string `json:"values"`
 }
 
-// SimPlan is what a Top Gear request would run: how many gear combinations it makes (Max is the most one runs) and
-// about how long that takes on this PC, for its fight length and accuracy. Error is why a sim of them would be refused
-// (none, or over Max), in the words starting it gives; Notes say what each of the request's variants changes, in its
+// SimPlan is what a Top Gear request would run: how many gear combinations it makes and about how long that takes on
+// this PC, for its fight length and accuracy. Error is why a sim of them would be refused (none, or over
+// SimChoices.MaxCombos), in the words starting it gives; Notes say what each of the request's variants changes, in its
 // order.
 type SimPlan struct {
 	Combos  int      `json:"combos"`
-	Max     int      `json:"max" example:"100"`
 	Seconds int      `json:"seconds"`
 	Error   string   `json:"error,omitempty"`
 	Notes   []string `json:"notes"`
