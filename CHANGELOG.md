@@ -4,6 +4,8 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 
 ## [Unreleased]
 
+## [0.5.5] - 2026-11-23
+
 ### Changed
 - **The key review's player names have their class colour**, and its party lines (deaths added to the clock, must-stops, time between pulls, priority target) are a bulleted *Party* card beside the players' cards.
 - **The tabs under a key or pull are buttons:** boxed, the open one filled.
