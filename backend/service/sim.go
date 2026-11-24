@@ -271,7 +271,7 @@ func (s *Sims) Plan(req models.SimRequest) (models.SimPlan, error) {
 // planTopGear counts a Top Gear request's gear combinations (each once for every compared value, the equipped gear
 // too) into plan, with the notes of its variants and what Start would refuse it for.
 func (s *Sims) planTopGear(req models.SimRequest, p models.SimProfile, values int, plan *models.SimPlan) error {
-	extra, err := variantCandidates(s.Ref, p, req.Variants)
+	extra, err := topGearExtras(s.Ref, p, req)
 	if err != nil {
 		return err
 	}
@@ -377,8 +377,8 @@ func (s *Sims) Start(req models.SimRequest) (models.Sim, error) {
 	switch req.Kind {
 	case "topgear":
 		var extra []gearCandidate
-		if extra, err = variantCandidates(s.Ref, profile, req.Variants); err == nil {
-			combos, err = topGearCombos(profile, req.Equipped, req.Bags, extra, len(dims) > 0, s.twoHanded)
+		if extra, err = topGearExtras(s.Ref, profile, req); err == nil {
+			combos, err = topGearCombos(s.Ref, profile, req.Equipped, req.Bags, extra, len(dims) > 0, s.twoHanded)
 			if len(dims) > 0 { // the equipped gear takes each compared value too
 				combos = append([]gearCombo{currentGear()}, combos...)
 			}

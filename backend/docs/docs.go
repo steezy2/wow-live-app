@@ -6887,6 +6887,13 @@ const docTemplate = `{
                 "minLength": {
                     "type": "integer"
                 },
+                "scenarios": {
+                    "description": "Scenarios are named fights to start the options from (Raid, M+ AoE).",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.SimScenario"
+                    }
+                },
                 "upgradeRanks": {
                     "description": "UpgradeRanks is how many ranks of an upgrade track a Droptimizer can upgrade drops to (the ranks past it are\nMythic raid only).",
                     "type": "integer",
@@ -7022,6 +7029,26 @@ const docTemplate = `{
                 }
             }
         },
+        "models.SimEnhancements": {
+            "type": "object",
+            "properties": {
+                "enchants": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                            "type": "integer"
+                        }
+                    }
+                },
+                "gems": {
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                }
+            }
+        },
         "models.SimGem": {
             "type": "object",
             "properties": {
@@ -7042,6 +7069,10 @@ const docTemplate = `{
                 "stats": {
                     "type": "string",
                     "example": "11 Vers \u0026 4 Haste"
+                },
+                "unique": {
+                    "description": "Unique is the limit category of a unique-equipped gem (one of its category on all the gear), 0 for none.",
+                    "type": "integer"
                 }
             }
         },
@@ -7189,6 +7220,9 @@ const docTemplate = `{
                 "length": {
                     "type": "integer",
                     "example": 300
+                },
+                "noRaidBuffs": {
+                    "type": "boolean"
                 },
                 "targets": {
                     "type": "integer",
@@ -7370,6 +7404,11 @@ const docTemplate = `{
                         }
                     ]
                 },
+                "custom": {
+                    "description": "Custom is extra simc lines (an action list, a few options) every kind of sim adds after the character; only an\nallowlist of them is accepted (service customLines), the rest is ErrBadSimOptions.",
+                    "type": "string",
+                    "example": "override.bloodlust=0"
+                },
                 "difficulty": {
                     "description": "Difficulty is the raid difficulty a Droptimizer's drops are at, one of SimChoices.Difficulties.",
                     "type": "string",
@@ -7380,6 +7419,14 @@ const docTemplate = `{
                         "mythic"
                     ],
                     "example": "heroic"
+                },
+                "enhancements": {
+                    "description": "Enhancements are gems and enchants a Top Gear sim tries on the items it picked.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.SimEnhancements"
+                        }
+                    ]
                 },
                 "equipped": {
                     "description": "Equipped and Bags are the items a Top Gear sim may put on, as indexes into the parsed profile's Equipped and\nBags. A slot with nothing ticked keeps its item; rings and trinkets with fewer than two ticked are made up from\nthe equipped ones.",
@@ -7486,6 +7533,27 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/models.SimStatWeight"
                     }
+                }
+            }
+        },
+        "models.SimScenario": {
+            "type": "object",
+            "properties": {
+                "fightStyle": {
+                    "type": "string",
+                    "example": "HecticAddCleave"
+                },
+                "length": {
+                    "type": "integer",
+                    "example": 180
+                },
+                "name": {
+                    "type": "string",
+                    "example": "M+ AoE"
+                },
+                "targets": {
+                    "type": "integer",
+                    "example": 3
                 }
             }
         },

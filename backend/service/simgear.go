@@ -110,7 +110,8 @@ func comboRefusal(n int) error {
 // topGearCombos is every legal combination of the picked items and extra candidates other than the equipped gear
 // (gearGroups). More than maxCombos is ErrBadSimOptions, and so is none unless the sim is comparing consumables (then
 // the equipped gear alone is worth a run): nothing is dropped.
-func topGearCombos(p models.SimProfile, equipped, bags []int, extra []gearCandidate, comparing bool,
+func topGearCombos(ref models.SimReference, p models.SimProfile, equipped, bags []int, extra []gearCandidate,
+	comparing bool,
 	twoHanded func(id int) (bool, error)) ([]gearCombo, error) {
 	groups, err := gearGroups(p, equipped, bags, extra, twoHanded)
 	if err != nil {
@@ -123,11 +124,13 @@ func topGearCombos(p models.SimProfile, equipped, bags []int, extra []gearCandid
 	if err := comboRefusal(n); err != nil {
 		return nil, err
 	}
+	unique := uniqueGems(ref)
 	var combos []gearCombo
 	var walk func(g int, swaps []models.SimSwap)
 	walk = func(g int, swaps []models.SimSwap) {
 		if g == len(groups) {
-			if len(swaps) > 0 { // none is the equipped gear, which the sim's baseline runs
+			// none is the equipped gear, which the sim's baseline runs; two unique gems of a category are no gear
+			if len(swaps) > 0 && uniqueGemsOK(unique, p, swaps) {
 				combos = append(combos, gearCombo{name: "combo" + strconv.Itoa(len(combos)+1), swaps: slices.Clone(swaps)})
 			}
 			return

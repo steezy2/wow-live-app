@@ -55,6 +55,8 @@ type SimGem struct {
 	Stats   string `json:"stats,omitempty" example:"11 Vers & 4 Haste"`
 	Icon    string `json:"icon"`
 	Quality int    `json:"quality,omitempty"`
+	// Unique is the limit category of a unique-equipped gem (one of its category on all the gear), 0 for none.
+	Unique int `json:"unique,omitempty"`
 }
 
 // SimUpgradeTrack is a track items upgrade along ("Myth 1/8" to "Myth 8/8"): the group Blizzard keys it by, its name

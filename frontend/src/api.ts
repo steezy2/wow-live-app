@@ -1950,6 +1950,14 @@ export interface SimRequest {
   omnium?: string
   /** Extra simc lines (an action list, a few options); the server refuses all but an allowlist. */
   custom?: string
+  /** Gems and enchants Top Gear tries on the items it picked. */
+  enhancements?: SimEnhancements
+}
+
+/** Enchant IDs by slot (a ring's is 'finger') and gem item IDs to try on the picked items. */
+export interface SimEnhancements {
+  enchants?: Record<string, number[]>
+  gems?: number[]
 }
 
 /** A flask, food, potion, augment rune or weapon oil. */
@@ -1973,6 +1981,8 @@ export interface SimEnchant {
 export interface SimGem {
   id: number
   name: string
+  /** The limit category of a unique-equipped gem (one of its category on all the gear); 0 or missing for none. */
+  unique?: number
   stats?: string
   icon: string
   quality?: number
