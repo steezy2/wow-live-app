@@ -1,0 +1,27 @@
+{
+  "slots": {
+    "388": {"reagentSlotId": 388, "name": "Artisan's Authenticity", "reagentIds": [246447]},
+    "390": {"reagentSlotId": 390, "name": "Add Embellishment", "reagentIds": [244603, 244604, 248130]},
+    "392": {"reagentSlotId": 392, "name": "Infuse with Power", "reagentIds": [3347]},
+    "393": {"reagentSlotId": 393, "name": "Customize Secondary Stats", "reagentIds": [245791, 245792]},
+    "401": {"reagentSlotId": 401, "name": "Spark", "reagentIds": [232875]},
+    "900": {"reagentSlotId": 900, "name": "Customize Secondary Stats", "reagentIds": [194572]}
+  },
+  "reagents": [
+    {"id": 194572, "name": "Draconic Missive of the Quickblade", "icon": "old", "craftingQuality": 3,
+      "craftingBonusIds": [8795], "expansion": 9},
+    {"id": 244603, "name": "Blessed Pango Charm", "icon": "charm", "craftingQuality": 1,
+      "craftingBonusIds": [12686, 8960], "expansion": 11},
+    {"id": 244604, "name": "Blessed Pango Charm", "icon": "charm", "craftingQuality": 2,
+      "craftingBonusIds": [12686, 8960], "expansion": 11},
+    {"id": 248130, "name": "Lucky Keychain", "icon": "trade_engineering", "craftingBonusIds": [12715], "expansion": 11},
+    {"id": 3347, "name": "Myth Dawncrest", "icon": "inv_120_crest_myth", "craftingBonusIds": [13622],
+      "expansion": 11, "reagentType": "currency"},
+    {"id": 245791, "name": "Thalassian Missive of the Quickblade", "icon": "missive", "craftingQuality": 1,
+      "craftingBonusIds": [8795], "expansion": 11},
+    {"id": 245792, "name": "Thalassian Missive of the Quickblade", "icon": "missive", "craftingQuality": 2,
+      "craftingBonusIds": [8795], "expansion": 11},
+    {"id": 232875, "name": "Spark of Radiance", "icon": "spark", "craftingBonusIds": [12066], "expansion": 11},
+    {"id": 246447, "name": "Apprentice's Scribbles", "icon": "scribbles", "craftingBonusIds": [], "expansion": 11}
+  ]
+}

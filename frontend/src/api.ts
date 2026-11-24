@@ -1834,6 +1834,20 @@ export interface SimItem {
   /** How many sockets the item has, and whether a variant can add one (a parsed export only). */
   sockets?: number
   addSocket?: boolean
+  /** What a crafted item can be changed to, and what a variant can take off it (including 'embellishment'). */
+  embellishments?: SimChoice[]
+  recrafts?: SimChoice[]
+  removable?: string[]
+  /** The Catalyst item this converts to (its name); `catalyst` is set on a converted copy. */
+  converts?: string
+  catalyst?: boolean
+}
+
+/** A reagent a crafted item can be changed to: its ID, name and icon. */
+export interface SimChoice {
+  id: number
+  name: string
+  icon?: string
 }
 
 /** An item's name, icon (an icon name for iconURL) and quality (0 poor to 5 legendary), from Wowhead. */
@@ -1894,6 +1908,7 @@ export interface SimChoices {
   maxCombos: number
   maxCompare: number
   maxParallel: number
+  maxCatalystCharges: number
   /** Named fights to start the options from; the page fills the fight's fields from one. */
   scenarios: { name: string; fightStyle: string; length: number; targets: number }[]
   /** How many ranks of a track a Droptimizer can upgrade to (the rest are Mythic raid only). */
@@ -1930,6 +1945,12 @@ export interface SimVariant {
   socket?: boolean
   gem?: number
   enchant?: number
+  /** A crafted item's embellishment (reagent ID), recraft (reagent ID) and what to take off. */
+  embellishment?: number
+  recraft?: number
+  remove?: 'gems' | 'enchant' | 'socket'
+  /** Converts the item to its Catalyst item (needs `catalystCharges` in the request). */
+  catalyst?: boolean
 }
 
 /** A sim to start: the export is read again by the app, `equipped` and `bags` are indexes into the profile read from
@@ -1950,6 +1971,8 @@ export interface SimRequest {
   omnium?: string
   /** Extra simc lines (an action list, a few options); the server refuses all but an allowlist. */
   custom?: string
+  /** How many Catalyst conversions one Top Gear combination may hold (0 allows none). */
+  catalystCharges?: number
   /** Gems and enchants Top Gear tries on the items it picked. */
   enhancements?: SimEnhancements
 }

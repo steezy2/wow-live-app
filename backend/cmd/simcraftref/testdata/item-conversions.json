@@ -1,0 +1,12 @@
+{
+  "1": {"id": 1, "items": [], "bonusIds": [], "shouldRedirectStats": false},
+  "11": {"id": 11, "bonusIds": [12239], "shouldRedirectStats": true, "items": [
+    {"id": 200001, "name": "Old Breastplate", "inventoryType": 5, "expansion": 10, "allowableClasses": [6]}
+  ]},
+  "13": {"id": 13, "bonusIds": [13662], "shouldRedirectStats": true, "items": [
+    {"id": 271477, "name": "Baleful Grave-Knight's Breastplate", "inventoryType": 5, "expansion": 11,
+      "allowableClasses": [6]},
+    {"id": 271469, "name": "Baleful Grave-Knight's Greatcloak", "inventoryType": 16, "expansion": 11,
+      "allowableClasses": [6]}
+  ]}
+}

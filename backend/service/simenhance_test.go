@@ -49,9 +49,43 @@ func TestTopGearNeverPutsTwoUniqueGemsOfACategoryOnTheGear(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	combos, err := topGearCombos(ref, p, req.Equipped, nil, extra, false, twoHanders(t))
+	combos, err := topGearCombos(gearRules{ref: ref}, p, req.Equipped, nil, extra, false, twoHanders(t))
 	// 3 head options x 4 ring options less the unchanged gear, less the 4 that carry a unique gem on both
 	if err != nil || len(combos) != 7 {
 		t.Errorf("got %d combinations (%v), want 7", len(combos), err)
+	}
+}
+
+func TestTopGearRefusesWhatNoLegalCombinationRemains(t *testing.T) {
+	ref, p, req := enhancedFixture()
+	p.Equipped[1].Opts["gem_id"] = []int{300} // the ring already wears the unique gem
+	req.Enhancements = &models.SimEnhancements{Gems: []int{301}}
+	req.Equipped = []int{0}
+	extra, err := enhancementCandidates(ref, p, req)
+	if err != nil || len(extra) != 1 {
+		t.Fatalf("candidates %d (%v), want the head with the second unique gem", len(extra), err)
+	}
+	rules := gearRules{ref: ref}
+	if combos, err := topGearCombos(rules, p, req.Equipped, nil, extra, false, twoHanders(t)); !errors.Is(err,
+		ErrBadSimOptions) {
+		t.Errorf("%d combinations (%v), want a refusal when the only one clashes", len(combos), err)
+	}
+}
+
+func TestTopGearNeverWearsAThirdEmbellishment(t *testing.T) {
+	p := gearProfile(false)
+	ref := testRef()
+	ref.Crafting = models.SimCrafting{
+		Items:    map[int]models.CraftedItem{1: {Reagents: []int{1}}, 11: {Reagents: []int{1}}, 13: {Reagents: []int{1}}},
+		Reagents: map[int]models.CraftingReagent{1: {Kind: models.ReagentEmbellishment, Name: "Charm", BonusIDs: []int{50}}},
+	}
+	for _, i := range []int{0, 1} { // the worn head and first ring are embellished, and so is the bag ring
+		p.Equipped[i].Opts = map[string][]int{"bonus_id": {50}}
+	}
+	p.Bags[1].Opts = map[string][]int{"bonus_id": {50}}
+	combos, err := topGearCombos(gearRules{ref: ref}, p, nil, []int{1}, nil, false, twoHanders(t))
+	// the bag ring may take the embellished ring's place, but not the plain one's
+	if err != nil || len(combos) != 1 || combos[0].swaps[0].Slot != "finger1" {
+		t.Errorf("combinations %+v (%v), want only the one that replaces the embellished ring", combos, err)
 	}
 }

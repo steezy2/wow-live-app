@@ -144,7 +144,7 @@ func (s *Sims) Choices() models.SimChoices {
 	}
 	return models.SimChoices{FightStyles: simFightStyles, Accuracies: accuracies, MinLength: minSimLength,
 		MaxLength: maxSimLength, MaxTargets: maxSimTargets, MaxCombos: maxCombos, MaxCompare: maxCompareValues,
-		MaxParallel: maxParallelSims, UpgradeRanks: upgradeRanks,
+		MaxParallel: maxParallelSims, UpgradeRanks: upgradeRanks, MaxCatalystCharges: maxCatalystCharges,
 		ConsumableKinds: models.SimConsumableKinds, MaxDrops: maxDrops,
 		Difficulties: simDifficulties, KeyLevels: keyLevels, Defaults: simDefaults, Scenarios: simScenarios,
 		DefaultDifficulty: defaultDropDifficulty, DefaultKeyLevel: defaultKey, GearGroups: slices.Compact(groups),
@@ -219,7 +219,7 @@ func (s *Sims) Reference() models.SimReference { return s.Ref }
 // export that is none.
 func (s *Sims) ParseProfile(export string) (models.SimProfile, error) {
 	p, err := ParseSimC(export)
-	return withSockets(s.Ref, p), err
+	return withChoices(s.Ref, p), err
 }
 
 // Plan is what a request would run, counted without starting it, and about how long that takes: the runs besides the
@@ -280,6 +280,12 @@ func (s *Sims) planTopGear(req models.SimRequest, p models.SimProfile, values in
 		return err
 	}
 	plan.Combos = comboCount(groups, maxPlanCombos)
+	if plan.Combos <= maxCombos { // the rules (unique gems, Catalyst charges) drop some of the product
+		if combos, err := topGearCombos(gearRules{s.Ref, req.CatalystCharges}, p, req.Equipped, req.Bags, extra,
+			values > 0, s.twoHanded); err == nil {
+			plan.Combos = len(combos)
+		}
+	}
 	if values > 0 {
 		plan.Combos = (plan.Combos + 1) * values
 	}
@@ -378,7 +384,8 @@ func (s *Sims) Start(req models.SimRequest) (models.Sim, error) {
 	case "topgear":
 		var extra []gearCandidate
 		if extra, err = topGearExtras(s.Ref, profile, req); err == nil {
-			combos, err = topGearCombos(s.Ref, profile, req.Equipped, req.Bags, extra, len(dims) > 0, s.twoHanded)
+			rules := gearRules{s.Ref, req.CatalystCharges}
+			combos, err = topGearCombos(rules, profile, req.Equipped, req.Bags, extra, len(dims) > 0, s.twoHanded)
 			if len(dims) > 0 { // the equipped gear takes each compared value too
 				combos = append([]gearCombo{currentGear()}, combos...)
 			}

@@ -175,6 +175,8 @@ function OptionsPanel(props: {
   optionsError: string | null
   upgrade: string
   setUpgrade: (u: string) => void
+  catalystCharges: number
+  setCatalystCharges: (n: number) => void
   plan: { plan: SimPlan | null; error: string | null } | null
   why: string | null
   canRun: boolean
@@ -239,6 +241,18 @@ function OptionsPanel(props: {
         />
         Raid buffs (simc's default: Bloodlust, Arcane Intellect, …)
       </label>
+      {kind === 'topgear' && (
+        <label>
+          Catalyst charges
+          <select value={props.catalystCharges} onChange={(e) => props.setCatalystCharges(Number(e.target.value))}>
+            {Array.from({ length: choices.maxCatalystCharges + 1 }, (_, n) => (
+              <option key={n} value={n}>
+                {n === 0 ? 'None (no conversions)' : n}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
       {kind === 'drops' && (
         <>
           <label>
@@ -304,6 +318,7 @@ export function SimPage() {
   const [keyLevel, setKeyLevel] = useState(0)
   const [upgrade, setUpgrade] = useState('')
   const [custom, setCustom] = useState('')
+  const [catalystCharges, setCatalystCharges] = useState(0)
   const [enhancements, setEnhancements] = useState<SimEnhancements>({})
   const [runs, setRuns] = useState<Sim[]>([]) // the sims running now, as last polled
   const [watching, setWatching] = useState<string | null>(null) // the running sim whose progress card shows
@@ -404,7 +419,7 @@ export function SimPage() {
       consumables,
       ...(custom.trim() && { custom }),
       ...(mine !== theirs && { omnium: mine }),
-      ...(kind === 'topgear' && { equipped, bags, variants, enhancements }),
+      ...(kind === 'topgear' && { equipped, bags, variants, enhancements, catalystCharges }),
       ...(kind === 'drops' && { difficulty, keyLevel, upgrade }),
     }
   }
@@ -568,6 +583,8 @@ export function SimPage() {
               optionsError={optionsError}
               upgrade={upgrade}
               setUpgrade={setUpgrade}
+              catalystCharges={catalystCharges}
+              setCatalystCharges={setCatalystCharges}
               plan={planRequest ? plan : null}
               why={why}
               canRun={!why && !planBlocks}

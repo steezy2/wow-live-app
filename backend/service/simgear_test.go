@@ -22,11 +22,12 @@ func twoHanders(t *testing.T, ids ...int) func(int) (bool, error) {
 	}
 }
 
+// noRules limits no combination, for tests of gear that need no rule.
+var noRules gearRules
+
 // gearProfile wears a head, two rings, two trinkets and a main hand (31; indexes 0 to 5), and an off-hand (6) unless
 // twoHanded. Its bags hold a head (0), a ring (1), a second copy of the first worn ring (2), a trinket (3), a main
 // hand (33; 4), an off-hand (5) and a neck (6).
-// noRef is a reference with nothing in it, for tests of gear that need none.
-var noRef models.SimReference
 
 func gearProfile(twoHanded bool) models.SimProfile {
 	p := models.SimProfile{
@@ -61,10 +62,10 @@ func TestCurrentGearIsARowWithAnEmptyListOfSwaps(t *testing.T) {
 
 func TestTopGearCombosAllowNothingToTryWhenComparing(t *testing.T) {
 	p := gearProfile(false)
-	if _, err := topGearCombos(noRef, p, nil, nil, nil, false, twoHanders(t)); !errors.Is(err, ErrBadSimOptions) {
+	if _, err := topGearCombos(noRules, p, nil, nil, nil, false, twoHanders(t)); !errors.Is(err, ErrBadSimOptions) {
 		t.Errorf("nothing ticked: err = %v, want ErrBadSimOptions", err)
 	}
-	if combos, err := topGearCombos(noRef, p, nil, nil, nil, true, twoHanders(t)); err != nil || len(combos) != 0 {
+	if combos, err := topGearCombos(noRules, p, nil, nil, nil, true, twoHanders(t)); err != nil || len(combos) != 0 {
 		t.Errorf("nothing ticked while comparing = %v, %v, want none and no error", combos, err)
 	}
 }
@@ -96,7 +97,7 @@ func TestTopGearCombosFollowTheSlotRules(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			p, twoHanded := gearProfile(slices.Contains(tt.twoHanders, 31)), twoHanders(t, tt.twoHanders...)
-			combos, err := topGearCombos(noRef, p, tt.equipped, tt.bag, nil, false, twoHanded)
+			combos, err := topGearCombos(noRules, p, tt.equipped, tt.bag, nil, false, twoHanded)
 			groups, _ := gearGroups(p, tt.equipped, tt.bag, nil, twoHanded)
 			if n := comboCount(groups, maxPlanCombos); n != len(combos) {
 				t.Errorf("comboCount = %d, want the %d topGearCombos makes", n, len(combos))
@@ -115,7 +116,7 @@ func TestTopGearCombosFollowTheSlotRules(t *testing.T) {
 }
 
 func TestTopGearWeaponsEmptyOrFillTheOffHand(t *testing.T) {
-	combos, err := topGearCombos(noRef, gearProfile(false), []int{5, 6}, []int{4, 5}, nil, false, twoHanders(t))
+	combos, err := topGearCombos(noRules, gearProfile(false), []int{5, 6}, []int{4, 5}, nil, false, twoHanders(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -127,7 +128,7 @@ func TestTopGearWeaponsEmptyOrFillTheOffHand(t *testing.T) {
 		}
 	}
 	// a one-handed bag main hand beside a worn two-hander takes the picked off-hand
-	combos, err = topGearCombos(noRef, gearProfile(true), []int{5}, []int{4, 5}, nil, false, twoHanders(t, 31))
+	combos, err = topGearCombos(noRules, gearProfile(true), []int{5}, []int{4, 5}, nil, false, twoHanders(t, 31))
 	if err != nil || len(combos) != 1 || len(combos[0].swaps) != 2 || combos[0].swaps[0].In.ID != 33 ||
 		combos[0].swaps[1].Slot != "off_hand" || combos[0].swaps[1].Out != nil || combos[0].swaps[1].In.ID != 34 {
 		t.Errorf("combos = %+v, %v", combos, err)
@@ -136,12 +137,12 @@ func TestTopGearWeaponsEmptyOrFillTheOffHand(t *testing.T) {
 		t.Errorf("profilesets = %q", got)
 	}
 	// a two-handed bag main hand takes the worn off-hand off
-	combos, err = topGearCombos(noRef, gearProfile(false), nil, []int{4}, nil, false, twoHanders(t, 33))
+	combos, err = topGearCombos(noRules, gearProfile(false), nil, []int{4}, nil, false, twoHanders(t, 33))
 	want := "profileset.combo1+=main_hand=,id=33\nprofileset.combo1+=off_hand=\n"
 	if got := gearProfilesets(combos); err != nil || got != want {
 		t.Errorf("profilesets = %q, %v", got, err)
 	}
-	if _, err := topGearCombos(noRef, gearProfile(false), nil, []int{4}, nil, false, func(int) (bool, error) {
+	if _, err := topGearCombos(noRules, gearProfile(false), nil, []int{4}, nil, false, func(int) (bool, error) {
 		return false, errors.New("offline")
 	}); err == nil {
 		t.Error("a weapon whose type can't be read should fail the sim, not guess")
@@ -161,12 +162,12 @@ func TestTopGearRefusesOverTheCap(t *testing.T) {
 		p.Bags = append(p.Bags, gearItem("neck", 2000+i))
 		picked = append(picked, heads+i)
 	}
-	combos, err := topGearCombos(noRef, p, nil, picked, nil, false, twoHanders(t))
+	combos, err := topGearCombos(noRules, p, nil, picked, nil, false, twoHanders(t))
 	if err != nil || len(combos) != maxCombos {
 		t.Fatalf("%d heads by %d necks: %d combos, %v; want %d", heads, necks, len(combos), err, maxCombos)
 	}
 	p.Bags = append(p.Bags, gearItem("head", 1999))
-	combos, err = topGearCombos(noRef, p, nil, append(picked, len(p.Bags)-1), nil, false, twoHanders(t))
+	combos, err = topGearCombos(noRules, p, nil, append(picked, len(p.Bags)-1), nil, false, twoHanders(t))
 	if !errors.Is(err, ErrBadSimOptions) || combos != nil {
 		t.Errorf("one head too many: %d combos, %v; want refused, not cut", len(combos), err)
 	}

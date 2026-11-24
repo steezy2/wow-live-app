@@ -1,0 +1,16 @@
+[
+  {"id": 25, "name": "Worn Shortsword", "itemClass": 2, "inventoryType": 21, "itemLevel": 1, "expansion": 0},
+  {"id": 245769, "name": "Aln'hara Lantern", "itemClass": 4, "inventoryType": 23, "itemLevel": 197,
+    "stats": [{"id": 7, "alloc": 7889}], "bonusLists": [12214],
+    "profession": {"id": 773, "recipeSpellId": 1230061, "optionalCraftingSlots": [
+      {"id": 401, "count": 2, "recraftCount": 2}, {"id": 390, "count": 1, "recraftCount": 1},
+      {"id": 393, "count": 1, "recraftCount": 1}, {"id": 392, "count": 80, "recraftCount": 0},
+      {"id": 388, "count": 1, "recraftCount": 0}]},
+    "expansion": 11},
+  {"id": 245800, "name": "Thalassian Scribe's Quill", "itemClass": 19, "inventoryType": 23, "itemLevel": 197,
+    "profession": {"optionalCraftingSlots": [{"id": 393}]}, "expansion": 11},
+  {"id": 245801, "name": "Plain Crafted Cloak", "itemClass": 4, "inventoryType": 16, "itemLevel": 197,
+    "profession": {"optionalCraftingSlots": [{"id": 388}]}, "expansion": 11},
+  {"id": 190000, "name": "Old Crafted Ring", "itemClass": 4, "inventoryType": 11, "itemLevel": 350,
+    "profession": {"optionalCraftingSlots": [{"id": 900}]}, "expansion": 9}
+]

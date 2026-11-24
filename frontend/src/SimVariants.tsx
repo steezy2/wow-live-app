@@ -15,7 +15,13 @@ function VariantForm(props: { item: SimItem; reference: SimReference; onAdd: (v:
   const [socket, setSocket] = useState(false)
   const [gem, setGem] = useState(0)
   const [enchant, setEnchant] = useState(0)
-  const nothing = !upgrade && !socket && !gem && !enchant
+  const [embellishment, setEmbellishment] = useState(0)
+  const [recraft, setRecraft] = useState(0)
+  const [remove, setRemove] = useState('')
+  const [catalyst, setCatalyst] = useState(false)
+  const nothing = !upgrade && !socket && !gem && !enchant && !embellishment && !recraft && !remove && !catalyst
+  const embellishments = item.embellishments ?? []
+  const removals = item.removable ?? []
   return (
     <div className="sim-variant-form">
       {on && (
@@ -60,6 +66,51 @@ function VariantForm(props: { item: SimItem; reference: SimReference; onAdd: (v:
           ))}
         </select>
       </label>
+      {embellishments.length > 0 && (
+        <label>
+          Embellishment
+          <select value={embellishment} onChange={(e) => setEmbellishment(Number(e.target.value))}>
+            <option value={0}>Keep it</option>
+            {embellishments.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+      {(item.recrafts?.length ?? 0) > 0 && (
+        <label>
+          Recraft to
+          <select value={recraft} onChange={(e) => setRecraft(Number(e.target.value))}>
+            <option value={0}>Keep its stats</option>
+            {item.recrafts?.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+      {removals.length > 0 && (
+        <label>
+          Take off
+          <select value={remove} onChange={(e) => setRemove(e.target.value)}>
+            <option value="">Nothing</option>
+            {removals.map((r) => (
+              <option key={r} value={r}>
+                {r === 'gems' ? 'Its gems' : r === 'enchant' ? 'Its enchant' : 'Its added socket'}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+      {item.converts && (
+        <label className="inline">
+          <input type="checkbox" checked={catalyst} onChange={(e) => setCatalyst(e.target.checked)} /> Convert to{' '}
+          {item.converts} (Catalyst)
+        </label>
+      )}
       <button
         disabled={nothing}
         onClick={() => {
@@ -68,11 +119,19 @@ function VariantForm(props: { item: SimItem; reference: SimReference; onAdd: (v:
             socket: socket || undefined,
             gem: gem || undefined,
             enchant: enchant || undefined,
+            embellishment: embellishment || undefined,
+            recraft: recraft || undefined,
+            remove: (remove || undefined) as Change['remove'],
+            catalyst: catalyst || undefined,
           })
           setUpgrade(0)
           setSocket(false)
           setGem(0)
           setEnchant(0)
+          setEmbellishment(0)
+          setRecraft(0)
+          setRemove('')
+          setCatalyst(false)
         }}
       >
         Try it too
@@ -82,7 +141,10 @@ function VariantForm(props: { item: SimItem; reference: SimReference; onAdd: (v:
 }
 
 /** What a variant form fills in: the rest of a SimVariant (which item) comes from the row it is on. */
-type Change = Pick<SimVariant, 'upgrade' | 'socket' | 'gem' | 'enchant'>
+type Change = Pick<
+  SimVariant,
+  'upgrade' | 'socket' | 'gem' | 'enchant' | 'embellishment' | 'recraft' | 'remove' | 'catalyst'
+>
 
 /** Under an item of Top Gear: its variants (changed copies sim'd as candidates, each removable, named by the plan's
  * notes, which follow the variants' order) and a "Change…" form that adds one. */

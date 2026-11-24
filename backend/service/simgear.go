@@ -107,10 +107,28 @@ func comboRefusal(n int) error {
 	return nil
 }
 
+// gearRules limit a Top Gear combination beside which items are picked: the reference (its unique gems and
+// embellishments) and how many Catalyst conversions a combination may hold.
+type gearRules struct {
+	ref             models.SimReference
+	catalystCharges int
+}
+
+// catalystCount is how many of swaps put on a Catalyst conversion.
+func catalystCount(swaps []models.SimSwap) int {
+	n := 0
+	for _, s := range swaps {
+		if s.In != nil && s.In.Catalyst {
+			n++
+		}
+	}
+	return n
+}
+
 // topGearCombos is every legal combination of the picked items and extra candidates other than the equipped gear
 // (gearGroups). More than maxCombos is ErrBadSimOptions, and so is none unless the sim is comparing consumables (then
 // the equipped gear alone is worth a run): nothing is dropped.
-func topGearCombos(ref models.SimReference, p models.SimProfile, equipped, bags []int, extra []gearCandidate,
+func topGearCombos(rules gearRules, p models.SimProfile, equipped, bags []int, extra []gearCandidate,
 	comparing bool,
 	twoHanded func(id int) (bool, error)) ([]gearCombo, error) {
 	groups, err := gearGroups(p, equipped, bags, extra, twoHanded)
@@ -124,13 +142,16 @@ func topGearCombos(ref models.SimReference, p models.SimProfile, equipped, bags 
 	if err := comboRefusal(n); err != nil {
 		return nil, err
 	}
-	unique := uniqueGems(ref)
+	unique := uniqueGems(rules.ref)
 	var combos []gearCombo
 	var walk func(g int, swaps []models.SimSwap)
 	walk = func(g int, swaps []models.SimSwap) {
 		if g == len(groups) {
-			// none is the equipped gear, which the sim's baseline runs; two unique gems of a category are no gear
-			if len(swaps) > 0 && uniqueGemsOK(unique, p, swaps) {
+			// none is the equipped gear, which the sim's baseline runs; a clash of unique gems or a third
+			// embellishment is no gear
+			legal := uniqueGemsOK(unique, p, swaps) && embellishedOK(rules.ref, p, swaps) &&
+				catalystCount(swaps) <= rules.catalystCharges
+			if len(swaps) > 0 && legal {
 				combos = append(combos, gearCombo{name: "combo" + strconv.Itoa(len(combos)+1), swaps: slices.Clone(swaps)})
 			}
 			return
@@ -140,6 +161,9 @@ func topGearCombos(ref models.SimReference, p models.SimProfile, equipped, bags 
 		}
 	}
 	walk(0, nil)
+	if len(combos) == 0 && !comparing { // every combination broke a rule
+		return nil, comboRefusal(0)
+	}
 	return combos, nil
 }
 

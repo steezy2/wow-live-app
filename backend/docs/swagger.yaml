@@ -2847,6 +2847,17 @@ definitions:
       uptime:
         type: number
     type: object
+  models.SimChoice:
+    properties:
+      icon:
+        type: string
+      id:
+        example: 244604
+        type: integer
+      name:
+        example: Blessed Pango Charm
+        type: string
+    type: object
   models.SimChoices:
     properties:
       accuracies:
@@ -2890,6 +2901,10 @@ definitions:
         items:
           type: integer
         type: array
+      maxCatalystCharges:
+        description: MaxCatalystCharges is the most SimRequest.CatalystCharges.
+        example: 6
+        type: integer
       maxCombos:
         description: MaxCombos is the most gear combinations a Top Gear sim runs;
           a request over it is refused.
@@ -3057,6 +3072,20 @@ definitions:
     properties:
       addSocket:
         type: boolean
+      catalyst:
+        type: boolean
+      converts:
+        description: |-
+          Converts is the name of the item the Catalyst makes of this one (a variant can convert it), and Catalyst is set
+          on a copy that was converted.
+        type: string
+      embellishments:
+        description: |-
+          Embellishments and Recrafts are what a crafted item can be changed to, Removable what a variant can take off it
+          (SimVariant.Embellishment, Recraft and Remove).
+        items:
+          $ref: '#/definitions/models.SimChoice'
+        type: array
       group:
         example: finger
         type: string
@@ -3075,6 +3104,14 @@ definitions:
             type: integer
           type: array
         type: object
+      recrafts:
+        items:
+          $ref: '#/definitions/models.SimChoice'
+        type: array
+      removable:
+        items:
+          type: string
+        type: array
       slot:
         type: string
       sockets:
@@ -3286,6 +3323,11 @@ definitions:
         items:
           type: integer
         type: array
+      catalystCharges:
+        description: |-
+          CatalystCharges is how many Catalyst conversions (SimVariant.Catalyst) one combination may hold, up to
+          SimChoices.MaxCatalystCharges; 0 allows none, so a conversion variant needs it.
+        type: integer
       consumables:
         allOf:
         - $ref: '#/definitions/models.SimConsumables'
@@ -3477,6 +3519,16 @@ definitions:
     type: object
   models.SimVariant:
     properties:
+      catalyst:
+        description: Catalyst converts the item to its Catalyst item (it counts against
+          SimRequest.CatalystCharges).
+        type: boolean
+      embellishment:
+        description: |-
+          Embellishment is the reagent ID of the embellishment a crafted item is made with instead,
+          Recraft the reagent ID of the stat pair it is recrafted to, and Remove takes "gems", "enchant", "socket" (one a
+          variant added) or "embellishment" off.
+        type: integer
       enchant:
         example: 7964
         type: integer
@@ -3485,6 +3537,15 @@ definitions:
         type: integer
       index:
         type: integer
+      recraft:
+        type: integer
+      remove:
+        enum:
+        - gems
+        - enchant
+        - socket
+        - embellishment
+        type: string
       socket:
         type: boolean
       upgrade:

@@ -2858,7 +2858,7 @@ const docTemplate = `{
                     "items": {
                         "type": "array",
                         "items": {
-                            "type": "integer",
+                            "type": "integer"
                         }
                     }
                 }
@@ -3119,7 +3119,7 @@ const docTemplate = `{
                     "items": {
                         "type": "array",
                         "items": {
-                            "type": "number",
+                            "type": "number"
                         }
                     }
                 },
@@ -3902,7 +3902,7 @@ const docTemplate = `{
                     "description": "TopBosses is how long each boss took in the similar top runs (the median, by boss name; missing in reviews\nsaved before Nov 11).",
                     "type": "object",
                     "additionalProperties": {
-                        "type": "integer",
+                        "type": "integer"
                     }
                 }
             }
@@ -4210,7 +4210,7 @@ const docTemplate = `{
                     "description": "Activity is each player's share of their time alive in pulls with a cast going or a hit landing (in %).",
                     "type": "object",
                     "additionalProperties": {
-                        "type": "number",
+                        "type": "number"
                     }
                 },
                 "affixes": {
@@ -4229,7 +4229,7 @@ const docTemplate = `{
                 "bestBosses": {
                     "type": "object",
                     "additionalProperties": {
-                        "type": "integer",
+                        "type": "integer"
                     }
                 },
                 "bestFinalMS": {
@@ -4769,7 +4769,7 @@ const docTemplate = `{
                     "items": {
                         "type": "array",
                         "items": {
-                            "type": "number",
+                            "type": "number"
                         }
                     }
                 }
@@ -5208,7 +5208,7 @@ const docTemplate = `{
                 "activity": {
                     "type": "object",
                     "additionalProperties": {
-                        "type": "number",
+                        "type": "number"
                     }
                 },
                 "adds": {
@@ -6798,6 +6798,22 @@ const docTemplate = `{
                 }
             }
         },
+        "models.SimChoice": {
+            "type": "object",
+            "properties": {
+                "icon": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer",
+                    "example": 244604
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Blessed Pango Charm"
+                }
+            }
+        },
         "models.SimChoices": {
             "type": "object",
             "properties": {
@@ -6852,6 +6868,11 @@ const docTemplate = `{
                     "items": {
                         "type": "integer"
                     }
+                },
+                "maxCatalystCharges": {
+                    "description": "MaxCatalystCharges is the most SimRequest.CatalystCharges.",
+                    "type": "integer",
+                    "example": 6
                 },
                 "maxCombos": {
                     "description": "MaxCombos is the most gear combinations a Top Gear sim runs; a request over it is refused.",
@@ -7082,6 +7103,20 @@ const docTemplate = `{
                 "addSocket": {
                     "type": "boolean"
                 },
+                "catalyst": {
+                    "type": "boolean"
+                },
+                "converts": {
+                    "description": "Converts is the name of the item the Catalyst makes of this one (a variant can convert it), and Catalyst is set\non a copy that was converted.",
+                    "type": "string"
+                },
+                "embellishments": {
+                    "description": "Embellishments and Recrafts are what a crafted item can be changed to, Removable what a variant can take off it\n(SimVariant.Embellishment, Recraft and Remove).",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.SimChoice"
+                    }
+                },
                 "group": {
                     "type": "string",
                     "example": "finger"
@@ -7106,6 +7141,18 @@ const docTemplate = `{
                         "items": {
                             "type": "integer"
                         }
+                    }
+                },
+                "recrafts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.SimChoice"
+                    }
+                },
+                "removable": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
                     }
                 },
                 "slot": {
@@ -7396,6 +7443,10 @@ const docTemplate = `{
                         "type": "integer"
                     }
                 },
+                "catalystCharges": {
+                    "description": "CatalystCharges is how many Catalyst conversions (SimVariant.Catalyst) one combination may hold, up to\nSimChoices.MaxCatalystCharges; 0 allows none, so a conversion variant needs it.",
+                    "type": "integer"
+                },
                 "consumables": {
                     "description": "Consumables are what every kind of sim uses instead of simc's defaults, and what it compares.",
                     "allOf": [
@@ -7641,6 +7692,14 @@ const docTemplate = `{
         "models.SimVariant": {
             "type": "object",
             "properties": {
+                "catalyst": {
+                    "description": "Catalyst converts the item to its Catalyst item (it counts against SimRequest.CatalystCharges).",
+                    "type": "boolean"
+                },
+                "embellishment": {
+                    "description": "Embellishment is the reagent ID of the embellishment a crafted item is made with instead,\nRecraft the reagent ID of the stat pair it is recrafted to, and Remove takes \"gems\", \"enchant\", \"socket\" (one a\nvariant added) or \"embellishment\" off.",
+                    "type": "integer"
+                },
                 "enchant": {
                     "type": "integer",
                     "example": 7964
@@ -7651,6 +7710,18 @@ const docTemplate = `{
                 },
                 "index": {
                     "type": "integer"
+                },
+                "recraft": {
+                    "type": "integer"
+                },
+                "remove": {
+                    "type": "string",
+                    "enum": [
+                        "gems",
+                        "enchant",
+                        "socket",
+                        "embellishment"
+                    ]
                 },
                 "socket": {
                     "type": "boolean"

@@ -355,3 +355,177 @@ func TestPlanRefusesInStartsWords(t *testing.T) {
 		t.Errorf("plan = %+v, %v; want Start's refusal %v", plan, err, startErr)
 	}
 }
+
+// craftedRef is testRef with ring() as a crafted item: two embellishments (the first on it) and two recraft pairs.
+func craftedRef() models.SimReference {
+	ref := testRef()
+	ref.Crafting = models.SimCrafting{
+		Items: map[int]models.CraftedItem{5: {Name: "Band", Reagents: []int{1, 2, 3, 4}}},
+		Reagents: map[int]models.CraftingReagent{
+			1: {Kind: models.ReagentEmbellishment, Name: "Charm", BonusIDs: []int{50, 60}},
+			2: {Kind: models.ReagentEmbellishment, Name: "Binding", BonusIDs: []int{51, 60}},
+			3: {Kind: models.ReagentRecraft, Name: "Missive A", BonusIDs: []int{8790}, Stats: []int{32, 36}},
+			4: {Kind: models.ReagentRecraft, Name: "Missive B", BonusIDs: []int{8795}, Stats: []int{32, 40}},
+		},
+	}
+	return ref
+}
+
+func TestApplyVariantCraftingAndRemoval(t *testing.T) {
+	crafted := func() models.SimItem {
+		item := ring()
+		item.Opts = map[string][]int{"bonus_id": {7, 50, 60, 8795, 10397}, "gem_id": {240883}, "enchant_id": {7964},
+			"crafted_stats": {32, 40}}
+		return item
+	}
+	tests := []struct {
+		name     string
+		item     func() models.SimItem
+		variant  models.SimVariant
+		wantLine string
+		wantNote string
+		wantErr  string
+	}{
+		{"another embellishment", crafted, models.SimVariant{Embellishment: 2},
+			"finger1=,id=5,bonus_id=7/8795/10397/51/60,crafted_stats=32/40,enchant_id=7964,gem_id=240883\n", "Binding", ""},
+		{"no embellishment", crafted, models.SimVariant{Remove: "embellishment"},
+			"finger1=,id=5,bonus_id=7/8795/10397,crafted_stats=32/40,enchant_id=7964,gem_id=240883\n", "no embellishment", ""},
+		{"a recraft", crafted, models.SimVariant{Recraft: 3},
+			"finger1=,id=5,bonus_id=7/50/60/10397/8790,crafted_stats=32/36,enchant_id=7964,gem_id=240883\n",
+			"recraft Crit / Haste", ""},
+		{"the embellishment it has", crafted, models.SimVariant{Embellishment: 1}, "", "", "can't take"},
+		{"the recraft it has", crafted, models.SimVariant{Recraft: 4}, "", "", "can't be recrafted"},
+		{"a reagent of another recipe", crafted, models.SimVariant{Embellishment: 99}, "", "", "can't take"},
+		{"an item that isn't crafted", func() models.SimItem { i := crafted(); i.ID = 6; return i },
+			models.SimVariant{Embellishment: 2}, "", "", "can't take"},
+		{"gems off", crafted, models.SimVariant{Remove: "gems"},
+			"finger1=,id=5,bonus_id=7/50/60/8795/10397,crafted_stats=32/40,enchant_id=7964\n", "no gems", ""},
+		{"the socket off takes its gem", crafted, models.SimVariant{Remove: "socket"},
+			"finger1=,id=5,bonus_id=7/50/60/8795,crafted_stats=32/40,enchant_id=7964\n", "no socket", ""},
+		{"nothing to remove", ring, models.SimVariant{Remove: "enchant"}, "", "", "no enchant to remove"},
+		{"something else", crafted, models.SimVariant{Remove: "item"}, "", "", "remove one of"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := applyVariant(craftedRef(), tt.item(), tt.variant)
+			if tt.wantErr != "" {
+				if !errors.Is(err, ErrBadSimOptions) || !strings.Contains(err.Error(), tt.wantErr) {
+					t.Fatalf("err = %v, want ErrBadSimOptions with %q", err, tt.wantErr)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if line := SimItemLine(got); line != tt.wantLine || got.Note != tt.wantNote {
+				t.Errorf("got %q %q, want %q %q", line, got.Note, tt.wantLine, tt.wantNote)
+			}
+		})
+	}
+}
+
+func TestParseProfileSaysWhatACraftedItemCanChange(t *testing.T) {
+	item := ring()
+	item.Opts = map[string][]int{"bonus_id": {7, 50, 60, 8795, 10397}, "gem_id": {240883}}
+	got := withChoices(craftedRef(), models.SimProfile{Equipped: []models.SimItem{item}}).Equipped[0]
+	if len(got.Embellishments) != 1 || got.Embellishments[0].Name != "Binding" || len(got.Recrafts) != 1 ||
+		got.Recrafts[0].Name != "Crit / Haste" {
+		t.Errorf("choices %+v %+v, want the other embellishment and the other recraft", got.Embellishments, got.Recrafts)
+	}
+	if !slices.Equal(got.Removable, []string{"gems", "socket", "embellishment"}) {
+		t.Errorf("removable %v, want gems, socket and the embellishment", got.Removable)
+	}
+}
+
+// catalystRef is testRef with one Catalyst conversion group: a mage head and a mage chest.
+func catalystRef() models.SimReference {
+	ref := testRef()
+	ref.Crafting.Conversions = map[int]models.ItemConversion{13: {BonusIDs: []int{13662}, Items: []models.CatalystItem{
+		{ID: 900, Name: "Tier Crown", Class: 8, InventoryType: 1}, {ID: 901, Name: "Tier Robe", Class: 8, InventoryType: 20},
+		{ID: 902, Name: "Warrior Helm", Class: 1, InventoryType: 1}}}}
+	return ref
+}
+
+func TestCatalystConvertsOnlyWhatTheGroupCoversForTheClass(t *testing.T) {
+	item := func(slot string, bonus ...int) models.SimItem {
+		return models.SimItem{Slot: slot, ID: 5, Name: "Old", Opts: map[string][]int{"bonus_id": bonus}}
+	}
+	tests := []struct {
+		name  string
+		item  models.SimItem
+		class string
+		want  int // the converted item's ID, 0 for none
+	}{
+		{"a head of the group", item("head", 7, 13662), "mage", 900},
+		{"a chest takes either chest type", item("chest", 13662), "mage", 901},
+		{"another class's item", item("head", 13662), "warrior", 902},
+		{"not of the group", item("head", 7), "mage", 0},
+		{"a slot the Catalyst leaves alone", item("trinket1", 13662), "mage", 0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := converted(catalystRef(), tt.class, tt.item)
+			if tt.want == 0 {
+				if !errors.Is(err, ErrBadSimOptions) {
+					t.Errorf("err = %v, want ErrBadSimOptions", err)
+				}
+				return
+			}
+			same := slices.Equal(got.Opts["bonus_id"], tt.item.Opts["bonus_id"])
+			if err != nil || got.ID != tt.want || !got.Catalyst || !same {
+				t.Errorf("got %+v (%v), want item %d, converted, with its bonus IDs kept", got, err, tt.want)
+			}
+		})
+	}
+}
+
+func TestCatalystChargesLimitConversionsInACombination(t *testing.T) {
+	p := gearProfile(false)
+	p.Equipped = append(p.Equipped, gearItem("chest", 51))
+	conv := func(i int) gearCandidate {
+		item := p.Equipped[i]
+		item.ID, item.Catalyst = item.ID+1000, true
+		return gearCandidate{item: item}
+	}
+	extra := []gearCandidate{conv(0), conv(len(p.Equipped) - 1)} // the head and the chest
+	picked := []int{0, len(p.Equipped) - 1}
+	for charges, want := range map[int]int{0: 0, 1: 2, 2: 3} {
+		combos, err := topGearCombos(gearRules{catalystCharges: charges}, p, picked, nil, extra, true, twoHanders(t))
+		if err != nil || len(combos) != want {
+			t.Errorf("%d charges: %d combinations (%v), want %d", charges, len(combos), err, want)
+		}
+	}
+	req := models.SimRequest{Variants: []models.SimVariant{{Worn: true, Index: 0, Catalyst: true}}}
+	if _, err := topGearExtras(catalystRef(), p, req); !errors.Is(err, ErrBadSimOptions) {
+		t.Errorf("a conversion with no charges: err = %v, want ErrBadSimOptions", err)
+	}
+}
+
+func TestRemoveSocketTakesOnlyTheAddedOneAndItsGem(t *testing.T) {
+	item := func(bonus []int, gems ...int) models.SimItem {
+		return models.SimItem{Slot: "head", ID: 5, Opts: map[string][]int{"bonus_id": bonus, "gem_id": gems}}
+	}
+	tests := []struct {
+		name string
+		item models.SimItem
+		want []int // the gems left; nil for none
+		err  bool
+	}{
+		{"its only socket was the added one", item([]int{7, 10397}, 1), nil, false},
+		{"one of two sockets", item([]int{7, 9, 10397}, 1, 2), []int{1}, false},
+		{"the added one is empty", item([]int{7, 9, 10397}, 1), []int{1}, false},
+		{"an item's own socket stays", item([]int{7, 9}, 1), nil, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := removeFrom(testRef(), models.SimItem{Name: "Hat", Opts: cloneOpts(tt.item.Opts)}, "socket")
+			if (err != nil) != tt.err {
+				t.Fatalf("err = %v, want error %v", err, tt.err)
+			}
+			if err == nil && (!slices.Equal(got.Opts["gem_id"], tt.want) || slices.Contains(got.Opts["bonus_id"], 10397)) {
+				t.Errorf("got %v and gems %v, want the added socket gone and gems %v", got.Opts["bonus_id"],
+					got.Opts["gem_id"], tt.want)
+			}
+		})
+	}
+}

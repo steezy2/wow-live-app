@@ -268,7 +268,7 @@ func TestSimDropsNameClassesTheWayTheExportDoes(t *testing.T) {
 		t.Fatal(err)
 	}
 	for id, s := range d.Specs {
-		if !slices.Contains(simClasses, s.Class) {
+		if classIDs[s.Class] == 0 {
 			t.Errorf("spec %d: class %q is not one ParseSimC accepts", id, s.Class)
 		}
 	}
