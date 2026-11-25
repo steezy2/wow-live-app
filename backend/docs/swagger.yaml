@@ -3715,6 +3715,15 @@ definitions:
           shows a loss.
         example: 812
         type: number
+      group:
+        description: |-
+          Group is the report's group the suggestion is ranked in: 0 a change the sim tests, 1 a stat, 2 a talent swap
+          that adds no DPS.
+        enum:
+        - 0
+        - 1
+        - 2
+        type: integer
       kind:
         enum:
         - enchant

@@ -417,3 +417,44 @@ func TestCancellingASuggestSimDoesNotWaitForTheTopLogs(t *testing.T) {
 		t.Errorf("state = %s, want cancelled while the top logs were read", sim.State)
 	}
 }
+
+// TestSuggestSimsAPickedDropOnTheFightThatDroppedIt: a drop the smart stages cut on one target (it can't be the best
+// there) yet the best on AoE is simmed again on one target, so its gain there isn't read as none.
+func TestSuggestSimsAPickedDropOnTheFightThatDroppedIt(t *testing.T) {
+	s, _ := suggestSims(t)
+	var items []models.DropItem
+	for i := range 60 {
+		items = append(items, models.DropItem{ID: 901 + i, Name: "neck", Slot: "neck"})
+	}
+	s.Drops.Raids = []models.DropSource{{Name: "Raid", Bosses: []models.DropBoss{{Name: "Boss",
+		Levels: &models.DifficultyLevels{Heroic: 250}, Items: items}}}}
+	s.Drops.Keys = []models.KeyLevels{{Level: 10, Loot: 250}}
+	engine := s.Engine.(*fakeEngine)
+	engine.sets = map[string]simSetJSON{"drop60": {Mean: 100200, MeanStdDev: 1}}
+	for i := range 30 {
+		engine.sets["drop"+strconv.Itoa(i+1)] = simSetJSON{Mean: 101000 - 10*float64(i), MeanStdDev: 1}
+	}
+	engine.aoeSets = map[string]simSetJSON{"drop60": {Mean: 103000, MeanStdDev: 1}}
+	started, err := s.Start(suggestRequest(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	sim := waitSim(t, s, started.ID)
+	if sim.State != models.SimDone {
+		t.Fatalf("sim = %+v", sim)
+	}
+	i := slices.IndexFunc(sim.Result.Suggest.Suggestions, func(sg models.Suggestion) bool {
+		return sg.Kind == "farm" && sg.Swaps[0].In.ID == 960
+	})
+	if i < 0 || sim.Result.Suggest.Suggestions[i].Gain != 250 {
+		t.Errorf("drop 960 = %+v, want its one-target gain of 250 simmed", sim.Result.Suggest.Suggestions)
+	}
+}
+
+// TestSuggestTestsEveryChangeInOneStage: changes are each judged against the unchanged character, so raced in smart
+// stages they would be cut for losing to the best change instead.
+func TestSuggestTestsEveryChangeInOneStage(t *testing.T) {
+	if maxSuggestions >= smartMin {
+		t.Errorf("maxSuggestions %d reaches the smart stages at %d", maxSuggestions, smartMin)
+	}
+}

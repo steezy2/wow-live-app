@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"maps"
 	"math"
 	"slices"
@@ -140,7 +141,10 @@ func (c Comparer) TopBuilds(ctx context.Context, specID int, character string, t
 // dungeons (ids, by name) the character ("Name-Realm") logged, else minRankedKeyLevel.
 func (c Comparer) suggestKeyLevel(character string, ids map[string]int) int {
 	level := 0
-	keys, _ := c.Keys.History()
+	keys, err := c.Keys.History()
+	if err != nil {
+		log.Printf("reading the saved keys for the top logs' key level: %v", err)
+	}
 	for _, k := range keys {
 		if _, ok := ids[k.Dungeon]; ok && loggedBy(k.Logger, k.Realms, character) {
 			level = max(level, k.Level)
@@ -382,16 +386,19 @@ func (r suggestRun) run() (*models.SimResult, string, error) {
 		report.Suggestions = append(report.Suggestions, t.s)
 	}
 	report.Suggestions = append(append(report.Suggestions, farm...), untested...)
+	for i := range report.Suggestions {
+		report.Suggestions[i].Group = untestedRank[report.Suggestions[i].Kind]
+	}
 	slices.SortStableFunc(report.Suggestions, func(a, b models.Suggestion) int {
-		return cmp.Or(cmp.Compare(untestedRank[a.Kind], untestedRank[b.Kind]), byGain(a, b),
+		return cmp.Or(cmp.Compare(a.Group, b.Group), byGain(a, b),
 			cmp.Compare(b.Expected, a.Expected))
 	})
 	result.Suggest = report
 	return result, "", nil
 }
 
-// untestedRank orders the suggestions the sim shows no gain of after those it does (0): the stats, priced by the stat
-// weights, then the talent swaps that add no DPS.
+// untestedRank is each kind's Suggestion.Group: the suggestions the sim shows no gain of after those it does (0): the
+// stats, priced by the stat weights, then the talent swaps that add no DPS.
 var untestedRank = map[string]int{"stat": 1, "talentOther": 2}
 
 // byGain orders the suggestion with the larger gain on either fight first.
@@ -507,7 +514,8 @@ func changeCombo(ref models.SimReference, tree models.TalentTree, p models.SimPr
 		}
 		worn := &p.Equipped[v.Index]
 		in, err := applyVariant(ref, *worn, *v)
-		return gearCombo{swaps: []models.SimSwap{{Slot: worn.Slot, Out: worn, In: &in}}}, err == nil
+		swaps := []models.SimSwap{{Slot: worn.Slot, Out: worn, In: &in}}
+		return gearCombo{swaps: swaps}, err == nil && uniqueGemsOK(uniqueGems(ref), p, swaps)
 	}
 	picks, err := consumablesPicked(ref, s.Consumables)
 	if err != nil || len(picks) != 1 || len(picks[0].picks) != 1 {
@@ -527,7 +535,6 @@ func (r suggestRun) bestGear(bags []gearCombo, report *models.SimSuggestReport) 
 	if err != nil {
 		return nil, complaint, err
 	}
-	var best [len(suggestFights)]simSetJSON
 	combo, top := -1, 0.0
 	for i, c := range bags {
 		set, ran := both.sets(c.name)
@@ -536,12 +543,16 @@ func (r suggestRun) bestGear(bags []gearCombo, report *models.SimSuggestReport) 
 			gain = max(gain, set[j].Mean-f.base.DPS)
 		}
 		if ran && (combo < 0 || gain > top) {
-			best, combo, top = set, i, gain
+			combo, top = i, gain
 		}
 	}
 	if combo < 0 {
 		return nil, "", errors.New("simc ran none of the gear combinations")
 	}
+	if complaint, err := r.fill(&both, bags[combo:combo+1], 70, 5, "the best gear"); err != nil {
+		return nil, complaint, err
+	}
+	best, _ := both.sets(bags[combo].name)
 	swaps := bags[combo].swaps
 	s := models.Suggestion{Kind: "gear", What: "Wear " + swapsText(swaps), Swaps: slimmed(swaps),
 		Evidence: fmt.Sprintf("the best of %d combinations of your gear", len(bags))}
@@ -575,7 +586,11 @@ func (r suggestRun) farm(drops []gearCombo) ([]models.Suggestion, string, error)
 	if err != nil {
 		return nil, complaint, err
 	}
-	var found []models.Suggestion
+	type drop struct {
+		s models.Suggestion
+		d gearCombo
+	}
+	var found []drop
 	for _, d := range drops {
 		set, ran := both.sets(d.name)
 		if !ran {
@@ -587,19 +602,71 @@ func (r suggestRun) farm(drops []gearCombo) ([]models.Suggestion, string, error)
 				defaultDropDifficulty, r.sims.Choices().DefaultKeyLevel),
 			Swaps: slimmed(d.swaps), Source: d.source, Boss: d.boss}
 		if gained(&s, set, both) {
-			found = append(found, s)
+			found = append(found, drop{s, d})
 		}
 	}
-	slices.SortStableFunc(found, byGain)
-	var out []models.Suggestion
+	slices.SortStableFunc(found, func(a, b drop) int { return byGain(a.s, b.s) })
+	var picked []drop
 	seen := map[int]bool{}
-	for _, s := range found {
-		if id := s.Swaps[0].In.ID; len(out) < maxFarmSuggestions && !seen[id] {
+	for _, f := range found {
+		if id := f.s.Swaps[0].In.ID; len(picked) < maxFarmSuggestions && !seen[id] {
 			seen[id] = true
-			out = append(out, s)
+			picked = append(picked, f)
 		}
 	}
+	combos := make([]gearCombo, len(picked))
+	for i, f := range picked {
+		combos[i] = f.d
+	}
+	if complaint, err := r.fill(&both, combos, 95, 7, "drops to farm"); err != nil {
+		return nil, complaint, err
+	}
+	out := make([]models.Suggestion, len(picked))
+	for i, f := range picked {
+		set, _ := both.sets(f.d.name)
+		gained(&f.s, set, both)
+		out[i] = f.s
+	}
+	slices.SortStableFunc(out, byGain)
 	return out, "", nil
+}
+
+// fill races each of picked on the fights whose smart stages dropped it, so each has a gain on both: a stage drops
+// what can't be the best there, which may still beat the unchanged character. The progress bar stays at at.
+func (r suggestRun) fill(both *races, picked []gearCombo, at, step int, what string) (string, error) {
+	for i, f := range suggestFights {
+		missing := slices.DeleteFunc(slices.Clone(picked), func(c gearCombo) bool {
+			return slices.ContainsFunc(both[i].sets, func(s simSetJSON) bool { return s.Name == c.name })
+		})
+		if len(missing) == 0 {
+			continue
+		}
+		base, complaint, err := r.race(r.head, missing, f.options(r.o), at, at, step+i, what+" again on "+f.label)
+		if err != nil {
+			return complaint, err
+		}
+		sets, err := readSets(r.output)
+		if err != nil {
+			return "", err
+		}
+		for _, set := range sets {
+			// gains are read against the fight's first baseline: move this run's gain onto it
+			set.Mean += both[i].base.DPS - base.DPS
+			both[i].sets = append(both[i].sets, set)
+		}
+	}
+	return "", nil
+}
+
+// swapsTo are the swaps from the gear worn to the gear now, by slot.
+func swapsTo(worn, now map[string]*models.SimItem) []models.SimSwap {
+	var swaps []models.SimSwap
+	for _, slot := range simSlots {
+		if now[slot] != worn[slot] {
+			swaps = append(swaps, models.SimSwap{Slot: slot, Out: worn[slot], In: now[slot]})
+		}
+	}
+	return swaps
 }
 
 // combined runs every shown change that fits at once (the gear first, then each enchant and gem on what is in its
@@ -611,6 +678,7 @@ func (r suggestRun) combined(shown []tested) (*models.SimCombo, string, error) {
 		worn[r.p.Equipped[i].Slot] = &r.p.Equipped[i]
 	}
 	now := maps.Clone(worn)
+	unique := uniqueGems(r.sims.Ref)
 	combo := gearCombo{name: "combined"}
 	picks, swapped := r.p.Picks, false
 	var names []string
@@ -631,6 +699,10 @@ func (r suggestRun) combined(shown []tested) (*models.SimCombo, string, error) {
 					continue
 				}
 				now[t.s.Slot] = &changed
+				if !uniqueGemsOK(unique, r.p, swapsTo(worn, now)) {
+					now[t.s.Slot] = item
+					continue
+				}
 			case gearFirst:
 				for _, sw := range t.combo.swaps {
 					now[sw.Slot] = sw.In
@@ -658,11 +730,7 @@ func (r suggestRun) combined(shown []tested) (*models.SimCombo, string, error) {
 		}
 		combo.line += line
 	}
-	for _, slot := range simSlots {
-		if now[slot] != worn[slot] {
-			combo.swaps = append(combo.swaps, models.SimSwap{Slot: slot, Out: worn[slot], In: now[slot]})
-		}
-	}
+	combo.swaps = swapsTo(worn, now)
 	both, complaint, err := r.raceBoth([]gearCombo{combo}, 95, 100, 8, "all the changes together")
 	if err != nil {
 		return nil, complaint, err

@@ -2166,6 +2166,8 @@ export interface Suggestion {
   aoeError?: number
   /** Whether the change is in the report's combined row. */
   combined?: boolean
+  /** The report's group it is ranked in: none a change the sim tests, 1 a stat, 2 a talent swap adding no DPS. */
+  group?: number
 }
 
 /** What a Suggest sim found besides the stat weights: the changes best first (the `talentOther` ones last), the gain of

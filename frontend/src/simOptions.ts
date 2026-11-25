@@ -16,14 +16,11 @@ import type {
 export type RankBy = 'best' | 'single' | 'aoe'
 
 /** The suggestions in the order `by` ranks them: the server's for 'best' (the larger gain); else by the gain on that
- * fight within each of the server's groups (the tested changes, the stats, the talents that add no DPS: the backend's
- * untestedRank), which keep the server's order. */
+ * fight within each of the server's groups, which keep their order. */
 export function rankSuggestions(list: Suggestion[], by: RankBy): Suggestion[] {
   if (by === 'best') return list
-  const group = (s: Suggestion) => (s.kind === 'stat' || s.kind === 'talentOther' ? s.kind : '')
-  const first = (s: Suggestion) => list.findIndex((t) => group(t) === group(s))
   const gain = (s: Suggestion) => (by === 'single' ? s.gain : s.aoeGain) ?? 0
-  return [...list].sort((a, b) => first(a) - first(b) || gain(b) - gain(a))
+  return [...list].sort((a, b) => (a.group ?? 0) - (b.group ?? 0) || gain(b) - gain(a))
 }
 
 /** What is wrong with the fight options, in words, or null when they fit choices (the app refuses the same ones). */

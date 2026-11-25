@@ -146,8 +146,6 @@ function RunningSims(props: {
   )
 }
 
-/** What a request makes, in words: the runs besides the sim's own (of the max that run) and about how long it all
- * takes, or why the app would refuse it. */
 /** Whether the pasted character is the one a finished sim was of, wearing the same items: a suggestion's item index
  * points into that export, and a newer paste can have other items at the same places. */
 const sameGear = (profile: SimProfile | null, sim: Sim) =>
@@ -155,6 +153,8 @@ const sameGear = (profile: SimProfile | null, sim: Sim) =>
   profile.name === sim.character &&
   !!sim.result?.equipped?.every((it, i) => profile.equipped[i]?.slot === it.slot && profile.equipped[i]?.id === it.id)
 
+/** What a request makes, in words: the runs besides the sim's own (of the max that run) and about how long it all
+ * takes, or why the app would refuse it. */
 function PlanText(props: { plan: { plan: SimPlan | null; error: string | null }; kind: SimKind; choices: SimChoices }) {
   const { plan, kind, choices } = props
   const refusal = plan.error ?? plan.plan?.error

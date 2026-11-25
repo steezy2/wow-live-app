@@ -109,11 +109,12 @@ func EncodeTalents(tree models.TalentTree, picks []models.TalentPick) (string, e
 
 // validTalents says why picks can't all be taken in tree, nil when they can: no section ("class", "spec", each hero
 // tree, which the string holds both of) spends more than its points, each taken node that others lead to has one of
-// those taken or free, and each taken node behind a gate (ReqPoints) has that many points spent before the gate.
+// those at its full rank or free, and each taken node behind a gate (ReqPoints) has that many points spent before the
+// gate.
 func validTalents(tree models.TalentTree, picks []models.TalentPick) error {
-	taken := map[int]bool{}
+	rank := map[int]int{}
 	for _, p := range picks {
-		taken[p.NodeID] = true
+		rank[p.NodeID] = p.Rank
 	}
 	parents := map[int][]int{}
 	for _, n := range tree.Nodes {
@@ -127,8 +128,9 @@ func validTalents(tree models.TalentTree, picks []models.TalentPick) error {
 		subTree int
 	}
 	spent := map[section]int{}
-	// A free node is granted: the inactive hero tree's isn't in the string, yet its talents stay taken.
-	reached := func(id int) bool { return taken[id] || nodes[id].Free }
+	// A free node is granted: the inactive hero tree's isn't in the string, yet its talents stay taken. A node leads on
+	// only at its full rank, as in the game.
+	reached := func(id int) bool { return nodes[id].Free || rank[id] > 0 && rank[id] >= nodes[id].MaxRanks }
 	// before is the points picks spend in n's section on nodes before n's gate.
 	before := func(n models.TalentNode) int {
 		points := 0

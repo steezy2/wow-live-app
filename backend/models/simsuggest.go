@@ -47,6 +47,9 @@ type Suggestion struct {
 	AoEError float64 `json:"aoeError,omitempty" example:"120"`
 	// Combined is whether the change is in the report's combined row.
 	Combined bool `json:"combined,omitempty"`
+	// Group is the report's group the suggestion is ranked in: 0 a change the sim tests, 1 a stat, 2 a talent swap
+	// that adds no DPS.
+	Group int `json:"group,omitempty" enums:"0,1,2"`
 }
 
 // SimSuggestReport is what a Suggest sim found besides the stat weights (SimResult.Weights): the changes, best first

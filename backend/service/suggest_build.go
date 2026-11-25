@@ -207,16 +207,18 @@ func talentSuggestions(in suggestInput) ([]models.Suggestion, []string) {
 	slices.SortStableFunc(shares, func(a, b models.TalentShare) int { return cmp.Compare(b.Taken, a.Taken) })
 	var out []models.Suggestion
 	refused := 0
+	given := map[models.TalentPick]bool{} // each swap gives up another talent, so the combined row can take them all
 	for _, s := range shares {
 		if len(out) == maxTalentSuggestions {
 			break
 		}
 		sg := models.Suggestion{Kind: "talent", Evidence: evidence(s.Taken, t.Of), Talent: &s,
-			Replaces: replacedTalent(in.talentTree, in.you.Picks, nodes, taken, s)}
+			Replaces: replacedTalent(in.talentTree, in.you.Picks, nodes, taken, given, s)}
 		if sg.Replaces == nil {
 			refused++
 			continue
 		}
+		given[*sg.Replaces] = true
 		sg.What = fmt.Sprintf("Take %s instead of %s", cmp.Or(names[s.EntryID], "a talent"),
 			cmp.Or(names[sg.Replaces.EntryID], "a talent"))
 		out = append(out, sg)
@@ -235,9 +237,10 @@ func talentSuggestions(in suggestInput) ([]models.Suggestion, []string) {
 
 // replacedTalent is the character's talent (of picks) a swap to s gives up, the first one validTalents allows in tree:
 // in a choice node, the entry taken; else, of the talents of s's rank taken in its section (class, spec or a hero tree)
-// in nodes (neither free nor tiered), the one the fewest top logs took first. Nil when none is allowed.
+// in nodes (neither free nor tiered), the one the fewest top logs took first; never one of given. Nil when none is
+// allowed.
 func replacedTalent(tree models.TalentTree, picks []models.TalentPick, nodes map[int]models.TalentNode,
-	taken map[[2]int]int, s models.TalentShare) *models.TalentPick {
+	taken map[[2]int]int, given map[models.TalentPick]bool, s models.TalentShare) *models.TalentPick {
 	node := nodes[s.NodeID]
 	options := slices.DeleteFunc(slices.Clone(picks), func(p models.TalentPick) bool { return p.NodeID != node.ID })
 	if len(options) == 0 {
@@ -250,7 +253,7 @@ func replacedTalent(tree models.TalentTree, picks []models.TalentPick, nodes map
 		})
 	}
 	for _, p := range options {
-		if validTalents(tree, swapTalent(picks, models.Suggestion{Talent: &s, Replaces: &p})) == nil {
+		if !given[p] && validTalents(tree, swapTalent(picks, models.Suggestion{Talent: &s, Replaces: &p})) == nil {
 			return &p
 		}
 	}

@@ -78,10 +78,12 @@ func TestDecodeTalentsRefuses(t *testing.T) {
 	}
 }
 
-// TestValidTalentsRefuses: a node taken without one leading to it, or more points than a section has, is refused.
+// TestValidTalentsRefuses: a node taken without one leading to it at its full rank, or more points than a section
+// has, is refused.
 func TestValidTalentsRefuses(t *testing.T) {
-	tree := models.TalentTree{Points: map[string]int{"class": 2}, Nodes: []models.TalentNode{
-		{ID: 1, Tree: "class", MaxRanks: 1, Next: []int{2}}, {ID: 2, Tree: "class", MaxRanks: 2},
+	tree := models.TalentTree{Points: map[string]int{"class": 4}, Nodes: []models.TalentNode{
+		{ID: 1, Tree: "class", MaxRanks: 1, Next: []int{2}}, {ID: 2, Tree: "class", MaxRanks: 2, Next: []int{4}},
+		{ID: 4, Tree: "class", MaxRanks: 1},
 		{ID: 3, Tree: "class", MaxRanks: 1, ReqPoints: 1}}}
 	for name, tc := range map[string]struct {
 		picks []models.TalentPick
@@ -89,7 +91,10 @@ func TestValidTalentsRefuses(t *testing.T) {
 	}{
 		"taken in order":  {[]models.TalentPick{{NodeID: 1, Rank: 1}, {NodeID: 2, Rank: 1}}, true},
 		"no parent":       {[]models.TalentPick{{NodeID: 2, Rank: 1}, {NodeID: 3, Rank: 1}}, false},
-		"over points":     {[]models.TalentPick{{NodeID: 1, Rank: 1}, {NodeID: 2, Rank: 2}}, false},
+		"parent not full": {[]models.TalentPick{{NodeID: 1, Rank: 1}, {NodeID: 2, Rank: 1}, {NodeID: 4, Rank: 1}}, false},
+		"parent full":     {[]models.TalentPick{{NodeID: 1, Rank: 1}, {NodeID: 2, Rank: 2}, {NodeID: 4, Rank: 1}}, true},
+		"over points": {[]models.TalentPick{{NodeID: 1, Rank: 1}, {NodeID: 2, Rank: 2}, {NodeID: 4, Rank: 1},
+			{NodeID: 3, Rank: 1}}, false},
 		"past its gate":   {[]models.TalentPick{{NodeID: 1, Rank: 1}, {NodeID: 3, Rank: 1}}, true},
 		"before its gate": {[]models.TalentPick{{NodeID: 3, Rank: 1}}, false},
 	} {

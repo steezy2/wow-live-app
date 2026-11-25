@@ -7957,6 +7957,15 @@ const docTemplate = `{
                     "type": "number",
                     "example": 812
                 },
+                "group": {
+                    "description": "Group is the report's group the suggestion is ranked in: 0 a change the sim tests, 1 a stat, 2 a talent swap\nthat adds no DPS.",
+                    "type": "integer",
+                    "enum": [
+                        0,
+                        1,
+                        2
+                    ]
+                },
                 "kind": {
                     "type": "string",
                     "enum": [

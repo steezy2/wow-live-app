@@ -74,8 +74,8 @@ describe('SimSuggestions', () => {
       { kind: 'gem', what: 'aoe', evidence: 'x', gain: 50, aoeGain: 900 },
       { kind: 'enchant', what: 'single', evidence: 'x', gain: 500, aoeGain: 100 },
       { kind: 'talent', what: 'middle', evidence: 'x', gain: 300, aoeGain: 300 },
-      { kind: 'stat', what: 'stat', evidence: 'x', expected: 300 },
-      { kind: 'talentOther', what: 'other', evidence: 'x', gain: -50 },
+      { kind: 'stat', what: 'stat', evidence: 'x', expected: 300, group: 1 },
+      { kind: 'talentOther', what: 'other', evidence: 'x', gain: -50, group: 2 },
     ]
     const order = (by: 'best' | 'single' | 'aoe') => rankSuggestions(list, by).map((s) => s.what)
     expect(order('best')).toEqual(['aoe', 'single', 'middle', 'stat', 'other'])

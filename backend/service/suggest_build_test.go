@@ -140,6 +140,7 @@ func TestTalentSuggestions(t *testing.T) {
 		{ID: 22, Tree: "hero", SubTree: 1, MaxRanks: 1, Entries: []models.TalentEntry{{ID: 221, Name: "Supercharge"}}},
 		{ID: 23, Tree: "hero", SubTree: 2, MaxRanks: 1, Entries: []models.TalentEntry{{ID: 231, Name: "Earthen Rage"}}},
 		{ID: 24, Tree: "hero", SubTree: 2, MaxRanks: 1, Entries: []models.TalentEntry{{ID: 241, Name: "Totemic Rebound"}}},
+		{ID: 15, Tree: "class", MaxRanks: 1, Entries: []models.TalentEntry{{ID: 151, Name: "Spirit Walk"}}},
 	}, HeroChoice: models.TalentNode{ID: 20, Tree: "hero", Choice: true,
 		Entries: []models.TalentEntry{{ID: 201, SubTree: 1}, {ID: 202, SubTree: 2}}}}
 	pick := func(node, entry int) models.TalentPick {
@@ -160,6 +161,9 @@ func TestTalentSuggestions(t *testing.T) {
 		{"a talent replaces the least taken one of its section, never a free or tiered one",
 			map[models.TalentPick]int{pick(3, 31): 10, pick(1, 11): 10, pick(2, 21): 8, pick(6, 61): 9, pick(7, 71): 9},
 			[]string{"Take Thunderstorm instead of Totemic Surge"}, 0},
+		{"two swaps in one section give up different talents", map[models.TalentPick]int{pick(3, 31): 10,
+			pick(15, 151): 9, pick(1, 11): 10, pick(2, 21): 8, pick(6, 61): 9, pick(7, 71): 9},
+			[]string{"Take Thunderstorm instead of Totemic Surge", "Take Spirit Walk instead of a talent"}, 0},
 		{"a swap leaving a talent unreached replaces the next least taken one",
 			map[models.TalentPick]int{pick(3, 31): 10, pick(1, 11): 10, pick(2, 21): 10, pick(6, 61): 7, pick(7, 71): 10},
 			[]string{"Take Thunderstorm instead of Ancestral Swiftness"}, 0},
