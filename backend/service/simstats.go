@@ -53,6 +53,6 @@ func scaleLine(kind string) string {
 	return ""
 }
 
-// errStatsOneSetup is why a stat weights sim refuses a comparison.
-var errStatsOneSetup = fmt.Errorf("%w: stat weights are for one setup: pick one value of each consumable and rune",
-	ErrBadSimOptions)
+// errOneSetup is why a stat weights or Suggest sim refuses a comparison.
+var errOneSetup = fmt.Errorf("%w: stat weights and suggestions are for one setup: pick one value of each consumable "+
+	"and rune", ErrBadSimOptions)

@@ -159,11 +159,12 @@ type SimEnhancements struct {
 }
 
 // SimKinds are the kinds of sim: one character's DPS ("quick"), the best combination of the gear they carry
-// ("topgear"), the gain of each piece the season's raid and dungeons drop ("drops") and what a point of each stat is
-// worth ("stats"). Any of them but the last can compare
+// ("topgear"), the gain of each piece the season's raid and dungeons drop ("drops"), what a point of each stat is
+// worth ("stats") and the changes the top Warcraft Logs players of the spec make that the sim confirms ("suggest",
+// SimResult.Suggest). Any of them but the last two can compare
 // several flasks, foods, potions, augment runes or weapon oils (SimRequest.Consumables). A sim saved by an earlier
 // version can also be "consumables", a quick sim that only compared them.
-var SimKinds = []string{"quick", "topgear", "drops", "stats"}
+var SimKinds = []string{"quick", "topgear", "drops", "stats", "suggest"}
 
 // The states a sim is in (Sim.State).
 const (
@@ -177,7 +178,7 @@ const (
 // how long it took, and, once State is "done", its Result; a failed one says why in Error. The list leaves Result out.
 type Sim struct {
 	ID        string     `json:"id" example:"9f3a1c5e7b2d4a60"`
-	Kind      string     `json:"kind" enums:"quick,topgear,drops,stats,consumables"`
+	Kind      string     `json:"kind" enums:"quick,topgear,drops,stats,suggest,consumables"`
 	State     string     `json:"state" enums:"running,done,failed,cancelled"`
 	Character string     `json:"character" example:"Steezy"`
 	Class     string     `json:"class,omitempty" example:"mage"`
@@ -209,11 +210,13 @@ type SimResult struct {
 	Stages []SimStage `json:"stages,omitempty"`
 	// Equipped is the gear the sim started from, so a report can show the best combination in full.
 	Equipped []SimItem `json:"equipped,omitempty"`
-	// Weights and Pawn are a "stats" sim's stat weights and the Pawn string that carries them.
+	// Weights and Pawn are a "stats" or "suggest" sim's stat weights and the Pawn string that carries them.
 	Weights []SimStatWeight `json:"weights,omitempty"`
 	Pawn    string          `json:"pawn,omitempty"`
 	// Options are the values a Quick Sim compared, best first.
 	Options []SimOptionRow `json:"options,omitempty"`
+	// Suggest is a "suggest" sim's changes; the rest of the result is its stat weights sim's.
+	Suggest *SimSuggestReport `json:"suggest,omitempty"`
 }
 
 // SimCombo is one gear combination a Top Gear sim ran: its DPS, the standard error of that mean, its gain over the

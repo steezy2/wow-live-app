@@ -104,7 +104,11 @@ type Sims struct {
 	// Ref is reference/sim-options.json: the consumables, enchants, gems, upgrade tracks and Omnium Folio a request may
 	// use.
 	Ref models.SimReference
-	Dir string
+	// Tops reads the top players a Suggest sim compares the character with, and KeysSet says whether the Warcraft Logs
+	// keys are saved (nil: Tops needs none); a Suggest sim is refused without either.
+	Tops    SuggestLogs
+	KeysSet func() bool
+	Dir     string
 	// KeepDays is how many days a finished sim is kept (the owner's setting; 0, or nil, keeps them for good).
 	KeepDays func() int
 	Now      func() time.Time
@@ -251,9 +255,9 @@ func (s *Sims) Plan(req models.SimRequest) (models.SimPlan, error) {
 		err = s.planTopGear(req, profile, len(values), &plan)
 	case "drops":
 		err = s.planDrops(req, profile, dims, &plan)
-	case "stats":
+	case "stats", "suggest":
 		if len(dims) > 0 {
-			plan.Error = errStatsOneSetup.Error()
+			plan.Error = errOneSetup.Error()
 		}
 	}
 	if err != nil {
@@ -261,8 +265,11 @@ func (s *Sims) Plan(req models.SimRequest) (models.SimPlan, error) {
 	}
 	final := simTargetError(req.Options, true)
 	runs := smartRuns(plan.Combos, smartStages(plan.Combos, final), final) + 1 // the sim's own run besides its sets
-	if req.Kind == "stats" {
+	switch req.Kind {
+	case "stats":
 		runs = statsRuns
+	case "suggest":
+		runs = s.planSuggest(profile, req.Options, &plan)
 	}
 	plan.Seconds = planSeconds(runs, req.Options)
 	return plan, nil
@@ -399,8 +406,12 @@ func (s *Sims) Start(req models.SimRequest) (models.Sim, error) {
 			combos, err = dropCombos(profile, s.Drops, req.Difficulty, req.KeyLevel, up)
 		}
 	}
-	if err == nil && req.Kind == "stats" && len(dims) > 0 {
-		err = errStatsOneSetup
+	switch {
+	case err != nil:
+	case (req.Kind == "stats" || req.Kind == "suggest") && len(dims) > 0:
+		err = errOneSetup
+	case req.Kind == "suggest" && !s.logsReady():
+		err = errNoSuggestLogs
 	}
 	if err == nil {
 		combos, err = withCompare(dims, req.Kind == "quick", combos, limit)
@@ -437,7 +448,14 @@ func (s *Sims) Start(req models.SimRequest) (models.Sim, error) {
 		s.runs = map[string]*simRun{}
 	}
 	s.runs[id] = &simRun{sim: sim, cancel: cancel}
-	s.work.Go(func() { s.execute(ctx, id, input, output, head, combos, profile.Equipped) })
+	if req.Kind == "suggest" {
+		s.work.Go(func() {
+			s.suggest(suggestRun{sims: s, ctx: ctx, id: id, input: input, output: output, head: head, o: req.Options,
+				p: profile, consumables: req.Consumables})
+		})
+	} else {
+		s.work.Go(func() { s.execute(ctx, id, input, output, head, combos, profile.Equipped) })
+	}
 	return sim, nil
 }
 
@@ -468,65 +486,93 @@ func simTargetError(o models.SimOptions, profilesets bool) float64 {
 // simThreads is how many threads a sim runs on: all but one, so the PC stays usable.
 func simThreads() int { return max(1, runtime.NumCPU()-1) }
 
-// execute runs simc for the running sim with this ID, following its progress, and saves what it found. A sim of many
-// combinations is raced: simc first runs all of them at a coarse error, then only those the results cannot rule out of
-// the best (survivors) at a finer one, down to the precision asked for.
+// execute runs simc for the running sim with this ID, following its progress, and saves what it found.
 func (s *Sims) execute(ctx context.Context, id, input, output, head string, combos []gearCombo,
 	equipped []models.SimItem) {
-	defer func() {
-		os.Remove(input)
-		os.Remove(output)
-	}()
-	s.mu.Lock()
-	sim := s.runs[id].sim
-	s.mu.Unlock()
-	final := simTargetError(sim.Options, len(combos) > 0)
-	early := smartStages(len(combos), final)
-	var stages []models.SimStage
-	var complaint string
-	var runErr error
-	from, cands := 0, combos
-	for i, targetError := range early {
-		s.setStage(id, stageText(i+1, len(early)+1, len(cands), targetError))
-		to := from + smartShares[i]
-		complaint, runErr = s.stage(ctx, id, input, output, head, cands, sim.Options, targetError, from, to)
-		if runErr != nil {
-			break
-		}
-		var sets []simSetJSON
-		if sets, runErr = readSets(output); runErr != nil {
-			break
-		}
-		stages = append(stages, models.SimStage{Combos: len(cands), Error: targetError})
-		cands, from = survivors(cands, sets), to
-	}
-	var result *models.SimResult
-	var parseErr error
-	if runErr == nil {
-		if len(early) > 0 {
-			s.setStage(id, stageText(len(early)+1, len(early)+1, len(cands), final))
-			stages = append(stages, models.SimStage{Combos: len(cands), Error: final})
-		}
-		if complaint, runErr = s.stage(ctx, id, input, output, head, cands, sim.Options, final, from, 100); runErr == nil {
-			result, parseErr = readSimResult(output, cands)
-		}
-	}
+	defer removeWork(input, output)
+	result, complaint, err := s.race(ctx, id, input, output, head, combos, s.options(id), raceSpan{0, 100, ""})
+	s.finish(ctx, id, result, complaint, err, equipped)
+}
+
+// removeWork deletes a sim's input and output files.
+func removeWork(input, output string) {
+	os.Remove(input)
+	os.Remove(output)
+}
+
+// options are the running sim's options.
+func (s *Sims) options(id string) models.SimOptions {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	sim = s.runs[id].sim
+	return s.runs[id].sim.Options
+}
+
+// raceSpan is the part of a running sim's progress bar one race takes (from to to, in %) and what its stage texts
+// start with (empty for a sim that is one race).
+type raceSpan struct {
+	from, to int
+	step     string
+}
+
+// race runs combos for the running sim with this ID and reads the result. Many combinations are raced: simc first runs
+// all of them at a coarse error, then only those the results cannot rule out of the best (survivors) at a finer one,
+// down to o's precision; the result's Stages are those (none for a sim run once). It returns the last error line simc
+// printed with any error.
+func (s *Sims) race(ctx context.Context, id, input, output, head string, combos []gearCombo, o models.SimOptions,
+	span raceSpan) (*models.SimResult, string, error) {
+	final := simTargetError(o, len(combos) > 0)
+	early := smartStages(len(combos), final)
+	bar := func(share int) int { return span.from + share*(span.to-span.from)/100 }
+	var stages []models.SimStage
+	at, cands := 0, combos
+	for i, targetError := range early {
+		s.setStage(id, span.step+stageText(i+1, len(early)+1, len(cands), targetError))
+		next := at + smartShares[i]
+		if complaint, err := s.stage(ctx, id, input, output, head, cands, o, targetError, bar(at), bar(next)); err != nil {
+			return nil, complaint, err
+		}
+		sets, err := readSets(output)
+		if err != nil {
+			return nil, "", err
+		}
+		stages = append(stages, models.SimStage{Combos: len(cands), Error: targetError})
+		cands, at = survivors(cands, sets), next
+	}
+	if len(early) > 0 {
+		s.setStage(id, span.step+stageText(len(early)+1, len(early)+1, len(cands), final))
+		stages = append(stages, models.SimStage{Combos: len(cands), Error: final})
+	}
+	complaint, err := s.stage(ctx, id, input, output, head, cands, o, final, bar(at), span.to)
+	if err != nil {
+		return nil, complaint, err
+	}
+	result, err := readSimResult(output, cands)
+	if err != nil {
+		return nil, complaint, err
+	}
+	result.Stages = stages
+	return result, "", nil
+}
+
+// finish ends the running sim with this ID: cancelled or failed as ctx and err say (complaint is simc's own words),
+// else done with result, which is saved with the gear the sim started from.
+func (s *Sims) finish(ctx context.Context, id string, result *models.SimResult, complaint string, err error,
+	equipped []models.SimItem) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	sim := s.runs[id].sim
 	sim.TookMS, sim.Stage = s.Now().UnixMilli()-sim.StartedMS, ""
 	switch {
 	case errors.Is(ctx.Err(), context.Canceled):
 		sim.State = models.SimCancelled
 	case errors.Is(ctx.Err(), context.DeadlineExceeded):
 		sim.State, sim.Error = models.SimFailed, "the sim ran over "+simTimeout.String()+" and was stopped"
-	case runErr != nil || parseErr != nil:
-		sim.State, sim.Error = models.SimFailed, cmp.Or(complaint, fmt.Sprint(cmp.Or(runErr, parseErr)))
+	case err != nil:
+		sim.State, sim.Error = models.SimFailed, cmp.Or(complaint, err.Error())
 	default:
 		for i := range equipped {
 			result.Equipped = append(result.Equipped, *slimItem(&equipped[i]))
 		}
-		result.Stages = stages // none for a sim run once
 		if len(result.Weights) > 0 {
 			result.Pawn = pawnString(sim.Character+"-"+sim.Spec, result.Weights)
 		}
@@ -649,6 +695,14 @@ type simJSON struct {
 				} `json:"dps"`
 				Pre      []simActionJSON `json:"action_sequence_precombat"`
 				Sequence []simActionJSON `json:"action_sequence"`
+				Buffed   struct {
+					Stats struct {
+						Crit    float64 `json:"crit_rating"`
+						Haste   float64 `json:"haste_rating"`
+						Mastery float64 `json:"mastery_rating"`
+						Vers    float64 `json:"versatility_rating"`
+					} `json:"stats"`
+				} `json:"buffed_stats"`
 			} `json:"collected_data"`
 			ScaleFactors map[string]float64 `json:"scale_factors"`
 			Stats        []struct {
@@ -710,15 +764,27 @@ func sampleLog(pre, seq []simActionJSON, names map[string]string) []models.SimLo
 	return log[:min(len(log), maxSimLog)]
 }
 
-// readSimResult is the result in simc's json2 file at path, with the DPS of each of a Top Gear sim's combos.
-func readSimResult(path string, combos []gearCombo) (*models.SimResult, error) {
+// readSimJSON is simc's json2 file at path.
+func readSimJSON(path string) (simJSON, error) {
+	var out simJSON
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("simc wrote no result: %w", err)
+		return out, fmt.Errorf("simc wrote no result: %w", err)
 	}
-	var out simJSON
-	if err := json.Unmarshal(data, &out); err != nil || len(out.Sim.Players) == 0 {
-		return nil, fmt.Errorf("reading simc's result: %w", cmp.Or(err, errors.New("no player in it")))
+	if err := json.Unmarshal(data, &out); err != nil {
+		return out, fmt.Errorf("reading simc's result: %w", err)
+	}
+	return out, nil
+}
+
+// readSimResult is the result in simc's json2 file at path, with the DPS of each of a Top Gear sim's combos.
+func readSimResult(path string, combos []gearCombo) (*models.SimResult, error) {
+	out, err := readSimJSON(path)
+	if err == nil && len(out.Sim.Players) == 0 {
+		err = errors.New("reading simc's result: no player in it")
+	}
+	if err != nil {
+		return nil, err
 	}
 	player := out.Sim.Players[0]
 	result := &models.SimResult{Weights: statWeights(player.ScaleFactors), DPS: player.Collected.DPS.Mean,
