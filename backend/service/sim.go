@@ -278,7 +278,8 @@ func (s *Sims) Plan(req models.SimRequest) (models.SimPlan, error) {
 	case "stats":
 		runs = statsRuns
 	case "suggest":
-		runs = s.planSuggest(profile, req, &plan)
+		plan.Seconds = s.planSuggest(profile, req, &plan)
+		return plan, nil
 	}
 	plan.Seconds = planSeconds(runs, req.Options)
 	return plan, nil
@@ -462,7 +463,8 @@ func (s *Sims) Start(req models.SimRequest) (models.Sim, error) {
 	if req.Kind == "suggest" {
 		s.work.Go(func() {
 			s.suggest(suggestRun{sims: s, ctx: ctx, id: id, input: input, output: output, head: head, o: req.Options,
-				p: profile, consumables: req.Consumables, target: *req.Target})
+				p: profile, tree: loadoutTree(s.Ref.Talents, profile.Talents), consumables: req.Consumables,
+				target: *req.Target})
 		})
 	} else {
 		s.work.Go(func() { s.execute(ctx, id, input, output, head, combos, req.Options, profile.Equipped) })

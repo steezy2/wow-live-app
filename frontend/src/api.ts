@@ -1735,12 +1735,13 @@ export interface CompareTalents {
   of: number
 }
 
-/** A talent an entry can hold, with its icon name. */
+/** A talent an entry can hold, with its icon name; `subTree` is the hero tree a hero tree choice's entry picks. */
 export interface TalentEntry {
   id: number
   spellID: number
   name: string
   icon: string
+  subTree?: number
 }
 
 /** A place in a talent tree (models.TalentNode): x and y are the tree's own grid; `next` the nodes it leads to. */
@@ -1755,6 +1756,8 @@ export interface TalentNode {
   maxRanks: number
   next: number[]
   entries: TalentEntry[]
+  /** The points its section must have spent above it before it can be taken. */
+  reqPoints?: number
 }
 
 /** A spec's talent tree (models.TalentTree). */
@@ -1925,7 +1928,13 @@ export interface SimChoices {
   /** The items' groups in wearing order, as Top Gear lists them. */
   gearGroups: string[]
   /** What a Suggest sim can read the top logs of, Mythic+ overall first, each with its name. */
-  suggestTargets: { name: string; target: SuggestTarget }[]
+  suggestTargets: SuggestTargetChoice[]
+}
+
+/** One of SimChoices.suggestTargets: a target and how the page names it (models.SuggestTargetChoice). */
+export interface SuggestTargetChoice {
+  name: string
+  target: SuggestTarget
 }
 
 /** The kinds of sim: one DPS number, the best combination of the gear carried, each drop's gain, and what a point of
@@ -2105,6 +2114,9 @@ export interface SimCombo {
   dps: number
   dpsError: number
   gain: number
+  /** A Suggest sim's combined row: the gain on the AoE fight (`gain` is on one target) and its error. */
+  aoeGain?: number
+  aoeError?: number
   swaps: SimSwap[]
   source?: string
   boss?: string
@@ -2133,7 +2145,8 @@ export interface SimResult {
  * its `talent` and the talent it `replaces`, gear from the bags and a drop to farm their `swaps` (a drop its `source`
  * and `boss`); a stat is advice only, priced by `expected`. A talent swap the sim shows as a gain is a `talent`, one it
  * doesn't a `talentOther` (what top players take for something besides DPS). `gain` and `dpsError` are the sim's DPS
- * gain over the unchanged character (0 for a stat, and for a `talentOther` unless it is a loss). */
+ * gain over the unchanged character on one target and `aoeGain` and `aoeError` on the AoE fight (0 where the sim
+ * doesn't show one, for a stat, and for a `talentOther` unless it is a loss). */
 export interface Suggestion {
   kind: 'enchant' | 'gem' | 'stat' | 'consumable' | 'talent' | 'talentOther' | 'gear' | 'farm'
   slot?: string
@@ -2149,8 +2162,12 @@ export interface Suggestion {
   expected?: number
   gain?: number
   dpsError?: number
+  aoeGain?: number
+  aoeError?: number
   /** Whether the change is in the report's combined row. */
   combined?: boolean
+  /** The report's group it is ranked in: none a change the sim tests, 1 a stat, 2 a talent swap adding no DPS. */
+  group?: number
 }
 
 /** What a Suggest sim found besides the stat weights: the changes best first (the `talentOther` ones last), the gain of

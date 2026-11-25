@@ -148,16 +148,20 @@ func (c Comparer) Run(ctx context.Context, kind models.FightKind, start int64, p
 }
 
 // topLogs are fights' top logs as readTopLogs reads them: the players, their logs, which runs they are (the last
-// fight's) and the Warcraft Logs points reading them spent.
+// fight's), how many fights were read, whether a rate limit stopped the read and the Warcraft Logs points it spent.
 type topLogs struct {
 	players  []models.RankedPlayer
 	logs     []models.CompareLog
 	baseline string
+	read     int
+	limited  bool
 	points   float64
 }
 
 // readTopLogs reads each fight's top logs over window (0 for all of it), one after another, spending Warcraft Logs
-// points: ErrNoPoints with fewer than minComparePoints left this hour. The caller holds reviewing.
+// points: ErrNoPoints with fewer than minComparePoints left this hour. A fight with no top log is skipped, and a rate
+// limit after a fight was read stops the read with what it has; ErrNoTopLogs when no fight is read. The caller holds
+// reviewing.
 func (c Comparer) readTopLogs(ctx context.Context, window int64, fights ...fightRun) (topLogs, error) {
 	left, err := c.Baselines.PointsLeft(ctx)
 	if err != nil {
@@ -169,14 +173,25 @@ func (c Comparer) readTopLogs(ctx context.Context, window int64, fights ...fight
 	var t topLogs
 	for _, f := range fights {
 		runs, baseline, err := c.topRuns(ctx, f)
-		if err != nil {
-			return topLogs{}, err
+		var players []models.RankedPlayer
+		var logs []models.CompareLog
+		if err == nil {
+			players, logs, err = c.readTop(ctx, f, runs, window)
 		}
-		players, logs, err := c.readTop(ctx, f, runs, window)
+		if t.limited = errors.Is(err, models.ErrRateLimited) && t.read > 0; t.limited {
+			break
+		}
+		if errors.Is(err, ErrNoTopLogs) && len(fights) > 1 {
+			continue
+		}
 		if err != nil {
 			return topLogs{}, err
 		}
 		t.players, t.logs, t.baseline = append(t.players, players...), append(t.logs, logs...), baseline
+		t.read++
+	}
+	if t.read == 0 {
+		return topLogs{}, ErrNoTopLogs
 	}
 	if after, err := c.Baselines.PointsLeft(ctx); err == nil {
 		// the second points check costs about 1; none are spent when every log was read before or the hour reset
@@ -477,7 +492,7 @@ func (c Comparer) topRuns(ctx context.Context, f fightRun) ([]models.RankedRun, 
 		}
 	}
 	pick.runs = pick.runs[:min(len(pick.runs), want)]
-	return pick.runs, pick.baseline(f.spec.label(), ms), nil
+	return pick.runs, pick.baseline(f.spec.label(), ms, f.local.DurationMS == 0), nil
 }
 
 // picked is the ranked runs chosen to compare with and why these.
@@ -512,9 +527,12 @@ func pickRuns(ranked []models.RankedRun, ms int64, partial bool) picked {
 	return out
 }
 
-// baseline says which logs the top column is, as the review shows it.
-func (p picked) baseline(spec string, ms int64) string {
-	n := len(p.runs)
+// baseline says which logs the top column is, as the review shows it; median says ms is the ranked runs' median.
+func (p picked) baseline(spec string, ms int64, median bool) string {
+	n, of := len(p.runs), clockText(ms)
+	if median {
+		of = "the median " + of
+	}
 	switch {
 	case n == 0:
 		return fmt.Sprintf("no ranked %s runs found", spec)
@@ -522,7 +540,7 @@ func (p picked) baseline(spec string, ms int64) string {
 		return fmt.Sprintf("%d ranked %s runs at least as long as %s, read over their first %s", n, spec, clockText(ms),
 			clockText(ms))
 	case p.how == "closest":
-		return fmt.Sprintf("closest %d ranked %s runs; none within %.0f%% of %s", n, spec, similarTime*100, clockText(ms))
+		return fmt.Sprintf("closest %d ranked %s runs; none within %.0f%% of %s", n, spec, similarTime*100, of)
 	}
-	return fmt.Sprintf("%d ranked %s runs within %.0f%% of %s", n, spec, similarTime*100, clockText(ms))
+	return fmt.Sprintf("%d ranked %s runs within %.0f%% of %s", n, spec, similarTime*100, of)
 }

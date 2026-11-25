@@ -153,6 +153,7 @@ func TestSuggestSortsATalentSwapByItsGain(t *testing.T) {
 		{"a gain", 100950, "talent", 1000},
 		{"under the least gain", 99960, "talentOther", 0},
 		{"a loss", 99000, "talentOther", -950},
+		{"a loss within the noise", 99949, "talentOther", 0},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -172,6 +173,70 @@ func TestSuggestSortsATalentSwapByItsGain(t *testing.T) {
 					report.Dropped, tt.kind, tt.gain)
 			}
 		})
+	}
+}
+
+func TestSuggestShowsAChangeThatGainsOnEitherFight(t *testing.T) {
+	// the head's gem (change1) against the baseline of 99950 DPS on one target and on AoE; the enchant and flask never
+	// gain; the best gear from the bags gains 50 DPS on both and the gem's gain on the fight it gains on is 1000
+	gem := func(mean float64) map[string]simSetJSON {
+		return map[string]simSetJSON{"change1": {Mean: mean, MeanStdDev: 1}, "combined": {Mean: 101000, MeanStdDev: 1}}
+	}
+	tests := []struct {
+		name          string
+		single, aoe   map[string]simSetJSON
+		gain, aoeGain float64
+		shown         bool
+		dropped       int
+	}{
+		{"only on AoE", gem(99950), gem(100950), 0, 1000, true, 2},
+		{"only on one target", gem(100950), gem(99950), 1000, 0, true, 2},
+		{"on neither", gem(99950), gem(99950), 0, 0, false, 3},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s, _ := suggestSims(t)
+			engine := s.Engine.(*fakeEngine)
+			engine.sets, engine.aoeSets = tt.single, tt.aoe
+			started, err := s.Start(suggestRequest(t))
+			if err != nil {
+				t.Fatal(err)
+			}
+			report := waitSim(t, s, started.ID).Result.Suggest
+			i := slices.IndexFunc(report.Suggestions, func(s models.Suggestion) bool { return s.Kind == "gem" })
+			if (i >= 0) != tt.shown || report.Dropped != tt.dropped {
+				t.Fatalf("suggestions %+v, dropped %d; want the gem shown %v and %d dropped", report.Suggestions,
+					report.Dropped, tt.shown, tt.dropped)
+			}
+			if tt.shown {
+				got := report.Suggestions[i]
+				if got.Gain != tt.gain || got.AoEGain != tt.aoeGain || i != 0 || got.Combined != true ||
+					report.Combined == nil || report.Combined.AoEGain == 0 {
+					t.Errorf("gem = %+v, combined %+v; want the gains %v and %v, first, in the combined row", got,
+						report.Combined, tt.gain, tt.aoeGain)
+				}
+			}
+		})
+	}
+}
+
+func TestSuggestPlanTimesEachFightWithItsOwnOptions(t *testing.T) {
+	s, _ := suggestSims(t)
+	req := suggestRequest(t)
+	p, err := s.parse(req.Export)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bags, _, _ := s.suggestGear(p)
+	final := simTargetError(req.Options, true)
+	oneFight := float64(maxSuggestions+1+2) + smartRuns(len(bags), smartStages(len(bags), final), final) + 1
+	want := planSeconds(statsRuns, req.Options)
+	for _, f := range suggestFights {
+		want += planSeconds(oneFight, f.options(req.Options))
+	}
+	if got := s.planSuggest(p, req, &models.SimPlan{}); got != want {
+		t.Errorf("seconds = %d, want %d: the stat weights on the request's fight and the rest on each of the two",
+			got, want)
 	}
 }
 
@@ -223,36 +288,53 @@ func TestTopBuildsRanksTheTarget(t *testing.T) {
 	mplus := func(encounter, level int) models.RankQuery {
 		return models.RankQuery{Encounter: encounter, Level: level, Class: "Mage", Spec: "Arcane", Metric: "dps"}
 	}
+	mplusAt12 := []models.RankQuery{mplus(1, 12), mplus(3, 12), mplus(5, 12), mplus(7, 12)}
 	tests := []struct {
 		name      string
 		character string
 		target    models.SuggestTarget
+		unranked  map[int]bool
+		limitAt   int
 		queries   []models.RankQuery
 		reads     int
 		baseline  string
+		notes     int
 	}{
-		{"Mythic+ at the character's highest key", "testmage", models.SuggestTarget{Kind: models.FightMPlus},
-			[]models.RankQuery{mplus(1, 12), mplus(3, 12), mplus(5, 12), mplus(7, 12)},
-			suggestDungeons * suggestLogsPerDungeon, "20 ranked Arcane Mage runs in 4 dungeons at +12"},
-		{"Mythic+ for a character with no key", "nobody", models.SuggestTarget{Kind: models.FightMPlus},
+		{"Mythic+ at the character's highest key of the season", "Testmage-Sargeras",
+			models.SuggestTarget{Kind: models.FightMPlus}, nil, 0, mplusAt12,
+			suggestDungeons * suggestLogsPerDungeon, "20 ranked Arcane Mage runs in 4 dungeons at +12", 0},
+		{"Mythic+ for a character with no key", "nobody", models.SuggestTarget{Kind: models.FightMPlus}, nil, 0,
 			[]models.RankQuery{mplus(1, 2), mplus(3, 2), mplus(5, 2), mplus(7, 2)},
-			suggestDungeons * suggestLogsPerDungeon, "20 ranked Arcane Mage runs in 4 dungeons at +2"},
-		{"a raid boss on its difficulty", "testmage",
-			models.SuggestTarget{Kind: models.FightRaid, Encounter: "Sszorak", Difficulty: 4},
+			suggestDungeons * suggestLogsPerDungeon, "20 ranked Arcane Mage runs in 4 dungeons at +2", 0},
+		{"Mythic+ skips a dungeon with no ranked run", "Testmage-Sargeras",
+			models.SuggestTarget{Kind: models.FightMPlus}, map[int]bool{3: true}, 0, mplusAt12,
+			3 * suggestLogsPerDungeon, "15 ranked Arcane Mage runs in 3 dungeons at +12", 0},
+		{"Mythic+ keeps what it read before a rate limit", "Testmage-Sargeras",
+			models.SuggestTarget{Kind: models.FightMPlus}, nil, 5, mplusAt12[:3],
+			2 * suggestLogsPerDungeon, "10 ranked Arcane Mage runs in 2 dungeons at +12", 1},
+		{"a raid boss on its difficulty", "Testmage-Sargeras",
+			models.SuggestTarget{Kind: models.FightRaid, Encounter: "Sszorak", Difficulty: 4}, nil, 0,
 			[]models.RankQuery{{Encounter: 100, Difficulty: 4, Class: "Mage", Spec: "Arcane", Metric: "dps"}},
-			len(runs), "8 ranked Arcane Mage runs within 15% of 5:03"},
+			len(runs), "8 ranked Arcane Mage runs within 15% of the median 5:03", 0},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			baselines := &fakeLogs{left: 1000, runs: runs}
-			c, _, _ := comparerOf(t, baselines)
+			baselines := &fakeLogs{left: 1000, runs: runs, unranked: tt.unranked, limitAt: tt.limitAt}
+			c, keys, _ := comparerOf(t, baselines)
+			// the character's +12, besides a higher key of another season's dungeon and one of a namesake
+			keys.history[0].Logger, keys.history[0].Realms = "Testmage", map[string]string{"Testmage": "Sargeras"}
+			keys.history = append(keys.history,
+				models.Key{Dungeon: "Old Halls", Level: 20, Logger: "Testmage", Realms: keys.history[0].Realms},
+				models.Key{Dungeon: "Voidscar Arena", Level: 18, Logger: "Testmage",
+					Realms: map[string]string{"Testmage": "Stormrage"}})
 			b, err := c.TopBuilds(context.Background(), 62, tt.character, tt.target)
 			if err != nil {
 				t.Fatal(err)
 			}
-			if !slices.Equal(baselines.queries, tt.queries) || len(b.Tops) != tt.reads || b.Baseline != tt.baseline {
-				t.Errorf("queries %+v, %d tops, baseline %q; want %+v, %d and %q",
-					baselines.queries, len(b.Tops), b.Baseline, tt.queries, tt.reads, tt.baseline)
+			if !slices.Equal(baselines.queries, tt.queries) || len(b.Tops) != tt.reads || b.Baseline != tt.baseline ||
+				len(b.Notes) != tt.notes {
+				t.Errorf("queries %+v, %d tops, baseline %q, notes %q; want %+v, %d, %q and %d notes",
+					baselines.queries, len(b.Tops), b.Baseline, b.Notes, tt.queries, tt.reads, tt.baseline, tt.notes)
 			}
 		})
 	}
@@ -333,5 +415,46 @@ func TestCancellingASuggestSimDoesNotWaitForTheTopLogs(t *testing.T) {
 	}
 	if sim := waitSim(t, s, started.ID); sim.State != models.SimCancelled {
 		t.Errorf("state = %s, want cancelled while the top logs were read", sim.State)
+	}
+}
+
+// TestSuggestSimsAPickedDropOnTheFightThatDroppedIt: a drop the smart stages cut on one target (it can't be the best
+// there) yet the best on AoE is simmed again on one target, so its gain there isn't read as none.
+func TestSuggestSimsAPickedDropOnTheFightThatDroppedIt(t *testing.T) {
+	s, _ := suggestSims(t)
+	var items []models.DropItem
+	for i := range 60 {
+		items = append(items, models.DropItem{ID: 901 + i, Name: "neck", Slot: "neck"})
+	}
+	s.Drops.Raids = []models.DropSource{{Name: "Raid", Bosses: []models.DropBoss{{Name: "Boss",
+		Levels: &models.DifficultyLevels{Heroic: 250}, Items: items}}}}
+	s.Drops.Keys = []models.KeyLevels{{Level: 10, Loot: 250}}
+	engine := s.Engine.(*fakeEngine)
+	engine.sets = map[string]simSetJSON{"drop60": {Mean: 100200, MeanStdDev: 1}}
+	for i := range 30 {
+		engine.sets["drop"+strconv.Itoa(i+1)] = simSetJSON{Mean: 101000 - 10*float64(i), MeanStdDev: 1}
+	}
+	engine.aoeSets = map[string]simSetJSON{"drop60": {Mean: 103000, MeanStdDev: 1}}
+	started, err := s.Start(suggestRequest(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	sim := waitSim(t, s, started.ID)
+	if sim.State != models.SimDone {
+		t.Fatalf("sim = %+v", sim)
+	}
+	i := slices.IndexFunc(sim.Result.Suggest.Suggestions, func(sg models.Suggestion) bool {
+		return sg.Kind == "farm" && sg.Swaps[0].In.ID == 960
+	})
+	if i < 0 || sim.Result.Suggest.Suggestions[i].Gain != 250 {
+		t.Errorf("drop 960 = %+v, want its one-target gain of 250 simmed", sim.Result.Suggest.Suggestions)
+	}
+}
+
+// TestSuggestTestsEveryChangeInOneStage: changes are each judged against the unchanged character, so raced in smart
+// stages they would be cut for losing to the best change instead.
+func TestSuggestTestsEveryChangeInOneStage(t *testing.T) {
+	if maxSuggestions >= smartMin {
+		t.Errorf("maxSuggestions %d reaches the smart stages at %d", maxSuggestions, smartMin)
 	}
 }

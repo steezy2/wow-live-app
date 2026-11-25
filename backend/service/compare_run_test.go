@@ -14,13 +14,15 @@ import (
 // fakeLogs is Warcraft Logs for a player review: five dungeons and any boss (encounter 100), three ranked runs (or
 // runs), each log read as asked, and a points count that drops by 100 after the first reading of it.
 type fakeLogs struct {
-	mu      sync.Mutex
-	left    float64
-	runs    []models.RankedRun
-	queries []models.RankQuery
-	windows []int64
-	fail    bool
-	limited bool // every log read hits the rate limit
+	mu       sync.Mutex
+	left     float64
+	runs     []models.RankedRun
+	queries  []models.RankQuery
+	windows  []int64
+	fail     bool
+	limited  bool         // every log read hits the rate limit
+	unranked map[int]bool // encounters with no ranked run
+	limitAt  int          // the encounter whose rankings hit the rate limit
 }
 
 func (f *fakeLogs) MPlusEncounters(context.Context) (map[string]int, error) {
@@ -34,7 +36,12 @@ func (f *fakeLogs) RaidEncounters(_ context.Context, bosses []string) (map[strin
 
 func (f *fakeLogs) RankedRuns(_ context.Context, q models.RankQuery, _ int) ([]models.RankedRun, bool, error) {
 	f.queries = append(f.queries, q)
-	if f.runs != nil {
+	switch {
+	case q.Encounter == f.limitAt:
+		return nil, false, fmt.Errorf("reading: %w", models.ErrRateLimited)
+	case f.unranked[q.Encounter]:
+		return nil, false, nil
+	case f.runs != nil:
 		return f.runs, false, nil
 	}
 	return []models.RankedRun{{DurationMS: 200_000, Code: "a", FightID: 1, Name: "A", Amount: 9e6},

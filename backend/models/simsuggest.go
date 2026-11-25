@@ -37,17 +37,25 @@ type Suggestion struct {
 	Boss   string    `json:"boss,omitempty"`
 	// Expected is a stat suggestion's DPS gain if the gap closed, from the sim's stat weights.
 	Expected float64 `json:"expected,omitempty" example:"410"`
-	// Gain is the sim's DPS gain of the change over the unchanged character and DPSError the standard error of that
-	// difference; both 0 for a stat, which the sim doesn't test, and for a "talentOther" unless the sim shows a loss.
+	// Gain is the sim's DPS gain of the change over the unchanged character on one target and DPSError the standard
+	// error of that difference; AoEGain and AoEError are the same on the AoE fight. A gain the sim doesn't show on a
+	// fight is 0 there, and all are 0 for a stat, which the sim doesn't test, and for a "talentOther" unless the sim
+	// shows a loss.
 	Gain     float64 `json:"gain,omitempty" example:"812"`
 	DPSError float64 `json:"dpsError,omitempty" example:"95"`
+	AoEGain  float64 `json:"aoeGain,omitempty" example:"1450"`
+	AoEError float64 `json:"aoeError,omitempty" example:"120"`
 	// Combined is whether the change is in the report's combined row.
 	Combined bool `json:"combined,omitempty"`
+	// Group is the report's group the suggestion is ranked in: 0 a change the sim tests, 1 a stat, 2 a talent swap
+	// that adds no DPS.
+	Group int `json:"group,omitempty" enums:"0,1,2"`
 }
 
 // SimSuggestReport is what a Suggest sim found besides the stat weights (SimResult.Weights): the changes, best first
-// (those the sim showed as a gain by their Gain, then the stats by their Expected gain, then the "talentOther" talent
-// swaps), the gain of every change that fits at once (nil with fewer than two), how many tested changes other than a
+// (those the sim showed as a gain on either fight by the larger of their Gain and AoEGain, then the stats by their
+// Expected gain, then the "talentOther" talent swaps), the gain of every change that fits at once (nil with fewer
+// than two), how many tested changes other than a
 // talent swap the sim showed as no gain (under 0.05% of the DPS, within their error or a loss) and so left out, which
 // top logs the suggestions come from and the Warcraft Logs points reading them spent. Notes say what was left out and
 // why (no top logs, no talent string, changes not tried, talent swaps the tree doesn't allow, gear over the Top Gear

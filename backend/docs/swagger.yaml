@@ -2958,6 +2958,10 @@ definitions:
     type: object
   models.SimCombo:
     properties:
+      aoeError:
+        type: number
+      aoeGain:
+        type: number
       boss:
         type: string
       consumable:
@@ -3677,6 +3681,12 @@ definitions:
     type: object
   models.Suggestion:
     properties:
+      aoeError:
+        example: 120
+        type: number
+      aoeGain:
+        example: 1450
+        type: number
       boss:
         type: string
       combined:
@@ -3699,10 +3709,21 @@ definitions:
         type: number
       gain:
         description: |-
-          Gain is the sim's DPS gain of the change over the unchanged character and DPSError the standard error of that
-          difference; both 0 for a stat, which the sim doesn't test, and for a "talentOther" unless the sim shows a loss.
+          Gain is the sim's DPS gain of the change over the unchanged character on one target and DPSError the standard
+          error of that difference; AoEGain and AoEError are the same on the AoE fight. A gain the sim doesn't show on a
+          fight is 0 there, and all are 0 for a stat, which the sim doesn't test, and for a "talentOther" unless the sim
+          shows a loss.
         example: 812
         type: number
+      group:
+        description: |-
+          Group is the report's group the suggestion is ranked in: 0 a change the sim tests, 1 a stat, 2 a talent swap
+          that adds no DPS.
+        enum:
+        - 0
+        - 1
+        - 2
+        type: integer
       kind:
         enum:
         - enchant
@@ -3751,6 +3772,8 @@ definitions:
         type: string
       spellID:
         type: integer
+      subTree:
+        type: integer
     type: object
   models.TalentNode:
     properties:
@@ -3775,6 +3798,10 @@ definitions:
         items:
           type: integer
         type: array
+      reqPoints:
+        description: ReqPoints is the points its section must have spent on nodes
+          of a lower ReqPoints before it can be taken.
+        type: integer
       subTree:
         type: integer
       tree:

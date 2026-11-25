@@ -230,11 +230,14 @@ type SimResult struct {
 // SimCombo is one gear combination a Top Gear sim ran: its DPS, the standard error of that mean, its gain over the
 // equipped gear (negative for a loss) and the slots it changes. A Droptimizer row says where the item drops: its
 // Source (the raid's or dungeon's name, as "The Venomous Abyss") and Boss. A sim that compares consumables runs each
-// combination once per value and names it in Consumable.
+// combination once per value and names it in Consumable. A Suggest sim's combined row also has its AoEGain and
+// AoEError on the AoE fight, where Gain and DPSError are on one target.
 type SimCombo struct {
 	DPS        float64   `json:"dps"`
 	DPSError   float64   `json:"dpsError"`
 	Gain       float64   `json:"gain"`
+	AoEGain    float64   `json:"aoeGain,omitempty"`
+	AoEError   float64   `json:"aoeError,omitempty"`
 	Swaps      []SimSwap `json:"swaps"`
 	Source     string    `json:"source,omitempty"`
 	Boss       string    `json:"boss,omitempty"`

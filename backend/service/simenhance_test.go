@@ -89,3 +89,14 @@ func TestTopGearNeverWearsAThirdEmbellishment(t *testing.T) {
 		t.Errorf("combinations %+v (%v), want only the one that replaces the embellished ring", combos, err)
 	}
 }
+
+func TestSuggestedGemKeepsTheUniqueGemRule(t *testing.T) {
+	ref, p, _ := enhancedFixture()
+	p.Equipped[1].Opts["gem_id"] = []int{300} // the ring already holds a gem of the category
+	for gem, fits := range map[int]bool{301: false, 240883: true} {
+		s := models.Suggestion{Kind: "gem", Variant: &models.SimVariant{Worn: true, Index: 0, Gem: gem}}
+		if _, ok := changeCombo(ref, models.TalentTree{}, p, s); ok != fits {
+			t.Errorf("gem %d on the head fits = %v, want %v", gem, ok, fits)
+		}
+	}
+}

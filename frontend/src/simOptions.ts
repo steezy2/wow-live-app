@@ -7,8 +7,21 @@ import type {
   SimReference,
   SimUpgradeLevel,
   SimUpgradeTrack,
+  Suggestion,
+  SuggestTargetChoice,
   TalentNode,
 } from './api'
+
+/** What a Suggest report is ranked by: the larger gain of the two fights, or one of them. */
+export type RankBy = 'best' | 'single' | 'aoe'
+
+/** The suggestions in the order `by` ranks them: the server's for 'best' (the larger gain); else by the gain on that
+ * fight within each of the server's groups, which keep their order. */
+export function rankSuggestions(list: Suggestion[], by: RankBy): Suggestion[] {
+  if (by === 'best') return list
+  const gain = (s: Suggestion) => (by === 'single' ? s.gain : s.aoeGain) ?? 0
+  return [...list].sort((a, b) => (a.group ?? 0) - (b.group ?? 0) || gain(b) - gain(a))
+}
 
 /** What is wrong with the fight options, in words, or null when they fit choices (the app refuses the same ones). */
 export function simOptionsError(o: SimOptions, c: SimChoices): string | null {
@@ -115,7 +128,7 @@ const targetKey = (character: string) => `sim.suggestTarget.${character}`
 
 /** The Suggest target last picked for a character, if it is still one of the choices, else Mythic+ overall (the
  * first). */
-export function savedSuggestTarget(choices: SimChoices, character: string): SimChoices['suggestTargets'][number] {
+export function savedSuggestTarget(choices: SimChoices, character: string): SuggestTargetChoice {
   let name: string | null = null
   try {
     name = localStorage.getItem(targetKey(character))

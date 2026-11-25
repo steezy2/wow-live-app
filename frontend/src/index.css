@@ -2423,6 +2423,16 @@ table.compare td:first-child {
   gap: 2px;
 }
 
+.sim-suggest li {
+  grid-template-columns: 28px 260px minmax(0, 1fr);
+}
+
+.sim-gains {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--s3);
+}
+
 .sim-gain > span:first-child {
   font-size: var(--t-h2);
   font-weight: 600;
@@ -2642,7 +2652,8 @@ table.compare td:first-child {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .sim-combos li {
+  .sim-combos li,
+  .sim-suggest li {
     grid-template-columns: 28px minmax(0, 1fr);
   }
 

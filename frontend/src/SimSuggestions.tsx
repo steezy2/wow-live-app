@@ -1,12 +1,47 @@
+import { useState } from 'react'
 import type { SimItem, SimSuggestReport, SimVariant, Suggestion } from './api'
 import { full } from './format'
 import { Gain, SwapRows } from './SimRows'
 import { ItemLine } from './SimItem'
 import { useItemInfo } from './simItems'
+import { type RankBy, rankSuggestions } from './simOptions'
 import { tip } from './tipAttrs'
 
-/** A suggestion's gain: a bar and its DPS (with the sim's error on hover) when the sim tested it, the DPS the stat
- * weights expect when it is a stat, nothing for a talent swap with no DPS change. */
+const RANKS: [RankBy, string][] = [
+  ['best', 'Best'],
+  ['single', '1 target'],
+  ['aoe', 'AoE'],
+]
+
+/** The fights' gains of a suggestion or the combined row: on one target and on several, each with the sim's error. */
+type Gains = Pick<Suggestion, 'gain' | 'dpsError' | 'aoeGain' | 'aoeError'>
+
+/** A change's gain on one target and on AoE side by side, each a bar and its DPS (with the sim's error on hover, or
+ * that the sim shows none); `dps` is the combined row's. */
+function GainPair({ g, best, dps }: { g: Gains; best: number; dps?: number }) {
+  const fights = [
+    ['1 target', g.gain, g.dpsError],
+    ['AoE', g.aoeGain, g.aoeError],
+  ] as const
+  return (
+    <div className="sim-gains">
+      {fights.map(([label, gain, error], i) => (
+        <span
+          key={label}
+          {...tip(
+            gain ? `The sim's gain on ${label}, ± ${full(error ?? 0)} DPS` : `No gain on ${label} over the sim's error`,
+          )}
+        >
+          <span className="muted small">{label}</span>
+          <Gain gain={gain ?? 0} dps={i === 0 ? dps : undefined} best={best} />
+        </span>
+      ))}
+    </div>
+  )
+}
+
+/** A suggestion's gains when the sim tested it, the DPS the stat weights expect when it is a stat, nothing for a
+ * talent swap with no DPS change. */
 function SuggestionGain({ s, best }: { s: Suggestion; best: number }) {
   if (s.expected) {
     return (
@@ -15,12 +50,7 @@ function SuggestionGain({ s, best }: { s: Suggestion; best: number }) {
       </span>
     )
   }
-  if (!s.gain) return <span />
-  return (
-    <span {...tip(`The sim's gain, ± ${full(s.dpsError ?? 0)} DPS`)}>
-      <Gain gain={s.gain} best={best} />
-    </span>
-  )
+  return s.gain || s.aoeGain ? <GainPair g={s} best={best} /> : <span />
 }
 
 /** What a suggestion changes: the worn item an enchant or gem goes on, or the swaps of gear and a drop (with where it
@@ -65,14 +95,15 @@ export function SimSuggestions(props: {
 }) {
   const { report, equipped, chunk, onTry } = props
   const { suggestions, combined } = report
-  const shown = suggestions.map((s, key) => ({
+  const [by, setBy] = useState<RankBy>('best')
+  const shown = rankSuggestions(suggestions, by).map((s, key) => ({
     s,
     key,
     worn: s.variant && s.slot ? equipped.find((i) => i.slot === s.slot) : undefined,
   }))
   const items = shown.flatMap(({ s, worn }) => [worn, ...(s.swaps ?? []).flatMap((w) => [w.out, w.in])])
   const info = useItemInfo(items.flatMap((i) => (i ? [i] : [])), chunk)
-  const best = Math.max(0, combined?.gain ?? 0, ...suggestions.map((s) => s.gain ?? 0))
+  const best = Math.max(0, ...[combined, ...suggestions].flatMap((g) => [g?.gain ?? 0, g?.aoeGain ?? 0]))
   const main = shown.filter(({ s }) => s.kind !== 'talentOther')
   const other = shown.filter(({ s }) => s.kind === 'talentOther')
   const row = ({ s, key, worn }: (typeof shown)[number], rank: number | string) => (
@@ -87,12 +118,24 @@ export function SimSuggestions(props: {
       <h2>Suggestions</h2>
       {report.baseline && <p className="muted small">Compared with {report.baseline}.</p>}
       {main.length === 0 && <p className="muted">No change the sim confirms.</p>}
-      <ol className="sim-combos">
+      <div className="sim-tabs" role="group" aria-label="Rank the changes by">
+        {RANKS.map(([k, label]) => (
+          <button
+            key={k}
+            aria-pressed={by === k}
+            onClick={() => setBy(k)}
+            {...tip(k === 'best' ? 'The larger of the two gains' : `Rank by the gain on ${label}`)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      <ol className="sim-combos sim-suggest">
         {main.map((r, i) => row(r, i + 1))}
         {combined && (
           <li className="sim-equipped-row">
             <span className="sim-rank">Σ</span>
-            <Gain gain={combined.gain} dps={combined.dps} best={best} />
+            <GainPair g={combined} best={best} dps={combined.dps} />
             <div className="sim-swaps">
               <strong>Combined</strong>
               <span className="muted small">
@@ -105,8 +148,8 @@ export function SimSuggestions(props: {
       {other.length > 0 && (
         <details>
           <summary>Other talents ({other.length})</summary>
-          <p className="muted small">No DPS change: these are what top players take for utility.</p>
-          <ol className="sim-combos">{other.map((r) => row(r, '·'))}</ol>
+          <p className="muted small">No DPS gain in the sim: these are what top players take for utility.</p>
+          <ol className="sim-combos sim-suggest">{other.map((r) => row(r, '·'))}</ol>
         </details>
       )}
       {report.dropped > 0 && (

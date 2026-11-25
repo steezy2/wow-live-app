@@ -56,16 +56,19 @@ type Node struct {
 		SpellID int    `json:"spellId"`
 		Name    string `json:"name"`
 		Icon    string `json:"icon"`
+		SubTree int    `json:"traitSubTreeId"`
 	} `json:"entries"`
+	ReqPoints int `json:"reqPoints"`
 }
 
 // TalentNode is n in the shape the app draws, as a node of tree ("class", "spec", "hero" or "omnium").
 func (n Node) TalentNode(tree string) models.TalentNode {
 	node := models.TalentNode{ID: n.ID, Name: n.Name, Tree: tree, SubTree: n.SubTree, Choice: n.Type == "choice",
-		X: n.PosX, Y: n.PosY, MaxRanks: n.MaxRanks, Free: n.FreeNode, Next: append([]int{}, n.Next...),
-		Entries: []models.TalentEntry{}}
+		X: n.PosX, Y: n.PosY, MaxRanks: n.MaxRanks, Free: n.FreeNode, ReqPoints: n.ReqPoints,
+		Next: append([]int{}, n.Next...), Entries: []models.TalentEntry{}}
 	for _, e := range n.Entries {
-		node.Entries = append(node.Entries, models.TalentEntry{ID: e.ID, SpellID: e.SpellID, Name: e.Name, Icon: e.Icon})
+		node.Entries = append(node.Entries, models.TalentEntry{ID: e.ID, SpellID: e.SpellID, Name: e.Name, Icon: e.Icon,
+			SubTree: e.SubTree})
 	}
 	return node
 }

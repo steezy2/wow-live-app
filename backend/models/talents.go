@@ -51,12 +51,16 @@ type TalentNode struct {
 	Free     bool          `json:"free,omitempty"` // granted without a point (the loadout string writes it as not bought)
 	Next     []int         `json:"next"`           // the nodes this one leads to
 	Entries  []TalentEntry `json:"entries"`
+	// ReqPoints is the points its section must have spent on nodes of a lower ReqPoints before it can be taken.
+	ReqPoints int `json:"reqPoints,omitempty"`
 }
 
 // TalentEntry is a talent a node can hold: its ID, the spell it casts or gives and its icon (Wowhead's icon name).
+// SubTree is the hero tree a TalentTree.HeroChoice entry picks (a hero node's SubTree).
 type TalentEntry struct {
 	ID      int    `json:"id"`
 	SpellID int    `json:"spellID"`
 	Name    string `json:"name"`
 	Icon    string `json:"icon"`
+	SubTree int    `json:"subTree,omitempty"`
 }
