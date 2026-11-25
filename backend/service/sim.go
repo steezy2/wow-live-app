@@ -108,7 +108,9 @@ type Sims struct {
 	// keys are saved (nil: Tops needs none); a Suggest sim is refused without either.
 	Tops    SuggestLogs
 	KeysSet func() bool
-	Dir     string
+	// Bosses are the raid's bosses by name (reference/raid-bosses.json), the raid targets a Suggest sim can pick.
+	Bosses []string
+	Dir    string
 	// KeepDays is how many days a finished sim is kept (the owner's setting; 0, or nil, keeps them for good).
 	KeepDays func() int
 	Now      func() time.Time
@@ -152,7 +154,7 @@ func (s *Sims) Choices() models.SimChoices {
 		ConsumableKinds: models.SimConsumableKinds, MaxDrops: maxDrops,
 		Difficulties: simDifficulties, KeyLevels: keyLevels, Defaults: simDefaults, Scenarios: simScenarios,
 		DefaultDifficulty: defaultDropDifficulty, DefaultKeyLevel: defaultKey, GearGroups: slices.Compact(groups),
-		MaxItemLookups: maxItemLookups}
+		MaxItemLookups: maxItemLookups, SuggestTargets: s.suggestTargets()}
 }
 
 // simAccuracyOf is the accuracy named name, false when there is none.
@@ -269,7 +271,7 @@ func (s *Sims) Plan(req models.SimRequest) (models.SimPlan, error) {
 	case "stats":
 		runs = statsRuns
 	case "suggest":
-		runs = s.planSuggest(profile, req.Options, &plan)
+		runs = s.planSuggest(profile, req, &plan)
 	}
 	plan.Seconds = planSeconds(runs, req.Options)
 	return plan, nil
@@ -412,6 +414,8 @@ func (s *Sims) Start(req models.SimRequest) (models.Sim, error) {
 			err = errOneSetup
 		case req.Kind == "suggest" && !s.logsReady():
 			err = errNoSuggestLogs
+		case req.Kind == "suggest" && !s.validTarget(req.Target):
+			err = errNoSuggestTarget
 		default:
 			combos, err = withCompare(dims, req.Kind == "quick", combos, limit)
 		}
@@ -451,7 +455,7 @@ func (s *Sims) Start(req models.SimRequest) (models.Sim, error) {
 	if req.Kind == "suggest" {
 		s.work.Go(func() {
 			s.suggest(suggestRun{sims: s, ctx: ctx, id: id, input: input, output: output, head: head, o: req.Options,
-				p: profile, consumables: req.Consumables})
+				p: profile, consumables: req.Consumables, target: *req.Target})
 		})
 	} else {
 		s.work.Go(func() { s.execute(ctx, id, input, output, head, combos, req.Options, profile.Equipped) })

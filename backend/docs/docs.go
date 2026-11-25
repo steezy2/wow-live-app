@@ -2229,7 +2229,7 @@ const docTemplate = `{
                 }
             },
             "post": {
-                "description": "Runs SimulationCraft on this PC in the background, up to SimChoices.maxParallel at once: the pasted\nexport (read again, never passed to simc as it is) with the options. Poll the sim by its ID. A Top Gear\nrequest also sends ` + "`" + `equipped` + "`" + ` and ` + "`" + `bags` + "`" + `: the indexes of the items it may put on. A ` + "`" + `suggest` + "`" + ` sim reads\nthe top Warcraft Logs players of the spec (spending points, as a player review) and runs the stat\nweights, one profileset per change they make that the character doesn't, Top Gear over the bags, the\nDroptimizer and every shown change together; its result's ` + "`" + `suggest` + "`" + ` holds the changes the sim confirmed.\nThe changes are built from the reference and the export's own items, never taken from the request.",
+                "description": "Runs SimulationCraft on this PC in the background, up to SimChoices.maxParallel at once: the pasted\nexport (read again, never passed to simc as it is) with the options. Poll the sim by its ID. A Top Gear\nrequest also sends ` + "`" + `equipped` + "`" + ` and ` + "`" + `bags` + "`" + `: the indexes of the items it may put on. A ` + "`" + `suggest` + "`" + ` sim reads\nthe top Warcraft Logs players of the spec in its ` + "`" + `target` + "`" + ` (one of SimChoices.suggestTargets: Mythic+\noverall or a raid boss on a difficulty), spending points as a player review, and runs the stat\nweights, one profileset per change they make that the character doesn't, Top Gear over the bags, the\nDroptimizer and every shown change together; its result's ` + "`" + `suggest` + "`" + ` holds the changes the sim confirmed.\nThe changes are built from the reference and the export's own items, never taken from the request.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2242,7 +2242,7 @@ const docTemplate = `{
                 "summary": "Start a sim",
                 "parameters": [
                     {
-                        "description": "the kind, the export, the options and consumables, for topgear the picked equipped and bag indexes and variants, for drops the difficulty, keyLevel and upgrade, and for any kind the consumables picked (two or more of a kind are compared, except by stats and suggest)",
+                        "description": "the kind, the export, the options and consumables, for topgear the picked equipped and bag indexes and variants, for drops the difficulty, keyLevel and upgrade, for suggest the target, and for any kind the consumables picked (two or more of a kind are compared, except by stats and suggest)",
                         "name": "body",
                         "in": "body",
                         "required": true,
@@ -2259,7 +2259,7 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "bad options, indexes, variants, consumables or Omnium picks, not an export, nothing to try, over maxCombos, or a suggest sim without Warcraft Logs keys",
+                        "description": "bad options, indexes, variants, consumables or Omnium picks, not an export, nothing to try, over maxCombos, or a suggest sim without Warcraft Logs keys or a target",
                         "schema": {
                             "$ref": "#/definitions/controller.ErrorResponse"
                         }
@@ -2421,7 +2421,7 @@ const docTemplate = `{
         },
         "/api/sim/plan": {
             "post": {
-                "description": "Counts the runs without starting the sim, so the page can show the cost (and that it is over the limit)\nbefore a run. Takes the same body as starting a sim. A suggest plan also gives the Warcraft Logs points\nit spends, what it leaves out (notes) and, without Warcraft Logs keys, why it is refused (error).",
+                "description": "Counts the runs without starting the sim, so the page can show the cost (and that it is over the limit)\nbefore a run. Takes the same body as starting a sim. A suggest plan also gives the Warcraft Logs points\nits target spends, what it leaves out (notes) and, without Warcraft Logs keys or a target, why it is\nrefused (error).",
                 "consumes": [
                     "application/json"
                 ],
@@ -6916,6 +6916,13 @@ const docTemplate = `{
                         "$ref": "#/definitions/models.SimScenario"
                     }
                 },
+                "suggestTargets": {
+                    "description": "SuggestTargets are what a Suggest sim can read the top logs of (SimRequest.Target): Mythic+ overall first, then\neach raid boss on each difficulty Warcraft Logs ranks.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.SuggestTargetChoice"
+                    }
+                },
                 "upgradeRanks": {
                     "description": "UpgradeRanks is how many ranks of an upgrade track a Droptimizer can upgrade drops to (the ranks past it are\nMythic raid only).",
                     "type": "integer",
@@ -7524,6 +7531,14 @@ const docTemplate = `{
                 "options": {
                     "$ref": "#/definitions/models.SimOptions"
                 },
+                "target": {
+                    "description": "Target is what a Suggest sim reads the top logs of, one of SimChoices.SuggestTargets; a suggest sim without one\nis refused.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.SuggestTarget"
+                        }
+                    ]
+                },
                 "upgrade": {
                     "description": "Upgrade is how a Droptimizer upgrades its drops along their track: empty keeps the item level they drop at, \"max\"\nis the top rank (a Hero or Myth weapon, trinket or neck also with its Ascendant Venomstones), \"match\" the rank of\nthe item worn in each drop's slot, and a number that rank of the track (the top when it has fewer).",
                     "type": "string",
@@ -7856,6 +7871,43 @@ const docTemplate = `{
                         "sims",
                         "gameLogs"
                     ]
+                }
+            }
+        },
+        "models.SuggestTarget": {
+            "type": "object",
+            "properties": {
+                "difficulty": {
+                    "type": "integer",
+                    "example": 4
+                },
+                "encounter": {
+                    "type": "string",
+                    "example": "Sszorak"
+                },
+                "kind": {
+                    "enum": [
+                        "mplus",
+                        "raid"
+                    ],
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.FightKind"
+                        }
+                    ],
+                    "example": "mplus"
+                }
+            }
+        },
+        "models.SuggestTargetChoice": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "example": "Mythic+ overall"
+                },
+                "target": {
+                    "$ref": "#/definitions/models.SuggestTarget"
                 }
             }
         },

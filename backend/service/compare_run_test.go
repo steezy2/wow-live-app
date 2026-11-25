@@ -11,23 +11,32 @@ import (
 	"wow-live/backend/models"
 )
 
-// fakeLogs is Warcraft Logs for a player review: three ranked runs, each log read as asked, and a points count
-// that drops by 100 after the first reading of it.
+// fakeLogs is Warcraft Logs for a player review: five dungeons and any boss (encounter 100), three ranked runs (or
+// runs), each log read as asked, and a points count that drops by 100 after the first reading of it.
 type fakeLogs struct {
 	mu      sync.Mutex
 	left    float64
+	runs    []models.RankedRun
+	queries []models.RankQuery
 	windows []int64
 	fail    bool
 	limited bool // every log read hits the rate limit
 }
 
 func (f *fakeLogs) MPlusEncounters(context.Context) (map[string]int, error) {
-	return map[string]int{"Voidscar Arena": 7}, nil
+	return map[string]int{"Voidscar Arena": 7, "Ruined Spire": 3, "Sunken Vault": 5, "Ashen Crypt": 9, "Old Mine": 1},
+		nil
 }
 
-func (f *fakeLogs) RaidEncounters(context.Context, []string) (map[string]int, error) { return nil, nil }
+func (f *fakeLogs) RaidEncounters(_ context.Context, bosses []string) (map[string]int, error) {
+	return map[string]int{bosses[0]: 100}, nil
+}
 
-func (f *fakeLogs) RankedRuns(context.Context, models.RankQuery, int) ([]models.RankedRun, bool, error) {
+func (f *fakeLogs) RankedRuns(_ context.Context, q models.RankQuery, _ int) ([]models.RankedRun, bool, error) {
+	f.queries = append(f.queries, q)
+	if f.runs != nil {
+		return f.runs, false, nil
+	}
 	return []models.RankedRun{{DurationMS: 200_000, Code: "a", FightID: 1, Name: "A", Amount: 9e6},
 		{DurationMS: 400_000, Code: "b", FightID: 2, Name: "B", Amount: 1e6},
 		{DurationMS: 500_000, Code: "c", FightID: 3, Name: "C", Amount: 1e6}}, false, nil

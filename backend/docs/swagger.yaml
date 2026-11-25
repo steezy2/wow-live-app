@@ -2942,6 +2942,13 @@ definitions:
         items:
           $ref: '#/definitions/models.SimScenario'
         type: array
+      suggestTargets:
+        description: |-
+          SuggestTargets are what a Suggest sim can read the top logs of (SimRequest.Target): Mythic+ overall first, then
+          each raid boss on each difficulty Warcraft Logs ranks.
+        items:
+          $ref: '#/definitions/models.SuggestTargetChoice'
+        type: array
       upgradeRanks:
         description: |-
           UpgradeRanks is how many ranks of an upgrade track a Droptimizer can upgrade drops to (the ranks past it are
@@ -3393,6 +3400,12 @@ definitions:
         type: string
       options:
         $ref: '#/definitions/models.SimOptions'
+      target:
+        allOf:
+        - $ref: '#/definitions/models.SuggestTarget'
+        description: |-
+          Target is what a Suggest sim reads the top logs of, one of SimChoices.SuggestTargets; a suggest sim without one
+          is refused.
       upgrade:
         description: |-
           Upgrade is how a Droptimizer upgrades its drops along their track: empty keeps the item level they drop at, "max"
@@ -3637,6 +3650,30 @@ definitions:
         - sims
         - gameLogs
         type: string
+    type: object
+  models.SuggestTarget:
+    properties:
+      difficulty:
+        example: 4
+        type: integer
+      encounter:
+        example: Sszorak
+        type: string
+      kind:
+        allOf:
+        - $ref: '#/definitions/models.FightKind'
+        enum:
+        - mplus
+        - raid
+        example: mplus
+    type: object
+  models.SuggestTargetChoice:
+    properties:
+      name:
+        example: Mythic+ overall
+        type: string
+      target:
+        $ref: '#/definitions/models.SuggestTarget'
     type: object
   models.Suggestion:
     properties:
@@ -5395,15 +5432,16 @@ paths:
         Runs SimulationCraft on this PC in the background, up to SimChoices.maxParallel at once: the pasted
         export (read again, never passed to simc as it is) with the options. Poll the sim by its ID. A Top Gear
         request also sends `equipped` and `bags`: the indexes of the items it may put on. A `suggest` sim reads
-        the top Warcraft Logs players of the spec (spending points, as a player review) and runs the stat
+        the top Warcraft Logs players of the spec in its `target` (one of SimChoices.suggestTargets: Mythic+
+        overall or a raid boss on a difficulty), spending points as a player review, and runs the stat
         weights, one profileset per change they make that the character doesn't, Top Gear over the bags, the
         Droptimizer and every shown change together; its result's `suggest` holds the changes the sim confirmed.
         The changes are built from the reference and the export's own items, never taken from the request.
       parameters:
       - description: the kind, the export, the options and consumables, for topgear
           the picked equipped and bag indexes and variants, for drops the difficulty,
-          keyLevel and upgrade, and for any kind the consumables picked (two or more
-          of a kind are compared, except by stats and suggest)
+          keyLevel and upgrade, for suggest the target, and for any kind the consumables
+          picked (two or more of a kind are compared, except by stats and suggest)
         in: body
         name: body
         required: true
@@ -5419,7 +5457,7 @@ paths:
         "400":
           description: bad options, indexes, variants, consumables or Omnium picks,
             not an export, nothing to try, over maxCombos, or a suggest sim without
-            Warcraft Logs keys
+            Warcraft Logs keys or a target
           schema:
             $ref: '#/definitions/controller.ErrorResponse'
         "409":
@@ -5592,7 +5630,8 @@ paths:
       description: |-
         Counts the runs without starting the sim, so the page can show the cost (and that it is over the limit)
         before a run. Takes the same body as starting a sim. A suggest plan also gives the Warcraft Logs points
-        it spends, what it leaves out (notes) and, without Warcraft Logs keys, why it is refused (error).
+        its target spends, what it leaves out (notes) and, without Warcraft Logs keys or a target, why it is
+        refused (error).
       parameters:
       - description: a sim request of any kind
         in: body
