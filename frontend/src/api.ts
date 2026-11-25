@@ -1901,7 +1901,6 @@ export interface SimOptions {
   noRaidBuffs?: boolean
 }
 
-/** What the sim page picks its options from, and its limits. */
 /** A named fight: its style, length (seconds) and targets. */
 export interface SimScenario {
   name: string
@@ -1910,6 +1909,7 @@ export interface SimScenario {
   targets: number
 }
 
+/** What the sim page picks its options from, and its limits. */
 export interface SimChoices {
   fightStyles: string[]
   accuracies: string[]

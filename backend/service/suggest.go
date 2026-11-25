@@ -258,6 +258,15 @@ func (s *Sims) suggestGear(p models.SimProfile) (bags, drops []gearCombo, notes 
 	if err != nil {
 		notes = append(notes, "Drops to farm aren't tried: "+why(err))
 	}
+	// a drop of the piece worn, no higher than that piece fully upgraded, is its upgrade suggestion, not one to farm
+	drops = slices.DeleteFunc(drops, func(c gearCombo) bool {
+		out, in := c.swaps[0].Out, c.swaps[0].In
+		if out == nil || in == nil || out.ID != in.ID {
+			return false
+		}
+		track, _, ok := upgradeOf(s.Ref.Upgrades, *out)
+		return ok && in.Level <= upgradedLevel(dropUpgrade{}, track, out.Slot, out, 0)
+	})
 	return bags, drops, notes
 }
 
@@ -384,10 +393,9 @@ func (r suggestRun) run() (*models.SimResult, string, error) {
 	for _, f := range suggestFights {
 		report.Fights = append(report.Fights, f.scenario)
 	}
-	for _, c := range r.sims.suggestTargets() {
-		if c.Target == r.target {
-			report.Target = c.Name
-		}
+	targets := r.sims.suggestTargets()
+	if i := slices.IndexFunc(targets, func(c models.SuggestTargetChoice) bool { return c.Target == r.target }); i >= 0 {
+		report.Target = targets[i].Name
 	}
 	var shown []tested
 	var untested []models.Suggestion
@@ -735,7 +743,8 @@ func (r suggestRun) combined(shown []tested) (*models.SimCombo, string, error) {
 			switch {
 			case t.s.Variant != nil:
 				item := now[t.s.Slot]
-				if item == nil {
+				// an upgrade spends crests on the worn piece, never on what gear from the bags put in its place
+				if item == nil || t.s.Kind == "upgrade" && item != worn[t.s.Slot] {
 					continue
 				}
 				changed, err := applyVariant(r.sims.Ref, *item, *t.s.Variant)

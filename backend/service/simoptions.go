@@ -343,7 +343,7 @@ func applyVariant(ref models.SimReference, item models.SimItem, v models.SimVari
 			return bad("%s can't take Venomstones: only a Hero or Myth weapon, trinket or neck at %d/%d without them can",
 				cmp.Or(item.Name, "the item"), topRank(track), len(track.Levels))
 		}
-		item.Level += venomstoneLevels
+		item.Level = current.ItemLevel + venomstoneLevels // the export's level is only its comment's
 		item.Opts["ilevel"] = []int{item.Level}
 		notes = append(notes, "Venomstones")
 	}

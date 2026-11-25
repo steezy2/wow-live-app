@@ -63,7 +63,7 @@ type Suggestion struct {
 // limit). Fights are the fights each change was tested on (the stat weights ran on the sim's own Options), and Target
 // the name of the content the top logs come from.
 type SimSuggestReport struct {
-	Fights      []SimScenario `json:"fights"`
+	Fights      []SimScenario `json:"fights,omitempty"`
 	Target      string        `json:"target,omitempty" example:"Mythic+ overall"`
 	Suggestions []Suggestion  `json:"suggestions"`
 	Combined    *SimCombo     `json:"combined,omitempty"`
