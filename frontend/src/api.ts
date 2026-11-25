@@ -2047,6 +2047,8 @@ export interface SimPlan {
   notes: string[]
   /** About what a Suggest sim spends of Warcraft Logs' hourly points reading the top logs (0 once they were read). */
   points?: number
+  /** A Suggest sim was refused for lack of Warcraft Logs keys (the stat weights sim still runs). */
+  needsLogs?: boolean
 }
 
 /** One value of a "consumables" sim: its DPS and gain over the sim's baseline. */

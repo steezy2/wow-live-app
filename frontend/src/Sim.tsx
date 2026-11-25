@@ -141,6 +141,13 @@ function RunningSims(props: {
 
 /** What a request makes, in words: the runs besides the sim's own (of the max that run) and about how long it all
  * takes, or why the app would refuse it. */
+/** Whether the pasted character is the one a finished sim was of, wearing the same items: a suggestion's item index
+ * points into that export, and a newer paste can have other items at the same places. */
+const sameGear = (profile: SimProfile | null, sim: Sim) =>
+  !!profile &&
+  profile.name === sim.character &&
+  !!sim.result?.equipped?.every((it, i) => profile.equipped[i]?.slot === it.slot && profile.equipped[i]?.id === it.id)
+
 function PlanText(props: { plan: { plan: SimPlan | null; error: string | null }; kind: SimKind; choices: SimChoices }) {
   const { plan, kind, choices } = props
   const refusal = plan.error ?? plan.plan?.error
@@ -169,7 +176,7 @@ function SuggestText({ plan, onStats }: { plan: { plan: SimPlan | null; error: s
     return (
       <>
         <p className="warning">{refusal}</p>
-        {refusal.includes('Warcraft Logs') && <button onClick={onStats}>Run Stat Weights instead</button>}
+        {plan.plan?.needsLogs && <button onClick={onStats}>Run Stat Weights instead</button>}
       </>
     )
   }
@@ -557,7 +564,7 @@ export function SimPage() {
         <SimResult
           sim={sim}
           chunk={choices.maxItemLookups}
-          onTry={profile?.name === sim.character ? tryVariant : undefined}
+          onTry={sameGear(profile, sim) ? tryVariant : undefined}
         />
       </main>
     )
