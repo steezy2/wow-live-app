@@ -6,7 +6,7 @@ import { useItemInfo } from './simItems'
 import { tip } from './tipAttrs'
 
 /** A suggestion's gain: a bar and its DPS (with the sim's error on hover) when the sim tested it, the DPS the stat
- * weights expect when it is a stat, nothing for a talent. */
+ * weights expect when it is a stat, nothing for a talent swap with no DPS change. */
 function SuggestionGain({ s, best }: { s: Suggestion; best: number }) {
   if (s.expected) {
     return (
@@ -53,9 +53,10 @@ function Change(props: {
 }
 
 /** A Suggest sim's report: the changes best first, each with what it changes, why and its gain (and, for an enchant or
- * gem, a button that has `onTry` open it in Top Gear), then the gain of all of them together, what was left out and the
- * note that they are a start, not an order. `equipped` is the gear the sim started from (an enchant's or gem's item);
- * items are asked `chunk` at a time. */
+ * gem, a button that has `onTry` open it in Top Gear), then the gain of all of them together, the talents top players
+ * take that add no DPS in a closed group (a loss shown), what was left out and the note that they are a start, not an
+ * order. `equipped` is the gear the sim started from (an enchant's or gem's item); items are asked `chunk` at a
+ * time. */
 export function SimSuggestions(props: {
   report: SimSuggestReport
   equipped: SimItem[]
@@ -64,26 +65,30 @@ export function SimSuggestions(props: {
 }) {
   const { report, equipped, chunk, onTry } = props
   const { suggestions, combined } = report
-  const shown = suggestions.map((s) => ({
+  const shown = suggestions.map((s, key) => ({
     s,
+    key,
     worn: s.variant && s.slot ? equipped.find((i) => i.slot === s.slot) : undefined,
   }))
   const items = shown.flatMap(({ s, worn }) => [worn, ...(s.swaps ?? []).flatMap((w) => [w.out, w.in])])
   const info = useItemInfo(items.flatMap((i) => (i ? [i] : [])), chunk)
   const best = Math.max(0, combined?.gain ?? 0, ...suggestions.map((s) => s.gain ?? 0))
+  const main = shown.filter(({ s }) => s.kind !== 'talentOther')
+  const other = shown.filter(({ s }) => s.kind === 'talentOther')
+  const row = ({ s, key, worn }: (typeof shown)[number], rank: number | string) => (
+    <li key={key}>
+      <span className="sim-rank">{rank}</span>
+      <SuggestionGain s={s} best={best} />
+      <Change s={s} worn={worn} info={info} onTry={onTry} />
+    </li>
+  )
   return (
     <section className="panel">
       <h2>Suggestions</h2>
       {report.baseline && <p className="muted small">Compared with {report.baseline}.</p>}
-      {suggestions.length === 0 && <p className="muted">No change the sim confirms.</p>}
+      {main.length === 0 && <p className="muted">No change the sim confirms.</p>}
       <ol className="sim-combos">
-        {shown.map(({ s, worn }, i) => (
-          <li key={i}>
-            <span className="sim-rank">{i + 1}</span>
-            <SuggestionGain s={s} best={best} />
-            <Change s={s} worn={worn} info={info} onTry={onTry} />
-          </li>
-        ))}
+        {main.map((r, i) => row(r, i + 1))}
         {combined && (
           <li className="sim-equipped-row">
             <span className="sim-rank">Σ</span>
@@ -97,6 +102,13 @@ export function SimSuggestions(props: {
           </li>
         )}
       </ol>
+      {other.length > 0 && (
+        <details>
+          <summary>Other talents ({other.length})</summary>
+          <p className="muted small">No DPS change: these are what top players take for utility.</p>
+          <ol className="sim-combos">{other.map((r) => row(r, '·'))}</ol>
+        </details>
+      )}
       {report.dropped > 0 && (
         <p className="muted small">
           {report.dropped} tested {report.dropped > 1 ? 'changes were' : 'change was'} left out: no gain over the sim's

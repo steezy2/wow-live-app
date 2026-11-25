@@ -7939,7 +7939,7 @@ const docTemplate = `{
                     "example": 410
                 },
                 "gain": {
-                    "description": "Gain is the sim's DPS gain of the change over the unchanged character and DPSError the standard error of that\ndifference; both 0 for a talent or stat, which the sim doesn't test.",
+                    "description": "Gain is the sim's DPS gain of the change over the unchanged character and DPSError the standard error of that\ndifference; both 0 for a stat, which the sim doesn't test, and for a \"talentOther\" unless the sim shows a loss.",
                     "type": "number",
                     "example": 812
                 },
@@ -7951,8 +7951,17 @@ const docTemplate = `{
                         "stat",
                         "consumable",
                         "talent",
+                        "talentOther",
                         "gear",
                         "farm"
+                    ]
+                },
+                "replaces": {
+                    "description": "Replaces is the character's talent a talent swap gives up for Talent.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.TalentPick"
+                        }
                     ]
                 },
                 "slot": {
@@ -8011,6 +8020,10 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/models.TalentEntry"
                     }
+                },
+                "free": {
+                    "description": "granted without a point (the loadout string writes it as not bought)",
+                    "type": "boolean"
                 },
                 "id": {
                     "type": "integer"
@@ -8091,10 +8104,34 @@ const docTemplate = `{
                 "class": {
                     "type": "string"
                 },
+                "hash": {
+                    "type": "string"
+                },
+                "heroChoice": {
+                    "description": "HeroChoice is the node whose entries pick the hero tree; it is never drawn.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.TalentNode"
+                        }
+                    ]
+                },
                 "nodes": {
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/models.TalentNode"
+                    }
+                },
+                "order": {
+                    "description": "Order is every node the game's loadout string writes, in its order: the class's whole tree, other specs' nodes\nand the hero tree choice too. Hash is that tree's hash (hex) the string carries, and Points the points each\nsection (\"class\", \"spec\", and \"hero\" for each hero tree) spends at the top level.",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "points": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer"
                     }
                 },
                 "spec": {

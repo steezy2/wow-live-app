@@ -16,6 +16,8 @@ type SimProfile struct {
 	Professions string `json:"professions,omitempty"`
 	Omnium      string `json:"omnium,omitempty"`
 	Talents     string `json:"talents"`
+	// Picks are Talents read against the spec's tree (DecodeTalents); nil when it can't be read. Not served.
+	Picks []TalentPick `json:"-"`
 	// Equipped is what the character wears, and Bags the other gear they carry (each in the export's order).
 	Equipped []SimItem `json:"equipped"`
 	Bags     []SimItem `json:"bags"`

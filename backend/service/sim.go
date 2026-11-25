@@ -224,8 +224,15 @@ func (s *Sims) Reference() models.SimReference { return s.Ref }
 // ParseProfile is the character in a pasted export, each item with its sockets (SimItem.Sockets). ErrBadSimC for an
 // export that is none.
 func (s *Sims) ParseProfile(export string) (models.SimProfile, error) {
-	p, err := ParseSimC(export)
+	p, err := s.parse(export)
 	return withChoices(s.Ref, p), err
+}
+
+// parse is ParseSimC with the export's talents read against their spec's tree (SimProfile.Picks).
+func (s *Sims) parse(export string) (models.SimProfile, error) {
+	p, err := ParseSimC(export)
+	p.Picks = profileTalents(s.Ref.Talents, p.Talents)
+	return p, err
 }
 
 // Plan is what a request would run, counted without starting it, and about how long that takes: the runs besides the
@@ -236,7 +243,7 @@ func (s *Sims) Plan(req models.SimRequest) (models.SimPlan, error) {
 	if err := validateSimOptions(req.Kind, req.Options); err != nil {
 		return models.SimPlan{}, err
 	}
-	profile, err := ParseSimC(req.Export)
+	profile, err := s.parse(req.Export)
 	if err != nil {
 		return models.SimPlan{}, err
 	}
@@ -373,7 +380,7 @@ func (s *Sims) Start(req models.SimRequest) (models.Sim, error) {
 	if err := validateSimOptions(req.Kind, req.Options); err != nil {
 		return models.Sim{}, err
 	}
-	profile, err := ParseSimC(req.Export)
+	profile, err := s.parse(req.Export)
 	if err != nil {
 		return models.Sim{}, err
 	}

@@ -23,6 +23,8 @@ type SimReference struct {
 	SocketSlots map[string]int `json:"socketSlots"`
 	// Crafting is reference/sim-crafting.json. It isn't served: ParseProfile says what each item can take.
 	Crafting SimCrafting `json:"-"`
+	// Talents are reference/talent-trees.json's trees by spec ID, which read an export's talents. Not served.
+	Talents map[int]TalentTree `json:"-"`
 	// Omnium is the Omnium Folio's rune tree (nodes of one or more choices; picks are entry IDs).
 	Omnium []TalentNode `json:"omnium"`
 }

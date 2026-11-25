@@ -3700,7 +3700,7 @@ definitions:
       gain:
         description: |-
           Gain is the sim's DPS gain of the change over the unchanged character and DPSError the standard error of that
-          difference; both 0 for a talent or stat, which the sim doesn't test.
+          difference; both 0 for a stat, which the sim doesn't test, and for a "talentOther" unless the sim shows a loss.
         example: 812
         type: number
       kind:
@@ -3710,9 +3710,15 @@ definitions:
         - stat
         - consumable
         - talent
+        - talentOther
         - gear
         - farm
         type: string
+      replaces:
+        allOf:
+        - $ref: '#/definitions/models.TalentPick'
+        description: Replaces is the character's talent a talent swap gives up for
+          Talent.
       slot:
         description: Slot is the gear slot an enchant or gem goes in, as simc names
           it (a ring's is "finger1" or "finger2").
@@ -3754,6 +3760,10 @@ definitions:
         items:
           $ref: '#/definitions/models.TalentEntry'
         type: array
+      free:
+        description: granted without a point (the loadout string writes it as not
+          bought)
+        type: boolean
       id:
         type: integer
       maxRanks:
@@ -3811,10 +3821,29 @@ definitions:
     properties:
       class:
         type: string
+      hash:
+        type: string
+      heroChoice:
+        allOf:
+        - $ref: '#/definitions/models.TalentNode'
+        description: HeroChoice is the node whose entries pick the hero tree; it is
+          never drawn.
       nodes:
         items:
           $ref: '#/definitions/models.TalentNode'
         type: array
+      order:
+        description: |-
+          Order is every node the game's loadout string writes, in its order: the class's whole tree, other specs' nodes
+          and the hero tree choice too. Hash is that tree's hash (hex) the string carries, and Points the points each
+          section ("class", "spec", and "hero" for each hero tree) spends at the top level.
+        items:
+          type: integer
+        type: array
+      points:
+        additionalProperties:
+          type: integer
+        type: object
       spec:
         type: string
       specID:
