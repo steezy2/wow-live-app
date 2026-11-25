@@ -235,7 +235,7 @@ type build struct {
 
 // gearSlots are simc's slot names by the position of an item in combatantinfo's gear list.
 var gearSlots = []string{"head", "neck", "shoulder", "shirt", "chest", "waist", "legs", "feet", "wrist", "hands",
-	"finger1", "finger2", "trinket1", "trinket2", "back", "main_hand", "off_hand", "tabard"}
+	"finger1", "finger2", "trinket1", "trinket2", "back", "main_hand", "off_hand", "ranged", "tabard"}
 
 // playerBuild is what a player brought to a report fight, from the fight's combatantinfo events (the game writes them
 // as the fight starts). One cheap query a fight, kept for good (the file's name is from when it held only talents).

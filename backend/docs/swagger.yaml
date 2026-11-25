@@ -3213,13 +3213,15 @@ definitions:
         type: integer
       error:
         type: string
+      needsLogs:
+        type: boolean
       notes:
         items:
           type: string
         type: array
       points:
         example: 160
-        type: integer
+        type: number
       seconds:
         type: integer
     type: object

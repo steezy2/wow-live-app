@@ -7297,6 +7297,9 @@ const docTemplate = `{
                 "error": {
                     "type": "string"
                 },
+                "needsLogs": {
+                    "type": "boolean"
+                },
                 "notes": {
                     "type": "array",
                     "items": {
@@ -7304,7 +7307,7 @@ const docTemplate = `{
                     }
                 },
                 "points": {
-                    "type": "integer",
+                    "type": "number",
                     "example": 160
                 },
                 "seconds": {
