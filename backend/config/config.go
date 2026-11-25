@@ -130,6 +130,7 @@ func Load(fsys fs.FS) (Loaded, error) {
 		}
 	}
 	l.Dungeons, l.Bosses, l.Tier, l.Talents = dungeons.Dungeons, raid.Bosses, raid.Tier, talents.BySpec()
+	simRef.Talents = l.Talents
 	l.Drops, l.SimRef = drops, simRef
 	l.RefErr = errors.Join(dungeonsErr, raidErr, talentsErr, dropsErr, simRefErr, craftingErr)
 	return l, nil

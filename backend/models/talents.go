@@ -25,6 +25,14 @@ type TalentTree struct {
 	Class  string       `json:"class"`
 	Spec   string       `json:"spec"`
 	Nodes  []TalentNode `json:"nodes"`
+	// Order is every node the game's loadout string writes, in its order: the class's whole tree, other specs' nodes
+	// and the hero tree choice too. Hash is that tree's hash (hex) the string carries, and Points the points each
+	// section ("class", "spec", and "hero" for each hero tree) spends at the top level.
+	Order  []int          `json:"order"`
+	Hash   string         `json:"hash"`
+	Points map[string]int `json:"points"`
+	// HeroChoice is the node whose entries pick the hero tree; it is never drawn.
+	HeroChoice TalentNode `json:"heroChoice"`
 }
 
 // TalentNode is a place in a talent tree. Picks name it by ID (COMBATANT_INFO's node) and the entry taken in it: one
@@ -40,7 +48,8 @@ type TalentNode struct {
 	X        int           `json:"x"` // the tree's own grid, in thousandths of a node
 	Y        int           `json:"y"`
 	MaxRanks int           `json:"maxRanks"`
-	Next     []int         `json:"next"` // the nodes this one leads to
+	Free     bool          `json:"free,omitempty"` // granted without a point (the loadout string writes it as not bought)
+	Next     []int         `json:"next"`           // the nodes this one leads to
 	Entries  []TalentEntry `json:"entries"`
 }
 
