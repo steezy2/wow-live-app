@@ -161,6 +161,28 @@ function PlanText(props: { plan: { plan: SimPlan | null; error: string | null };
   )
 }
 
+/** What Suggest would cost, in words (about how long, and once the Warcraft Logs points of reading the top logs), or
+ * why the app refuses it; without Warcraft Logs it offers the Stat Weights sim, which needs none. */
+function SuggestText({ plan, onStats }: { plan: { plan: SimPlan | null; error: string | null }; onStats: () => void }) {
+  const refusal = plan.error ?? plan.plan?.error
+  if (refusal) {
+    return (
+      <>
+        <p className="warning">{refusal}</p>
+        {refusal.includes('Warcraft Logs') && <button onClick={onStats}>Run Stat Weights instead</button>}
+      </>
+    )
+  }
+  if (!plan.plan) return null
+  const { seconds, points } = plan.plan
+  return (
+    <p className="muted small">
+      Suggest: about {aboutText(seconds)}
+      {points ? `, and about ${points} Warcraft Logs points once, to read the top players' logs` : ''}
+    </p>
+  )
+}
+
 /** The fight's options and for a Droptimizer where the drops come from and whether they are upgraded, with the Sim
  * button and a running sim's progress, in the panel beside the gear. */
 function OptionsPanel(props: {
@@ -178,9 +200,11 @@ function OptionsPanel(props: {
   catalystCharges: number | null
   setCatalystCharges: (n: number) => void
   plan: { plan: SimPlan | null; error: string | null } | null
+  suggestPlan: { plan: SimPlan | null; error: string | null } | null
   why: string | null
   canRun: boolean
   onRun: () => void
+  onSuggest: (kind: SimKind) => void
 }) {
   const { kind, choices, options, setOptions, optionsError } = props
   return (
@@ -294,9 +318,20 @@ function OptionsPanel(props: {
       {optionsError && <p className="warning">{optionsError}</p>}
       {props.plan && <PlanText plan={props.plan} kind={kind} choices={choices} />}
       {props.why && <p className="warning">{props.why}</p>}
-      <button className="sim-run" disabled={!props.canRun || !!optionsError} onClick={props.onRun}>
-        Sim
-      </button>
+      {props.suggestPlan && <SuggestText plan={props.suggestPlan} onStats={() => props.onSuggest('stats')} />}
+      <div className="actions">
+        <button className="sim-run" disabled={!props.canRun || !!optionsError} onClick={props.onRun}>
+          Sim
+        </button>
+        <button
+          className="sim-run"
+          disabled={!!props.why || !!optionsError || !props.suggestPlan?.plan || !!props.suggestPlan.plan.error}
+          onClick={() => props.onSuggest('suggest')}
+          {...tip('What the top players of your spec do that you do not, confirmed by sims, ranked by gain')}
+        >
+          Suggest
+        </button>
+      </div>
     </aside>
   )
 }
@@ -411,38 +446,48 @@ export function SimPage() {
     })
   const same = (a: SimVariant, b: SimVariant) => JSON.stringify(a) === JSON.stringify(b)
   const optionsError = choices && options ? simOptionsError(options, choices) : null
-  const request = (): SimRequest | null => {
+  const request = (k: SimKind = kind): SimRequest | null => {
     if (!options) return null
     const mine = omniumString(reference?.omnium ?? [], omnium)
     const theirs = omniumString(reference?.omnium ?? [], omniumPicks(profile?.omnium))
     return {
-      kind,
+      kind: k,
       export: text,
       options,
       consumables,
       ...(custom.trim() && { custom }),
       ...(mine !== theirs && { omnium: mine }),
-      ...(kind === 'topgear' && {
+      ...(k === 'topgear' && {
         equipped,
         bags,
         variants,
         enhancements,
         catalystCharges: chargesPicked ?? choices?.maxCatalystCharges,
       }),
-      ...(kind === 'drops' && { difficulty, keyLevel, upgrade }),
+      ...(k === 'drops' && { difficulty, keyLevel, upgrade }),
     }
   }
   const planRequest = profile ? request() : null
   const plan = usePlan(planRequest)
-  const start = () =>
+  const suggestPlan = usePlan(profile ? request('suggest') : null)
+  const start = (k: SimKind = kind) =>
     act(async () => {
-      const req = request()
+      const req = request(k)
       if (!req) return
       const started = await startSim(req)
-      setEstimates((all) => ({ ...all, [started.id]: plan.plan?.seconds ?? 0 }))
+      const asked = k === 'suggest' ? suggestPlan : plan
+      setEstimates((all) => ({ ...all, [started.id]: asked.plan?.seconds ?? 0 }))
       setRuns((all) => [started, ...all.filter((r) => r.id !== started.id)])
       setWatching(started.id)
     })
+  // Opens Top Gear with a suggestion's variant added and its item ticked.
+  const tryVariant = (v: SimVariant) => {
+    setSim(null)
+    setKind('topgear')
+    setVariants((all) => (all.some((o) => same(o, v)) ? all : [...all, v]))
+    const [list, set] = v.worn ? [equipped, setEquipped] : [bags, setBags]
+    if (!list.includes(v.index)) set([...list, v.index])
+  }
   const toggle = (worn: boolean, i: number) => {
     const [list, set] = worn ? [equipped, setEquipped] : [bags, setBags]
     set(list.includes(i) ? list.filter((n) => n !== i) : [...list, i])
@@ -509,7 +554,11 @@ export function SimPage() {
         {error && <p className="warning">{error}</p>}
         {sim.state === 'failed' && <p className="warning">{sim.error}</p>}
         {sim.state === 'cancelled' && <p className="muted">Cancelled.</p>}
-        <SimResult sim={sim} chunk={choices.maxItemLookups} />
+        <SimResult
+          sim={sim}
+          chunk={choices.maxItemLookups}
+          onTry={profile?.name === sim.character ? tryVariant : undefined}
+        />
       </main>
     )
   }
@@ -595,9 +644,11 @@ export function SimPage() {
               catalystCharges={chargesPicked}
               setCatalystCharges={setChargesPicked}
               plan={planRequest ? plan : null}
+              suggestPlan={profile ? suggestPlan : null}
               why={why}
               canRun={!why && !planBlocks}
-              onRun={start}
+              onRun={() => start()}
+              onSuggest={start}
             />
           </div>
           {kind === 'topgear' && (

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { Sim, SimCombo, SimItem, SimOptionRow, SimResult as Result, SimStatWeight } from './api'
+import type { Sim, SimCombo, SimItem, SimOptionRow, SimResult as Result, SimStatWeight, SimVariant } from './api'
 import { clock, full } from './format'
 import { SourceRanking } from './SimSources'
 import { AbilityBars, AbilityLog, BuffBars } from './SimBreakdown'
@@ -253,7 +253,7 @@ function Details({ sim, result }: { sim: Sim; result: Result }) {
 
 /** A finished sim as a report: its head with the one number, the best gear (Top Gear), the ranked rows, the stat
  * weights, then the equipped setup's abilities and buffs and how the sim was run. Items are asked chunk at a time. */
-export function SimResult({ sim, chunk }: { sim: Sim; chunk: number }) {
+export function SimResult({ sim, chunk, onTry }: { sim: Sim; chunk: number; onTry?: (v: SimVariant) => void }) {
   const result = sim.result
   const log = sim.kind === 'quick' ? (result?.log ?? []) : []
   const named = [...(result?.abilities ?? []), ...(result?.buffs ?? []), ...log, ...log.flatMap((e) => e.buffs ?? [])]
@@ -272,7 +272,9 @@ export function SimResult({ sim, chunk }: { sim: Sim; chunk: number }) {
         <Combos combos={result.combos} equipped={result.dps} drops={sim.kind === 'drops'} chunk={chunk} />
       )}
       {result.options && <OptionRows rows={result.options} />}
-      {result.suggest && <SimSuggestions report={result.suggest} equipped={result.equipped ?? []} chunk={chunk} />}
+      {result.suggest && (
+        <SimSuggestions report={result.suggest} equipped={result.equipped ?? []} chunk={chunk} onTry={onTry} />
+      )}
       {result.weights && <StatWeights weights={result.weights} pawn={result.pawn} />}
       <AbilityBars abilities={result.abilities} info={spells} />
       {result.buffs.length > 0 && <BuffBars buffs={result.buffs} info={spells} />}

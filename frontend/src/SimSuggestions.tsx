@@ -1,4 +1,4 @@
-import type { SimItem, SimSuggestReport, Suggestion } from './api'
+import type { SimItem, SimSuggestReport, SimVariant, Suggestion } from './api'
 import { full } from './format'
 import { Gain, SwapRows } from './SimRows'
 import { ItemLine } from './SimItem'
@@ -25,8 +25,13 @@ function SuggestionGain({ s, best }: { s: Suggestion; best: number }) {
 
 /** What a suggestion changes: the worn item an enchant or gem goes on, or the swaps of gear and a drop (with where it
  * drops), under the words that say it. */
-function Change(props: { s: Suggestion; worn?: SimItem; info: ReturnType<typeof useItemInfo> }) {
-  const { s, worn, info } = props
+function Change(props: {
+  s: Suggestion
+  worn?: SimItem
+  info: ReturnType<typeof useItemInfo>
+  onTry?: (v: SimVariant) => void
+}) {
+  const { s, worn, info, onTry } = props
   return (
     <div className="sim-swaps">
       <span>{s.what}</span>
@@ -38,15 +43,26 @@ function Change(props: { s: Suggestion; worn?: SimItem; info: ReturnType<typeof 
         </span>
       )}
       <span className="muted small">{s.evidence}</span>
+      {s.variant && onTry && (
+        <button className="link" onClick={() => onTry(s.variant!)}>
+          Try it in Top Gear
+        </button>
+      )}
     </div>
   )
 }
 
-/** A Suggest sim's report: the changes best first, each with what it changes, why and its gain, then the gain of all of
- * them together, what was left out and the note that they are a start, not an order. `equipped` is the gear the sim
- * started from (an enchant's or gem's item); items are asked `chunk` at a time. */
-export function SimSuggestions(props: { report: SimSuggestReport; equipped: SimItem[]; chunk: number }) {
-  const { report, equipped, chunk } = props
+/** A Suggest sim's report: the changes best first, each with what it changes, why and its gain (and, for an enchant or
+ * gem, a button that has `onTry` open it in Top Gear), then the gain of all of them together, what was left out and the
+ * note that they are a start, not an order. `equipped` is the gear the sim started from (an enchant's or gem's item);
+ * items are asked `chunk` at a time. */
+export function SimSuggestions(props: {
+  report: SimSuggestReport
+  equipped: SimItem[]
+  chunk: number
+  onTry?: (v: SimVariant) => void
+}) {
+  const { report, equipped, chunk, onTry } = props
   const { suggestions, combined } = report
   const shown = suggestions.map((s) => ({
     s,
@@ -65,7 +81,7 @@ export function SimSuggestions(props: { report: SimSuggestReport; equipped: SimI
           <li key={i}>
             <span className="sim-rank">{i + 1}</span>
             <SuggestionGain s={s} best={best} />
-            <Change s={s} worn={worn} info={info} />
+            <Change s={s} worn={worn} info={info} onTry={onTry} />
           </li>
         ))}
         {combined && (
