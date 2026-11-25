@@ -8005,6 +8005,10 @@
                         "$ref": "#/definitions/models.TalentEntry"
                     }
                 },
+                "free": {
+                    "description": "granted without a point (the loadout string writes it as not bought)",
+                    "type": "boolean"
+                },
                 "id": {
                     "type": "integer"
                 },
@@ -8084,10 +8088,34 @@
                 "class": {
                     "type": "string"
                 },
+                "hash": {
+                    "type": "string"
+                },
+                "heroChoice": {
+                    "description": "HeroChoice is the node whose entries pick the hero tree; it is never drawn.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.TalentNode"
+                        }
+                    ]
+                },
                 "nodes": {
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/models.TalentNode"
+                    }
+                },
+                "order": {
+                    "description": "Order is every node the game's loadout string writes, in its order: the class's whole tree, other specs' nodes\nand the hero tree choice too. Hash is that tree's hash (hex) the string carries, and Points the points each\nsection (\"class\", \"spec\", and \"hero\" for each hero tree) spends at the top level.",
+                    "type": "array",
+                    "items": {
+                        "type": "integer"
+                    }
+                },
+                "points": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer"
                     }
                 },
                 "spec": {

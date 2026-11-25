@@ -1,6 +1,6 @@
 // Command talentref writes reference/talent-trees.json, every spec's talent tree (nodes, positions, links and the
-// talents each holds) from Raidbots' talents.json, for the player review's talent tree. Run it each patch and review
-// the diff.
+// talents each holds) from Raidbots' talents.json, for the player review's talent tree, plus the node order, tree hash
+// and points the game's loadout string needs (service/talentcode.go). Run it each patch and review the diff.
 //
 // Usage, from backend/:
 //
@@ -30,6 +30,12 @@ type raidbotsSpec struct {
 	ClassNodes []raidbots.Node `json:"classNodes"`
 	SpecNodes  []raidbots.Node `json:"specNodes"`
 	HeroNodes  []raidbots.Node `json:"heroNodes"`
+	// SubTreeNodes is the hero tree choice; FullNodeOrder, TreeHash and PointLevels (the level each point comes at, by
+	// section) are what the game's loadout string needs.
+	SubTreeNodes  []raidbots.Node  `json:"subTreeNodes"`
+	FullNodeOrder []int            `json:"fullNodeOrder"`
+	TreeHash      string           `json:"treeHash"`
+	PointLevels   map[string][]int `json:"pointLevels"`
 }
 
 func main() {
@@ -72,7 +78,15 @@ func run() error {
 
 // treeOf is a spec's tree in the shape the app reads: one node list, each node saying which tree it is in.
 func treeOf(s raidbotsSpec) models.TalentTree {
-	t := models.TalentTree{SpecID: s.SpecID, Class: s.ClassName, Spec: s.SpecName, Nodes: []models.TalentNode{}}
+	t := models.TalentTree{SpecID: s.SpecID, Class: s.ClassName, Spec: s.SpecName, Nodes: []models.TalentNode{},
+		Order: s.FullNodeOrder, Hash: s.TreeHash, Points: map[string]int{}}
+	for section, levels := range s.PointLevels {
+		t.Points[section] = len(levels)
+	}
+	if len(s.SubTreeNodes) == 1 {
+		t.HeroChoice = s.SubTreeNodes[0].TalentNode("hero")
+		t.HeroChoice.Choice = true
+	}
 	for tree, nodes := range map[string][]raidbots.Node{"class": s.ClassNodes, "spec": s.SpecNodes, "hero": s.HeroNodes} {
 		for _, n := range nodes {
 			t.Nodes = append(t.Nodes, n.TalentNode(tree))
