@@ -7698,6 +7698,12 @@ const docTemplate = `{
                 "dropped": {
                     "type": "integer"
                 },
+                "fights": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.SimScenario"
+                    }
+                },
                 "notes": {
                     "type": "array",
                     "items": {
@@ -7712,6 +7718,10 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/models.Suggestion"
                     }
+                },
+                "target": {
+                    "type": "string",
+                    "example": "Mythic+ overall"
                 }
             }
         },
@@ -7805,6 +7815,10 @@ const docTemplate = `{
                 },
                 "upgrade": {
                     "type": "integer"
+                },
+                "venomstone": {
+                    "description": "Venomstone raises a Hero or Myth weapon, trinket or neck at the top of its track by Ascendant Venomstones' item\nlevels (after any Upgrade).",
+                    "type": "boolean"
                 },
                 "worn": {
                     "type": "boolean"
@@ -7976,7 +7990,8 @@ const docTemplate = `{
                         "talent",
                         "talentOther",
                         "gear",
-                        "farm"
+                        "farm",
+                        "upgrade"
                     ]
                 },
                 "replaces": {

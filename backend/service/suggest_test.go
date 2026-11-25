@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"slices"
@@ -234,9 +235,9 @@ func TestSuggestPlanTimesEachFightWithItsOwnOptions(t *testing.T) {
 	for _, f := range suggestFights {
 		want += planSeconds(oneFight, f.options(req.Options))
 	}
-	if got := s.planSuggest(p, req, &models.SimPlan{}); got != want {
+	if got := s.planSuggest(p, req, &models.SimPlan{}); got != int(math.Round(want)) {
 		t.Errorf("seconds = %d, want %d: the stat weights on the request's fight and the rest on each of the two",
-			got, want)
+			got, int(math.Round(want)))
 	}
 }
 
@@ -449,6 +450,10 @@ func TestSuggestSimsAPickedDropOnTheFightThatDroppedIt(t *testing.T) {
 	if i < 0 || sim.Result.Suggest.Suggestions[i].Gain != 250 {
 		t.Errorf("drop 960 = %+v, want its one-target gain of 250 simmed", sim.Result.Suggest.Suggestions)
 	}
+	if r := sim.Result.Suggest; len(r.Fights) != len(suggestFights) || r.Target != "Mythic+ overall" {
+		t.Errorf("fights %+v, target %q: want both fights and the target's name for the report's details", r.Fights,
+			r.Target)
+	}
 }
 
 // TestSuggestTestsEveryChangeInOneStage: changes are each judged against the unchanged character, so raced in smart
@@ -456,5 +461,56 @@ func TestSuggestSimsAPickedDropOnTheFightThatDroppedIt(t *testing.T) {
 func TestSuggestTestsEveryChangeInOneStage(t *testing.T) {
 	if maxSuggestions >= smartMin {
 		t.Errorf("maxSuggestions %d reaches the smart stages at %d", maxSuggestions, smartMin)
+	}
+}
+
+func TestProgressSpansFollowTheWork(t *testing.T) {
+	if got := progressSpans(20, 100, []float64{1, 0, 3}); !slices.Equal(got, []int{20, 40, 40, 100}) {
+		t.Errorf("spans = %v, want a step with no work to take none and the rest split 1:3", got)
+	}
+}
+
+func TestSuggestLeavesTheWornPieceToItsUpgrade(t *testing.T) {
+	s, _ := suggestSims(t)
+	p, err := s.parse(suggestRequest(t).Export)
+	if err != nil {
+		t.Fatal(err)
+	}
+	neck := slices.IndexFunc(p.Equipped, func(i models.SimItem) bool { return i.Slot == "neck" })
+	p.Equipped[neck].ID, p.Equipped[neck].Opts = 901, map[string][]int{"bonus_id": {100}} // Myth 1/3
+	s.Drops.Raids = []models.DropSource{{Name: "Raid", Bosses: []models.DropBoss{{Name: "Boss",
+		Levels: &models.DifficultyLevels{Heroic: 318}, Items: []models.DropItem{{ID: 901, Name: "Worn", Slot: "neck"},
+			{ID: 902, Name: "Other", Slot: "neck"}}}}}}
+	s.Drops.Keys = []models.KeyLevels{{Level: 10, Loot: 250}}
+	_, drops, _ := s.suggestGear(p)
+	if len(drops) != 1 || drops[0].swaps[0].In.ID != 902 || drops[0].swaps[0].In.Level != 331 {
+		t.Errorf("drops = %+v, want only the other neck, at Myth 3/3 with Venomstones (331)", drops)
+	}
+}
+
+func TestCombinedNeverUpgradesWhatReplacedTheWornPiece(t *testing.T) {
+	s, _ := suggestSims(t)
+	p, err := s.parse(suggestRequest(t).Export)
+	if err != nil {
+		t.Fatal(err)
+	}
+	neck := slices.IndexFunc(p.Equipped, func(i models.SimItem) bool { return i.Slot == "neck" })
+	p.Equipped[neck].Opts = map[string][]int{"bonus_id": {100}}
+	other := models.SimItem{Slot: "neck", ID: 77, Name: "Bag neck", Opts: map[string][]int{"bonus_id": {100}}}
+	dir := t.TempDir()
+	r := suggestRun{sims: s, ctx: context.Background(), input: filepath.Join(dir, "in.simc"),
+		output: filepath.Join(dir, "out.json"), o: simDefaults, p: p, bar: []int{0, 0, 0, 0, 0, 100}}
+	gear := tested{models.Suggestion{Kind: "gear"},
+		gearCombo{swaps: []models.SimSwap{{Slot: "neck", Out: &p.Equipped[neck], In: &other}}}}
+	upgrade := tested{s: models.Suggestion{Kind: "upgrade", Slot: "neck",
+		Variant: &models.SimVariant{Worn: true, Index: neck, Upgrade: 3}}}
+	flask := tested{models.Suggestion{Kind: "consumable"}, gearCombo{line: "flask=flask_a_2\n", consumable: "Flask A"}}
+	shown := []tested{gear, upgrade, flask}
+	if _, _, err := r.combined(shown); err != nil {
+		t.Fatal(err)
+	}
+	if !shown[0].s.Combined || shown[1].s.Combined {
+		t.Errorf("combined: gear %v, upgrade %v; want the gear in and the worn neck's upgrade left out",
+			shown[0].s.Combined, shown[1].s.Combined)
 	}
 }

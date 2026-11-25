@@ -348,17 +348,22 @@ func TestChoicesDefaultKeyLevel(t *testing.T) {
 func TestParseSimProgress(t *testing.T) {
 	tests := []struct {
 		line string
+		sets int
 		want int
 		ok   bool
 	}{
-		{"Generating Baseline: 1/1 [====>.......] 1142/4400 132.2 Mean=234199 Error=0.199% 1sec", 25, true},
-		{"Generating Profileset: t50 2/76 [===================>] 1122/1122 146.2 Mean=235783", 2, true},
-		{"Generating Profileset: t50 76/76 [===================>] 1122/1122 146.2 Mean=235783", 99, true},
-		{"Simulating... ( iterations=1000000, threads=15 )", 0, false},
+		{"Generating Baseline: 1/1 [====>.......] 1142/4400 132.2 Mean=234199 Error=0.199% 1sec", 0, 25, true},
+		{"Generating Profileset: t50 2/76 [===================>] 1122/1122 146.2 Mean=235783", 75, 2, true},
+		{"Generating Profileset: t50 76/76 [===================>] 1122/1122 146.2 Mean=235783", 75, 99, true},
+		// simc's count while it reads 40 profilesets: the baseline is still 1 of 41
+		{"Generating Baseline: 1/2 [===============>....] 718/922 179.", 40, 1, true},
+		{"Profilesets (3*4): 9/39 [====>...............] avg=323.469ms done=4s left=10s     ", 40, 21, true},
+		{"Profilesets (3*4): 40/40 [===================>] avg=267.295ms done=11s left=0s", 40, 97, true},
+		{"Simulating... ( iterations=1000000, threads=15 )", 0, 0, false},
 	}
 	for _, tt := range tests {
-		if got, ok := parseSimProgress(tt.line); got != tt.want || ok != tt.ok {
-			t.Errorf("parseSimProgress(%q) = %d, %v, want %d, %v", tt.line, got, ok, tt.want, tt.ok)
+		if got, ok := parseSimProgress(tt.line, tt.sets); got != tt.want || ok != tt.ok {
+			t.Errorf("parseSimProgress(%q, %d) = %d, %v, want %d, %v", tt.line, tt.sets, got, ok, tt.want, tt.ok)
 		}
 	}
 }

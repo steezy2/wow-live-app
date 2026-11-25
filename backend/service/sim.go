@@ -13,6 +13,7 @@ import (
 	"io"
 	"io/fs"
 	"log"
+	"math"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -80,6 +81,9 @@ var (
 	// simProgress is simc's progress line: "Generating Profileset: t50 2/76 [====>...] 1122/4300 146.2 Mean=...", the
 	// stage (a baseline is 1/1, each profileset a stage) and the iterations in it.
 	simProgress = regexp.MustCompile(`(\d+)/(\d+) \[[=>. ]*\] (\d+)/(\d+)`)
+	// simSetsProgress is its line while profilesets run in parallel (profileset_work_threads): "Profilesets (3*4):
+	// 9/40 [====>...] avg=323ms done=4s left=10s", the profileset started of all of them.
+	simSetsProgress = regexp.MustCompile(`^Profilesets \(\d+\*\d+\): (\d+)/(\d+) \[`)
 )
 
 // SimEngineSource is the program sims run: running it, whether it's installed and downloading it (simc.Client).
@@ -281,7 +285,7 @@ func (s *Sims) Plan(req models.SimRequest) (models.SimPlan, error) {
 		plan.Seconds = s.planSuggest(profile, req, &plan)
 		return plan, nil
 	}
-	plan.Seconds = planSeconds(runs, req.Options)
+	plan.Seconds = int(math.Round(planSeconds(runs, req.Options)))
 	return plan, nil
 }
 
@@ -528,13 +532,13 @@ func (s *Sims) race(ctx context.Context, id, input, output, head string, combos 
 	span raceSpan) (*models.SimResult, string, error) {
 	final := simTargetError(o, len(combos) > 0)
 	early := smartStages(len(combos), final)
-	bar := func(share int) int { return span.from + share*(span.to-span.from)/100 }
 	var stages []models.SimStage
-	at, cands := 0, combos
+	at, cands := span.from, combos
 	for i, targetError := range early {
 		s.setStage(id, span.step+stageText(i+1, len(early)+1, len(cands), targetError))
-		next := at + smartShares[i]
-		if complaint, err := s.stage(ctx, id, input, output, head, cands, o, targetError, bar(at), bar(next)); err != nil {
+		costs := smartCosts(len(cands), early[i:], final) // the bar's rest, split by the stages' costs left
+		next := at + int(float64(span.to-at)*costs[0]/sum(costs))
+		if complaint, err := s.stage(ctx, id, input, output, head, cands, o, targetError, at, next); err != nil {
 			return nil, complaint, err
 		}
 		sets, err := readSets(output)
@@ -548,7 +552,7 @@ func (s *Sims) race(ctx context.Context, id, input, output, head string, combos 
 		s.setStage(id, span.step+stageText(len(early)+1, len(early)+1, len(cands), final))
 		stages = append(stages, models.SimStage{Combos: len(cands), Error: final})
 	}
-	complaint, err := s.stage(ctx, id, input, output, head, cands, o, final, bar(at), span.to)
+	complaint, err := s.stage(ctx, id, input, output, head, cands, o, final, at, span.to)
 	if err != nil {
 		return nil, complaint, err
 	}
@@ -606,7 +610,7 @@ func (s *Sims) stage(ctx context.Context, id, input, output, head string, cands 
 	}
 	pr, pw := io.Pipe()
 	said := make(chan string)
-	go func() { said <- s.follow(pr, id, from, to) }()
+	go func() { said <- s.follow(pr, id, len(cands), from, to) }()
 	err := s.Engine.Run(ctx, simArgs(input, output, o, targetError, len(cands) > 0), pw)
 	pw.Close()
 	return <-said, err
@@ -639,18 +643,18 @@ func (s *Sims) keepEnded(sim models.Sim) {
 	}
 }
 
-// follow reads simc's output, updating the progress of the running sim with this ID (simc's 0 to 100 spread over from
-// to to of the bar), and returns the last error line it printed.
-func (s *Sims) follow(r io.Reader, id string, from, to int) string {
+// follow reads simc's output for a run of sets profilesets, updating the progress of the running sim with this ID
+// (simc's 0 to 100 spread over from to to of the bar), and returns the last error line it printed.
+func (s *Sims) follow(r io.Reader, id string, sets, from, to int) string {
 	var complaint string
 	scan := bufio.NewScanner(r)
 	scan.Split(splitProgress)
 	for scan.Scan() {
 		line := scan.Text()
-		if p, ok := parseSimProgress(line); ok {
+		if p, ok := parseSimProgress(line, sets); ok {
 			s.mu.Lock()
-			if run := s.runs[id]; run != nil {
-				run.sim.Progress = from + p*(to-from)/100
+			if run := s.runs[id]; run != nil { // parallel profilesets interleave lines: the bar only moves on
+				run.sim.Progress = max(run.sim.Progress, from+p*(to-from)/100)
 			}
 			s.mu.Unlock()
 		} else if strings.HasPrefix(line, "Error") {
@@ -672,14 +676,20 @@ func splitProgress(data []byte, atEOF bool) (int, []byte, error) {
 	return 0, nil, nil
 }
 
-// parseSimProgress is how far along line says the sim is, 0 to 99, false for any other line.
-func parseSimProgress(line string) (int, bool) {
+// parseSimProgress is how far along line says a run of sets profilesets is, 0 to 99, false for any other line: the
+// baseline is one stage of sets+1 (simc's own count grows while it reads the profilesets, so its first lines say 1/2,
+// 1/3, ...), and with profilesets in parallel the baseline counts as one of them, done.
+func parseSimProgress(line string, sets int) (int, bool) {
+	if m := simSetsProgress.FindStringSubmatch(line); m != nil {
+		started, all := atoi(m[1]), max(atoi(m[2]), sets)
+		return min(99, 100*started/(all+1)), true
+	}
 	m := simProgress.FindStringSubmatch(line)
 	if m == nil {
 		return 0, false
 	}
-	stage, stages, done, total := atoi(m[1]), atoi(m[2]), atoi(m[3]), atoi(m[4])
-	if stages == 0 || total == 0 {
+	stage, stages, done, total := atoi(m[1]), max(atoi(m[2]), sets+1), atoi(m[3]), atoi(m[4])
+	if total == 0 {
 		return 0, false
 	}
 	p := (float64(stage-1) + min(1, float64(done)/float64(total))) / float64(stages) * 100

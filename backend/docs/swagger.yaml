@@ -3526,6 +3526,10 @@ definitions:
         $ref: '#/definitions/models.SimCombo'
       dropped:
         type: integer
+      fights:
+        items:
+          $ref: '#/definitions/models.SimScenario'
+        type: array
       notes:
         items:
           type: string
@@ -3536,6 +3540,9 @@ definitions:
         items:
           $ref: '#/definitions/models.Suggestion'
         type: array
+      target:
+        example: Mythic+ overall
+        type: string
     type: object
   models.SimSwap:
     properties:
@@ -3605,6 +3612,11 @@ definitions:
         type: boolean
       upgrade:
         type: integer
+      venomstone:
+        description: |-
+          Venomstone raises a Hero or Myth weapon, trinket or neck at the top of its track by Ascendant Venomstones' item
+          levels (after any Upgrade).
+        type: boolean
       worn:
         type: boolean
     type: object
@@ -3734,6 +3746,7 @@ definitions:
         - talentOther
         - gear
         - farm
+        - upgrade
         type: string
       replaces:
         allOf:

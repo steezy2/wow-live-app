@@ -15,12 +15,13 @@ type SuggestTargetChoice struct {
 	Target SuggestTarget `json:"target"`
 }
 
-// Suggestion is one change the Sim tab's Suggest proposes, with the evidence for it. An enchant or gem has a Variant,
-// a consumable its Consumables, a talent swap its Talent and the talent it Replaces, gear from the bags and a drop to
-// farm their Swaps; a stat is advice only. A talent swap the sim shows as a gain is Kind "talent"; one it shows as no
-// gain or a loss is "talentOther": what the top players take for something besides DPS, never a DPS tip.
+// Suggestion is one change the Sim tab's Suggest proposes, with the evidence for it. An enchant, gem or upgrade of a
+// worn item has a Variant, a consumable its Consumables, a talent swap its Talent and the talent it Replaces, gear from
+// the bags and a drop to farm their Swaps; a stat is advice only. A talent swap the sim shows as a gain is Kind
+// "talent"; one it shows as no gain or a loss is "talentOther": what the top players take for something besides DPS,
+// never a DPS tip.
 type Suggestion struct {
-	Kind string `json:"kind" enums:"enchant,gem,stat,consumable,talent,talentOther,gear,farm"`
+	Kind string `json:"kind" enums:"enchant,gem,stat,consumable,talent,talentOther,gear,farm,upgrade"`
 	// Slot is the gear slot an enchant or gem goes in, as simc names it (a ring's is "finger1" or "finger2").
 	Slot string `json:"slot,omitempty" example:"finger1"`
 	What string `json:"what" example:"Enchant Amani Mastery on finger1"`
@@ -59,12 +60,15 @@ type Suggestion struct {
 // talent swap the sim showed as no gain (under 0.05% of the DPS, within their error or a loss) and so left out, which
 // top logs the suggestions come from and the Warcraft Logs points reading them spent. Notes say what was left out and
 // why (no top logs, no talent string, changes not tried, talent swaps the tree doesn't allow, gear over the Top Gear
-// limit).
+// limit). Fights are the fights each change was tested on (the stat weights ran on the sim's own Options), and Target
+// the name of the content the top logs come from.
 type SimSuggestReport struct {
-	Suggestions []Suggestion `json:"suggestions"`
-	Combined    *SimCombo    `json:"combined,omitempty"`
-	Dropped     int          `json:"dropped"`
-	Baseline    string       `json:"baseline,omitempty" example:"20 ranked Arcane Mage runs within 15% of 34:10"`
-	Points      float64      `json:"points,omitempty"`
-	Notes       []string     `json:"notes"`
+	Fights      []SimScenario `json:"fights,omitempty"`
+	Target      string        `json:"target,omitempty" example:"Mythic+ overall"`
+	Suggestions []Suggestion  `json:"suggestions"`
+	Combined    *SimCombo     `json:"combined,omitempty"`
+	Dropped     int           `json:"dropped"`
+	Baseline    string        `json:"baseline,omitempty" example:"20 ranked Arcane Mage runs within 15% of 34:10"`
+	Points      float64       `json:"points,omitempty"`
+	Notes       []string      `json:"notes"`
 }

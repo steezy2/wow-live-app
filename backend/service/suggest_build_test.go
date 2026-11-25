@@ -203,3 +203,27 @@ func TestTalentSuggestions(t *testing.T) {
 		})
 	}
 }
+
+func TestUpgradeSuggestionsTakeWornGearToItsTopWithVenomstones(t *testing.T) {
+	item := func(slot string, level, bonus int) models.SimItem {
+		return models.SimItem{Slot: slot, Name: slot, Level: level, Opts: map[string][]int{"bonus_id": {bonus}}}
+	}
+	p := models.SimProfile{Equipped: []models.SimItem{item("finger1", 318, 100), item("trinket1", 324, 102),
+		item("trinket2", 331, 102), item("neck", 318, 100), item("back", 300, 9)}}
+	var got []string
+	for _, s := range upgradeSuggestions(testRef(), p) {
+		got = append(got, s.What)
+	}
+	want := []string{"Upgrade finger1 to Myth 3/3", "Upgrade trinket1 to Myth 3/3 with Venomstones",
+		"Upgrade neck to Myth 3/3 with Venomstones"}
+	if !slices.Equal(got, want) {
+		t.Errorf("got %q, want %q: a trinket already past its track's top and an item on no track left out", got, want)
+	}
+	neck, err := applyVariant(testRef(), p.Equipped[3], models.SimVariant{Upgrade: 3, Venomstone: true})
+	if err != nil || neck.Level != 331 || neck.Opts["ilevel"][0] != 331 {
+		t.Errorf("neck = %+v (%v), want Myth 3/3 and 7 item levels more, 331", neck, err)
+	}
+	if _, err := applyVariant(testRef(), p.Equipped[0], models.SimVariant{Upgrade: 3, Venomstone: true}); err == nil {
+		t.Error("a ring took Venomstones")
+	}
+}

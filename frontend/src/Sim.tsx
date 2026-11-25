@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   fetchSim,
   fetchSimChoices,
@@ -34,10 +34,12 @@ import { EnhancementsCard } from './SimEnhancements'
 import { SavedSims } from './SimSaved'
 import {
   kindLabel,
+  nextLeft,
   omniumPicks,
   omniumString,
   savedSuggestTarget,
   saveSuggestTarget,
+  type ShownLeft,
   simOptionsError,
 } from './simOptions'
 import { Skeleton } from './Skeleton'
@@ -105,21 +107,16 @@ function EngineBar(props: {
 /** A time estimate in words ("45 s", "12 min"). */
 const aboutText = (seconds: number) => (seconds < 90 ? `${seconds} s` : `${Math.round(seconds / 60)} min`)
 
-/** About how long a running sim has left in words: worked out from its progress once it has some, else from the
- * seconds its plan estimated; empty when neither says. */
-function leftText(run: Sim, estimate: number, now: number): string {
-  const elapsed = (now - run.startedMS) / 1000
-  const left =
-    run.progress >= 2 ? (elapsed * (100 - run.progress)) / run.progress : estimate > 0 ? estimate - elapsed : -1
-  if (left < 0) return estimate > 0 || run.progress >= 2 ? 'almost done' : ''
-  return `about ${aboutText(Math.round(left))} left`
+/** About how long a running sim has left in words (nextLeft); empty before anything says. */
+function leftText(shown: ShownLeft | undefined): string {
+  if (shown?.left == null) return ''
+  return shown.left < 1 ? 'almost done' : `about ${aboutText(Math.round(shown.left))} left`
 }
 
 /** The sims running now: each with its bar and time left, to watch (its progress card) or cancel. */
 function RunningSims(props: {
   runs: Sim[]
-  estimates: Record<string, number>
-  now: number
+  lefts: Record<string, ShownLeft>
   onWatch: (id: string) => void
   onCancel: (id: string) => void
 }) {
@@ -134,7 +131,7 @@ function RunningSims(props: {
             </button>
             <progress value={r.progress} max={100} aria-label="Sim progress" />
             <span className="muted small">
-              {r.progress}% {leftText(r, props.estimates[r.id] ?? 0, props.now)}
+              {r.progress}% {leftText(props.lefts[r.id])}
             </span>
             <button className="delete" aria-label="Cancel" onClick={() => props.onCancel(r.id)}>
               ×
@@ -191,7 +188,7 @@ function SuggestText({ plan, onStats }: { plan: { plan: SimPlan | null; error: s
   const { seconds, points } = plan.plan
   return (
     <p className="muted small">
-      Suggest: about {aboutText(seconds)}
+      About {aboutText(seconds)}
       {points ? `, and about ${points} Warcraft Logs points once, to read the top players' logs` : ''}
     </p>
   )
@@ -223,19 +220,24 @@ function OptionsPanel(props: {
   onSuggest: (kind: SimKind) => void
 }) {
   const { kind, choices, options, setOptions, optionsError } = props
+  const scenario = choices.scenarios.find(
+    (s) => s.fightStyle === options.fightStyle && s.length === options.length && s.targets === options.targets,
+  )
   return (
     <aside className="panel sim-options">
       <h2>Fight</h2>
       <label>
         Scenario
         <select
-          value=""
+          value={scenario?.name ?? ''}
           onChange={(e) => {
             const s = choices.scenarios.find((c) => c.name === e.target.value)
             if (s) setOptions({ ...options, fightStyle: s.fightStyle, length: s.length, targets: s.targets })
           }}
         >
-          <option value="">Pick one to fill the fight…</option>
+          <option value="" disabled>
+            Custom: the fight below
+          </option>
           {choices.scenarios.map((s) => (
             <option key={s.name}>{s.name}</option>
           ))}
@@ -334,30 +336,36 @@ function OptionsPanel(props: {
       {optionsError && <p className="warning">{optionsError}</p>}
       {props.plan && <PlanText plan={props.plan} kind={kind} choices={choices} />}
       {props.why && <p className="warning">{props.why}</p>}
-      {props.suggestPlan && <SuggestText plan={props.suggestPlan} onStats={() => props.onSuggest('stats')} />}
       <div className="actions">
         <button className="sim-run" disabled={!props.canRun || !!optionsError} onClick={props.onRun}>
           Sim
         </button>
-        <button
-          className="sim-run"
-          disabled={!!props.why || !!optionsError || !props.suggestPlan?.plan || !!props.suggestPlan.plan.error}
-          onClick={() => props.onSuggest('suggest')}
-          {...tip('What the top players of your spec do that you do not, confirmed by sims, ranked by gain')}
-        >
-          Suggest
-        </button>
-        <select
-          aria-label="Top logs of"
-          value={props.suggestTarget}
-          onChange={(e) => props.setSuggestTarget(e.target.value)}
-          {...tip('Whose top logs Suggest compares you with: Mythic+ dungeons, or one raid boss on a difficulty')}
-        >
-          {choices.suggestTargets.map((t) => (
-            <option key={t.name}>{t.name}</option>
-          ))}
-        </select>
       </div>
+      <section className="sim-suggest">
+        <h3>Suggest</h3>
+        <p className="muted small">
+          What the top players of your spec do that you don't, each change confirmed by a sim on one target and on
+          AoE.
+        </p>
+        <label>
+          Compare with the top logs of
+          <select value={props.suggestTarget} onChange={(e) => props.setSuggestTarget(e.target.value)}>
+            {choices.suggestTargets.map((t) => (
+              <option key={t.name}>{t.name}</option>
+            ))}
+          </select>
+        </label>
+        {props.suggestPlan && <SuggestText plan={props.suggestPlan} onStats={() => props.onSuggest('stats')} />}
+        <div className="actions">
+          <button
+            className="sim-run"
+            disabled={!!props.why || !!optionsError || !props.suggestPlan?.plan || !!props.suggestPlan.plan.error}
+            onClick={() => props.onSuggest('suggest')}
+          >
+            Suggest
+          </button>
+        </div>
+      </section>
     </aside>
   )
 }
@@ -387,8 +395,8 @@ export function SimPage() {
   const [targetPick, setTargetPick] = useState<string | null>(null) // null: the character's saved Suggest target
   const [runs, setRuns] = useState<Sim[]>([]) // the sims running now, as last polled
   const [watching, setWatching] = useState<string | null>(null) // the running sim whose progress card shows
-  const [estimates, setEstimates] = useState<Record<string, number>>({}) // seconds each started sim's plan said
-  const [now, setNow] = useState(() => Date.now()) // when the runs were last polled, for their time left
+  const estimates = useRef<Record<string, number>>({}) // seconds each started sim's plan said
+  const [lefts, setLefts] = useState<Record<string, ShownLeft>>({}) // each running sim's time left, as last polled
   const [sim, setSim] = useState<Sim | null>(null) // the finished sim shown
   const [saved, setSaved] = useState<Sim[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -403,7 +411,10 @@ export function SimPage() {
         const running = list.filter((s) => s.state === 'running')
         setSaved(list.filter((s) => s.state !== 'running'))
         setRuns(running)
-        setNow(Date.now())
+        const at = Date.now()
+        setLefts((prev) =>
+          Object.fromEntries(running.map((r) => [r.id, nextLeft(r, estimates.current[r.id] ?? 0, prev[r.id], at)])),
+        )
         if (watchNewest && running.length > 0) setWatching(running[0].id)
       }, () => undefined),
     [],
@@ -510,7 +521,7 @@ export function SimPage() {
       if (!req) return
       const started = await startSim(req)
       const asked = k === 'suggest' ? suggestPlan : plan
-      setEstimates((all) => ({ ...all, [started.id]: asked.plan?.seconds ?? 0 }))
+      estimates.current[started.id] = asked.plan?.seconds ?? 0
       setRuns((all) => [started, ...all.filter((r) => r.id !== started.id)])
       setWatching(started.id)
     })
@@ -567,7 +578,7 @@ export function SimPage() {
           {watched.stage && <p className="muted small">{watched.stage}</p>}
           <p>
             {watched.progress}%
-            <span className="muted"> · {leftText(watched, estimates[watched.id] ?? 0, now) || 'starting'}</span>
+            <span className="muted"> · {leftText(lefts[watched.id]) || 'starting'}</span>
           </p>
           {runs.length > 1 && <p className="muted small">{runs.length} sims are running; they share the PC.</p>}
           <div className="actions">
@@ -602,8 +613,7 @@ export function SimPage() {
       {runs.length > 0 && (
         <RunningSims
           runs={runs}
-          estimates={estimates}
-          now={now}
+          lefts={lefts}
           onWatch={setWatching}
           onCancel={(id) => act(() => removeSim(id))}
         />

@@ -319,3 +319,32 @@ func statSuggestions(in suggestInput) []models.Suggestion {
 	slices.SortStableFunc(out, func(a, b models.Suggestion) int { return cmp.Compare(b.Expected, a.Expected) })
 	return out
 }
+
+// upgradeSuggestions are the character's worn items upgraded to the top of their track (topRank), with Ascendant
+// Venomstones where they fit, each a change the sim tests; its gains rank the biggest upgrades first.
+func upgradeSuggestions(ref models.SimReference, p models.SimProfile) []models.Suggestion {
+	var out []models.Suggestion
+	for i, item := range p.Equipped {
+		track, current, ok := upgradeOf(ref.Upgrades, item)
+		if !ok {
+			continue
+		}
+		v := models.SimVariant{Worn: true, Index: i,
+			Venomstone: venomstoneFits(track, item.Slot) && item.Level <= current.ItemLevel}
+		to := fmt.Sprintf("%s %d/%d", track.Name, current.Level, len(track.Levels))
+		if current.Level < topRank(track) {
+			v.Upgrade = topRank(track)
+			to = fmt.Sprintf("%s %d/%d", track.Name, v.Upgrade, len(track.Levels))
+		}
+		if v.Upgrade == 0 && !v.Venomstone {
+			continue
+		}
+		if v.Venomstone {
+			to += " with Venomstones"
+		}
+		out = append(out, models.Suggestion{Kind: "upgrade", Slot: item.Slot, Variant: &v,
+			What:     fmt.Sprintf("Upgrade %s to %s", cmp.Or(item.Name, "your "+item.Slot), to),
+			Evidence: fmt.Sprintf("your %s at %s %d/%d", item.Slot, track.Name, current.Level, len(track.Levels))})
+	}
+	return out
+}

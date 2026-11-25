@@ -337,6 +337,16 @@ func applyVariant(ref models.SimReference, item models.SimItem, v models.SimVari
 		item.Level = track.Levels[i].ItemLevel
 		notes = append(notes, fmt.Sprintf("%s %d/%d", track.Name, v.Upgrade, len(track.Levels)))
 	}
+	if v.Venomstone {
+		track, current, ok := upgradeOf(ref.Upgrades, item)
+		if !ok || current.Level < topRank(track) || !venomstoneFits(track, item.Slot) || item.Level > current.ItemLevel {
+			return bad("%s can't take Venomstones: only a Hero or Myth weapon, trinket or neck at %d/%d without them can",
+				cmp.Or(item.Name, "the item"), topRank(track), len(track.Levels))
+		}
+		item.Level = current.ItemLevel + venomstoneLevels // the export's level is only its comment's
+		item.Opts["ilevel"] = []int{item.Level}
+		notes = append(notes, "Venomstones")
+	}
 	if v.Socket && !canAddSocket(ref, item) {
 		return bad("%s can't take a socket: only a head, wrist or waist item can, and only one",
 			cmp.Or(item.Name, "the item"))
@@ -432,9 +442,8 @@ func variantCandidates(ref models.SimReference, p models.SimProfile,
 }
 
 // planSeconds is about how long runs full-precision sims take on this PC, for o's fight length and accuracy.
-func planSeconds(runs float64, o models.SimOptions) int {
+func planSeconds(runs float64, o models.SimOptions) float64 {
 	errorRatio := simTargetError(simDefaults, true) / simTargetError(o, true)
-	seconds := runs * comboSeconds * referenceThreads / float64(simThreads()) *
+	return runs * comboSeconds * referenceThreads / float64(simThreads()) *
 		float64(o.Length) / float64(simDefaults.Length) * errorRatio * errorRatio
-	return int(seconds + 0.5)
 }

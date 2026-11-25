@@ -25,8 +25,9 @@ const (
 // coarser than the sim's own precision is not run.
 var smartErrors = []float64{1, 0.5}
 
-// smartShares are how much of a raced sim's progress bar each early stage takes, in %; the last stage takes the rest.
-var smartShares = []int{10, 20}
+// profilesetSetup is a profileset's setup cost in units of 1/e² (e its target error in %): on a 16-thread PC, 30
+// profilesets took 73, 133 and 512 ms each at 1, 0.5 and 0.2%, about 53 ms of setup and 20 ms/e².
+const profilesetSetup = 2.65
 
 // smartStages are the target errors of the early stages of a sim of n combinations whose last stage runs at finalError:
 // none for a small sim.
@@ -37,15 +38,36 @@ func smartStages(n int, finalError float64) []float64 {
 	return slices.DeleteFunc(slices.Clone(smartErrors), func(e float64) bool { return e <= finalError })
 }
 
-// smartRuns is about how many full-precision runs a raced sim of n combinations costs: each stage costs its
-// combinations times how much fewer iterations its coarser error needs, and a stage keeps about a third of them.
-func smartRuns(n int, stages []float64, finalError float64) float64 {
-	left, cost := float64(n), 0.0
+// smartCosts are about how many full-precision runs each stage of a raced sim of n combinations costs, its early
+// stages' then its last: a stage costs its combinations times a profileset's cost at its error (stageCost), and an
+// early stage keeps about a third of them.
+func smartCosts(n int, stages []float64, finalError float64) []float64 {
+	left := float64(n)
+	costs := make([]float64, 0, len(stages)+1)
 	for _, e := range stages {
-		cost += left * (finalError / e) * (finalError / e)
+		costs = append(costs, left*stageCost(e, finalError))
 		left = min(left, max(smartKeep*3, left*0.35))
 	}
-	return cost + left
+	return append(costs, left)
+}
+
+// stageCost is a profileset's cost at targetError in profilesets at finalError.
+func stageCost(targetError, finalError float64) float64 {
+	return (profilesetSetup + 1/(targetError*targetError)) / (profilesetSetup + 1/(finalError*finalError))
+}
+
+// smartRuns is about how many full-precision runs a raced sim of n combinations costs (smartCosts).
+func smartRuns(n int, stages []float64, finalError float64) float64 {
+	return sum(smartCosts(n, stages, finalError))
+}
+
+// sum is the sum of xs.
+func sum(xs []float64) float64 {
+	total := 0.0
+	for _, x := range xs {
+		total += x
+	}
+	return total
 }
 
 // survivors are the combinations that a stage's results cannot rule out of the best smartKeep: those whose DPS, plus
