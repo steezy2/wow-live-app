@@ -37,6 +37,27 @@ describe('SimSuggestions', () => {
     expect(html).not.toContain('Try it in Top Gear')
   })
 
+  it('ranks a talent with DPS in the main list and the others in a closed group under it, a loss shown', () => {
+    const html = render({
+      suggestions: [
+        { kind: 'talent', what: 'Take Ascendance instead of Echo', evidence: '9 of 10 top players', gain: 400 },
+        { kind: 'talentOther', what: 'Take Gust of Wind instead of Thunderstorm', evidence: '8 of 10 top players' },
+        { kind: 'talentOther', what: 'Take Totemic Surge instead of Earth Shield', evidence: 'x', gain: -120 },
+      ],
+      dropped: 0,
+      notes: [],
+    })
+    const main = html.indexOf('Take Ascendance')
+    const group = html.indexOf('<details><summary>Other talents (2)</summary>')
+    expect(main).toBeGreaterThan(-1)
+    expect(group).toBeGreaterThan(main)
+    expect(html.indexOf('Take Gust of Wind')).toBeGreaterThan(group)
+    expect(html).toContain('No DPS change: these are what top players take for utility.')
+    expect(html).toContain('+400')
+    expect(html).toContain('-120')
+    expect(html).not.toContain('No change the sim confirms.')
+  })
+
   it('offers Top Gear only for a change with a variant, when it can open it', () => {
     const report: SimSuggestReport = {
       suggestions: [

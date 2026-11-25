@@ -16,10 +16,11 @@ type SuggestTargetChoice struct {
 }
 
 // Suggestion is one change the Sim tab's Suggest proposes, with the evidence for it. An enchant or gem has a Variant,
-// a consumable its Consumables, a talent its Talent, gear from the bags and a drop to farm their Swaps; a stat is
-// advice only.
+// a consumable its Consumables, a talent swap its Talent and the talent it Replaces, gear from the bags and a drop to
+// farm their Swaps; a stat is advice only. A talent swap the sim shows as a gain is Kind "talent"; one it shows as no
+// gain or a loss is "talentOther": what the top players take for something besides DPS, never a DPS tip.
 type Suggestion struct {
-	Kind string `json:"kind" enums:"enchant,gem,stat,consumable,talent,gear,farm"`
+	Kind string `json:"kind" enums:"enchant,gem,stat,consumable,talent,talentOther,gear,farm"`
 	// Slot is the gear slot an enchant or gem goes in, as simc names it (a ring's is "finger1" or "finger2").
 	Slot string `json:"slot,omitempty" example:"finger1"`
 	What string `json:"what" example:"Enchant Amani Mastery on finger1"`
@@ -28,6 +29,8 @@ type Suggestion struct {
 	Variant     *SimVariant    `json:"variant,omitempty"`
 	Consumables SimConsumables `json:"consumables,omitempty"`
 	Talent      *TalentShare   `json:"talent,omitempty"`
+	// Replaces is the character's talent a talent swap gives up for Talent.
+	Replaces *TalentPick `json:"replaces,omitempty"`
 	// Swaps are what gear from the bags or a drop changes, and Source and Boss where a drop to farm drops.
 	Swaps  []SimSwap `json:"swaps,omitempty"`
 	Source string    `json:"source,omitempty" example:"The Venomous Abyss"`
@@ -35,7 +38,7 @@ type Suggestion struct {
 	// Expected is a stat suggestion's DPS gain if the gap closed, from the sim's stat weights.
 	Expected float64 `json:"expected,omitempty" example:"410"`
 	// Gain is the sim's DPS gain of the change over the unchanged character and DPSError the standard error of that
-	// difference; both 0 for a talent or stat, which the sim doesn't test.
+	// difference; both 0 for a stat, which the sim doesn't test, and for a "talentOther" unless the sim shows a loss.
 	Gain     float64 `json:"gain,omitempty" example:"812"`
 	DPSError float64 `json:"dpsError,omitempty" example:"95"`
 	// Combined is whether the change is in the report's combined row.
@@ -43,11 +46,12 @@ type Suggestion struct {
 }
 
 // SimSuggestReport is what a Suggest sim found besides the stat weights (SimResult.Weights): the changes, best first
-// (those the sim tested by their Gain, then the stats by their Expected gain, then the talents), the gain of every
-// change that fits at once (nil with fewer than two), how many tested changes the sim showed as no gain (under 0.05%
-// of the DPS, within their error or a loss) and so left out, which top logs the suggestions come from and the Warcraft
-// Logs points reading them spent. Notes say what was left out and why (no top logs, changes not tried, gear over the
-// Top Gear limit).
+// (those the sim showed as a gain by their Gain, then the stats by their Expected gain, then the "talentOther" talent
+// swaps), the gain of every change that fits at once (nil with fewer than two), how many tested changes other than a
+// talent swap the sim showed as no gain (under 0.05% of the DPS, within their error or a loss) and so left out, which
+// top logs the suggestions come from and the Warcraft Logs points reading them spent. Notes say what was left out and
+// why (no top logs, no talent string, changes not tried, talent swaps the tree doesn't allow, gear over the Top Gear
+// limit).
 type SimSuggestReport struct {
 	Suggestions []Suggestion `json:"suggestions"`
 	Combined    *SimCombo    `json:"combined,omitempty"`

@@ -24,8 +24,6 @@ func suggestFixture(mutate func(in *suggestInput)) suggestInput {
 			{Slot: "finger1", ID: 2, Opts: map[string][]int{"gem_id": {201}}},
 			{Slot: "finger2", ID: 3, Opts: map[string][]int{"gem_id": {201}}}}},
 		tops: make([]models.RankedPlayer, 10),
-		talentTree: models.TalentTree{Nodes: []models.TalentNode{{ID: 1,
-			Entries: []models.TalentEntry{{ID: 11, Name: "Ancestral Swiftness"}}}}},
 	}
 	for i := range in.tops {
 		in.tops[i].Gear = []models.RankedGear{{Slot: "head", ID: 1}}
@@ -53,12 +51,6 @@ func TestBuildSuggestions(t *testing.T) {
 			}
 		}
 	}
-	talents := func(taken int, you []models.TalentPick) func(*suggestInput) {
-		return func(in *suggestInput) {
-			in.talents = &models.CompareTalents{You: you, Of: 10,
-				Top: []models.TalentShare{{NodeID: 1, EntryID: 11, Taken: taken}}}
-		}
-	}
 	tests := []struct {
 		name   string
 		mutate func(*suggestInput)
@@ -83,9 +75,6 @@ func TestBuildSuggestions(t *testing.T) {
 			flask(6)(in)
 			in.consumables = models.SimConsumables{"flask": {"flask_a_2"}}
 		}, nil},
-		{"a talent 6 of 10 took", talents(6, nil), []string{"talent Take Ancestral Swiftness"}},
-		{"a talent 5 of 10 took", talents(5, nil), nil},
-		{"a talent the character took", talents(10, []models.TalentPick{{NodeID: 1, EntryID: 11, Rank: 1}}), nil},
 		{"a stat the tops favor by 10 points", func(in *suggestInput) {
 			in.yourStats = &models.RankedStats{Crit: 1000, Haste: 1000, Mastery: 1000, Vers: 1000}
 			for i := range in.tops {
@@ -102,7 +91,8 @@ func TestBuildSuggestions(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var got []string
-			for _, s := range buildSuggestions(suggestFixture(tt.mutate)) {
+			suggestions, _ := buildSuggestions(suggestFixture(tt.mutate))
+			for _, s := range suggestions {
 				got = append(got, s.Kind+" "+s.What)
 			}
 			if !slices.Equal(got, tt.want) {
@@ -120,9 +110,75 @@ func TestStatSuggestionsAreWorthTheGapTimesTheWeight(t *testing.T) {
 		}
 		in.weights = []models.SimStatWeight{{Stat: "Haste", DPS: 2}}
 	})
-	got := buildSuggestions(in)
+	got, _ := buildSuggestions(in)
 	// Haste is 35% of the tops' 4000 against 25%: 10 points of 4000 rating at 2 DPS a point
 	if len(got) != 1 || got[0].Expected != 800 {
 		t.Errorf("suggestions %+v, want one worth 800 DPS", got)
+	}
+}
+
+func TestTalentSuggestions(t *testing.T) {
+	// a class tree of 5 points and a spec talent; the character took all but Thunderstorm, Ancestral Swiftness in the
+	// choice node and the tiered node at its first entry (as the loadout string reads it)
+	tree := models.TalentTree{Points: map[string]int{"class": 5, "spec": 1}, Nodes: []models.TalentNode{
+		{ID: 1, Tree: "class", Choice: true, MaxRanks: 1,
+			Entries: []models.TalentEntry{{ID: 11, Name: "Ancestral Swiftness"}, {ID: 12, Name: "Nature's Swiftness"}}},
+		{ID: 2, Tree: "class", MaxRanks: 1, Entries: []models.TalentEntry{{ID: 21, Name: "Totemic Surge"}}},
+		{ID: 3, Tree: "class", MaxRanks: 1, Entries: []models.TalentEntry{{ID: 31, Name: "Thunderstorm"}}},
+		{ID: 4, Tree: "class", MaxRanks: 1, Free: true, Entries: []models.TalentEntry{{ID: 41}}},
+		{ID: 5, Tree: "class", MaxRanks: 3, Entries: []models.TalentEntry{{ID: 51}, {ID: 52}}},
+		{ID: 6, Tree: "class", MaxRanks: 1, Next: []int{7}, Entries: []models.TalentEntry{{ID: 61, Name: "Earth Shield"}}},
+		{ID: 7, Tree: "class", MaxRanks: 1, Entries: []models.TalentEntry{{ID: 71}}},
+		{ID: 8, Tree: "spec", MaxRanks: 1, Entries: []models.TalentEntry{{ID: 81}}},
+	}}
+	picks := []models.TalentPick{{NodeID: 1, EntryID: 11, Rank: 1}, {NodeID: 2, EntryID: 21, Rank: 1},
+		{NodeID: 4, EntryID: 41, Rank: 1}, {NodeID: 5, EntryID: 51, Rank: 1}, {NodeID: 6, EntryID: 61, Rank: 1},
+		{NodeID: 7, EntryID: 71, Rank: 1}, {NodeID: 8, EntryID: 81, Rank: 1}}
+	pick := func(node, entry int) models.TalentPick {
+		return models.TalentPick{NodeID: node, EntryID: entry, Rank: 1}
+	}
+	tests := []struct {
+		name  string
+		took  map[models.TalentPick]int // how many of the 10 top players took each talent; nil: the export has none
+		want  []string
+		notes int
+	}{
+		{"a choice node swaps its other entry", map[models.TalentPick]int{pick(1, 12): 6},
+			[]string{"Take Nature's Swiftness instead of Ancestral Swiftness"}, 0},
+		{"a talent 5 of 10 took", map[models.TalentPick]int{pick(1, 12): 5}, nil, 0},
+		{"a talent the character took", map[models.TalentPick]int{pick(1, 11): 10}, nil, 0},
+		{"a talent replaces the least taken one of its section, never a free or tiered one",
+			map[models.TalentPick]int{pick(3, 31): 10, pick(1, 11): 10, pick(2, 21): 8, pick(6, 61): 9, pick(7, 71): 9},
+			[]string{"Take Thunderstorm instead of Totemic Surge"}, 0},
+		{"a swap leaving a talent unreached is dropped with a note",
+			map[models.TalentPick]int{pick(3, 31): 10, pick(1, 11): 10, pick(2, 21): 10, pick(6, 61): 7, pick(7, 71): 10},
+			nil, 1},
+		{"a tiered node isn't suggested", map[models.TalentPick]int{pick(5, 52): 10}, nil, 0},
+		{"an export without talents", nil, nil, 1},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			in := suggestFixture(func(in *suggestInput) {
+				if in.talentTree = tree; tt.took != nil {
+					in.you.Picks = picks
+				}
+				for i := range in.tops { // every top log has talents, so all 10 count
+					in.tops[i].Talents = []models.TalentPick{pick(8, 81)}
+				}
+				for p, n := range tt.took {
+					for i := range n {
+						in.tops[i].Talents = append(in.tops[i].Talents, p)
+					}
+				}
+			})
+			got, notes := talentSuggestions(in)
+			var what []string
+			for _, s := range got {
+				what = append(what, s.What)
+			}
+			if !slices.Equal(what, tt.want) || len(notes) != tt.notes {
+				t.Errorf("suggestions %q, notes %q; want %q and %d notes", what, notes, tt.want, tt.notes)
+			}
+		})
 	}
 }

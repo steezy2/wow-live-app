@@ -48,10 +48,10 @@ type oneHanders struct{}
 
 func (oneHanders) TwoHanded(context.Context, int) (bool, error) { return false, nil }
 
-// suggestSims are sims of the test export (an elemental shaman, spec 262) over testRef, with ten top players who all
-// put gem 240883 in their head, enchant 7964 on a ring, have Flask A up, took one talent the character didn't and
-// have half their secondary stats in crit (the character a quarter). Its engine echoes profilesets over a baseline of
-// 99950 DPS (1 DPS sure) with stat weights.
+// suggestSims are sims of the test export (an elemental shaman, spec 262) over testRef and the reference talent trees,
+// with ten top players who all put gem 240883 in their head, enchant 7964 on a ring, have Flask A up, took the other
+// entry of the character's first choice talent and have half their secondary stats in crit (the character a
+// quarter). Its engine echoes profilesets over a baseline of 99950 DPS (1 DPS sure) with stat weights.
 func suggestSims(t *testing.T) (*Sims, *fakeTops) {
 	t.Helper()
 	s := newTestSims(t, "echo")
@@ -66,15 +66,27 @@ func suggestSims(t *testing.T) (*Sims, *fakeTops) {
 	}
 	s.Engine.(*fakeEngine).result = result
 	s.Ref, s.Items, s.Bosses = testRef(), oneHanders{}, []string{"Sszorak"}
+	s.Ref.Talents = referenceTrees(t)
 	s.Drops = models.SimDrops{Specs: map[int]models.SimSpec{262: {Class: "shaman", Spec: "elemental"}}}
+	tree := s.Ref.Talents[262]
+	var other models.TalentPick
+	for _, p := range profileTalents(s.Ref.Talents, fixtureTalents(t)[0]) {
+		if n := slices.IndexFunc(tree.Nodes, func(n models.TalentNode) bool {
+			return n.ID == p.NodeID && n.Choice && !n.Free
+		}); n >= 0 {
+			e := tree.Nodes[n].Entries
+			other = models.TalentPick{NodeID: p.NodeID, EntryID: e[0].ID + e[1].ID - p.EntryID, Rank: 1}
+			break
+		}
+	}
 	tops := make([]models.RankedPlayer, 10)
 	for i := range tops {
 		tops[i] = models.RankedPlayer{Buffs: []models.RankedBuff{{Name: "Flask A"}},
-			Gear:  []models.RankedGear{{Slot: "head", Gems: []int{240883}}, {Slot: "finger1", Enchant: 7964}},
-			Stats: &models.RankedStats{Crit: 2000, Haste: 1000, Mastery: 500, Vers: 500}}
+			Gear:    []models.RankedGear{{Slot: "head", Gems: []int{240883}}, {Slot: "finger1", Enchant: 7964}},
+			Stats:   &models.RankedStats{Crit: 2000, Haste: 1000, Mastery: 500, Vers: 500},
+			Talents: []models.TalentPick{other}}
 	}
-	logs := &fakeTops{builds: TopBuilds{Tops: tops, Baseline: "10 ranked runs", Points: 80,
-		Talents: &models.CompareTalents{Of: 10, Top: []models.TalentShare{{NodeID: 1, EntryID: 11, Taken: 10}}}}}
+	logs := &fakeTops{builds: TopBuilds{Tops: tops, Baseline: "10 ranked runs", Points: 80}}
 	s.Tops = logs
 	return s, logs
 }
@@ -99,8 +111,8 @@ func TestSuggesterDropsWhatTheSimDoesNotConfirm(t *testing.T) {
 		got = append(got, sg.Kind)
 	}
 	// the gem and the best gear from the bags (combo1, 50 DPS) as tested, then more crit (priced at 500 DPS by the
-	// weights, but untested), then the talent, which the sim can't test
-	if !slices.Equal(got, []string{"gem", "gear", "stat", "talent"}) || report.Suggestions[0].Gain != 50 ||
+	// weights, but untested), then the talent swap (change4, 20 DPS: no gain) as another talent, not counted as dropped
+	if !slices.Equal(got, []string{"gem", "gear", "stat", "talentOther"}) || report.Suggestions[0].Gain != 50 ||
 		report.Suggestions[2].Expected != 500 || report.Suggestions[3].Gain != 0 {
 		t.Errorf("suggestions = %+v, want the gem and gear gaining 50 DPS, then the stat, then the talent",
 			report.Suggestions)
@@ -123,10 +135,43 @@ func TestSuggesterDropsWhatTheSimDoesNotConfirm(t *testing.T) {
 	}
 	inputs := strings.Join(s.Engine.(*fakeEngine).inputs, "\n")
 	for _, want := range []string{"calculate_scale_factors=1\n", "\nprofileset.change1+=head=,id=271483,",
-		"gem_id=240883", "\nprofileset.change3+=flask=flask_a_2\n", "\nprofileset.combined+="} {
+		"gem_id=240883", "\nprofileset.change3+=flask=flask_a_2\n", "\nprofileset.change4+=talents=",
+		"\nprofileset.combined+="} {
 		if !strings.Contains(inputs, want) {
 			t.Errorf("no sim input has %q", want)
 		}
+	}
+}
+
+func TestSuggestSortsATalentSwapByItsGain(t *testing.T) {
+	tests := []struct {
+		name string
+		mean float64 // the talent swap's (change4) DPS against the baseline's 99950
+		kind string
+		gain float64
+	}{
+		{"a gain", 100950, "talent", 1000},
+		{"under the least gain", 99960, "talentOther", 0},
+		{"a loss", 99000, "talentOther", -950},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s, _ := suggestSims(t)
+			s.Engine.(*fakeEngine).sets = map[string]simSetJSON{"change4": {Mean: tt.mean, MeanStdDev: 1}}
+			started, err := s.Start(suggestRequest(t))
+			if err != nil {
+				t.Fatal(err)
+			}
+			report := waitSim(t, s, started.ID).Result.Suggest
+			i := slices.IndexFunc(report.Suggestions, func(s models.Suggestion) bool { return s.Talent != nil })
+			// the enchant and flask, under the least gain, are dropped; the talent swap never is, and joins the
+			// combined row only as a gain
+			if i < 0 || report.Suggestions[i].Kind != tt.kind || report.Suggestions[i].Gain != tt.gain ||
+				report.Suggestions[i].Combined != (tt.kind == "talent") || report.Dropped != 2 {
+				t.Fatalf("suggestions %+v, dropped %d; want a %s gaining %v and 2 dropped", report.Suggestions,
+					report.Dropped, tt.kind, tt.gain)
+			}
+		})
 	}
 }
 
@@ -205,10 +250,9 @@ func TestTopBuildsRanksTheTarget(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if !slices.Equal(baselines.queries, tt.queries) || len(b.Tops) != tt.reads || b.Baseline != tt.baseline ||
-				b.Talents != nil {
-				t.Errorf("queries %+v, %d tops, baseline %q, talents %v; want %+v, %d and %q, no talents",
-					baselines.queries, len(b.Tops), b.Baseline, b.Talents, tt.queries, tt.reads, tt.baseline)
+			if !slices.Equal(baselines.queries, tt.queries) || len(b.Tops) != tt.reads || b.Baseline != tt.baseline {
+				t.Errorf("queries %+v, %d tops, baseline %q; want %+v, %d and %q",
+					baselines.queries, len(b.Tops), b.Baseline, tt.queries, tt.reads, tt.baseline)
 			}
 		})
 	}

@@ -51,13 +51,10 @@ type SuggestLogs interface {
 	TopBuilds(ctx context.Context, specID int, character string, target models.SuggestTarget) (TopBuilds, error)
 }
 
-// TopBuilds are the top players a Suggest sim compares a character with: their builds, the character's talents
-// against theirs (nil until the export's talents are read) with the spec's tree to name them, which logs they are and
-// the Warcraft Logs points reading them spent.
+// TopBuilds are the top players a Suggest sim compares a character with: their builds, which logs they are and the
+// Warcraft Logs points reading them spent.
 type TopBuilds struct {
 	Tops     []models.RankedPlayer
-	Talents  *models.CompareTalents
-	Tree     models.TalentTree
 	Baseline string
 	Points   float64
 }
@@ -95,7 +92,7 @@ func (c Comparer) TopBuilds(ctx context.Context, specID int, character string, t
 	if err != nil {
 		return TopBuilds{}, err
 	}
-	b := TopBuilds{Tops: top.players, Tree: c.Talents[specID], Baseline: top.baseline, Points: top.points}
+	b := TopBuilds{Tops: top.players, Baseline: top.baseline, Points: top.points}
 	if target.Kind == models.FightMPlus {
 		b.Baseline = fmt.Sprintf("%d ranked %s runs in %d dungeons at +%d", len(top.players), spec.label(),
 			len(fights), level)
@@ -243,7 +240,8 @@ func (r suggestRun) race(head string, combos []gearCombo, from, to, step int, wh
 // run is a Suggest sim: (1) the stat weights, while the top logs are read; (2) one profileset for each change most top
 // players make that the character doesn't, against the unchanged character; (3) Top Gear over the bags; (4) the
 // Droptimizer's drops; (5) every change shown that fits at once. A tested change the sim doesn't show as a gain is
-// left out and counted. The result is the stat weights sim's, with the changes in Suggest.
+// left out and counted; a talent swap is kept instead, as "talentOther". The result is the stat weights sim's, with
+// the changes in Suggest.
 func (r suggestRun) run() (*models.SimResult, string, error) {
 	type read struct {
 		builds TopBuilds
@@ -277,12 +275,14 @@ func (r suggestRun) run() (*models.SimResult, string, error) {
 	} else {
 		report.Baseline, report.Points = got.builds.Baseline, got.builds.Points
 		in := suggestInput{ref: r.sims.Ref, you: r.p, consumables: r.consumables, tops: got.builds.Tops,
-			weights: result.Weights, talents: got.builds.Talents, talentTree: got.builds.Tree}
+			weights: result.Weights, talentTree: loadoutTree(r.sims.Ref.Talents, r.p.Talents)}
 		if st := out.Sim.Players[0].Collected.Buffed.Stats; st.Crit+st.Haste+st.Mastery+st.Vers > 0 {
 			in.yourStats = &models.RankedStats{Crit: int(st.Crit), Haste: int(st.Haste), Mastery: int(st.Mastery),
 				Vers: int(st.Vers)}
 		}
-		if shown, untested, complaint, err = r.testChanges(buildSuggestions(in), report); err != nil {
+		changes, notes := buildSuggestions(in)
+		report.Notes = append(report.Notes, notes...)
+		if shown, untested, complaint, err = r.testChanges(changes, report); err != nil {
 			return nil, complaint, err
 		}
 	}
@@ -312,9 +312,9 @@ func (r suggestRun) run() (*models.SimResult, string, error) {
 	return result, "", nil
 }
 
-// untestedRank orders the suggestions the sim doesn't test after the tested ones (0): the stats, priced by the stat
-// weights, then the talents.
-var untestedRank = map[string]int{"stat": 1, "talent": 2}
+// untestedRank orders the suggestions the sim shows no gain of after those it does (0): the stats, priced by the stat
+// weights, then the talent swaps that add no DPS.
+var untestedRank = map[string]int{"stat": 1, "talentOther": 2}
 
 // topBuilds reads the top players of the character's spec in target.
 func (s *Sims) topBuilds(ctx context.Context, p models.SimProfile, target models.SuggestTarget) (TopBuilds, error) {
@@ -326,16 +326,16 @@ func (s *Sims) topBuilds(ctx context.Context, p models.SimProfile, target models
 }
 
 // testChanges runs one profileset for each of the first maxSuggestions changes the sim can test (an enchant, a gem, a
-// consumable) and returns those it shows as a gain, the ones it can't test (a stat, which the stat weights price, and
-// a talent: the sim would need the talent string the export's talents are written in, and nothing here encodes one,
-// so a talent stays the top players' evidence only). It counts the ones the sim shows as no gain in report.Dropped and
-// notes the ones it doesn't try.
+// consumable, a talent swap) and returns those it shows as a gain, then the ones it doesn't rank by a gain: a stat,
+// which the stat weights price, and a talent swap it shows as no gain or a loss, kept as the top players' evidence
+// ("talentOther", with its DPS change when it is a loss). It counts the other changes the sim shows as no gain in
+// report.Dropped and notes the ones it doesn't try.
 func (r suggestRun) testChanges(all []models.Suggestion, report *models.SimSuggestReport) (shown []tested,
 	untested []models.Suggestion, complaint string, err error) {
 	var changes []tested
 	misfits, over := 0, 0
 	for _, sg := range all {
-		if sg.Variant == nil && sg.Consumables == nil {
+		if sg.Variant == nil && sg.Consumables == nil && sg.Talent == nil {
 			untested = append(untested, sg)
 			continue
 		}
@@ -376,11 +376,17 @@ func (r suggestRun) testChanges(all []models.Suggestion, report *models.SimSugge
 	}
 	for _, t := range changes {
 		i := slices.IndexFunc(sets, func(s simSetJSON) bool { return s.Name == t.combo.name })
-		if i < 0 || !gained(&t.s, sets[i], base) {
+		switch {
+		case i >= 0 && gained(&t.s, sets[i], base):
+			shown = append(shown, t)
+		case t.s.Talent != nil:
+			if t.s.Kind = "talentOther"; t.s.Gain >= 0 {
+				t.s.Gain, t.s.DPSError = 0, 0
+			}
+			untested = append(untested, t.s)
+		default:
 			report.Dropped++
-			continue
 		}
-		shown = append(shown, t)
 	}
 	return shown, untested, "", nil
 }
@@ -393,8 +399,13 @@ func gained(s *models.Suggestion, set simSetJSON, base *models.SimResult) bool {
 }
 
 // changeCombo is a change as a profileset: an enchant or gem put on the worn item it names (false when the item can't
-// take it), or the consumable's line. The change is built from the reference and the character's own items.
+// take it), the character's talents with a swap, or the consumable's line. The change is built from the reference and
+// the character's own items and talents.
 func changeCombo(ref models.SimReference, p models.SimProfile, s models.Suggestion) (gearCombo, bool) {
+	if s.Talent != nil {
+		line, err := talentLine(loadoutTree(ref.Talents, p.Talents), swapTalent(p.Picks, s))
+		return gearCombo{line: line}, err == nil
+	}
 	if v := s.Variant; v != nil {
 		if !v.Worn || v.Index < 0 || v.Index >= len(p.Equipped) {
 			return gearCombo{}, false
@@ -486,7 +497,8 @@ func (r suggestRun) farm(drops []gearCombo) ([]models.Suggestion, string, error)
 }
 
 // combined runs every shown change that fits at once (the gear first, then each enchant and gem on what is in its
-// slot then, and the consumables) as one profileset and marks the changes in it: nil with fewer than two.
+// slot then, each talent swap the tree still allows after the ones before, and the consumables) as one profileset
+// and marks the changes in it: nil with fewer than two.
 func (r suggestRun) combined(shown []tested) (*models.SimCombo, string, error) {
 	worn := map[string]*models.SimItem{}
 	for i := range r.p.Equipped {
@@ -494,6 +506,7 @@ func (r suggestRun) combined(shown []tested) (*models.SimCombo, string, error) {
 	}
 	now := maps.Clone(worn)
 	combo := gearCombo{name: "combined"}
+	tree, picks, swapped := loadoutTree(r.sims.Ref.Talents, r.p.Talents), r.p.Picks, false
 	var names []string
 	var in []int
 	for _, gearFirst := range []bool{true, false} {
@@ -516,6 +529,12 @@ func (r suggestRun) combined(shown []tested) (*models.SimCombo, string, error) {
 				for _, sw := range t.combo.swaps {
 					now[sw.Slot] = sw.In
 				}
+			case t.s.Talent != nil:
+				next := swapTalent(picks, t.s)
+				if validTalents(tree, next) != nil {
+					continue
+				}
+				picks, swapped = next, true
 			default:
 				combo.line += t.combo.line
 				names = append(names, t.combo.consumable)
@@ -525,6 +544,13 @@ func (r suggestRun) combined(shown []tested) (*models.SimCombo, string, error) {
 	}
 	if len(in) < 2 {
 		return nil, "", nil
+	}
+	if swapped {
+		line, err := talentLine(tree, picks)
+		if err != nil {
+			return nil, "", fmt.Errorf("writing the combined talents: %w", err)
+		}
+		combo.line += line
 	}
 	for _, slot := range simSlots {
 		if now[slot] != worn[slot] {

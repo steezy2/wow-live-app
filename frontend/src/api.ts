@@ -2129,17 +2129,20 @@ export interface SimResult {
   suggest?: SimSuggestReport
 }
 
-/** One change a Suggest sim proposes. An enchant or gem has a `variant`, a consumable its `consumables`, gear from the
- * bags and a drop to farm their `swaps` (a drop its `source` and `boss`); a stat is advice only, priced by
- * `expected`. `gain` and `dpsError` are the sim's DPS gain over the unchanged character (0 for a talent or stat). */
+/** One change a Suggest sim proposes. An enchant or gem has a `variant`, a consumable its `consumables`, a talent swap
+ * its `talent` and the talent it `replaces`, gear from the bags and a drop to farm their `swaps` (a drop its `source`
+ * and `boss`); a stat is advice only, priced by `expected`. A talent swap the sim shows as a gain is a `talent`, one it
+ * doesn't a `talentOther` (what top players take for something besides DPS). `gain` and `dpsError` are the sim's DPS
+ * gain over the unchanged character (0 for a stat, and for a `talentOther` unless it is a loss). */
 export interface Suggestion {
-  kind: 'enchant' | 'gem' | 'stat' | 'consumable' | 'talent' | 'gear' | 'farm'
+  kind: 'enchant' | 'gem' | 'stat' | 'consumable' | 'talent' | 'talentOther' | 'gear' | 'farm'
   slot?: string
   what: string
   evidence: string
   variant?: SimVariant
   consumables?: SimConsumables
   talent?: TalentShare
+  replaces?: TalentPick
   swaps?: SimSwap[]
   source?: string
   boss?: string
@@ -2150,8 +2153,9 @@ export interface Suggestion {
   combined?: boolean
 }
 
-/** What a Suggest sim found besides the stat weights: the changes best first, the gain of every change that fits at
- * once, how many tested changes showed no gain and were left out, which top logs they come from (`baseline`), the
+/** What a Suggest sim found besides the stat weights: the changes best first (the `talentOther` ones last), the gain of
+ * every change that fits at once, how many tested changes other than a talent swap showed no gain and were left out,
+ * which top logs they come from (`baseline`), the
  * Warcraft Logs points reading them spent and what was left out and why. */
 export interface SimSuggestReport {
   suggestions: Suggestion[]
