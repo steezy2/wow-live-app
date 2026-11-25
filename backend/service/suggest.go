@@ -24,24 +24,36 @@ const (
 	suggestZ = 2.0
 	// maxFarmSuggestions is how many drops a Suggest sim names to farm, the best first.
 	maxFarmSuggestions = 5
-	// suggestPoints is about what reading the top logs costs, as for a player review: compareLogs logs at about 8.
-	suggestPoints = compareLogs * 8
+	// suggestDungeons and suggestLogsPerDungeon are what Mythic+ overall reads: that many logs in each of the season's
+	// first dungeons.
+	suggestDungeons       = 4
+	suggestLogsPerDungeon = 5
+	// minRankedKeyLevel is the lowest key level Warcraft Logs ranks, which Mythic+ overall reads at for a character
+	// with no saved key.
+	minRankedKeyLevel = 2
+	// logPoints is about what reading one top log costs in Warcraft Logs points (measured for player reviews).
+	logPoints = 8
 	// suggestSteps is how many steps a Suggest sim's stage text counts (suggestRun.run).
 	suggestSteps = 5
 )
 
-// errNoSuggestLogs is why a Suggest sim is refused without Warcraft Logs.
-var errNoSuggestLogs = fmt.Errorf("%w: Suggest compares you with the top Warcraft Logs players of your spec: set "+
-	"Warcraft Logs up in Settings, or run the stat weights sim, which needs none", ErrBadSimOptions)
+var (
+	// errNoSuggestLogs is why a Suggest sim is refused without Warcraft Logs.
+	errNoSuggestLogs = fmt.Errorf("%w: Suggest compares you with the top Warcraft Logs players of your spec: set "+
+		"Warcraft Logs up in Settings, or run the stat weights sim, which needs none", ErrBadSimOptions)
+	// errNoSuggestTarget is why a Suggest sim is refused without one of SimChoices.SuggestTargets.
+	errNoSuggestTarget = fmt.Errorf("%w: pick what Suggest reads the top logs of: Mythic+ overall or a raid boss on "+
+		"a difficulty Warcraft Logs ranks", ErrBadSimOptions)
+)
 
 // SuggestLogs reads the top players a Suggest sim compares a character with (Comparer.TopBuilds).
 type SuggestLogs interface {
-	TopBuilds(ctx context.Context, specID int, character string) (TopBuilds, error)
+	TopBuilds(ctx context.Context, specID int, character string, target models.SuggestTarget) (TopBuilds, error)
 }
 
 // TopBuilds are the top players a Suggest sim compares a character with: their builds, the character's talents
-// against theirs (nil when no saved key or pull holds the character's) with the spec's tree to name them, which logs
-// they are and the Warcraft Logs points reading them spent.
+// against theirs (nil until the export's talents are read) with the spec's tree to name them, which logs they are and
+// the Warcraft Logs points reading them spent.
 type TopBuilds struct {
 	Tops     []models.RankedPlayer
 	Talents  *models.CompareTalents
@@ -50,80 +62,108 @@ type TopBuilds struct {
 	Points   float64
 }
 
-// TopBuilds reads the top logs a Suggest sim compares character (the export's name) in spec specID with, picked as a
-// player review picks them for the content last played: the character's latest saved key or pull in that spec (whose
-// talents are compared too), else the latest one saved. It spends Warcraft Logs points: ErrNoPoints with too few
-// left, ErrNoTopLogs with nothing saved or no log read.
-func (c Comparer) TopBuilds(ctx context.Context, specID int, character string) (TopBuilds, error) {
+// TopBuilds reads the top logs of spec specID a Suggest sim compares character (the export's name) with, of target:
+// for Mythic+ overall suggestLogsPerDungeon logs in each of the season's first suggestDungeons dungeons (by Warcraft
+// Logs encounter ID) at suggestKeyLevel, for a raid boss compareLogs on its difficulty, each picked near the median
+// ranked time. It spends Warcraft Logs points: ErrNoPoints with too few left, ErrNoTopLogs when none can be read.
+func (c Comparer) TopBuilds(ctx context.Context, specID int, character string, target models.SuggestTarget) (
+	TopBuilds, error) {
 	spec, ok := specs[specID]
-	f, played := c.lastPlayed(specID, character)
-	if !ok || !played {
-		return TopBuilds{}, fmt.Errorf("%w: play a key or a raid pull first, so the top logs are of what you play",
-			ErrNoTopLogs)
+	if !ok {
+		return TopBuilds{}, fmt.Errorf("%w: no spec %d is known", ErrNoTopLogs, specID)
 	}
-	f.spec, f.specID = spec, specID
+	fights := []fightRun{{kind: models.FightRaid, encounter: target.Encounter, boss: target.Difficulty}}
+	level := 0
+	if target.Kind == models.FightMPlus {
+		ids, err := c.Baselines.MPlusEncounters(ctx)
+		if err != nil {
+			return TopBuilds{}, err
+		}
+		names := slices.SortedFunc(maps.Keys(ids), func(a, b string) int { return cmp.Compare(ids[a], ids[b]) })
+		level, fights = c.suggestKeyLevel(character), nil
+		for _, name := range names[:min(len(names), suggestDungeons)] {
+			fights = append(fights, fightRun{kind: models.FightMPlus, encounter: name, level: level,
+				logs: suggestLogsPerDungeon})
+		}
+	}
+	for i := range fights {
+		fights[i].spec, fights[i].specID = spec, specID
+	}
 	reviewing.Lock()
 	defer reviewing.Unlock()
-	top, err := c.readTopLogs(ctx, f, 0)
+	top, err := c.readTopLogs(ctx, 0, fights...)
 	if err != nil {
 		return TopBuilds{}, err
 	}
 	b := TopBuilds{Tops: top.players, Tree: c.Talents[specID], Baseline: top.baseline, Points: top.points}
-	if len(f.local.Talents) > 0 {
-		b.Talents = talentCompare(compareInput{you: f.local, top: top.players, specID: specID})
+	if target.Kind == models.FightMPlus {
+		b.Baseline = fmt.Sprintf("%d ranked %s runs in %d dungeons at +%d", len(top.players), spec.label(),
+			len(fights), level)
 	}
 	return b, nil
 }
 
-// lastPlayed is the fight whose top logs a Suggest sim reads, with the character's talents in it: their newest saved
-// key or pull in spec specID, else the newest saved one (a pull only on a difficulty Warcraft Logs ranks); false with
-// none.
-func (c Comparer) lastPlayed(specID int, character string) (fightRun, bool) {
-	var best fightRun
-	found, mine := false, false
-	consider := func(run fightRun, player string) {
-		if !found || player != "" && !mine || (player != "") == mine && run.start > best.start {
-			best, found, mine = run, true, player != ""
-		}
-	}
-	keys, pulls := c.Keys.History()
+// suggestKeyLevel is the key level Mythic+ overall reads the top logs at: the character's highest saved key, else
+// minRankedKeyLevel.
+func (c Comparer) suggestKeyLevel(character string) int {
+	level := 0
+	keys, _ := c.Keys.History()
 	for _, k := range keys {
-		player := playerIn(k.Specs, specID, character)
-		consider(fightRun{kind: models.FightMPlus, start: k.Start, encounter: k.Dungeon, level: k.Level,
-			local: models.RankedPlayer{DurationMS: lengthMS(k), Talents: k.Talents[player]}}, player)
-	}
-	for _, p := range pulls {
-		if d := models.RankedDifficultyWCL(p.Difficulty); d != 0 {
-			player := playerIn(p.Specs, specID, character)
-			consider(fightRun{kind: models.FightRaid, start: p.Start, encounter: p.Boss, boss: d,
-				local: models.RankedPlayer{DurationMS: p.DurationMS, Talents: p.Talents[player]}}, player)
+		for name := range k.Specs {
+			if strings.EqualFold(name, character) {
+				level = max(level, k.Level)
+			}
 		}
 	}
-	return best, found
+	return cmp.Or(level, minRankedKeyLevel)
 }
 
-// playerIn is the name character played spec specID under in a fight's specs, "" when they didn't.
-func playerIn(specs map[string]int, specID int, character string) string {
-	for name, id := range specs {
-		if id == specID && strings.EqualFold(name, character) {
-			return name
+// suggestTargets are what a Suggest sim can read the top logs of: Mythic+ overall, then each raid boss on each
+// difficulty Warcraft Logs ranks.
+func (s *Sims) suggestTargets() []models.SuggestTargetChoice {
+	out := []models.SuggestTargetChoice{{Name: "Mythic+ overall", Target: models.SuggestTarget{Kind: models.FightMPlus}}}
+	for _, boss := range s.Bosses {
+		for _, d := range models.RaidDifficulties {
+			if d.Ranked {
+				out = append(out, models.SuggestTargetChoice{Name: boss + " (" + d.Name + ")",
+					Target: models.SuggestTarget{Kind: models.FightRaid, Encounter: boss, Difficulty: d.WCL}})
+			}
 		}
 	}
-	return ""
+	return out
+}
+
+// validTarget is whether t is one of suggestTargets.
+func (s *Sims) validTarget(t *models.SuggestTarget) bool {
+	return t != nil && slices.ContainsFunc(s.suggestTargets(), func(c models.SuggestTargetChoice) bool {
+		return c.Target == *t
+	})
+}
+
+// suggestPoints is about what reading target's top logs costs: Mythic+ overall's dungeons' logs, or a raid boss's
+// compareLogs.
+func suggestPoints(target *models.SuggestTarget) float64 {
+	if target != nil && target.Kind == models.FightRaid {
+		return compareLogs * logPoints
+	}
+	return suggestDungeons * suggestLogsPerDungeon * logPoints
 }
 
 // planSuggest counts a Suggest sim's runs into plan: the stat weights, a profileset for each change the top players
 // can suggest (maxSuggestions at most), Top Gear over the bags, the Droptimizer and the combined run, each with its
 // baseline (the changes counted at their most, as how many the top logs suggest isn't known before they are read);
-// with the points the top logs cost, what it leaves out (Notes) and, without Warcraft Logs, why Start refuses it. It
-// returns the full-precision runs.
-func (s *Sims) planSuggest(p models.SimProfile, o models.SimOptions, plan *models.SimPlan) float64 {
+// with the points the request's target costs, what it leaves out (Notes) and, without Warcraft Logs or a target, why
+// Start refuses it. It returns the full-precision runs.
+func (s *Sims) planSuggest(p models.SimProfile, req models.SimRequest, plan *models.SimPlan) float64 {
 	if plan.NeedsLogs = !s.logsReady(); plan.NeedsLogs && plan.Error == "" {
 		plan.Error = errNoSuggestLogs.Error()
 	}
+	if !s.validTarget(req.Target) && plan.Error == "" {
+		plan.Error = errNoSuggestTarget.Error()
+	}
 	bags, drops, notes := s.suggestGear(p)
-	plan.Points, plan.Notes, plan.Combos = suggestPoints, notes, maxSuggestions+len(bags)+len(drops)+1
-	final := simTargetError(o, true)
+	plan.Points, plan.Notes, plan.Combos = suggestPoints(req.Target), notes, maxSuggestions+len(bags)+len(drops)+1
+	final := simTargetError(req.Options, true)
 	runs := float64(statsRuns + maxSuggestions + 1 + 2)
 	for _, n := range []int{len(bags), len(drops)} {
 		if n > 0 {
@@ -173,8 +213,8 @@ type tested struct {
 	combo gearCombo
 }
 
-// suggestRun is a running Suggest sim: the sims, its ID, work files and simc input head, its options, the character
-// and the consumables it uses.
+// suggestRun is a running Suggest sim: the sims, its ID, work files and simc input head, its options, the character,
+// the consumables it uses and what its top logs are of.
 type suggestRun struct {
 	sims                    *Sims
 	ctx                     context.Context
@@ -182,6 +222,7 @@ type suggestRun struct {
 	o                       models.SimOptions
 	p                       models.SimProfile
 	consumables             models.SimConsumables
+	target                  models.SuggestTarget
 }
 
 // suggest runs a Suggest sim for the running sim with this ID and saves what it found (suggestRun.run).
@@ -210,7 +251,7 @@ func (r suggestRun) run() (*models.SimResult, string, error) {
 	}
 	logs := make(chan read, 1)
 	go func() {
-		b, err := r.sims.topBuilds(r.ctx, r.p)
+		b, err := r.sims.topBuilds(r.ctx, r.p, r.target)
 		logs <- read{b, err}
 	}()
 	result, complaint, err := r.race(r.head+scaleLine("stats"), nil, 0, 30, 1, "stat weights")
@@ -275,13 +316,13 @@ func (r suggestRun) run() (*models.SimResult, string, error) {
 // weights, then the talents.
 var untestedRank = map[string]int{"stat": 1, "talent": 2}
 
-// topBuilds reads the top players of the character's spec.
-func (s *Sims) topBuilds(ctx context.Context, p models.SimProfile) (TopBuilds, error) {
+// topBuilds reads the top players of the character's spec in target.
+func (s *Sims) topBuilds(ctx context.Context, p models.SimProfile, target models.SuggestTarget) (TopBuilds, error) {
 	spec := specIDOf(s.Drops, p)
 	if spec == 0 {
 		return TopBuilds{}, fmt.Errorf("%w: no spec %s %s is known", ErrNoTopLogs, p.Spec, p.Class)
 	}
-	return s.Tops.TopBuilds(ctx, spec, p.Name)
+	return s.Tops.TopBuilds(ctx, spec, p.Name, target)
 }
 
 // testChanges runs one profileset for each of the first maxSuggestions changes the sim can test (an enchant, a gem, a

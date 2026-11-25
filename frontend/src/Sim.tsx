@@ -32,7 +32,14 @@ import { SimResult } from './SimResult'
 import { CustomCard } from './SimCustom'
 import { EnhancementsCard } from './SimEnhancements'
 import { SavedSims } from './SimSaved'
-import { kindLabel, omniumPicks, omniumString, simOptionsError } from './simOptions'
+import {
+  kindLabel,
+  omniumPicks,
+  omniumString,
+  savedSuggestTarget,
+  saveSuggestTarget,
+  simOptionsError,
+} from './simOptions'
 import { Skeleton } from './Skeleton'
 import { tip } from './tipAttrs'
 
@@ -208,6 +215,8 @@ function OptionsPanel(props: {
   setCatalystCharges: (n: number) => void
   plan: { plan: SimPlan | null; error: string | null } | null
   suggestPlan: { plan: SimPlan | null; error: string | null } | null
+  suggestTarget: string
+  setSuggestTarget: (name: string) => void
   why: string | null
   canRun: boolean
   onRun: () => void
@@ -338,6 +347,16 @@ function OptionsPanel(props: {
         >
           Suggest
         </button>
+        <select
+          aria-label="Top logs of"
+          value={props.suggestTarget}
+          onChange={(e) => props.setSuggestTarget(e.target.value)}
+          {...tip('Whose top logs Suggest compares you with: Mythic+ dungeons, or one raid boss on a difficulty')}
+        >
+          {choices.suggestTargets.map((t) => (
+            <option key={t.name}>{t.name}</option>
+          ))}
+        </select>
       </div>
     </aside>
   )
@@ -365,6 +384,7 @@ export function SimPage() {
   const [custom, setCustom] = useState('')
   const [chargesPicked, setChargesPicked] = useState<number | null>(null) // null: all the charges (no limit)
   const [enhancements, setEnhancements] = useState<SimEnhancements>({})
+  const [targetPick, setTargetPick] = useState<string | null>(null) // null: the character's saved Suggest target
   const [runs, setRuns] = useState<Sim[]>([]) // the sims running now, as last polled
   const [watching, setWatching] = useState<string | null>(null) // the running sim whose progress card shows
   const [estimates, setEstimates] = useState<Record<string, number>>({}) // seconds each started sim's plan said
@@ -450,7 +470,13 @@ export function SimPage() {
       setBags([])
       setVariants([])
       setOmnium(omniumPicks(p.omnium))
+      setTargetPick(null)
     })
+  const character = profile ? `${profile.name}-${profile.server}` : ''
+  const suggestTarget =
+    choices && profile
+      ? (choices.suggestTargets.find((t) => t.name === targetPick) ?? savedSuggestTarget(choices, character))
+      : undefined
   const same = (a: SimVariant, b: SimVariant) => JSON.stringify(a) === JSON.stringify(b)
   const optionsError = choices && options ? simOptionsError(options, choices) : null
   const request = (k: SimKind = kind): SimRequest | null => {
@@ -472,6 +498,7 @@ export function SimPage() {
         catalystCharges: chargesPicked ?? choices?.maxCatalystCharges,
       }),
       ...(k === 'drops' && { difficulty, keyLevel, upgrade }),
+      ...(k === 'suggest' && suggestTarget && { target: suggestTarget.target }),
     }
   }
   const planRequest = profile ? request() : null
@@ -652,6 +679,11 @@ export function SimPage() {
               setCatalystCharges={setChargesPicked}
               plan={planRequest ? plan : null}
               suggestPlan={profile ? suggestPlan : null}
+              suggestTarget={suggestTarget?.name ?? ''}
+              setSuggestTarget={(name) => {
+                setTargetPick(name)
+                saveSuggestTarget(character, name)
+              }}
               why={why}
               canRun={!why && !planBlocks}
               onRun={() => start()}

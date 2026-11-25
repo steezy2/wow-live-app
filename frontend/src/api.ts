@@ -1924,6 +1924,8 @@ export interface SimChoices {
   maxItemLookups: number
   /** The items' groups in wearing order, as Top Gear lists them. */
   gearGroups: string[]
+  /** What a Suggest sim can read the top logs of, Mythic+ overall first, each with its name. */
+  suggestTargets: { name: string; target: SuggestTarget }[]
 }
 
 /** The kinds of sim: one DPS number, the best combination of the gear carried, each drop's gain, and what a point of
@@ -1976,6 +1978,16 @@ export interface SimRequest {
   catalystCharges?: number
   /** Gems and enchants Top Gear tries on the items it picked. */
   enhancements?: SimEnhancements
+  /** What a Suggest sim reads the top logs of, one of SimChoices.suggestTargets. */
+  target?: SuggestTarget
+}
+
+/** What a Suggest sim reads the top logs of: Mythic+ overall, or a raid boss (as the game names it) on a difficulty
+ * (Warcraft Logs' number). */
+export interface SuggestTarget {
+  kind: 'mplus' | 'raid'
+  encounter?: string
+  difficulty?: number
 }
 
 /** Enchant IDs by slot (a ring's is 'finger') and gem item IDs to try on the picked items. */

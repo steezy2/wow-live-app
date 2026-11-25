@@ -112,6 +112,9 @@ type SimChoices struct {
 	MaxItemLookups int `json:"maxItemLookups" example:"120"`
 	// GearGroups are the items' groups (SimItem.Group) in wearing order.
 	GearGroups []string `json:"gearGroups"`
+	// SuggestTargets are what a Suggest sim can read the top logs of (SimRequest.Target): Mythic+ overall first, then
+	// each raid boss on each difficulty Warcraft Logs ranks.
+	SuggestTargets []SuggestTargetChoice `json:"suggestTargets"`
 }
 
 // SimRequest starts a sim: its Kind (one of SimKinds), the pasted SimC export (parsed again on every request) and
@@ -149,6 +152,9 @@ type SimRequest struct {
 	// Omnium is the Omnium Folio's runes (entry:rank pairs, as the export writes them): nil keeps the export's, empty
 	// is none. Two or more entries of a node are compared, as consumables are.
 	Omnium *string `json:"omnium,omitempty" example:"136822:1/136817:1"`
+	// Target is what a Suggest sim reads the top logs of, one of SimChoices.SuggestTargets; a suggest sim without one
+	// is refused.
+	Target *SuggestTarget `json:"target,omitempty"`
 }
 
 // SimEnhancements are enchants (enchant IDs by slot, a ring's slot is "finger") and gems (gem item IDs) a Top Gear

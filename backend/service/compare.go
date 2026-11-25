@@ -62,8 +62,10 @@ type fightRun struct {
 	specID    int
 	// partial: the key was abandoned or the pull wiped, so the top logs are read over the same stretch.
 	partial bool
-	local   models.RankedPlayer
-	yours   []models.RankedPlayer
+	// logs is how many top logs to read, compareLogs when 0.
+	logs  int
+	local models.RankedPlayer
+	yours []models.RankedPlayer
 	// casts and buffs are the player's own, from the track, for the spec's rules.
 	casts []models.TrackCast
 	buffs []models.BuffSpan
@@ -121,7 +123,7 @@ func (c Comparer) Run(ctx context.Context, kind models.FightKind, start int64, p
 		parses, err = c.Characters.Parses(ctx, c.Region, f.character)
 		parsing <- err
 	}()
-	top, err := c.readTopLogs(ctx, f, window)
+	top, err := c.readTopLogs(ctx, window, f)
 	perr := <-parsing
 	if err != nil {
 		return models.PlayerCompare{}, err
@@ -145,8 +147,8 @@ func (c Comparer) Run(ctx context.Context, kind models.FightKind, start int64, p
 	return review, c.Store.SaveCompare(review)
 }
 
-// topLogs are a fight's top logs as readTopLogs reads them: the players, their logs, which runs they are and the
-// Warcraft Logs points reading them spent.
+// topLogs are fights' top logs as readTopLogs reads them: the players, their logs, which runs they are (the last
+// fight's) and the Warcraft Logs points reading them spent.
 type topLogs struct {
 	players  []models.RankedPlayer
 	logs     []models.CompareLog
@@ -154,9 +156,9 @@ type topLogs struct {
 	points   float64
 }
 
-// readTopLogs reads f's top logs over window (0 for all of it), spending Warcraft Logs points: ErrNoPoints with fewer
-// than minComparePoints left this hour. The caller holds reviewing.
-func (c Comparer) readTopLogs(ctx context.Context, f fightRun, window int64) (topLogs, error) {
+// readTopLogs reads each fight's top logs over window (0 for all of it), one after another, spending Warcraft Logs
+// points: ErrNoPoints with fewer than minComparePoints left this hour. The caller holds reviewing.
+func (c Comparer) readTopLogs(ctx context.Context, window int64, fights ...fightRun) (topLogs, error) {
 	left, err := c.Baselines.PointsLeft(ctx)
 	if err != nil {
 		return topLogs{}, fmt.Errorf("reading the points left: %w", err)
@@ -164,15 +166,18 @@ func (c Comparer) readTopLogs(ctx context.Context, f fightRun, window int64) (to
 	if left < minComparePoints {
 		return topLogs{}, ErrNoPoints
 	}
-	runs, baseline, err := c.topRuns(ctx, f)
-	if err != nil {
-		return topLogs{}, err
+	var t topLogs
+	for _, f := range fights {
+		runs, baseline, err := c.topRuns(ctx, f)
+		if err != nil {
+			return topLogs{}, err
+		}
+		players, logs, err := c.readTop(ctx, f, runs, window)
+		if err != nil {
+			return topLogs{}, err
+		}
+		t.players, t.logs, t.baseline = append(t.players, players...), append(t.logs, logs...), baseline
 	}
-	players, logs, err := c.readTop(ctx, f, runs, window)
-	if err != nil {
-		return topLogs{}, err
-	}
-	t := topLogs{players: players, logs: logs, baseline: baseline}
 	if after, err := c.Baselines.PointsLeft(ctx); err == nil {
 		// the second points check costs about 1; none are spent when every log was read before or the hour reset
 		t.points = max(0, left-after-1)
@@ -432,8 +437,9 @@ func buffUptimes(spans []models.BuffSpan) []models.RankedBuff {
 	return out
 }
 
-// topRuns is the ranked runs to compare with: up to compareLogs of the spec's rankings for the dungeon at the key's
-// level or the boss on its difficulty, read a page at a time (comparePages at most), and a line saying which they are.
+// topRuns is the ranked runs to compare with: up to f.logs (compareLogs when 0) of the spec's rankings for the dungeon
+// at the key's level or the boss on its difficulty, picked by the fight's time (the ranked runs' median without a
+// local fight), read a page at a time (comparePages at most), and a line saying which they are.
 func (c Comparer) topRuns(ctx context.Context, f fightRun) ([]models.RankedRun, string, error) {
 	q := models.RankQuery{Level: f.level, Difficulty: f.boss, Class: f.spec.Class, Spec: f.spec.Name,
 		Metric: strings.ToLower(mainMetric(f.spec))}
@@ -450,19 +456,28 @@ func (c Comparer) topRuns(ctx context.Context, f fightRun) ([]models.RankedRun, 
 	if q.Encounter = ids[f.encounter]; q.Encounter == 0 {
 		return nil, "", fmt.Errorf("%w: Warcraft Logs ranks no %s", ErrNoTopLogs, f.encounter)
 	}
+	want, ms := cmp.Or(f.logs, compareLogs), f.local.DurationMS
 	var ranked []models.RankedRun
+	var times []int64
+	var pick picked
 	for page := 1; page <= comparePages; page++ {
 		runs, more, err := c.Baselines.RankedRuns(ctx, q, page)
 		if err != nil {
 			return nil, "", err
 		}
 		ranked = append(ranked, runs...)
-		if !more || len(pickRuns(ranked, f.local.DurationMS, f.partial).runs) >= compareLogs {
+		for _, r := range runs {
+			times = append(times, r.DurationMS)
+		}
+		if f.local.DurationMS == 0 {
+			ms = median(times)
+		}
+		if pick = pickRuns(ranked, ms, f.partial); !more || len(pick.runs) >= want {
 			break
 		}
 	}
-	pick := pickRuns(ranked, f.local.DurationMS, f.partial)
-	return pick.runs, pick.baseline(f.spec.label(), f.local.DurationMS), nil
+	pick.runs = pick.runs[:min(len(pick.runs), want)]
+	return pick.runs, pick.baseline(f.spec.label(), ms), nil
 }
 
 // picked is the ranked runs chosen to compare with and why these.

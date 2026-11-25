@@ -110,6 +110,30 @@ export const togglePick = (picks: number[], entry: number): number[] =>
 /** The distinct item IDs of items. */
 export const itemIDs = (items: SimItem[]): number[] => [...new Set(items.map((i) => i.id))]
 
+/** Where this browser keeps a character's last Suggest target, by name. */
+const targetKey = (character: string) => `sim.suggestTarget.${character}`
+
+/** The Suggest target last picked for a character, if it is still one of the choices, else Mythic+ overall (the
+ * first). */
+export function savedSuggestTarget(choices: SimChoices, character: string): SimChoices['suggestTargets'][number] {
+  let name: string | null = null
+  try {
+    name = localStorage.getItem(targetKey(character))
+  } catch {
+    // storage off: the default
+  }
+  return choices.suggestTargets.find((t) => t.name === name) ?? choices.suggestTargets[0]
+}
+
+/** Keeps the Suggest target picked for a character in this browser (best effort). */
+export function saveSuggestTarget(character: string, name: string) {
+  try {
+    localStorage.setItem(targetKey(character), name)
+  } catch {
+    // storage off: not remembered
+  }
+}
+
 /** How wide a gain's bar is, in percent of the best gain's (0 for a loss or when nothing gains). */
 export function gainShare(gain: number, best: number): number {
   return best > 0 ? Math.max(0, (gain / best) * 100) : 0

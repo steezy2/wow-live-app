@@ -15,21 +15,32 @@ import (
 	"wow-live/backend/models"
 )
 
-// fakeTops is Warcraft Logs for a Suggest sim: the same builds (or err) for any spec, and the spec it was asked for.
-// With block it waits for block to close first, whatever the context, as a read waits on a player review.
+// fakeTops is Warcraft Logs for a Suggest sim: the same builds (or err) for any spec, and the specs and targets it
+// was asked for. With block it waits for block to close first, whatever the context, as a read waits on a player
+// review.
 type fakeTops struct {
-	builds TopBuilds
-	err    error
-	block  chan struct{}
-	asked  []int
+	builds  TopBuilds
+	err     error
+	block   chan struct{}
+	asked   []int
+	targets []models.SuggestTarget
 }
 
-func (f *fakeTops) TopBuilds(_ context.Context, specID int, _ string) (TopBuilds, error) {
+func (f *fakeTops) TopBuilds(_ context.Context, specID int, _ string, target models.SuggestTarget) (TopBuilds,
+	error) {
 	if f.block != nil {
 		<-f.block
 	}
-	f.asked = append(f.asked, specID)
+	f.asked, f.targets = append(f.asked, specID), append(f.targets, target)
 	return f.builds, f.err
+}
+
+// suggestRequest is a Suggest sim of the test export on Mythic+ overall.
+func suggestRequest(t *testing.T) models.SimRequest {
+	t.Helper()
+	req := simRequest(t)
+	req.Kind, req.Target = "suggest", &models.SuggestTarget{Kind: models.FightMPlus}
+	return req
 }
 
 // oneHanders says no weapon is two-handed.
@@ -54,7 +65,7 @@ func suggestSims(t *testing.T) (*Sims, *fakeTops) {
 		t.Fatal(err)
 	}
 	s.Engine.(*fakeEngine).result = result
-	s.Ref, s.Items = testRef(), oneHanders{}
+	s.Ref, s.Items, s.Bosses = testRef(), oneHanders{}, []string{"Sszorak"}
 	s.Drops = models.SimDrops{Specs: map[int]models.SimSpec{262: {Class: "shaman", Spec: "elemental"}}}
 	tops := make([]models.RankedPlayer, 10)
 	for i := range tops {
@@ -74,9 +85,7 @@ func TestSuggesterDropsWhatTheSimDoesNotConfirm(t *testing.T) {
 	// its error of 150; the flask loses
 	s.Engine.(*fakeEngine).sets = map[string]simSetJSON{"change2": {Mean: 100200, MeanStdDev: 150},
 		"change3": {Mean: 99000, MeanStdDev: 1}}
-	req := simRequest(t)
-	req.Kind = "suggest"
-	started, err := s.Start(req)
+	started, err := s.Start(suggestRequest(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -104,9 +113,10 @@ func TestSuggesterDropsWhatTheSimDoesNotConfirm(t *testing.T) {
 		!report.Suggestions[1].Combined || report.Suggestions[2].Combined {
 		t.Errorf("combined = %+v, want the gem and gear together", report.Combined)
 	}
-	if len(sim.Result.Weights) == 0 || sim.Result.Pawn == "" || !slices.Equal(logs.asked, []int{262}) {
-		t.Errorf("weights %+v, pawn %q, asked %v; want the stat weights and spec 262's logs", sim.Result.Weights,
-			sim.Result.Pawn, logs.asked)
+	if len(sim.Result.Weights) == 0 || sim.Result.Pawn == "" || !slices.Equal(logs.asked, []int{262}) ||
+		!slices.Equal(logs.targets, []models.SuggestTarget{{Kind: models.FightMPlus}}) {
+		t.Errorf("weights %+v, pawn %q, asked %v of %v; want the stat weights and spec 262's Mythic+ logs",
+			sim.Result.Weights, sim.Result.Pawn, logs.asked, logs.targets)
 	}
 	if len(report.Notes) != 1 || !strings.HasPrefix(report.Notes[0], "Drops to farm aren't tried") {
 		t.Errorf("notes = %q, want why no drops were tried", report.Notes)
@@ -122,11 +132,10 @@ func TestSuggesterDropsWhatTheSimDoesNotConfirm(t *testing.T) {
 
 func TestSuggestPlanCostsWCLPoints(t *testing.T) {
 	s, _ := suggestSims(t)
-	req := simRequest(t)
-	req.Kind = "suggest"
+	req := suggestRequest(t)
 	plan, err := s.Plan(req)
-	if err != nil || plan.Error != "" || plan.NeedsLogs || plan.Points != suggestPoints || len(plan.Notes) != 1 {
-		t.Errorf("plan = %+v, %v; want %d points and the drops it leaves out", plan, err, suggestPoints)
+	if err != nil || plan.Error != "" || plan.NeedsLogs || plan.Points != 160 || len(plan.Notes) != 1 {
+		t.Errorf("plan = %+v, %v; want 160 points and the drops it leaves out", plan, err)
 	}
 	req.Kind = "stats"
 	if stats, _ := s.Plan(req); stats.Seconds >= plan.Seconds || stats.Points != 0 {
@@ -143,20 +152,65 @@ func TestSuggestPlanCostsWCLPoints(t *testing.T) {
 	}
 }
 
-func TestTopBuildsReadsTheLogsOfWhatWasLastPlayed(t *testing.T) {
-	baselines := &fakeLogs{left: 1000}
-	c, keys, _ := comparerOf(t, baselines)
-	b, err := c.TopBuilds(context.Background(), 62, "testmage")
-	if err != nil {
-		t.Fatal(err)
+func TestSuggestRefusesAMissingOrUnknownTarget(t *testing.T) {
+	s, _ := suggestSims(t)
+	for name, target := range map[string]*models.SuggestTarget{
+		"none":                    nil,
+		"a boss not in the raid":  {Kind: models.FightRaid, Encounter: "Nobody", Difficulty: 4},
+		"a difficulty not ranked": {Kind: models.FightRaid, Encounter: "Sszorak", Difficulty: 1},
+	} {
+		req := suggestRequest(t)
+		req.Target = target
+		if plan, err := s.Plan(req); err != nil || plan.Error != errNoSuggestTarget.Error() {
+			t.Errorf("%s: plan error %q (%v), want %q", name, plan.Error, err, errNoSuggestTarget)
+		}
+		if _, err := s.Start(req); !errors.Is(err, ErrBadSimOptions) {
+			t.Errorf("%s: Start = %v, want it refused", name, err)
+		}
 	}
-	if len(b.Tops) != 3 || !slices.Equal(baselines.windows, []int64{0, 0, 0}) || b.Points != 99 {
-		t.Errorf("tops %d, windows %v, points %v; want the 3 ranked runs read whole and 99 points", len(b.Tops),
-			baselines.windows, b.Points)
+}
+
+func TestTopBuildsRanksTheTarget(t *testing.T) {
+	runs := make([]models.RankedRun, 8)
+	for i := range runs {
+		runs[i] = models.RankedRun{DurationMS: 300_000 + int64(i)*1000, Code: "r", FightID: i + 1, Name: "P"}
 	}
-	keys.history = nil
-	if _, err := c.TopBuilds(context.Background(), 62, "testmage"); !errors.Is(err, ErrNoTopLogs) {
-		t.Errorf("with nothing saved: %v, want ErrNoTopLogs", err)
+	mplus := func(encounter, level int) models.RankQuery {
+		return models.RankQuery{Encounter: encounter, Level: level, Class: "Mage", Spec: "Arcane", Metric: "dps"}
+	}
+	tests := []struct {
+		name      string
+		character string
+		target    models.SuggestTarget
+		queries   []models.RankQuery
+		reads     int
+		baseline  string
+	}{
+		{"Mythic+ at the character's highest key", "testmage", models.SuggestTarget{Kind: models.FightMPlus},
+			[]models.RankQuery{mplus(1, 12), mplus(3, 12), mplus(5, 12), mplus(7, 12)},
+			suggestDungeons * suggestLogsPerDungeon, "20 ranked Arcane Mage runs in 4 dungeons at +12"},
+		{"Mythic+ for a character with no key", "nobody", models.SuggestTarget{Kind: models.FightMPlus},
+			[]models.RankQuery{mplus(1, 2), mplus(3, 2), mplus(5, 2), mplus(7, 2)},
+			suggestDungeons * suggestLogsPerDungeon, "20 ranked Arcane Mage runs in 4 dungeons at +2"},
+		{"a raid boss on its difficulty", "testmage",
+			models.SuggestTarget{Kind: models.FightRaid, Encounter: "Sszorak", Difficulty: 4},
+			[]models.RankQuery{{Encounter: 100, Difficulty: 4, Class: "Mage", Spec: "Arcane", Metric: "dps"}},
+			len(runs), "8 ranked Arcane Mage runs within 15% of 5:03"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			baselines := &fakeLogs{left: 1000, runs: runs}
+			c, _, _ := comparerOf(t, baselines)
+			b, err := c.TopBuilds(context.Background(), 62, tt.character, tt.target)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !slices.Equal(baselines.queries, tt.queries) || len(b.Tops) != tt.reads || b.Baseline != tt.baseline ||
+				b.Talents != nil {
+				t.Errorf("queries %+v, %d tops, baseline %q, talents %v; want %+v, %d and %q, no talents",
+					baselines.queries, len(b.Tops), b.Baseline, b.Talents, tt.queries, tt.reads, tt.baseline)
+			}
+		})
 	}
 }
 
@@ -175,9 +229,7 @@ func TestSuggestFarmsTheBestDropsEachOnce(t *testing.T) {
 		sets["drop"+strconv.Itoa(i+1)] = simSetJSON{Mean: 100500 - 10*float64(i), MeanStdDev: 1}
 	}
 	s.Engine.(*fakeEngine).sets = sets
-	req := simRequest(t)
-	req.Kind = "suggest"
-	started, err := s.Start(req)
+	started, err := s.Start(suggestRequest(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -199,9 +251,7 @@ func TestSuggestFarmsTheBestDropsEachOnce(t *testing.T) {
 func TestSuggestGoesOnWithoutTheTopLogs(t *testing.T) {
 	s, logs := suggestSims(t)
 	logs.err = fmt.Errorf("reading: %w", models.ErrRateLimited)
-	req := simRequest(t)
-	req.Kind = "suggest"
-	started, err := s.Start(req)
+	started, err := s.Start(suggestRequest(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -222,9 +272,7 @@ func TestCancellingASuggestSimDoesNotWaitForTheTopLogs(t *testing.T) {
 	s, logs := suggestSims(t)
 	logs.block = make(chan struct{})
 	t.Cleanup(func() { close(logs.block) })
-	req := simRequest(t)
-	req.Kind = "suggest"
-	started, err := s.Start(req)
+	started, err := s.Start(suggestRequest(t))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -241,16 +289,5 @@ func TestCancellingASuggestSimDoesNotWaitForTheTopLogs(t *testing.T) {
 	}
 	if sim := waitSim(t, s, started.ID); sim.State != models.SimCancelled {
 		t.Errorf("state = %s, want cancelled while the top logs were read", sim.State)
-	}
-}
-
-func TestLastPlayedPrefersTheCharactersOwnFight(t *testing.T) {
-	c, keys, _ := comparerOf(t, &fakeLogs{})
-	keys.history = append(keys.history, models.Key{Start: 9000, Dungeon: "Voidscar Arena", Level: 15,
-		Specs: map[string]int{"Someone": 62}})
-	for character, want := range map[string]int64{"testmage": 1000, "nobody": 9000} {
-		if f, ok := c.lastPlayed(62, character); !ok || f.start != want {
-			t.Errorf("%s: start %d (found %v), want %d: their own key, else the newest", character, f.start, ok, want)
-		}
 	}
 }
