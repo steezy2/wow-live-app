@@ -39,7 +39,7 @@ type suggestInput struct {
 var qualitySuffix = regexp.MustCompile(` \(Quality \d\)$`)
 
 // buildSuggestions are the changes the top players make that the character doesn't: the enchant and gem most of them
-// have in a slot, the flask, food and potion most of them have up, the talents most of them took and the secondary
+// have in a slot, the flask and potion most of them have up, the talents most of them took and the secondary
 // stats their split favors. Each is a single change, so the sim can test them one by one. Pure: no network.
 func buildSuggestions(in suggestInput) []models.Suggestion {
 	out := gearSuggestions(in)
@@ -122,8 +122,9 @@ func gearSuggestions(in suggestInput) []models.Suggestion {
 	return out
 }
 
-// consumableSuggestions are the flask, food and potion most top players had up that the character's sim doesn't use.
-// A buff matches the consumable of the same name, ignoring its quality (the highest quality is suggested).
+// consumableSuggestions are the flask and potion most top players had up that the character's sim doesn't use. A buff
+// matches the consumable of the same name, ignoring its quality (the highest quality is suggested). Food isn't
+// suggested: every food's buff is named "Well Fed" in the logs, so the buff can't say which food it was.
 func consumableSuggestions(in suggestInput) []models.Suggestion {
 	of := len(in.tops)
 	up := map[string]int{} // top players with the buff up, by name
@@ -137,7 +138,7 @@ func consumableSuggestions(in suggestInput) []models.Suggestion {
 		}
 	}
 	var out []models.Suggestion
-	for _, kind := range []string{"flask", "food", "potion"} {
+	for _, kind := range []string{"flask", "potion"} {
 		var best models.SimConsumable
 		n := 0
 		for _, c := range in.ref.Consumables[kind] {

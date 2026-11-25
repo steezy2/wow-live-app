@@ -406,15 +406,15 @@ func (s *Sims) Start(req models.SimRequest) (models.Sim, error) {
 			combos, err = dropCombos(profile, s.Drops, req.Difficulty, req.KeyLevel, up)
 		}
 	}
-	switch {
-	case err != nil:
-	case (req.Kind == "stats" || req.Kind == "suggest") && len(dims) > 0:
-		err = errOneSetup
-	case req.Kind == "suggest" && !s.logsReady():
-		err = errNoSuggestLogs
-	}
 	if err == nil {
-		combos, err = withCompare(dims, req.Kind == "quick", combos, limit)
+		switch {
+		case (req.Kind == "stats" || req.Kind == "suggest") && len(dims) > 0:
+			err = errOneSetup
+		case req.Kind == "suggest" && !s.logsReady():
+			err = errNoSuggestLogs
+		default:
+			combos, err = withCompare(dims, req.Kind == "quick", combos, limit)
+		}
 	}
 	if err != nil {
 		return models.Sim{}, err
@@ -454,7 +454,7 @@ func (s *Sims) Start(req models.SimRequest) (models.Sim, error) {
 				p: profile, consumables: req.Consumables})
 		})
 	} else {
-		s.work.Go(func() { s.execute(ctx, id, input, output, head, combos, profile.Equipped) })
+		s.work.Go(func() { s.execute(ctx, id, input, output, head, combos, req.Options, profile.Equipped) })
 	}
 	return sim, nil
 }
@@ -486,11 +486,11 @@ func simTargetError(o models.SimOptions, profilesets bool) float64 {
 // simThreads is how many threads a sim runs on: all but one, so the PC stays usable.
 func simThreads() int { return max(1, runtime.NumCPU()-1) }
 
-// execute runs simc for the running sim with this ID, following its progress, and saves what it found.
-func (s *Sims) execute(ctx context.Context, id, input, output, head string, combos []gearCombo,
+// execute runs simc with o for the running sim with this ID, following its progress, and saves what it found.
+func (s *Sims) execute(ctx context.Context, id, input, output, head string, combos []gearCombo, o models.SimOptions,
 	equipped []models.SimItem) {
 	defer removeWork(input, output)
-	result, complaint, err := s.race(ctx, id, input, output, head, combos, s.options(id), raceSpan{0, 100, ""})
+	result, complaint, err := s.race(ctx, id, input, output, head, combos, o, raceSpan{0, 100, ""})
 	s.finish(ctx, id, result, complaint, err, equipped)
 }
 
@@ -498,13 +498,6 @@ func (s *Sims) execute(ctx context.Context, id, input, output, head string, comb
 func removeWork(input, output string) {
 	os.Remove(input)
 	os.Remove(output)
-}
-
-// options are the running sim's options.
-func (s *Sims) options(id string) models.SimOptions {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.runs[id].sim.Options
 }
 
 // raceSpan is the part of a running sim's progress bar one race takes (from to to, in %) and what its stage texts

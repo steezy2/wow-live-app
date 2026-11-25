@@ -31,7 +31,8 @@ type Suggestion struct {
 // (those the sim tested by their Gain, then the stats by their Expected gain, then the talents), the gain of every
 // change that fits at once (nil with fewer than two), how many tested changes the sim showed as no gain (under 0.05%
 // of the DPS, within their error or a loss) and so left out, which top logs the suggestions come from and the Warcraft
-// Logs points reading them spent. Notes say what was left out and why (no top logs, gear over the Top Gear limit).
+// Logs points reading them spent. Notes say what was left out and why (no top logs, changes not tried, gear over the
+// Top Gear limit).
 type SimSuggestReport struct {
 	Suggestions []Suggestion `json:"suggestions"`
 	Combined    *SimCombo    `json:"combined,omitempty"`
