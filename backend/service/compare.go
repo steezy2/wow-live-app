@@ -110,17 +110,6 @@ func (c Comparer) Run(ctx context.Context, kind models.FightKind, start int64, p
 	if err != nil {
 		return models.PlayerCompare{}, err
 	}
-	left, err := c.Baselines.PointsLeft(ctx)
-	if err != nil {
-		return models.PlayerCompare{}, fmt.Errorf("reading the points left: %w", err)
-	}
-	if left < minComparePoints {
-		return models.PlayerCompare{}, ErrNoPoints
-	}
-	runs, baseline, err := c.topRuns(ctx, f)
-	if err != nil {
-		return models.PlayerCompare{}, err
-	}
 	window := int64(0)
 	if f.partial {
 		window = f.local.DurationMS
@@ -132,13 +121,13 @@ func (c Comparer) Run(ctx context.Context, kind models.FightKind, start int64, p
 		parses, err = c.Characters.Parses(ctx, c.Region, f.character)
 		parsing <- err
 	}()
-	top, logs, err := c.readTop(ctx, f, runs, window)
+	top, err := c.readTopLogs(ctx, f, window)
 	perr := <-parsing
 	if err != nil {
 		return models.PlayerCompare{}, err
 	}
-	in := compareInput{you: f.local, yours: f.yours, top: top, logs: logs, metric: mainMetric(f.spec), spec: f.spec,
-		specID: f.specID, tree: c.Talents[f.specID]}
+	in := compareInput{you: f.local, yours: f.yours, top: top.players, logs: top.logs, metric: mainMetric(f.spec),
+		spec: f.spec, specID: f.specID, tree: c.Talents[f.specID]}
 	if f.kind == models.FightMPlus {
 		in.raidOnly = c.Keys.RaidOnlyBuff
 	}
@@ -149,14 +138,46 @@ func (c Comparer) Run(ctx context.Context, kind models.FightKind, start int64, p
 	review.Rules = failedRules(c.Rules[f.spec.label()].Rules, f.casts, f.buffs, f.local.DurationMS)
 	review.Version = compareVersion
 	review.Kind, review.Start, review.End, review.Player, review.Spec = f.kind, f.start, f.end, player, f.spec.label()
-	review.WindowMS, review.Baseline = window, baseline
+	review.WindowMS, review.Baseline, review.Points = window, top.baseline, top.points
 	if perr == nil {
 		review.Parses = &parses
 	}
-	if after, err := c.Baselines.PointsLeft(ctx); err == nil {
-		review.Points = left - after - 1 // the second points check costs about 1
-	}
 	return review, c.Store.SaveCompare(review)
+}
+
+// topLogs are a fight's top logs as readTopLogs reads them: the players, their logs, which runs they are and the
+// Warcraft Logs points reading them spent.
+type topLogs struct {
+	players  []models.RankedPlayer
+	logs     []models.CompareLog
+	baseline string
+	points   float64
+}
+
+// readTopLogs reads f's top logs over window (0 for all of it), spending Warcraft Logs points: ErrNoPoints with fewer
+// than minComparePoints left this hour. The caller holds reviewing.
+func (c Comparer) readTopLogs(ctx context.Context, f fightRun, window int64) (topLogs, error) {
+	left, err := c.Baselines.PointsLeft(ctx)
+	if err != nil {
+		return topLogs{}, fmt.Errorf("reading the points left: %w", err)
+	}
+	if left < minComparePoints {
+		return topLogs{}, ErrNoPoints
+	}
+	runs, baseline, err := c.topRuns(ctx, f)
+	if err != nil {
+		return topLogs{}, err
+	}
+	players, logs, err := c.readTop(ctx, f, runs, window)
+	if err != nil {
+		return topLogs{}, err
+	}
+	t := topLogs{players: players, logs: logs, baseline: baseline}
+	if after, err := c.Baselines.PointsLeft(ctx); err == nil {
+		// the second points check costs about 1; none are spent when every log was read before or the hour reset
+		t.points = max(0, left-after-1)
+	}
+	return t, nil
 }
 
 // compareWorkers is how many top logs are read at once: each is a few Warcraft Logs queries, so reading them one after

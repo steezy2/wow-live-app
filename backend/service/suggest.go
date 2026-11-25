@@ -64,27 +64,13 @@ func (c Comparer) TopBuilds(ctx context.Context, specID int, character string) (
 	f.spec, f.specID = spec, specID
 	reviewing.Lock()
 	defer reviewing.Unlock()
-	left, err := c.Baselines.PointsLeft(ctx)
-	if err != nil {
-		return TopBuilds{}, fmt.Errorf("reading the points left: %w", err)
-	}
-	if left < minComparePoints {
-		return TopBuilds{}, ErrNoPoints
-	}
-	runs, baseline, err := c.topRuns(ctx, f)
+	top, err := c.readTopLogs(ctx, f, 0)
 	if err != nil {
 		return TopBuilds{}, err
 	}
-	tops, _, err := c.readTop(ctx, f, runs, 0)
-	if err != nil {
-		return TopBuilds{}, err
-	}
-	b := TopBuilds{Tops: tops, Tree: c.Talents[specID], Baseline: baseline}
+	b := TopBuilds{Tops: top.players, Tree: c.Talents[specID], Baseline: top.baseline, Points: top.points}
 	if len(f.local.Talents) > 0 {
-		b.Talents = talentCompare(compareInput{you: f.local, top: tops, specID: specID})
-	}
-	if after, err := c.Baselines.PointsLeft(ctx); err == nil {
-		b.Points = left - after - 1 // the second points check costs about 1
+		b.Talents = talentCompare(compareInput{you: f.local, top: top.players, specID: specID})
 	}
 	return b, nil
 }
