@@ -17,14 +17,13 @@ const (
 	// suggestStatGap is how many percentage points of the secondary stats a top player's median share must lead the
 	// owner's by for a stat to be suggested.
 	suggestStatGap = 3.0
-	// maxTalentSuggestions is how many talents are suggested, by how many top players took them.
-	maxTalentSuggestions = 5
+	// maxTalentSuggestions is how many talent swaps are suggested, by how many top players took the talent.
+	maxTalentSuggestions = 8
 )
 
-// suggestInput is what buildSuggestions reads: the reference, the character and the consumables its sim uses, the top
-// players' builds, the stat weights (SimStatWeight.Stat "Crit", "Haste", "Mastery", "Vers"), the character's own
-// secondary stats (nil when not known) and its talents against the top logs' (nil when not known) with the spec's
-// tree to name them.
+// suggestInput is what buildSuggestions reads: the reference, the character (its talents in Picks) and the
+// consumables its sim uses, the top players' builds, the stat weights (SimStatWeight.Stat "Crit", "Haste", "Mastery",
+// "Vers"), the character's own secondary stats (nil when not known) and the spec's talent tree.
 type suggestInput struct {
 	ref         models.SimReference
 	you         models.SimProfile
@@ -32,20 +31,21 @@ type suggestInput struct {
 	tops        []models.RankedPlayer
 	weights     []models.SimStatWeight
 	yourStats   *models.RankedStats
-	talents     *models.CompareTalents
 	talentTree  models.TalentTree
 }
 
 var qualitySuffix = regexp.MustCompile(` \(Quality \d\)$`)
 
 // buildSuggestions are the changes the top players make that the character doesn't: the enchant and gem most of them
-// have in a slot, the flask and potion most of them have up, the talents most of them took and the secondary
-// stats their split favors. Each is a single change, so the sim can test them one by one. Pure: no network.
-func buildSuggestions(in suggestInput) []models.Suggestion {
+// have in a slot, the flask and potion most of them have up, the talents most of them took (each as a swap) and the
+// secondary stats their split favors, with notes on what was left out. Each is a single change, so the sim can test
+// them one by one. Pure: no network.
+func buildSuggestions(in suggestInput) ([]models.Suggestion, []string) {
 	out := gearSuggestions(in)
 	out = append(out, consumableSuggestions(in)...)
-	out = append(out, talentSuggestions(in)...)
-	return append(out, statSuggestions(in)...)
+	talents, notes := talentSuggestions(in)
+	out = append(out, talents...)
+	return append(out, statSuggestions(in)...), notes
 }
 
 // evidence is "14 of 20 top players".
@@ -156,35 +156,86 @@ func consumableSuggestions(in suggestInput) []models.Suggestion {
 	return out
 }
 
-// talentSuggestions are the talents at least suggestShare of the top logs took that the character didn't, the most
-// taken first (maxTalentSuggestions).
-func talentSuggestions(in suggestInput) []models.Suggestion {
-	t := in.talents
-	if t == nil || t.Of == 0 {
-		return nil
+// talentSuggestions are the talents at least suggestShare of the top logs took that the character (its Picks) didn't,
+// the most taken first (maxTalentSuggestions), each as a swap the sim can test (replacedTalent). Free and tiered nodes
+// are left out: the loadout string names no entry for them, so the character's can't be told from the top logs'. A
+// swap validTalents refuses, or one with nothing to replace, is left out and counted in a note, as is an export whose
+// talents can't be read.
+func talentSuggestions(in suggestInput) ([]models.Suggestion, []string) {
+	if in.you.Picks == nil {
+		return nil, []string{"Talent swaps aren't tried: the export has no talent string this app can read"}
 	}
-	names := map[int]string{}
+	t := talentCompare(compareInput{you: models.RankedPlayer{Talents: in.you.Picks}, top: in.tops})
+	if t == nil {
+		return nil, nil
+	}
+	nodes, names := map[int]models.TalentNode{}, map[int]string{}
 	for _, n := range in.talentTree.Nodes {
+		if !n.Free && (n.Choice || len(n.Entries) == 1) {
+			nodes[n.ID] = n
+		}
 		for _, e := range n.Entries {
 			names[e.ID] = e.Name
 		}
 	}
+	taken := map[[2]int]int{} // top logs that took each node's entry
 	var shares []models.TalentShare
 	for _, s := range t.Top {
-		took := slices.ContainsFunc(t.You, func(p models.TalentPick) bool {
+		taken[[2]int{s.NodeID, s.EntryID}] = s.Taken
+		took := slices.ContainsFunc(in.you.Picks, func(p models.TalentPick) bool {
 			return p.NodeID == s.NodeID && p.EntryID == s.EntryID
 		})
-		if !took && float64(s.Taken) >= suggestShare*float64(t.Of) {
+		if _, ok := nodes[s.NodeID]; ok && !took && float64(s.Taken) >= suggestShare*float64(t.Of) {
 			shares = append(shares, s)
 		}
 	}
 	slices.SortStableFunc(shares, func(a, b models.TalentShare) int { return cmp.Compare(b.Taken, a.Taken) })
 	var out []models.Suggestion
-	for _, s := range shares[:min(len(shares), maxTalentSuggestions)] {
-		out = append(out, models.Suggestion{Kind: "talent", What: "Take " + cmp.Or(names[s.EntryID], "a talent"),
-			Evidence: evidence(s.Taken, t.Of), Talent: &s})
+	refused := 0
+	for _, s := range shares {
+		if len(out) == maxTalentSuggestions {
+			break
+		}
+		sg := models.Suggestion{Kind: "talent", Evidence: evidence(s.Taken, t.Of), Talent: &s,
+			Replaces: replacedTalent(in.you.Picks, nodes, taken, nodes[s.NodeID])}
+		if sg.Replaces == nil || validTalents(in.talentTree, swapTalent(in.you.Picks, sg)) != nil {
+			refused++
+			continue
+		}
+		sg.What = fmt.Sprintf("Take %s instead of %s", cmp.Or(names[s.EntryID], "a talent"),
+			cmp.Or(names[sg.Replaces.EntryID], "a talent"))
+		out = append(out, sg)
+	}
+	if refused == 0 {
+		return out, nil
+	}
+	return out, []string{fmt.Sprintf("%d of the top players' talents weren't tried: no swap in their section keeps "+
+		"your talent tree valid", refused)}
+}
+
+// replacedTalent is the character's talent (of picks) a swap to node gives up: in a choice node, the entry taken;
+// else the talent taken in node's section (class, spec or a hero tree) that the fewest top logs took, of those in
+// nodes (neither free nor tiered). Nil when there is none.
+func replacedTalent(picks []models.TalentPick, nodes map[int]models.TalentNode, taken map[[2]int]int,
+	node models.TalentNode) *models.TalentPick {
+	var out *models.TalentPick
+	for _, p := range picks {
+		if p.NodeID == node.ID {
+			return &p
+		}
+		n, ok := nodes[p.NodeID]
+		if ok && n.Tree == node.Tree && n.SubTree == node.SubTree &&
+			(out == nil || taken[[2]int{p.NodeID, p.EntryID}] < taken[[2]int{out.NodeID, out.EntryID}]) {
+			out = &p
+		}
 	}
 	return out
+}
+
+// swapTalent is picks with talent swap s's Talent in place of the talent it Replaces.
+func swapTalent(picks []models.TalentPick, s models.Suggestion) []models.TalentPick {
+	out := slices.DeleteFunc(slices.Clone(picks), func(p models.TalentPick) bool { return p == *s.Replaces })
+	return append(out, models.TalentPick{NodeID: s.Talent.NodeID, EntryID: s.Talent.EntryID, Rank: s.Talent.Rank})
 }
 
 // secondaryShares are each secondary stat's share of the four, in percent; nil when there are none.

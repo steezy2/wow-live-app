@@ -7939,7 +7939,7 @@ const docTemplate = `{
                     "example": 410
                 },
                 "gain": {
-                    "description": "Gain is the sim's DPS gain of the change over the unchanged character and DPSError the standard error of that\ndifference; both 0 for a talent or stat, which the sim doesn't test.",
+                    "description": "Gain is the sim's DPS gain of the change over the unchanged character and DPSError the standard error of that\ndifference; both 0 for a stat, which the sim doesn't test, and for a \"talentOther\" unless the sim shows a loss.",
                     "type": "number",
                     "example": 812
                 },
@@ -7951,8 +7951,17 @@ const docTemplate = `{
                         "stat",
                         "consumable",
                         "talent",
+                        "talentOther",
                         "gear",
                         "farm"
+                    ]
+                },
+                "replaces": {
+                    "description": "Replaces is the character's talent a talent swap gives up for Talent.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.TalentPick"
+                        }
                     ]
                 },
                 "slot": {

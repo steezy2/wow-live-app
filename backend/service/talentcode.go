@@ -146,13 +146,24 @@ func validTalents(tree models.TalentTree, picks []models.TalentPick) error {
 
 // profileTalents is an export's talents= read against its spec's tree in trees, nil when it can't be read.
 func profileTalents(trees map[int]models.TalentTree, s string) []models.TalentPick {
-	r := loadoutReader{s: s}
-	r.read(8)
-	picks, err := DecodeTalents(trees[r.read(16)], s)
+	picks, err := DecodeTalents(loadoutTree(trees, s), s)
 	if err != nil {
 		return nil
 	}
 	return picks
+}
+
+// loadoutTree is the tree in trees of the spec loadout string s names (the zero tree when none is).
+func loadoutTree(trees map[int]models.TalentTree, s string) models.TalentTree {
+	r := loadoutReader{s: s}
+	r.read(8)
+	return trees[r.read(16)]
+}
+
+// talentLine is picks as a profileset's talents= line for tree.
+func talentLine(tree models.TalentTree, picks []models.TalentPick) (string, error) {
+	s, err := EncodeTalents(tree, picks)
+	return "talents=" + s + "\n", err
 }
 
 // loadoutNodes is tree's nodes by ID, the hero tree choice among them.
