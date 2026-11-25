@@ -2790,6 +2790,7 @@ definitions:
         - topgear
         - drops
         - stats
+        - suggest
         - consumables
         type: string
       options:
@@ -3212,10 +3213,15 @@ definitions:
         type: integer
       error:
         type: string
+      needsLogs:
+        type: boolean
       notes:
         items:
           type: string
         type: array
+      points:
+        example: 160
+        type: number
       seconds:
         type: integer
     type: object
@@ -3446,9 +3452,14 @@ definitions:
         items:
           $ref: '#/definitions/models.SimStage'
         type: array
+      suggest:
+        allOf:
+        - $ref: '#/definitions/models.SimSuggestReport'
+        description: Suggest is a "suggest" sim's changes; the rest of the result
+          is its stat weights sim's.
       weights:
-        description: Weights and Pawn are a "stats" sim's stat weights and the Pawn
-          string that carries them.
+        description: Weights and Pawn are a "stats" or "suggest" sim's stat weights
+          and the Pawn string that carries them.
         items:
           $ref: '#/definitions/models.SimStatWeight'
         type: array
@@ -3488,6 +3499,26 @@ definitions:
       weight:
         example: 0.52
         type: number
+    type: object
+  models.SimSuggestReport:
+    properties:
+      baseline:
+        example: 20 ranked Arcane Mage runs within 15% of 34:10
+        type: string
+      combined:
+        $ref: '#/definitions/models.SimCombo'
+      dropped:
+        type: integer
+      notes:
+        items:
+          type: string
+        type: array
+      points:
+        type: number
+      suggestions:
+        items:
+          $ref: '#/definitions/models.Suggestion'
+        type: array
     type: object
   models.SimSwap:
     properties:
@@ -3605,6 +3636,66 @@ definitions:
         - simEngine
         - sims
         - gameLogs
+        type: string
+    type: object
+  models.Suggestion:
+    properties:
+      boss:
+        type: string
+      combined:
+        description: Combined is whether the change is in the report's combined row.
+        type: boolean
+      consumables:
+        $ref: '#/definitions/models.SimConsumables'
+      dpsError:
+        example: 95
+        type: number
+      evidence:
+        description: 'Evidence says why: how many of the top players do it, or which
+          sim found it.'
+        example: 14 of 20 top players
+        type: string
+      expected:
+        description: Expected is a stat suggestion's DPS gain if the gap closed, from
+          the sim's stat weights.
+        example: 410
+        type: number
+      gain:
+        description: |-
+          Gain is the sim's DPS gain of the change over the unchanged character and DPSError the standard error of that
+          difference; both 0 for a talent or stat, which the sim doesn't test.
+        example: 812
+        type: number
+      kind:
+        enum:
+        - enchant
+        - gem
+        - stat
+        - consumable
+        - talent
+        - gear
+        - farm
+        type: string
+      slot:
+        description: Slot is the gear slot an enchant or gem goes in, as simc names
+          it (a ring's is "finger1" or "finger2").
+        example: finger1
+        type: string
+      source:
+        example: The Venomous Abyss
+        type: string
+      swaps:
+        description: Swaps are what gear from the bags or a drop changes, and Source
+          and Boss where a drop to farm drops.
+        items:
+          $ref: '#/definitions/models.SimSwap'
+        type: array
+      talent:
+        $ref: '#/definitions/models.TalentShare'
+      variant:
+        $ref: '#/definitions/models.SimVariant'
+      what:
+        example: Enchant Amani Mastery on finger1
         type: string
     type: object
   models.TalentEntry:
@@ -5303,12 +5394,16 @@ paths:
       description: |-
         Runs SimulationCraft on this PC in the background, up to SimChoices.maxParallel at once: the pasted
         export (read again, never passed to simc as it is) with the options. Poll the sim by its ID. A Top Gear
-        request also sends `equipped` and `bags`: the indexes of the items it may put on.
+        request also sends `equipped` and `bags`: the indexes of the items it may put on. A `suggest` sim reads
+        the top Warcraft Logs players of the spec (spending points, as a player review) and runs the stat
+        weights, one profileset per change they make that the character doesn't, Top Gear over the bags, the
+        Droptimizer and every shown change together; its result's `suggest` holds the changes the sim confirmed.
+        The changes are built from the reference and the export's own items, never taken from the request.
       parameters:
       - description: the kind, the export, the options and consumables, for topgear
           the picked equipped and bag indexes and variants, for drops the difficulty,
           keyLevel and upgrade, and for any kind the consumables picked (two or more
-          of a kind are compared)
+          of a kind are compared, except by stats and suggest)
         in: body
         name: body
         required: true
@@ -5323,7 +5418,8 @@ paths:
             $ref: '#/definitions/models.Sim'
         "400":
           description: bad options, indexes, variants, consumables or Omnium picks,
-            not an export, nothing to try or over maxCombos
+            not an export, nothing to try, over maxCombos, or a suggest sim without
+            Warcraft Logs keys
           schema:
             $ref: '#/definitions/controller.ErrorResponse'
         "409":
@@ -5495,7 +5591,8 @@ paths:
       - application/json
       description: |-
         Counts the runs without starting the sim, so the page can show the cost (and that it is over the limit)
-        before a run. Takes the same body as starting a sim.
+        before a run. Takes the same body as starting a sim. A suggest plan also gives the Warcraft Logs points
+        it spends, what it leaves out (notes) and, without Warcraft Logs keys, why it is refused (error).
       parameters:
       - description: a sim request of any kind
         in: body

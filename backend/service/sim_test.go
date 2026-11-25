@@ -30,6 +30,8 @@ type fakeEngine struct {
 	input     string   // the last run's input file
 	inputs    []string // every run's input file
 	result    string   // the result file to write; testdata/sim-result.json when empty
+	// sets are the results "echo" gives these profilesets instead (the others keep their place in the order).
+	sets map[string]simSetJSON
 }
 
 func (f *fakeEngine) Run(ctx context.Context, args []string, out io.Writer) error {
@@ -52,7 +54,7 @@ func (f *fakeEngine) Run(ctx context.Context, args []string, out io.Writer) erro
 		return err
 	}
 	if f.mode == "echo" {
-		if data, err = withProfilesets(data, f.input); err != nil {
+		if data, err = withProfilesets(data, f.input, f.sets); err != nil {
 			return err
 		}
 	}
@@ -63,8 +65,8 @@ func (f *fakeEngine) Run(ctx context.Context, args []string, out io.Writer) erro
 var profilesetName = regexp.MustCompile(`(?m)^profileset\.(\w+)\+=`)
 
 // withProfilesets is the result file data with a result for each profileset the input names, in its order, 10 DPS
-// apart and each 1 DPS sure.
-func withProfilesets(data []byte, input string) ([]byte, error) {
+// apart and each 1 DPS sure, but for those in fixed.
+func withProfilesets(data []byte, input string, fixed map[string]simSetJSON) ([]byte, error) {
 	var doc map[string]any
 	if err := json.Unmarshal(data, &doc); err != nil {
 		return nil, err
@@ -74,7 +76,12 @@ func withProfilesets(data []byte, input string) ([]byte, error) {
 	for _, m := range profilesetName.FindAllStringSubmatch(input, -1) {
 		if !seen[m[1]] {
 			seen[m[1]] = true
-			results = append(results, simSetJSON{Name: m[1], Mean: 100000 - 10*float64(len(results)), MeanStdDev: 1})
+			set, ok := fixed[m[1]]
+			if !ok {
+				set = simSetJSON{Mean: 100000 - 10*float64(len(results)), MeanStdDev: 1}
+			}
+			set.Name = m[1]
+			results = append(results, set)
 		}
 	}
 	doc["sim"].(map[string]any)["profilesets"] = map[string]any{"results": results}

@@ -216,7 +216,8 @@ func (a SimAPI) Reference(c *gin.Context) {
 //
 //	@Summary		What a sim request would run, and about how long it takes
 //	@Description	Counts the runs without starting the sim, so the page can show the cost (and that it is over the limit)
-//	@Description	before a run. Takes the same body as starting a sim.
+//	@Description	before a run. Takes the same body as starting a sim. A suggest plan also gives the Warcraft Logs points
+//	@Description	it spends, what it leaves out (notes) and, without Warcraft Logs keys, why it is refused (error).
 //	@Tags			sim
 //	@Accept			json
 //	@Produce		json
@@ -244,13 +245,17 @@ func (a SimAPI) Plan(c *gin.Context) {
 //	@Summary		Start a sim
 //	@Description	Runs SimulationCraft on this PC in the background, up to SimChoices.maxParallel at once: the pasted
 //	@Description	export (read again, never passed to simc as it is) with the options. Poll the sim by its ID. A Top Gear
-//	@Description	request also sends `equipped` and `bags`: the indexes of the items it may put on.
+//	@Description	request also sends `equipped` and `bags`: the indexes of the items it may put on. A `suggest` sim reads
+//	@Description	the top Warcraft Logs players of the spec (spending points, as a player review) and runs the stat
+//	@Description	weights, one profileset per change they make that the character doesn't, Top Gear over the bags, the
+//	@Description	Droptimizer and every shown change together; its result's `suggest` holds the changes the sim confirmed.
+//	@Description	The changes are built from the reference and the export's own items, never taken from the request.
 //	@Tags			sim
 //	@Accept			json
 //	@Produce		json
-//	@Param			body	body		models.SimRequest	true	"the kind, the export, the options and consumables, for topgear the picked equipped and bag indexes and variants, for drops the difficulty, keyLevel and upgrade, and for any kind the consumables picked (two or more of a kind are compared)"
+//	@Param			body	body		models.SimRequest	true	"the kind, the export, the options and consumables, for topgear the picked equipped and bag indexes and variants, for drops the difficulty, keyLevel and upgrade, and for any kind the consumables picked (two or more of a kind are compared, except by stats and suggest)"
 //	@Success		202		{object}	models.Sim
-//	@Failure		400		{object}	ErrorResponse	"bad options, indexes, variants, consumables or Omnium picks, not an export, nothing to try or over maxCombos"
+//	@Failure		400		{object}	ErrorResponse	"bad options, indexes, variants, consumables or Omnium picks, not an export, nothing to try, over maxCombos, or a suggest sim without Warcraft Logs keys"
 //	@Failure		409		{object}	ErrorResponse	"as many sims as can run at once are running, the engine is downloading, or none is installed"
 //	@Failure		500		{object}	ErrorResponse	"a weapon's type couldn't be read from Wowhead"
 //	@Router			/api/sim [post]
