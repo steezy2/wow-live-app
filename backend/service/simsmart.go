@@ -2,9 +2,7 @@ package service
 
 import (
 	"cmp"
-	"encoding/json"
 	"fmt"
-	"os"
 	"slices"
 )
 
@@ -74,15 +72,8 @@ func survivors(combos []gearCombo, sets []simSetJSON) []gearCombo {
 
 // readSets is the profilesets' DPS in simc's json2 file at path.
 func readSets(path string) ([]simSetJSON, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("simc wrote no result: %w", err)
-	}
-	var out simJSON
-	if err := json.Unmarshal(data, &out); err != nil {
-		return nil, fmt.Errorf("reading simc's result: %w", err)
-	}
-	return out.Sim.Profilesets.Results, nil
+	out, err := readSimJSON(path)
+	return out.Sim.Profilesets.Results, err
 }
 
 // stageText says what a raced sim's stage is doing: "Stage 2 of 3: 140 combinations at 0.5%".

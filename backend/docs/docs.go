@@ -2229,7 +2229,7 @@ const docTemplate = `{
                 }
             },
             "post": {
-                "description": "Runs SimulationCraft on this PC in the background, up to SimChoices.maxParallel at once: the pasted\nexport (read again, never passed to simc as it is) with the options. Poll the sim by its ID. A Top Gear\nrequest also sends ` + "`" + `equipped` + "`" + ` and ` + "`" + `bags` + "`" + `: the indexes of the items it may put on.",
+                "description": "Runs SimulationCraft on this PC in the background, up to SimChoices.maxParallel at once: the pasted\nexport (read again, never passed to simc as it is) with the options. Poll the sim by its ID. A Top Gear\nrequest also sends ` + "`" + `equipped` + "`" + ` and ` + "`" + `bags` + "`" + `: the indexes of the items it may put on. A ` + "`" + `suggest` + "`" + ` sim reads\nthe top Warcraft Logs players of the spec (spending points, as a player review) and runs the stat\nweights, one profileset per change they make that the character doesn't, Top Gear over the bags, the\nDroptimizer and every shown change together; its result's ` + "`" + `suggest` + "`" + ` holds the changes the sim confirmed.\nThe changes are built from the reference and the export's own items, never taken from the request.",
                 "consumes": [
                     "application/json"
                 ],
@@ -2242,7 +2242,7 @@ const docTemplate = `{
                 "summary": "Start a sim",
                 "parameters": [
                     {
-                        "description": "the kind, the export, the options and consumables, for topgear the picked equipped and bag indexes and variants, for drops the difficulty, keyLevel and upgrade, and for any kind the consumables picked (two or more of a kind are compared)",
+                        "description": "the kind, the export, the options and consumables, for topgear the picked equipped and bag indexes and variants, for drops the difficulty, keyLevel and upgrade, and for any kind the consumables picked (two or more of a kind are compared, except by stats and suggest)",
                         "name": "body",
                         "in": "body",
                         "required": true,
@@ -2259,7 +2259,7 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "bad options, indexes, variants, consumables or Omnium picks, not an export, nothing to try or over maxCombos",
+                        "description": "bad options, indexes, variants, consumables or Omnium picks, not an export, nothing to try, over maxCombos, or a suggest sim without Warcraft Logs keys",
                         "schema": {
                             "$ref": "#/definitions/controller.ErrorResponse"
                         }
@@ -2421,7 +2421,7 @@ const docTemplate = `{
         },
         "/api/sim/plan": {
             "post": {
-                "description": "Counts the runs without starting the sim, so the page can show the cost (and that it is over the limit)\nbefore a run. Takes the same body as starting a sim.",
+                "description": "Counts the runs without starting the sim, so the page can show the cost (and that it is over the limit)\nbefore a run. Takes the same body as starting a sim. A suggest plan also gives the Warcraft Logs points\nit spends, what it leaves out (notes) and, without Warcraft Logs keys, why it is refused (error).",
                 "consumes": [
                     "application/json"
                 ],
@@ -6715,6 +6715,7 @@ const docTemplate = `{
                         "topgear",
                         "drops",
                         "stats",
+                        "suggest",
                         "consumables"
                     ]
                 },
@@ -7296,11 +7297,18 @@ const docTemplate = `{
                 "error": {
                     "type": "string"
                 },
+                "needsLogs": {
+                    "type": "boolean"
+                },
                 "notes": {
                     "type": "array",
                     "items": {
                         "type": "string"
                     }
+                },
+                "points": {
+                    "type": "number",
+                    "example": 160
                 },
                 "seconds": {
                     "type": "integer"
@@ -7588,8 +7596,16 @@ const docTemplate = `{
                         "$ref": "#/definitions/models.SimStage"
                     }
                 },
+                "suggest": {
+                    "description": "Suggest is a \"suggest\" sim's changes; the rest of the result is its stat weights sim's.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/models.SimSuggestReport"
+                        }
+                    ]
+                },
                 "weights": {
-                    "description": "Weights and Pawn are a \"stats\" sim's stat weights and the Pawn string that carries them.",
+                    "description": "Weights and Pawn are a \"stats\" or \"suggest\" sim's stat weights and the Pawn string that carries them.",
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/models.SimStatWeight"
@@ -7645,6 +7661,36 @@ const docTemplate = `{
                 "weight": {
                     "type": "number",
                     "example": 0.52
+                }
+            }
+        },
+        "models.SimSuggestReport": {
+            "type": "object",
+            "properties": {
+                "baseline": {
+                    "type": "string",
+                    "example": "20 ranked Arcane Mage runs within 15% of 34:10"
+                },
+                "combined": {
+                    "$ref": "#/definitions/models.SimCombo"
+                },
+                "dropped": {
+                    "type": "integer"
+                },
+                "notes": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "points": {
+                    "type": "number"
+                },
+                "suggestions": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.Suggestion"
+                    }
                 }
             }
         },
@@ -7810,6 +7856,78 @@ const docTemplate = `{
                         "sims",
                         "gameLogs"
                     ]
+                }
+            }
+        },
+        "models.Suggestion": {
+            "type": "object",
+            "properties": {
+                "boss": {
+                    "type": "string"
+                },
+                "combined": {
+                    "description": "Combined is whether the change is in the report's combined row.",
+                    "type": "boolean"
+                },
+                "consumables": {
+                    "$ref": "#/definitions/models.SimConsumables"
+                },
+                "dpsError": {
+                    "type": "number",
+                    "example": 95
+                },
+                "evidence": {
+                    "description": "Evidence says why: how many of the top players do it, or which sim found it.",
+                    "type": "string",
+                    "example": "14 of 20 top players"
+                },
+                "expected": {
+                    "description": "Expected is a stat suggestion's DPS gain if the gap closed, from the sim's stat weights.",
+                    "type": "number",
+                    "example": 410
+                },
+                "gain": {
+                    "description": "Gain is the sim's DPS gain of the change over the unchanged character and DPSError the standard error of that\ndifference; both 0 for a talent or stat, which the sim doesn't test.",
+                    "type": "number",
+                    "example": 812
+                },
+                "kind": {
+                    "type": "string",
+                    "enum": [
+                        "enchant",
+                        "gem",
+                        "stat",
+                        "consumable",
+                        "talent",
+                        "gear",
+                        "farm"
+                    ]
+                },
+                "slot": {
+                    "description": "Slot is the gear slot an enchant or gem goes in, as simc names it (a ring's is \"finger1\" or \"finger2\").",
+                    "type": "string",
+                    "example": "finger1"
+                },
+                "source": {
+                    "type": "string",
+                    "example": "The Venomous Abyss"
+                },
+                "swaps": {
+                    "description": "Swaps are what gear from the bags or a drop changes, and Source and Boss where a drop to farm drops.",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/models.SimSwap"
+                    }
+                },
+                "talent": {
+                    "$ref": "#/definitions/models.TalentShare"
+                },
+                "variant": {
+                    "$ref": "#/definitions/models.SimVariant"
+                },
+                "what": {
+                    "type": "string",
+                    "example": "Enchant Amani Mastery on finger1"
                 }
             }
         },

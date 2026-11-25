@@ -79,12 +79,7 @@ type dropUpgrade struct {
 // off-hand. Nothing to sim, or over maxDrops, is ErrBadSimOptions.
 func dropCombos(p models.SimProfile, d models.SimDrops, difficulty string, keyLevel int,
 	up dropUpgrade) ([]gearCombo, error) {
-	spec := 0
-	for id, s := range d.Specs {
-		if s.Class == p.Class && s.Spec == p.Spec {
-			spec = id
-		}
-	}
+	spec := specIDOf(d, p)
 	key := slices.IndexFunc(d.Keys, func(k models.KeyLevels) bool { return k.Level == keyLevel })
 	if spec == 0 || key < 0 || !slices.Contains(simDifficulties, difficulty) {
 		return nil, fmt.Errorf("%w: no drops known for this spec, difficulty (%v) or key level", ErrBadSimOptions,
@@ -146,6 +141,16 @@ func dropCombos(p models.SimProfile, d models.SimDrops, difficulty string, keyLe
 			maxDrops)
 	}
 	return combos, nil
+}
+
+// specIDOf is the ID of the character's spec, 0 when the reference has none.
+func specIDOf(d models.SimDrops, p models.SimProfile) int {
+	for id, s := range d.Specs {
+		if s.Class == p.Class && s.Spec == p.Spec {
+			return id
+		}
+	}
+	return 0
 }
 
 // upgradedLevel is the item level of a drop (of level dropped, for the slot named slot) that starts on track, when it

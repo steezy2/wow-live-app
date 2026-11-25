@@ -151,8 +151,15 @@ func Start(ctx context.Context, opts Options) (*Site, error) {
 		reviewer := service.Reviewer{Keys: keys, Baselines: opts.Baselines, Store: store}
 		s.reviews, s.topRuns = reviewer, reviewer.TopRuns
 		if baselines, ok := opts.Baselines.(models.CompareBaselines); ok {
-			s.compares = service.Comparer{Keys: keys, Baselines: baselines, Store: store,
+			comparer := service.Comparer{Keys: keys, Baselines: baselines, Store: store,
 				Characters: characters, Region: opts.Region, Rules: opts.SpecRules, Talents: opts.Talents}
+			s.compares = comparer
+			if s.Sims != nil {
+				s.Sims.Tops = comparer
+				if keys := opts.Settings.Keys; keys != nil {
+					s.Sims.KeysSet = func() bool { return keys.Status().Set }
+				}
+			}
 		}
 	}
 	tiles := service.MapTiles{Facts: opts.Dungeons,
