@@ -8,19 +8,22 @@ import type {
   SimUpgradeLevel,
   SimUpgradeTrack,
   Suggestion,
+  SuggestTargetChoice,
   TalentNode,
 } from './api'
 
 /** What a Suggest report is ranked by: the larger gain of the two fights, or one of them. */
 export type RankBy = 'best' | 'single' | 'aoe'
 
-/** The suggestions in the order `by` ranks them: those the sim tested by that gain, best first, then the stats (by
- * the order they came in, their expected gain), then the talents that add no DPS. */
+/** The suggestions in the order `by` ranks them: the server's for 'best' (the larger gain); else by the gain on that
+ * fight within each of the server's groups (the tested changes, the stats, the talents that add no DPS: the backend's
+ * untestedRank), which keep the server's order. */
 export function rankSuggestions(list: Suggestion[], by: RankBy): Suggestion[] {
-  const after = { stat: 1, talentOther: 2 } as Partial<Record<Suggestion['kind'], number>>
-  const gain = (s: Suggestion) =>
-    by === 'single' ? (s.gain ?? 0) : by === 'aoe' ? (s.aoeGain ?? 0) : Math.max(s.gain ?? 0, s.aoeGain ?? 0)
-  return [...list].sort((a, b) => (after[a.kind] ?? 0) - (after[b.kind] ?? 0) || gain(b) - gain(a))
+  if (by === 'best') return list
+  const group = (s: Suggestion) => (s.kind === 'stat' || s.kind === 'talentOther' ? s.kind : '')
+  const first = (s: Suggestion) => list.findIndex((t) => group(t) === group(s))
+  const gain = (s: Suggestion) => (by === 'single' ? s.gain : s.aoeGain) ?? 0
+  return [...list].sort((a, b) => first(a) - first(b) || gain(b) - gain(a))
 }
 
 /** What is wrong with the fight options, in words, or null when they fit choices (the app refuses the same ones). */
@@ -128,7 +131,7 @@ const targetKey = (character: string) => `sim.suggestTarget.${character}`
 
 /** The Suggest target last picked for a character, if it is still one of the choices, else Mythic+ overall (the
  * first). */
-export function savedSuggestTarget(choices: SimChoices, character: string): SimChoices['suggestTargets'][number] {
+export function savedSuggestTarget(choices: SimChoices, character: string): SuggestTargetChoice {
   let name: string | null = null
   try {
     name = localStorage.getItem(targetKey(character))

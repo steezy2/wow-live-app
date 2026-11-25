@@ -118,9 +118,11 @@ func TestStatSuggestionsAreWorthTheGapTimesTheWeight(t *testing.T) {
 }
 
 func TestTalentSuggestions(t *testing.T) {
-	// a class tree of 5 points and a spec talent; the character took all but Thunderstorm, Ancestral Swiftness in the
-	// choice node and the tiered node at its first entry (as the loadout string reads it)
-	tree := models.TalentTree{Points: map[string]int{"class": 5, "spec": 1}, Nodes: []models.TalentNode{
+	// a class tree of 7 points, a spec tree and two hero trees of a point each; the character took all class talents
+	// but Thunderstorm and Primordial Wave, Ancestral Swiftness in the choice node and the tiered node at its first
+	// entry (as the loadout string reads it), Ascendance before its spec talent, and hero tree 1, holding a talent of
+	// each hero tree as the loadout string does
+	tree := models.TalentTree{Points: map[string]int{"class": 7, "spec": 2, "hero": 1}, Nodes: []models.TalentNode{
 		{ID: 1, Tree: "class", Choice: true, MaxRanks: 1,
 			Entries: []models.TalentEntry{{ID: 11, Name: "Ancestral Swiftness"}, {ID: 12, Name: "Nature's Swiftness"}}},
 		{ID: 2, Tree: "class", MaxRanks: 1, Entries: []models.TalentEntry{{ID: 21, Name: "Totemic Surge"}}},
@@ -130,13 +132,21 @@ func TestTalentSuggestions(t *testing.T) {
 		{ID: 6, Tree: "class", MaxRanks: 1, Next: []int{7}, Entries: []models.TalentEntry{{ID: 61, Name: "Earth Shield"}}},
 		{ID: 7, Tree: "class", MaxRanks: 1, Entries: []models.TalentEntry{{ID: 71}}},
 		{ID: 8, Tree: "spec", MaxRanks: 1, Entries: []models.TalentEntry{{ID: 81}}},
-	}}
-	picks := []models.TalentPick{{NodeID: 1, EntryID: 11, Rank: 1}, {NodeID: 2, EntryID: 21, Rank: 1},
-		{NodeID: 4, EntryID: 41, Rank: 1}, {NodeID: 5, EntryID: 51, Rank: 1}, {NodeID: 6, EntryID: 61, Rank: 1},
-		{NodeID: 7, EntryID: 71, Rank: 1}, {NodeID: 8, EntryID: 81, Rank: 1}}
+		{ID: 9, Tree: "class", MaxRanks: 2, Entries: []models.TalentEntry{{ID: 91, Name: "Elemental Fury"}}},
+		{ID: 10, Tree: "class", MaxRanks: 2, Entries: []models.TalentEntry{{ID: 101, Name: "Primordial Wave"}}},
+		{ID: 13, Tree: "spec", MaxRanks: 1, Entries: []models.TalentEntry{{ID: 131, Name: "Ascendance"}}},
+		{ID: 14, Tree: "spec", MaxRanks: 1, ReqPoints: 2, Entries: []models.TalentEntry{{ID: 141}}},
+		{ID: 21, Tree: "hero", SubTree: 1, MaxRanks: 1, Entries: []models.TalentEntry{{ID: 211, Name: "Tempest"}}},
+		{ID: 22, Tree: "hero", SubTree: 1, MaxRanks: 1, Entries: []models.TalentEntry{{ID: 221, Name: "Supercharge"}}},
+		{ID: 23, Tree: "hero", SubTree: 2, MaxRanks: 1, Entries: []models.TalentEntry{{ID: 231, Name: "Earthen Rage"}}},
+		{ID: 24, Tree: "hero", SubTree: 2, MaxRanks: 1, Entries: []models.TalentEntry{{ID: 241, Name: "Totemic Rebound"}}},
+	}, HeroChoice: models.TalentNode{ID: 20, Tree: "hero", Choice: true,
+		Entries: []models.TalentEntry{{ID: 201, SubTree: 1}, {ID: 202, SubTree: 2}}}}
 	pick := func(node, entry int) models.TalentPick {
 		return models.TalentPick{NodeID: node, EntryID: entry, Rank: 1}
 	}
+	picks := []models.TalentPick{pick(1, 11), pick(2, 21), pick(4, 41), pick(5, 51), pick(6, 61), pick(7, 71),
+		{NodeID: 9, EntryID: 91, Rank: 2}, pick(8, 81), pick(13, 131), pick(20, 201), pick(21, 211), pick(23, 231)}
 	tests := []struct {
 		name  string
 		took  map[models.TalentPick]int // how many of the 10 top players took each talent; nil: the export has none
@@ -150,9 +160,16 @@ func TestTalentSuggestions(t *testing.T) {
 		{"a talent replaces the least taken one of its section, never a free or tiered one",
 			map[models.TalentPick]int{pick(3, 31): 10, pick(1, 11): 10, pick(2, 21): 8, pick(6, 61): 9, pick(7, 71): 9},
 			[]string{"Take Thunderstorm instead of Totemic Surge"}, 0},
-		{"a swap leaving a talent unreached is dropped with a note",
+		{"a swap leaving a talent unreached replaces the next least taken one",
 			map[models.TalentPick]int{pick(3, 31): 10, pick(1, 11): 10, pick(2, 21): 10, pick(6, 61): 7, pick(7, 71): 10},
+			[]string{"Take Thunderstorm instead of Ancestral Swiftness"}, 0},
+		{"a talent of 2 ranks replaces one of 2 ranks", map[models.TalentPick]int{{NodeID: 10, EntryID: 101, Rank: 2}: 10},
+			[]string{"Take Primordial Wave instead of Elemental Fury"}, 0},
+		{"a talent no swap of its section allows is dropped with a note", map[models.TalentPick]int{pick(14, 141): 10},
 			nil, 1},
+		{"a talent of the hero tree the character doesn't play is dropped with a note",
+			map[models.TalentPick]int{pick(22, 221): 10, pick(24, 241): 10},
+			[]string{"Take Supercharge instead of Tempest"}, 1},
 		{"a tiered node isn't suggested", map[models.TalentPick]int{pick(5, 52): 10}, nil, 0},
 		{"an export without talents", nil, nil, 1},
 	}

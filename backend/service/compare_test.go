@@ -145,17 +145,21 @@ func TestAbilitiesOnlyOneSideUsedAreListedApart(t *testing.T) {
 func TestBaselineSaysWhichLogsTheyAre(t *testing.T) {
 	run := models.RankedRun{}
 	tests := []struct {
-		p    picked
-		want string
+		p      picked
+		median bool
+		want   string
 	}{
-		{picked{runs: []models.RankedRun{run, run}, how: "near"}, "2 ranked Arcane Mage runs within 15% of 5:00"},
-		{picked{runs: []models.RankedRun{run}, how: "closest"}, "closest 1 ranked Arcane Mage runs; none within 15% of 5:00"},
-		{picked{runs: []models.RankedRun{run}, how: "longer"},
+		{picked{runs: []models.RankedRun{run, run}, how: "near"}, false, "2 ranked Arcane Mage runs within 15% of 5:00"},
+		{picked{runs: []models.RankedRun{run, run}, how: "near"}, true,
+			"2 ranked Arcane Mage runs within 15% of the median 5:00"},
+		{picked{runs: []models.RankedRun{run}, how: "closest"}, false,
+			"closest 1 ranked Arcane Mage runs; none within 15% of 5:00"},
+		{picked{runs: []models.RankedRun{run}, how: "longer"}, false,
 			"1 ranked Arcane Mage runs at least as long as 5:00, read over their first 5:00"},
-		{picked{how: "near"}, "no ranked Arcane Mage runs found"},
+		{picked{how: "near"}, false, "no ranked Arcane Mage runs found"},
 	}
 	for _, tc := range tests {
-		if got := tc.p.baseline("Arcane Mage", 300_000); got != tc.want {
+		if got := tc.p.baseline("Arcane Mage", 300_000, tc.median); got != tc.want {
 			t.Errorf("baseline = %q, want %q", got, tc.want)
 		}
 	}

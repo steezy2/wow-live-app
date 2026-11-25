@@ -53,7 +53,7 @@ describe('SimSuggestions', () => {
     expect(main).toBeGreaterThan(-1)
     expect(group).toBeGreaterThan(main)
     expect(html.indexOf('Take Gust of Wind')).toBeGreaterThan(group)
-    expect(html).toContain('No DPS change: these are what top players take for utility.')
+    expect(html).toContain('No DPS gain in the sim: these are what top players take for utility.')
     expect(html).toContain('+400')
     expect(html).toContain('-120')
     expect(html).not.toContain('No change the sim confirms.')
@@ -69,13 +69,13 @@ describe('SimSuggestions', () => {
     expect(html).toContain('+700')
   })
 
-  it('ranks by the gain on the fight picked, the stats and other talents last', () => {
+  it("keeps the server's order for the best gain, else ranks by the fight picked within its groups", () => {
     const list: Suggestion[] = [
-      { kind: 'talentOther', what: 'other', evidence: 'x' },
-      { kind: 'stat', what: 'stat', evidence: 'x', expected: 300 },
-      { kind: 'enchant', what: 'single', evidence: 'x', gain: 500, aoeGain: 100 },
       { kind: 'gem', what: 'aoe', evidence: 'x', gain: 50, aoeGain: 900 },
+      { kind: 'enchant', what: 'single', evidence: 'x', gain: 500, aoeGain: 100 },
       { kind: 'talent', what: 'middle', evidence: 'x', gain: 300, aoeGain: 300 },
+      { kind: 'stat', what: 'stat', evidence: 'x', expected: 300 },
+      { kind: 'talentOther', what: 'other', evidence: 'x', gain: -50 },
     ]
     const order = (by: 'best' | 'single' | 'aoe') => rankSuggestions(list, by).map((s) => s.what)
     expect(order('best')).toEqual(['aoe', 'single', 'middle', 'stat', 'other'])

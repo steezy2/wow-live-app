@@ -153,6 +153,7 @@ func TestSuggestSortsATalentSwapByItsGain(t *testing.T) {
 		{"a gain", 100950, "talent", 1000},
 		{"under the least gain", 99960, "talentOther", 0},
 		{"a loss", 99000, "talentOther", -950},
+		{"a loss within the noise", 99949, "talentOther", 0},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -219,7 +220,7 @@ func TestSuggestShowsAChangeThatGainsOnEitherFight(t *testing.T) {
 	}
 }
 
-func TestSuggestPlanCountsBothFightsForEverythingButTheStatWeights(t *testing.T) {
+func TestSuggestPlanTimesEachFightWithItsOwnOptions(t *testing.T) {
 	s, _ := suggestSims(t)
 	req := suggestRequest(t)
 	p, err := s.parse(req.Export)
@@ -229,8 +230,13 @@ func TestSuggestPlanCountsBothFightsForEverythingButTheStatWeights(t *testing.T)
 	bags, _, _ := s.suggestGear(p)
 	final := simTargetError(req.Options, true)
 	oneFight := float64(maxSuggestions+1+2) + smartRuns(len(bags), smartStages(len(bags), final), final) + 1
-	if got := s.planSuggest(p, req, &models.SimPlan{}); got != statsRuns+2*oneFight {
-		t.Errorf("runs = %v, want the stat weights' %d plus %v for each of the two fights", got, statsRuns, oneFight)
+	want := planSeconds(statsRuns, req.Options)
+	for _, f := range suggestFights {
+		want += planSeconds(oneFight, f.options(req.Options))
+	}
+	if got := s.planSuggest(p, req, &models.SimPlan{}); got != want {
+		t.Errorf("seconds = %d, want %d: the stat weights on the request's fight and the rest on each of the two",
+			got, want)
 	}
 }
 
@@ -282,36 +288,53 @@ func TestTopBuildsRanksTheTarget(t *testing.T) {
 	mplus := func(encounter, level int) models.RankQuery {
 		return models.RankQuery{Encounter: encounter, Level: level, Class: "Mage", Spec: "Arcane", Metric: "dps"}
 	}
+	mplusAt12 := []models.RankQuery{mplus(1, 12), mplus(3, 12), mplus(5, 12), mplus(7, 12)}
 	tests := []struct {
 		name      string
 		character string
 		target    models.SuggestTarget
+		unranked  map[int]bool
+		limitAt   int
 		queries   []models.RankQuery
 		reads     int
 		baseline  string
+		notes     int
 	}{
-		{"Mythic+ at the character's highest key", "testmage", models.SuggestTarget{Kind: models.FightMPlus},
-			[]models.RankQuery{mplus(1, 12), mplus(3, 12), mplus(5, 12), mplus(7, 12)},
-			suggestDungeons * suggestLogsPerDungeon, "20 ranked Arcane Mage runs in 4 dungeons at +12"},
-		{"Mythic+ for a character with no key", "nobody", models.SuggestTarget{Kind: models.FightMPlus},
+		{"Mythic+ at the character's highest key of the season", "Testmage-Sargeras",
+			models.SuggestTarget{Kind: models.FightMPlus}, nil, 0, mplusAt12,
+			suggestDungeons * suggestLogsPerDungeon, "20 ranked Arcane Mage runs in 4 dungeons at +12", 0},
+		{"Mythic+ for a character with no key", "nobody", models.SuggestTarget{Kind: models.FightMPlus}, nil, 0,
 			[]models.RankQuery{mplus(1, 2), mplus(3, 2), mplus(5, 2), mplus(7, 2)},
-			suggestDungeons * suggestLogsPerDungeon, "20 ranked Arcane Mage runs in 4 dungeons at +2"},
-		{"a raid boss on its difficulty", "testmage",
-			models.SuggestTarget{Kind: models.FightRaid, Encounter: "Sszorak", Difficulty: 4},
+			suggestDungeons * suggestLogsPerDungeon, "20 ranked Arcane Mage runs in 4 dungeons at +2", 0},
+		{"Mythic+ skips a dungeon with no ranked run", "Testmage-Sargeras",
+			models.SuggestTarget{Kind: models.FightMPlus}, map[int]bool{3: true}, 0, mplusAt12,
+			3 * suggestLogsPerDungeon, "15 ranked Arcane Mage runs in 3 dungeons at +12", 0},
+		{"Mythic+ keeps what it read before a rate limit", "Testmage-Sargeras",
+			models.SuggestTarget{Kind: models.FightMPlus}, nil, 5, mplusAt12[:3],
+			2 * suggestLogsPerDungeon, "10 ranked Arcane Mage runs in 2 dungeons at +12", 1},
+		{"a raid boss on its difficulty", "Testmage-Sargeras",
+			models.SuggestTarget{Kind: models.FightRaid, Encounter: "Sszorak", Difficulty: 4}, nil, 0,
 			[]models.RankQuery{{Encounter: 100, Difficulty: 4, Class: "Mage", Spec: "Arcane", Metric: "dps"}},
-			len(runs), "8 ranked Arcane Mage runs within 15% of 5:03"},
+			len(runs), "8 ranked Arcane Mage runs within 15% of the median 5:03", 0},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			baselines := &fakeLogs{left: 1000, runs: runs}
-			c, _, _ := comparerOf(t, baselines)
+			baselines := &fakeLogs{left: 1000, runs: runs, unranked: tt.unranked, limitAt: tt.limitAt}
+			c, keys, _ := comparerOf(t, baselines)
+			// the character's +12, besides a higher key of another season's dungeon and one of a namesake
+			keys.history[0].Logger, keys.history[0].Realms = "Testmage", map[string]string{"Testmage": "Sargeras"}
+			keys.history = append(keys.history,
+				models.Key{Dungeon: "Old Halls", Level: 20, Logger: "Testmage", Realms: keys.history[0].Realms},
+				models.Key{Dungeon: "Voidscar Arena", Level: 18, Logger: "Testmage",
+					Realms: map[string]string{"Testmage": "Stormrage"}})
 			b, err := c.TopBuilds(context.Background(), 62, tt.character, tt.target)
 			if err != nil {
 				t.Fatal(err)
 			}
-			if !slices.Equal(baselines.queries, tt.queries) || len(b.Tops) != tt.reads || b.Baseline != tt.baseline {
-				t.Errorf("queries %+v, %d tops, baseline %q; want %+v, %d and %q",
-					baselines.queries, len(b.Tops), b.Baseline, tt.queries, tt.reads, tt.baseline)
+			if !slices.Equal(baselines.queries, tt.queries) || len(b.Tops) != tt.reads || b.Baseline != tt.baseline ||
+				len(b.Notes) != tt.notes {
+				t.Errorf("queries %+v, %d tops, baseline %q, notes %q; want %+v, %d, %q and %d notes",
+					baselines.queries, len(b.Tops), b.Baseline, b.Notes, tt.queries, tt.reads, tt.baseline, tt.notes)
 			}
 		})
 	}

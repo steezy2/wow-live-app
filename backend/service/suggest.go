@@ -36,14 +36,34 @@ const (
 	// suggestSteps is how many steps a Suggest sim's stage text counts (suggestRun.run): the stat weights, then the
 	// changes, the gear, the drops and the combined row, each on both fights.
 	suggestSteps = 1 + 4*2
-	// suggestSingle and suggestAoE are the simScenarios a Suggest sim tests its changes on: one target and several.
-	suggestSingle = "Patchwerk (1 target)"
-	suggestAoE    = "M+ AoE"
 )
 
-// suggestFights are the fights a Suggest sim tests its changes on, in the order of Suggestion.Gain and AoEGain, with
-// how the stage text names them.
-var suggestFights = [2]struct{ scenario, label string }{{suggestSingle, "1 target"}, {suggestAoE, "AoE"}}
+// suggestFight is a fight a Suggest sim tests its changes on: one of simScenarios, and how the stage text names it.
+type suggestFight struct {
+	scenario models.SimScenario
+	label    string
+}
+
+// suggestFights are the fights a Suggest sim tests its changes on, in the order of Suggestion.Gain and AoEGain: one
+// target and several.
+var suggestFights = [2]suggestFight{{scenarioNamed("Patchwerk (1 target)"), "1 target"},
+	{scenarioNamed("M+ AoE"), "AoE"}}
+
+// scenarioNamed is the one of simScenarios called name. It panics on none, so a renamed scenario fails every test
+// instead of a Suggest sim running the request's own fight.
+func scenarioNamed(name string) models.SimScenario {
+	i := slices.IndexFunc(simScenarios, func(s models.SimScenario) bool { return s.Name == name })
+	if i < 0 {
+		panic("no sim scenario " + name)
+	}
+	return simScenarios[i]
+}
+
+// options are o on the fight: its scenario's fight style, length and targets.
+func (f suggestFight) options(o models.SimOptions) models.SimOptions {
+	o.FightStyle, o.Length, o.Targets = f.scenario.FightStyle, f.scenario.Length, f.scenario.Targets
+	return o
+}
 
 var (
 	// errNoSuggestLogs is why a Suggest sim is refused without Warcraft Logs.
@@ -59,25 +79,27 @@ type SuggestLogs interface {
 	TopBuilds(ctx context.Context, specID int, character string, target models.SuggestTarget) (TopBuilds, error)
 }
 
-// TopBuilds are the top players a Suggest sim compares a character with: their builds, which logs they are and the
-// Warcraft Logs points reading them spent.
+// TopBuilds are the top players a Suggest sim compares a character with: their builds, which logs they are, what the
+// read left out and the Warcraft Logs points reading them spent.
 type TopBuilds struct {
 	Tops     []models.RankedPlayer
 	Baseline string
+	Notes    []string
 	Points   float64
 }
 
-// TopBuilds reads the top logs of spec specID a Suggest sim compares character (the export's name) with, of target:
-// for Mythic+ overall suggestLogsPerDungeon logs in each of the season's first suggestDungeons dungeons (by Warcraft
-// Logs encounter ID) at suggestKeyLevel, for a raid boss compareLogs on its difficulty, each picked near the median
-// ranked time. It spends Warcraft Logs points: ErrNoPoints with too few left, ErrNoTopLogs when none can be read.
+// TopBuilds reads the top logs of spec specID a Suggest sim compares character (the export's "Name-Realm") with, of
+// target: for Mythic+ overall suggestLogsPerDungeon logs in each of the season's first suggestDungeons dungeons (by
+// Warcraft Logs encounter ID) at suggestKeyLevel, for a raid boss compareLogs on its difficulty, each picked near the
+// median ranked time. It spends Warcraft Logs points: ErrNoPoints with too few left, ErrNoTopLogs when none can be
+// read.
 func (c Comparer) TopBuilds(ctx context.Context, specID int, character string, target models.SuggestTarget) (
 	TopBuilds, error) {
 	spec, ok := specs[specID]
 	if !ok {
 		return TopBuilds{}, fmt.Errorf("%w: no spec %d is known", ErrNoTopLogs, specID)
 	}
-	fights := []fightRun{{kind: models.FightRaid, encounter: target.Encounter, boss: target.Difficulty}}
+	var fights []fightRun
 	level := 0
 	if target.Kind == models.FightMPlus {
 		ids, err := c.Baselines.MPlusEncounters(ctx)
@@ -85,11 +107,13 @@ func (c Comparer) TopBuilds(ctx context.Context, specID int, character string, t
 			return TopBuilds{}, err
 		}
 		names := slices.SortedFunc(maps.Keys(ids), func(a, b string) int { return cmp.Compare(ids[a], ids[b]) })
-		level, fights = c.suggestKeyLevel(character), nil
+		level = c.suggestKeyLevel(character, ids)
 		for _, name := range names[:min(len(names), suggestDungeons)] {
 			fights = append(fights, fightRun{kind: models.FightMPlus, encounter: name, level: level,
 				logs: suggestLogsPerDungeon})
 		}
+	} else {
+		fights = []fightRun{{kind: models.FightRaid, encounter: target.Encounter, boss: target.Difficulty}}
 	}
 	for i := range fights {
 		fights[i].spec, fights[i].specID = spec, specID
@@ -103,21 +127,23 @@ func (c Comparer) TopBuilds(ctx context.Context, specID int, character string, t
 	b := TopBuilds{Tops: top.players, Baseline: top.baseline, Points: top.points}
 	if target.Kind == models.FightMPlus {
 		b.Baseline = fmt.Sprintf("%d ranked %s runs in %d dungeons at +%d", len(top.players), spec.label(),
-			len(fights), level)
+			top.read, level)
+	}
+	if top.limited {
+		b.Notes = append(b.Notes, fmt.Sprintf("Warcraft Logs' rate limit stopped the read after %d of %d dungeons",
+			top.read, len(fights)))
 	}
 	return b, nil
 }
 
-// suggestKeyLevel is the key level Mythic+ overall reads the top logs at: the character's highest saved key, else
-// minRankedKeyLevel.
-func (c Comparer) suggestKeyLevel(character string) int {
+// suggestKeyLevel is the key level Mythic+ overall reads the top logs at: the highest saved key of the season's
+// dungeons (ids, by name) the character ("Name-Realm") logged, else minRankedKeyLevel.
+func (c Comparer) suggestKeyLevel(character string, ids map[string]int) int {
 	level := 0
 	keys, _ := c.Keys.History()
 	for _, k := range keys {
-		for name := range k.Specs {
-			if strings.EqualFold(name, character) {
-				level = max(level, k.Level)
-			}
+		if _, ok := ids[k.Dungeon]; ok && loggedBy(k.Logger, k.Realms, character) {
+			level = max(level, k.Level)
 		}
 	}
 	return cmp.Or(level, minRankedKeyLevel)
@@ -158,8 +184,9 @@ func suggestPoints(target *models.SuggestTarget) float64 {
 // can suggest (maxSuggestions at most), Top Gear over the bags, the Droptimizer and the combined run, each with its
 // baseline (the changes counted at their most, as how many the top logs suggest isn't known before they are read), all
 // of them but the stat weights on both fights; with the points the request's target costs, what it leaves out (Notes)
-// and, without Warcraft Logs or a target, why Start refuses it. It returns the full-precision runs.
-func (s *Sims) planSuggest(p models.SimProfile, req models.SimRequest, plan *models.SimPlan) float64 {
+// and, without Warcraft Logs or a target, why Start refuses it. It returns about how long they take, each fight timed
+// with its own options.
+func (s *Sims) planSuggest(p models.SimProfile, req models.SimRequest, plan *models.SimPlan) int {
 	if plan.NeedsLogs = !s.logsReady(); plan.NeedsLogs && plan.Error == "" {
 		plan.Error = errNoSuggestLogs.Error()
 	}
@@ -175,7 +202,11 @@ func (s *Sims) planSuggest(p models.SimProfile, req models.SimRequest, plan *mod
 			runs += smartRuns(n, smartStages(n, final), final) + 1
 		}
 	}
-	return statsRuns + float64(len(suggestFights))*runs
+	seconds := planSeconds(statsRuns, req.Options)
+	for _, f := range suggestFights {
+		seconds += planSeconds(runs, f.options(req.Options))
+	}
+	return seconds
 }
 
 // logsReady is whether a Suggest sim can read the top logs: Tops is wired and the keys it needs are saved.
@@ -218,14 +249,15 @@ type tested struct {
 	combo gearCombo
 }
 
-// suggestRun is a running Suggest sim: the sims, its ID, work files and simc input head, its options, the character,
-// the consumables it uses and what its top logs are of.
+// suggestRun is a running Suggest sim: the sims, its ID, work files and simc input head, its options, the character
+// and its spec's talent tree, the consumables it uses and what its top logs are of.
 type suggestRun struct {
 	sims                    *Sims
 	ctx                     context.Context
 	id, input, output, head string
 	o                       models.SimOptions
 	p                       models.SimProfile
+	tree                    models.TalentTree
 	consumables             models.SimConsumables
 	target                  models.SuggestTarget
 }
@@ -258,14 +290,8 @@ type races [len(suggestFights)]fightRace
 func (r suggestRun) raceBoth(combos []gearCombo, from, to, step int, what string) (out races, complaint string,
 	err error) {
 	for i, f := range suggestFights {
-		o := r.o
-		for _, sc := range simScenarios {
-			if sc.Name == f.scenario {
-				o.FightStyle, o.Length, o.Targets = sc.FightStyle, sc.Length, sc.Targets
-			}
-		}
 		span := (to - from) / len(suggestFights)
-		if out[i].base, complaint, err = r.race(r.head, combos, o, from+i*span, from+(i+1)*span, step+i,
+		if out[i].base, complaint, err = r.race(r.head, combos, f.options(r.o), from+i*span, from+(i+1)*span, step+i,
 			what+" on "+f.label); err != nil {
 			return out, complaint, err
 		}
@@ -325,8 +351,9 @@ func (r suggestRun) run() (*models.SimResult, string, error) {
 		report.Notes = append(report.Notes, "No changes from the top players: "+got.err.Error())
 	} else {
 		report.Baseline, report.Points = got.builds.Baseline, got.builds.Points
+		report.Notes = append(report.Notes, got.builds.Notes...)
 		in := suggestInput{ref: r.sims.Ref, you: r.p, consumables: r.consumables, tops: got.builds.Tops,
-			weights: result.Weights, talentTree: loadoutTree(r.sims.Ref.Talents, r.p.Talents)}
+			weights: result.Weights, talentTree: r.tree}
 		if st := out.Sim.Players[0].Collected.Buffed.Stats; st.Crit+st.Haste+st.Mastery+st.Vers > 0 {
 			in.yourStats = &models.RankedStats{Crit: int(st.Crit), Haste: int(st.Haste), Mastery: int(st.Mastery),
 				Vers: int(st.Vers)}
@@ -378,7 +405,7 @@ func (s *Sims) topBuilds(ctx context.Context, p models.SimProfile, target models
 	if spec == 0 {
 		return TopBuilds{}, fmt.Errorf("%w: no spec %s %s is known", ErrNoTopLogs, p.Spec, p.Class)
 	}
-	return s.Tops.TopBuilds(ctx, spec, p.Name, target)
+	return s.Tops.TopBuilds(ctx, spec, p.Name+"-"+p.Server, target)
 }
 
 // testChanges runs one profileset for each of the first maxSuggestions changes the sim can test (an enchant, a gem, a
@@ -395,7 +422,7 @@ func (r suggestRun) testChanges(all []models.Suggestion, report *models.SimSugge
 			untested = append(untested, sg)
 			continue
 		}
-		combo, ok := changeCombo(r.sims.Ref, r.p, sg)
+		combo, ok := changeCombo(r.sims.Ref, r.tree, r.p, sg)
 		switch {
 		case !ok:
 			misfits++
@@ -443,15 +470,16 @@ func (r suggestRun) testChanges(all []models.Suggestion, report *models.SimSugge
 
 // gained sets s's gains from its profilesets over the baselines of both fights and says whether the sim shows either
 // as one: at least suggestMinGain of the DPS and more than suggestZ standard errors of the difference. A gain it
-// doesn't show is 0 unless it is a loss.
+// doesn't show is 0, and so is a loss within suggestZ standard errors.
 func gained(s *models.Suggestion, set [len(suggestFights)]simSetJSON, both races) bool {
 	var gain, dpsError [len(suggestFights)]float64
 	shown := false
 	for i, f := range both {
-		gain[i], dpsError[i] = set[i].Mean-f.base.DPS, math.Hypot(set[i].MeanStdDev, f.base.DPSError)
-		if gain[i] >= suggestMinGain*f.base.DPS && gain[i] > suggestZ*dpsError[i] {
+		gain[i], dpsError[i] = difference(set[i], f.base)
+		switch {
+		case gain[i] >= suggestMinGain*f.base.DPS && gain[i] > suggestZ*dpsError[i]:
 			shown = true
-		} else if gain[i] >= 0 {
+		case gain[i] >= 0 || -gain[i] <= suggestZ*dpsError[i]:
 			gain[i], dpsError[i] = 0, 0
 		}
 	}
@@ -459,12 +487,18 @@ func gained(s *models.Suggestion, set [len(suggestFights)]simSetJSON, both races
 	return shown
 }
 
+// difference is set's DPS over base's and the standard error of that difference.
+func difference(set simSetJSON, base *models.SimResult) (gain, dpsError float64) {
+	return set.Mean - base.DPS, math.Hypot(set.MeanStdDev, base.DPSError)
+}
+
 // changeCombo is a change as a profileset: an enchant or gem put on the worn item it names (false when the item can't
-// take it), the character's talents with a swap, or the consumable's line. The change is built from the reference and
-// the character's own items and talents.
-func changeCombo(ref models.SimReference, p models.SimProfile, s models.Suggestion) (gearCombo, bool) {
+// take it), the character's talents (of its tree) with a swap, or the consumable's line. The change is built from the
+// reference and the character's own items and talents.
+func changeCombo(ref models.SimReference, tree models.TalentTree, p models.SimProfile, s models.Suggestion) (
+	gearCombo, bool) {
 	if s.Talent != nil {
-		line, err := talentLine(loadoutTree(ref.Talents, p.Talents), swapTalent(p.Picks, s))
+		line, err := talentLine(tree, swapTalent(p.Picks, s))
 		return gearCombo{line: line}, err == nil
 	}
 	if v := s.Variant; v != nil {
@@ -541,32 +575,18 @@ func (r suggestRun) farm(drops []gearCombo) ([]models.Suggestion, string, error)
 	if err != nil {
 		return nil, complaint, err
 	}
-	type drop struct {
-		row models.SimCombo
-		set [len(suggestFights)]simSetJSON
-	}
-	var rows []*drop
-	index := map[string]*drop{} // a drop is the same item from the same boss in the same slot on each fight
-	for i, f := range both {
-		for _, row := range f.base.Combos {
-			key := fmt.Sprint(row.Source, row.Boss, row.Swaps[0].Slot, row.Swaps[0].In.ID)
-			d := index[key]
-			if d == nil {
-				d = &drop{row: row, set: [len(suggestFights)]simSetJSON{{Mean: both[0].base.DPS}, {Mean: both[1].base.DPS}}}
-				index[key] = d
-				rows = append(rows, d)
-			}
-			d.set[i] = simSetJSON{Mean: row.DPS, MeanStdDev: row.DPSError}
-		}
-	}
 	var found []models.Suggestion
-	for _, d := range rows {
-		in := d.row.Swaps[0].In
-		s := models.Suggestion{Kind: "farm", What: fmt.Sprintf("Farm %s (%d) from %s", in.Name, in.Level, d.row.Boss),
+	for _, d := range drops {
+		set, ran := both.sets(d.name)
+		if !ran {
+			continue
+		}
+		in := d.swaps[0].In
+		s := models.Suggestion{Kind: "farm", What: fmt.Sprintf("Farm %s (%d) from %s", in.Name, in.Level, d.boss),
 			Evidence: fmt.Sprintf("the Droptimizer at %s and +%d, at the rank of the gear you wear",
 				defaultDropDifficulty, r.sims.Choices().DefaultKeyLevel),
-			Swaps: d.row.Swaps, Source: d.row.Source, Boss: d.row.Boss}
-		if gained(&s, d.set, both) {
+			Swaps: slimmed(d.swaps), Source: d.source, Boss: d.boss}
+		if gained(&s, set, both) {
 			found = append(found, s)
 		}
 	}
@@ -592,7 +612,7 @@ func (r suggestRun) combined(shown []tested) (*models.SimCombo, string, error) {
 	}
 	now := maps.Clone(worn)
 	combo := gearCombo{name: "combined"}
-	tree, picks, swapped := loadoutTree(r.sims.Ref.Talents, r.p.Talents), r.p.Picks, false
+	picks, swapped := r.p.Picks, false
 	var names []string
 	var in []int
 	for _, gearFirst := range []bool{true, false} {
@@ -617,7 +637,7 @@ func (r suggestRun) combined(shown []tested) (*models.SimCombo, string, error) {
 				}
 			case t.s.Talent != nil:
 				next := swapTalent(picks, t.s)
-				if validTalents(tree, next) != nil {
+				if validTalents(r.tree, next) != nil {
 					continue
 				}
 				picks, swapped = next, true
@@ -632,7 +652,7 @@ func (r suggestRun) combined(shown []tested) (*models.SimCombo, string, error) {
 		return nil, "", nil
 	}
 	if swapped {
-		line, err := talentLine(tree, picks)
+		line, err := talentLine(r.tree, picks)
 		if err != nil {
 			return nil, "", fmt.Errorf("writing the combined talents: %w", err)
 		}
@@ -654,7 +674,8 @@ func (r suggestRun) combined(shown []tested) (*models.SimCombo, string, error) {
 	for _, j := range in {
 		shown[j].s.Combined = true
 	}
-	return &models.SimCombo{DPS: set[0].Mean, DPSError: set[0].MeanStdDev, Gain: set[0].Mean - both[0].base.DPS,
-		AoEGain: set[1].Mean - both[1].base.DPS, AoEError: set[1].MeanStdDev, Swaps: slimmed(combo.swaps),
-		Consumable: strings.Join(names, " + ")}, "", nil
+	out := &models.SimCombo{DPS: set[0].Mean, Swaps: slimmed(combo.swaps), Consumable: strings.Join(names, " + ")}
+	out.Gain, out.DPSError = difference(set[0], both[0].base)
+	out.AoEGain, out.AoEError = difference(set[1], both[1].base)
+	return out, "", nil
 }

@@ -158,9 +158,10 @@ func consumableSuggestions(in suggestInput) []models.Suggestion {
 
 // talentSuggestions are the talents at least suggestShare of the top logs took that the character (its Picks) didn't,
 // the most taken first (maxTalentSuggestions), each as a swap the sim can test (replacedTalent). Free and tiered nodes
-// are left out: the loadout string names no entry for them, so the character's can't be told from the top logs'. A
-// swap validTalents refuses, or one with nothing to replace, is left out and counted in a note, as is an export whose
-// talents can't be read.
+// are left out: the loadout string names no entry for them, so the character's can't be told from the top logs'. So
+// are the hero trees the character doesn't play: the string holds both hero trees' talents, and simc ignores the
+// other's. A talent with no swap validTalents allows is left out, and those left out are counted in notes, as is an
+// export whose talents can't be read.
 func talentSuggestions(in suggestInput) ([]models.Suggestion, []string) {
 	if in.you.Picks == nil {
 		return nil, []string{"Talent swaps aren't tried: the export has no talent string this app can read"}
@@ -168,6 +169,14 @@ func talentSuggestions(in suggestInput) ([]models.Suggestion, []string) {
 	t := talentCompare(compareInput{you: models.RankedPlayer{Talents: in.you.Picks}, top: in.tops})
 	if t == nil {
 		return nil, nil
+	}
+	hero := 0 // the hero tree the character plays: the one its hero tree choice picks
+	for _, e := range in.talentTree.HeroChoice.Entries {
+		if slices.ContainsFunc(in.you.Picks, func(p models.TalentPick) bool {
+			return p.NodeID == in.talentTree.HeroChoice.ID && p.EntryID == e.ID
+		}) {
+			hero = e.SubTree
+		}
 	}
 	nodes, names := map[int]models.TalentNode{}, map[int]string{}
 	for _, n := range in.talentTree.Nodes {
@@ -180,12 +189,18 @@ func talentSuggestions(in suggestInput) ([]models.Suggestion, []string) {
 	}
 	taken := map[[2]int]int{} // top logs that took each node's entry
 	var shares []models.TalentShare
+	otherHero := 0
 	for _, s := range t.Top {
 		taken[[2]int{s.NodeID, s.EntryID}] = s.Taken
 		took := slices.ContainsFunc(in.you.Picks, func(p models.TalentPick) bool {
 			return p.NodeID == s.NodeID && p.EntryID == s.EntryID
 		})
-		if _, ok := nodes[s.NodeID]; ok && !took && float64(s.Taken) >= suggestShare*float64(t.Of) {
+		n, ok := nodes[s.NodeID]
+		switch {
+		case !ok || took || float64(s.Taken) < suggestShare*float64(t.Of):
+		case n.Tree == "hero" && n.SubTree != hero:
+			otherHero++
+		default:
 			shares = append(shares, s)
 		}
 	}
@@ -197,8 +212,8 @@ func talentSuggestions(in suggestInput) ([]models.Suggestion, []string) {
 			break
 		}
 		sg := models.Suggestion{Kind: "talent", Evidence: evidence(s.Taken, t.Of), Talent: &s,
-			Replaces: replacedTalent(in.you.Picks, nodes, taken, nodes[s.NodeID])}
-		if sg.Replaces == nil || validTalents(in.talentTree, swapTalent(in.you.Picks, sg)) != nil {
+			Replaces: replacedTalent(in.talentTree, in.you.Picks, nodes, taken, s)}
+		if sg.Replaces == nil {
 			refused++
 			continue
 		}
@@ -206,30 +221,40 @@ func talentSuggestions(in suggestInput) ([]models.Suggestion, []string) {
 			cmp.Or(names[sg.Replaces.EntryID], "a talent"))
 		out = append(out, sg)
 	}
-	if refused == 0 {
-		return out, nil
+	var notes []string
+	if refused > 0 {
+		notes = append(notes, fmt.Sprintf("%d of the top players' talents weren't tried: no swap for a talent of the "+
+			"same rank in their section keeps your talent tree valid", refused))
 	}
-	return out, []string{fmt.Sprintf("%d of the top players' talents weren't tried: no swap in their section keeps "+
-		"your talent tree valid", refused)}
+	if otherHero > 0 {
+		notes = append(notes, fmt.Sprintf("%d of the top players' talents weren't tried: top players play another "+
+			"hero tree", otherHero))
+	}
+	return out, notes
 }
 
-// replacedTalent is the character's talent (of picks) a swap to node gives up: in a choice node, the entry taken;
-// else the talent taken in node's section (class, spec or a hero tree) that the fewest top logs took, of those in
-// nodes (neither free nor tiered). Nil when there is none.
-func replacedTalent(picks []models.TalentPick, nodes map[int]models.TalentNode, taken map[[2]int]int,
-	node models.TalentNode) *models.TalentPick {
-	var out *models.TalentPick
-	for _, p := range picks {
-		if p.NodeID == node.ID {
+// replacedTalent is the character's talent (of picks) a swap to s gives up, the first one validTalents allows in tree:
+// in a choice node, the entry taken; else, of the talents of s's rank taken in its section (class, spec or a hero tree)
+// in nodes (neither free nor tiered), the one the fewest top logs took first. Nil when none is allowed.
+func replacedTalent(tree models.TalentTree, picks []models.TalentPick, nodes map[int]models.TalentNode,
+	taken map[[2]int]int, s models.TalentShare) *models.TalentPick {
+	node := nodes[s.NodeID]
+	options := slices.DeleteFunc(slices.Clone(picks), func(p models.TalentPick) bool { return p.NodeID != node.ID })
+	if len(options) == 0 {
+		options = slices.DeleteFunc(slices.Clone(picks), func(p models.TalentPick) bool {
+			n, ok := nodes[p.NodeID]
+			return !ok || n.Tree != node.Tree || n.SubTree != node.SubTree || p.Rank != s.Rank
+		})
+		slices.SortStableFunc(options, func(a, b models.TalentPick) int {
+			return cmp.Compare(taken[[2]int{a.NodeID, a.EntryID}], taken[[2]int{b.NodeID, b.EntryID}])
+		})
+	}
+	for _, p := range options {
+		if validTalents(tree, swapTalent(picks, models.Suggestion{Talent: &s, Replaces: &p})) == nil {
 			return &p
 		}
-		n, ok := nodes[p.NodeID]
-		if ok && n.Tree == node.Tree && n.SubTree == node.SubTree &&
-			(out == nil || taken[[2]int{p.NodeID, p.EntryID}] < taken[[2]int{out.NodeID, out.EntryID}]) {
-			out = &p
-		}
 	}
-	return out
+	return nil
 }
 
 // swapTalent is picks with talent swap s's Talent in place of the talent it Replaces.

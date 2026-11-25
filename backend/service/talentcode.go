@@ -108,8 +108,8 @@ func EncodeTalents(tree models.TalentTree, picks []models.TalentPick) (string, e
 }
 
 // validTalents says why picks can't all be taken in tree, nil when they can: no section ("class", "spec", each hero
-// tree, which the string holds both of) spends more than its points, and each taken node that others lead to has one
-// of those taken or free.
+// tree, which the string holds both of) spends more than its points, each taken node that others lead to has one of
+// those taken or free, and each taken node behind a gate (ReqPoints) has that many points spent before the gate.
 func validTalents(tree models.TalentTree, picks []models.TalentPick) error {
 	taken := map[int]bool{}
 	for _, p := range picks {
@@ -129,6 +129,16 @@ func validTalents(tree models.TalentTree, picks []models.TalentPick) error {
 	spent := map[section]int{}
 	// A free node is granted: the inactive hero tree's isn't in the string, yet its talents stay taken.
 	reached := func(id int) bool { return taken[id] || nodes[id].Free }
+	// before is the points picks spend in n's section on nodes before n's gate.
+	before := func(n models.TalentNode) int {
+		points := 0
+		for _, p := range picks {
+			if m := nodes[p.NodeID]; !m.Free && m.Tree == n.Tree && m.SubTree == n.SubTree && m.ReqPoints < n.ReqPoints {
+				points += p.Rank
+			}
+		}
+		return points
+	}
 	for _, p := range picks {
 		n := nodes[p.NodeID]
 		if !n.Free {
@@ -139,6 +149,9 @@ func validTalents(tree models.TalentTree, picks []models.TalentPick) error {
 		}
 		if ps := parents[n.ID]; len(ps) > 0 && !slices.ContainsFunc(ps, reached) {
 			return fmt.Errorf("%s is taken without a talent that leads to it", n.Name)
+		}
+		if n.ReqPoints > 0 && before(n) < n.ReqPoints {
+			return fmt.Errorf("%s is taken with fewer than %d %s points spent before it", n.Name, n.ReqPoints, n.Tree)
 		}
 	}
 	return nil
@@ -166,9 +179,12 @@ func talentLine(tree models.TalentTree, picks []models.TalentPick) (string, erro
 	return "talents=" + s + "\n", err
 }
 
-// loadoutNodes is tree's nodes by ID, the hero tree choice among them.
+// loadoutNodes is tree's nodes by ID, the hero tree choice among them when the tree has one.
 func loadoutNodes(tree models.TalentTree) map[int]models.TalentNode {
-	nodes := map[int]models.TalentNode{tree.HeroChoice.ID: tree.HeroChoice}
+	nodes := map[int]models.TalentNode{}
+	if tree.HeroChoice.ID != 0 {
+		nodes[tree.HeroChoice.ID] = tree.HeroChoice
+	}
 	for _, n := range tree.Nodes {
 		nodes[n.ID] = n
 	}

@@ -16,8 +16,8 @@ const RANKS: [RankBy, string][] = [
 /** The fights' gains of a suggestion or the combined row: on one target and on several, each with the sim's error. */
 type Gains = Pick<Suggestion, 'gain' | 'dpsError' | 'aoeGain' | 'aoeError'>
 
-/** A change's gain on one target and on AoE side by side, each a bar and its DPS (with the sim's error on hover);
- * `dps` is the combined row's. */
+/** A change's gain on one target and on AoE side by side, each a bar and its DPS (with the sim's error on hover, or
+ * that the sim shows none); `dps` is the combined row's. */
 function GainPair({ g, best, dps }: { g: Gains; best: number; dps?: number }) {
   const fights = [
     ['1 target', g.gain, g.dpsError],
@@ -26,7 +26,12 @@ function GainPair({ g, best, dps }: { g: Gains; best: number; dps?: number }) {
   return (
     <div className="sim-gains">
       {fights.map(([label, gain, error], i) => (
-        <span key={label} {...tip(`The sim's gain on ${label}, ± ${full(error ?? 0)} DPS`)}>
+        <span
+          key={label}
+          {...tip(
+            gain ? `The sim's gain on ${label}, ± ${full(error ?? 0)} DPS` : `No gain on ${label} over the sim's error`,
+          )}
+        >
           <span className="muted small">{label}</span>
           <Gain gain={gain ?? 0} dps={i === 0 ? dps : undefined} best={best} />
         </span>
@@ -143,7 +148,7 @@ export function SimSuggestions(props: {
       {other.length > 0 && (
         <details>
           <summary>Other talents ({other.length})</summary>
-          <p className="muted small">No DPS change: these are what top players take for utility.</p>
+          <p className="muted small">No DPS gain in the sim: these are what top players take for utility.</p>
           <ol className="sim-combos sim-suggest">{other.map((r) => row(r, '·'))}</ol>
         </details>
       )}

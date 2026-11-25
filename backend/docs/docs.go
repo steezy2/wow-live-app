@@ -8020,6 +8020,9 @@ const docTemplate = `{
                 },
                 "spellID": {
                     "type": "integer"
+                },
+                "subTree": {
+                    "type": "integer"
                 }
             }
         },
@@ -8054,6 +8057,10 @@ const docTemplate = `{
                     "items": {
                         "type": "integer"
                     }
+                },
+                "reqPoints": {
+                    "description": "ReqPoints is the points its section must have spent on nodes of a lower ReqPoints before it can be taken.",
+                    "type": "integer"
                 },
                 "subTree": {
                     "type": "integer"

@@ -82,14 +82,16 @@ func TestDecodeTalentsRefuses(t *testing.T) {
 func TestValidTalentsRefuses(t *testing.T) {
 	tree := models.TalentTree{Points: map[string]int{"class": 2}, Nodes: []models.TalentNode{
 		{ID: 1, Tree: "class", MaxRanks: 1, Next: []int{2}}, {ID: 2, Tree: "class", MaxRanks: 2},
-		{ID: 3, Tree: "class", MaxRanks: 1}}}
+		{ID: 3, Tree: "class", MaxRanks: 1, ReqPoints: 1}}}
 	for name, tc := range map[string]struct {
 		picks []models.TalentPick
 		ok    bool
 	}{
-		"taken in order": {[]models.TalentPick{{NodeID: 1, Rank: 1}, {NodeID: 2, Rank: 1}}, true},
-		"no parent":      {[]models.TalentPick{{NodeID: 2, Rank: 1}, {NodeID: 3, Rank: 1}}, false},
-		"over points":    {[]models.TalentPick{{NodeID: 1, Rank: 1}, {NodeID: 2, Rank: 2}}, false},
+		"taken in order":  {[]models.TalentPick{{NodeID: 1, Rank: 1}, {NodeID: 2, Rank: 1}}, true},
+		"no parent":       {[]models.TalentPick{{NodeID: 2, Rank: 1}, {NodeID: 3, Rank: 1}}, false},
+		"over points":     {[]models.TalentPick{{NodeID: 1, Rank: 1}, {NodeID: 2, Rank: 2}}, false},
+		"past its gate":   {[]models.TalentPick{{NodeID: 1, Rank: 1}, {NodeID: 3, Rank: 1}}, true},
+		"before its gate": {[]models.TalentPick{{NodeID: 3, Rank: 1}}, false},
 	} {
 		if err := validTalents(tree, tc.picks); (err == nil) != tc.ok {
 			t.Errorf("%s: %v", name, err)

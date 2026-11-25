@@ -1735,12 +1735,13 @@ export interface CompareTalents {
   of: number
 }
 
-/** A talent an entry can hold, with its icon name. */
+/** A talent an entry can hold, with its icon name; `subTree` is the hero tree a hero tree choice's entry picks. */
 export interface TalentEntry {
   id: number
   spellID: number
   name: string
   icon: string
+  subTree?: number
 }
 
 /** A place in a talent tree (models.TalentNode): x and y are the tree's own grid; `next` the nodes it leads to. */
@@ -1755,6 +1756,8 @@ export interface TalentNode {
   maxRanks: number
   next: number[]
   entries: TalentEntry[]
+  /** The points its section must have spent above it before it can be taken. */
+  reqPoints?: number
 }
 
 /** A spec's talent tree (models.TalentTree). */
@@ -1925,7 +1928,13 @@ export interface SimChoices {
   /** The items' groups in wearing order, as Top Gear lists them. */
   gearGroups: string[]
   /** What a Suggest sim can read the top logs of, Mythic+ overall first, each with its name. */
-  suggestTargets: { name: string; target: SuggestTarget }[]
+  suggestTargets: SuggestTargetChoice[]
+}
+
+/** One of SimChoices.suggestTargets: a target and how the page names it (models.SuggestTargetChoice). */
+export interface SuggestTargetChoice {
+  name: string
+  target: SuggestTarget
 }
 
 /** The kinds of sim: one DPS number, the best combination of the gear carried, each drop's gain, and what a point of
