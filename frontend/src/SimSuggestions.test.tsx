@@ -1,6 +1,7 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
-import type { SimSuggestReport } from './api'
+import type { SimSuggestReport, Suggestion } from './api'
+import { rankSuggestions } from './simOptions'
 import { SimSuggestions } from './SimSuggestions'
 
 const render = (report: SimSuggestReport) =>
@@ -56,6 +57,30 @@ describe('SimSuggestions', () => {
     expect(html).toContain('+400')
     expect(html).toContain('-120')
     expect(html).not.toContain('No change the sim confirms.')
+  })
+
+  it('shows a change gaining only on AoE with both columns', () => {
+    const html = render({
+      suggestions: [{ kind: 'gem', what: 'Gem', evidence: 'x', aoeGain: 700, aoeError: 40 }],
+      dropped: 0,
+      notes: [],
+    })
+    expect(html).toContain('1 target')
+    expect(html).toContain('+700')
+  })
+
+  it('ranks by the gain on the fight picked, the stats and other talents last', () => {
+    const list: Suggestion[] = [
+      { kind: 'talentOther', what: 'other', evidence: 'x' },
+      { kind: 'stat', what: 'stat', evidence: 'x', expected: 300 },
+      { kind: 'enchant', what: 'single', evidence: 'x', gain: 500, aoeGain: 100 },
+      { kind: 'gem', what: 'aoe', evidence: 'x', gain: 50, aoeGain: 900 },
+      { kind: 'talent', what: 'middle', evidence: 'x', gain: 300, aoeGain: 300 },
+    ]
+    const order = (by: 'best' | 'single' | 'aoe') => rankSuggestions(list, by).map((s) => s.what)
+    expect(order('best')).toEqual(['aoe', 'single', 'middle', 'stat', 'other'])
+    expect(order('single')).toEqual(['single', 'middle', 'aoe', 'stat', 'other'])
+    expect(order('aoe')).toEqual(['aoe', 'middle', 'single', 'stat', 'other'])
   })
 
   it('offers Top Gear only for a change with a variant, when it can open it', () => {

@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -32,6 +33,8 @@ type fakeEngine struct {
 	result    string   // the result file to write; testdata/sim-result.json when empty
 	// sets are the results "echo" gives these profilesets instead (the others keep their place in the order).
 	sets map[string]simSetJSON
+	// aoeSets, when set, are the results of a run on the M+ AoE fight instead of sets.
+	aoeSets map[string]simSetJSON
 }
 
 func (f *fakeEngine) Run(ctx context.Context, args []string, out io.Writer) error {
@@ -54,7 +57,11 @@ func (f *fakeEngine) Run(ctx context.Context, args []string, out io.Writer) erro
 		return err
 	}
 	if f.mode == "echo" {
-		if data, err = withProfilesets(data, f.input, f.sets); err != nil {
+		sets := f.sets
+		if f.aoeSets != nil && slices.Contains(args, "fight_style=HecticAddCleave") {
+			sets = f.aoeSets
+		}
+		if data, err = withProfilesets(data, f.input, sets); err != nil {
 			return err
 		}
 	}

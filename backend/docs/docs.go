@@ -6933,6 +6933,12 @@ const docTemplate = `{
         "models.SimCombo": {
             "type": "object",
             "properties": {
+                "aoeError": {
+                    "type": "number"
+                },
+                "aoeGain": {
+                    "type": "number"
+                },
                 "boss": {
                     "type": "string"
                 },
@@ -7914,6 +7920,14 @@ const docTemplate = `{
         "models.Suggestion": {
             "type": "object",
             "properties": {
+                "aoeError": {
+                    "type": "number",
+                    "example": 120
+                },
+                "aoeGain": {
+                    "type": "number",
+                    "example": 1450
+                },
                 "boss": {
                     "type": "string"
                 },
@@ -7939,7 +7953,7 @@ const docTemplate = `{
                     "example": 410
                 },
                 "gain": {
-                    "description": "Gain is the sim's DPS gain of the change over the unchanged character and DPSError the standard error of that\ndifference; both 0 for a stat, which the sim doesn't test, and for a \"talentOther\" unless the sim shows a loss.",
+                    "description": "Gain is the sim's DPS gain of the change over the unchanged character on one target and DPSError the standard\nerror of that difference; AoEGain and AoEError are the same on the AoE fight. A gain the sim doesn't show on a\nfight is 0 there, and all are 0 for a stat, which the sim doesn't test, and for a \"talentOther\" unless the sim\nshows a loss.",
                     "type": "number",
                     "example": 812
                 },

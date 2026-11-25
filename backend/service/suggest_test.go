@@ -175,6 +175,65 @@ func TestSuggestSortsATalentSwapByItsGain(t *testing.T) {
 	}
 }
 
+func TestSuggestShowsAChangeThatGainsOnEitherFight(t *testing.T) {
+	// the head's gem (change1) against the baseline of 99950 DPS on one target and on AoE; the enchant and flask never
+	// gain; the best gear from the bags gains 50 DPS on both and the gem's gain on the fight it gains on is 1000
+	gem := func(mean float64) map[string]simSetJSON {
+		return map[string]simSetJSON{"change1": {Mean: mean, MeanStdDev: 1}, "combined": {Mean: 101000, MeanStdDev: 1}}
+	}
+	tests := []struct {
+		name          string
+		single, aoe   map[string]simSetJSON
+		gain, aoeGain float64
+		shown         bool
+		dropped       int
+	}{
+		{"only on AoE", gem(99950), gem(100950), 0, 1000, true, 2},
+		{"only on one target", gem(100950), gem(99950), 1000, 0, true, 2},
+		{"on neither", gem(99950), gem(99950), 0, 0, false, 3},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s, _ := suggestSims(t)
+			engine := s.Engine.(*fakeEngine)
+			engine.sets, engine.aoeSets = tt.single, tt.aoe
+			started, err := s.Start(suggestRequest(t))
+			if err != nil {
+				t.Fatal(err)
+			}
+			report := waitSim(t, s, started.ID).Result.Suggest
+			i := slices.IndexFunc(report.Suggestions, func(s models.Suggestion) bool { return s.Kind == "gem" })
+			if (i >= 0) != tt.shown || report.Dropped != tt.dropped {
+				t.Fatalf("suggestions %+v, dropped %d; want the gem shown %v and %d dropped", report.Suggestions,
+					report.Dropped, tt.shown, tt.dropped)
+			}
+			if tt.shown {
+				got := report.Suggestions[i]
+				if got.Gain != tt.gain || got.AoEGain != tt.aoeGain || i != 0 || got.Combined != true ||
+					report.Combined == nil || report.Combined.AoEGain == 0 {
+					t.Errorf("gem = %+v, combined %+v; want the gains %v and %v, first, in the combined row", got,
+						report.Combined, tt.gain, tt.aoeGain)
+				}
+			}
+		})
+	}
+}
+
+func TestSuggestPlanCountsBothFightsForEverythingButTheStatWeights(t *testing.T) {
+	s, _ := suggestSims(t)
+	req := suggestRequest(t)
+	p, err := s.parse(req.Export)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bags, _, _ := s.suggestGear(p)
+	final := simTargetError(req.Options, true)
+	oneFight := float64(maxSuggestions+1+2) + smartRuns(len(bags), smartStages(len(bags), final), final) + 1
+	if got := s.planSuggest(p, req, &models.SimPlan{}); got != statsRuns+2*oneFight {
+		t.Errorf("runs = %v, want the stat weights' %d plus %v for each of the two fights", got, statsRuns, oneFight)
+	}
+}
+
 func TestSuggestPlanCostsWCLPoints(t *testing.T) {
 	s, _ := suggestSims(t)
 	req := suggestRequest(t)

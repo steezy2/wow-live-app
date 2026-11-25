@@ -2958,6 +2958,10 @@ definitions:
     type: object
   models.SimCombo:
     properties:
+      aoeError:
+        type: number
+      aoeGain:
+        type: number
       boss:
         type: string
       consumable:
@@ -3677,6 +3681,12 @@ definitions:
     type: object
   models.Suggestion:
     properties:
+      aoeError:
+        example: 120
+        type: number
+      aoeGain:
+        example: 1450
+        type: number
       boss:
         type: string
       combined:
@@ -3699,8 +3709,10 @@ definitions:
         type: number
       gain:
         description: |-
-          Gain is the sim's DPS gain of the change over the unchanged character and DPSError the standard error of that
-          difference; both 0 for a stat, which the sim doesn't test, and for a "talentOther" unless the sim shows a loss.
+          Gain is the sim's DPS gain of the change over the unchanged character on one target and DPSError the standard
+          error of that difference; AoEGain and AoEError are the same on the AoE fight. A gain the sim doesn't show on a
+          fight is 0 there, and all are 0 for a stat, which the sim doesn't test, and for a "talentOther" unless the sim
+          shows a loss.
         example: 812
         type: number
       kind:

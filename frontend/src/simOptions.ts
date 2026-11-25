@@ -7,8 +7,21 @@ import type {
   SimReference,
   SimUpgradeLevel,
   SimUpgradeTrack,
+  Suggestion,
   TalentNode,
 } from './api'
+
+/** What a Suggest report is ranked by: the larger gain of the two fights, or one of them. */
+export type RankBy = 'best' | 'single' | 'aoe'
+
+/** The suggestions in the order `by` ranks them: those the sim tested by that gain, best first, then the stats (by
+ * the order they came in, their expected gain), then the talents that add no DPS. */
+export function rankSuggestions(list: Suggestion[], by: RankBy): Suggestion[] {
+  const after = { stat: 1, talentOther: 2 } as Partial<Record<Suggestion['kind'], number>>
+  const gain = (s: Suggestion) =>
+    by === 'single' ? (s.gain ?? 0) : by === 'aoe' ? (s.aoeGain ?? 0) : Math.max(s.gain ?? 0, s.aoeGain ?? 0)
+  return [...list].sort((a, b) => (after[a.kind] ?? 0) - (after[b.kind] ?? 0) || gain(b) - gain(a))
+}
 
 /** What is wrong with the fight options, in words, or null when they fit choices (the app refuses the same ones). */
 export function simOptionsError(o: SimOptions, c: SimChoices): string | null {

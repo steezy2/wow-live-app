@@ -2105,6 +2105,9 @@ export interface SimCombo {
   dps: number
   dpsError: number
   gain: number
+  /** A Suggest sim's combined row: the gain on the AoE fight (`gain` is on one target) and its error. */
+  aoeGain?: number
+  aoeError?: number
   swaps: SimSwap[]
   source?: string
   boss?: string
@@ -2133,7 +2136,8 @@ export interface SimResult {
  * its `talent` and the talent it `replaces`, gear from the bags and a drop to farm their `swaps` (a drop its `source`
  * and `boss`); a stat is advice only, priced by `expected`. A talent swap the sim shows as a gain is a `talent`, one it
  * doesn't a `talentOther` (what top players take for something besides DPS). `gain` and `dpsError` are the sim's DPS
- * gain over the unchanged character (0 for a stat, and for a `talentOther` unless it is a loss). */
+ * gain over the unchanged character on one target and `aoeGain` and `aoeError` on the AoE fight (0 where the sim
+ * doesn't show one, for a stat, and for a `talentOther` unless it is a loss). */
 export interface Suggestion {
   kind: 'enchant' | 'gem' | 'stat' | 'consumable' | 'talent' | 'talentOther' | 'gear' | 'farm'
   slot?: string
@@ -2149,6 +2153,8 @@ export interface Suggestion {
   expected?: number
   gain?: number
   dpsError?: number
+  aoeGain?: number
+  aoeError?: number
   /** Whether the change is in the report's combined row. */
   combined?: boolean
 }
