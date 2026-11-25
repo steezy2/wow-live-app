@@ -47,7 +47,6 @@ const STILL = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-m
 /** Characters a note's line holds before it wraps. */
 const NOTE_LINE = 28
 
-
 /** A place in yards kept on a floor (whose bounds' min can be above its max): the canvas's edge for a press outside
  * it, beside a letterboxed map. */
 function onFloor(f: DungeonFloor, p: Yards): Point {

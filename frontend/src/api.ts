@@ -1378,7 +1378,6 @@ export async function fetchRecapTopTimes(
   return response.status === 204 ? null : ((await response.json()) as RecapTopTime[])
 }
 
-/** What an ability does (models.SpellInfo). */
 /** What a spell's hover box shows, and its icon (a name for iconURL) when the answer has one. */
 export interface SpellInfo {
   id: number
@@ -1506,7 +1505,6 @@ export interface Storage {
 export async function fetchStorage(signal?: AbortSignal): Promise<Storage> {
   return json<Storage>('/api/storage', { signal })
 }
-
 
 /** A raid pull in a list (models.RaidPullSummary): when, which boss, its number tonight, and how far it got (bossPct
  * -1 without advanced logging; phase "" for a boss without phase triggers). */
@@ -1769,7 +1767,7 @@ export interface TalentTree {
 }
 
 /** The address of the icon called name (a talent's or an item's, from Wowhead). */
-export const iconURL = (name: string) => `/api/icons/${name}`
+export const iconURL = (name: string) => `/api/icons/${encodeURIComponent(name)}`
 
 /** A spec's talent tree layout; null for a spec the app has none for. */
 export async function fetchTalentTree(specID: number, signal?: AbortSignal): Promise<TalentTree | null> {

@@ -90,9 +90,13 @@ func (k *LogTracker) RaidPull(start int64) (models.RaidPull, error) {
 // numbered is a pull with its number among the night's pulls on its boss and difficulty, from the pulls known now
 // (so pulls read later from an older log of the night still count).
 func (k *LogTracker) numbered(p models.RaidPull) models.RaidPull {
-	p.Number = 1 + countFunc(k.pulls, func(o models.RaidPull) bool {
-		return o.Night == p.Night && o.Boss == p.Boss && o.Difficulty == p.Difficulty && o.Start < p.Start
-	})
+	p.Number = 1
+	for i := range k.pulls { // by index: a pull is about 1 KB and this runs once per pull of a list
+		o := &k.pulls[i]
+		if o.Night == p.Night && o.Boss == p.Boss && o.Difficulty == p.Difficulty && o.Start < p.Start {
+			p.Number++
+		}
+	}
 	return p
 }
 

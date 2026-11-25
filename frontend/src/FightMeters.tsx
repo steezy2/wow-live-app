@@ -124,7 +124,6 @@ function nonZero(columns: Column[], meter: KeyMeter): Column[] {
   return columns.filter((c, i) => i === 0 || meter.rows.some((r) => c.value(r) !== 0))
 }
 
-
 /** Abilities (or whatever label names) as bars, biggest first (the first limit of them), each in its spell school's
  * colour (color without one): the number, its share of the total, and casts and hits where the rows have them; an
  * avoidable one marked ⚠. Counts show whole; everything else shortened. */

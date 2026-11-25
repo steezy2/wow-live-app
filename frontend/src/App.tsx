@@ -25,7 +25,6 @@ import { SimPage } from './Sim'
 import { Skeleton } from './Skeleton'
 import { useSaved } from './useSaved'
 
-
 /** The longest the splash stays up waiting for the settings and the characters. */
 const SPLASH_MAX_MS = 2000
 

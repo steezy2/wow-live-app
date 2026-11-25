@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { FixNext } from './FixNext'
 import { Skeleton } from './Skeleton'
 import { fetchCompare, reportPages, runCompare, type CompareRow, type FightKind, type PlayerCompare } from './api'
-import { clock, errorText, rowValue } from './format'
+import { clock, errorText, full, rowValue } from './format'
 import { Spell } from './Spell'
 import { TalentCompare } from './TalentTree'
 
@@ -112,7 +112,7 @@ export function ComparePlayer({ kind, start, player }: { kind: FightKind; start:
                 {l.name} <span className="muted">{l.server}</span>
               </a>
               <span className="muted">
-                {clock(l.durationMS)} · {Math.round(l.amount).toLocaleString()}/s
+                {clock(l.durationMS)} · {full(l.amount)}/s
               </span>
             </li>
           ))}

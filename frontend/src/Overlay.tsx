@@ -1,4 +1,4 @@
-import { type CSSProperties, Fragment, type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
+import { type CSSProperties, Fragment, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { playerViews } from './abilities'
 import {
   fetchSettings,
@@ -31,7 +31,6 @@ const OVERLAY_SPELLS = 8
 
 /** How many rows of a death's recap the overlay shows (the newest). */
 const OVERLAY_RECAP_ROWS = 12
-
 
 /** The window's scale limits: the overlay scales to fill its window, but never below half or above double size. */
 const FIT_MIN = 0.5
@@ -369,8 +368,10 @@ function Breakdown(props: {
 }) {
   const { keyView: key, player, title, from, to, onBack } = props
   const track = useKeyTrack(key)
-  const between = track ? abilitiesBetween(track, key, player, from, to) : undefined
-  const views = between && playerViews(player, between)
+  const views = useMemo(() => {
+    const between = track ? abilitiesBetween(track, key, player, from, to) : undefined
+    return between && playerViews(player, between)
+  }, [track, key, player, from, to])
   const rows = key.overall.rows
   return <PlayerDrill title={title} player={player} rows={rows} views={views} loading={!track} onBack={onBack} />
 }

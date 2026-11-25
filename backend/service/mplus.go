@@ -386,21 +386,31 @@ func (k *LogTracker) learn(at int64, event string, f []string) {
 	}
 	if (strings.HasPrefix(event, "SPELL_") || strings.HasPrefix(event, "RANGE_")) && len(f) > 10 {
 		id := atoi(f[8])
-		k.spells[id] = f[9]
+		if k.spells[id] != f[9] {
+			k.spells[id] = strings.Clone(f[9]) // a substring would keep its whole line alive
+		}
 		if event == "SPELL_CAST_SUCCESS" || k.spellIDs[f[9]] == 0 {
 			k.spellIDs[f[9]] = id
 		}
 		k.schools[f[9]] = int(hexInt(f[10]))
 	}
 	if event == "SPELL_SUMMON" {
-		k.owners[f[4]] = f[0]
+		remember(k.owners, f[4], f[0])
 	}
 	if (event == "SPELL_AURA_APPLIED" || event == "SPELL_AURA_REMOVED") && len(f) > 11 && f[11] == "BUFF" &&
 		strings.HasPrefix(f[4], "Player-") && (k.kinds[f[9]] == "defensive" || k.kinds[f[9]] == "raid cooldown") {
 		k.defensiveBuff(at, event == "SPELL_AURA_APPLIED", f[4], f[9])
 	}
 	if at := advancedAt(event); at > 0 && len(f) > at+1 && f[at] == f[0] && f[at+1] != "0000000000000000" {
-		k.owners[f[0]] = f[at+1]
+		remember(k.owners, f[0], f[at+1])
+	}
+}
+
+// remember sets m[key] to value when it changes, copied out of the log line: a substring would keep its whole line
+// alive for as long as the map holds it.
+func remember(m map[string]string, key, value string) {
+	if old, ok := m[key]; !ok || old != value {
+		m[strings.Clone(key)] = strings.Clone(value)
 	}
 }
 

@@ -62,9 +62,9 @@ func (r *Recent) get(start int64, written time.Time) (models.KeyTrack, bool) {
 }
 
 func (r *Recent) put(start int64, written time.Time, track models.KeyTrack) {
-	r.drop(start)
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	r.tracks = slices.DeleteFunc(r.tracks, func(t recentTrack) bool { return t.start == start })
 	r.tracks = slices.Insert(r.tracks, 0, recentTrack{start, written, track})
 	r.tracks = r.tracks[:min(len(r.tracks), recentTracks)]
 }

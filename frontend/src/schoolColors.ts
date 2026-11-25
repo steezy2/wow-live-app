@@ -31,7 +31,7 @@ export function schoolBar(school: number | undefined, fallback: string): { color
 }
 
 /** simc's school name ("frost", "frostfire") as the combat log's school field. */
-export function simSchool(name?: string): number {
+function simSchool(name?: string): number {
   const names = ['physical', 'holy', 'fire', 'nature', 'frost', 'shadow', 'arcane']
   return names.reduce((bits, n, i) => bits | (name?.includes(n) ? 1 << i : 0), 0)
 }

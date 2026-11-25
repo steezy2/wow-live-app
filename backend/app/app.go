@@ -315,7 +315,7 @@ func (s *Site) learn(all bool) (read, saved int, err error) {
 	if err != nil {
 		return 0, 0, err
 	}
-	path := filepath.Join(s.opts.Cache, "learned.json")
+	path := s.learnedPath()
 	var before learned
 	if !all {
 		before = readLearned(path)
@@ -430,6 +430,9 @@ func (s *Site) readInto(keys *service.LogTracker, path string, each func(string,
 func (l learned) has(f learnedLog) bool {
 	return l.ReaderVersion == readerVersion && slices.Contains(l.Logs, f)
 }
+
+// learnedPath is where learned.json lives in the cache.
+func (s *Site) learnedPath() string { return filepath.Join(s.opts.Cache, "learned.json") }
 
 // logEntry is the log at path as learned.json keeps it.
 func logEntry(path string) (learnedLog, error) {

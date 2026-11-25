@@ -451,6 +451,7 @@ func (s *Sims) Start(req models.SimRequest) (models.Sim, error) {
 	if err := os.MkdirAll(work, 0o755); err != nil {
 		return models.Sim{}, fmt.Errorf("making %s: %w", work, err)
 	}
+	s.removeStaleWork(work)
 	input, output := filepath.Join(work, id+".simc"), filepath.Join(work, id+".json")
 	head := SimInput(profile)
 	if req.Options.NoRaidBuffs { // before the custom lines, so their override.* settings aren't reset by it
@@ -515,6 +516,23 @@ func (s *Sims) execute(ctx context.Context, id, input, output, head string, comb
 func removeWork(input, output string) {
 	os.Remove(input)
 	os.Remove(output)
+}
+
+// removeStaleWork deletes the work files of sims no longer running, which a crash or a kill leaves behind (a json2
+// can be megabytes). The caller holds s.mu.
+func (s *Sims) removeStaleWork(work string) {
+	entries, err := os.ReadDir(work)
+	if err != nil {
+		log.Printf("listing %s: %v", work, err)
+		return
+	}
+	for _, e := range entries {
+		if id, _, _ := strings.Cut(e.Name(), "."); s.runs[id] == nil {
+			if err := os.Remove(filepath.Join(work, e.Name())); err != nil {
+				log.Printf("deleting the stale sim file %s: %v", e.Name(), err)
+			}
+		}
+	}
 }
 
 // raceSpan is the part of a running sim's progress bar one race takes (from to to, in %) and what its stage texts

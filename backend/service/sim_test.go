@@ -246,6 +246,31 @@ func TestSimsRunInParallelUpToTheMaxAndCancel(t *testing.T) {
 	}
 }
 
+func TestSimsDeleteWorkFilesACrashLeft(t *testing.T) {
+	s := newTestSims(t, "hang")
+	ctx, quit := context.WithCancel(context.Background())
+	s.Ctx = ctx
+	defer s.Wait()
+	defer quit()
+	running, err := s.Start(simRequest(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	stale := filepath.Join(s.Dir, "work", "crashed.json")
+	if err := os.WriteFile(stale, []byte("{}"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Start(simRequest(t)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(stale); !errors.Is(err, fs.ErrNotExist) {
+		t.Errorf("the crashed sim's file is still there: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(s.Dir, "work", running.ID+".simc")); err != nil {
+		t.Errorf("the running sim's input is gone: %v", err)
+	}
+}
+
 func TestSimsStopWhenTheAppQuits(t *testing.T) {
 	s := newTestSims(t, "hang")
 	ctx, quit := context.WithCancel(context.Background())

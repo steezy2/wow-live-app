@@ -129,7 +129,7 @@ func TestArchiveThenReadEverythingAgain(t *testing.T) {
 			t.Errorf("Learn(all %v) read %d (%v), want %d", tc.all, read, err, tc.want)
 		}
 	}
-	learnedPath := filepath.Join(s.opts.Cache, "learned.json")
+	learnedPath := s.learnedPath()
 	stopped := readLearned(learnedPath)
 	stopped.Partial = true // a read that stopped after the game's logs: the archive is read again, once
 	if err := cachefile.WriteJSON(learnedPath, stopped); err != nil {

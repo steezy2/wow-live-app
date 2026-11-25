@@ -19,6 +19,16 @@ import (
 // simBodyBytes bounds a sim request's body: the export it carries is at most 64 KB before JSON escaping.
 const simBodyBytes = 128 << 10
 
+// bindSim reads a sim request's body into v under simBodyBytes, or answers 400 with msg and reports false.
+func bindSim(c *gin.Context, v any, msg string) bool {
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, simBodyBytes)
+	if err := c.ShouldBindJSON(v); err != nil {
+		c.JSON(http.StatusBadRequest, ErrorResponse{Error: msg})
+		return false
+	}
+	return true
+}
+
 // SimRuns runs character sims with the downloaded SimulationCraft engine (service.Sims). Start's errors wrap
 // service.ErrBadSimOptions, service.ErrBadSimC, service.ErrNoEngine or service.ErrSimBusy; Get and Remove's wrap
 // fs.ErrNotExist for an ID that isn't a sim.
@@ -124,9 +134,7 @@ func (a SimAPI) InstallEngine(c *gin.Context) {
 //	@Router			/api/sim/profile [post]
 func (a SimAPI) ParseProfile(c *gin.Context) {
 	var body SimExport
-	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, simBodyBytes)
-	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "send the export text as {\"export\": \"...\"}"})
+	if !bindSim(c, &body, "send the export text as {\"export\": \"...\"}") {
 		return
 	}
 	profile, err := a.Runs.ParseProfile(body.Export)
@@ -229,9 +237,7 @@ func (a SimAPI) Reference(c *gin.Context) {
 //	@Router			/api/sim/plan [post]
 func (a SimAPI) Plan(c *gin.Context) {
 	var req models.SimRequest
-	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, simBodyBytes)
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "send a sim request"})
+	if !bindSim(c, &req, "send a sim request") {
 		return
 	}
 	plan, err := a.Runs.Plan(req)
@@ -263,9 +269,7 @@ func (a SimAPI) Plan(c *gin.Context) {
 //	@Router			/api/sim [post]
 func (a SimAPI) Start(c *gin.Context) {
 	var req models.SimRequest
-	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, simBodyBytes)
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, ErrorResponse{Error: "send the kind, the export text and the options"})
+	if !bindSim(c, &req, "send the kind, the export text and the options") {
 		return
 	}
 	sim, err := a.Runs.Start(req)

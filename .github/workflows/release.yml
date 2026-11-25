@@ -85,11 +85,15 @@ jobs:
           path: store
       - uses: microsoft/microsoft-store-apppublisher@v1.4
       - name: Sign in to the Store
+        env:
+          TENANT_ID: ${{ secrets.AZURE_AD_TENANT_ID }}
+          SELLER_ID: ${{ secrets.SELLER_ID }}
+          CLIENT_ID: ${{ secrets.AZURE_AD_APPLICATION_CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.AZURE_AD_APPLICATION_SECRET }}
         run: |
-          msstore reconfigure \
-            --tenantId "${{ secrets.AZURE_AD_TENANT_ID }}" \
-            --sellerId "${{ secrets.SELLER_ID }}" \
-            --clientId "${{ secrets.AZURE_AD_APPLICATION_CLIENT_ID }}" \
-            --clientSecret "${{ secrets.AZURE_AD_APPLICATION_SECRET }}"
+          msstore reconfigure --tenantId "$TENANT_ID" --sellerId "$SELLER_ID" \
+            --clientId "$CLIENT_ID" --clientSecret "$CLIENT_SECRET"
       - name: Submit the package
-        run: msstore publish "store/WoW Live.msix" -id "${{ vars.STORE_PRODUCT_ID }}"
+        env:
+          PRODUCT_ID: ${{ vars.STORE_PRODUCT_ID }}
+        run: msstore publish "store/WoW Live.msix" -id "$PRODUCT_ID"

@@ -1,4 +1,5 @@
 import { iconURL, type SimAbility, type SimBuff, type SimLogEntry, type SpellInfo } from './api'
+import { full } from './format'
 import { simSchoolBar } from './schoolColors'
 import { tip } from './tipAttrs'
 
@@ -18,9 +19,6 @@ function SimSpell({ name, id, info, hover = true }: { name: string; id: number; 
     </span>
   )
 }
-
-/** A DPS number in full ("16,732,287"). */
-const full = (n: number) => Math.round(n).toLocaleString('en-US')
 
 /** A fight time as the game's log writes it ("0:02:897"). */
 function stamp(seconds: number): string {

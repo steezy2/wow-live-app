@@ -10,7 +10,7 @@ import (
 )
 
 // Delays collects how far behind the game each line was read (the read time minus the game's own time on the line,
-// so the game's flush plus ours) and logs them to File (logs/live-delay.log), one line per key or pull.
+// so the game's flush plus ours) and logs them to File (logs/live-delay.log), one line per saved key.
 type Delays struct {
 	File string
 	ms   []int64

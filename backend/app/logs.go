@@ -33,7 +33,7 @@ func (s *Site) LogFiles() ([]models.LogFile, error) {
 	if err != nil {
 		return nil, err
 	}
-	learnt := readLearned(filepath.Join(s.opts.Cache, "learned.json"))
+	learnt := readLearned(s.learnedPath())
 	var files []models.LogFile
 	for _, path := range logs {
 		entry, err := logEntry(path)
