@@ -1,5 +1,20 @@
 package models
 
+// SuggestTarget is the content a Suggest sim reads the top logs of: Mythic+ overall (Kind "mplus", the season's
+// first dungeons) or one raid boss (Kind "raid": Encounter, the boss as ENCOUNTER_START names it, on Difficulty,
+// Warcraft Logs' number). It is one of SimChoices.SuggestTargets.
+type SuggestTarget struct {
+	Kind       FightKind `json:"kind" enums:"mplus,raid" example:"mplus"`
+	Encounter  string    `json:"encounter,omitempty" example:"Sszorak"`
+	Difficulty int       `json:"difficulty,omitempty" example:"4"`
+}
+
+// SuggestTargetChoice is a target a Suggest sim can be started with and the name the page lists it by.
+type SuggestTargetChoice struct {
+	Name   string        `json:"name" example:"Mythic+ overall"`
+	Target SuggestTarget `json:"target"`
+}
+
 // Suggestion is one change the Sim tab's Suggest proposes, with the evidence for it. An enchant or gem has a Variant,
 // a consumable its Consumables, a talent its Talent, gear from the bags and a drop to farm their Swaps; a stat is
 // advice only.

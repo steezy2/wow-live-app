@@ -34,5 +34,21 @@ describe('SimSuggestions', () => {
     expect(html).toContain('14 of 20 top players')
     expect(html).toContain('+812')
     expect(html).not.toContain('Combined')
+    expect(html).not.toContain('Try it in Top Gear')
+  })
+
+  it('offers Top Gear only for a change with a variant, when it can open it', () => {
+    const report: SimSuggestReport = {
+      suggestions: [
+        { kind: 'gem', what: 'Gem', evidence: 'x', variant: { worn: true, index: 2, gem: 9 }, gain: 5 },
+        { kind: 'talent', what: 'Take Y', evidence: 'x' },
+      ],
+      dropped: 0,
+      notes: [],
+    }
+    const html = renderToStaticMarkup(
+      <SimSuggestions report={report} equipped={[]} chunk={20} onTry={() => undefined} />,
+    )
+    expect(html.match(/Try it in Top Gear/g)).toHaveLength(1)
   })
 })

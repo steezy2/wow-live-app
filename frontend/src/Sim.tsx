@@ -32,7 +32,14 @@ import { SimResult } from './SimResult'
 import { CustomCard } from './SimCustom'
 import { EnhancementsCard } from './SimEnhancements'
 import { SavedSims } from './SimSaved'
-import { kindLabel, omniumPicks, omniumString, simOptionsError } from './simOptions'
+import {
+  kindLabel,
+  omniumPicks,
+  omniumString,
+  savedSuggestTarget,
+  saveSuggestTarget,
+  simOptionsError,
+} from './simOptions'
 import { Skeleton } from './Skeleton'
 import { tip } from './tipAttrs'
 
@@ -141,6 +148,13 @@ function RunningSims(props: {
 
 /** What a request makes, in words: the runs besides the sim's own (of the max that run) and about how long it all
  * takes, or why the app would refuse it. */
+/** Whether the pasted character is the one a finished sim was of, wearing the same items: a suggestion's item index
+ * points into that export, and a newer paste can have other items at the same places. */
+const sameGear = (profile: SimProfile | null, sim: Sim) =>
+  !!profile &&
+  profile.name === sim.character &&
+  !!sim.result?.equipped?.every((it, i) => profile.equipped[i]?.slot === it.slot && profile.equipped[i]?.id === it.id)
+
 function PlanText(props: { plan: { plan: SimPlan | null; error: string | null }; kind: SimKind; choices: SimChoices }) {
   const { plan, kind, choices } = props
   const refusal = plan.error ?? plan.plan?.error
@@ -157,6 +171,28 @@ function PlanText(props: { plan: { plan: SimPlan | null; error: string | null };
   return (
     <p className="muted small">
       {what}about {aboutText(seconds)}
+    </p>
+  )
+}
+
+/** What Suggest would cost, in words (about how long, and once the Warcraft Logs points of reading the top logs), or
+ * why the app refuses it; without Warcraft Logs it offers the Stat Weights sim, which needs none. */
+function SuggestText({ plan, onStats }: { plan: { plan: SimPlan | null; error: string | null }; onStats: () => void }) {
+  const refusal = plan.error ?? plan.plan?.error
+  if (refusal) {
+    return (
+      <>
+        <p className="warning">{refusal}</p>
+        {plan.plan?.needsLogs && <button onClick={onStats}>Run Stat Weights instead</button>}
+      </>
+    )
+  }
+  if (!plan.plan) return null
+  const { seconds, points } = plan.plan
+  return (
+    <p className="muted small">
+      Suggest: about {aboutText(seconds)}
+      {points ? `, and about ${points} Warcraft Logs points once, to read the top players' logs` : ''}
     </p>
   )
 }
@@ -178,9 +214,13 @@ function OptionsPanel(props: {
   catalystCharges: number | null
   setCatalystCharges: (n: number) => void
   plan: { plan: SimPlan | null; error: string | null } | null
+  suggestPlan: { plan: SimPlan | null; error: string | null } | null
+  suggestTarget: string
+  setSuggestTarget: (name: string) => void
   why: string | null
   canRun: boolean
   onRun: () => void
+  onSuggest: (kind: SimKind) => void
 }) {
   const { kind, choices, options, setOptions, optionsError } = props
   return (
@@ -294,9 +334,30 @@ function OptionsPanel(props: {
       {optionsError && <p className="warning">{optionsError}</p>}
       {props.plan && <PlanText plan={props.plan} kind={kind} choices={choices} />}
       {props.why && <p className="warning">{props.why}</p>}
-      <button className="sim-run" disabled={!props.canRun || !!optionsError} onClick={props.onRun}>
-        Sim
-      </button>
+      {props.suggestPlan && <SuggestText plan={props.suggestPlan} onStats={() => props.onSuggest('stats')} />}
+      <div className="actions">
+        <button className="sim-run" disabled={!props.canRun || !!optionsError} onClick={props.onRun}>
+          Sim
+        </button>
+        <button
+          className="sim-run"
+          disabled={!!props.why || !!optionsError || !props.suggestPlan?.plan || !!props.suggestPlan.plan.error}
+          onClick={() => props.onSuggest('suggest')}
+          {...tip('What the top players of your spec do that you do not, confirmed by sims, ranked by gain')}
+        >
+          Suggest
+        </button>
+        <select
+          aria-label="Top logs of"
+          value={props.suggestTarget}
+          onChange={(e) => props.setSuggestTarget(e.target.value)}
+          {...tip('Whose top logs Suggest compares you with: Mythic+ dungeons, or one raid boss on a difficulty')}
+        >
+          {choices.suggestTargets.map((t) => (
+            <option key={t.name}>{t.name}</option>
+          ))}
+        </select>
+      </div>
     </aside>
   )
 }
@@ -323,6 +384,7 @@ export function SimPage() {
   const [custom, setCustom] = useState('')
   const [chargesPicked, setChargesPicked] = useState<number | null>(null) // null: all the charges (no limit)
   const [enhancements, setEnhancements] = useState<SimEnhancements>({})
+  const [targetPick, setTargetPick] = useState<string | null>(null) // null: the character's saved Suggest target
   const [runs, setRuns] = useState<Sim[]>([]) // the sims running now, as last polled
   const [watching, setWatching] = useState<string | null>(null) // the running sim whose progress card shows
   const [estimates, setEstimates] = useState<Record<string, number>>({}) // seconds each started sim's plan said
@@ -408,41 +470,58 @@ export function SimPage() {
       setBags([])
       setVariants([])
       setOmnium(omniumPicks(p.omnium))
+      setTargetPick(null)
     })
+  const character = profile ? `${profile.name}-${profile.server}` : ''
+  const suggestTarget =
+    choices && profile
+      ? (choices.suggestTargets.find((t) => t.name === targetPick) ?? savedSuggestTarget(choices, character))
+      : undefined
   const same = (a: SimVariant, b: SimVariant) => JSON.stringify(a) === JSON.stringify(b)
   const optionsError = choices && options ? simOptionsError(options, choices) : null
-  const request = (): SimRequest | null => {
+  const request = (k: SimKind = kind): SimRequest | null => {
     if (!options) return null
     const mine = omniumString(reference?.omnium ?? [], omnium)
     const theirs = omniumString(reference?.omnium ?? [], omniumPicks(profile?.omnium))
     return {
-      kind,
+      kind: k,
       export: text,
       options,
       consumables,
       ...(custom.trim() && { custom }),
       ...(mine !== theirs && { omnium: mine }),
-      ...(kind === 'topgear' && {
+      ...(k === 'topgear' && {
         equipped,
         bags,
         variants,
         enhancements,
         catalystCharges: chargesPicked ?? choices?.maxCatalystCharges,
       }),
-      ...(kind === 'drops' && { difficulty, keyLevel, upgrade }),
+      ...(k === 'drops' && { difficulty, keyLevel, upgrade }),
+      ...(k === 'suggest' && suggestTarget && { target: suggestTarget.target }),
     }
   }
   const planRequest = profile ? request() : null
   const plan = usePlan(planRequest)
-  const start = () =>
+  const suggestPlan = usePlan(profile ? request('suggest') : null)
+  const start = (k: SimKind = kind) =>
     act(async () => {
-      const req = request()
+      const req = request(k)
       if (!req) return
       const started = await startSim(req)
-      setEstimates((all) => ({ ...all, [started.id]: plan.plan?.seconds ?? 0 }))
+      const asked = k === 'suggest' ? suggestPlan : plan
+      setEstimates((all) => ({ ...all, [started.id]: asked.plan?.seconds ?? 0 }))
       setRuns((all) => [started, ...all.filter((r) => r.id !== started.id)])
       setWatching(started.id)
     })
+  // Opens Top Gear with a suggestion's variant added and its item ticked.
+  const tryVariant = (v: SimVariant) => {
+    setSim(null)
+    setKind('topgear')
+    setVariants((all) => (all.some((o) => same(o, v)) ? all : [...all, v]))
+    const [list, set] = v.worn ? [equipped, setEquipped] : [bags, setBags]
+    if (!list.includes(v.index)) set([...list, v.index])
+  }
   const toggle = (worn: boolean, i: number) => {
     const [list, set] = worn ? [equipped, setEquipped] : [bags, setBags]
     set(list.includes(i) ? list.filter((n) => n !== i) : [...list, i])
@@ -509,7 +588,11 @@ export function SimPage() {
         {error && <p className="warning">{error}</p>}
         {sim.state === 'failed' && <p className="warning">{sim.error}</p>}
         {sim.state === 'cancelled' && <p className="muted">Cancelled.</p>}
-        <SimResult sim={sim} chunk={choices.maxItemLookups} />
+        <SimResult
+          sim={sim}
+          chunk={choices.maxItemLookups}
+          onTry={sameGear(profile, sim) ? tryVariant : undefined}
+        />
       </main>
     )
   }
@@ -595,9 +678,16 @@ export function SimPage() {
               catalystCharges={chargesPicked}
               setCatalystCharges={setChargesPicked}
               plan={planRequest ? plan : null}
+              suggestPlan={profile ? suggestPlan : null}
+              suggestTarget={suggestTarget?.name ?? ''}
+              setSuggestTarget={(name) => {
+                setTargetPick(name)
+                saveSuggestTarget(character, name)
+              }}
               why={why}
               canRun={!why && !planBlocks}
-              onRun={start}
+              onRun={() => start()}
+              onSuggest={start}
             />
           </div>
           {kind === 'topgear' && (
