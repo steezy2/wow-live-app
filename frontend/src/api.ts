@@ -1902,6 +1902,14 @@ export interface SimOptions {
 }
 
 /** What the sim page picks its options from, and its limits. */
+/** A named fight: its style, length (seconds) and targets. */
+export interface SimScenario {
+  name: string
+  fightStyle: string
+  length: number
+  targets: number
+}
+
 export interface SimChoices {
   fightStyles: string[]
   accuracies: string[]
@@ -1913,7 +1921,7 @@ export interface SimChoices {
   maxParallel: number
   maxCatalystCharges: number
   /** Named fights to start the options from; the page fills the fight's fields from one. */
-  scenarios: { name: string; fightStyle: string; length: number; targets: number }[]
+  scenarios: SimScenario[]
   /** How many ranks of a track a Droptimizer can upgrade to (the rest are Mythic raid only). */
   upgradeRanks: number
   consumableKinds: string[]
@@ -1963,6 +1971,8 @@ export interface SimVariant {
   remove?: 'gems' | 'enchant' | 'socket' | 'embellishment'
   /** Converts the item to its Catalyst item (needs `catalystCharges` in the request). */
   catalyst?: boolean
+  /** Adds Ascendant Venomstones to a Hero or Myth weapon, trinket or neck at the top of its track. */
+  venomstone?: boolean
 }
 
 /** A sim to start: the export is read again by the app, `equipped` and `bags` are indexes into the profile read from
@@ -2148,7 +2158,7 @@ export interface SimResult {
  * gain over the unchanged character on one target and `aoeGain` and `aoeError` on the AoE fight (0 where the sim
  * doesn't show one, for a stat, and for a `talentOther` unless it is a loss). */
 export interface Suggestion {
-  kind: 'enchant' | 'gem' | 'stat' | 'consumable' | 'talent' | 'talentOther' | 'gear' | 'farm'
+  kind: 'enchant' | 'gem' | 'stat' | 'consumable' | 'talent' | 'talentOther' | 'gear' | 'farm' | 'upgrade'
   slot?: string
   what: string
   evidence: string
@@ -2175,6 +2185,10 @@ export interface Suggestion {
  * which top logs they come from (`baseline`), the
  * Warcraft Logs points reading them spent and what was left out and why. */
 export interface SimSuggestReport {
+  /** The fights each change was tested on (the stat weights ran on the sim's own options) and whose top logs; both
+   * absent in a sim saved before they were. */
+  fights?: SimScenario[]
+  target?: string
   suggestions: Suggestion[]
   combined?: SimCombo
   dropped: number

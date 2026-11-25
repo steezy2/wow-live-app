@@ -110,6 +110,9 @@ type SimVariant struct {
 	Remove        string `json:"remove,omitempty" enums:"gems,enchant,socket,embellishment"`
 	// Catalyst converts the item to its Catalyst item (it counts against SimRequest.CatalystCharges).
 	Catalyst bool `json:"catalyst,omitempty"`
+	// Venomstone raises a Hero or Myth weapon, trinket or neck at the top of its track by Ascendant Venomstones' item
+	// levels (after any Upgrade).
+	Venomstone bool `json:"venomstone,omitempty"`
 }
 
 // SimPlan is what a sim request would run: the runs besides the sim's own it makes (a Top Gear sim's gear

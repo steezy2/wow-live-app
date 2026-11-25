@@ -199,18 +199,41 @@ func (s *Sims) planSuggest(p models.SimProfile, req models.SimRequest, plan *mod
 	}
 	bags, drops, notes := s.suggestGear(p)
 	plan.Points, plan.Notes, plan.Combos = suggestPoints(req.Target), notes, maxSuggestions+len(bags)+len(drops)+1
-	final := simTargetError(req.Options, true)
-	runs := float64(maxSuggestions + 1 + 2)
-	for _, n := range []int{len(bags), len(drops)} {
-		if n > 0 {
-			runs += smartRuns(n, smartStages(n, final), final) + 1
+	return int(math.Round(sum(suggestWork(req.Options, maxSuggestions, len(bags), len(drops)))))
+}
+
+// suggestWork is about how many seconds each step of a Suggest sim with o takes (planSeconds): the stat weights, then
+// on both fights the changes (n of them) with their baseline, Top Gear over bags, the drops and the combined run.
+func suggestWork(o models.SimOptions, changes, bags, drops int) []float64 {
+	final := simTargetError(o, true)
+	fights := func(runs float64) float64 {
+		seconds := 0.0
+		for _, f := range suggestFights {
+			seconds += planSeconds(runs, f.options(o))
+		}
+		return seconds
+	}
+	work := []float64{planSeconds(statsRuns, o), fights(float64(changes + 1))}
+	for _, n := range []int{bags, drops} {
+		if n == 0 {
+			work = append(work, 0)
+		} else {
+			work = append(work, fights(smartRuns(n, smartStages(n, final), final)+1))
 		}
 	}
-	seconds := planSeconds(statsRuns, req.Options)
-	for _, f := range suggestFights {
-		seconds += planSeconds(runs, f.options(req.Options))
+	return append(work, fights(2))
+}
+
+// progressSpans split from to to of a progress bar over work in proportion: part i takes spans[i] to spans[i+1].
+func progressSpans(from, to int, work []float64) []int {
+	total, done := sum(work), 0.0
+	spans := []int{from}
+	for _, w := range work {
+		done += w
+		spans = append(spans, from+int(float64(to-from)*done/max(total, 1)))
 	}
-	return seconds
+	spans[len(spans)-1] = to
+	return spans
 }
 
 // logsReady is whether a Suggest sim can read the top logs: Tops is wired and the keys it needs are saved.
@@ -231,7 +254,7 @@ func (s *Sims) suggestGear(p models.SimProfile) (bags, drops []gearCombo, notes 
 		}
 	}
 	drops, err := dropCombos(p, s.Drops, defaultDropDifficulty, s.Choices().DefaultKeyLevel,
-		dropUpgrade{Tracks: s.Ref.Upgrades, Match: true})
+		dropUpgrade{Tracks: s.Ref.Upgrades})
 	if err != nil {
 		notes = append(notes, "Drops to farm aren't tried: "+why(err))
 	}
@@ -264,6 +287,8 @@ type suggestRun struct {
 	tree                    models.TalentTree
 	consumables             models.SimConsumables
 	target                  models.SuggestTarget
+	// bar is where each step's part of the progress bar starts (suggestWork's steps), then its end.
+	bar []int
 }
 
 // suggest runs a Suggest sim for the running sim with this ID and saves what it found (suggestRun.run).
@@ -290,12 +315,17 @@ type fightRace struct {
 // races are a race of the same combinations on each of suggestFights.
 type races [len(suggestFights)]fightRace
 
-// raceBoth races combos on each fight, as steps step and step+1 taking from to to of the progress bar.
+// raceBoth races combos on each fight, as steps step and step+1 taking from to to of the progress bar, each fight's
+// part as long as its planned time.
 func (r suggestRun) raceBoth(combos []gearCombo, from, to, step int, what string) (out races, complaint string,
 	err error) {
+	work := make([]float64, len(suggestFights))
 	for i, f := range suggestFights {
-		span := (to - from) / len(suggestFights)
-		if out[i].base, complaint, err = r.race(r.head, combos, f.options(r.o), from+i*span, from+(i+1)*span, step+i,
+		work[i] = planSeconds(1, f.options(r.o))
+	}
+	spans := progressSpans(from, to, work)
+	for i, f := range suggestFights {
+		if out[i].base, complaint, err = r.race(r.head, combos, f.options(r.o), spans[i], spans[i+1], step+i,
 			what+" on "+f.label); err != nil {
 			return out, complaint, err
 		}
@@ -333,7 +363,9 @@ func (r suggestRun) run() (*models.SimResult, string, error) {
 		b, err := r.sims.topBuilds(r.ctx, r.p, r.target)
 		logs <- read{b, err}
 	}()
-	result, complaint, err := r.race(r.head+scaleLine("stats"), nil, r.o, 0, 30, 1, "stat weights")
+	bags, drops, gearNotes := r.sims.suggestGear(r.p)
+	r.bar = progressSpans(0, 100, suggestWork(r.o, maxSuggestions, len(bags), len(drops)))
+	result, complaint, err := r.race(r.head+scaleLine("stats"), nil, r.o, r.bar[0], r.bar[1], 1, "stat weights")
 	if err != nil {
 		return nil, complaint, err
 	}
@@ -349,8 +381,17 @@ func (r suggestRun) run() (*models.SimResult, string, error) {
 		return nil, "", r.ctx.Err()
 	}
 	report := &models.SimSuggestReport{Suggestions: []models.Suggestion{}, Notes: []string{}}
+	for _, f := range suggestFights {
+		report.Fights = append(report.Fights, f.scenario)
+	}
+	for _, c := range r.sims.suggestTargets() {
+		if c.Target == r.target {
+			report.Target = c.Name
+		}
+	}
 	var shown []tested
 	var untested []models.Suggestion
+	changes := upgradeSuggestions(r.sims.Ref, r.p)
 	if got.err != nil {
 		report.Notes = append(report.Notes, "No changes from the top players: "+got.err.Error())
 	} else {
@@ -362,14 +403,17 @@ func (r suggestRun) run() (*models.SimResult, string, error) {
 			in.yourStats = &models.RankedStats{Crit: int(st.Crit), Haste: int(st.Haste), Mastery: int(st.Mastery),
 				Vers: int(st.Vers)}
 		}
-		changes, notes := buildSuggestions(in)
+		built, notes := buildSuggestions(in)
+		changes = append(changes, built...)
 		report.Notes = append(report.Notes, notes...)
-		if shown, untested, complaint, err = r.testChanges(changes, report); err != nil {
-			return nil, complaint, err
-		}
 	}
-	bags, drops, notes := r.sims.suggestGear(r.p)
-	report.Notes = append(report.Notes, notes...)
+	// the rest of the bar, now that how many changes to test is known
+	work := suggestWork(r.o, min(len(changes), maxSuggestions), len(bags), len(drops))
+	r.bar = append(r.bar[:1:1], progressSpans(r.bar[1], 100, work[1:])...)
+	if shown, untested, complaint, err = r.testChanges(changes, report); err != nil {
+		return nil, complaint, err
+	}
+	report.Notes = append(report.Notes, gearNotes...)
 	gear, complaint, err := r.bestGear(bags, report)
 	if err != nil {
 		return nil, complaint, err
@@ -441,11 +485,11 @@ func (r suggestRun) testChanges(all []models.Suggestion, report *models.SimSugge
 		}
 	}
 	if misfits > 0 {
-		report.Notes = append(report.Notes, fmt.Sprintf("%d of the top players' changes weren't tried: they don't fit "+
+		report.Notes = append(report.Notes, fmt.Sprintf("%d of the changes weren't tried: they don't fit "+
 			"your gear or the sim's options", misfits))
 	}
 	if over > 0 {
-		report.Notes = append(report.Notes, fmt.Sprintf("%d of the top players' changes weren't tried: one sim tries "+
+		report.Notes = append(report.Notes, fmt.Sprintf("%d of the changes weren't tried: one sim tries "+
 			"%d at most", over, maxSuggestions))
 	}
 	if len(changes) == 0 {
@@ -456,7 +500,7 @@ func (r suggestRun) testChanges(all []models.Suggestion, report *models.SimSugge
 		combos[i] = t.combo
 	}
 	what := fmt.Sprintf("testing %d changes", len(changes))
-	both, complaint, err := r.raceBoth(combos, 30, 50, 2, what)
+	both, complaint, err := r.raceBoth(combos, r.bar[1], r.bar[2], 2, what)
 	if err != nil {
 		return nil, nil, complaint, err
 	}
@@ -531,7 +575,7 @@ func (r suggestRun) bestGear(bags []gearCombo, report *models.SimSuggestReport) 
 	if len(bags) == 0 {
 		return nil, "", nil
 	}
-	both, complaint, err := r.raceBoth(bags, 50, 70, 4, "gear from the bags")
+	both, complaint, err := r.raceBoth(bags, r.bar[2], r.bar[3], 4, "gear from the bags")
 	if err != nil {
 		return nil, complaint, err
 	}
@@ -549,7 +593,7 @@ func (r suggestRun) bestGear(bags []gearCombo, report *models.SimSuggestReport) 
 	if combo < 0 {
 		return nil, "", errors.New("simc ran none of the gear combinations")
 	}
-	if complaint, err := r.fill(&both, bags[combo:combo+1], 70, 5, "the best gear"); err != nil {
+	if complaint, err := r.fill(&both, bags[combo:combo+1], r.bar[3], 5, "the best gear"); err != nil {
 		return nil, complaint, err
 	}
 	best, _ := both.sets(bags[combo].name)
@@ -582,7 +626,7 @@ func (r suggestRun) farm(drops []gearCombo) ([]models.Suggestion, string, error)
 	if len(drops) == 0 {
 		return nil, "", nil
 	}
-	both, complaint, err := r.raceBoth(drops, 70, 95, 6, "drops to farm")
+	both, complaint, err := r.raceBoth(drops, r.bar[3], r.bar[4], 6, "drops to farm")
 	if err != nil {
 		return nil, complaint, err
 	}
@@ -598,7 +642,7 @@ func (r suggestRun) farm(drops []gearCombo) ([]models.Suggestion, string, error)
 		}
 		in := d.swaps[0].In
 		s := models.Suggestion{Kind: "farm", What: fmt.Sprintf("Farm %s (%d) from %s", in.Name, in.Level, d.boss),
-			Evidence: fmt.Sprintf("the Droptimizer at %s and +%d, at the rank of the gear you wear",
+			Evidence: fmt.Sprintf("the Droptimizer at %s and +%d, fully upgraded (with Venomstones where they fit)",
 				defaultDropDifficulty, r.sims.Choices().DefaultKeyLevel),
 			Swaps: slimmed(d.swaps), Source: d.source, Boss: d.boss}
 		if gained(&s, set, both) {
@@ -618,7 +662,7 @@ func (r suggestRun) farm(drops []gearCombo) ([]models.Suggestion, string, error)
 	for i, f := range picked {
 		combos[i] = f.d
 	}
-	if complaint, err := r.fill(&both, combos, 95, 7, "drops to farm"); err != nil {
+	if complaint, err := r.fill(&both, combos, r.bar[4], 7, "drops to farm"); err != nil {
 		return nil, complaint, err
 	}
 	out := make([]models.Suggestion, len(picked))
@@ -731,7 +775,7 @@ func (r suggestRun) combined(shown []tested) (*models.SimCombo, string, error) {
 		combo.line += line
 	}
 	combo.swaps = swapsTo(worn, now)
-	both, complaint, err := r.raceBoth([]gearCombo{combo}, 95, 100, 8, "all the changes together")
+	both, complaint, err := r.raceBoth([]gearCombo{combo}, r.bar[4], r.bar[5], 8, "all the changes together")
 	if err != nil {
 		return nil, complaint, err
 	}

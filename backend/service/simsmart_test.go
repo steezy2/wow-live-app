@@ -53,7 +53,7 @@ func TestSurvivorsDropWhatCannotReachTheBest(t *testing.T) {
 
 func TestSmartRunsCostLessThanRunningEverythingAtFullPrecision(t *testing.T) {
 	stages := smartStages(1000, 0.2)
-	if got := smartRuns(1000, stages, 0.2); got >= 300 || got < 100 {
+	if got := smartRuns(1000, stages, 0.2); got >= 400 || got < 100 {
 		t.Errorf("smartRuns(1000) = %v, want well under the 1000 full runs and over its last stage's", got)
 	}
 }

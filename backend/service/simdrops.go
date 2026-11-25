@@ -55,7 +55,7 @@ const upgradeRanks = 6
 
 // rankLevel is the item level at rank (from 1) of t: its top rank (upgradeRanks at most) when rank is 0 or past it.
 func rankLevel(t models.SimUpgradeTrack, rank int) int {
-	top := min(len(t.Levels), upgradeRanks)
+	top := topRank(t)
 	if rank <= 0 || rank > top {
 		rank = top
 	}
@@ -169,8 +169,17 @@ func upgradedLevel(up dropUpgrade, track models.SimUpgradeTrack, slot string, wo
 		rank = current.Level
 	}
 	level := rankLevel(track, rank)
-	if rank == 0 && slices.Contains(venomstoneTracks, track.Name) && slices.Contains(venomstoneSlots, slot) {
+	if rank == 0 && venomstoneFits(track, slot) {
 		level += venomstoneLevels
 	}
 	return level
 }
+
+// venomstoneFits is whether an item on track worn in slot (a drop's or a gear slot) takes Ascendant Venomstones once
+// at the top of its track.
+func venomstoneFits(track models.SimUpgradeTrack, slot string) bool {
+	return slices.Contains(venomstoneTracks, track.Name) && slices.Contains(venomstoneSlots, models.SlotGroup(slot))
+}
+
+// topRank is the rank a Droptimizer or Suggest upgrades an item on t to: its last, upgradeRanks at most.
+func topRank(t models.SimUpgradeTrack) int { return min(len(t.Levels), upgradeRanks) }

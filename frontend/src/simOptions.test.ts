@@ -1,10 +1,11 @@
 import { expect, test } from 'vitest'
-import type { SimChoices, SimItem, SimReference } from './api'
+import type { Sim, SimChoices, SimItem, SimReference } from './api'
 import {
   comparedCount,
   enchantsFor,
   gainShare,
   gearGroups,
+  nextLeft,
   omniumPicks,
   omniumString,
   simOptionsError,
@@ -105,3 +106,17 @@ test('togglePick adds an entry beside the others of its node and removes a picke
   expect(togglePick([], 21)).toEqual([21])
 })
 
+
+const running = (progress: number) => ({ id: 'a', progress, startedMS: 0 }) as Sim
+
+test("a sim's time left starts from the plan and leans on its progress as the bar fills", () => {
+  expect(nextLeft(running(0), 100, undefined, 10_000).left).toBe(90)
+  expect(nextLeft(running(50), 100, undefined, 30_000).left).toBe(30) // 60 s in all, trusted past 30%
+  expect(nextLeft(running(0), 0, undefined, 10_000).left).toBeNull()
+})
+
+test("a sim's time left counts down unless the new figure is well above what showed", () => {
+  const shown = { left: 60, at: 0 }
+  expect(nextLeft(running(10), 100, shown, 5_000).left).toBe(55) // about 78 s now: keeps counting down
+  expect(nextLeft(running(5), 400, shown, 5_000).left).toBe(345) // far above: shows it
+})

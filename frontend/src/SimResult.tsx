@@ -49,8 +49,9 @@ function ReportHead({ sim, result }: { sim: Sim; result: Result }) {
           <span className="muted">{who}</span>
         </p>
         <p className="muted small">
-          {sim.options.fightStyle}, {sim.options.length} s, {sim.options.targets} target
-          {sim.options.targets > 1 ? 's' : ''}
+          {result.suggest ? 'Stat weights on ' : ''}
+          {fightText(sim.options)}
+          {result.suggest?.fights && `; changes on ${result.suggest.fights.map((f) => f.name).join(' and ')}`}
         </p>
       </div>
       <div className="sim-headline">
@@ -221,17 +222,34 @@ function StatWeights({ weights, pawn }: { weights: SimStatWeight[]; pawn?: strin
   )
 }
 
-/** How the sim was run, one fact to a line: the fight, when, how long it took and how sure the number is. */
+/** A fight in words: "Patchwerk, 300 s, 1 target". */
+const fightText = (f: { fightStyle: string; length: number; targets: number }) =>
+  `${f.fightStyle}, ${f.length} s, ${f.targets} target${f.targets > 1 ? 's' : ''}`
+
+/** How the sim was run, one fact to a line: the fight (a Suggest sim's stat weights' fight, the fights it tested the
+ * changes on and whose top logs), when, how long it took and how sure the number is. */
 function Details({ sim, result }: { sim: Sim; result: Result }) {
   const percent = result.dps ? (result.dpsError / result.dps) * 100 : 0
-  const rows: [string, string][] = [
-    ['Fight style', sim.options.fightStyle],
-    ['Fight length', `${sim.options.length} seconds`],
-    ['Targets', String(sim.options.targets)],
+  const suggest = result.suggest
+  const rows: [string, string][] = suggest
+    ? [
+        ['Stat weights', fightText(sim.options)],
+        ...(suggest.fights ?? []).map((f): [string, string] => [`Changes on ${f.name}`, fightText(f)]),
+        ...(suggest.target ? [['Top logs of', suggest.target] as [string, string]] : []),
+      ]
+    : [
+        ['Fight style', sim.options.fightStyle],
+        ['Fight length', `${sim.options.length} seconds`],
+        ['Targets', String(sim.options.targets)],
+      ]
+  rows.push(
     ['Accuracy', sim.options.accuracy],
     ['Sim run', new Date(sim.startedMS).toLocaleString()],
-    ['Margin of error', `~${full(result.dpsError)} DPS (${percent.toFixed(2)}%)`],
-  ]
+    [
+      suggest ? 'Margin of error (stat weights)' : 'Margin of error',
+      `~${full(result.dpsError)} DPS (${percent.toFixed(2)}%)`,
+    ],
+  )
   if (result.stages) {
     rows.push(['Stages', result.stages.map((s) => `${s.combos} at ${s.error}%`).join(' → ')])
   }

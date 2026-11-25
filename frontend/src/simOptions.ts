@@ -1,4 +1,5 @@
 import type {
+  Sim,
   SimChoices,
   SimConsumables,
   SimEnchant,
@@ -11,6 +12,24 @@ import type {
   SuggestTargetChoice,
   TalentNode,
 } from './api'
+
+/** A running sim's time left as shown: seconds (null before anything says) and when (ms). */
+export type ShownLeft = { left: number | null; at: number }
+
+/** A running sim's time left at `at` (ms): its plan's total time (estimate, in seconds; 0 when unknown), leaning on
+ * the time its progress gives as the bar fills, counting down from what showed before (prev) unless the new figure
+ * is well above it, so it rarely goes up. */
+export function nextLeft(run: Sim, estimate: number, prev: ShownLeft | undefined, at: number): ShownLeft {
+  const elapsed = (at - run.startedMS) / 1000
+  const measured = run.progress >= 2 ? (elapsed * 100) / run.progress : 0
+  const trust = Math.min(1, run.progress / 30) // how much the measured time counts against the plan's
+  const total = !estimate ? measured : !measured ? estimate : estimate + (measured - estimate) * trust
+  if (!total) return { left: null, at }
+  const left = Math.max(0, total - elapsed)
+  if (prev?.left == null) return { left, at }
+  const counted = Math.max(0, prev.left - (at - prev.at) / 1000)
+  return { left: left > counted * 1.25 + 10 ? left : Math.min(left, counted), at }
+}
 
 /** What a Suggest report is ranked by: the larger gain of the two fights, or one of them. */
 export type RankBy = 'best' | 'single' | 'aoe'

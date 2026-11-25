@@ -2263,6 +2263,18 @@ table.compare td:first-child {
   margin: 0;
 }
 
+.sim-suggest {
+  border-top: 1px solid var(--border);
+  display: grid;
+  gap: var(--s2);
+  padding-top: var(--s3);
+}
+
+.sim-suggest h3,
+.sim-suggest p {
+  margin: 0;
+}
+
 .sim .sim-run {
   background: var(--accent);
   border-color: var(--accent);
