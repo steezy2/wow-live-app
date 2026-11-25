@@ -7290,6 +7290,9 @@
                 "error": {
                     "type": "string"
                 },
+                "needsLogs": {
+                    "type": "boolean"
+                },
                 "notes": {
                     "type": "array",
                     "items": {
@@ -7297,7 +7300,7 @@
                     }
                 },
                 "points": {
-                    "type": "integer",
+                    "type": "number",
                     "example": 160
                 },
                 "seconds": {

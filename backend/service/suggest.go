@@ -26,8 +26,8 @@ const (
 	maxFarmSuggestions = 5
 	// suggestPoints is about what reading the top logs costs, as for a player review: compareLogs logs at about 8.
 	suggestPoints = compareLogs * 8
-	// suggestSteps is how many steps a Suggest sim's stage text counts.
-	suggestSteps = 4
+	// suggestSteps is how many steps a Suggest sim's stage text counts (suggestRun.run).
+	suggestSteps = 5
 )
 
 // errNoSuggestLogs is why a Suggest sim is refused without Warcraft Logs.
@@ -118,7 +118,7 @@ func playerIn(specs map[string]int, specID int, character string) string {
 // with the points the top logs cost, what it leaves out (Notes) and, without Warcraft Logs, why Start refuses it. It
 // returns the full-precision runs.
 func (s *Sims) planSuggest(p models.SimProfile, o models.SimOptions, plan *models.SimPlan) float64 {
-	if !s.logsReady() && plan.Error == "" {
+	if plan.NeedsLogs = !s.logsReady(); plan.NeedsLogs && plan.Error == "" {
 		plan.Error = errNoSuggestLogs.Error()
 	}
 	bags, drops, notes := s.suggestGear(p)
@@ -200,8 +200,8 @@ func (r suggestRun) race(head string, combos []gearCombo, from, to, step int, wh
 }
 
 // run is a Suggest sim: (1) the stat weights, while the top logs are read; (2) one profileset for each change most top
-// players make that the character doesn't, against the unchanged character; (3) Top Gear over the bags and the
-// Droptimizer's drops; (4) every change shown that fits at once. A tested change the sim doesn't show as a gain is
+// players make that the character doesn't, against the unchanged character; (3) Top Gear over the bags; (4) the
+// Droptimizer's drops; (5) every change shown that fits at once. A tested change the sim doesn't show as a gain is
 // left out and counted. The result is the stat weights sim's, with the changes in Suggest.
 func (r suggestRun) run() (*models.SimResult, string, error) {
 	type read struct {
@@ -222,7 +222,12 @@ func (r suggestRun) run() (*models.SimResult, string, error) {
 		return nil, "", err
 	}
 	r.sims.setStage(r.id, fmt.Sprintf("Step 1 of %d: reading the top logs", suggestSteps))
-	got := <-logs
+	var got read
+	select { // the read waits on any player review, whatever the context
+	case got = <-logs:
+	case <-r.ctx.Done():
+		return nil, "", r.ctx.Err()
+	}
 	report := &models.SimSuggestReport{Suggestions: []models.Suggestion{}, Notes: []string{}}
 	var shown []tested
 	var untested []models.Suggestion
@@ -236,19 +241,17 @@ func (r suggestRun) run() (*models.SimResult, string, error) {
 			in.yourStats = &models.RankedStats{Crit: int(st.Crit), Haste: int(st.Haste), Mastery: int(st.Mastery),
 				Vers: int(st.Vers)}
 		}
-		var dropped int
-		if shown, untested, dropped, complaint, err = r.testChanges(buildSuggestions(in)); err != nil {
+		if shown, untested, complaint, err = r.testChanges(buildSuggestions(in), report); err != nil {
 			return nil, complaint, err
 		}
-		report.Dropped += dropped
 	}
 	bags, drops, notes := r.sims.suggestGear(r.p)
 	report.Notes = append(report.Notes, notes...)
-	gear, dropped, complaint, err := r.bestGear(bags)
+	gear, complaint, err := r.bestGear(bags, report)
 	if err != nil {
 		return nil, complaint, err
 	}
-	shown, report.Dropped = append(shown, gear...), report.Dropped+dropped
+	shown = append(shown, gear...)
 	farm, complaint, err := r.farm(drops)
 	if err != nil {
 		return nil, complaint, err
@@ -261,11 +264,16 @@ func (r suggestRun) run() (*models.SimResult, string, error) {
 	}
 	report.Suggestions = append(append(report.Suggestions, farm...), untested...)
 	slices.SortStableFunc(report.Suggestions, func(a, b models.Suggestion) int {
-		return cmp.Compare(b.Gain+b.Expected, a.Gain+a.Expected) // one of them is 0; a talent's both are
+		return cmp.Or(cmp.Compare(untestedRank[a.Kind], untestedRank[b.Kind]), cmp.Compare(b.Gain, a.Gain),
+			cmp.Compare(b.Expected, a.Expected))
 	})
 	result.Suggest = report
 	return result, "", nil
 }
+
+// untestedRank orders the suggestions the sim doesn't test after the tested ones (0): the stats, priced by the stat
+// weights, then the talents.
+var untestedRank = map[string]int{"stat": 1, "talent": 2}
 
 // topBuilds reads the top players of the character's spec.
 func (s *Sims) topBuilds(ctx context.Context, p models.SimProfile) (TopBuilds, error) {
@@ -279,25 +287,38 @@ func (s *Sims) topBuilds(ctx context.Context, p models.SimProfile) (TopBuilds, e
 // testChanges runs one profileset for each of the first maxSuggestions changes the sim can test (an enchant, a gem, a
 // consumable) and returns those it shows as a gain, the ones it can't test (a stat, which the stat weights price, and
 // a talent: the sim would need the talent string the export's talents are written in, and nothing here encodes one,
-// so a talent stays the top players' evidence only) and how many it dropped.
-func (r suggestRun) testChanges(all []models.Suggestion) (shown []tested, untested []models.Suggestion, dropped int,
-	complaint string, err error) {
+// so a talent stays the top players' evidence only). It counts the ones the sim shows as no gain in report.Dropped and
+// notes the ones it doesn't try.
+func (r suggestRun) testChanges(all []models.Suggestion, report *models.SimSuggestReport) (shown []tested,
+	untested []models.Suggestion, complaint string, err error) {
 	var changes []tested
+	misfits, over := 0, 0
 	for _, sg := range all {
 		if sg.Variant == nil && sg.Consumables == nil {
 			untested = append(untested, sg)
 			continue
 		}
 		combo, ok := changeCombo(r.sims.Ref, r.p, sg)
-		if !ok || len(changes) == maxSuggestions {
-			dropped++
-			continue
+		switch {
+		case !ok:
+			misfits++
+		case len(changes) == maxSuggestions:
+			over++
+		default:
+			combo.name = "change" + strconv.Itoa(len(changes)+1)
+			changes = append(changes, tested{sg, combo})
 		}
-		combo.name = "change" + strconv.Itoa(len(changes)+1)
-		changes = append(changes, tested{sg, combo})
+	}
+	if misfits > 0 {
+		report.Notes = append(report.Notes, fmt.Sprintf("%d of the top players' changes weren't tried: they don't fit "+
+			"your gear or the sim's options", misfits))
+	}
+	if over > 0 {
+		report.Notes = append(report.Notes, fmt.Sprintf("%d of the top players' changes weren't tried: one sim tries "+
+			"%d at most", over, maxSuggestions))
 	}
 	if len(changes) == 0 {
-		return nil, untested, dropped, "", nil
+		return nil, untested, "", nil
 	}
 	combos := make([]gearCombo, len(changes))
 	for i, t := range changes {
@@ -306,21 +327,21 @@ func (r suggestRun) testChanges(all []models.Suggestion) (shown []tested, untest
 	what := fmt.Sprintf("testing %d changes", len(changes))
 	base, complaint, err := r.race(r.head, combos, 30, 50, 2, what)
 	if err != nil {
-		return nil, nil, 0, complaint, err
+		return nil, nil, complaint, err
 	}
 	sets, err := readSets(r.output)
 	if err != nil {
-		return nil, nil, 0, "", err
+		return nil, nil, "", err
 	}
 	for _, t := range changes {
 		i := slices.IndexFunc(sets, func(s simSetJSON) bool { return s.Name == t.combo.name })
 		if i < 0 || !gained(&t.s, sets[i], base) {
-			dropped++
+			report.Dropped++
 			continue
 		}
 		shown = append(shown, t)
 	}
-	return shown, untested, dropped, "", nil
+	return shown, untested, "", nil
 }
 
 // gained sets s's gain from its profileset over base and says whether the sim shows it as one: at least
@@ -350,18 +371,18 @@ func changeCombo(ref models.SimReference, p models.SimProfile, s models.Suggesti
 }
 
 // bestGear runs Top Gear over bags and returns its best combination when the sim shows it as a gain, else counts it
-// dropped.
-func (r suggestRun) bestGear(bags []gearCombo) ([]tested, int, string, error) {
+// in report.Dropped.
+func (r suggestRun) bestGear(bags []gearCombo, report *models.SimSuggestReport) ([]tested, string, error) {
 	if len(bags) == 0 {
-		return nil, 0, "", nil
+		return nil, "", nil
 	}
 	base, complaint, err := r.race(r.head, bags, 50, 70, 3, "gear from the bags")
 	if err != nil {
-		return nil, 0, complaint, err
+		return nil, complaint, err
 	}
 	sets, err := readSets(r.output)
 	if err != nil {
-		return nil, 0, "", err
+		return nil, "", err
 	}
 	best, combo := simSetJSON{}, -1
 	for _, set := range sets {
@@ -371,15 +392,16 @@ func (r suggestRun) bestGear(bags []gearCombo) ([]tested, int, string, error) {
 		}
 	}
 	if combo < 0 {
-		return nil, 0, "", errors.New("simc ran none of the gear combinations")
+		return nil, "", errors.New("simc ran none of the gear combinations")
 	}
 	swaps := bags[combo].swaps
 	s := models.Suggestion{Kind: "gear", What: "Wear " + swapsText(swaps), Swaps: slimmed(swaps),
 		Evidence: fmt.Sprintf("the best of %d combinations of your gear", len(bags))}
 	if !gained(&s, best, base) {
-		return nil, 1, "", nil
+		report.Dropped++
+		return nil, "", nil
 	}
-	return []tested{{s, bags[combo]}}, 0, "", nil
+	return []tested{{s, bags[combo]}}, "", nil
 }
 
 // swapsText names what swaps put on: "Ring of Ages in finger2, nothing in off_hand".
@@ -401,7 +423,7 @@ func (r suggestRun) farm(drops []gearCombo) ([]models.Suggestion, string, error)
 	if len(drops) == 0 {
 		return nil, "", nil
 	}
-	base, complaint, err := r.race(r.head, drops, 70, 95, 3, "drops to farm")
+	base, complaint, err := r.race(r.head, drops, 70, 95, 4, "drops to farm")
 	if err != nil {
 		return nil, complaint, err
 	}
@@ -468,7 +490,7 @@ func (r suggestRun) combined(shown []tested) (*models.SimCombo, string, error) {
 			combo.swaps = append(combo.swaps, models.SimSwap{Slot: slot, Out: worn[slot], In: now[slot]})
 		}
 	}
-	base, complaint, err := r.race(r.head, []gearCombo{combo}, 95, 100, 4, "all the changes together")
+	base, complaint, err := r.race(r.head, []gearCombo{combo}, 95, 100, 5, "all the changes together")
 	if err != nil {
 		return nil, complaint, err
 	}

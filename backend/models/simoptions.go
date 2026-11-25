@@ -114,13 +114,15 @@ type SimVariant struct {
 // combinations, a Droptimizer's drops, a comparison's combinations) and about how long it all takes on this PC, for
 // its fight length and accuracy. Error is why the sim would be refused, in the words starting it gives; Notes say what
 // each of a Top Gear request's variants changes, in its order, or what a Suggest sim leaves out. Points is about what
-// a Suggest sim spends of Warcraft Logs' hourly points reading the top logs (a log read before costs nothing again).
+// a Suggest sim spends of Warcraft Logs' hourly points reading the top logs (a log read before costs nothing again),
+// and NeedsLogs is whether Start refuses it because Warcraft Logs isn't set up.
 type SimPlan struct {
-	Combos  int      `json:"combos"`
-	Seconds int      `json:"seconds"`
-	Error   string   `json:"error,omitempty"`
-	Notes   []string `json:"notes"`
-	Points  int      `json:"points,omitempty" example:"160"`
+	Combos    int      `json:"combos"`
+	Seconds   int      `json:"seconds"`
+	Error     string   `json:"error,omitempty"`
+	Notes     []string `json:"notes"`
+	Points    float64  `json:"points,omitempty" example:"160"`
+	NeedsLogs bool     `json:"needsLogs,omitempty"`
 }
 
 // SimOptionRow is one value a Quick Sim compared: its simc name and display name, its DPS, the standard error of
