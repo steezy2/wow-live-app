@@ -37,6 +37,26 @@ type RankedPlayer struct {
 	Buffs     []RankedBuff    `json:"buffs"`
 	// Talents are the talents they took; none when unknown (a key saved before they were kept).
 	Talents []TalentPick `json:"talents,omitempty"`
+	// Gear and Stats are what they wore and their secondary stat ratings, read with the talents; none when unknown.
+	Gear  []RankedGear `json:"gear,omitempty"`
+	Stats *RankedStats `json:"stats,omitempty"`
+}
+
+// RankedGear is an item a player wore: simc's slot name, the item and its level, the enchant and the gems in it.
+type RankedGear struct {
+	Slot    string `json:"slot" example:"head"`
+	ID      int    `json:"id" example:"249979"`
+	Level   int    `json:"level" example:"272"`
+	Enchant int    `json:"enchant,omitempty" example:"7964"`
+	Gems    []int  `json:"gems,omitempty"`
+}
+
+// RankedStats are a player's secondary stat ratings.
+type RankedStats struct {
+	Crit    int `json:"crit"`
+	Haste   int `json:"haste"`
+	Mastery int `json:"mastery"`
+	Vers    int `json:"vers"`
 }
 
 // TalentPick is one talent a player took: the tree node, the choice made in it and the ranks bought, as the game's

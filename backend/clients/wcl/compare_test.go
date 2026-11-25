@@ -62,18 +62,26 @@ func TestFindActor(t *testing.T) {
 	}
 }
 
-func TestTalentsOfTakesTheActorsCombatantInfo(t *testing.T) {
+func TestBuildOfReadsTheActorsTalentsGearAndStats(t *testing.T) {
 	var events []event
 	raw := `[{"type":"combatantinfo","sourceID":2,"talentTree":[{"id":9,"rank":1,"nodeID":8}]},
-		{"type":"combatantinfo","sourceID":3,"talentTree":[{"id":20,"rank":2,"nodeID":10}]},{"type":"cast","sourceID":3}]`
+		{"type":"combatantinfo","sourceID":3,"critSpell":1500.4,"hasteSpell":900,"mastery":2000,"versatilityDamageDone":300,
+		 "talentTree":[{"id":20,"rank":2,"nodeID":10}],
+		 "gear":[{"id":50,"itemLevel":272,"permanentEnchant":7964,"gems":[{"id":240883,"itemLevel":0}]},{"id":0},{"id":0},
+		 {"id":0},{"id":51,"itemLevel":270}]},{"type":"cast","sourceID":3}]`
 	if err := json.Unmarshal([]byte(raw), &events); err != nil {
 		t.Fatal(err)
 	}
-	want := []models.TalentPick{{NodeID: 10, EntryID: 20, Rank: 2}}
-	if got := talentsOf(events, 3); !reflect.DeepEqual(got, want) {
-		t.Errorf("talentsOf = %+v, want %+v", got, want)
+	want := build{
+		talents: []models.TalentPick{{NodeID: 10, EntryID: 20, Rank: 2}},
+		gear: []models.RankedGear{{Slot: "head", ID: 50, Level: 272, Enchant: 7964, Gems: []int{240883}},
+			{Slot: "chest", ID: 51, Level: 270}},
+		stats: &models.RankedStats{Crit: 1500, Haste: 900, Mastery: 2000, Vers: 300},
 	}
-	if got := talentsOf(events, 4); got != nil {
-		t.Errorf("talentsOf for an actor with none = %+v, want nil", got)
+	if got := buildOf(events, 3); !reflect.DeepEqual(got, want) {
+		t.Errorf("buildOf = %+v, want %+v", got, want)
+	}
+	if got := buildOf(events, 4); !reflect.DeepEqual(got, build{}) {
+		t.Errorf("buildOf for an actor with none = %+v, want empty", got)
 	}
 }
