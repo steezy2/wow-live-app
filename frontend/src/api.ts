@@ -1927,8 +1927,9 @@ export interface SimChoices {
 }
 
 /** The kinds of sim: one DPS number, the best combination of the gear carried, each drop's gain, and what a point of
- * each stat is worth. (A sim saved by an earlier version can also say 'consumables'.) */
-export type SimKind = 'quick' | 'topgear' | 'drops' | 'stats'
+ * each stat is worth, and the changes top players make that the sim confirms. (A sim saved by an earlier version can
+ * also say 'consumables'.) */
+export type SimKind = 'quick' | 'topgear' | 'drops' | 'stats' | 'suggest'
 
 /** The consumables a sim uses: the values (simc names) picked of each kind (one of SimChoices.consumableKinds). A kind
  * with none keeps simc's default, one value is used by the whole sim, and two or more are compared: every combination
@@ -2044,6 +2045,8 @@ export interface SimPlan {
   seconds: number
   error?: string
   notes: string[]
+  /** About what a Suggest sim spends of Warcraft Logs' hourly points reading the top logs (0 once they were read). */
+  points?: number
 }
 
 /** One value of a "consumables" sim: its DPS and gain over the sim's baseline. */
@@ -2108,6 +2111,41 @@ export interface SimResult {
   equipped?: SimItem[]
   weights?: SimStatWeight[]
   pawn?: string
+  /** A Suggest sim's changes; the rest of the result is its stat weights sim's. */
+  suggest?: SimSuggestReport
+}
+
+/** One change a Suggest sim proposes. An enchant or gem has a `variant`, a consumable its `consumables`, gear from the
+ * bags and a drop to farm their `swaps` (a drop its `source` and `boss`); a stat is advice only, priced by
+ * `expected`. `gain` and `dpsError` are the sim's DPS gain over the unchanged character (0 for a talent or stat). */
+export interface Suggestion {
+  kind: 'enchant' | 'gem' | 'stat' | 'consumable' | 'talent' | 'gear' | 'farm'
+  slot?: string
+  what: string
+  evidence: string
+  variant?: SimVariant
+  consumables?: SimConsumables
+  talent?: TalentShare
+  swaps?: SimSwap[]
+  source?: string
+  boss?: string
+  expected?: number
+  gain?: number
+  dpsError?: number
+  /** Whether the change is in the report's combined row. */
+  combined?: boolean
+}
+
+/** What a Suggest sim found besides the stat weights: the changes best first, the gain of every change that fits at
+ * once, how many tested changes showed no gain and were left out, which top logs they come from (`baseline`), the
+ * Warcraft Logs points reading them spent and what was left out and why. */
+export interface SimSuggestReport {
+  suggestions: Suggestion[]
+  combined?: SimCombo
+  dropped: number
+  baseline?: string
+  points?: number
+  notes: string[]
 }
 
 /** One action of a sample ability log: when (seconds into the fight, before the pull when pre), what, at whom and the

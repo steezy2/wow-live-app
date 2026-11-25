@@ -13,6 +13,9 @@ import type {
 /** What an error says, for a message on the page. */
 export const errorText = (err: unknown): string => (err instanceof Error ? err.message : String(err))
 
+/** A DPS number in full, as Raidbots shows it ("200,918"). */
+export const full = (n: number) => Math.round(n).toLocaleString('en-US')
+
 /** A duration as the game shows it: "18:42", "1:05:09" past an hour, "-0:12" when negative. */
 export function clock(ms: number): string {
   const sign = ms < 0 ? '-' : ''

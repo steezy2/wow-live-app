@@ -1,15 +1,14 @@
 import { useState } from 'react'
 import type { Sim, SimCombo, SimItem, SimOptionRow, SimResult as Result, SimStatWeight } from './api'
-import { clock } from './format'
+import { clock, full } from './format'
 import { SourceRanking } from './SimSources'
 import { AbilityBars, AbilityLog, BuffBars } from './SimBreakdown'
 import { ItemLine } from './SimItem'
 import { useItemInfo, useSpellInfo } from './simItems'
 import { simClassColor, simClassName } from './classColors'
-import { gainShare, groupLabel, kindLabel } from './simOptions'
-
-/** A DPS number in full, as Raidbots shows it ("200,918"). */
-const full = (n: number) => Math.round(n).toLocaleString('en-US')
+import { groupLabel, kindLabel } from './simOptions'
+import { Gain, SwapRows } from './SimRows'
+import { SimSuggestions } from './SimSuggestions'
 
 /** The names the page gives simc's stats. */
 const STAT_NAMES: Record<string, string> = {
@@ -20,22 +19,6 @@ const STAT_NAMES: Record<string, string> = {
   Haste: 'Haste',
   Mastery: 'Mastery',
   Vers: 'Versatility',
-}
-
-/** A ranked row's DPS, its gain over the sim's baseline and a bar for the gain against the best one's. */
-function Gain({ gain, dps, best }: { gain: number; dps: number; best: number }) {
-  return (
-    <div className="sim-gain">
-      <span className="muted small">{full(dps)} DPS</span>
-      <span className={gain >= 0 ? 'good' : 'warning'}>
-        {gain > 0 ? '+' : ''}
-        {gain === 0 ? '—' : full(gain)}
-      </span>
-      <span className="sim-gain-bar">
-        <span style={{ width: `${gainShare(gain, best)}%` }} />
-      </span>
-    </div>
-  )
 }
 
 /** The top of a report: what was simmed, the character, and the one number it comes to. */
@@ -151,16 +134,7 @@ function Combos(props: { combos: SimCombo[]; equipped: number; drops: boolean; c
               <Gain gain={c.gain} dps={c.dps} best={best} />
               <div className="sim-swaps">
                 {c.swaps.length === 0 && <span>Current gear</span>}
-                {c.swaps.map((s) => (
-                  <div key={s.slot} className="sim-swap">
-                    <span className="muted small sim-swap-slot">
-                      {groupLabel(s.in?.group ?? s.out?.group ?? s.slot)}
-                    </span>
-                    {s.out ? <ItemLine item={s.out} info={info.get(s.out.id)} /> : <span className="muted">empty</span>}
-                    <span className="muted">→</span>
-                    {s.in ? <ItemLine item={s.in} info={info.get(s.in.id)} /> : <span className="muted">empty</span>}
-                  </div>
-                ))}
+                <SwapRows swaps={c.swaps} info={info} />
                 {drops && (
                   <span className="muted small">
                     {c.boss} · {c.source}
@@ -298,6 +272,7 @@ export function SimResult({ sim, chunk }: { sim: Sim; chunk: number }) {
         <Combos combos={result.combos} equipped={result.dps} drops={sim.kind === 'drops'} chunk={chunk} />
       )}
       {result.options && <OptionRows rows={result.options} />}
+      {result.suggest && <SimSuggestions report={result.suggest} equipped={result.equipped ?? []} chunk={chunk} />}
       {result.weights && <StatWeights weights={result.weights} pawn={result.pawn} />}
       <AbilityBars abilities={result.abilities} info={spells} />
       {result.buffs.length > 0 && <BuffBars buffs={result.buffs} info={spells} />}

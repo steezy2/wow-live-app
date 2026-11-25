@@ -25,6 +25,7 @@ const KIND_LABELS: Record<string, string> = {
   topgear: 'Top Gear',
   drops: 'Droptimizer',
   stats: 'Stat Weights',
+  suggest: 'Suggestions',
   consumables: 'Consumables',
 }
 
