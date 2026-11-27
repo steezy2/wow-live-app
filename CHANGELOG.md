@@ -4,6 +4,8 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 
 ## [Unreleased]
 
+## [0.5.6] - 2026-11-27
+
 ### Added
 - **Suggest upgrades your gear:** each worn item below the top of its upgrade track (6/6 of an eight-rank track) is simmed upgraded to it, with Ascendant Venomstones on a Hero or Myth weapon, trinket or neck (+7 item levels; `SimVariant.venomstone`, which a suggestion's *Try it in Top Gear* carries over), as an *upgrade* suggestion ranked by its sim gain. Its drops to farm are now simmed fully upgraded with Venomstones (they were at the rank of the gear worn); a drop of the piece you wear, no higher than it fully upgraded, is left to its upgrade, and the combined row never puts a worn piece's upgrade on gear from the bags that replaced it.
 - **A Suggest report says how it ran:** its head and *Simulation details* name the stat weights' fight, each fight the changes were tested on and whose top logs (`SimSuggestReport.fights`, `target`).
