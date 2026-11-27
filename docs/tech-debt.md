@@ -34,6 +34,9 @@ trade-off to decide before building it.
 | 18 | The app's idle memory and start-up time are unmeasured | `cmd/app` | Record private bytes at idle, after a night's log and after a replay, and the time to first paint. Items 36, 38 and 39 are the likely growth | S |
 | 19 | Repeated fetches are shared one by one | `api.ts` callers | Shared: the keys list, dungeon map, spells. Still repeated: `/api/mplus/live` twice once Routes is open, `/api/sim/items` on every consumable hover (keep answers per item ID like `spellAnswers`), `fetchSavedKeys` from `SavedKeys` and `MPlusLive` | S-M |
 | 34 | Controller tests repeat their request and router setup | `controller/controller_test.go` | 16 `httptest.NewRecorder()` and 17 `Router(...)` setups; only GET has a helper. `serve()` and `newRouter()` (about -60 lines) | S |
+| 51 | A healer's shown HPS reads low against the top logs | `service/healstats.go` (`baseIntellect`, `gearStats`) | The character's intellect is gear plus base, a top log's comes from combatant info with flask, food and Arcane Intellect, so the head's HPS is about 20-30% under a like-geared log (gains against the character's own gear are fair). Add the default consumables and raid buff to the sheet | S |
+| 52 | A trinket's healing scales on its tooltip's first number | `service/healmodel.go` `firstNumber`, `simheal.go` `effectScale` | The first number can be a duration or cooldown, so the scale is 1 and a higher-level copy is valued at the wearer's level. Scale on the number after "for"/"by", or the item's stat budget | S |
+| 53 | The heal model's per-spec mastery and haste numbers aren't calibrated | `service/healstats.go` `healSpecs` | QE's `defaultStatWeights` are a copied placeholder, so the numbers come from its mastery multipliers only. Compare the weights with QE's site for a real export of each spec and adjust | M |
 
 ## To check in the running app (PR #77)
 

@@ -153,3 +153,16 @@ func TestParseItemReadsWhatUsingItDoes(t *testing.T) {
 		t.Errorf("effect = %q (%v), want %q", got.Effect, err, want)
 	}
 }
+
+func TestParseItemStatsReadsIntellectRatingsAndEffects(t *testing.T) {
+	got, err := ParseItemStats([]byte(`{"name":"Mantle","tooltip":"<span><!--stat5-->+106 Intellect</span><br>` +
+		`<span><!--stat7-->+1,885 Stamina</span><br><span class=\"q2\">+<!--rtg36-->1,050 Haste</span><br>` +
+		`<span class=\"q2\">+<!--rtg49-->100 Mastery</span><br><span class=\"q0\"><!--stat3-->+106 Agility</span>` +
+		`<!--useText:0:1--><span>Equip: <a href=\"/spell=1292291/bag\">Heals for <!--pts1-->1,234.</a></span>` +
+		`<!--useText:1-->"}`))
+	want := models.ItemStats{Stats: models.RankedStats{Main: 106, Haste: 1050, Mastery: 100}, Spells: []int{1292291},
+		Slugs: []string{"bag"}, Effect: "Equip: Heals for 1,234."}
+	if err != nil || !reflect.DeepEqual(got, want) {
+		t.Errorf("stats = %+v (%v); want %+v", got, err, want)
+	}
+}

@@ -6,7 +6,7 @@ import { AbilityBars, AbilityLog, BuffBars } from './SimBreakdown'
 import { ItemLine } from './SimItem'
 import { useItemInfo, useSpellInfo } from './simItems'
 import { simClassColor, simClassName } from './classColors'
-import { groupLabel, kindLabel } from './simOptions'
+import { groupLabel, kindLabel, unitOf } from './simOptions'
 import { Gain, SwapRows } from './SimRows'
 import { SimSuggestions } from './SimSuggestions'
 
@@ -21,7 +21,8 @@ const STAT_NAMES: Record<string, string> = {
   Vers: 'Versatility',
 }
 
-/** The top of a report: what was simmed, the character, and the one number it comes to. */
+/** The top of a report: what was simmed, the character, and the one number it comes to; a healer's says what it was
+ * scored on and assumes. */
 function ReportHead({ sim, result }: { sim: Sim; result: Result }) {
   const best = result.combos?.[0] ?? result.options?.[0]
   const who = [sim.spec && sim.spec[0].toUpperCase() + sim.spec.slice(1), simClassName(sim.class)]
@@ -31,7 +32,9 @@ function ReportHead({ sim, result }: { sim: Sim; result: Result }) {
   const ranked = sim.kind === 'topgear' || sim.kind === 'drops' || !!result.options
   const better = !!best && best.dps > result.dps
   const caption = !ranked
-    ? `± ${full(result.dpsError)}`
+    ? result.metric === 'hps'
+      ? 'From top logs'
+      : `± ${full(result.dpsError)}`
     : !better
       ? 'Your current setup is the best'
       : sim.kind === 'drops'
@@ -48,14 +51,24 @@ function ReportHead({ sim, result }: { sim: Sim; result: Result }) {
           <strong>{sim.character}</strong>{' '}
           <span className="muted">{who}</span>
         </p>
-        <p className="muted small">
-          {result.suggest ? 'Stat weights on ' : ''}
-          {fightText(sim.options)}
-          {result.suggest?.fights && `; changes on ${result.suggest.fights.map((f) => f.name).join(' and ')}`}
-        </p>
+        {result.notes ? (
+          result.notes.map((n) => (
+            <p key={n} className="muted small">
+              {n}
+            </p>
+          ))
+        ) : (
+          <p className="muted small">
+            {result.suggest ? 'Stat weights on ' : ''}
+            {fightText(sim.options)}
+            {result.suggest?.fights && `; changes on ${result.suggest.fights.map((f) => f.name).join(' and ')}`}
+          </p>
+        )}
       </div>
       <div className="sim-headline">
-        <span className="sim-dps">{full(headline)} DPS</span>
+        <span className="sim-dps">
+          {full(headline)} {unitOf(result)}
+        </span>
         <span className="muted">{caption}</span>
       </div>
     </section>
@@ -103,8 +116,8 @@ function BestGear({ equipped, best, chunk }: { equipped: SimItem[]; best?: SimCo
 /** The gear combinations or drops of a Top Gear or Droptimizer sim, best first, the equipped gear a row among them at
  * its own DPS: each a row with its rank, its DPS, what it gains over the equipped gear with a bar, and what changes
  * (icons and item levels) and where a drop comes from. Drops filter by source. */
-function Combos(props: { combos: SimCombo[]; equipped: number; drops: boolean; chunk: number }) {
-  const { combos, equipped, drops, chunk } = props
+function Combos(props: { combos: SimCombo[]; equipped: number; drops: boolean; chunk: number; unit: string }) {
+  const { combos, equipped, drops, chunk, unit } = props
   const [source, setSource] = useState('')
   const swapped = combos.flatMap((c) => c.swaps.flatMap((s) => [s.out, s.in]))
   const info = useItemInfo(swapped.flatMap((i) => (i ? [i] : [])), chunk)
@@ -132,7 +145,7 @@ function Combos(props: { combos: SimCombo[]; equipped: number; drops: boolean; c
           c ? (
             <li key={i}>
               <span className="sim-rank">{i + 1}</span>
-              <Gain gain={c.gain} dps={c.dps} best={best} />
+              <Gain gain={c.gain} dps={c.dps} best={best} unit={unit} />
               <div className="sim-swaps">
                 {c.swaps.length === 0 && <span>Current gear</span>}
                 <SwapRows swaps={c.swaps} info={info} />
@@ -147,7 +160,7 @@ function Combos(props: { combos: SimCombo[]; equipped: number; drops: boolean; c
           ) : (
             <li key="equipped" className="sim-equipped-row">
               <span className="sim-rank">{i + 1}</span>
-              <Gain gain={0} dps={equipped} best={best} />
+              <Gain gain={0} dps={equipped} best={best} unit={unit} />
               <div className="sim-swaps">
                 <strong>Equipped</strong> <span className="muted">Current gear</span>
               </div>
@@ -180,7 +193,7 @@ function OptionRows({ rows }: { rows: SimOptionRow[] }) {
 }
 
 /** A stat weights sim's weights, each stat a row with a bar against the main stat's, and the Pawn string to copy. */
-function StatWeights({ weights, pawn }: { weights: SimStatWeight[]; pawn?: string }) {
+function StatWeights({ weights, pawn, unit }: { weights: SimStatWeight[]; pawn?: string; unit: string }) {
   const [copied, setCopied] = useState(false)
   const top = Math.max(...weights.map((w) => w.weight), 1)
   const copy = () => void navigator.clipboard.writeText(pawn ?? '').then(() => setCopied(true), () => undefined)
@@ -193,7 +206,7 @@ function StatWeights({ weights, pawn }: { weights: SimStatWeight[]; pawn?: strin
           <tr>
             <th>Stat</th>
             <th>Weight</th>
-            <th>DPS per point</th>
+            <th>{unit} per point</th>
           </tr>
         </thead>
         <tbody>
@@ -227,8 +240,17 @@ const fightText = (f: { fightStyle: string; length: number; targets: number }) =
   `${f.fightStyle}, ${f.length} s, ${f.targets} target${f.targets > 1 ? 's' : ''}`
 
 /** How the sim was run, one fact to a line: the fight (a Suggest sim's stat weights' fight, the fights it tested the
- * changes on and whose top logs), when, how long it took and how sure the number is. */
+ * changes on and whose top logs), when, how long it took and how sure the number is. A healer's was scored on top
+ * logs, with no fight or error. */
 function Details({ sim, result }: { sim: Sim; result: Result }) {
+  if (result.metric === 'hps') {
+    const rows: [string, string][] = [
+      ['Scored on', 'The top logs of your spec (simc does not heal)'],
+      ['Sim run', new Date(sim.startedMS).toLocaleString()],
+    ]
+    if (sim.tookMS) rows.push(['Processing time', clock(sim.tookMS)])
+    return <DetailRows rows={rows} />
+  }
   const percent = result.dps ? (result.dpsError / result.dps) * 100 : 0
   const suggest = result.suggest
   const rows: [string, string][] = suggest
@@ -254,6 +276,11 @@ function Details({ sim, result }: { sim: Sim; result: Result }) {
     rows.push(['Stages', result.stages.map((s) => `${s.combos} at ${s.error}%`).join(' → ')])
   }
   if (sim.tookMS) rows.push(['Processing time', clock(sim.tookMS)])
+  return <DetailRows rows={rows} />
+}
+
+/** The details panel's facts, a name and a value each. */
+function DetailRows({ rows }: { rows: [string, string][] }) {
   return (
     <section className="panel">
       <h2>Simulation details</h2>
@@ -284,17 +311,23 @@ export function SimResult({ sim, chunk, onTry }: { sim: Sim; chunk: number; onTr
         <BestGear equipped={result.equipped} best={result.combos?.[0]} chunk={chunk} />
       )}
       {sim.kind === 'drops' && result.combos && (
-        <SourceRanking combos={result.combos} equipped={result.dps} chunk={chunk} />
+        <SourceRanking combos={result.combos} equipped={result.dps} chunk={chunk} unit={unitOf(result)} />
       )}
       {result.combos && (
-        <Combos combos={result.combos} equipped={result.dps} drops={sim.kind === 'drops'} chunk={chunk} />
+        <Combos
+          combos={result.combos}
+          equipped={result.dps}
+          drops={sim.kind === 'drops'}
+          chunk={chunk}
+          unit={unitOf(result)}
+        />
       )}
       {result.options && <OptionRows rows={result.options} />}
       {result.suggest && (
         <SimSuggestions report={result.suggest} equipped={result.equipped ?? []} chunk={chunk} onTry={onTry} />
       )}
-      {result.weights && <StatWeights weights={result.weights} pawn={result.pawn} />}
-      <AbilityBars abilities={result.abilities} info={spells} />
+      {result.weights && <StatWeights weights={result.weights} pawn={result.pawn} unit={unitOf(result)} />}
+      <AbilityBars abilities={result.abilities} info={spells} unit={unitOf(result)} />
       {result.buffs.length > 0 && <BuffBars buffs={result.buffs} info={spells} />}
       {log.length > 0 && <AbilityLog log={log} info={spells} />}
       <Details sim={sim} result={result} />

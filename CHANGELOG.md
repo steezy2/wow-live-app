@@ -4,6 +4,9 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 
 ## [Unreleased]
 
+### Added
+- **Healer sims, scored like QuestionablyEpic:** simc doesn't heal (it refuses six of the seven healer specs and runs Restoration Druid's damage rotation, 0 HPS), so a healer's Quick Sim, Top Gear, Stat Weights and Droptimizer are scored on the heal model: each spell of the spec's top Warcraft Logs players (the Suggest read, about 160 points once, of the target picked: Mythic+ overall or a raid boss) brought back to a base at their stats and scored again at yours (intellect, crit, versatility, the spec's mastery and haste), with each trinket's and embellishment's own healing and stat buff measured in the top logs that wore it. Gear stats come from Wowhead's item tooltip at the item's level and bonus IDs (`wowhead.Client.ItemStats`), gems and enchants from `reference/sim-options.json`. The report says HPS (`SimResult.metric`, `notes`; old sims read as DPS), the options panel picks the top logs instead of a fight, and Suggest, custom lines and compared consumables are refused for healers (`SimProfile.healer`). `service/healmodel.go`, `healstats.go`, `simheal.go`; a top log's main stat is now read with its stats (`RankedStats.main`).
+
 ## [0.5.6] - 2026-11-27
 
 ### Added

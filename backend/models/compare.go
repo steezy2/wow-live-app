@@ -51,12 +51,35 @@ type RankedGear struct {
 	Gems    []int  `json:"gems,omitempty"`
 }
 
-// RankedStats are a player's secondary stat ratings.
+// RankedStats are a player's secondary stat ratings and main stat (0 when unknown: a log read before it was kept).
 type RankedStats struct {
+	Main    int `json:"main,omitempty"`
 	Crit    int `json:"crit"`
 	Haste   int `json:"haste"`
 	Mastery int `json:"mastery"`
 	Vers    int `json:"vers"`
+}
+
+// Rating is the secondary rating of r a stat names, by the game's rating ID ("36") or Raidbots' short name
+// ("Haste"); nil for any other stat.
+func (r *RankedStats) Rating(stat string) *int {
+	switch stat {
+	case "32", "Crit":
+		return &r.Crit
+	case "36", "Haste":
+		return &r.Haste
+	case "49", "Mastery":
+		return &r.Mastery
+	case "40", "Vers":
+		return &r.Vers
+	}
+	return nil
+}
+
+// Add adds o's stats to r.
+func (r *RankedStats) Add(o RankedStats) {
+	r.Main, r.Crit, r.Haste, r.Mastery, r.Vers = r.Main+o.Main, r.Crit+o.Crit, r.Haste+o.Haste, r.Mastery+o.Mastery,
+		r.Vers+o.Vers
 }
 
 // TalentPick is one talent a player took: the tree node, the choice made in it and the ranks bought, as the game's

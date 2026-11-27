@@ -1,10 +1,10 @@
 import { simClassColor, simClassName } from './classColors'
 import { amount } from './format'
 import { type Sim } from './api'
-import { kindLabel } from './simOptions'
+import { kindLabel, unitOf } from './simOptions'
 
 /** The saved sims as full-width bars, tinted with the character's class colour: who it was ("Frost Mage"), what kind of
- * sim, its DPS and when it ran. A click opens the report; the cross deletes it. */
+ * sim, its DPS (a healer's HPS) and when it ran. A click opens the report; the cross deletes it. */
 export function SavedSims(props: { sims: Sim[]; onOpen: (id: string) => void; onDelete: (id: string) => void }) {
   return (
     <ul className="sim-saved-list">
@@ -18,7 +18,7 @@ export function SavedSims(props: { sims: Sim[]; onOpen: (id: string) => void; on
                 <span className="muted">{who.join(' ')}</span>
               </span>
               <span className="sim-saved-kind">{kindLabel(s.kind)}</span>
-              <span className="sim-saved-dps">{s.dps ? `${amount(s.dps)} DPS` : ''}</span>
+              <span className="sim-saved-dps">{s.dps ? `${amount(s.dps)} ${unitOf(s)}` : ''}</span>
               <span className="muted small">{new Date(s.startedMS).toLocaleString()}</span>
             </button>
             <button className="delete" aria-label="Delete" onClick={() => props.onDelete(s.id)}>

@@ -111,3 +111,32 @@ How the desktop app's Sim tab runs SimulationCraft. `CLAUDE.md` points here; thi
   `SubTree` of its `HeroChoice` entry: the string holds both and simc ignores the other).
 - A talent with no allowed swap is dropped with a note; a swap without a gain is kept as `talentOther` (evidence, its
   loss if any; not in `Dropped`).
+
+## Healers
+
+simc refuses six of the seven healer specs and runs Restoration Druid's damage rotation (0 HPS; the spike in
+`docs/specs/2026-11-24-sim-healers.md`), so `Sims.Start` sends a healer (`healSpecs` in `service/healstats.go`, served as
+`SimProfile.Healer`) to `service/simheal.go` instead, for Quick, Top Gear, Stats and the Droptimizer; Suggest, custom
+lines and compared consumables are refused (`healerRefusal`). It is QuestionablyEpic's model with its hand-kept parts
+read from the top logs:
+
+- The top logs are Suggest's (`Sims.topBuilds`, the request's `Target`). `buildHealProfile` (`healmodel.go`) divides
+  each spell's healing per second (Warcraft Logs' healing is net of overhealing) by the logger's `healFactor` and keeps
+  the median times the share of logs that cast it; a spell in under half the logs, or a top log's trinket's
+  (`topEffects`), is left out.
+- `healFactor` is intellect × crit × versatility × (1 + mastery points × the spec's `mastery`) × (1 + haste × its
+  `haste` share). `sheetOf` turns ratings into those with QuestionablyEpic's ratings per 1% at level 90 and its
+  diminishing returns (10% of the rating above each of 30, 40, 50 and 60%). The two per-spec numbers come from
+  QuestionablyEpic's mastery multipliers; its `defaultStatWeights` are one placeholder copied across specs, so nothing
+  calibrates them yet.
+- A set's stats are `gearStats`: each item from Wowhead's tooltip at its level and bonus IDs
+  (`wowhead.Client.ItemStats`, cached per level and bonus list; `memoItems` per run), gems and enchants from
+  `reference/sim-options.json`, plus `baseIntellect`. A top log's stats are its combatant info (`RankedStats.Main`).
+- `healEffects` values a worn item with a Use:/Equip: spell from the top logs that wore it: the median healing of the
+  abilities that are its spells (by ID, or by name against the tooltip's spell slugs and the item's name), scaled by
+  the first number of its tooltip at your level over theirs, and its buff's median uptime × the amount its tooltip
+  states. Not worn in any top log, or a buff with no stated amount: its stats only, with a note.
+- Stat weights are `healWeights` (one percent's worth more of each stat), read by `statWeights` and `pawnString` like
+  simc's. The result is a `SimResult` with `Metric: "hps"` and `Notes`; Top Gear and Droptimizer rows go through
+  `gearResults`.
+

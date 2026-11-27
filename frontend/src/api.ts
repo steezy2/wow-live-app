@@ -1880,6 +1880,8 @@ export interface SimProfile {
   server: string
   role?: string
   spec: string
+  /** The spec heals: its sims are scored on the top logs of a target (the heal model), not run in simc. */
+  healer?: boolean
   /** The Omnium Folio's picks as the export writes them ("136814:1/136817:1"). */
   omnium?: string
   talents: string
@@ -2147,6 +2149,10 @@ export interface SimResult {
   pawn?: string
   /** A Suggest sim's changes; the rest of the result is its stat weights sim's. */
   suggest?: SimSuggestReport
+  /** 'hps' for a healer's sim: `dps`, the abilities and the gains are healing per second. None for damage. */
+  metric?: 'hps'
+  /** What a healer's result assumes and what it couldn't measure. */
+  notes?: string[]
 }
 
 /** One change a Suggest sim proposes. An enchant or gem has a `variant`, a consumable its `consumables`, a talent swap
@@ -2234,8 +2240,9 @@ export interface Sim {
   error?: string
   /** Which stage of a raced sim is running ("Stage 2 of 3: 140 combinations at 0.5%"). */
   stage?: string
-  /** The result's DPS, kept in the list, which leaves result out. */
+  /** The result's DPS and metric, kept in the list, which leaves result out. */
   dps?: number
+  metric?: 'hps'
   result?: SimResult
 }
 
