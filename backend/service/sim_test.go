@@ -256,6 +256,12 @@ func TestSimsDeleteWorkFilesACrashLeft(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	input := filepath.Join(s.Dir, "work", running.ID+".simc")
+	for deadline := time.Now().Add(5 * time.Second); time.Now().Before(deadline); time.Sleep(20 * time.Millisecond) {
+		if _, err := os.Stat(input); err == nil {
+			break
+		}
+	}
 	stale := filepath.Join(s.Dir, "work", "crashed.json")
 	if err := os.WriteFile(stale, []byte("{}"), 0o644); err != nil {
 		t.Fatal(err)
@@ -266,7 +272,7 @@ func TestSimsDeleteWorkFilesACrashLeft(t *testing.T) {
 	if _, err := os.Stat(stale); !errors.Is(err, fs.ErrNotExist) {
 		t.Errorf("the crashed sim's file is still there: %v", err)
 	}
-	if _, err := os.Stat(filepath.Join(s.Dir, "work", running.ID+".simc")); err != nil {
+	if _, err := os.Stat(input); err != nil {
 		t.Errorf("the running sim's input is gone: %v", err)
 	}
 }

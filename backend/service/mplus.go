@@ -387,12 +387,14 @@ func (k *LogTracker) learn(at int64, event string, f []string) {
 	if (strings.HasPrefix(event, "SPELL_") || strings.HasPrefix(event, "RANGE_")) && len(f) > 10 {
 		id := atoi(f[8])
 		if k.spells[id] != f[9] {
-			k.spells[id] = strings.Clone(f[9]) // a substring would keep its whole line alive
+			k.spells[id] = strings.Clone(f[9])
 		}
-		if event == "SPELL_CAST_SUCCESS" || k.spellIDs[f[9]] == 0 {
-			k.spellIDs[f[9]] = id
+		// Keyed by the copy: a map write stores its key again, and a substring would keep its whole line alive.
+		name := k.spells[id]
+		if event == "SPELL_CAST_SUCCESS" || k.spellIDs[name] == 0 {
+			k.spellIDs[name] = id
 		}
-		k.schools[f[9]] = int(hexInt(f[10]))
+		k.schools[name] = int(hexInt(f[10]))
 	}
 	if event == "SPELL_SUMMON" {
 		remember(k.owners, f[4], f[0])
