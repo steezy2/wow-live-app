@@ -4,6 +4,9 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 
 ## [Unreleased]
 
+### Added
+- **Copy a key's meters for WoW chat:** a finished key's page has *Copy DPS for chat* and *Copy HPS for chat*, each one line of at most 255 characters to paste in the party chat (`chatLine` in `format.ts`): the key and its result, then the DPS with kicks, or the HPS with dispels, deaths and damage taken. Hover a button to see its line.
+
 ## [0.5.6] - 2026-11-27
 
 ### Added

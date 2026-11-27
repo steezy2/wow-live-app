@@ -1,7 +1,18 @@
 import { useCallback, useMemo, useState } from 'react'
 import { FixNext } from './FixNext'
 import { reviewURL, type KeyForces, type KeyGhost, type KeyReview as Review, type KeyTrack, type KeyView } from './api'
-import { chestLabel, clock, forcesCount, oddsText, pullTitle, resultText, routeLine, share, versusBest } from './format'
+import {
+  chatLine,
+  chestLabel,
+  clock,
+  forcesCount,
+  oddsText,
+  pullTitle,
+  resultText,
+  routeLine,
+  share,
+  versusBest,
+} from './format'
 import { DamageGraph } from './DamageGraph'
 import { BuffGaps } from './BuffGaps'
 import { BossList, PriorityLedger } from './KeyLedgers'
@@ -108,6 +119,8 @@ export function KeyDetails({
       {key.status !== 'running' && (
         <p className="links">
           <a href={reviewURL('mplus', key.start)}>Open full review</a>
+          <ChatCopy keyView={key} what="dps" />
+          <ChatCopy keyView={key} what="hps" />
         </p>
       )}
 
@@ -246,6 +259,25 @@ export function KeyDetails({
     </div>
   )
 }
+
+/** A button that copies the key's DPS or HPS line (chatLine) to paste in WoW's chat, saying so for a moment. */
+function ChatCopy({ keyView, what }: { keyView: KeyView; what: 'dps' | 'hps' }) {
+  const [copied, setCopied] = useState(false)
+  const copy = () =>
+    void navigator.clipboard.writeText(chatLine(keyView, what)).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), COPIED_MS)
+    }, () => undefined)
+  const label = what.toUpperCase()
+  return (
+    <button onClick={copy} {...tip(chatLine(keyView, what), `Copy ${label} for chat`)}>
+      {copied ? 'Copied' : `Copy ${label} for chat`}
+    </button>
+  )
+}
+
+/** How long a copy button says Copied. */
+const COPIED_MS = 1500
 
 /** The key's meter windows at the replay's moment (at; end: the key's end): the pull it's in, or the last one before
  * it, then the whole key so far, each with its saved meter for the end. A running key, or one whose track has no

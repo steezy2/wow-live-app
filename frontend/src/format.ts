@@ -3,6 +3,7 @@ import type {
   ImportKindPlan,
   ImportPlan,
   ImportStatus,
+  KeyMeterRow,
   KeySpike,
   KeyView,
   LogFile,
@@ -269,4 +270,35 @@ export function rowValue(value: number, unit: string): string {
  * less (the game finished it, so the count missed a mob). */
 export function forcesCount({ count, total, pct }: { count: number; total: number; pct: number }): string {
   return count > 0 && (pct < 100 || count >= total) ? ` · ${count}/${total}` : ''
+}
+
+/** The most WoW's chat box takes in one message. */
+const CHAT_MAX = 255
+
+/** A finished key's meter as one line to paste in WoW's chat, which takes one line of at most CHAT_MAX characters:
+ * the key and its result, then each player's DPS (what: 'dps') with the party's kicks, or each healer's HPS
+ * (what: 'hps') with dispels, deaths and damage taken. A part that doesn't fit is left out. */
+export function chatLine(key: KeyView, what: 'dps' | 'hps'): string {
+  const result = key.status === 'timed' ? `timed${key.chests > 0 ? ` +${key.chests}` : ''}` : key.status
+  const head = `${key.dungeon} +${key.level} ${result} in ${clock(key.clockMS)}.`
+  const rows = key.overall.rows
+  const list = (label: string, value: (r: KeyMeterRow) => number, show: (n: number) => string) => {
+    const shown = rows.filter((r) => value(r) > 0).sort((a, b) => value(b) - value(a))
+    return shown.length ? `${label}: ${shown.map((r) => `${r.player} ${show(value(r))}`).join(', ')}.` : ''
+  }
+  const deaths = key.deaths.length ? `Deaths: ${key.deaths.length}.` : 'No deaths.'
+  const parts =
+    what === 'dps'
+      ? [head, list('DPS', (r) => r.dps, amount), list('Kicks', (r) => r.interrupts, String)]
+      : [
+        head,
+        list('HPS', (r) => r.hps, amount),
+        list('Dispels', (r) => r.dispels, String),
+        deaths,
+        list('Taken', (r) => r.damageTaken, amount),
+      ]
+  return parts
+    .filter(Boolean)
+    .reduce((line, part) => (line.length + part.length + 1 <= CHAT_MAX ? `${line} ${part}` : line), '')
+    .trim()
 }

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   causesText,
+  chatLine,
   groupLogsByDay,
   clock,
   coverOf,
@@ -18,7 +19,7 @@ import {
   versusBest,
   withRealm,
 } from './format'
-import type { LogFile } from './api'
+import type { KeyMeterRow, KeyView, LogFile } from './api'
 
 describe('clock', () => {
   it('shows minutes and seconds, hours past an hour, and a sign when negative', () => {
@@ -230,5 +231,44 @@ describe('forcesCount', () => {
     ['a key saved before the count existed', { count: 0, total: 551, pct: 100 }, ''],
   ])('%s', (_, forces, want) => {
     expect(forcesCount(forces)).toBe(want)
+  })
+})
+
+describe('chatLine', () => {
+  const row = (player: string, dps: number, hps: number, more: Partial<KeyMeterRow> = {}): KeyMeterRow => ({
+    player, class: '', damage: 0, healing: 0, dps, hps, interrupts: 0, dispels: 0, purges: 0, damageTaken: 0,
+    avoidable: 0, priorityDamage: 0, ...more,
+  })
+  const key = {
+    dungeon: 'Ara-Kara', level: 12, status: 'timed', chests: 2, clockMS: 1_694_000,
+    deaths: [{ player: 'Tank' }],
+    overall: {
+      rows: [
+        row('Tank', 150_000, 20_000, { interrupts: 4, damageTaken: 310e6 }),
+        row('Mage', 812_000, 0, { interrupts: 9, damageTaken: 90e6 }),
+        row('Priest', 40_000, 310_000, { dispels: 6, damageTaken: 70e6 }),
+      ],
+    },
+  } as unknown as KeyView
+
+  it('lists DPS biggest first with the kicks', () => {
+    expect(chatLine(key, 'dps')).toBe(
+      'Ara-Kara +12 timed +2 in 28:14. DPS: Mage 812k, Tank 150k, Priest 40k. Kicks: Mage 9, Tank 4.',
+    )
+  })
+
+  it('lists healing with dispels, deaths and damage taken, skipping players at 0', () => {
+    expect(chatLine({ ...key, status: 'depleted' }, 'hps')).toBe(
+      'Ara-Kara +12 depleted in 28:14. HPS: Priest 310k, Tank 20k. Dispels: Priest 6. Deaths: 1. ' +
+        'Taken: Tank 310.0M, Mage 90.0M, Priest 70.0M.',
+    )
+  })
+
+  it('leaves out what goes past the chat box', () => {
+    const many = { ...key, overall: { ...key.overall, rows: [...key.overall.rows, ...Array.from({ length: 12 },
+      (_, i) => row(`Longplayername${i}`, 1000, 0, { interrupts: 1 }))] } }
+    const line = chatLine(many, 'dps')
+    expect(line.length).toBeLessThanOrEqual(255)
+    expect(line.startsWith('Ara-Kara +12 timed +2 in 28:14.')).toBe(true)
   })
 })
