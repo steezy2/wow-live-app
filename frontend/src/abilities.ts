@@ -14,7 +14,7 @@ export interface AbilityRow {
 
 /** One player's breakdowns: their damage and healing by ability with casts and hits, what they took damage from, and
  * what they cast, each with its spell school where the key or pull has it. */
-export function abilityViews(
+function abilityViews(
   player: string,
   abilities: KeyAbility[],
   taken: { player: string; ability: string; damage: number; school?: number }[],
@@ -43,6 +43,6 @@ export function playerViews(player: string, got: Partial<Pick<RaidPull, 'abiliti
 }
 
 /** A player's damage into each enemy, from the targets a pull or a replay's moment has. */
-export function raidTargets(targets: RaidPull['targets'], player: string): AbilityRow[] {
+function raidTargets(targets: RaidPull['targets'], player: string): AbilityRow[] {
   return (targets ?? []).filter((t) => t.player === player).map((t) => ({ name: t.target, value: t.damage }))
 }

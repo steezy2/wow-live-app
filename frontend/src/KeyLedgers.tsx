@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { SavedBefore } from './SavedBefore'
 import type { KeyHit, KeyTrack, KeyView } from './api'
 import type { FightData } from './KeyTabs'
-import { amount, causesText, clock, coverOf } from './format'
+import { amount, causesText, clock, coverOf, seconds } from './format'
 import { Cover, Spell } from './Spell'
 import { offense } from './meterColumns'
 import { RecapRow } from './HitRecap'
@@ -137,7 +137,7 @@ export function KickLedger({ data: key, seek }: { data: FightData; seek?: Seeker
               .map((s, i) => (
                 <span key={i} className={s.outcome === 'went off' ? 'bad' : undefined}>
                   <When ms={s.clockMS} seek={seek} /> {s.mob}: {s.spell} — {s.outcome}
-                  {s.by && ` (${s.by}${s.intoMS ? `, ${(s.intoMS / 1000).toFixed(1)} s in` : ''})`}
+                  {s.by && ` (${s.by}${s.intoMS ? `, ${seconds(s.intoMS)} in` : ''})`}
                 </span>
               ))}
           </li>

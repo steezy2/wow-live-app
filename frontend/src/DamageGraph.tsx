@@ -1,4 +1,4 @@
-import { useState, type MouseEvent } from 'react'
+import { useMemo, useState, type MouseEvent } from 'react'
 import { type KeyTrack, type KeyView, type MeterPoint } from './api'
 import { classColors } from './classColors'
 import { amount, clock } from './format'
@@ -80,33 +80,37 @@ export function MeterGraph(props: {
   const player = onFocus ? (focus ?? '') : own
   const setPlayer = onFocus ?? setOwn
   const only = player || (total ? TOTAL : '')
-  const meters = Object.entries(track.meters ?? {})
+  // Every player's rates over the whole fight: kept across hover moves and replay ticks, which only redraw.
+  const { meters, times, lines, totals, top } = useMemo(() => {
+    const meters = Object.entries(track.meters ?? {})
+    const times: number[] = []
+    for (let t = STEP_MS; t <= end; t += STEP_MS) times.push(t)
+    const rates = (points: MeterPoint[], of: 'd' | 'h' | 'tk') =>
+      times.map((t) => {
+        const from = Math.max(0, t - WINDOW_MS)
+        return ((valueAt(points, t, of) - valueAt(points, from, of)) * 1000) / (t - from)
+      })
+    const groupRates = (of: 'd' | 'h' | 'tk') => {
+      const each = meters.map(([, points]) => rates(points, of))
+      return times.map((_, i) => each.reduce((sum, r) => sum + r[i], 0))
+    }
+    const lines = (only === TOTAL ? [] : meters.filter(([p]) => !only || p === only)).map(([name, points]) => ({
+      player: name,
+      color: classColors[track.classes[name]] ?? 'var(--accent)',
+      rates: rates(points, kind),
+    }))
+    const totals: { name: string; className: string; rates: number[] }[] = []
+    const whole = only === '' || only === TOTAL
+    if (only === TOTAL || (kind === 'h' && whole)) {
+      const what = kind === 'd' ? 'damage' : 'healing'
+      totals.push({ name: `${group} ${what}`, className: `graph-${what}`, rates: groupRates(kind) })
+    }
+    const taken = kind === 'h' && whole ? groupRates('tk') : []
+    if (taken.some((v) => v > 0)) totals.push({ name: `${group} damage taken`, className: 'graph-taken', rates: taken })
+    const top = Math.max(1, ...lines.flatMap((l) => l.rates), ...totals.flatMap((l) => l.rates))
+    return { meters, times, lines, totals, top }
+  }, [track, end, kind, only, group])
   if (meters.length === 0) return null
-  const times: number[] = []
-  for (let t = STEP_MS; t <= end; t += STEP_MS) times.push(t)
-  const rates = (points: MeterPoint[], of: 'd' | 'h' | 'tk') =>
-    times.map((t) => {
-      const from = Math.max(0, t - WINDOW_MS)
-      return ((valueAt(points, t, of) - valueAt(points, from, of)) * 1000) / (t - from)
-    })
-  const groupRates = (of: 'd' | 'h' | 'tk') => {
-    const each = meters.map(([, points]) => rates(points, of))
-    return times.map((_, i) => each.reduce((sum, r) => sum + r[i], 0))
-  }
-  const lines = (only === TOTAL ? [] : meters.filter(([p]) => !only || p === only)).map(([name, points]) => ({
-    player: name,
-    color: classColors[track.classes[name]] ?? 'var(--accent)',
-    rates: rates(points, kind),
-  }))
-  const totals: { name: string; className: string; rates: number[] }[] = []
-  const whole = only === '' || only === TOTAL
-  if (only === TOTAL || (kind === 'h' && whole)) {
-    const what = kind === 'd' ? 'damage' : 'healing'
-    totals.push({ name: `${group} ${what}`, className: `graph-${what}`, rates: groupRates(kind) })
-  }
-  const taken = kind === 'h' && whole ? groupRates('tk') : []
-  if (taken.some((v) => v > 0)) totals.push({ name: `${group} damage taken`, className: 'graph-taken', rates: taken })
-  const top = Math.max(1, ...lines.flatMap((l) => l.rates), ...totals.flatMap((l) => l.rates))
   const x = (t: number) => LEFT + ((W - LEFT) * t) / Math.max(1, end)
   const y = (v: number) => H - BOTTOM - ((H - BOTTOM - 8) * v) / top
   /** Where the pointer is on the drawing: the time under it, and how far down. */

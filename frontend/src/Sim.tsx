@@ -434,7 +434,10 @@ export function SimPage() {
       setReference,
       (err: unknown) => !controller.signal.aborted && setError(errorText(err)),
     )
-    fetchSimEngine(controller.signal).then(setEngine, (err: unknown) => setError(errorText(err)))
+    fetchSimEngine(controller.signal).then(
+      setEngine,
+      (err: unknown) => !controller.signal.aborted && setError(errorText(err)),
+    )
     void readSaved(true)
     return () => controller.abort()
   }, [readSaved])
