@@ -300,5 +300,6 @@ describe('chat', () => {
       'Operation: Floodgate')
     expect(long.length).toBeLessThanOrEqual(255)
     expect(long).toContain('5. Echoechoecho')
+    expect(long).not.toContain('Microsoft Store')
   })
 })

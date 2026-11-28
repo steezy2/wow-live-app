@@ -41,8 +41,7 @@ func LoadSettings(path string, defaults models.Settings) (*Settings, error) {
 
 // filled is settings with the default overlay columns where there are none (files saved before Nov 12 have no field);
 // an empty list is a choice and stays. A file saved before the overlay ranked by DPS or HPS (no RankBy) gets that
-// and the default raid rows; the death recap stays off (0) until the owner turns it on, so a death never takes the
-// overlay's cards away on its own.
+// and the default raid rows.
 func filled(s models.Settings) models.Settings {
 	if s.Overlay.RankBy == "" {
 		o := &s.Overlay

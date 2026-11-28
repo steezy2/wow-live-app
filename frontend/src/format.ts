@@ -284,21 +284,17 @@ const CHAT_AD = 'via WoW Live, free on the Microsoft Store'
  * CHAT_AD. */
 export function chatRows(key: KeyView, what: 'dps' | 'hps'): string[] {
   const result = key.status === 'timed' ? `timed${key.chests > 0 ? ` +${key.chests}` : ''}` : key.status
-  const [value, extra] =
-    what === 'dps'
-      ? [(r: KeyMeterRow) => r.dps, (r: KeyMeterRow) => r.interrupts]
-      : [(r: KeyMeterRow) => r.hps, (r: KeyMeterRow) => r.dispels]
-  const head = `${key.dungeon} +${key.level} ${result} ${clock(key.clockMS)} - ${what.toUpperCase()} (${
-    what === 'dps' ? 'kicks' : 'dispels'
-  })`
+  const [extra, label] = what === 'dps' ? (['interrupts', 'kicks'] as const) : (['dispels', 'dispels'] as const)
+  const head = `${key.dungeon} +${key.level} ${result} ${clock(key.clockMS)} - ${what.toUpperCase()} (${label})`
+  const name = (r: KeyMeterRow) => r.player.slice(0, CHAT_NAME)
   const rows = key.overall.rows
-    .filter((r) => value(r) > 0)
-    .sort((a, b) => value(b) - value(a))
-    .map((r, i) => `${i + 1}. ${r.player.slice(0, CHAT_NAME)} ${amount(value(r))}${extra(r) ? ` (${extra(r)})` : ''}`)
+    .filter((r) => r[what] > 0)
+    .sort((a, b) => b[what] - a[what])
+    .map((r, i) => `${i + 1}. ${name(r)} ${amount(r[what])}${r[extra] ? ` (${r[extra]})` : ''}`)
   if (what === 'dps') return [head, ...rows, CHAT_AD]
   const taken = [...key.overall.rows].sort((a, b) => b.damageTaken - a.damageTaken)[0]
   const deaths = key.deaths.length ? counted(key.deaths.length, 'death') : 'No deaths'
-  const footer = taken ? `${deaths} - most taken: ${taken.player} ${amount(taken.damageTaken)}` : deaths
+  const footer = taken ? `${deaths} - most taken: ${name(taken)} ${amount(taken.damageTaken)}` : deaths
   return [head, ...rows, footer, CHAT_AD]
 }
 
@@ -314,7 +310,8 @@ export function chatRun(rows: string[], channel: ChatChannel): string {
     const text = shown.map((r) => r.replaceAll(';', ',').replace(/[\\"]/g, (c) => `\\${c}`)).join(';')
     return `/run for l in("${text}"):gmatch"[^;]+"do SendChatMessage(l,"${channel}")end`
   }
-  if (pack(rows).length <= CHAT_MAX) return pack(rows)
+  const all = pack(rows)
+  if (all.length <= CHAT_MAX) return all
   let shown = rows.filter((r) => r !== CHAT_AD)
   while (shown.length > 1 && pack(shown).length > CHAT_MAX) shown = shown.slice(0, -1)
   return pack(shown)

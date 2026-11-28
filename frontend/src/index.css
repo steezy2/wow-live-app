@@ -961,7 +961,7 @@ button {
   }
 }
 
-:is(.settings, .home-data, .links, .quick-links, .boxed) :is(input, select, button):focus-visible {
+:is(.settings, .home-data, .links, .quick-links, .boxed, .chat-copy) :is(input, select, button):focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
