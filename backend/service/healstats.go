@@ -31,8 +31,7 @@ var drPercents = []float64{30, 40, 50, 60}
 
 // healSpec is what the heal model needs of a healer spec beyond its logs: how much one mastery point (rating included,
 // base 8) adds to its healing on average, and the share of its healing that grows with haste (the rest is mana-bound).
-// Both are set so the model's stat weights order the secondaries as QuestionablyEpic's defaultStatWeights do
-// (TestHealWeightsOrderLikeQE).
+// Both are hand-set from QuestionablyEpic's mastery multipliers and not yet checked against logs (docs/tech-debt.md).
 type healSpec struct{ mastery, haste float64 }
 
 // healSpecs are the seven healer specs by spec ID.

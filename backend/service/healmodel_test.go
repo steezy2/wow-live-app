@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"math"
 	"slices"
@@ -25,22 +26,22 @@ func TestHealProfileFromRankedPlayers(t *testing.T) {
 		t.Fatalf("profile = %+v, want Mend alone from 3 logs", p)
 	}
 	// at the logs' own stats the median log's 10000 HPS comes back
-	if hps, parts := healScore(p, sheetOf(*stats), nil); math.Abs(hps-10000) > 1e-6 || parts[0].Share != 1 {
+	if hps, parts := healHPS(p, *stats, nil); math.Abs(hps-10000) > 1e-6 || parts[0].Share != 1 {
 		t.Errorf("score = %v (%+v), want 10000 all from Mend", hps, parts)
 	}
 	more := *stats
 	more.Main = 2000
-	if hps, _ := healScore(p, sheetOf(more), nil); math.Abs(hps-20000) > 1e-6 {
+	if hps, _ := healHPS(p, more, nil); math.Abs(hps-20000) > 1e-6 {
 		t.Errorf("score at twice the intellect = %v, want 20000", hps)
 	}
 }
 
 func TestHealEffectsFromLogs(t *testing.T) {
 	heal := wornEffect{item: models.SimItem{Slot: "trinket1", ID: 10, Name: "Healing Charm"},
-		stats: models.ItemStats{Spells: []int{111}, Effect: "Equip: Heals for 2,000."}}
+		stats: models.ItemStats{Spells: []int{111}, Amount: 2000}}
 	burst := wornEffect{item: models.SimItem{Slot: "trinket2", ID: 20, Name: "Burst Idol"},
 		stats: models.ItemStats{Spells: []int{222}, Slugs: []string{"haste-burst"},
-			Effect: "Use: grants 1,000 Haste for 20 sec."}}
+			Buff: models.RankedStats{Haste: 1000}}}
 	unseen := wornEffect{item: models.SimItem{Slot: "finger1", ID: 30, Name: "Odd Ring"},
 		stats: models.ItemStats{Spells: []int{333}}}
 	top := models.RankedPlayer{DurationMS: 60000,
@@ -48,7 +49,7 @@ func TestHealEffectsFromLogs(t *testing.T) {
 		Abilities: []models.RankedAbility{{ID: 111, Name: "Charm Heal", Healing: 120000}},
 		Buffs:     []models.RankedBuff{{ID: 999, Name: "Haste Burst", UptimeMS: 15000}}}
 	got := healEffects([]wornEffect{heal, burst, unseen}, []models.RankedPlayer{top, top},
-		func(id, level int) float64 { return 1.5 })
+		func(wornEffect, int) float64 { return 1.5 })
 	// 2000 HPS in the logs, half again at the character's level; the burst's 1000 haste up a quarter of the fight
 	if got[0].HPS != 3000 || got[1].Stats.Haste != 250 || got[1].HPS != 0 || got[2].Note == "" {
 		t.Errorf("effects = %+v; want 3000 HPS, 250 haste on average and a note for the ring", got)
@@ -57,7 +58,7 @@ func TestHealEffectsFromLogs(t *testing.T) {
 
 // healerSims are suggestSims made a Restoration Shaman's (spec 264), whose ten top logs heal 10000 per second with one
 // spell at the test items' stats.
-func healerSims(t *testing.T) (*Sims, models.SimRequest) {
+func healerSims(t *testing.T) (*Sims, *fakeTops, models.SimRequest) {
 	t.Helper()
 	s, logs := suggestSims(t)
 	s.Drops = models.SimDrops{Specs: map[int]models.SimSpec{264: {Class: "shaman", Spec: "restoration"}}}
@@ -69,11 +70,15 @@ func healerSims(t *testing.T) (*Sims, models.SimRequest) {
 	req := simRequest(t)
 	req.Export = strings.Replace(req.Export, "spec=elemental", "spec=restoration", 1)
 	req.Kind, req.Target = "stats", &models.SuggestTarget{Kind: models.FightMPlus}
-	return s, req
+	return s, logs, req
 }
 
 func TestHealerSimRunsTheModel(t *testing.T) {
-	s, req := healerSims(t)
+	s, _, req := healerSims(t)
+	plan, err := s.Plan(req)
+	if err != nil || plan.Error != "" || plan.Seconds != healPlanSeconds || plan.Points != suggestPoints(req.Target) {
+		t.Errorf("plan = %+v (%v), want the heal model's time and the top logs' points", plan, err)
+	}
 	started, err := s.Start(req)
 	if err != nil {
 		t.Fatal(err)
@@ -92,7 +97,42 @@ func TestHealerSimRunsTheModel(t *testing.T) {
 		t.Errorf("simc ran %d times, want none", n)
 	}
 	req.Kind = "suggest"
+	if plan, _ := s.Plan(req); plan.Error != errHealerKind.Error() {
+		t.Errorf("a healer's Suggest plan says %q, want errHealerKind", plan.Error)
+	}
 	if _, err := s.Start(req); !errors.Is(err, errHealerKind) {
 		t.Errorf("a healer's Suggest = %v, want errHealerKind", err)
+	}
+}
+
+// embellished are oneHanders with the bags' head (249979) embellished: spell 7 is its effect.
+type embellished struct{ oneHanders }
+
+func (embellished) ItemStats(ctx context.Context, id, level int, bonus []int) (models.ItemStats, error) {
+	s, err := oneHanders{}.ItemStats(ctx, id, level, bonus)
+	if id == 249979 {
+		s.Spells = []int{7}
+	}
+	return s, err
+}
+
+func TestHealerTopGearCountsASwappedInEffectOnce(t *testing.T) {
+	s, logs, req := healerSims(t)
+	s.Items = embellished{}
+	for i := range logs.builds.Tops {
+		top := &logs.builds.Tops[i]
+		top.Gear = append(top.Gear, models.RankedGear{Slot: "head", ID: 249979, Level: 300})
+		top.Abilities = append(top.Abilities, models.RankedAbility{ID: 7, Name: "Embellished Mend", Healing: 60000})
+	}
+	req.Kind, req.Equipped, req.Bags = "topgear", []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10}, []int{0}
+	started, err := s.Start(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := waitSim(t, s, started.ID).Result
+	// the head's 1000 HPS (60000 over the logs' minute) is its row's gain alone, not a spell of the baseline too
+	if r == nil || len(r.Combos) != 1 || math.Abs(r.Combos[0].Gain-1000) > 1e-6 ||
+		slices.ContainsFunc(r.Abilities, func(a models.SimAbility) bool { return a.ID == 7 }) {
+		t.Fatalf("result = %+v, want one combo 1000 HPS up and no head spell in the baseline", r)
 	}
 }

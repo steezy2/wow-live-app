@@ -21,7 +21,20 @@ var (
 	// and effectText the whole of those paragraphs.
 	effectSpell = regexp.MustCompile(`href="/spell=(\d+)(?:/([a-z0-9-]+))?`)
 	effectText  = regexp.MustCompile(`(?s)<!--useText:0:\d+-->(.*?)<!--useText:1-->`)
+	// effectBuff is a stat buff in an effect's text, "Increases your Haste by 1,234" (not "by 5%") or "grants 1,234
+	// Haste", and effectNumber any number in it.
+	effectBuff   = regexp.MustCompile(`(` + buffStats + `) by ([\d,]+)(?:[^\d,%]|$)|([\d,]+) (` + buffStats + `)`)
+	effectNumber = regexp.MustCompile(`\d[\d,]*`)
 )
+
+// buffStats are the stats an effect's buff can name, and buffNames their names in RankedStats.Rating.
+const buffStats = `Critical Strike|Haste|Mastery|Versatility|Intellect`
+
+var buffNames = map[string]string{"Critical Strike": "Crit", "Haste": "Haste", "Mastery": "Mastery",
+	"Versatility": "Vers"}
+
+// ratingIDs are the game's rating IDs in a tooltip's `<!--rtg36-->`, by their names in RankedStats.Rating.
+var ratingIDs = map[string]string{"32": "Crit", "36": "Haste", "49": "Mastery", "40": "Vers"}
 
 // intellectStats are the game's stat IDs that give a healer intellect: Intellect and the primary stats that follow the
 // spec (any of the three, Agility or Intellect, Strength or Intellect).
@@ -49,8 +62,8 @@ func (c Client) ItemStats(ctx context.Context, id, level int, bonus []int) (mode
 }
 
 // ParseItemStats reads a tooltip answer's intellect, secondary ratings and Use:/Equip: effects (their spell IDs, the
-// spells' names as slugs and the plain text). A stat another spec would get (Agility on a healer's mail) counts only
-// when it can be intellect.
+// spells' names as slugs, the stat buff and the first number their text states). A stat another spec would get
+// (Agility on a healer's mail) counts only when it can be intellect.
 func ParseItemStats(data []byte) (models.ItemStats, error) {
 	var tooltip struct {
 		Name    string `json:"name"`
@@ -66,7 +79,7 @@ func ParseItemStats(data []byte) (models.ItemStats, error) {
 		}
 	}
 	for _, m := range ratingStat.FindAllStringSubmatch(tooltip.Tooltip, -1) {
-		if r := s.Stats.Rating(m[1]); r != nil {
+		if r := s.Stats.Rating(ratingIDs[m[1]]); r != nil {
 			*r += number(m[2])
 		}
 	}
@@ -81,8 +94,28 @@ func ParseItemStats(data []byte) (models.ItemStats, error) {
 		}
 		text = append(text, html.UnescapeString(tag.ReplaceAllString(m[1], "")))
 	}
-	s.Effect = strings.Join(strings.Fields(strings.Join(text, " ")), " ")
+	effect := strings.Join(strings.Fields(strings.Join(text, " ")), " ")
+	s.Buff, s.Amount = buffOf(effect), number(effectNumber.FindString(effect))
 	return s, nil
+}
+
+// buffOf is the stat buff an effect's text states, the stat and the amount either way round; none when it states none.
+func buffOf(text string) models.RankedStats {
+	var s models.RankedStats
+	m := effectBuff.FindStringSubmatch(text)
+	if m == nil {
+		return s
+	}
+	stat, amount := m[1], m[2]
+	if stat == "" {
+		stat, amount = m[4], m[3]
+	}
+	if stat == "Intellect" {
+		s.Main = number(amount)
+	} else {
+		*s.Rating(buffNames[stat]) = number(amount)
+	}
+	return s
 }
 
 // number reads a tooltip's "1,885".

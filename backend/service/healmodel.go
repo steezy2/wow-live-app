@@ -80,10 +80,13 @@ func buildHealProfile(spec healSpec, tops []models.RankedPlayer, excluded func(m
 	return p
 }
 
-// healScore is the healing per second of a sheet on the profile, with the effects' own healing, and each spell's part
-// of it, biggest first (as SimResult.Abilities, its DPS the HPS).
-func healScore(p healProfile, s healSheet, effects []healEffect) (float64, []models.SimAbility) {
-	f := healFactor(p.Spec, s)
+// healHPS is the healing per second of gear worth stats on the profile, with the effects' own healing and their stat
+// buffs on average, and each spell's part of it, biggest first (as SimResult.Abilities, its DPS the HPS).
+func healHPS(p healProfile, stats models.RankedStats, effects []healEffect) (float64, []models.SimAbility) {
+	for _, e := range effects {
+		stats.Add(e.Stats)
+	}
+	f := healFactor(p.Spec, sheetOf(stats))
 	var total float64
 	var parts []models.SimAbility
 	for _, sp := range p.Spells {
@@ -101,14 +104,6 @@ func healScore(p healProfile, s healSheet, effects []healEffect) (float64, []mod
 	}
 	slices.SortStableFunc(parts, func(a, b models.SimAbility) int { return cmp.Compare(b.DPS, a.DPS) })
 	return total, parts
-}
-
-// healHPS is the healing per second of gear worth stats with effects: the effects' stat buffs on average join it.
-func healHPS(p healProfile, stats models.RankedStats, effects []healEffect) (float64, []models.SimAbility) {
-	for _, e := range effects {
-		stats.Add(e.Stats)
-	}
-	return healScore(p, sheetOf(stats), effects)
 }
 
 // healWeights are each stat's healing per second per point of rating at stats (from one percent's worth more), as
@@ -141,38 +136,6 @@ type healEffect struct {
 	Note       string
 }
 
-// effectAmount is a stat buff in an effect's text, "Increases your Haste by 1,234" or "grants 1,234 Haste": the stat
-// and the amount either way round.
-var effectAmount = regexp.MustCompile(`(` + buffStats + `) by ([\d,]+)|([\d,]+) (` + buffStats + `)`)
-
-// buffStats are the stats an effect's buff can name.
-const buffStats = `Critical Strike|Haste|Mastery|Versatility|Intellect`
-
-// effectStats is the stat an effect's text says its buff gives, by Rating's names.
-func effectStats(text string) (models.RankedStats, bool) {
-	var s models.RankedStats
-	m := effectAmount.FindStringSubmatch(text)
-	if m == nil {
-		return s, false
-	}
-	stat, amount := m[1], m[2]
-	if stat == "" {
-		stat, amount = m[4], m[3]
-	}
-	n, _ := strconv.Atoi(strings.ReplaceAll(amount, ",", ""))
-	switch stat {
-	case "Intellect":
-		s.Main = n
-	case "Critical Strike":
-		s.Crit = n
-	case "Versatility":
-		s.Vers = n
-	default:
-		*s.Rating(stat) = n
-	}
-	return s, true
-}
-
 // wornEffect is a worn item with an effect: the export's item and what its tooltip says at its level.
 type wornEffect struct {
 	item  models.SimItem
@@ -198,10 +161,10 @@ func slugOf(name string) string {
 }
 
 // healEffects measures each worn effect in the top logs that wore the same item (by ID): the median healing per second
-// of its spells, scaled by its level (scale gives the item's effect at a top player's level), and its stat buff's
-// median uptime times the amount the character's tooltip states. An effect no top log wore, or whose buff states no
-// amount, keeps only its stats, with a note.
-func healEffects(worn []wornEffect, tops []models.RankedPlayer, scale func(id, level int) float64) []healEffect {
+// of its spells, scaled by its level (scale gives how much stronger the character's effect is than at a top player's
+// level), and its stat buff's median uptime times the amount the character's tooltip states. An effect no top log
+// wore, or whose buff states no amount, keeps only its stats, with a note.
+func healEffects(worn []wornEffect, tops []models.RankedPlayer, scale func(wornEffect, int) float64) []healEffect {
 	var out []healEffect
 	for _, w := range worn {
 		e := healEffect{Slot: w.item.Slot, Name: w.item.Name, ID: w.stats.Spells[0]}
@@ -217,7 +180,7 @@ func healEffects(worn []wornEffect, tops []models.RankedPlayer, scale func(id, l
 					healed += a.Healing
 				}
 			}
-			hps = append(hps, float64(healed)*1000/float64(top.DurationMS)*scale(w.item.ID, top.Gear[at].Level))
+			hps = append(hps, float64(healed)*1000/float64(top.DurationMS)*scale(w, top.Gear[at].Level))
 			var up int64
 			for _, b := range top.Buffs {
 				if w.matches(b.ID, b.Name) {
@@ -233,8 +196,8 @@ func healEffects(worn []wornEffect, tops []models.RankedPlayer, scale func(id, l
 		}
 		e.HPS = median(hps)
 		if up := median(uptimes); up > 0 {
-			if s, ok := effectStats(w.stats.Effect); ok {
-				e.Stats = scaled(s, up)
+			if w.stats.Buff != (models.RankedStats{}) {
+				e.Stats = scaled(w.stats.Buff, up)
 			} else {
 				e.Note = "its buff states no amount: its buff isn't counted"
 			}
@@ -250,13 +213,3 @@ func scaled(s models.RankedStats, f float64) models.RankedStats {
 	return models.RankedStats{Main: r(s.Main), Crit: r(s.Crit), Haste: r(s.Haste), Mastery: r(s.Mastery),
 		Vers: r(s.Vers)}
 }
-
-// firstNumber is the first number an effect's text states ("Heals for 1,234"), 0 for none.
-func firstNumber(text string) float64 {
-	m := effectNumber.FindString(text)
-	n, _ := strconv.Atoi(strings.ReplaceAll(m, ",", ""))
-	return float64(n)
-}
-
-// effectNumber is a number of an effect's text, "1,234".
-var effectNumber = regexp.MustCompile(`\d[\d,]*`)

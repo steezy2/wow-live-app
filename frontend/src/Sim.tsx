@@ -529,9 +529,11 @@ export function SimPage() {
       kind: k,
       export: text,
       options,
-      consumables,
-      ...(custom.trim() && { custom }),
-      ...(mine !== theirs && { omnium: mine }),
+      ...(!profile?.healer && {
+        consumables,
+        ...(custom.trim() && { custom }),
+        ...(mine !== theirs && { omnium: mine }),
+      }),
       ...(k === 'topgear' && {
         equipped,
         bags,
@@ -588,8 +590,8 @@ export function SimPage() {
   const planBlocks = !!plan.error || !!plan.plan?.error || (kind === 'topgear' && !plan.plan)
   // Why Sim is off, in words (the plan says the request's own refusal beside the button).
   const whyNot = (): string | null => {
-    if (!engine?.installed) return 'Download the engine first.'
-    if (engine.installing) return 'The engine is still downloading.'
+    if (!profile?.healer && !engine?.installed) return 'Download the engine first.'
+    if (!profile?.healer && engine?.installing) return 'The engine is still downloading.'
     if (runs.length >= choices.maxParallel) {
       return `${runs.length} sims are running, the most at once: wait for one to end, or cancel it.`
     }
@@ -748,15 +750,15 @@ export function SimPage() {
                 value={consumables}
                 onChange={setConsumables}
               />
+              {reference.omnium.length > 0 && (
+                <OmniumFolio
+                  nodes={reference.omnium}
+                  picks={omnium}
+                  original={omniumPicks(profile.omnium)}
+                  onChange={setOmnium}
+                />
+              )}
             </>
-          )}
-          {reference.omnium.length > 0 && (
-            <OmniumFolio
-              nodes={reference.omnium}
-              picks={omnium}
-              original={omniumPicks(profile.omnium)}
-              onChange={setOmnium}
-            />
           )}
         </>
       )}

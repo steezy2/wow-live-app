@@ -60,17 +60,16 @@ type RankedStats struct {
 	Vers    int `json:"vers"`
 }
 
-// Rating is the secondary rating of r a stat names, by the game's rating ID ("36") or Raidbots' short name
-// ("Haste"); nil for any other stat.
+// Rating is the secondary rating of r a stat names by Raidbots' short name ("Haste"); nil for any other stat.
 func (r *RankedStats) Rating(stat string) *int {
 	switch stat {
-	case "32", "Crit":
+	case "Crit":
 		return &r.Crit
-	case "36", "Haste":
+	case "Haste":
 		return &r.Haste
-	case "49", "Mastery":
+	case "Mastery":
 		return &r.Mastery
-	case "40", "Vers":
+	case "Vers":
 		return &r.Vers
 	}
 	return nil
@@ -80,6 +79,17 @@ func (r *RankedStats) Rating(stat string) *int {
 func (r *RankedStats) Add(o RankedStats) {
 	r.Main, r.Crit, r.Haste, r.Mastery, r.Vers = r.Main+o.Main, r.Crit+o.Crit, r.Haste+o.Haste, r.Mastery+o.Mastery,
 		r.Vers+o.Vers
+}
+
+// ItemStats is what an item gives at its level and bonus IDs (Wowhead's tooltip): its intellect and secondary
+// ratings, and its Use: and Equip: effects' spells (IDs, and names as Wowhead's slugs, "gebbos-bottomless-bag"), the
+// stat buff their text states (none when it states none) and the first number it states (0 for none).
+type ItemStats struct {
+	Stats  RankedStats
+	Spells []int
+	Slugs  []string
+	Buff   RankedStats
+	Amount int
 }
 
 // TalentPick is one talent a player took: the tree node, the choice made in it and the ranks bought, as the game's

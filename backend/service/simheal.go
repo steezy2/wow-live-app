@@ -88,12 +88,16 @@ func (s *Sims) healResult(ctx context.Context, id string, spec healSpec, p model
 	if err != nil {
 		return nil, err
 	}
-	equipped := wornAfter(p, nil)
-	_, own, err := gearStats(ctx, items, s.Ref, equipped)
-	if err != nil {
-		return nil, err
+	// the effects of the gear worn and of every item a combination swaps in are healEffects', never the profile's
+	theirs := tops
+	for _, c := range append([]gearCombo{{}}, combos...) {
+		worn := wornAfter(p, c.swaps)
+		_, each, err := gearStats(ctx, items, s.Ref, worn)
+		if err != nil {
+			return nil, err
+		}
+		theirs = append(theirs, withEffects(worn, each)...)
 	}
-	theirs := append(tops, withEffects(equipped, own)...) // the character's own embellishments are healEffects' too
 	profile := buildHealProfile(spec, b.Tops, func(a models.RankedAbility) bool {
 		return slices.ContainsFunc(theirs, func(w wornEffect) bool { return w.matches(a.ID, a.Name) })
 	})
@@ -106,8 +110,8 @@ func (s *Sims) healResult(ctx context.Context, id string, spec healSpec, p model
 		if err != nil {
 			return 0, nil, nil, stats, err
 		}
-		effects := healEffects(withEffects(worn, each), b.Tops, func(id, level int) float64 {
-			return effectScale(ctx, items, id, level, worn, each)
+		effects := healEffects(withEffects(worn, each), b.Tops, func(w wornEffect, level int) float64 {
+			return effectScale(ctx, items, w, level)
 		})
 		hps, abilities := healHPS(profile, stats, effects)
 		return hps, abilities, effects, stats, nil
@@ -175,15 +179,12 @@ func topEffects(ctx context.Context, items HealItems, tops []models.RankedPlayer
 	return out, nil
 }
 
-// effectScale is how much stronger the worn item id's effect is at the character's level than at level (a top
-// player's): the ratio of the first numbers their tooltips state, 1 when either states none or can't be read.
-func effectScale(ctx context.Context, items HealItems, id, level int, worn []*models.SimItem,
-	each []models.ItemStats) float64 {
-	at := slices.IndexFunc(worn, func(it *models.SimItem) bool { return it.ID == id })
-	theirs, err := items.ItemStats(ctx, id, level, nil)
-	mine, their := firstNumber(each[at].Effect), firstNumber(theirs.Effect)
-	if err != nil || mine == 0 || their == 0 {
+// effectScale is how much stronger the worn effect w is at the character's level than at level (a top player's): the
+// ratio of the first numbers their tooltips state, 1 when either states none or can't be read.
+func effectScale(ctx context.Context, items HealItems, w wornEffect, level int) float64 {
+	theirs, err := items.ItemStats(ctx, w.item.ID, level, nil)
+	if err != nil || w.stats.Amount == 0 || theirs.Amount == 0 {
 		return 1
 	}
-	return mine / their
+	return float64(w.stats.Amount) / float64(theirs.Amount)
 }

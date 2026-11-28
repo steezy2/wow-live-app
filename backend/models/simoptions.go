@@ -139,13 +139,3 @@ type SimOptionRow struct {
 	DPSError float64 `json:"dpsError"`
 	Gain     float64 `json:"gain"`
 }
-
-// ItemStats is what an item gives at its level and bonus IDs (Wowhead's tooltip): its intellect and secondary
-// ratings, and the spells (IDs, and names as Wowhead's slugs, "gebbos-bottomless-bag") and plain text of its Use: and
-// Equip: effects.
-type ItemStats struct {
-	Stats  RankedStats
-	Spells []int
-	Slugs  []string
-	Effect string
-}

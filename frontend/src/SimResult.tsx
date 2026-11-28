@@ -52,8 +52,8 @@ function ReportHead({ sim, result }: { sim: Sim; result: Result }) {
           <span className="muted">{who}</span>
         </p>
         {result.notes ? (
-          result.notes.map((n) => (
-            <p key={n} className="muted small">
+          result.notes.map((n, i) => (
+            <p key={i} className="muted small">
               {n}
             </p>
           ))
@@ -241,46 +241,36 @@ const fightText = (f: { fightStyle: string; length: number; targets: number }) =
 
 /** How the sim was run, one fact to a line: the fight (a Suggest sim's stat weights' fight, the fights it tested the
  * changes on and whose top logs), when, how long it took and how sure the number is. A healer's was scored on top
- * logs, with no fight or error. */
+ * logs (its head says so), with no fight or error. */
 function Details({ sim, result }: { sim: Sim; result: Result }) {
-  if (result.metric === 'hps') {
-    const rows: [string, string][] = [
-      ['Scored on', 'The top logs of your spec (simc does not heal)'],
-      ['Sim run', new Date(sim.startedMS).toLocaleString()],
-    ]
-    if (sim.tookMS) rows.push(['Processing time', clock(sim.tookMS)])
-    return <DetailRows rows={rows} />
-  }
+  const healer = result.metric === 'hps'
   const percent = result.dps ? (result.dpsError / result.dps) * 100 : 0
   const suggest = result.suggest
-  const rows: [string, string][] = suggest
-    ? [
-        ['Stat weights', fightText(sim.options)],
-        ...(suggest.fights ?? []).map((f): [string, string] => [`Changes on ${f.name}`, fightText(f)]),
-        ...(suggest.target ? [['Top logs of', suggest.target] as [string, string]] : []),
-      ]
-    : [
-        ['Fight style', sim.options.fightStyle],
-        ['Fight length', `${sim.options.length} seconds`],
-        ['Targets', String(sim.options.targets)],
-      ]
-  rows.push(
-    ['Accuracy', sim.options.accuracy],
-    ['Sim run', new Date(sim.startedMS).toLocaleString()],
-    [
+  const rows: [string, string][] = healer
+    ? []
+    : suggest
+      ? [
+          ['Stat weights', fightText(sim.options)],
+          ...(suggest.fights ?? []).map((f): [string, string] => [`Changes on ${f.name}`, fightText(f)]),
+          ...(suggest.target ? [['Top logs of', suggest.target] as [string, string]] : []),
+        ]
+      : [
+          ['Fight style', sim.options.fightStyle],
+          ['Fight length', `${sim.options.length} seconds`],
+          ['Targets', String(sim.options.targets)],
+        ]
+  if (!healer) rows.push(['Accuracy', sim.options.accuracy])
+  rows.push(['Sim run', new Date(sim.startedMS).toLocaleString()])
+  if (!healer) {
+    rows.push([
       suggest ? 'Margin of error (stat weights)' : 'Margin of error',
       `~${full(result.dpsError)} DPS (${percent.toFixed(2)}%)`,
-    ],
-  )
+    ])
+  }
   if (result.stages) {
     rows.push(['Stages', result.stages.map((s) => `${s.combos} at ${s.error}%`).join(' → ')])
   }
   if (sim.tookMS) rows.push(['Processing time', clock(sim.tookMS)])
-  return <DetailRows rows={rows} />
-}
-
-/** The details panel's facts, a name and a value each. */
-function DetailRows({ rows }: { rows: [string, string][] }) {
   return (
     <section className="panel">
       <h2>Simulation details</h2>
