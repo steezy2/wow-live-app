@@ -4668,6 +4668,10 @@ const docTemplate = `{
         "models.OverlaySettings": {
             "type": "object",
             "properties": {
+                "chatButtons": {
+                    "description": "ChatButtons shows a finished key's Copy DPS / HPS for chat buttons on the overlay (off by default).",
+                    "type": "boolean"
+                },
                 "clickThrough": {
                     "description": "ClickThrough lets clicks on the overlay through to the game; off (the default), a click on a player's row\nshows their abilities in the pull.",
                     "type": "boolean"

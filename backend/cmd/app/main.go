@@ -100,7 +100,7 @@ func run() error {
 		return err
 	}
 	settings, err := app.LoadSettings(filepath.Join(data, "settings.json"),
-		models.Settings{LogsDir: logsDir(), Region: "us", Overlay: models.OverlaySettings{Show: "keys", Opacity: 90},
+		models.Settings{LogsDir: logsDir(), Region: "us", Overlay: models.OverlaySettings{Show: "off", Opacity: 90},
 			Auto: models.AutoSettings{DeleteSimsDays: 30}})
 	if err != nil {
 		return err

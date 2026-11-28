@@ -3,6 +3,7 @@ import type {
   ImportKindPlan,
   ImportPlan,
   ImportStatus,
+  KeyMeterRow,
   KeySpike,
   KeyView,
   LogFile,
@@ -269,4 +270,49 @@ export function rowValue(value: number, unit: string): string {
  * less (the game finished it, so the count missed a mob). */
 export function forcesCount({ count, total, pct }: { count: number; total: number; pct: number }): string {
   return count > 0 && (pct < 100 || count >= total) ? ` · ${count}/${total}` : ''
+}
+
+/** The most WoW's chat box takes in one message (a /run command too). */
+const CHAT_MAX = 255
+/** The most of a player's name a chat row shows, so five rows fit in one /run. */
+const CHAT_NAME = 12
+/** The last chat row, saying where the meter comes from; the first left off when the rows don't fit. */
+const CHAT_AD = 'via WoW Live, free on the Microsoft Store'
+
+/** A finished key's meter as rows for WoW's chat: the key and its result, then each player's DPS with their kicks
+ * (what: 'dps'), or each healer's HPS with their dispels, then the deaths and who took the most damage ('hps'), and
+ * CHAT_AD. */
+export function chatRows(key: KeyView, what: 'dps' | 'hps'): string[] {
+  const result = key.status === 'timed' ? `timed${key.chests > 0 ? ` +${key.chests}` : ''}` : key.status
+  const [extra, label] = what === 'dps' ? (['interrupts', 'kicks'] as const) : (['dispels', 'dispels'] as const)
+  const head = `${key.dungeon} +${key.level} ${result} ${clock(key.clockMS)} - ${what.toUpperCase()} (${label})`
+  const name = (r: KeyMeterRow) => r.player.slice(0, CHAT_NAME)
+  const rows = key.overall.rows
+    .filter((r) => r[what] > 0)
+    .sort((a, b) => b[what] - a[what])
+    .map((r, i) => `${i + 1}. ${name(r)} ${amount(r[what])}${r[extra] ? ` (${r[extra]})` : ''}`)
+  if (what === 'dps') return [head, ...rows, CHAT_AD]
+  const taken = [...key.overall.rows].sort((a, b) => b.damageTaken - a.damageTaken)[0]
+  const deaths = key.deaths.length ? counted(key.deaths.length, 'death') : 'No deaths'
+  const footer = taken ? `${deaths} - most taken: ${name(taken)} ${amount(taken.damageTaken)}` : deaths
+  return [head, ...rows, footer, CHAT_AD]
+}
+
+/** A chat a /run sends to (the game's SendChatMessage channel). */
+export type ChatChannel = 'PARTY' | 'SAY'
+
+/** The chat rows as one /run command of at most CHAT_MAX characters that sends each row to the channel as its own
+ * message, so they show one under the other: one string split on ;, which costs a character a row where a Lua list
+ * would cost three. CHAT_AD is left off first when the rows don't fit, then the last rows. Midnight blocks a script's
+ * party chat during a key or an encounter, and drops it without a word: Say still goes through. */
+export function chatRun(rows: string[], channel: ChatChannel): string {
+  const pack = (shown: string[]) => {
+    const text = shown.map((r) => r.replaceAll(';', ',').replace(/[\\"]/g, (c) => `\\${c}`)).join(';')
+    return `/run for l in("${text}"):gmatch"[^;]+"do SendChatMessage(l,"${channel}")end`
+  }
+  const all = pack(rows)
+  if (all.length <= CHAT_MAX) return all
+  let shown = rows.filter((r) => r !== CHAT_AD)
+  while (shown.length > 1 && pack(shown).length > CHAT_MAX) shown = shown.slice(0, -1)
+  return pack(shown)
 }

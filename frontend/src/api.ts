@@ -1078,6 +1078,8 @@ export interface OverlaySettings {
   raidSideBySide: boolean
   /** Seconds a new death's recap shows over the cards without a click; 0 is off. */
   deathRecapSeconds: number
+  /** Show a finished key's copy-for-chat buttons on the overlay (off by default). */
+  chatButtons: boolean
 }
 export type RankBy = 'dps' | 'hps'
 /** A named layout of the overlay's cards the Settings page fills in with one click. */

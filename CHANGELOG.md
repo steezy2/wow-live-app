@@ -4,6 +4,12 @@ What changed, newest first. Each PR adds its lines under `[Unreleased]`.
 
 ## [Unreleased]
 
+### Added
+- **Copy a key's meters for WoW chat:** a finished key's page has *Copy DPS for chat* and *Copy HPS for chat* on the right of its links (`ChatCopy.tsx`), with a Party or Say picker: a `/run` of at most 255 characters that, pasted in WoW's chat, sends one message a row there, so the meter reads as a short table (`chatRows` and `chatRun` in `format.ts`): the key and its result, then each player's DPS with kicks, or each healer's HPS with dispels, then the deaths and who took the most damage, and last "via WoW Live, free on the Microsoft Store" (left off first when the rows need the room). The rows go in one `;`-split string, a character a row. Midnight can block a script's party chat during a key without a word, so Say is there for that. The overlay shows the same buttons once a key ends when Settings turns them on (`OverlaySettings.chatButtons`, off by default; not with clicks let through). Hover a button to see its rows.
+
+### Changed
+- **The overlay is off on a new install** (`Show: off`) until Settings picks when it shows (an optional step in Home's setup guide says so), and a new death's recap no longer takes over the overlay's cards by default (`deathRecapSeconds` 0): the deaths line opens it. A settings file that already has values keeps them.
+
 ## [0.5.6] - 2026-11-27
 
 ### Added

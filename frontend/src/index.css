@@ -905,7 +905,8 @@ button {
 
 /* Fields in Settings and Home's data panel look like what they are: boxed. */
 :is(.settings, .home-data) input:not([type='checkbox'], [type='range']),
-:is(.settings, .home-data) select {
+:is(.settings, .home-data) select,
+.chat-copy select {
   font: inherit;
   color: var(--text);
   background: var(--bg);
@@ -921,7 +922,7 @@ button {
 
 /* The one look of a button that does something: boxed, the main action (a submit or .action) filled, a destructive
  * one red. */
-:is(.settings, .home-data, .links, .quick-links, .boxed) {
+:is(.settings, .home-data, .links, .quick-links, .boxed, .chat-copy) {
   & button {
     font: inherit;
     font-weight: 600;
@@ -960,7 +961,7 @@ button {
   }
 }
 
-:is(.settings, .home-data, .links, .quick-links, .boxed) :is(input, select, button):focus-visible {
+:is(.settings, .home-data, .links, .quick-links, .boxed, .chat-copy) :is(input, select, button):focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
@@ -1000,7 +1001,7 @@ html:has(.overlay) {
   padding: var(--s1);
 }
 
-.overlay-fit :is(p, li, .row-button, .overlay-clock) {
+.overlay-fit :is(p, li, .row-button, .overlay-clock, .chat-copy) {
   contain: inline-size;
 }
 
@@ -1615,6 +1616,15 @@ button.link {
   flex-wrap: wrap;
   gap: var(--s2);
   align-items: center;
+}
+
+/* A finished key's copy-for-chat picker and buttons, on the right of its links (ChatCopy in KeyDetails.tsx). */
+.chat-copy {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+  align-items: center;
+  margin-left: auto;
 }
 
 /* The Home tab's quick links: bigger buttons with an arrow. */
