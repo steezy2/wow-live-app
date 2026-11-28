@@ -94,9 +94,11 @@ type SimEngineSource interface {
 	UseFile(ctx context.Context, path string) (models.SimEngine, error)
 }
 
-// ItemTypes says whether an item is a two-handed weapon, which the SimC export doesn't (wowhead.Client).
+// ItemTypes says whether an item is a two-handed weapon, which the SimC export doesn't, and what it gives a healer
+// (wowhead.Client).
 type ItemTypes interface {
 	TwoHanded(ctx context.Context, id int) (bool, error)
+	HealItems
 }
 
 // Sims runs sims on this PC, up to maxParallelSims at once, with the downloaded SimulationCraft and keeps the finished
@@ -225,10 +227,11 @@ func (s *Sims) Wait() { s.work.Wait() }
 // without).
 func (s *Sims) Reference() models.SimReference { return s.Ref }
 
-// ParseProfile is the character in a pasted export, each item with its sockets (SimItem.Sockets). ErrBadSimC for an
-// export that is none.
+// ParseProfile is the character in a pasted export, each item with its sockets (SimItem.Sockets) and whether it is a
+// healer (SimProfile.Healer). ErrBadSimC for an export that is none.
 func (s *Sims) ParseProfile(export string) (models.SimProfile, error) {
 	p, err := s.parse(export)
+	_, p.Healer = s.healerSpec(p)
 	return withChoices(s.Ref, p), err
 }
 
@@ -251,7 +254,8 @@ func (s *Sims) Plan(req models.SimRequest) (models.SimPlan, error) {
 	if err != nil {
 		return models.SimPlan{}, err
 	}
-	if _, err = customLines(req.Custom); err != nil {
+	custom, err := customLines(req.Custom)
+	if err != nil {
 		return models.SimPlan{}, err
 	}
 	dims, err := s.compared(req, &profile)
@@ -275,6 +279,13 @@ func (s *Sims) Plan(req models.SimRequest) (models.SimPlan, error) {
 	}
 	if err != nil {
 		return models.SimPlan{}, err
+	}
+	if _, ok := s.healerSpec(profile); ok {
+		plan.Points, plan.Seconds, plan.NeedsLogs = suggestPoints(req.Target), healPlanSeconds, !s.logsReady()
+		if err := s.healerRefusal(req, custom, dims); err != nil && plan.Error == "" {
+			plan.Error = err.Error()
+		}
+		return plan, nil
 	}
 	final := simTargetError(req.Options, true)
 	runs := smartRuns(plan.Combos, smartStages(plan.Combos, final), final) + 1 // the sim's own run besides its sets
@@ -379,7 +390,8 @@ func (s *Sims) compared(req models.SimRequest, p *models.SimProfile) ([]compareD
 	return dims, nil
 }
 
-// Start parses the export and starts the sim in the background; poll Get. Errors: ErrBadSimOptions, ErrBadSimC,
+// Start parses the export and starts the sim in the background; poll Get. A healer's sim runs on the heal model
+// (simheal.go), not simc. Errors: ErrBadSimOptions, ErrBadSimC,
 // ErrNoEngine, ErrSimBusy.
 func (s *Sims) Start(req models.SimRequest) (models.Sim, error) {
 	if err := validateSimOptions(req.Kind, req.Options); err != nil {
@@ -420,6 +432,10 @@ func (s *Sims) Start(req models.SimRequest) (models.Sim, error) {
 			combos, err = dropCombos(profile, s.Drops, req.Difficulty, req.KeyLevel, up)
 		}
 	}
+	spec, healing := s.healerSpec(profile)
+	if err == nil && healing {
+		err = s.healerRefusal(req, custom, dims)
+	}
 	if err == nil {
 		switch {
 		case (req.Kind == "stats" || req.Kind == "suggest") && len(dims) > 0:
@@ -435,7 +451,7 @@ func (s *Sims) Start(req models.SimRequest) (models.Sim, error) {
 	if err != nil {
 		return models.Sim{}, err
 	}
-	if !s.Engine.Installed().Installed {
+	if !healing && !s.Engine.Installed().Installed {
 		return models.Sim{}, ErrNoEngine
 	}
 	s.mu.Lock()
@@ -465,13 +481,16 @@ func (s *Sims) Start(req models.SimRequest) (models.Sim, error) {
 		s.runs = map[string]*simRun{}
 	}
 	s.runs[id] = &simRun{sim: sim, cancel: cancel}
-	if req.Kind == "suggest" {
+	switch {
+	case healing:
+		s.work.Go(func() { s.heal(ctx, id, spec, profile, req.Kind, combos, *req.Target) })
+	case req.Kind == "suggest":
 		s.work.Go(func() {
 			s.suggest(suggestRun{sims: s, ctx: ctx, id: id, input: input, output: output, head: head, o: req.Options,
 				p: profile, tree: loadoutTree(s.Ref.Talents, profile.Talents), consumables: req.Consumables,
 				target: *req.Target})
 		})
-	} else {
+	default:
 		s.work.Go(func() { s.execute(ctx, id, input, output, head, combos, req.Options, profile.Equipped) })
 	}
 	return sim, nil
@@ -920,7 +939,7 @@ func (s *Sims) List() ([]models.Sim, error) {
 	slices.SortFunc(list, func(a, b models.Sim) int { return cmp.Compare(b.StartedMS, a.StartedMS) })
 	for _, sim := range saved {
 		if sim.Result != nil {
-			sim.DPS, sim.Result = sim.Result.DPS, nil
+			sim.DPS, sim.Metric, sim.Result = sim.Result.DPS, sim.Result.Metric, nil
 		}
 		list = append(list, sim)
 	}

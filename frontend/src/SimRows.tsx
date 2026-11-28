@@ -3,11 +3,12 @@ import { full } from './format'
 import { ItemLine } from './SimItem'
 import { gainShare, groupLabel } from './simOptions'
 
-/** A ranked row's DPS (when it has one), its gain over the sim's baseline and a bar for the gain against the best's. */
-export function Gain({ gain, dps, best }: { gain: number; dps?: number; best: number }) {
+/** A ranked row's DPS or HPS (unit; when it has one), its gain over the sim's baseline and a bar for the gain against
+ * the best's. */
+export function Gain({ gain, dps, best, unit = 'DPS' }: { gain: number; dps?: number; best: number; unit?: string }) {
   return (
     <div className="sim-gain">
-      {dps !== undefined && <span className="muted small">{full(dps)} DPS</span>}
+      {dps !== undefined && <span className="muted small">{full(dps)} {unit}</span>}
       <span className={gain >= 0 ? 'good' : 'warning'}>
         {gain > 0 ? '+' : ''}
         {gain === 0 ? '—' : full(gain)}

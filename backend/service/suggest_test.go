@@ -44,10 +44,14 @@ func suggestRequest(t *testing.T) models.SimRequest {
 	return req
 }
 
-// oneHanders says no weapon is two-handed.
+// oneHanders says no weapon is two-handed and every item gives 100 intellect and 50 of each secondary rating.
 type oneHanders struct{}
 
 func (oneHanders) TwoHanded(context.Context, int) (bool, error) { return false, nil }
+
+func (oneHanders) ItemStats(context.Context, int, int, []int) (models.ItemStats, error) {
+	return models.ItemStats{Stats: models.RankedStats{Main: 100, Crit: 50, Haste: 50, Mastery: 50, Vers: 50}}, nil
+}
 
 // suggestSims are sims of the test export (an elemental shaman, spec 262) over testRef and the reference talent trees,
 // with ten top players who all put gem 240883 in their head, enchant 7964 on a ring, have Flask A up, took the other

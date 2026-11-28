@@ -48,7 +48,8 @@ function bySource(combos: SimCombo[]): Source[] {
 
 /** A Droptimizer's bosses and dungeons ranked by the best upgrade they drop, each with all its drops as icons under
  * their gain (% of the equipped DPS), the gain if a drop were picked at random from it and its best. */
-export function SourceRanking({ combos, equipped, chunk }: { combos: SimCombo[]; equipped: number; chunk: number }) {
+export function SourceRanking(props: { combos: SimCombo[]; equipped: number; chunk: number; unit?: string }) {
+  const { combos, equipped, chunk, unit = 'DPS' } = props
   const sources = bySource(combos)
   const info = useItemInfo(
     sources.flatMap((s) => s.drops.flatMap((d) => (d.combo.swaps[0].in ? [d.combo.swaps[0].in] : []))),
@@ -62,7 +63,7 @@ export function SourceRanking({ combos, equipped, chunk }: { combos: SimCombo[];
       <h2>Best places to get upgrades</h2>
       <p className="muted small">
         Each boss and dungeon with what it drops, ranked by its best upgrade. Gains are against your current gear;
-        coloured items are a 0.05% DPS gain or better. Expected is the gain of one drop picked at random.
+        coloured items are a 0.05% {unit} gain or better. Expected is the gain of one drop picked at random.
       </p>
       <ol>
         {sources.map((s) => (
@@ -80,7 +81,7 @@ export function SourceRanking({ combos, equipped, chunk }: { combos: SimCombo[];
                   <span
                     key={`${item?.id}-${combo.swaps[0].slot}`}
                     className={`sim-source-drop${p >= NOTABLE ? ' good' : ''}`}
-                    {...tip(`${known?.name ?? item?.name ?? ''} ${item?.level ?? ''}`.trim(), num(gain) + ' DPS')}
+                    {...tip(`${known?.name ?? item?.name ?? ''} ${item?.level ?? ''}`.trim(), `${num(gain)} ${unit}`)}
                   >
                     <span className="sim-icon">
                       {known?.icon && <img src={iconURL(known.icon)} alt="" loading="lazy" />}

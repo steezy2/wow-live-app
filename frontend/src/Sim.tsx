@@ -194,10 +194,30 @@ function SuggestText({ plan, onStats }: { plan: { plan: SimPlan | null; error: s
   )
 }
 
+/** The top logs a Suggest sim compares with, or a healer's sims are scored on. */
+function TargetPick(props: {
+  healer: boolean
+  choices: SimChoices
+  suggestTarget: string
+  setSuggestTarget: (name: string) => void
+}) {
+  return (
+    <label>
+      {props.healer ? 'Score on the top logs of' : 'Compare with the top logs of'}
+      <select value={props.suggestTarget} onChange={(e) => props.setSuggestTarget(e.target.value)}>
+        {props.choices.suggestTargets.map((t) => (
+          <option key={t.name}>{t.name}</option>
+        ))}
+      </select>
+    </label>
+  )
+}
+
 /** The fight's options and for a Droptimizer where the drops come from and whether they are upgraded, with the Sim
  * button and a running sim's progress, in the panel beside the gear. */
 function OptionsPanel(props: {
   kind: SimKind
+  healer: boolean
   choices: SimChoices
   options: SimOptions
   setOptions: (o: SimOptions) => void
@@ -225,64 +245,77 @@ function OptionsPanel(props: {
   )
   return (
     <aside className="panel sim-options">
-      <h2>Fight</h2>
-      <label>
-        Scenario
-        <select
-          value={scenario?.name ?? ''}
-          onChange={(e) => {
-            const s = choices.scenarios.find((c) => c.name === e.target.value)
-            if (s) setOptions({ ...options, fightStyle: s.fightStyle, length: s.length, targets: s.targets })
-          }}
-        >
-          <option value="" disabled>
-            Custom: the fight below
-          </option>
-          {choices.scenarios.map((s) => (
-            <option key={s.name}>{s.name}</option>
-          ))}
-        </select>
-      </label>
-      <label>
-        Style
-        <select value={options.fightStyle} onChange={(e) => setOptions({ ...options, fightStyle: e.target.value })}>
-          {choices.fightStyles.map((s) => (
-            <option key={s}>{s}</option>
-          ))}
-        </select>
-      </label>
-      <label>
-        Length (s)
-        <input
-          type="number"
-          value={options.length}
-          onChange={(e) => setOptions({ ...options, length: Number(e.target.value) })}
-        />
-      </label>
-      <label>
-        Targets
-        <input
-          type="number"
-          value={options.targets}
-          onChange={(e) => setOptions({ ...options, targets: Number(e.target.value) })}
-        />
-      </label>
-      <label>
-        Accuracy
-        <select value={options.accuracy} onChange={(e) => setOptions({ ...options, accuracy: e.target.value })}>
-          {choices.accuracies.map((a) => (
-            <option key={a}>{a}</option>
-          ))}
-        </select>
-      </label>
-      <label className="inline">
-        <input
-          type="checkbox"
-          checked={!options.noRaidBuffs}
-          onChange={(e) => setOptions({ ...options, noRaidBuffs: !e.target.checked || undefined })}
-        />
-        Raid buffs (simc's default: Bloodlust, Arcane Intellect, …)
-      </label>
+      {props.healer ? (
+        <>
+          <h2>Top logs</h2>
+          <p className="muted small">
+            SimulationCraft doesn't heal, so a healer's gear is scored the way QuestionablyEpic does it: each spell of
+            your spec's top logs at your stats, trinkets and embellishments as the logs that wore them show.
+          </p>
+          <TargetPick {...props} />
+        </>
+      ) : (
+        <>
+          <h2>Fight</h2>
+          <label>
+            Scenario
+            <select
+              value={scenario?.name ?? ''}
+              onChange={(e) => {
+                const s = choices.scenarios.find((c) => c.name === e.target.value)
+                if (s) setOptions({ ...options, fightStyle: s.fightStyle, length: s.length, targets: s.targets })
+              }}
+            >
+              <option value="" disabled>
+                Custom: the fight below
+              </option>
+              {choices.scenarios.map((s) => (
+                <option key={s.name}>{s.name}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Style
+            <select value={options.fightStyle} onChange={(e) => setOptions({ ...options, fightStyle: e.target.value })}>
+              {choices.fightStyles.map((s) => (
+                <option key={s}>{s}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Length (s)
+            <input
+              type="number"
+              value={options.length}
+              onChange={(e) => setOptions({ ...options, length: Number(e.target.value) })}
+            />
+          </label>
+          <label>
+            Targets
+            <input
+              type="number"
+              value={options.targets}
+              onChange={(e) => setOptions({ ...options, targets: Number(e.target.value) })}
+            />
+          </label>
+          <label>
+            Accuracy
+            <select value={options.accuracy} onChange={(e) => setOptions({ ...options, accuracy: e.target.value })}>
+              {choices.accuracies.map((a) => (
+                <option key={a}>{a}</option>
+              ))}
+            </select>
+          </label>
+          <label className="inline">
+            <input
+              type="checkbox"
+              checked={!options.noRaidBuffs}
+              onChange={(e) => setOptions({ ...options, noRaidBuffs: !e.target.checked || undefined })}
+            />
+            Raid buffs (simc's default: Bloodlust, Arcane Intellect, …)
+          </label>
+        </>
+      )}
       {kind === 'topgear' && (
         <label>
           Catalyst charges
@@ -341,31 +374,26 @@ function OptionsPanel(props: {
           Sim
         </button>
       </div>
-      <section className="sim-suggest">
-        <h3>Suggest</h3>
-        <p className="muted small">
-          What the top players of your spec do that you don't, each change confirmed by a sim on one target and on
-          AoE.
-        </p>
-        <label>
-          Compare with the top logs of
-          <select value={props.suggestTarget} onChange={(e) => props.setSuggestTarget(e.target.value)}>
-            {choices.suggestTargets.map((t) => (
-              <option key={t.name}>{t.name}</option>
-            ))}
-          </select>
-        </label>
-        {props.suggestPlan && <SuggestText plan={props.suggestPlan} onStats={() => props.onSuggest('stats')} />}
-        <div className="actions">
-          <button
-            className="sim-run"
-            disabled={!!props.why || !!optionsError || !props.suggestPlan?.plan || !!props.suggestPlan.plan.error}
-            onClick={() => props.onSuggest('suggest')}
-          >
-            Suggest
-          </button>
-        </div>
-      </section>
+      {!props.healer && (
+        <section className="sim-suggest">
+          <h3>Suggest</h3>
+          <p className="muted small">
+            What the top players of your spec do that you don't, each change confirmed by a sim on one target and on
+            AoE.
+          </p>
+          <TargetPick {...props} />
+          {props.suggestPlan && <SuggestText plan={props.suggestPlan} onStats={() => props.onSuggest('stats')} />}
+          <div className="actions">
+            <button
+              className="sim-run"
+              disabled={!!props.why || !!optionsError || !props.suggestPlan?.plan || !!props.suggestPlan.plan.error}
+              onClick={() => props.onSuggest('suggest')}
+            >
+              Suggest
+            </button>
+          </div>
+        </section>
+      )}
     </aside>
   )
 }
@@ -501,9 +529,11 @@ export function SimPage() {
       kind: k,
       export: text,
       options,
-      consumables,
-      ...(custom.trim() && { custom }),
-      ...(mine !== theirs && { omnium: mine }),
+      ...(!profile?.healer && {
+        consumables,
+        ...(custom.trim() && { custom }),
+        ...(mine !== theirs && { omnium: mine }),
+      }),
       ...(k === 'topgear' && {
         equipped,
         bags,
@@ -512,7 +542,7 @@ export function SimPage() {
         catalystCharges: chargesPicked ?? choices?.maxCatalystCharges,
       }),
       ...(k === 'drops' && { difficulty, keyLevel, upgrade }),
-      ...(k === 'suggest' && suggestTarget && { target: suggestTarget.target }),
+      ...((k === 'suggest' || profile?.healer) && suggestTarget && { target: suggestTarget.target }),
     }
   }
   const planRequest = profile ? request() : null
@@ -560,8 +590,8 @@ export function SimPage() {
   const planBlocks = !!plan.error || !!plan.plan?.error || (kind === 'topgear' && !plan.plan)
   // Why Sim is off, in words (the plan says the request's own refusal beside the button).
   const whyNot = (): string | null => {
-    if (!engine?.installed) return 'Download the engine first.'
-    if (engine.installing) return 'The engine is still downloading.'
+    if (!profile?.healer && !engine?.installed) return 'Download the engine first.'
+    if (!profile?.healer && engine?.installing) return 'The engine is still downloading.'
     if (runs.length >= choices.maxParallel) {
       return `${runs.length} sims are running, the most at once: wait for one to end, or cancel it.`
     }
@@ -678,6 +708,7 @@ export function SimPage() {
             </section>
             <OptionsPanel
               kind={kind}
+              healer={!!profile.healer}
               choices={choices}
               options={options}
               setOptions={setOptions}
@@ -706,24 +737,28 @@ export function SimPage() {
           {kind === 'topgear' && (
             <EnhancementsCard reference={reference} value={enhancements} onChange={setEnhancements} />
           )}
-          <CustomCard
-            value={custom}
-            onChange={setCustom}
-            error={custom.trim() && plan.error?.includes('custom') ? plan.error : null}
-          />
-          <ConsumablesCard
-            kinds={choices.consumableKinds}
-            reference={reference}
-            value={consumables}
-            onChange={setConsumables}
-          />
-          {reference.omnium.length > 0 && (
-            <OmniumFolio
-              nodes={reference.omnium}
-              picks={omnium}
-              original={omniumPicks(profile.omnium)}
-              onChange={setOmnium}
-            />
+          {!profile.healer && (
+            <>
+              <CustomCard
+                value={custom}
+                onChange={setCustom}
+                error={custom.trim() && plan.error?.includes('custom') ? plan.error : null}
+              />
+              <ConsumablesCard
+                kinds={choices.consumableKinds}
+                reference={reference}
+                value={consumables}
+                onChange={setConsumables}
+              />
+              {reference.omnium.length > 0 && (
+                <OmniumFolio
+                  nodes={reference.omnium}
+                  picks={omnium}
+                  original={omniumPicks(profile.omnium)}
+                  onChange={setOmnium}
+                />
+              )}
+            </>
           )}
         </>
       )}

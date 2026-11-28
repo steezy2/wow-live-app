@@ -55,18 +55,20 @@ function BarRow(props: {
   )
 }
 
-/** The damage breakdown: each ability's share as a bar in its school's colours, with its DPS and casts. */
-export function AbilityBars({ abilities, info }: { abilities: SimAbility[]; info: Info }) {
+/** The damage (or, unit HPS, healing) breakdown: each ability's share as a bar in its school's colours, with its DPS
+ * and casts (none on the heal model). */
+export function AbilityBars(props: { abilities: SimAbility[]; info: Info; unit?: string }) {
+  const { abilities, info, unit = 'DPS' } = props
   const top = Math.max(0.0001, ...abilities.map((a) => a.share))
   return (
     <section className="panel sim-breakdown">
-      <h2>Damage breakdown</h2>
+      <h2>{unit === 'HPS' ? 'Healing' : 'Damage'} breakdown</h2>
       <ul>
         <li className="sim-bar-row sim-bar-head muted small">
           <span>Ability</span>
           <span className="sim-bar-pct">Share</span>
           <span />
-          <span className="sim-bar-num">DPS</span>
+          <span className="sim-bar-num">{unit}</span>
           <span className="sim-bar-num">Casts</span>
         </li>
         {abilities.map((a) => (
@@ -78,7 +80,7 @@ export function AbilityBars({ abilities, info }: { abilities: SimAbility[]; info
             school={a.school}
             share={(a.share / top) * 100}
             label={`${(a.share * 100).toFixed(1)}%`}
-            numbers={[full(a.dps), a.casts.toFixed(1)]}
+            numbers={[full(a.dps), unit === 'HPS' ? '—' : a.casts.toFixed(1)]}
           />
         ))}
       </ul>

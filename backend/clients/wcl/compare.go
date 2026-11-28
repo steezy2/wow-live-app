@@ -261,13 +261,14 @@ func (c *Client) playerBuild(ctx context.Context, code string, fightID, actor in
 }
 
 // buildOf is the build the combatantinfo event of the actor lists, empty when it has none. Empty slots are left out of
-// the gear, and the stats are ratings (a caster's crit is its spell crit, a melee's its melee crit).
+// the gear, and the stats are ratings (a caster's crit is its spell crit, a melee's its melee crit) and the main stat.
 func buildOf(events []event, actor int) build {
 	for _, e := range events {
 		if e.Type != "combatantinfo" || e.SourceID != actor {
 			continue
 		}
-		b := build{stats: &models.RankedStats{Crit: int(max(e.CritMelee, e.CritRanged, e.CritSpell)),
+		b := build{stats: &models.RankedStats{Main: int(max(e.Strength, e.Agility, e.Intellect)),
+			Crit:  int(max(e.CritMelee, e.CritRanged, e.CritSpell)),
 			Haste: int(max(e.HasteMelee, e.HasteRanged, e.HasteSpell)), Mastery: int(e.Mastery),
 			Vers: int(e.VersatilityDamageDone)}}
 		for _, t := range e.TalentTree {

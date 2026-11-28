@@ -51,12 +51,45 @@ type RankedGear struct {
 	Gems    []int  `json:"gems,omitempty"`
 }
 
-// RankedStats are a player's secondary stat ratings.
+// RankedStats are a player's secondary stat ratings and main stat (0 when unknown: a log read before it was kept).
 type RankedStats struct {
+	Main    int `json:"main,omitempty"`
 	Crit    int `json:"crit"`
 	Haste   int `json:"haste"`
 	Mastery int `json:"mastery"`
 	Vers    int `json:"vers"`
+}
+
+// Rating is the secondary rating of r a stat names by Raidbots' short name ("Haste"); nil for any other stat.
+func (r *RankedStats) Rating(stat string) *int {
+	switch stat {
+	case "Crit":
+		return &r.Crit
+	case "Haste":
+		return &r.Haste
+	case "Mastery":
+		return &r.Mastery
+	case "Vers":
+		return &r.Vers
+	}
+	return nil
+}
+
+// Add adds o's stats to r.
+func (r *RankedStats) Add(o RankedStats) {
+	r.Main, r.Crit, r.Haste, r.Mastery, r.Vers = r.Main+o.Main, r.Crit+o.Crit, r.Haste+o.Haste, r.Mastery+o.Mastery,
+		r.Vers+o.Vers
+}
+
+// ItemStats is what an item gives at its level and bonus IDs (Wowhead's tooltip): its intellect and secondary
+// ratings, and its Use: and Equip: effects' spells (IDs, and names as Wowhead's slugs, "gebbos-bottomless-bag"), the
+// stat buff their text states (none when it states none) and the first number it states (0 for none).
+type ItemStats struct {
+	Stats  RankedStats
+	Spells []int
+	Slugs  []string
+	Buff   RankedStats
+	Amount int
 }
 
 // TalentPick is one talent a player took: the tree node, the choice made in it and the ranks bought, as the game's

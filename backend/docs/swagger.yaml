@@ -2781,7 +2781,8 @@ definitions:
         example: mage
         type: string
       dps:
-        description: DPS is the result's DPS, kept when the list leaves Result out.
+        description: DPS and Metric are the result's, kept when the list leaves Result
+          out.
         type: number
       error:
         type: string
@@ -2796,6 +2797,9 @@ definitions:
         - stats
         - suggest
         - consumables
+        type: string
+      metric:
+        example: hps
         type: string
       options:
         $ref: '#/definitions/models.SimOptions'
@@ -3255,6 +3259,10 @@ definitions:
         items:
           $ref: '#/definitions/models.SimItem'
         type: array
+      healer:
+        description: 'Healer says the spec heals: its sims are scored on the heal
+          model over a target''s top logs, not run in simc.'
+        type: boolean
       itemLevel:
         description: |-
           ItemLevel is the equipped item level as the game counts it: the 16 slots without shirt and tabard, a main hand
@@ -3459,6 +3467,17 @@ definitions:
           actions in order (it is no guide to play by).'
         items:
           $ref: '#/definitions/models.SimLogEntry'
+        type: array
+      metric:
+        description: |-
+          Metric is what DPS, the abilities and the gains measure: "hps" for a healer's sim (scored on the heal model, not
+          simc), empty for damage (and every sim saved before healers). Notes are what a healer's result assumes and what
+          it couldn't measure.
+        example: hps
+        type: string
+      notes:
+        items:
+          type: string
         type: array
       options:
         description: Options are the values a Quick Sim compared, best first.

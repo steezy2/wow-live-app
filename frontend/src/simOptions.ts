@@ -64,6 +64,9 @@ const KIND_LABELS: Record<string, string> = {
 /** A kind of sim's name on the page; a kind it doesn't know shows as the app names it. */
 export const kindLabel = (kind: string) => KIND_LABELS[kind] ?? kind
 
+/** What a result's numbers measure: healing per second for a healer's sim, else damage. */
+export const unitOf = (result?: { metric?: string }) => (result?.metric === 'hps' ? 'HPS' : 'DPS')
+
 /** The page's names for the items' groups (SimItem.group). */
 const GROUP_LABELS: Record<string, string> = {
   shoulder: 'Shoulders',

@@ -12,6 +12,8 @@ type SimProfile struct {
 	Server string `json:"server" example:"sargeras"`
 	Role   string `json:"role,omitempty" example:"spell"`
 	Spec   string `json:"spec" example:"elemental"`
+	// Healer says the spec heals: its sims are scored on the heal model over a target's top logs, not run in simc.
+	Healer bool `json:"healer,omitempty"`
 	// Professions is the export's "enchanting=26/jewelcrafting=1", and Omnium its omnium_talents, kept as written.
 	Professions string `json:"professions,omitempty"`
 	Omnium      string `json:"omnium,omitempty"`
@@ -198,8 +200,9 @@ type Sim struct {
 	Error     string     `json:"error,omitempty"`
 	// Stage says which stage of a raced sim is running ("Stage 2 of 3: 140 combinations at 0.5%").
 	Stage string `json:"stage,omitempty"`
-	// DPS is the result's DPS, kept when the list leaves Result out.
+	// DPS and Metric are the result's, kept when the list leaves Result out.
 	DPS    float64    `json:"dps,omitempty"`
+	Metric string     `json:"metric,omitempty" example:"hps"`
 	Result *SimResult `json:"result,omitempty"`
 }
 
@@ -225,6 +228,11 @@ type SimResult struct {
 	Options []SimOptionRow `json:"options,omitempty"`
 	// Suggest is a "suggest" sim's changes; the rest of the result is its stat weights sim's.
 	Suggest *SimSuggestReport `json:"suggest,omitempty"`
+	// Metric is what DPS, the abilities and the gains measure: "hps" for a healer's sim (scored on the heal model, not
+	// simc), empty for damage (and every sim saved before healers). Notes are what a healer's result assumes and what
+	// it couldn't measure.
+	Metric string   `json:"metric,omitempty" example:"hps"`
+	Notes  []string `json:"notes,omitempty"`
 }
 
 // SimCombo is one gear combination a Top Gear sim ran: its DPS, the standard error of that mean, its gain over the

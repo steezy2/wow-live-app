@@ -6702,7 +6702,7 @@ const docTemplate = `{
                     "example": "mage"
                 },
                 "dps": {
-                    "description": "DPS is the result's DPS, kept when the list leaves Result out.",
+                    "description": "DPS and Metric are the result's, kept when the list leaves Result out.",
                     "type": "number"
                 },
                 "error": {
@@ -6722,6 +6722,10 @@ const docTemplate = `{
                         "suggest",
                         "consumables"
                     ]
+                },
+                "metric": {
+                    "type": "string",
+                    "example": "hps"
                 },
                 "options": {
                     "$ref": "#/definitions/models.SimOptions"
@@ -7352,6 +7356,10 @@ const docTemplate = `{
                         "$ref": "#/definitions/models.SimItem"
                     }
                 },
+                "healer": {
+                    "description": "Healer says the spec heals: its sims are scored on the heal model over a target's top logs, not run in simc.",
+                    "type": "boolean"
+                },
                 "itemLevel": {
                     "description": "ItemLevel is the equipped item level as the game counts it: the 16 slots without shirt and tabard, a main hand\nwith nothing in the off-hand (a two-hander) counted twice, rounded down.",
                     "type": "integer",
@@ -7602,6 +7610,17 @@ const docTemplate = `{
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/models.SimLogEntry"
+                    }
+                },
+                "metric": {
+                    "description": "Metric is what DPS, the abilities and the gains measure: \"hps\" for a healer's sim (scored on the heal model, not\nsimc), empty for damage (and every sim saved before healers). Notes are what a healer's result assumes and what\nit couldn't measure.",
+                    "type": "string",
+                    "example": "hps"
+                },
+                "notes": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
                     }
                 },
                 "options": {
