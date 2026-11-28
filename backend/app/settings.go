@@ -13,9 +13,6 @@ import (
 	"wow-live/backend/models"
 )
 
-// defaultRecapSeconds is how long a new death's recap shows over the overlay until the owner changes it.
-const defaultRecapSeconds = 10
-
 // Settings are the desktop app's choices, and where its windows were, kept in settings.json in its data folder.
 type Settings struct {
 	path string
@@ -44,11 +41,11 @@ func LoadSettings(path string, defaults models.Settings) (*Settings, error) {
 
 // filled is settings with the default overlay columns where there are none (files saved before Nov 12 have no field);
 // an empty list is a choice and stays. A file saved before the overlay ranked by DPS or HPS (no RankBy) gets that
-// and the default death recap's seconds and raid rows.
+// and the default raid rows.
 func filled(s models.Settings) models.Settings {
 	if s.Overlay.RankBy == "" {
 		o := &s.Overlay
-		o.RankBy, o.DeathRecapSeconds, o.RaidDpsRows, o.RaidHpsRows = "dps", defaultRecapSeconds, 5, 3
+		o.RankBy, o.RaidDpsRows, o.RaidHpsRows = "dps", 5, 3
 	}
 	if s.Overlay.Columns == nil {
 		s.Overlay.Columns = []string{"dps", "hps", "kicks"}

@@ -13,6 +13,7 @@ import {
   type RaidPull,
   type Settings,
 } from './api'
+import { ChatCopy } from './ChatCopy'
 import { classColors } from './classColors'
 import { AbilityBars } from './FightMeters'
 import { Skeleton } from './Skeleton'
@@ -181,6 +182,7 @@ function OverlayKey(props: { keyView: KeyView; clockMS: number; settings: Overla
       </button>
       <div className="overlay-extra">
         {key.route && <p className="small">{routeLine(key.route)}</p>}
+        {key.status !== 'running' && settings.chatButtons && !settings.clickThrough && <ChatCopy keyView={key} />}
         {deathsOpen ? (
           <DeathsDrill keyView={key} onBack={closeDeaths} />
         ) : fresh ? (

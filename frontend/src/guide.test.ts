@@ -16,7 +16,7 @@ describe('showGuide', () => {
 })
 
 describe('guideMet', () => {
-  const view = { logsDirFound: true, lastLogMS: 5, character: 'A-B' } as SettingsView
+  const view = { logsDirFound: true, lastLogMS: 5, character: 'A-B', overlay: { show: 'off' } } as SettingsView
   it('ignores the optional step', () => {
     expect(guideMet(guideSteps(view, false))).toBe(true)
   })

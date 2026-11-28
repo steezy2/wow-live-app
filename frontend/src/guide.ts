@@ -15,7 +15,8 @@ export function showGuide(setupDone: boolean, savedKeys: number | null, reopened
   return !setupDone && (reopened || savedKeys === 0)
 }
 
-/** The guide's steps: log folder found, a combat log written, a character picked, optional Warcraft Logs keys. */
+/** The guide's steps: log folder found, a combat log written, a character picked, optional Warcraft Logs keys and
+ * overlay. */
 export function guideSteps(view: SettingsView, keysSet: boolean): GuideStep[] {
   return [
     { label: 'The combat log folder is found', met: view.logsDirFound, anchor: 'settings-game' },
@@ -26,6 +27,12 @@ export function guideSteps(view: SettingsView, keysSet: boolean): GuideStep[] {
     },
     { label: 'A character is picked for imports and parses', met: view.character !== '', anchor: 'settings-import' },
     { label: 'Warcraft Logs keys, for key reviews', met: keysSet, anchor: 'settings-wcl-keys', optional: true },
+    {
+      label: 'The overlay over the game, off until picked',
+      met: view.overlay.show !== 'off',
+      anchor: 'settings-overlay',
+      optional: true,
+    },
   ]
 }
 

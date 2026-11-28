@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from 'react'
+import { ChatCopy } from './ChatCopy'
 import { FixNext } from './FixNext'
 import { reviewURL, type KeyForces, type KeyGhost, type KeyReview as Review, type KeyTrack, type KeyView } from './api'
 import { chestLabel, clock, forcesCount, oddsText, pullTitle, resultText, routeLine, share, versusBest } from './format'
@@ -108,6 +109,7 @@ export function KeyDetails({
       {key.status !== 'running' && (
         <p className="links">
           <a href={reviewURL('mplus', key.start)}>Open full review</a>
+          <ChatCopy keyView={key} />
         </p>
       )}
 

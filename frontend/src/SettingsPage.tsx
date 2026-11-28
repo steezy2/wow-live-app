@@ -235,6 +235,14 @@ export function SettingsPage({
             ))}
           </select>
         </label>
+        <label className="inline">
+          <input
+            type="checkbox"
+            checked={overlay.chatButtons}
+            onChange={(e) => setOverlay({ ...overlay, chatButtons: e.target.checked })}
+          />{' '}
+          Mythic+: Copy DPS / HPS for chat buttons once a key ends (needs clicks on the overlay)
+        </label>
         <label>
           Players per card (0 for everyone)
           <input
