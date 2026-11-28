@@ -272,33 +272,50 @@ export function forcesCount({ count, total, pct }: { count: number; total: numbe
   return count > 0 && (pct < 100 || count >= total) ? ` · ${count}/${total}` : ''
 }
 
-/** The most WoW's chat box takes in one message. */
+/** The most WoW's chat box takes in one message (a /run command too). */
 const CHAT_MAX = 255
+/** The most of a player's name a chat row shows, so five rows fit in one /run. */
+const CHAT_NAME = 12
+/** The last chat row, saying where the meter comes from; the first left off when the rows don't fit. */
+const CHAT_AD = 'via WoW Live, free on the Microsoft Store'
 
-/** A finished key's meter as one line to paste in WoW's chat, which takes one line of at most CHAT_MAX characters:
- * the key and its result, then each player's DPS (what: 'dps') with the party's kicks, or each healer's HPS
- * (what: 'hps') with dispels, deaths and damage taken. A part that doesn't fit is left out. */
-export function chatLine(key: KeyView, what: 'dps' | 'hps'): string {
+/** A finished key's meter as rows for WoW's chat: the key and its result, then each player's DPS with their kicks
+ * (what: 'dps'), or each healer's HPS with their dispels, then the deaths and who took the most damage ('hps'), and
+ * CHAT_AD. */
+export function chatRows(key: KeyView, what: 'dps' | 'hps'): string[] {
   const result = key.status === 'timed' ? `timed${key.chests > 0 ? ` +${key.chests}` : ''}` : key.status
-  const head = `${key.dungeon} +${key.level} ${result} in ${clock(key.clockMS)}.`
-  const rows = key.overall.rows
-  const list = (label: string, value: (r: KeyMeterRow) => number, show: (n: number) => string) => {
-    const shown = rows.filter((r) => value(r) > 0).sort((a, b) => value(b) - value(a))
-    return shown.length ? `${label}: ${shown.map((r) => `${r.player} ${show(value(r))}`).join(', ')}.` : ''
-  }
-  const deaths = key.deaths.length ? `Deaths: ${key.deaths.length}.` : 'No deaths.'
-  const parts =
+  const [value, extra] =
     what === 'dps'
-      ? [head, list('DPS', (r) => r.dps, amount), list('Kicks', (r) => r.interrupts, String)]
-      : [
-        head,
-        list('HPS', (r) => r.hps, amount),
-        list('Dispels', (r) => r.dispels, String),
-        deaths,
-        list('Taken', (r) => r.damageTaken, amount),
-      ]
-  return parts
-    .filter(Boolean)
-    .reduce((line, part) => (line.length + part.length + 1 <= CHAT_MAX ? `${line} ${part}` : line), '')
-    .trim()
+      ? [(r: KeyMeterRow) => r.dps, (r: KeyMeterRow) => r.interrupts]
+      : [(r: KeyMeterRow) => r.hps, (r: KeyMeterRow) => r.dispels]
+  const head = `${key.dungeon} +${key.level} ${result} ${clock(key.clockMS)} - ${what.toUpperCase()} (${
+    what === 'dps' ? 'kicks' : 'dispels'
+  })`
+  const rows = key.overall.rows
+    .filter((r) => value(r) > 0)
+    .sort((a, b) => value(b) - value(a))
+    .map((r, i) => `${i + 1}. ${r.player.slice(0, CHAT_NAME)} ${amount(value(r))}${extra(r) ? ` (${extra(r)})` : ''}`)
+  if (what === 'dps') return [head, ...rows, CHAT_AD]
+  const taken = [...key.overall.rows].sort((a, b) => b.damageTaken - a.damageTaken)[0]
+  const deaths = key.deaths.length ? counted(key.deaths.length, 'death') : 'No deaths'
+  const footer = taken ? `${deaths} - most taken: ${taken.player} ${amount(taken.damageTaken)}` : deaths
+  return [head, ...rows, footer, CHAT_AD]
+}
+
+/** A chat a /run sends to (the game's SendChatMessage channel). */
+export type ChatChannel = 'PARTY' | 'SAY'
+
+/** The chat rows as one /run command of at most CHAT_MAX characters that sends each row to the channel as its own
+ * message, so they show one under the other: one string split on ;, which costs a character a row where a Lua list
+ * would cost three. CHAT_AD is left off first when the rows don't fit, then the last rows. Midnight blocks a script's
+ * party chat during a key or an encounter, and drops it without a word: Say still goes through. */
+export function chatRun(rows: string[], channel: ChatChannel): string {
+  const pack = (shown: string[]) => {
+    const text = shown.map((r) => r.replaceAll(';', ',').replace(/[\\"]/g, (c) => `\\${c}`)).join(';')
+    return `/run for l in("${text}"):gmatch"[^;]+"do SendChatMessage(l,"${channel}")end`
+  }
+  if (pack(rows).length <= CHAT_MAX) return pack(rows)
+  let shown = rows.filter((r) => r !== CHAT_AD)
+  while (shown.length > 1 && pack(shown).length > CHAT_MAX) shown = shown.slice(0, -1)
+  return pack(shown)
 }

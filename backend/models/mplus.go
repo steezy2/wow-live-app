@@ -713,6 +713,8 @@ type OverlaySettings struct {
 	RaidSideBySide bool `json:"raidSideBySide"`
 	// DeathRecapSeconds is how long a new death's recap shows over the cards without a click: 0 for off, else 3 to 60.
 	DeathRecapSeconds int `json:"deathRecapSeconds" minimum:"0" maximum:"60"`
+	// ChatButtons shows a finished key's Copy DPS / HPS for chat buttons on the overlay (off by default).
+	ChatButtons bool `json:"chatButtons"`
 }
 
 // OverlayPreset is a named layout of the overlay's cards that the Settings page fills in with one click.

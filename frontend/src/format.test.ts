@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   causesText,
-  chatLine,
+  chatRows,
+  chatRun,
   groupLogsByDay,
   clock,
   coverOf,
@@ -234,7 +235,7 @@ describe('forcesCount', () => {
   })
 })
 
-describe('chatLine', () => {
+describe('chat', () => {
   const row = (player: string, dps: number, hps: number, more: Partial<KeyMeterRow> = {}): KeyMeterRow => ({
     player, class: '', damage: 0, healing: 0, dps, hps, interrupts: 0, dispels: 0, purges: 0, damageTaken: 0,
     avoidable: 0, priorityDamage: 0, ...more,
@@ -245,30 +246,59 @@ describe('chatLine', () => {
     overall: {
       rows: [
         row('Tank', 150_000, 20_000, { interrupts: 4, damageTaken: 310e6 }),
-        row('Mage', 812_000, 0, { interrupts: 9, damageTaken: 90e6 }),
+        row('Averylongplayername', 812_000, 0, { interrupts: 9, damageTaken: 90e6 }),
         row('Priest', 40_000, 310_000, { dispels: 6, damageTaken: 70e6 }),
       ],
     },
   } as unknown as KeyView
 
-  it('lists DPS biggest first with the kicks', () => {
-    expect(chatLine(key, 'dps')).toBe(
-      'Ara-Kara +12 timed +2 in 28:14. DPS: Mage 812k, Tank 150k, Priest 40k. Kicks: Mage 9, Tank 4.',
+  it('ranks DPS with kicks, names cut short', () => {
+    expect(chatRows(key, 'dps')).toEqual([
+      'Ara-Kara +12 timed +2 28:14 - DPS (kicks)',
+      '1. Averylongpla 812k (9)',
+      '2. Tank 150k (4)',
+      '3. Priest 40k',
+      'via WoW Live, free on the Microsoft Store',
+    ])
+  })
+
+  it('ranks healing with dispels, then deaths and the most damage taken', () => {
+    expect(chatRows({ ...key, status: 'depleted' }, 'hps')).toEqual([
+      'Ara-Kara +12 depleted 28:14 - HPS (dispels)',
+      '1. Priest 310k (6)',
+      '2. Tank 20k',
+      '1 death - most taken: Tank 310.0M',
+      'via WoW Live, free on the Microsoft Store',
+    ])
+  })
+
+  it('sends each row to the channel from one /run, quotes escaped', () => {
+    expect(chatRun(['Head', 'Say "hi"; bye'], 'SAY')).toBe(
+      '/run for l in("Head;Say \\"hi\\", bye"):gmatch"[^;]+"do SendChatMessage(l,"SAY")end',
     )
   })
 
-  it('lists healing with dispels, deaths and damage taken, skipping players at 0', () => {
-    expect(chatLine({ ...key, status: 'depleted' }, 'hps')).toBe(
-      'Ara-Kara +12 depleted in 28:14. HPS: Priest 310k, Tank 20k. Dispels: Priest 6. Deaths: 1. ' +
-        'Taken: Tank 310.0M, Mage 90.0M, Priest 70.0M.',
-    )
+  it('leaves off the Store line first, then the last rows, past the chat box', () => {
+    const players = Array.from({ length: 20 }, (_, i) => `${i + 1}. Player${i} 812k (9)`)
+    const rows = [...players, 'via WoW Live, free on the Microsoft Store']
+    const packed = chatRun(rows, 'PARTY')
+    expect(packed.length).toBeLessThanOrEqual(255)
+    expect(packed).toContain('1. Player0 812k (9)')
+    expect(packed).not.toContain('Player19')
+    expect(packed).not.toContain('Microsoft Store')
   })
 
-  it('leaves out what goes past the chat box', () => {
-    const many = { ...key, overall: { ...key.overall, rows: [...key.overall.rows, ...Array.from({ length: 12 },
-      (_, i) => row(`Longplayername${i}`, 1000, 0, { interrupts: 1 }))] } }
-    const line = chatLine(many, 'dps')
-    expect(line.length).toBeLessThanOrEqual(255)
-    expect(line.startsWith('Ara-Kara +12 timed +2 in 28:14.')).toBe(true)
+  it('fits five players with the Store line, keeping the rows over it when names run long', () => {
+    const party = (names: string[], dungeon: string) => {
+      const rows = names.map((p) => row(p, 1_234_000, 0, { interrupts: 12 }))
+      return chatRun(chatRows({ ...key, dungeon, overall: { ...key.overall, rows } }, 'dps'), 'PARTY')
+    }
+    const short = party(['Thrall', 'Jaina', 'Anduin', 'Sylvanas', 'Illidan'], 'Ara-Kara')
+    expect(short).toContain('5. Illidan')
+    expect(short).toContain('Microsoft Store')
+    const long = party(['Alphaalphaal', 'Bravobravobr', 'Charliecharl', 'Deltadeltade', 'Echoechoecho'],
+      'Operation: Floodgate')
+    expect(long.length).toBeLessThanOrEqual(255)
+    expect(long).toContain('5. Echoechoecho')
   })
 })
